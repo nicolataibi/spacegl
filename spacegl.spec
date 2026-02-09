@@ -5,7 +5,7 @@ Release:        %{rel}%{?dist}
 Summary:        Space GL: A space exploration & combat game, Multi-User Client-Server Edition
 License:        GPL-3.0-or-later
 URL:            https://github.com/nicolataibi/spacegl
-Source0:        Source0: https://github.com/nicolataibi/spacegl/archive/refs/tags/%{name}-%{version}-1.tar.gz
+Source0:        https://github.com/nicolataibi/spacegl/archive/refs/tags/%{name}-%{version}-1.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  make
