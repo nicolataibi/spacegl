@@ -5,7 +5,7 @@ Release:        %{rel}%{?dist}
 Summary:        Space GL: A space exploration & combat game, Multi-User Client-Server Edition
 License:        GPL-3.0-or-later
 URL:            https://github.com/nicolataibi/spacegl
-Source0:        https://github.com/nicolataibi/spacegl/archive/refs/tags/%{name}-%{version}-%{rel}.tar.gz
+Source0:        https://github.com/nicolataibi/spacegl/archive/refs/tags/%{version}-%{rel}.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  make
@@ -30,9 +30,10 @@ advanced cryptographic communication frequencies (AES, PQC, etc.),
 and a technical 3D visualizer based on OpenGL and FreeGLUT.
 
 %package data
-Requires: %{name}%{?_isa} = %{version}-%{release}
-Summary: Data files for Space GL
+Summary: Data files for %{name}
 BuildArch: noarch
+# 2. Aggiungi questa riga mancante:
+Requires: %{name}%{?_isa} = %{version}-%{release}
 
 %description data
 Data files (graphics, sounds, and images) for Space GL.
@@ -73,7 +74,7 @@ cat > %{buildroot}%{_datadir}/applications/%{name}.desktop <<EOF
 [Desktop Entry]
 Name=Space GL
 Comment=Space exploration & combat game
-Exec=env SPACEGL_KEY="thisisasecretkeyforencryption" spacegl-client
+Exec=spacegl-client
 Icon=applications-games
 Terminal=true
 Type=Application
