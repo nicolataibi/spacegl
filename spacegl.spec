@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Nicola Taibi
 %global rel 2
 Name:           spacegl
 Version:        2026.02.09
@@ -5,7 +6,7 @@ Release:        %{rel}%{?dist}
 Summary:        Space GL: A space exploration & combat game, Multi-User Client-Server Edition
 License:        GPL-3.0-or-later
 URL:            https://github.com/nicolataibi/spacegl
-Source0:        https://github.com/nicolataibi/spacegl/archive/refs/tags/%{version}-2.tar.gz
+Source0:        https://github.com/nicolataibi/spacegl/archive/refs/tags/%{version}-%{rel}.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  make
@@ -39,7 +40,7 @@ Requires: %{name} = %{version}-%{release}
 Data files (graphics, sounds, and images) for Space GL.
 
 %prep
-%setup -q -n %{name}-%{version}-2
+%setup -q -n %{name}-%{version}-%{rel}
 
 %build
 # Forza il ricalcolo dei flag di Fedora
@@ -100,5 +101,6 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/readme_assets/
 
 %changelog
-* Mon Feb 09 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-1
+* Mon Feb 09 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-2
+- Bug Fixes
 - Renamed project to Space GL
