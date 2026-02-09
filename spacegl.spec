@@ -1,11 +1,11 @@
-%global rel 1
+%global rel 2
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
 Summary:        Space GL: A space exploration & combat game, Multi-User Client-Server Edition
 License:        GPL-3.0-or-later
 URL:            https://github.com/nicolataibi/spacegl
-Source0:        https://github.com/nicolataibi/spacegl/archive/refs/tags/%{version}-1.tar.gz
+Source0:        https://github.com/nicolataibi/spacegl/archive/refs/tags/%{version}-2.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  make
@@ -33,13 +33,13 @@ and a technical 3D visualizer based on OpenGL and FreeGLUT.
 Summary: Data files for %{name}
 BuildArch: noarch
 # 2. Aggiungi questa riga mancante:
-Requires: %{name}%{?_isa} = %{version}-%{release}
+Requires: %{name} = %{version}-%{release}
 
 %description data
 Data files (graphics, sounds, and images) for Space GL.
 
 %prep
-%setup -q -n %{name}-%{version}-1
+%setup -q -n %{name}-%{version}-2
 
 %build
 # Forza il ricalcolo dei flag di Fedora
