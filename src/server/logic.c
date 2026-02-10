@@ -647,9 +647,9 @@ void update_game_logic() {
         for (int a = 0; a < anomaly_q->asteroid_count; a++) {
             double d = sqrt(pow(players[i].state.s1 - anomaly_q->asteroids[a]->x, 2) + pow(players[i].state.s2 - anomaly_q->asteroids[a]->y, 2) + pow(players[i].state.s3 - anomaly_q->asteroids[a]->z, 2));
             if (d < 0.8) {
-                if (players[i].warp_speed > 0.1) {
+                if (players[i].hyper_speed > 0.1) {
                     if (global_tick % 30 == 0) {
-                        int dmg = (int)(players[i].warp_speed * 1000.0);
+                        int dmg = (int)(players[i].hyper_speed * 1000.0);
                         for(int s=0; s<6; s++) players[i].state.shields[s] -= (dmg/10);
                         players[i].state.system_health[1] -= 0.5f; /* Impulse engines damage */
                         send_server_msg(i, "WARNING", "Colliding with asteroids! Reduce speed!");
@@ -739,7 +739,7 @@ void update_game_logic() {
                 players[i].state.s1 = ns1; players[i].state.s2 = ns2; players[i].state.s3 = ns3;
                 
                 players[i].nav_state = NAV_STATE_IDLE;
-                players[i].warp_speed = 0;
+                players[i].hyper_speed = 0;
                 
                 send_server_msg(i, "CRITICAL", "SPATIAL RIFT ENCOUNTERED! UNCONTROLLED Deep Space FOLDING IN PROGRESS!");
                 send_server_msg(i, "HELMSMAN", "Teleportation complete. Sensors recalibrating to new position.");
@@ -826,7 +826,7 @@ void update_game_logic() {
             if (players[i].nav_timer <= 0) {
                 if (players[i].nav_state == NAV_STATE_ALIGN) {
                     players[i].nav_state = NAV_STATE_HYPERDRIVE;
-                    double factor = players[i].warp_speed; /* Factor was stored here temporarily */
+                    double factor = players[i].hyper_speed; /* Factor was stored here temporarily */
                     if (factor < 1.0) factor = 1.0;
                     
                     double dist = sqrt(pow(players[i].target_gx - players[i].gx, 2) + pow(players[i].target_gy - players[i].gy, 2) + pow(players[i].target_gz - players[i].gz, 2));
@@ -842,23 +842,23 @@ void update_game_logic() {
                     players[i].nav_timer = (int)((dist / 10.0) * time_per_q * 30.0);
                     if (players[i].nav_timer < 20) players[i].nav_timer = 20;
                     
-                    players[i].warp_speed = dist / players[i].nav_timer;
+                    players[i].hyper_speed = dist / players[i].nav_timer;
                     
                     char msg[128];
                     sprintf(msg, "Hyperdrive drive engaged. Velocity: Hyperdrive %.1f. ETA: %.1f seconds.", factor, (double)players[i].nav_timer / 30.0);
                     send_server_msg(i, "HELMSMAN", msg);
                 } else {
                     players[i].nav_state = NAV_STATE_IMPULSE;
-                    char msg[64]; sprintf(msg, "Impulse engaged at %.0f%%.", players[i].warp_speed * 200.0);
+                    char msg[64]; sprintf(msg, "Impulse engaged at %.0f%%.", players[i].hyper_speed * 200.0);
                     send_server_msg(i, "HELMSMAN", msg);
                 }
             }
         }
         else if (players[i].nav_state == NAV_STATE_HYPERDRIVE) {
             players[i].nav_timer--;
-            players[i].gx += players[i].dx * players[i].warp_speed;
-            players[i].gy += players[i].dy * players[i].warp_speed;
-            players[i].gz += players[i].dz * players[i].warp_speed;
+            players[i].gx += players[i].dx * players[i].hyper_speed;
+            players[i].gy += players[i].dy * players[i].hyper_speed;
+            players[i].gz += players[i].dz * players[i].hyper_speed;
             
             /* Recalculate local sector and quadrant for visualization */
             players[i].state.q1 = get_q_from_g(players[i].gx);
@@ -885,9 +885,9 @@ void update_game_logic() {
                 players[i].state.energy -= 1;
                 /* Speed Scales with Engine Power (0.0 - 1.0). Baseline is 10x, max is 25x */
                 float engine_mult = 8.0f + (players[i].state.power_dist[0] * 17.0f);
-                players[i].gx += players[i].dx * players[i].warp_speed * engine_mult;
-                players[i].gy += players[i].dy * players[i].warp_speed * engine_mult;
-                players[i].gz += players[i].dz * players[i].warp_speed * engine_mult;
+                players[i].gx += players[i].dx * players[i].hyper_speed * engine_mult;
+                players[i].gy += players[i].dy * players[i].hyper_speed * engine_mult;
+                players[i].gz += players[i].dz * players[i].hyper_speed * engine_mult;
                 
                 players[i].state.q1 = get_q_from_g(players[i].gx);
                 players[i].state.q2 = get_q_from_g(players[i].gy);
@@ -936,7 +936,7 @@ void update_game_logic() {
                 players[i].gy = players[i].target_gy;
                 players[i].gz = players[i].target_gz;
                 players[i].dx = 0; players[i].dy = 0; players[i].dz = 0;
-                players[i].warp_speed = 0;
+                players[i].hyper_speed = 0;
                 
                 int tq1 = get_q_from_g(players[i].gx);
                 int tq2 = get_q_from_g(players[i].gy);
@@ -967,7 +967,7 @@ void update_game_logic() {
 
             if (tid >= 1 && tid <= 32 && players[tid-1].active) {
                 tx = players[tid-1].gx; ty = players[tid-1].gy; tz = players[tid-1].gz;
-                tvx = players[tid-1].dx * players[tid-1].warp_speed; tvy = players[tid-1].dy * players[tid-1].warp_speed; tvz = players[tid-1].dz * players[tid-1].warp_speed;
+                tvx = players[tid-1].dx * players[tid-1].hyper_speed; tvy = players[tid-1].dy * players[tid-1].hyper_speed; tvz = players[tid-1].dz * players[tid-1].hyper_speed;
                 tq1 = players[tid-1].state.q1; tq2 = players[tid-1].state.q2; tq3 = players[tid-1].state.q3;
                 found = true;
             } else if (tid >= 100 && tid < 100+MAX_NPC && npcs[tid-100].active) {
@@ -1019,12 +1019,12 @@ void update_game_logic() {
                 if (ideal_speed > 0.8) { ideal_speed = 0.8; }
                 if (ideal_speed < -0.1) { ideal_speed = -0.1; }
                 
-                players[i].warp_speed = (players[i].warp_speed * 0.7) + (ideal_speed * 0.3);
-                players[i].gx += players[i].dx * players[i].warp_speed;
-                players[i].gy += players[i].dy * players[i].warp_speed;
-                players[i].gz += players[i].dz * players[i].warp_speed;
+                players[i].hyper_speed = (players[i].hyper_speed * 0.7) + (ideal_speed * 0.3);
+                players[i].gx += players[i].dx * players[i].hyper_speed;
+                players[i].gy += players[i].dy * players[i].hyper_speed;
+                players[i].gz += players[i].dz * players[i].hyper_speed;
                 
-                int drain = 10 + (int)(fabs(players[i].warp_speed)*20.0);
+                int drain = 10 + (int)(fabs(players[i].hyper_speed)*20.0);
                 players[i].state.energy -= drain;
                 
                 /* Quadrant Transition Check */
@@ -1054,7 +1054,7 @@ void update_game_logic() {
 
         if (hit_barrier && players[i].nav_state != NAV_STATE_CHASE && players[i].nav_state != NAV_STATE_IDLE) {
             players[i].nav_state = NAV_STATE_IDLE;
-            players[i].warp_speed = 0;
+            players[i].hyper_speed = 0;
             send_server_msg(i, "HELMSMAN", "Warning: We have hit the Galactic Barrier. Engines disengaged.");
         }
 
@@ -1093,7 +1093,7 @@ void update_game_logic() {
             if (d < DIST_EVENT_HORIZON) { 
                 send_server_msg(i, "CRITICAL", "Event Horizon crossed! Spaghettification in progress..."); 
                 players[i].state.energy = 0; players[i].state.crew_count = 0;
-                players[i].nav_state = NAV_STATE_IDLE; players[i].warp_speed = 0;
+                players[i].nav_state = NAV_STATE_IDLE; players[i].hyper_speed = 0;
                 players[i].dx = 0; players[i].dy = 0; players[i].dz = 0;
                 players[i].state.boom = (NetPoint){(float)players[i].state.s1, (float)players[i].state.s2, (float)players[i].state.s3, 1}; 
                 players[i].active = 0; /* Ship destroyed */
@@ -1105,7 +1105,7 @@ void update_game_logic() {
             if (d < 0.8) { 
                 send_server_msg(i, "CRITICAL", "Impact with star corona! Hull melting..."); 
                 players[i].state.energy = 0; players[i].state.crew_count = 0;
-                players[i].nav_state = NAV_STATE_IDLE; players[i].warp_speed = 0;
+                players[i].nav_state = NAV_STATE_IDLE; players[i].hyper_speed = 0;
                 players[i].dx = 0; players[i].dy = 0; players[i].dz = 0;
                 players[i].state.boom = (NetPoint){(float)players[i].state.s1, (float)players[i].state.s2, (float)players[i].state.s3, 1}; 
                 break; 
@@ -1116,7 +1116,7 @@ void update_game_logic() {
             if (d < 0.8) { 
                 send_server_msg(i, "CRITICAL", "Planetary collision! Structural failure."); 
                 players[i].state.energy = 0; players[i].state.crew_count = 0;
-                players[i].nav_state = NAV_STATE_IDLE; players[i].warp_speed = 0;
+                players[i].nav_state = NAV_STATE_IDLE; players[i].hyper_speed = 0;
                 players[i].dx = 0; players[i].dy = 0; players[i].dz = 0;
                 players[i].state.boom = (NetPoint){(float)players[i].state.s1, (float)players[i].state.s2, (float)players[i].state.s3, 1}; 
                 break; 
@@ -1317,7 +1317,7 @@ void update_game_logic() {
                     send_server_msg((int)(p-players), "WARNING", "HIT BY Plasma Torpedo!");
                     if(p->state.energy <= 0) { 
                         p->state.energy = 0; p->state.crew_count = 0;
-                        p->nav_state = NAV_STATE_IDLE; p->warp_speed = 0;
+                        p->nav_state = NAV_STATE_IDLE; p->hyper_speed = 0;
                         p->state.boom = (NetPoint){(float)players[i].tx, (float)players[i].ty, (float)players[i].tz, 1}; 
                     }
                     hit = true; break;

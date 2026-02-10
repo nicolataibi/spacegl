@@ -190,9 +190,28 @@ The `stellar_client` represents the operational core of the user experience, act
 
 In summary, `stellar_client` transforms a simple text terminal into an advanced and fluid command bridge, typical of an GDIS interface.
 
-### 3. The 3D Tactical View (`stellar_3dview`)
+### 3. The Galactic Viewer (`spacegl_viewer`)
+The `spacegl_viewer` is a low-level diagnostic tool designed for administrators and advanced players to inspect the state of the persistent galaxy stored in `galaxy.dat`.
+
+*   **Offline Inspection**: Unlike the 3D viewer, which requires a running server and client, the `spacegl_viewer` reads the binary `galaxy.dat` file directly.
+*   **Security Monitoring**: Provides a detailed report on the galaxy's cryptographic status, including HMAC-SHA256 signature verification and active encryption flags.
+*   **Detailed Statistics**: Displays global counts for all 17 classes of objects (NPCs, Stars, Planets, Monsters, etc.) and player metrics.
+*   **Astrometrics commands**:
+    *   `stats`: Comprehensive galaxy-wide census and security report.
+    *   `map <q3>`: Generates a 2D ASCII slice of the galaxy at a specific Z-depth (1-10), showing spatial distribution of nebulae, rifts, platforms, and stars.
+    *   `list <q1> <q2> <q3>`: Provides a pinpoint census of a single quadrant, revealing precise coordinates, resource types (e.g., Aetherium, Neo-Titanium), and ship classes for all entities.
+    *   `players`: Lists all persistent commanders, their current sector, cloaking status, and active cryptographic frequency.
+    *   `search <name>`: Performs a recursive search to locate a specific captain or vessel across the entire 1000-quadrant universe.
+
+### 4. The 3D Tactical View (`stellar_3dview`)
 The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, designed to provide an immersive spatial representation of the surrounding tactical area and the entire galaxy.
 
+*   **Widescreen Experience (16:9)**: The display window is optimized for 1280x720 resolution, offering a cinematic field of view.
+*   **Dynamic FOV**: The system automatically adjusts the Field of View: fixed at 45° in tactical mode for maximum maneuver precision, and wide-angle at 65° in Bridge mode for total immersion.
+*   **Dynamic AR Compass (Augmented Reality)**: The `axs` visual system now features an advanced inertial navigation suite:
+    *   **Tilting Heading Ring**: The horizontal compass ring is now locked to the ship's flight plane, tilting with pitch to maintain a constant directional reference in the pilot's field of view.
+    *   **Vertical Mark Arc**: The vertical degree arc remains anchored to the galactic zenith, allowing for precise reading of the ship's effective pitch (climb/dive) as the nose slides along the arc's scale.
+    *   **Fixed Galactic Axes**: X, Y, and Z axes remain absolute reference points unaffected by ship movement.
 *   **Cinematic Fluidity (LERP)**: To overcome the discrete nature of network packets, the engine implements **Linear Interpolation (LERP)** algorithms for both positions and orientations (Heading/Mark). Objects don't "jump" from point to point but glide smoothly through space, maintaining 60 FPS even if the server updates logic at a lower frequency.
 *   **High-Performance Rendering**: Uses **Vertex Buffer Objects (VBO)** to handle thousands of background stars and the galactic grid, minimizing CPU calls and maximizing GPU throughput.
 *   **Stellar Cartography (Map Mode)**:
@@ -300,7 +319,7 @@ The Space GL universe is a dynamic ecosystem populated by 17 classes of entities
     *   **Aftermath**: The star is replaced by a permanent **Black Hole**, forever changing the galactic map.
 *   **Planets**: Celestial bodies rich in minerals. They can be scanned and mined (`min`) for Aetherium, Neo-Titanium, and other vital resources.
 *   **Black Holes**: Gravitational singularities with accretion disks. They are the primary source of Plasma Reserves (`har`), but their pull can be fatal.
-*   **Nebulas**: Large clouds of ionized gases (Mutara, Metreon, Dark Matter Cloud classes, etc.). They provide tactical cover (natural cloaking) but disrupt sensors.
+*   **Nebulas**: Large clouds of ionized gases (Standard, High-Energy, Dark Matter, etc.). They provide tactical cover (natural cloaking) but disrupt sensors.
 *   **Pulsars**: Neutron stars emitting deadly radiation. Navigating too close damages systems and crew.
 *   **Comets**: Fast-moving objects with volumetric tails. They can be analyzed to collect rare gases.
 *   **Spatial Rifts**: Tears in the spacetime fabric. They act as natural teleporters that project the ship to a random point in the galaxy.
@@ -310,7 +329,7 @@ The Space GL universe is a dynamic ecosystem populated by 17 classes of entities
 *   **Korthian Empire**: Aggressive warriors patrolling quadrants, often protected by defense platforms.
 *   **Xylari Star Empire**: Masters of deception using cloaking devices to launch surprise attacks.
 *   **Swarm Collective**: The greatest threat. Their Cubes have massive firepower and superior regenerative capabilities.
-*   **NPC Factions**: Vesperians, Dominion (Ascendant), Quarzites, Saurian, Gilded, Fluidic Void, Cryos, and Apex. Each with varying levels of hostility and power.
+*   **NPC Factions**: Vesperians, Ascendant, Quarzites, Saurian, Gilded, Fluidic Void, Cryos, and Apex. Each with varying levels of hostility and power.
 
 #### ⚖️ Faction System and "Renegade" Protocol
 Space GL implements a dynamic reputation system that manages relationships between the player and the various galactic powers.
@@ -412,6 +431,10 @@ The effectiveness of your sensors depends directly on the health of the **Sensor
 *   `cha`: **Chase**. Automatically chases and intercepts the locked target.
 *   `rad <MSG>`: **Radio**. Sends a Deep Space message to other captains (@Faction for team chat).
 *   `axs` / `grd`: **Visual Guides**. Toggles 3D axes or tactical grid overlay.
+*   `bridge [top/bottom/up/down/left/right/rear/off]`: **Bridge View**. Toggles a cinematic first-person view.
+    *   `top/on`: Standard bridge view above the command dome.
+    *   `bottom`: Under-hull perspective.
+    *   `up/down/left/right/rear`: Changes looking direction while maintaining the current position (top/bottom).
 *   `enc <algo>`: **Encryption Toggle**. Enables or disables encryption in real-time. Supports **AES-256-GCM**, **ChaCha20**, **ARIA**, **Camellia**, **Blowfish**, **RC4**, **CAST5**, **IDEA**, **3DES**, and **PQC (ML-KEM)**. Essential for protecting communications and reading secure messages from other captains.
 *   `tor`: **Fire Plasma Torpedo**. Launches an auto-guided torpedo at the locked target.
 *   `tor <H> <M>`: Launches a torpedo in manual ballistic mode (Heading/Mark).
@@ -630,7 +653,7 @@ Space GL distinguishes between **Active Systems**, **Cargo Storage**, and the **
     *   **Usage**: If no ID is provided, lists all 10 ship systems with their current integrity status.
     *   **System IDs**: `0`: Hyperdrive, `1`: Impulse, `2`: Sensors, `3`: Transp, `4`: Ion Beams, `5`: Torps, `6`: Computer, `7`: Life Support, `8`: Shields, `9`: Aux.
 *   **Crew Management**: 
-    *   Initial personnel number depends on ship class (e.g., 1012 for Galaxy, 50 for Defiant).    *   **Vital Integrity**: If **Life Support** drops below 75%, the crew will start suffering periodic losses.
+    *   Initial personnel number depends on ship class (e.g., 1012 for Explorer, 50 for Escort).    *   **Vital Integrity**: If **Life Support** drops below 75%, the crew will start suffering periodic losses.
     *   **Shield Integrity**: If the **Shield System (ID 8)** integrity is low, the automatic recharge of the 6 quadrants is slowed down.
     *   **Failure Condition**: If crew reaches **zero**, the mission ends and the ship is considered lost.
 
@@ -693,7 +716,7 @@ In Space GL, encryption is not just about security—it's a **tactical frequency
         | **Xylari** | `@Xylari` | `@Rom` |
         | **Swarm** | `@Swarm` | `@Bor` |
         | **Vesperian** | `@Vesperian` | `@Car` |
-        | **Dominion** | `@Ascendant` | `@Jem` |
+        | **Ascendant** | `@Ascendant` | `@Jem` |
         | **Quarzite** | `@Quarzite` | `@Tho` |
         | **Gilded** | `@Gilded` | `@Fer` |
         | **Fluidic Void** | `@FluidicVoid`| `@8472` |
@@ -778,9 +801,9 @@ Torpedoes (`tor` command) are physically simulated weapons with high precision:
 ### 🌪️ Space Anomalies and Environmental Hazards
 The quadrant is scattered with natural phenomena detectable by both sensors and the **3D tactical view**:
 *   **Nebulas (ID 8xxx)**:
-    *   **Classes**: Mutara, Metreon, Dark Matter Cloud, Paulson, McAllister, Arachnia.
+    *   **Classes**: Standard, High-Energy, Dark Matter, Ionic, Gravimetric, Temporal.
     *   **Effect**: Clouds of gas and particles that interfere with short and long range sensors (telemetry noise and distortion).
-    *   **3D View**: Colored gas volumes based on class (Purple/Blue for Mutara, Yellow/Orange for Metreon, Black/Purple for Dark Matter, etc.).
+    *   **3D View**: Colored gas volumes based on class (Purple/Blue for Standard, Yellow/Orange for High-Energy, Black/Purple for Dark Matter, etc.).
     *   **Hazard**: Remaining inside (Distance < 2.0) causes constant energy drain and inhibits shield regeneration.
     *   **Advantage**: Provides natural tactical cover (passive cloaking) against enemy sensors.
 *   **Pulsars (ID 5xxx)**:
@@ -850,12 +873,12 @@ This section provides an official reference to the most celebrated commanders of
 
 #### 1. Korthian Empire
 *   **Kor**: The legendary "Dahar Master", pioneer of early tactical contacts with the Alliance.
-*   **Martok**: Supreme Commander of Korthian forces during the Dominion War.
-*   **Gowron**: Chancellor and veteran of the Korthian Civil War.
+*   **Khorak**: Supreme Commander of Korthian forces during the Great Galactic War.
+*   **Dahar**: Chancellor and veteran of the Korthian Civil War.
 
 #### 2. Xylari Star Empire
-*   **Tomalak**: Commander of D'deridex class vessels and historic tactical adversary.
-*   **Sela**: Operational commander and strategist specializing in infiltration operations.
+*   **Valerius**: Commander of D'deridex class vessels and historic tactical adversary.
+*   **Alara**: Operational commander and strategist specializing in infiltration operations.
 *   **Donatra**: Commander of the *Valdore*, known for tactical cooperation during the Shinzon crisis.
 
 #### 3. Swarm Collective
@@ -868,7 +891,7 @@ This section provides an official reference to the most celebrated commanders of
 *   **Gul Madred**: Expert in interrogation and intelligence operations.
 *   **Gul Damar**: Leader of the Vesperian resistance and successor to supreme command.
 
-#### 5. Dominion (Ascendant)
+#### 5. Ascendant (Ascendant)
 *   **Remata'Klan**: First of the Ascendant, symbol of discipline and absolute loyalty.
 *   **Ikat'ika**: Commander of ground forces and master of tactical combat.
 *   **Karat'Ulan**: Operational commander in the Gamma Quadrant.
@@ -895,7 +918,7 @@ This section provides an official reference to the most celebrated commanders of
 
 #### 10. Cryos Enclave
 *   **Thot Pran**: High-ranking commander during the offensive in the Alpha Quadrant.
-*   **Thot Gor**: Operational leader during the strategic alliance with the Dominion.
+*   **Archon**: Operational leader during the strategic alliance with the Ascendant.
 *   **Thot Tarek**: Commander of Cryos strike forces.
 
 #### 11. Apex
@@ -910,7 +933,7 @@ This section provides an official reference to the most celebrated commanders of
 The GDIS central database preserves the deeds of commanders who shaped the boundaries of known space through darkness and light.
 
 #### 🌌 1. Stellar Alliance (Alliance)
-*   🛡️ **High Admiral Hyperion Niklaus**: Known as "The Wall of Orion," he led the defense of the Vanguard during the first great Swarm invasion.
+*   🛡️ **High Admiral Hyperion Niklaus**: Known as "The Wall of Orion," he led the defense of the Aegis during the first great Swarm invasion.
 *   ⚓ **Captain Lyra Vance**: The legendary explorer who mapped the Einstein-Rosen Bridge to the Delta Quadrant using a Scout-class vessel.
 *   📜 **Commander Leandros Thorne**: A refined diplomat and tactician, famous for the Aetherium Treaty that ended the century-long war with the Korthians.
 
@@ -953,7 +976,7 @@ In Space GL, the choice of vessel class defines the Commander's operational prof
 
 #### 🏛️ Legacy Class (Heavy Cruiser)
 The symbol of Alliance exploration. A balanced, versatile, and robust vessel.
-*   **Reference Commander**: **Hyperion Niklaus**. His leadership on the original Vanguard defined the tactical standards of the academy.
+*   **Reference Commander**: **Hyperion Niklaus**. His leadership on the original Aegis defined the tactical standards of the academy.
 
 #### 🛡️ Explorer Class (Flagship)
 Designed for long-duration missions and first contact. Features the most advanced GDIS systems.
@@ -976,13 +999,13 @@ The Alliance also employs specialized vessels like the **Carrier** class (drone 
 
 To facilitate tactical coordination, the GDIS system adopts a standardized nomenclature for Alliance vessel components, illustrated here on the "Monoblock" configuration of the Legacy class:
 
-1.  **Primary Hull (Command Saucer)**: The primary discoidal body, housing command bridges, quarters, and scientific laboratories.
+1.  **Primary Hull (Command Module)**: The primary discoidal body, housing command bridges, quarters, and scientific laboratories.
 2.  **Tactical Hub (Bridge Module)**: The reinforced upper dome, the computational center for weapon targeting and fleet management.
 3.  **Engineering Section (Secondary Hull)**: The integrated rear oblong section, designed to house the plasma reactor and Aetherium tanks.
 4.  **Main Deflector Array (Rear Sphere)**: A resonant sphere spaced from the main body, used for particle deflection and Hyperdrive flow stabilization.
 5.  **Energy Resonance Rings**: A series of **3 rotating magnetic induction rings** around the tail deflector, responsible for FTL field coherence.
 6.  **Structural Pylons (Support Arms)**: Tapered ellipsoid-shaped support arms that rigidly connect the engineering section to the propulsion units.
-7.  **Hyperdrive Nacelles (FTL Units)**: Lateral twin nacelles, primary warp bubble generators required for superluminal spaceflight.
+7.  **Hyperdrive Nacelles (FTL Units)**: Lateral twin nacelles, primary Hyperdrive bubble generators required for superluminal spaceflight.
 
 This elongated architecture, devoid of thin connections ("Neck"), represents the Alliance's technological evolution toward more robust vessels resistant to kinetic impacts.
 

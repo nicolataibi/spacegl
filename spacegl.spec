@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 2
+%global rel 3
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -86,7 +86,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 
 %files
 %license LICENSE.txt
-%doc README_it.md README.md 
+%doc README_it.md README.md HOWTO.txt
 
 %{_bindir}/spacegl_server
 %{_bindir}/spacegl_client
@@ -101,6 +101,6 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/readme_assets/
 
 %changelog
-* Mon Feb 09 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-2
-- Bug Fixes
-- Renamed project to Space GL
+* Tue Feb 10 2026 Nicola Taibi <tua@email.it> - 2026.02.09-3
+- Add license header to HOWTO.txt
+- Clean up %files section in spec

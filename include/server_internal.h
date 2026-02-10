@@ -54,7 +54,7 @@ typedef struct {
     double start_h, start_m;
     int nav_state;
     int nav_timer;
-    double warp_speed;
+    double hyper_speed;
     double approach_dist;
     
     /* Torpedo State */

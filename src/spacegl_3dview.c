@@ -263,7 +263,7 @@ void initShaders() {
         "    /* Final composition */\n"
         "    vec3 finalCol = mix(sceneCol, diskCol, disk_mask * 0.8);\n"
         "    \n"
-        "    /* Bright Photon Ring */\n"
+        "    /* Bright Plasma Ring */\n"
         "    if (d < 0.28) finalCol += vec3(1.0, 0.9, 0.6) * (1.0 - (d-0.25)*33.0);\n"
         "    \n"
         "    gl_FragColor = vec4(finalCol, 1.0);\n"
@@ -330,7 +330,7 @@ void initShaders() {
         "varying vec2 TexCoords;\n"
         "void main() {\n"
         "    float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);\n"
-        "    vec2 tex_offset = 1.0 / vec2(1024.0, 768.0);\n" // Hardcoded resolution for simplicity
+        "    vec2 tex_offset = 1.0 / vec2(1280.0, 720.0);\n" // Hardcoded resolution for simplicity
         "    vec3 result = texture2D(image, TexCoords).rgb * weight[0];\n"
         "    if(horizontal) {\n"
         "        for(int i = 1; i < 5; ++i) {\n"
@@ -392,12 +392,12 @@ void initBloomFBO() {
 
     glGenRenderbuffers(1, &rbo_color_msaa);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo_color_msaa);
-    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_RGB16F, 1024, 768);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_RGB16F, 1280, 720);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo_color_msaa);
 
     glGenRenderbuffers(1, &rbo_depth_msaa);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo_depth_msaa);
-    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT, 1024, 768);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT, 1280, 720);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo_depth_msaa);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -409,7 +409,7 @@ void initBloomFBO() {
 
     glGenTextures(1, &tex_scene);
     glBindTexture(GL_TEXTURE_2D, tex_scene);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 1024, 768, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 1280, 720, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_scene, 0);
@@ -423,7 +423,7 @@ void initBloomFBO() {
     for (unsigned int i = 0; i < 2; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo_pingpong[i]);
         glBindTexture(GL_TEXTURE_2D, tex_pingpong[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 1024, 768, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 1280, 720, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
@@ -458,6 +458,7 @@ float zoom = -14.0f;
 float autoRotate = 0.075f;
 float pulse = 0.0f;
 float map_anim = 0.0f;
+float bridge_anim = 0.0f;
 GLdouble hud_model[16], hud_proj[16];
 GLint hud_view[4];
 int g_shield_hit_timers[6] = {0,0,0,0,0,0};
@@ -476,6 +477,7 @@ int g_lock_target = 0;
 int g_show_axes = 0;
 int g_show_grid = 0;
 int g_show_map = 0;
+int g_show_bridge = 0;
 int g_map_filter = 0;
 int g_my_q[3] = {1,1,1};
 int64_t g_galaxy[11][11][11];
@@ -561,7 +563,7 @@ ViewPoint g_jump_arrival = {0,0,0,0,0};
 ViewPoint g_sn_pos = {0,0,0,0,0};
 int g_sn_q[3] = {0,0,0};
 
-float VanguardX = 0, VanguardY = 0, VanguardZ = 0;
+float PlayerX = 0, PlayerY = 0, PlayerZ = 0;
 float stars[1000][3];
 
 /* Prototypes */
@@ -597,10 +599,10 @@ void drawFrigate();
 void drawGlow(float radius, float r, float g, float b, float alpha);
 void drawHullDetail(void (*drawFunc)(void), float r, float g, float b);
 void drawNavLights(float x, float y, float z);
-void drawAllianceCommandSaucer(float sx, float sy, float sz);
-void glutSolidSphere_wrapper_saucer();
+void drawCommandModule(float sx, float sy, float sz);
+void glutSolidSphere_wrapper_module();
 void glutSolidSphere_wrapper_hull();
-void glutSolidSphere_wrapper_defiant();
+void glutSolidSphere_wrapper_escort();
 void glutSolidCube_wrapper();
 
 void handle_signal(int sig) { if (sig == SIGUSR1) g_data_dirty = 1; }
@@ -676,7 +678,7 @@ void loadGameState() {
                 float vx = ((float)rand()/RAND_MAX - 0.5f) * 0.15f;
                 float vy = ((float)rand()/RAND_MAX - 0.5f) * 0.15f;
                 float vz = ((float)rand()/RAND_MAX - 0.5f) * 0.15f;
-                spawnParticle(VanguardX, VanguardY, VanguardZ, vx, vy, vz, 0.0f, 0.8f, 1.0f, 0.2f, 0.4f);
+                spawnParticle(PlayerX, PlayerY, PlayerZ, vx, vy, vz, 0.0f, 0.8f, 1.0f, 0.2f, 0.4f);
             }
         } else if (g_hull_integrity < g_last_hull && g_shared_state->shm_shields[s] == 0) {
              /* If hull is taking damage and this shield is 0, it means it's passing through. 
@@ -707,7 +709,7 @@ void loadGameState() {
             else { r=1.0f; g=1.0f; b=1.0f; }                /* White hot */
             
             float size = 0.1f + ((float)rand()/RAND_MAX * 0.2f);
-            spawnParticle(VanguardX + ox, VanguardY + oy, VanguardZ + oz, vx, vy, vz, r, g, b, size, 0.7f);
+            spawnParticle(PlayerX + ox, PlayerY + oy, PlayerZ + oz, vx, vy, vz, r, g, b, size, 0.7f);
         }
     }
     g_last_hull = g_hull_integrity;
@@ -733,6 +735,7 @@ void loadGameState() {
     g_show_axes = g_shared_state->shm_show_axes;
     g_show_grid = g_shared_state->shm_show_grid;
     g_show_map = g_shared_state->shm_show_map;
+    g_show_bridge = g_shared_state->shm_show_bridge;
     g_map_filter = g_shared_state->shm_map_filter;
     g_my_q[0] = g_shared_state->shm_q[0];
     g_my_q[1] = g_shared_state->shm_q[1];
@@ -744,9 +747,9 @@ void loadGameState() {
     float s2 = g_shared_state->shm_s[2];
     
     if (!isnan(s0) && !isnan(s1) && !isnan(s2)) {
-        VanguardX = s0 - 5.0f;
-        VanguardY = s2 - 5.0f; /* Y in Stellar is Z in Viewer */
-        VanguardZ = 5.0f - s1; /* Z in Stellar is -Y in Viewer */
+        PlayerX = s0 - 5.0f;
+        PlayerY = s2 - 5.0f; /* Y in Stellar is Z in Viewer */
+        PlayerZ = 5.0f - s1; /* Z in Stellar is -Y in Viewer */
     }
 
     memcpy(g_galaxy, g_shared_state->shm_galaxy, sizeof(g_galaxy));
@@ -1085,15 +1088,15 @@ void drawHUD(int obj_idx) {
                 } break;
                 case 5: {
                     type_name = "PLANET"; glColor3f(0.0f, 1.0f, 0.5f);
-                    const char* res[] = {"-", "Isotope-X", "Tritanium", "Core-Matter", "Monotanium", "Isolinear", "Gases", "Composite"};
-                    int r_idx = obj->ship_class; if(r_idx<0) r_idx=0; if(r_idx>7) r_idx=7;
+                    const char* res[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
+                    int r_idx = obj->ship_class; if(r_idx<0) r_idx=0; if(r_idx>8) r_idx=8;
                     sprintf(buf, "PLANET: %s [%d]", res[r_idx], id);
                     handled_custom = true;
                 } break;
                 case 6: type_name = "BLACK HOLE"; glColor3f(0.5f, 0.0f, 1.0f); break;
                 case 7: {
                     type_name = "NEBULA"; glColor3f(0.7f, 0.7f, 0.7f);
-                    const char* neb_classes[] = {"Mutara Class", "Metreon Class", "Dark Matter Cloud Class", "Paulson Class", "McAllister Class", "Arachnia Class"};
+                    const char* neb_classes[] = {"Standard Class", "High-Energy Class", "Dark Matter Class", "Ionic Class", "Gravimetric Class", "Temporal Class"};
                     int n_idx = obj->ship_class; if(n_idx<0) n_idx=0; if(n_idx>5) n_idx=5;
                     sprintf(buf, "NEBULA: %s [%d]", neb_classes[n_idx], id);
                     handled_custom = true;
@@ -1102,7 +1105,7 @@ void drawHUD(int obj_idx) {
                 case 9: type_name = "COMET"; glColor3f(0.5, 0.8, 1.0); break;
                 case 21: {
                     type_name = "ASTEROID"; glColor3f(0.6f, 0.4f, 0.2f); 
-                    const char* res_names[] = {"-", "Isotope-X", "Tritanium", "Core-Matter", "Monotanium", "Isolinear", "Gases", "Composite", "Keronium"};
+                    const char* res_names[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
                     int r_idx = obj->ship_class; if(r_idx<0) r_idx=0; if(r_idx>8) r_idx=8;
                     sprintf(buf, "ASTEROID [%d]: %s (%d units)", id, res_names[r_idx], obj->energy);
                     handled_custom = true;
@@ -1185,24 +1188,8 @@ void drawHUD(int obj_idx) {
     }
 }
 
-void drawCompass() {
-    glDisable(GL_LIGHTING);
-    
-    /* Global Axes (Standard) */
-    glBegin(GL_LINES);
-    glColor3f(0.5, 0, 0); glVertex3f(-5.5,0,0); glVertex3f(5.5,0,0); /* X - Redish */
-    glColor3f(0, 0.5, 0); glVertex3f(0,-5.5,0); glVertex3f(0,5.5,0); /* Y - Greenish */
-    glColor3f(0, 0, 0.5); glVertex3f(0,0,-5.5); glVertex3f(0,0,5.5); /* Z - Bluish */
-    glEnd();
-
-    /* Axis Labels */
-    glColor3f(1.0, 0.0, 0.0); drawText3D(5.7f, 0, 0, "X");
-    glColor3f(0.0, 1.0, 0.0); drawText3D(0, 5.7f, 0, "Y");
-    glColor3f(0.3, 0.3, 1.0); drawText3D(0, 0, 5.7f, "Z");
-
-    /* Local Tactical Compass around the ship (origin in shifted space) */
-    
-    /* 1. Heading Ring (Horizontal plane XZ in OpenGL) - Fixed to World */
+void drawHeadingRing() {
+    /* 1. Heading Ring (Horizontal plane XZ in OpenGL) */
     glColor4f(0.0f, 1.0f, 1.0f, 0.3f);
     glBegin(GL_LINE_LOOP);
     for(int i=0; i<360; i+=5) {
@@ -1211,7 +1198,7 @@ void drawCompass() {
     }
     glEnd();
 
-    /* 2. Heading Labels (every 45 degrees) - Fixed to World */
+    /* 2. Heading Labels (every 45 degrees) */
     glColor3f(0.0f, 0.8f, 0.8f);
     for(int i=0; i<360; i+=45) {
         float rad = i * M_PI / 180.0f;
@@ -1220,17 +1207,14 @@ void drawCompass() {
         char buf[8]; sprintf(buf, "%d", i);
         drawText3D(lx, 0.1f, lz, buf);
     }
+}
 
-    glPushMatrix();
-    /* Rotate only the Mark Arc to align with Ship Heading (Augmented Reality) */
-    glRotatef(objects[0].h, 0, 1, 0);
-
+void drawMarkArc() {
     /* 3. Mark Arc (Frontal Vertical plane -90 to +90) */
     glColor4f(1.0f, 1.0f, 0.0f, 0.2f);
     glBegin(GL_LINE_STRIP);
     for(int i=-90; i<=90; i+=5) {
         float rad = i * M_PI / 180.0f;
-        /* Using current Vanguard heading to align the mark circle */
         float vy = sin(rad) * 2.5f;
         float vz = cos(rad) * 2.5f;
         glVertex3f(0, vy, vz);
@@ -1247,7 +1231,14 @@ void drawCompass() {
         char buf[16]; sprintf(buf, "M:%+d", marks[i]);
         drawText3D(0, ly, lz, buf);
     }
+}
 
+void drawCompass() {
+    glDisable(GL_LIGHTING);
+    drawHeadingRing();
+    glPushMatrix();
+    glRotatef(objects[0].h, 0, 1, 0);
+    drawMarkArc();
     glPopMatrix();
     glEnable(GL_LIGHTING);
 }
@@ -1264,9 +1255,9 @@ void drawGlow(float radius, float r, float g, float b, float alpha) {
     glPopAttrib();
 }
 
-void glutSolidSphere_wrapper_saucer() { glutSolidSphere(0.5, 64, 64); }
+void glutSolidSphere_wrapper_module() { glutSolidSphere(0.5, 64, 64); }
 void glutSolidSphere_wrapper_hull() { glutSolidSphere(0.15, 48, 48); }
-void glutSolidSphere_wrapper_defiant() { glutSolidSphere(0.35, 48, 48); }
+void glutSolidSphere_wrapper_escort() { glutSolidSphere(0.35, 48, 48); }
 void glutSolidCube_wrapper() { glutSolidCube(0.5); }
 
 void drawHullDetail(void (*drawFunc)(void), float r, float g, float b) {
@@ -1321,8 +1312,8 @@ void drawDeflector(float r, float g, float b) {
     glDisable(GL_LIGHTING); glColor3f(r, g, b); glutSolidSphere(0.12, 16, 16); glEnable(GL_LIGHTING);
 }
 
-void drawAllianceCommandSaucer(float sx, float sy, float sz) {
-    glPushMatrix(); glScalef(sx, sy, sz); drawHullDetail(glutSolidSphere_wrapper_saucer, 0.88f, 0.88f, 0.92f); glPopMatrix();
+void drawCommandModule(float sx, float sy, float sz) {
+    glPushMatrix(); glScalef(sx, sy, sz); drawHullDetail(glutSolidSphere_wrapper_module, 0.88f, 0.88f, 0.92f); glPopMatrix();
     
     if (g_is_cloaked_rendering) return;
 
@@ -1342,7 +1333,7 @@ void drawLegacy() {
     /* --- [ NOMENCLATURE: LEGACY CLASS ] --- */
 
     /* 1. Primary Hull (Command Saucer) */
-    drawAllianceCommandSaucer(1.0f, 0.15f, 1.0f);
+    drawCommandModule(1.0f, 0.15f, 1.0f);
     
     /* 2. Bridge Module (Tactical Hub) */
     glDisable(GL_LIGHTING); glColor3f(0.0f, 0.5f, 1.0f); glPushMatrix(); glTranslatef(0, 0.1f, 0); glutSolidSphere(0.08, 12, 12); drawGlow(0.06, 0, 0.5, 1, 0.4); glPopMatrix(); glEnable(GL_LIGHTING);
@@ -1410,7 +1401,7 @@ void drawLegacy() {
 }
 
 void drawScout() { 
-    drawAllianceCommandSaucer(1.2f, 0.18f, 1.1f);
+    drawCommandModule(1.2f, 0.18f, 1.1f);
     glPushMatrix(); glTranslatef(-0.1f, 0.0f, 0); glScalef(0.3f, 0.5f, 0.9f); glColor3f(0.75f, 0.75f, 0.8f); glutSolidCube(0.5); glPopMatrix();
     for(int side=-1; side<=1; side+=2) {
         glPushMatrix(); glTranslatef(-0.1f, 0.0f, side * 0.3f); glScalef(0.1f, 0.4f, 0.1f); glutSolidCube(1.0); glPopMatrix();
@@ -1419,7 +1410,7 @@ void drawScout() {
 }
 
 void drawHeavyCruiser() { 
-    drawAllianceCommandSaucer(1.4f, 0.12f, 1.3f);
+    drawCommandModule(1.4f, 0.12f, 1.3f);
     
     /* Secondary Hull - Integrated */
     glPushMatrix(); 
@@ -1452,7 +1443,7 @@ void drawMultiEngine() {
 
 void drawEscort() {
     glPushMatrix(); glTranslatef(0.1f, 0, 0); glScalef(0.5f, 0.4f, 0.4f); drawDeflector(1.0f, 0.3f, 0.0f); drawGlow(0.15f, 1.0f, 0.2f, 0.0f, 0.4f); glPopMatrix();
-    glPushMatrix(); glScalef(1.5f, 0.5f, 1.8f); drawHullDetail(glutSolidSphere_wrapper_defiant, 0.6f, 0.6f, 0.65f); glPopMatrix();
+    glPushMatrix(); glScalef(1.5f, 0.5f, 1.8f); drawHullDetail(glutSolidSphere_wrapper_escort, 0.6f, 0.6f, 0.65f); glPopMatrix();
     for(int side=-1; side<=1; side+=2) {
         glPushMatrix(); glTranslatef(-0.1f, 0.0f, side * 0.4f); drawNacelle(2.5, 0.6, 0.2, 0.3, 0.7); glPopMatrix();
     }
@@ -1463,7 +1454,7 @@ void drawExplorer() {
 
     /* 1. Primary Hull (Command Saucer) - Main Command Deck */
     glPushMatrix();
-    drawAllianceCommandSaucer(1.6f, 0.15f, 2.4f);
+    drawCommandModule(1.6f, 0.15f, 2.4f);
     
     if (!g_is_cloaked_rendering) {
         /* 2. Bridge Module (Command Hub) */
@@ -1551,7 +1542,7 @@ void drawExplorer() {
 }
 
 void drawFlagship() {
-    drawAllianceCommandSaucer(2.2f, 0.12f, 1.3f);
+    drawCommandModule(2.2f, 0.12f, 1.3f);
     glPushMatrix(); glTranslatef(-0.5f, 0.0f, 0); glRotatef(180, 0, 1, 0); glScalef(2.5f, 0.5f, 0.6f); drawHullDetail(glutSolidSphere_wrapper_hull, 0.9f, 0.9f, 0.95f); glPopMatrix();
     glPushMatrix(); glTranslatef(-1.0f, 0.0f, 0); drawDeflector(0.0f, 0.4f, 0.8f); drawGlow(0.1f, 0.2f, 0.6f, 1.0f, 0.4f); glPopMatrix();
     for(int side=-1; side<=1; side+=2) {
@@ -1560,7 +1551,7 @@ void drawFlagship() {
 }
 
 void drawScience() {
-    drawAllianceCommandSaucer(2.0f, 0.15f, 1.0f);
+    drawCommandModule(2.0f, 0.15f, 1.0f);
     glPushMatrix(); glTranslatef(-0.4f, 0.0f, 0); glRotatef(180, 0, 1, 0); glScalef(1.8f, 0.4f, 0.5f); drawHullDetail(glutSolidSphere_wrapper_hull, 0.85f, 0.85f, 0.95f); glPopMatrix();
     glPushMatrix(); glTranslatef(-0.8f, 0.0f, 0); drawDeflector(0.0f, 0.5f, 0.9f); drawGlow(0.1f, 0.3f, 0.7f, 1.0f, 0.4f); glPopMatrix();
     for(int side=-1; side<=1; side+=2) {
@@ -1570,7 +1561,7 @@ void drawScience() {
 }
 
 void drawCarrier() {
-    glColor3f(0.6f, 0.6f, 0.7f); glPushMatrix(); glScalef(1.4f, 0.2f, 1.8f); drawHullDetail(glutSolidSphere_wrapper_saucer, 0.6f, 0.6f, 0.7f); glPopMatrix();
+    glColor3f(0.6f, 0.6f, 0.7f); glPushMatrix(); glScalef(1.4f, 0.2f, 1.8f); drawHullDetail(glutSolidSphere_wrapper_module, 0.6f, 0.6f, 0.7f); glPopMatrix();
     for(int side=-1; side<=1; side+=2) {
         glPushMatrix(); glTranslatef(-0.6f, -0.2f, side * 0.7f); drawNacelle(4.5, 0.4, 0.4, 0.4, 0.8); glPopMatrix();
         glPushMatrix(); glTranslatef(-0.2f, -0.1f, side * 0.5f); glRotatef(side*30, 1,0,0); glScalef(0.2f, 0.6f, 0.2f); glutSolidCube(1.0); glPopMatrix();
@@ -1586,7 +1577,7 @@ void drawTactical() {
 }
 
 void drawDiplomatic() {
-    drawAllianceCommandSaucer(1.4f, 0.2f, 1.4f);
+    drawCommandModule(1.4f, 0.2f, 1.4f);
     glPushMatrix(); glTranslatef(-0.45f, -0.25f, 0); glScalef(1.6f, 0.8f, 0.8f); drawHullDetail(glutSolidSphere_wrapper_hull, 0.8f, 0.8f, 0.85f); glPopMatrix();
     glPushMatrix(); glTranslatef(-0.15f, -0.25f, 0); drawDeflector(0.0f, 0.3f, 0.7f); drawGlow(0.1f, 0.2f, 0.5f, 1.0f, 0.4f); glPopMatrix();
     for(int side=-1; side<=1; side+=2) {
@@ -1595,7 +1586,7 @@ void drawDiplomatic() {
 }
 
 void drawResearch() {
-    glColor3f(0.9f, 0.9f, 0.9f); glPushMatrix(); glScalef(1.1f, 0.15f, 0.9f); drawHullDetail(glutSolidSphere_wrapper_saucer, 0.9f, 0.9f, 0.9f); glPopMatrix();
+    glColor3f(0.9f, 0.9f, 0.9f); glPushMatrix(); glScalef(1.1f, 0.15f, 0.9f); drawHullDetail(glutSolidSphere_wrapper_module, 0.9f, 0.9f, 0.9f); glPopMatrix();
     glPushMatrix(); glTranslatef(0, -0.5f, 0); glScalef(1.2f, 0.3f, 0.6f); glutSolidSphere(0.2, 12, 12); glPopMatrix();
     for(int side=-1; side<=1; side+=2) {
         glPushMatrix(); glTranslatef(0, -0.25f, side * 0.35f); glScalef(0.15f, 0.6f, 0.1f); glutSolidCube(1.0); glPopMatrix();
@@ -1604,7 +1595,7 @@ void drawResearch() {
 }
 
 void drawFrigate() {
-    glColor3f(0.6f, 0.6f, 0.65f); glPushMatrix(); glScalef(1.6f, 0.25f, 1.5f); drawHullDetail(glutSolidSphere_wrapper_saucer, 0.6f, 0.6f, 0.65f); glPopMatrix();
+    glColor3f(0.6f, 0.6f, 0.65f); glPushMatrix(); glScalef(1.6f, 0.25f, 1.5f); drawHullDetail(glutSolidSphere_wrapper_module, 0.6f, 0.6f, 0.65f); glPopMatrix();
     for(int side=-1; side<=1; side+=2) {
         glPushMatrix(); glTranslatef(-0.7f, -0.05f, side * 0.55f); drawNacelle(3.5, 0.3, 0.2, 0.3, 0.6); glPopMatrix();
         glPushMatrix(); glTranslatef(-0.8f, 0, 0); glScalef(0.1f, 0.1f, 1.0f); glutSolidCube(1.0); glPopMatrix();
@@ -1717,8 +1708,7 @@ void drawStar(float x, float y, float z, int id) {
     else if (type == 3) { r=1.0f; g=1.0f; b=0.7f; } /* Class F - Yellow-White */
     else if (type == 4) { r=1.0f; g=0.9f; b=0.1f; } /* Class G - Yellow (Sol) */
     else if (type == 5) { r=1.0f; g=0.6f; b=0.2f; } /* Class K - Orange */
-    else { r=1.0f; g=0.2f; b=0.1f; }                /* Class M - Red */
-
+                        else { r=1.0f; g=0.2f; b=0.1f; }                /* Class H - Red */
     /* 3. Core */
     float core_size = 0.38f;
     
@@ -1934,17 +1924,17 @@ void drawStellarNebula(float x, float y, float z, int type) {
         float alpha = 0.25f - (i * 0.04f);
         if (alpha < 0.05f) alpha = 0.05f;
         
-        if (type == 1) { /* Metreon: Yellowish-Orange */
+        if (type == 1) { /* High-Energy: Yellowish-Orange */
             glColor4f(0.8f + i*0.05f, 0.5f + i*0.1f, 0.1f, alpha);
         } else if (type == 2) { /* Dark Matter: Dark Grey/Black with faint Purple */
             glColor4f(0.1f + i*0.02f, 0.05f, 0.2f + i*0.02f, alpha);
-        } else if (type == 3) { /* Paulson: Green-Cyan */
+        } else if (type == 3) { /* Ionic: Green-Cyan */
             glColor4f(0.1f, 0.6f + i*0.05f, 0.4f + i*0.1f, alpha);
-        } else if (type == 4) { /* McAllister: Lime/Yellow-Green */
+        } else if (type == 4) { /* Gravimetric: Lime/Yellow-Green */
             glColor4f(0.5f + i*0.1f, 0.7f, 0.1f, alpha);
-        } else if (type == 5) { /* Arachnia: Magenta/Electric Purple */
+        } else if (type == 5) { /* Temporal: Magenta/Electric Purple */
             glColor4f(0.8f, 0.1f, 0.8f + i*0.04f, alpha);
-        } else { /* Mutara (Default): Purple and Blue */
+        } else { /* Standard (Default): Purple and Blue */
             glColor4f(0.4f + i*0.1f, 0.2f, 0.6f + i*0.05f, alpha);
         }
         
@@ -2785,7 +2775,7 @@ void drawShieldEffect() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     
     glPushMatrix();
-    glTranslatef(VanguardX, VanguardY, VanguardZ);
+    glTranslatef(PlayerX, PlayerY, PlayerZ);
     /* Rotate shield system to match ship heading/mark */
     glRotatef(objects[0].h - 90.0f, 0, 1, 0);
     glRotatef(objects[0].m, 0, 0, 1);
@@ -2842,16 +2832,77 @@ void display() {
     
     /* RESET STACKS */
     glMatrixMode(GL_PROJECTION); glLoadIdentity();
-    gluPerspective(45, 1.33, 0.1, 500); 
+    /* Dynamic FOV: 45 (Tactical) -> 65 (Bridge) */
+    float current_fov = 45.0f * (1.0f - bridge_anim) + 65.0f * bridge_anim;
+    gluPerspective(current_fov, 1.77, 0.1, 500); 
     glMatrixMode(GL_MODELVIEW); glLoadIdentity();
 
     /* Cinematic Camera Transition */
     float target_zoom = -35.0f; /* Map Zoom */
     float current_zoom = zoom * (1.0f - map_anim) + target_zoom * map_anim;
     
-    glTranslatef(0, 0, current_zoom);
-    glRotatef(angleX, 1, 0, 0); 
-    glRotatef(angleY, 0, 1, 0);
+    if (bridge_anim > 0.001f && objects[0].id != 0) {
+        if (bridge_anim >= 0.999f) {
+            float y_off = (g_show_bridge >= 11) ? 0.35f : -0.35f;
+            int mode = g_show_bridge % 10;
+
+            if (mode == 2) { /* LEFT */
+                glRotatef(0.0f, 0, 1, 0); 
+            } else if (mode == 3) { /* RIGHT */
+                glRotatef(180.0f, 0, 1, 0);
+            } else if (mode == 4) { /* UP */
+                glRotatef(-90.0f, 1, 0, 0);
+                glRotatef(90.0f, 0, 1, 0);
+            } else if (mode == 5) { /* DOWN */
+                glRotatef(90.0f, 1, 0, 0);
+                glRotatef(90.0f, 0, 1, 0);
+            } else if (mode == 6) { /* REAR */
+                glRotatef(-90.0f, 0, 1, 0);
+            } else { /* FORWARD (1) */
+                glRotatef(90.0f, 0, 1, 0);
+            }
+
+            glTranslatef(0.48f, y_off, 0.0f);
+            glRotatef(-objects[0].m, 0, 0, 1);
+            glRotatef(-(objects[0].h - 90.0f), 0, 1, 0);
+            glTranslatef(-objects[0].x, -objects[0].y, -objects[0].z);
+        } else {
+            glPushMatrix();
+            glLoadIdentity();
+            glTranslatef(0, 0, current_zoom);
+            glRotatef(angleX, 1, 0, 0);
+            glRotatef(angleY, 0, 1, 0);
+            GLdouble m_std[16];
+            glGetDoublev(GL_MODELVIEW_MATRIX, m_std);
+            
+            glLoadIdentity();
+            float y_off = (g_show_bridge >= 11) ? 0.35f : -0.35f;
+            int mode = g_show_bridge % 10;
+
+            if (mode == 2) { glRotatef(0.0f, 0, 1, 0); }
+            else if (mode == 3) { glRotatef(180.0f, 0, 1, 0); }
+            else if (mode == 4) { glRotatef(-90.0f, 1, 0, 0); glRotatef(90.0f, 0, 1, 0); }
+            else if (mode == 5) { glRotatef(90.0f, 1, 0, 0); glRotatef(90.0f, 0, 1, 0); }
+            else if (mode == 6) { glRotatef(-90.0f, 0, 1, 0); }
+            else { glRotatef(90.0f, 0, 1, 0); }
+
+            glTranslatef(0.48f, y_off, 0.0f);
+            glRotatef(-objects[0].m, 0, 0, 1);
+            glRotatef(-(objects[0].h - 90.0f), 0, 1, 0);
+            glTranslatef(-objects[0].x, -objects[0].y, -objects[0].z);
+            GLdouble m_brg[16];
+            glGetDoublev(GL_MODELVIEW_MATRIX, m_brg);
+            glPopMatrix();
+
+            GLdouble m_final[16];
+            for(int i=0; i<16; i++) m_final[i] = m_std[i] * (1.0f - bridge_anim) + m_brg[i] * bridge_anim;
+            glLoadMatrixd(m_final);
+        }
+    } else {
+        glTranslatef(0, 0, current_zoom);
+        glRotatef(angleX, 1, 0, 0); 
+        glRotatef(angleY, 0, 1, 0);
+    }
 
     /* Capture matrices for HUD projection later */
     glGetDoublev(GL_MODELVIEW_MATRIX, hud_model);
@@ -2918,10 +2969,32 @@ void display() {
         glUniform3f(glGetUniformLocation(hullShaderProgram, "lightPos"), lX, lY, lZ);
         glUseProgram(0);
 
-        if (g_show_axes) {
+        if (g_show_axes && objects[0].id != 0) {
             glPushMatrix();
             glTranslatef(objects[0].x, objects[0].y, objects[0].z);
-            drawCompass();
+            
+            /* 1. FIXED GLOBAL AXES */
+            glDisable(GL_LIGHTING);
+            glBegin(GL_LINES);
+            glColor3f(0.5, 0, 0); glVertex3f(-5.5,0,0); glVertex3f(5.5,0,0);
+            glColor3f(0, 0.5, 0); glVertex3f(0,-5.5,0); glVertex3f(0,5.5,0);
+            glColor3f(0, 0, 0.5); glVertex3f(0,0,-5.5); glVertex3f(0,0,5.5);
+            glEnd();
+
+            /* 2. HEADING RING (Tilts with Pitch) */
+            glPushMatrix();
+            float h_rad = objects[0].h * M_PI / 180.0f;
+            /* Inverted pitch rotation to match ship physics: nose up = ring up */
+            glRotatef(-objects[0].m, cos(h_rad), 0, -sin(h_rad));
+            drawHeadingRing(); 
+            glPopMatrix();
+
+            /* 3. MARK ARC (Stays Vertical, only follows Heading) */
+            glPushMatrix();
+            glRotatef(objects[0].h, 0, 1, 0);
+            drawMarkArc();
+            glPopMatrix();
+            
             glPopMatrix();
         }
         if (g_show_grid) drawGrid();
@@ -3091,7 +3164,7 @@ void display() {
     if (fbo_msaa != 0 && fbo_scene != 0) {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo_msaa);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo_scene);
-        glBlitFramebuffer(0, 0, 1024, 768, 0, 0, 1024, 768, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBlitFramebuffer(0, 0, 1280, 720, 0, 0, 1280, 720, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }
 
     /* 3. BLOOM PASS: Blur the Bright Texture (Ping-Pong) */
@@ -3183,7 +3256,7 @@ void display() {
     glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity(); gluOrtho2D(0, 1000, 0, 1000); glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
     glDisable(GL_LIGHTING); glColor3f(0, 1, 1); 
     if (g_show_map) drawText3D(20, 50, 0, "Arrows: Rotate Map | W/S: Zoom Map | map (in CLI): Exit Map Mode");
-    else drawText3D(20, 50, 0, "Arrows: Rotate | W/S: Zoom | H: Toggle HUD | map (in CLI): Enter Map Mode | ESC: Exit");
+    else drawText3D(20, 50, 0, "Arrows: Rotate | W/S: Zoom | bridge [top/bottom/up/down/left/right/rear/off] | map | H: Toggle HUD | ESC: Exit");
 
     char buf[256]; 
     if (g_show_hud && map_anim < 0.5f) {
@@ -3203,9 +3276,9 @@ void display() {
 
         glColor3f(0.0f, 1.0f, 1.0f); /* Cyan */
         /* Convert focal point coordinates back to Stellar sector coordinates (0 to 10) */
-        float disp_s1 = VanguardX + 5.0f;
-        float disp_s2 = 5.0f - VanguardZ;
-        float disp_s3 = VanguardY + 5.0f;
+        float disp_s1 = PlayerX + 5.0f;
+        float disp_s2 = 5.0f - PlayerZ;
+        float disp_s3 = PlayerY + 5.0f;
         sprintf(buf, "QUADRANT: %s  |  SECTOR: [%.2f, %.2f, %.2f]", g_quadrant, disp_s1, disp_s2, disp_s3); 
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 25;
 
@@ -3265,7 +3338,7 @@ void display() {
         /* 4. Cargo Inventory (2 columns) */
         glColor3f(0.8f, 0.5f, 0.0f);
         drawText3D(x_off, y_pos, 0, "--- CARGO INVENTORY ---"); y_pos -= 18;
-        const char* res_names[] = {"-", "Isotope-X", "Tritanium", "Core-Matter (Torp)", "Monotanium", "Isolinear", "Gases", "Composite", "Keronium"};
+        const char* res_names[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
         for(int i=1; i<5; i++) {
             for(int col=0; col<2; col++) {
                 int idx = i + col*4;
@@ -3353,17 +3426,17 @@ void display() {
                         case 10: f_name = "Korthian"; glColor3f(1, 0, 0); break;
                         case 11: f_name = "Xylari"; glColor3f(0, 1, 0); break;
                         case 12: f_name = "Swarm"; glColor3f(1, 0, 1); break;
-                        case 13: f_name = "CARDASSIAN"; glColor3f(1, 0.5, 0); break;
-                        case 14: f_name = "DOMINION"; glColor3f(0.5, 0, 1); break;
+                        case 13: f_name = "VESPERIAN"; glColor3f(1, 0.5, 0); break;
+                        case 14: f_name = "ASCENDANT"; glColor3f(0.5, 0, 1); break;
                         default: f_name = "INDEPENDENT"; glColor3f(0.8, 0.8, 0.8); break;
                     }
 
                     sprintf(buf, "NAME: %s (%s)", objects[i].name, f_name);
                     drawText3D(tx_pos, ty_pos, 0, buf); ty_pos -= 15;
                     
-                    float dx = objects[i].x - VanguardX;
-                    float dy = objects[i].y - VanguardY;
-                    float dz = objects[i].z - VanguardZ;
+                    float dx = objects[i].x - PlayerX;
+                    float dy = objects[i].y - PlayerY;
+                    float dz = objects[i].z - PlayerZ;
                     float dist = sqrt(dx*dx + dy*dy + dz*dz);
                     
                     glColor3f(1.0f, 1.0f, 1.0f);
@@ -3487,7 +3560,7 @@ void display() {
             drawText3D(750, ty, 0, "ENCRYPTION: 3DES-CBC (ANCIENT)");
         } else if (g_shared_state->shm_crypto_algo == CRYPTO_BLOWFISH) {
             glColor3f(0.7f, 0.4f, 0.0f);
-            drawText3D(750, ty, 0, "ENCRYPTION: BLOWFISH-CBC (FERENGI)");
+            drawText3D(750, ty, 0, "ENCRYPTION: BLOWFISH-CBC (GILDED)");
         } else if (g_shared_state->shm_crypto_algo == CRYPTO_RC4) {
             glColor3f(0.0f, 0.5f, 0.7f);
             drawText3D(750, ty, 0, "ENCRYPTION: RC4-STREAM (TACTICAL)");
@@ -3574,6 +3647,14 @@ void timer(int v) {
     } else {
         if (map_anim > 0.0f) map_anim -= 0.04f;
         if (map_anim < 0.0f) map_anim = 0.0f;
+    }
+
+    if (g_show_bridge) {
+        if (bridge_anim < 1.0f) bridge_anim += 0.03f;
+        if (bridge_anim > 1.0f) bridge_anim = 1.0f;
+    } else {
+        if (bridge_anim > 0.0f) bridge_anim -= 0.03f;
+        if (bridge_anim < 0.0f) bridge_anim = 0.0f;
     }
 
     /* Fade out beams */
@@ -3734,7 +3815,7 @@ int main(int argc, char** argv) {
 
     printf("[3D VIEW] Initializing GLUT (check DISPLAY: %s)...\n", getenv("DISPLAY"));
     glutInit(&argc, argv); 
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_MULTISAMPLE); glutInitWindowSize(1024, 768); glutCreateWindow("Space GL 3DView - Multiuser");
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_MULTISAMPLE); glutInitWindowSize(1280, 720); glutCreateWindow("Space GL 3DView - Multiuser");
     
     /* Initialize GLEW */
     glewExperimental = GL_TRUE;
@@ -3778,7 +3859,7 @@ int main(int argc, char** argv) {
     GLfloat white[] = {1.0f, 1.0f, 1.0f, 1.0f};
     glLightfv(GL_LIGHT0, GL_DIFFUSE, white);
     glLightfv(GL_LIGHT0, GL_SPECULAR, white);
-        initStars(); initVBOs(); glMatrixMode(GL_PROJECTION); gluPerspective(45, 1.33, 1, 500); glMatrixMode(GL_MODELVIEW);
+        initStars(); initVBOs(); glMatrixMode(GL_PROJECTION); gluPerspective(45, 1.77, 1, 500); glMatrixMode(GL_MODELVIEW);
         glutDisplayFunc(display); glutKeyboardFunc(keyboard); glutSpecialFunc(special); glutTimerFunc(16, timer, 0);
         
         printf("[3D VIEW] Ready. Sending handshake to parent (PID %d).\n", getppid());

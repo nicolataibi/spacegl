@@ -743,11 +743,11 @@ int main(int argc, char *argv[]) {
             case 1: my_faction = FACTION_KORTHIAN; break;
             case 2: my_faction = FACTION_XYLARI; break;
             case 3: my_faction = FACTION_SWARM; break;
-            case 4: my_faction = FACTION_CARDASSIAN; break;
+            case 4: my_faction = FACTION_VESPERIAN; break;
             case 5: my_faction = FACTION_JEM_HADAR; break;
             case 6: my_faction = FACTION_THOLIAN; break;
             case 7: my_faction = FACTION_GORN; break;
-            case 8: my_faction = FACTION_FERENGI; break;
+            case 8: my_faction = FACTION_GILDED; break;
             case 9: my_faction = FACTION_SPECIES_8472; break;
             case 10: my_faction = FACTION_BREEN; break;
             case 11: my_faction = FACTION_HIROGEN; break;
@@ -895,10 +895,10 @@ int main(int argc, char *argv[]) {
                         printf("bor ID      : Boarding party operation (Dist < 1.0). Works on Lock.\n");
                         printf("min         : Planetary Mining (Must be in orbit dist < 2.0)\n");
                         printf("doc         : Dock with Starbase (Replenish/Repair, same faction)\n");
-                        printf("con T A     : Convert (1:Dili->E, 2:Trit->E, 3:Vert->Torps, 6:Gas->E, 7:Duran->E)\n");
+                        printf("con T A     : Convert (1:Aeth->E, 2:Neo-Ti->E, 3:Void-E->Torps, 6:Gas->E, 7:Comp->E)\n");
                         printf("load T A    : Load from Cargo Bay (1:Energy, 2:Torps)\n");
                         printf("hull        : Reinforce Hull (Uses 100 Composite for +500 Plating)\n");
-                        printf("rep ID      : Repair System (Uses 50 Tritanium + 10 Isolinear)\n");
+                        printf("rep ID      : Repair System (Uses 50 Neo-Titanium + 10 Synaptics)\n");
                         printf("inv         : Cargo Inventory Report\n");
                         printf("who         : List active captains in galaxy\n");
                         printf("cal Q1..3 S1..3: Hyperdrive Calc (Pinpoint Precision Route & ETA)\n");
@@ -916,6 +916,7 @@ int main(int argc, char *argv[]) {
                         printf("axs         : Toggle 3D Coordinate Axes\n");
                         printf("grd         : Toggle 3D Tactical Grid\n");
                         printf("map [XX]    : Toggle Starmap. Optional Filter (st,pl,bs,en,bh,ne,pu,is,co,as,de,mi,bu,pf,ri,mo)\n");
+                        printf("bridge [top/bottom/up/down/left/right/rear/off]: Change Bridge View\n");
                         printf("xxx         : Self-Destruct\n");
                     } else if (strncmp(g_input_buf, "dis ", 4) == 0 || strcmp(g_input_buf, "dis") == 0) {
                         PacketCommand cpkt = {PKT_COMMAND, ""};
@@ -937,6 +938,44 @@ int main(int argc, char *argv[]) {
                             g_shared_state->shm_show_grid = !g_shared_state->shm_show_grid;
                             pthread_mutex_unlock(&g_shared_state->mutex);
                             printf("Grid toggled.\n");
+                        }
+                    } else if (strncmp(g_input_buf, "bridge", 6) == 0) {
+                        if (g_shared_state) {
+                            pthread_mutex_lock(&g_shared_state->mutex);
+                            int current = g_shared_state->shm_show_bridge;
+                            int is_bottom = (current >= 11);
+
+                            if (strstr(g_input_buf, "off")) {
+                                g_shared_state->shm_show_bridge = 0;
+                                printf("Bridge view: OFF\n");
+                            } else if (strstr(g_input_buf, "top") || strstr(g_input_buf, "on")) {
+                                g_shared_state->shm_show_bridge = 1;
+                                printf("Bridge view: TOP FORWARD\n");
+                            } else if (strstr(g_input_buf, "bottom")) {
+                                g_shared_state->shm_show_bridge = 11;
+                                printf("Bridge view: BOTTOM FORWARD\n");
+                            } else if (strstr(g_input_buf, "left")) {
+                                g_shared_state->shm_show_bridge = (is_bottom ? 12 : 2);
+                                printf("Bridge view: %s LEFT\n", is_bottom ? "BOTTOM" : "TOP");
+                            } else if (strstr(g_input_buf, "right")) {
+                                g_shared_state->shm_show_bridge = (is_bottom ? 13 : 3);
+                                printf("Bridge view: %s RIGHT\n", is_bottom ? "BOTTOM" : "TOP");
+                            } else if (strstr(g_input_buf, "up")) {
+                                g_shared_state->shm_show_bridge = (is_bottom ? 14 : 4);
+                                printf("Bridge view: %s UP\n", is_bottom ? "BOTTOM" : "TOP");
+                            } else if (strstr(g_input_buf, "down")) {
+                                g_shared_state->shm_show_bridge = (is_bottom ? 15 : 5);
+                                printf("Bridge view: %s DOWN\n", is_bottom ? "BOTTOM" : "TOP");
+                            } else if (strstr(g_input_buf, "rear")) {
+                                g_shared_state->shm_show_bridge = (is_bottom ? 16 : 6);
+                                printf("Bridge view: %s REAR\n", is_bottom ? "BOTTOM" : "TOP");
+                            } else {
+                                if (current > 0) g_shared_state->shm_show_bridge = 0;
+                                else g_shared_state->shm_show_bridge = 1;
+                                if (g_shared_state->shm_show_bridge) printf("Bridge view toggled: ON (TOP)\n");
+                                else printf("Bridge view toggled: OFF\n");
+                            }
+                            pthread_mutex_unlock(&g_shared_state->mutex);
                         }
                     } else if (strncmp(g_input_buf, "map", 3) == 0) {
                         if (g_shared_state) {
@@ -1100,11 +1139,11 @@ int main(int argc, char *argv[]) {
                                 else if (strcasecmp(target_name, "Korthian")==0 || strcasecmp(target_name, "Kli")==0) mpkt.faction = FACTION_KORTHIAN;
                                 else if (strcasecmp(target_name, "Xylari")==0 || strcasecmp(target_name, "Rom")==0) mpkt.faction = FACTION_XYLARI;
                                 else if (strcasecmp(target_name, "Swarm")==0 || strcasecmp(target_name, "Bor")==0) mpkt.faction = FACTION_SWARM;
-                                else if (strcasecmp(target_name, "Vesperian")==0 || strcasecmp(target_name, "Car")==0) mpkt.faction = FACTION_CARDASSIAN;
+                                else if (strcasecmp(target_name, "Vesperian")==0 || strcasecmp(target_name, "Car")==0) mpkt.faction = FACTION_VESPERIAN;
                                 else if (strcasecmp(target_name, "Ascendant")==0 || strcasecmp(target_name, "Jem")==0) mpkt.faction = FACTION_JEM_HADAR;
                                 else if (strcasecmp(target_name, "Quarzite")==0 || strcasecmp(target_name, "Tho")==0) mpkt.faction = FACTION_THOLIAN;
                                 else if (strcasecmp(target_name, "Saurian")==0) mpkt.faction = FACTION_GORN;
-                                else if (strcasecmp(target_name, "Gilded")==0 || strcasecmp(target_name, "Fer")==0) mpkt.faction = FACTION_FERENGI;
+                                else if (strcasecmp(target_name, "Gilded")==0 || strcasecmp(target_name, "Fer")==0) mpkt.faction = FACTION_GILDED;
                                 else if (strcasecmp(target_name, "FluidicVoid")==0 || strcasecmp(target_name, "8472")==0) mpkt.faction = FACTION_SPECIES_8472;
                                 else if (strcasecmp(target_name, "Cryos")==0) mpkt.faction = FACTION_BREEN;
                                 else if (strcasecmp(target_name, "Apex")==0) mpkt.faction = FACTION_HIROGEN;

@@ -59,11 +59,11 @@ typedef enum {
     FACTION_KORTHIAN = 10,
     FACTION_XYLARI = 11,
     FACTION_SWARM = 12,
-    FACTION_CARDASSIAN = 13,
+    FACTION_VESPERIAN = 13,
     FACTION_JEM_HADAR = 14,
     FACTION_THOLIAN = 15,
     FACTION_GORN = 16,
-    FACTION_FERENGI = 17,
+    FACTION_GILDED = 17,
     FACTION_SPECIES_8472 = 18,
     FACTION_BREEN = 19,
     FACTION_HIROGEN = 20
@@ -75,12 +75,12 @@ typedef enum {
     SHIP_CLASS_HEAVY_CRUISER,
     SHIP_CLASS_MULTI_ENGINE,
     SHIP_CLASS_ESCORT,
-    SHIP_CLASS_EXPLORER,          /* Vanguard-D style */
-    SHIP_CLASS_FLAGSHIP,       /* Vanguard-E style */
-    SHIP_CLASS_SCIENCE,        /* Voyager style */
+    SHIP_CLASS_EXPLORER,          /* Aegis-D style */
+    SHIP_CLASS_FLAGSHIP,       /* Aegis-E style */
+    SHIP_CLASS_SCIENCE,        /* Advanced Science style */
     SHIP_CLASS_CARRIER,           /* Heavy Escort / Carrier */
     SHIP_CLASS_TACTICAL,          /* Galaxy-variant with pod */
-    SHIP_CLASS_DIPLOMATIC,      /* Vanguard-C style */
+    SHIP_CLASS_DIPLOMATIC,      /* Aegis-C style */
     SHIP_CLASS_RESEARCH,          /* Small Science Ship */
     SHIP_CLASS_FRIGATE,     /* Specialized Escort */
     SHIP_CLASS_GENERIC_ALIEN

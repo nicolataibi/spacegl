@@ -50,11 +50,11 @@ const char* get_faction_name(int faction) {
         case FACTION_KORTHIAN:    return "Korthian";
         case FACTION_XYLARI:    return "Xylari";
         case FACTION_SWARM:       return "Swarm";
-        case FACTION_CARDASSIAN: return "Vesperian";
+        case FACTION_VESPERIAN: return "Vesperian";
         case FACTION_JEM_HADAR:  return "Ascendant";
         case FACTION_THOLIAN:    return "Quarzite";
         case FACTION_GORN:       return "Saurian";
-        case FACTION_FERENGI:    return "Gilded";
+        case FACTION_GILDED:    return "Gilded";
         case FACTION_SPECIES_8472: return "Fluidic Void";
         case FACTION_BREEN:      return "Cryos";
         case FACTION_HIROGEN:    return "Apex";
@@ -70,10 +70,50 @@ const char* get_faction_name(int faction) {
     }
 }
 
+const char* get_resource_name(int type) {
+    const char* res[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
+    if (type >= 0 && type <= 8) return res[type];
+    return "Unknown";
+}
+
+const char* get_nebula_name(int type) {
+    const char* neb[] = {"Standard", "High-Energy", "Dark Matter", "Ionic", "Gravimetric", "Temporal"};
+    if (type >= 0 && type <= 5) return neb[type];
+    return "Standard";
+}
+
+const char* get_crypto_name(int algo) {
+    switch(algo) {
+        case 0: return "NONE";
+        case 12: return "PQC (Quantum Secure)";
+        default: return "Legacy (HMAC/AES)";
+    }
+}
+
+const char* get_ship_class_name(int ship_class) {
+    switch(ship_class) {
+        case SHIP_CLASS_LEGACY: return "Legacy Class";
+        case SHIP_CLASS_SCOUT:      return "Scout Class";
+        case SHIP_CLASS_HEAVY_CRUISER:    return "Heavy Cruiser";
+        case SHIP_CLASS_MULTI_ENGINE: return "Multi-Engine Cruiser";
+        case SHIP_CLASS_ESCORT:      return "Escort Class";
+        case SHIP_CLASS_EXPLORER:       return "Explorer Class";
+        case SHIP_CLASS_FLAGSHIP:    return "Flagship Class";
+        case SHIP_CLASS_SCIENCE:     return "Science Vessel";
+        case SHIP_CLASS_CARRIER:        return "Carrier Class";
+        case SHIP_CLASS_TACTICAL:       return "Tactical Cruiser";
+        case SHIP_CLASS_DIPLOMATIC:   return "Diplomatic Cruiser";
+        case SHIP_CLASS_RESEARCH:       return "Research Vessel";
+        case SHIP_CLASS_FRIGATE:  return "Frigate Class";
+        case SHIP_CLASS_GENERIC_ALIEN: return "Vessel";
+        default: return "Unknown";
+    }
+}
+
 void print_help() {
     printf("Usage: ./stellar_viewer [command]\n");
     printf("Commands:\n");
-    printf("  stats             Show global galaxy statistics\n");
+    printf("  stats             Show global galaxy statistics and security status\n");
     printf("  map <q3>          Show a 2D map slice for Z quadrant q3\n");
     printf("  list <q1> <q2> <q3>  List objects in quadrant (1-10)\n");
     printf("  players           List all persistent players\n");
@@ -148,28 +188,33 @@ int main(int argc, char *argv[]) {
 
         printf("--- Galaxy Statistics ---\n");
         printf("Version: %d\n", version);
+        printf("Security Status:\n");
         if (spacegl_master.encryption_flags & 0x01) {
-            printf("Signature: VERIFIED (HMAC-SHA256)\n");
-            printf("Encryption Flags: 0x%08X\n", spacegl_master.encryption_flags);
+            printf("  Signature: VERIFIED (HMAC-SHA256)\n");
+            printf("  Encryption: ENABLED (Flags: 0x%08X)\n", spacegl_master.encryption_flags);
+            printf("  Crypto Algorithm: %s\n", get_crypto_name(spacegl_master.shm_crypto_algo));
         } else {
-            printf("Signature: NOT PRESENT / UNVERIFIED\n");
+            printf("  Signature: NOT PRESENT / UNVERIFIED\n");
+            printf("  Encryption: DISABLED\n");
         }
-        printf("Total NPCs: %d\n", n_active);
-        printf("Total Stars: %d\n", s_active);
-        printf("Total Bases: %d\n", b_active);
-        printf("Total Planets: %d\n", p_active);
-        printf("Total Black Holes: %d\n", bh_active);
-        printf("Total Nebulas: %d\n", neb_active);
-        printf("Total Pulsars: %d\n", pul_active);
-        printf("Total Comets: %d\n", com_active);
-        printf("Total Asteroids: %d\n", ast_active);
-        printf("Total Derelicts: %d\n", der_active);
-        printf("Total Minefields: %d\n", mine_active);
-        printf("Total Comm Buoys: %d\n", buoy_active);
-        printf("Total Defense Platforms: %d\n", plat_active);
-        printf("Total Spatial Rifts: %d\n", rift_active);
-        printf("Total Space Monsters: %d\n", mon_active);
-        printf("Galaxy Master K9: %d, B9: %d\n", spacegl_master.k9, spacegl_master.b9);
+        
+        printf("\nObject Totals:\n");
+        printf("  Active NPCs:       %d\n", n_active);
+        printf("  Stars:             %d\n", s_active);
+        printf("  Bases:             %d\n", b_active);
+        printf("  Planets:           %d\n", p_active);
+        printf("  Black Holes:       %d\n", bh_active);
+        printf("  Nebulas:           %d\n", neb_active);
+        printf("  Pulsars:           %d\n", pul_active);
+        printf("  Comets:            %d\n", com_active);
+        printf("  Asteroids:         %d\n", ast_active);
+        printf("  Derelicts:         %d\n", der_active);
+        printf("  Minefields:        %d\n", mine_active);
+        printf("  Comm Buoys:        %d\n", buoy_active);
+        printf("  Defense Platforms: %d\n", plat_active);
+        printf("  Spatial Rifts:     %d\n", rift_active);
+        printf("  Space Monsters:    %d\n", mon_active);
+        printf("\nGalaxy Master Metrics: K9=%d, B9=%d, FrameID=%lld\n", spacegl_master.k9, spacegl_master.b9, (long long)spacegl_master.frame_id);
     } 
     else if (strcmp(argv[1], "map") == 0 && argc == 3) {
         int q3 = atoi(argv[2]);
@@ -236,7 +281,7 @@ int main(int argc, char *argv[]) {
             printf("[BASE] ID:%d Faction:%s Coord:%.1f,%.1f,%.1f Health:%d\n", bases[i].id+2000, get_faction_name(bases[i].faction), bases[i].x, bases[i].y, bases[i].z, bases[i].health);
 
         for(int i=0; i<MAX_PLANETS; i++) if(planets[i].active && planets[i].q1 == q1 && planets[i].q2 == q2 && planets[i].q3 == q3)
-            printf("[PLANET] ID:%d Type:%d Coord:%.1f,%.1f,%.1f Resources:%d\n", planets[i].id+3000, planets[i].resource_type, planets[i].x, planets[i].y, planets[i].z, planets[i].amount);
+            printf("[PLANET] ID:%d Resource:%s Coord:%.1f,%.1f,%.1f Reserves:%d\n", planets[i].id+3000, get_resource_name(planets[i].resource_type), planets[i].x, planets[i].y, planets[i].z, planets[i].amount);
 
         for(int i=0; i<MAX_STARS; i++) if(stars_data[i].active && stars_data[i].q1 == q1 && stars_data[i].q2 == q2 && stars_data[i].q3 == q3)
             printf("[STAR] ID:%d Coord:%.1f,%.1f,%.1f\n", stars_data[i].id+4000, stars_data[i].x, stars_data[i].y, stars_data[i].z);
@@ -245,7 +290,7 @@ int main(int argc, char *argv[]) {
             printf("[BLACK HOLE] ID:%d Coord:%.1f,%.1f,%.1f\n", black_holes[i].id+7000, black_holes[i].x, black_holes[i].y, black_holes[i].z);
 
         for(int i=0; i<MAX_NEBULAS; i++) if(nebulas[i].active && nebulas[i].q1 == q1 && nebulas[i].q2 == q2 && nebulas[i].q3 == q3)
-            printf("[NEBULA] ID:%d Coord:%.1f,%.1f,%.1f\n", nebulas[i].id+8000, nebulas[i].x, nebulas[i].y, nebulas[i].z);
+            printf("[NEBULA] ID:%d Type:%s Coord:%.1f,%.1f,%.1f\n", nebulas[i].id+8000, get_nebula_name(nebulas[i].type), nebulas[i].x, nebulas[i].y, nebulas[i].z);
 
         for(int i=0; i<MAX_PULSARS; i++) if(pulsars[i].active && pulsars[i].q1 == q1 && pulsars[i].q2 == q2 && pulsars[i].q3 == q3)
             printf("[PULSAR] ID:%d Coord:%.1f,%.1f,%.1f\n", pulsars[i].id+9000, pulsars[i].x, pulsars[i].y, pulsars[i].z);
@@ -254,10 +299,10 @@ int main(int argc, char *argv[]) {
             printf("[COMET] ID:%d Coord:%.1f,%.1f,%.1f Angle:%.3f Speed:%.3f\n", comets[i].id+10000, comets[i].x, comets[i].y, comets[i].z, comets[i].angle, comets[i].speed);
 
         for(int i=0; i<MAX_ASTEROIDS; i++) if(asteroids[i].active && asteroids[i].q1 == q1 && asteroids[i].q2 == q2 && asteroids[i].q3 == q3)
-            printf("[ASTEROID] ID:%d Coord:%.1f,%.1f,%.1f Size:%.2f\n", asteroids[i].id+12000, asteroids[i].x, asteroids[i].y, asteroids[i].z, asteroids[i].size);
+            printf("[ASTEROID] ID:%d Resource:%s Coord:%.1f,%.1f,%.1f Size:%.2f\n", asteroids[i].id+12000, get_resource_name(asteroids[i].resource_type), asteroids[i].x, asteroids[i].y, asteroids[i].z, asteroids[i].size);
 
         for(int i=0; i<MAX_DERELICTS; i++) if(derelicts[i].active && derelicts[i].q1 == q1 && derelicts[i].q2 == q2 && derelicts[i].q3 == q3)
-            printf("[DERELICT] ID:%d Coord:%.1f,%.1f,%.1f Class:%d\n", derelicts[i].id+11000, derelicts[i].x, derelicts[i].y, derelicts[i].z, derelicts[i].ship_class);
+            printf("[DERELICT] ID:%d Class:%s Coord:%.1f,%.1f,%.1f\n", derelicts[i].id+11000, get_ship_class_name(derelicts[i].ship_class), derelicts[i].x, derelicts[i].y, derelicts[i].z);
 
         for(int i=0; i<MAX_MINES; i++) if(mines[i].active && mines[i].q1 == q1 && mines[i].q2 == q2 && mines[i].q3 == q3)
             printf("[MINE] ID:%d Faction:%s Coord:%.1f,%.1f,%.1f\n", mines[i].id+14000, get_faction_name(mines[i].faction), mines[i].x, mines[i].y, mines[i].z);
@@ -273,13 +318,18 @@ int main(int argc, char *argv[]) {
     }
     else if (strcmp(argv[1], "players") == 0) {
         printf("--- Persistent Players ---\n");
+        printf("%-15s %-12s %-15s %-10s %-10s %s\n", "NAME", "FACTION", "SHIP CLASS", "CRYPTO", "POSITION", "STATUS");
         for(int i=0; i<MAX_CLIENTS; i++) {
             if (players[i].name[0] != '\0') {
-                printf("Name: %-15s Faction: %-12s Pos: [%d,%d,%d] (%.1f,%.1f,%.1f) %s\n", 
-                       players[i].name, get_faction_name(players[i].faction),
-                       players[i].state.q1, players[i].state.q2, players[i].state.q3,
-                       players[i].state.s1, players[i].state.s2, players[i].state.s3,
-                       players[i].state.is_cloaked ? "[CLOAKED]" : "");
+                char pos[32];
+                snprintf(pos, 32, "[%d,%d,%d]", players[i].state.q1, players[i].state.q2, players[i].state.q3);
+                printf("%-15s %-12s %-15s %-10s %-10s %s\n", 
+                       players[i].name, 
+                       get_faction_name(players[i].faction),
+                       get_ship_class_name(players[i].ship_class),
+                       get_crypto_name(players[i].crypto_algo),
+                       pos,
+                       players[i].state.is_cloaked ? "[CLOAKED]" : "[VISIBLE]");
             }
         }
     }

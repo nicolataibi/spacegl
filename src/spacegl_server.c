@@ -429,7 +429,7 @@ int main(int argc, char *argv[]) {
                                         players[slot].gx = (players[slot].state.q1-1)*10.0 + 5.0;
                                         players[slot].gy = (players[slot].state.q2-1)*10.0 + 5.0;
                                         players[slot].gz = (players[slot].state.q3-1)*10.0 + 5.0;
-                                        players[slot].nav_state = NAV_STATE_IDLE; players[slot].warp_speed = 0;
+                                        players[slot].nav_state = NAV_STATE_IDLE; players[slot].hyper_speed = 0;
                                         players[slot].dx = 0; players[slot].dy = 0; players[slot].dz = 0;
                                         players[slot].active = 1;
                                         players[slot].crypto_algo = CRYPTO_NONE; 

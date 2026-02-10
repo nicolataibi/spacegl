@@ -106,7 +106,7 @@ void handle_enc(int i, const char *params) {
         send_server_msg(i, "COMPUTER", "Deep Space encryption: DES-EDE3-CBC (ANCIENT) ACTIVE.");
     } else if (strstr(params, "bf") || strstr(params, "blowfish")) {
         players[i].crypto_algo = CRYPTO_BLOWFISH;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: BLOWFISH-CBC (FERENGI) ACTIVE.");
+        send_server_msg(i, "COMPUTER", "Deep Space encryption: BLOWFISH-CBC (GILDED) ACTIVE.");
     } else if (strstr(params, "rc4")) {
         players[i].crypto_algo = CRYPTO_RC4;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: RC4-STREAM (TACTICAL) ACTIVE.");
@@ -158,8 +158,8 @@ void handle_nav(int i, const char *params) {
         players[i].target_gy = (players[i].state.q2-1)*10.0+players[i].state.s2+players[i].dy*w*10.0;
         players[i].target_gz = (players[i].state.q3-1)*10.0+players[i].state.s3+players[i].dz*w*10.0;
         
-        /* Store warp factor in warp_speed temporarily to pass it to logic.c */
-        players[i].warp_speed = factor; 
+        /* Store hyperdrive factor in hyper_speed temporarily to pass it to logic.c */
+        players[i].hyper_speed = factor; 
         players[i].nav_state = NAV_STATE_ALIGN; 
         
         double dh = players[i].target_h - players[i].state.van_h;
@@ -181,8 +181,8 @@ void handle_imp(int i, const char *params) {
     int args = sscanf(params, "%lf %lf %lf", &h, &m, &s);
     if (args == 1) {
         /* Speed update only */
-        players[i].warp_speed = h / 200.0; if (players[i].warp_speed > 0.5) players[i].warp_speed = 0.5;
-        char msg[64]; sprintf(msg, "Impulse adjusted to %.0f%%.", players[i].warp_speed * 200.0);
+        players[i].hyper_speed = h / 200.0; if (players[i].hyper_speed > 0.5) players[i].hyper_speed = 0.5;
+        char msg[64]; sprintf(msg, "Impulse adjusted to %.0f%%.", players[i].hyper_speed * 200.0);
         send_server_msg(i, "HELMSMAN", msg);
         players[i].nav_state = NAV_STATE_IMPULSE;
     } else if (args == 3) {
@@ -191,7 +191,7 @@ void handle_imp(int i, const char *params) {
         players[i].start_h = players[i].state.van_h; players[i].start_m = players[i].state.van_m;
         double rad_h = h * M_PI / 180.0; double rad_m = m * M_PI / 180.0;
         players[i].dx = cos(rad_m) * sin(rad_h); players[i].dy = cos(rad_m) * -cos(rad_h); players[i].dz = sin(rad_m);
-        players[i].warp_speed = s / 200.0; if (players[i].warp_speed > 0.5) players[i].warp_speed = 0.5;
+        players[i].hyper_speed = s / 200.0; if (players[i].hyper_speed > 0.5) players[i].hyper_speed = 0.5;
         players[i].nav_state = NAV_STATE_ALIGN_IMPULSE;
         
         double dh = players[i].target_h - players[i].state.van_h;
@@ -446,7 +446,7 @@ void handle_srs(int i, const char *params) {
         double dx=pl->x-s1, dy=pl->y-s2, dz=pl->z-s3; double d=sqrt(dx*dx+dy*dy+dz*dz); double h=atan2(dx,-dy)*180/M_PI; if(h<0)h+=360; double m=(d>0.001)?asin(dz/d)*180/M_PI:0;
         int plid = pl->id+3000;
         char status[64] = ""; if (plid == locked_id) strcat(status, RED "[LOCKED]" RESET);
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "%-10s %-5d [%.1f,%.1f,%.1f] %-5.1f %03.0f / %+03.0f     Class-M Planet %s\n", "Planet", plid, pl->x, pl->y, pl->z, d, h, m, status);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "%-10s %-5d [%.1f,%.1f,%.1f] %-5.1f %03.0f / %+03.0f     Class-H Planet %s\n", "Planet", plid, pl->x, pl->y, pl->z, d, h, m, status);
     }
 
     /* 5. Stars */
@@ -473,7 +473,7 @@ void handle_srs(int i, const char *params) {
         double dx=nb->x-s1, dy=nb->y-s2, dz=nb->z-s3; double d=sqrt(dx*dx+dy*dy+dz*dz); double h=atan2(dx,-dy)*180/M_PI; if(h<0)h+=360; double m=(d>0.001)?asin(dz/d)*180/M_PI:0;
         int nid = nb->id+8000;
         char status[64] = ""; if (nid == locked_id) strcat(status, RED "[LOCKED]" RESET);
-        const char *neb_names[] = {"Mutara Class", "Metreon Class", "Dark Matter Cloud Class", "Paulson Class", "McAllister Class", "Arachnia Class"};
+        const char *neb_names[] = {"Standard Class", "High-Energy Class", "Dark Matter Class", "Ionic Class", "Gravimetric Class", "Temporal Class"};
         const char *n_name = (nb->type >= 0 && nb->type < 6) ? neb_names[nb->type] : "Unknown";
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "%-10s %-5d [%.1f,%.1f,%.1f] %-5.1f %03.0f / %+03.0f     %s %s\n", "Tactical Cruiser", nid, nb->x, nb->y, nb->z, d, h, m, n_name, status);
     }
@@ -1023,8 +1023,8 @@ void handle_scan(int i, const char *params) {
             int idx = tid - 3000;
             if (planets[idx].active && planets[idx].q1==pq1 && planets[idx].q2==pq2 && planets[idx].q3==pq3) {
                 found = true;
-                const char* res[] = {"-","Isotope-X","Tritanium","Core-Matter","Monotanium","Isolinear","Gases","Composite"};
-                snprintf(rep, 1024, GREEN "\n--- PLANETARY SURVEY ---" RESET "\nTYPE: Class-M Habitable\nRESOURCE: %s\nRESERVES: %d units\n", res[planets[idx].resource_type], planets[idx].amount);
+                const char* res[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
+                snprintf(rep, 1024, GREEN "\n--- PLANETARY SURVEY ---" RESET "\nTYPE: Class-H Habitable\nRESOURCE: %s\nRESERVES: %d units\n", res[planets[idx].resource_type], planets[idx].amount);
             }
         } 
         if (!found && tid >= 4000 && tid < 4000+MAX_STARS) {
@@ -1045,18 +1045,18 @@ void handle_scan(int i, const char *params) {
             int idx = tid - 8000;
             if (nebulas[idx].active && nebulas[idx].q1==pq1 && nebulas[idx].q2==pq2 && nebulas[idx].q3==pq3) {
                 found = true;
-                if (nebulas[idx].type == 1) { /* Metreon */
-                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: Metreon-Class Nebula\nCOMPOSITION: Highly volatile Metreon gas.\nEFFECT: High risk of ignition. Sensor interference.\n");
-                } else if (nebulas[idx].type == 2) { /* Dark Matter Cloud */
-                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: Dark Matter Cloud-Class Nebula\nCOMPOSITION: Non-baryonic matter clusters.\nEFFECT: Gravitational anomalies. Severe sensor blindness.\n");
-                } else if (nebulas[idx].type == 3) { /* Paulson */
-                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: Paulson-Class Nebula\nCOMPOSITION: High density baryonic particulates.\nEFFECT: Natural cloaking cover. Severe communication dampening.\n");
-                } else if (nebulas[idx].type == 4) { /* McAllister */
-                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: McAllister-Class Nebula\nCOMPOSITION: Verteron-enriched gas.\nEFFECT: Deep Space sensor distortion. Tactical advantage.\n");
-                } else if (nebulas[idx].type == 5) { /* Arachnia */
-                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: Arachnia-Class Nebula\nCOMPOSITION: Photonic-active plasma.\nEFFECT: Unpredictable holographic ghosting on sensors.\n");
-                } else { /* Mutara (Default) */
-                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: Mutara-Class Nebula\nCOMPOSITION: Ionized Gases, Sensor-dampening particulates.\nEFFECT: Reduced sensor range, Shield regeneration inhibition.\n");
+                if (nebulas[idx].type == 1) { /* High-Energy */
+                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: High-Energy Class Nebula\nCOMPOSITION: Highly volatile ionized gas.\nEFFECT: High risk of ignition. Sensor interference.\n");
+                } else if (nebulas[idx].type == 2) { /* Dark Matter */
+                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: Dark Matter Class Nebula\nCOMPOSITION: Non-baryonic matter clusters.\nEFFECT: Gravitational anomalies. Severe sensor blindness.\n");
+                } else if (nebulas[idx].type == 3) { /* Ionic */
+                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: Ionic Class Nebula\nCOMPOSITION: High density charged particulates.\nEFFECT: Natural cloaking cover. Severe communication dampening.\n");
+                } else if (nebulas[idx].type == 4) { /* Gravimetric */
+                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: Gravimetric Class Nebula\nCOMPOSITION: Graviton-enriched gas.\nEFFECT: Deep Space sensor distortion. Tactical advantage.\n");
+                } else if (nebulas[idx].type == 5) { /* Temporal */
+                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: Temporal Class Nebula\nCOMPOSITION: Chroniton-active plasma.\nEFFECT: Unpredictable holographic ghosting on sensors.\n");
+                } else { /* Standard (Default) */
+                    snprintf(rep, 1024, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\nTYPE: Standard Class Nebula\nCOMPOSITION: Ionized Gases, Sensor-dampening particulates.\nEFFECT: Reduced sensor range, Shield regeneration inhibition.\n");
                 }
             }
         } 
@@ -1085,7 +1085,7 @@ void handle_scan(int i, const char *params) {
             int idx = tid - 12000;
             if (asteroids[idx].active && asteroids[idx].q1==pq1 && asteroids[idx].q2==pq2 && asteroids[idx].q3==pq3) {
                 found = true;
-                snprintf(rep, 1024, WHITE "\n--- ASTEROID ANALYSIS ---" RESET "\nTYPE: Carbonaceous / Metallic\nEFFECT: Navigation hazard at high impulse/warp.\n");
+                snprintf(rep, 1024, WHITE "\n--- ASTEROID ANALYSIS ---" RESET "\nTYPE: Carbonaceous / Metallic\nEFFECT: Navigation hazard at high impulse/hyperdrive.\n");
             }
         } 
         if (!found && tid >= 16000 && tid < 16000+MAX_PLATFORMS) {
@@ -1167,7 +1167,7 @@ void handle_bor(int i, const char *params) {
                     sprintf(menu, YELLOW "\n--- BOARDING MENU: DEFENSE PLATFORM [%d] ---\n" RESET 
                            "1: Reprogram IFF (Capture platform for your faction)\n"
                            "2: Overload Reactor (Trigger self-destruct)\n"
-                           "3: Salvage Tech (Retrieve 250 Isolinear Chips)\n"
+                           "3: Salvage Tech (Retrieve 250 Synaptics Chips)\n"
                            WHITE "Type the number to confirm choice." RESET, tid);
                     send_server_msg(i, "BOARDING", menu);
                     return;
@@ -1176,7 +1176,7 @@ void handle_bor(int i, const char *params) {
                 if (rand()%100 < 45) { /* 45% success (slightly increased) */
                     int reward = rand()%4; /* Added 4th reward type */
                     if (reward == 0) { players[i].state.inventory[1] += 5; send_server_msg(i, "BOARDING", "Success! Captured Isotope-X crystals."); }
-                    else if (reward == 1) { players[i].state.inventory[5] += 100; send_server_msg(i, "ENGINEERING", "Salvaged advanced Isolinear Chips from the ship's computer."); }
+                    else if (reward == 1) { players[i].state.inventory[5] += 100; send_server_msg(i, "ENGINEERING", "Salvaged advanced Synaptics Chips from the ship's computer."); }
                     else if (reward == 2) { 
                         /* Recover Crew or Prisoners */
                         int found_people = 5 + rand()%25;
@@ -1452,7 +1452,7 @@ void handle_rep(int i, const char *params) {
             snprintf(line, sizeof(line), WHITE "%d" RESET ": %-10s | STATUS: %.1f%%\n", s, sys_names[s], players[i].state.system_health[s]);
             strcat(list, line);
         }
-        strcat(list, YELLOW "\nUsage: rep <ID> (Requires 50 Tritanium + 10 Isolinear Chips)\n" RESET);
+        strcat(list, YELLOW "\nUsage: rep <ID> (Requires 50 Neo-Titanium + 10 Synaptics Chips)\n" RESET);
         send_server_msg(i, "COMPUTER", list);
     }
 }
@@ -1804,7 +1804,7 @@ void handle_jum(int i, const char *params) {
         
                         
         
-                        players[i].warp_speed = 0; /* Stop ship */
+                        players[i].hyper_speed = 0; /* Stop ship */
         
         send_server_msg(i, "HELMSMAN", "Initiating trans-quadrant jump. Calculating Schwarzschild coordinates...");
     } else {
@@ -1983,7 +1983,7 @@ void process_command(int i, const char *cmd) {
                             send_server_msg(i, "BOARDING", "Self-destruct triggered. Platform neutralized.");
                         } else {
                             players[i].state.inventory[5] += 250;
-                            send_server_msg(i, "BOARDING", "Salvage successful. Retrieved 250 Isolinear Chips.");
+                            send_server_msg(i, "BOARDING", "Salvage successful. Retrieved 250 Synaptics Chips.");
                         }
                     }
                 }
@@ -2078,7 +2078,7 @@ void process_command(int i, const char *cmd) {
                            " INFO:   Detailed tactical analysis of a target or celestial body.\n");
             } else if (strcmp(n, "rep") == 0) {
                 strcat(hb, WHITE " USAGE:  " GREEN "rep <ID>" RESET "\n"
-                           " INFO:   Repairs a damaged system (Req: 50 Tritanium, 10 Isolinear).\n");
+                           " INFO:   Repairs a damaged system (Req: 50 Neo-Titanium, 10 Synaptics).\n");
             } else if (strcmp(n, "clo") == 0) {
                 strcat(hb, WHITE " USAGE:  " GREEN "clo" RESET "\n"
                            " INFO:   Engage/Disengage Cloaking Device. Consumes 15 energy/tick.\n");

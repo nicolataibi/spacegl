@@ -222,10 +222,29 @@ Il `stellar_client` rappresenta il nucleo operativo dell'esperienza utente, agen
 
 In sintesi, il `stellar_client` trasforma un semplice terminale testuale in un ponte di comando avanzato e fluido, tipico di un'interfaccia GDIS.
 
-### 3. La Vista Tattica 3D (`stellar_3dview`)
+### 3. Il Visualizzatore Galattico (`spacegl_viewer`)
+Il `spacegl_viewer` è uno strumento diagnostico a basso livello progettato per amministratori e giocatori avanzati, che permette di ispezionare lo stato della galassia persistente salvata in `galaxy.dat`.
+
+*   **Ispezione Offline**: A differenza del visualizzatore 3D, che richiede server e client attivi, `spacegl_viewer` legge direttamente il file binario `galaxy.dat`.
+*   **Monitoraggio Sicurezza**: Fornisce un report dettagliato sullo stato crittografico della galassia, inclusa la verifica della firma HMAC-SHA256 e i flag di cifratura attivi.
+*   **Statistiche Dettagliate**: Mostra i conteggi globali per tutte le 17 classi di oggetti (NPC, Stelle, Pianeti, Mostri, ecc.) e le metriche dei giocatori.
+*   **Comandi Astrometrici**:
+    *   `stats`: Censimento completo della galassia e rapporto di sicurezza.
+    *   `map <q3>`: Genera una sezione 2D ASCII della galassia a una specifica profondità Z (1-10), mostrando la distribuzione di nebulose, rift, piattaforme e stelle.
+    *   `list <q1> <q2> <q3>`: Fornisce un censimento millimetrico di un singolo quadrante, rivelando coordinate precise, tipi di risorse (es. Dilithio, Tritanium) e classi di navi per tutte le entità.
+    *   `players`: Elenca tutti i comandanti persistenti, il loro settore attuale, lo stato di occultamento e la frequenza crittografica attiva.
+    *   `search <name>`: Esegue una ricerca ricorsiva per localizzare un capitano o un vascello specifico nell'intero universo di 1000 quadranti.
+
+### 4. La Vista Tattica 3D (`stellar_3dview`)
 Il visualizzatore 3D è un motore di rendering standalone basato su **OpenGL e GLUT**, progettato per fornire una rappresentazione spaziale immersiva dell'area tattica circostante e dell'intera galassia.
 
-*   **Fluidità Cinematica (LERP)**: Per ovviare alla natura discreta dei pacchetti di rete, il motore implementa algoritmi di **Linear Interpolation (LERP)** sia per le posizioni che per gli orientamenti (Heading/Mark). Gli oggetti non "saltano" da un punto all'altro, ma scivolano fluidamente nello spazio, mantenendo i 60 FPS anche se il server aggiorna la logica a frequenza inferiore.
+*   **Esperienza Widescreen (16:9)**: La finestra di visualizzazione è ottimizzata per il formato 1280x720, offrendo un campo visivo cinematografico.
+    *   **FOV Dinamico**: Il sistema adatta automaticamente l'angolo di visuale (Field of View): fissa a 45° in modalità tattica per la massima precisione di manovra, e grandangolare a 65° in modalità Ponte per un'immersione totale.
+    *   **Bussola AR Dinamica (Augmented Reality)**: Il sistema di puntamento `axs` ora implementa una suite di navigazione inerziale avanzata:
+        *   **Heading Ring Inclinabile**: L'anello della bussola orizzontale è ora solidale al piano di volo della nave, inclinandosi con il beccheggio per mantenere il riferimento direzionale costante nel campo visivo del pilota.
+        *   **Arco del Mark Verticale**: L'arco dei gradi verticali rimane ancorato allo zenit galattico, permettendo di leggere l'inclinazione effettiva della nave (salita/discesa) mentre la prua scorre lungo i gradi dell'arco.
+        *   **Assi Galattici Fissi**: Gli assi X, Y, Z rimangono punti di riferimento assoluti non influenzati dal movimento della nave.
+    *   **Fluidità Cinematica (LERP)**: Per ovviare alla natura discreta dei pacchetti di rete, il motore implementa algoritmi di **Linear Interpolation (LERP)** sia per le posizioni che per gli orientamenti (Heading/Mark). Gli oggetti non "saltano" da un punto all'altro, ma scivolano fluidamente nello spazio, mantenendo i 60 FPS anche se il server aggiorna la logica a frequenza inferiore.
 *   **Rendering ad Alte Prestazioni**: Utilizza **Vertex Buffer Objects (VBO)** per gestire migliaia di stelle di sfondo e la griglia galattica, minimizzando le chiamate alla CPU e massimizzando il throughput della GPU.
 *   **Cartografia Stellare (Modalità Mappa)**:
     *   Attivabile tramite il comando `map`, questa modalità attiva una transizione cinematografica che "sgancia" la telecamera tattica dalla nave per offrire una **proiezione olografica tridimensionale** dell'intero settore.
@@ -363,7 +382,7 @@ L'universo di Space GL è un ecosistema dinamico popolato da 17 classi di entit�
 *   **Impero Korthian**: Guerrieri aggressivi che pattugliano i quadranti, spesso protetti da piattaforme difensive.
 *   **Impero Stellare Xylario**: Maestri dell'inganno che utilizzano l'occultamento per lanciare attacchi a sorpresa.
 *   **Collettivo Swarm**: La minaccia più grande. I loro Cubi hanno una potenza di fuoco massiccia e capacità rigenerative superiori.
-*   **Fazioni NPC**: Vesperiani, Dominion (Ascendant), Quarzitei, Saurian, Gilded, Specie 8472, Cryos e Apex. Ognuna con diversi livelli di ostilità e potenza.
+*   **Fazioni NPC**: Vesperiani, Ascendant, Quarzitei, Saurian, Gilded, Specie 8472, Cryos e Apex. Ognuna con diversi livelli di ostilità e potenza.
 
 #### ⚖️ Sistema di Fazioni e Protocollo "Traditore" (Renegade)
 Space GL implementa un sistema di reputazione dinamico che gestisce le relazioni tra il giocatore e le diverse potenze galattiche.
@@ -470,6 +489,10 @@ Line 385:     *   **Persistenza**: Dopo aver completato la missione, la sonda ri
 *   `cha`: **Chase**. Insegue e intercetta automaticamente il bersaglio agganciato.
 *   `rad <MSG>`: **Radio**. Invia un messaggio Dello spazio profondo agli altri capitani (@Fazione per chat di squadra).
 *   `axs` / `grd`: **Guide Visive**. Attiva/disattiva gli assi 3D o la griglia tattica.
+*   `bridge [top/bottom/up/down/left/right/rear/off]`: **Vista Ponte**. Attiva una sequenza cinematografica che sposta la camera sul ponte di comando (o sotto lo scafo).
+    *   `top/on`: Visuale standard sopra la cupola blu.
+    *   `bottom`: Prospettiva dalla parte inferiore dello scafo.
+    *   `up/down/left/right/rear`: Cambia la direzione dello sguardo mantenendo la posizione attuale.
 *   `enc <algo>`: **Encryption Toggle**. Attiva o disattiva la crittografia in tempo reale. Supporta gli standard **AES-256-GCM**, **ChaCha20**, **ARIA**, **Camellia**, **Blowfish**, **RC4**, **CAST5**, **IDEA**, **3DES** e **PQC (ML-KEM)**. Fondamentale per proteggere le comunicazioni e leggere i messaggi sicuri degli altri capitani.
 *   `tor`: **Fire Plasma Torpedo**. Lancia un siluro a guida automatica sul bersaglio agganciato.
 *   `tor <H> <M>`: Lancia un siluro in modalità balistica manuale (Heading/Mark).
@@ -526,7 +549,7 @@ Distanze espresse in unità di settore (0.0 - 10.0). Se la distanza è superiore
 | **Relitto** | `dis` | **< 1.5** | Smantellamento per recuperare componenti e risorse |
 | **Nave Nemica** | `bor` | **< 1.0** | Operazione di abbordaggio (Boarding Party) |
 | **Nave Nemica** | `pha` (Fuoco) | **< 6.0** | Gittata massima efficace dei Ion Beam NPC |
-| **Siluro Photon** | (Impatto) | **< 0.5** | Distanza di collisione per l'esplosione |
+| **Siluro Plasma** | (Impatto) | **< 0.5** | Distanza di collisione per l'esplosione |
 | **Boa Com.** | (Passivo) | **< 1.2** | Boost segnale o messaggi automatici |
 | **Mostro (Amoeba)** | (Contatto) | **< 1.5** | Inizio drenaggio energetico critico |
 | **Crystalline E.** | (Risonanza) | **< 4.0** | Gittata del raggio a risonanza cristallina |
@@ -687,7 +710,7 @@ Space GL distingue tra **Sistemi Attivi**, **Stoccaggio Stiva** e **Unità di De
     *   **Funzionamento**: Se usato senza ID, elenca tutti i 10 sistemi con il loro stato di integrità.
     *   **ID Sistemi**: `0`: Hyperdrive, `1`: Impulse, `2`: Sensori, `3`: Trasportatori, `4`: Raggio Ionico, `5`: Siluri, `6`: Computer, `7`: Supporto Vitale, `8`: Scudi, `9`: Ausiliari.
 *   **Gestione Equipaggio**: 
-    *   Il numero iniziale di personale dipende dalla classe della nave (es. 1012 per la Galaxy, 50 per la Defiant).
+    *   Il numero iniziale di personale dipende dalla classe della nave (es. 1012 per la Explorer, 50 per la Escort).
     *   **Integrità Vitale**: Se il sistema di **Supporto Vitale** (`Life Support`) scende sotto il 75%, l'equipaggio inizierà a subire perdite periodiche.
     *   **Integrità Scudi**: Se l'integrità del **Sistema Scudi (ID 8)** è bassa, la ricarica automatica dei 6 quadranti è rallentata.
     *   **Condizione di Fallimento**: Se l'equipaggio raggiunge quota **zero**, la missione termina e la nave è considerata perduta.
@@ -813,9 +836,9 @@ I siluri (comando `tor`) sono armi a simulazione fisica con precisione millimetr
 ### 🌪️ Anomalie Spaziali e Pericoli Ambientali
 Il quadrante è disseminato di fenomeni naturali rilevabili sia dai sensori che dalla **visuale tattica 3D**:
 *   **Nebulose (ID 8xxx)**:
-    *   **Classi**: Mutara, Metreon, Dark Matter Cloud, Paulson, McAllister, Arachnia.
+    *   **Classi**: Standard, High-Energy, Dark Matter, Ionic, Gravimetric, Temporal.
     *   **Effetto**: Nubi di gas e particelle che interferiscono con i sensori a corto e lungo raggio (rumore telemetrico e distorsione).
-    *   **Visuale 3D**: Volumi di gas colorati in base alla classe (Viola/Azzurro per Mutara, Giallo/Arancio per Metreon, Nero/Viola per Dark Matter, ecc.).
+    *   **Visuale 3D**: Volumi di gas colorati in base alla classe (Viola/Azzurro per Standard, Giallo/Arancio per High-Energy, Nero/Viola per Dark Matter, ecc.).
     *   **Pericolo**: Stazionare all'interno (Distanza < 2.0) causa un costante drenaggio di energia e inibisce la rigenerazione degli scudi.
     *   **Vantaggio**: Forniscono copertura tattica naturale (occultamento passivo) contro i sensori nemici.
 *   **Pulsar (ID 5xxx)**:
@@ -882,7 +905,7 @@ L'universo di Space GL è animato da una serie di eventi dinamici che richiedono
 Il database centrale GDIS conserva le imprese dei comandanti che hanno plasmato i confini dello spazio conosciuto attraverso le tenebre e la luce.
 
 #### 🌌 1. Alleanza Stellare (Alliance)
-*   🛡️ **Ammiraglio Hyperion Niklaus**: Conosciuto come "Il Muro di Orione", guidò la difesa della Vanguard durante la prima grande invasione Swarm.
+*   🛡️ **Ammiraglio Hyperion Niklaus**: Conosciuto come "Il Muro di Orione", guidò la difesa della Aegis durante la prima grande invasione Swarm.
 *   ⚓ **Capitano Lyra Vance**: La leggendaria esploratrice che mappò l'Einstein-Rosen Bridge verso il quadrante Delta con una nave di classe Scout.
 *   📜 **Comandante Leandros Thorne**: Fine diplomatico e tattico, celebre per il Trattato di Aetherium che pose fine alla guerra secolare con i Korthian.
 
@@ -925,7 +948,7 @@ In Space GL, la scelta della classe di vascello definisce il profilo operativo d
 
 #### 🏛️ Classe Legacy (Incrociatore Pesante)
 Il simbolo dell'esplorazione dell'Alleanza. Vascello bilanciato, versatile e robusto.
-*   **Comandante di Riferimento**: **Hyperion Niklaus**. La sua leadership sulla Vanguard originale definì gli standard tattici dell'accademia.
+*   **Comandante di Riferimento**: **Hyperion Niklaus**. La sua leadership sulla Aegis originale definì gli standard tattici dell'accademia.
 
 #### 🛡️ Classe Explorer (Nave Ammiraglia)
 Progettata per missioni di lunga durata e primo contatto. Dispone dei sistemi GDIS più avanzati.
@@ -948,7 +971,7 @@ L'Alleanza impiega inoltre vascelli specializzati come la classe **Carrier** (co
 
 Per facilitare il coordinamento tattico, il sistema GDIS adotta una nomenclatura standardizzata per i componenti dei vascelli dell'Alleanza, qui illustrata sulla configurazione "Monoblocco" della classe Legacy:
 
-1.  **Primary Hull (Command Saucer)**: Il corpo discoidale primario, sede dei ponti di comando, alloggi e laboratori scientifici.
+1.  **Primary Hull (Command Module)**: Il corpo discoidale primario, sede dei ponti di comando, alloggi e laboratori scientifici.
 2.  **Tactical Hub (Bridge Module)**: La cupola rinforzata superiore, centro di calcolo per il puntamento delle armi e la gestione della flotta.
 3.  **Engineering Section (Secondary Hull)**: La sezione oblunga posteriore integrata, progettata per ospitare il reattore a plasma e i serbatoi di Aetherium.
 4.  **Main Deflector Array (Rear Sphere)**: Una sfera risonante distanziata dal corpo principale, utilizzata per la deflessione di particelle e la stabilizzazione dei flussi Hyperdrive.

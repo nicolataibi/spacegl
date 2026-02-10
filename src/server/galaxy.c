@@ -366,11 +366,11 @@ const char* get_species_name(int s) {
         case FACTION_KORTHIAN:    return "Korthian"; 
         case FACTION_XYLARI:    return "Xylari"; 
         case FACTION_SWARM:       return "Swarm";
-        case FACTION_CARDASSIAN: return "Vesperian"; 
+        case FACTION_VESPERIAN: return "Vesperian"; 
         case FACTION_JEM_HADAR:  return "Ascendant"; 
         case FACTION_THOLIAN:    return "Quarzite";
         case FACTION_GORN:       return "Saurian"; 
-        case FACTION_FERENGI:    return "Gilded"; 
+        case FACTION_GILDED:    return "Gilded"; 
         case FACTION_SPECIES_8472: return "Fluidic Void";
         case FACTION_BREEN:      return "Cryos"; 
         case FACTION_HIROGEN:    return "Apex";
@@ -460,7 +460,7 @@ void generate_galaxy() {
                     black_holes[bh_count] = (NPCBlackHole){.id=bh_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1}; bh_count++; actual_bh++;
                 }
                 for(int n=0; n<neb && neb_count < MAX_NEBULAS; n++) {
-                    int n_type = rand() % 6; /* 0=Mutara, 1=Metreon, 2=Dark Matter Cloud, 3=Paulson, 4=McAllister, 5=Arachnia */
+                    int n_type = rand() % 6; /* 0=Standard, 1=High-Energy, 2=Dark Matter, 3=Ionic, 4=Gravimetric, 5=Temporal */
                     nebulas[neb_count] = (NPCNebula){.id=neb_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .type=n_type, .active=1}; neb_count++; actual_neb++;
                 }
                 for(int p=0; p<pul && pul_count < MAX_PULSARS; p++) {
