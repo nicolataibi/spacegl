@@ -216,7 +216,23 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
 *   **High-Performance Rendering**: Uses **Vertex Buffer Objects (VBO)** to handle thousands of background stars and the galactic grid, minimizing CPU calls and maximizing GPU throughput.
 *   **Stellar Cartography (Map Mode)**:
     *   Activatable via the `map` command, this mode transforms the tactical view into a global 10x10x10 galactic map.
-    *   Each quadrant is represented by chromatic indicators showing the density of bases (green), enemies (red), planets (cyan), black holes (purple), **nebulas (grey)**, and **pulsars (orange)**.
+    *   **Holographic Object Legend**: The map provides a high-resolution holographic projection of the sector, using specific symbols and chromatic coding to identify entities at a glance:
+        *   🚀 **Player** (Cyan): Your vessel.
+        *   ☀️ **Star** (Yellow): Variable spectral class.
+        *   🪐 **Planet** (Cyan): Mineral or habitable resources.
+        *   🛰️ **Starbase** (Green): Safe harbor for repairs.
+        *   🕳️ **Black Hole** (Purple): Gravitational singularity.
+        *   🌫️ **Nebula** (Grey): Gas cloud (sensor interference).
+        *   ✴️ **Pulsar** (Orange): Neutron star (radiation).
+        *   ☄️ **Comet** (Light Blue): Icy body in eccentric orbit.
+        *   🪨 **Asteroid** (Brown): Navigable debris field.
+        *   🛸 **Derelict** (Dark Grey): Abandoned ship for dismantling.
+        *   💣 **Mine** (Red): Proximity explosive.
+        *   📍 **Buoy** (Blue): Navigation transponder.
+        *   🛡️ **Platform** (Dark Orange): Automated static defense.
+        *   🌀 **Rift** (Cyan): Unstable spatial anomaly (teleport).
+        *   👾 **Space Monster** (Pulsing White): Omega-class threat.
+        *   ⚡ **Ion Storm** (White Wireframe): Local energy perturbation.
     *   Active **ion storms** are visualized as white energy shells surrounding the quadrant.
     *   The player's current position is highlighted by a **pulsing white indicator**, facilitating long-range navigation.
 *   **Dynamic Tactical HUD**: Implements a 2D-on-3D projection (via `gluProject`) to anchor labels, health bars, and IDs directly above vessels. The overlay now includes real-time monitoring of **Crew (CREW)**, vital for mission survival.
@@ -872,56 +888,111 @@ This section provides an official reference to the most celebrated commanders of
 ### 🔴 Galactic Power Commanders
 
 #### 1. Korthian Empire
+<table>
+<tr>
+    <td><img src="readme_assets/gpc-korthian.png" alt="Korthian Empire" width="200"/></td>
+  </tr>
+</table>
 *   **Kor**: The legendary "Dahar Master", pioneer of early tactical contacts with the Alliance.
 *   **Khorak**: Supreme Commander of Korthian forces during the Great Galactic War.
 *   **Dahar**: Chancellor and veteran of the Korthian Civil War.
 
 #### 2. Xylari Star Empire
+<table>
+<tr>
+    <td><img src="readme_assets/gpc-xylari.png" alt="Xylari Star Empire" width="200"/></td>
+  </tr>
+</table>
 *   **Valerius**: Commander of D'deridex class vessels and historic tactical adversary.
 *   **Alara**: Operational commander and strategist specializing in infiltration operations.
 *   **Donatra**: Commander of the *Valdore*, known for tactical cooperation during the Shinzon crisis.
 
 #### 3. Swarm Collective
+<table>
+<tr>
+    <td><img src="readme_assets/gpc-swarm.png" alt="Swarm Collective" width="200"/></td>
+  </tr>
+</table>
 *   🤖 **Node-Alpha 01**: The first hive intelligence to coordinate the technological assimilation of entire star systems.
 *   **The Queen**: Central coordination node of the Collective.
 *   **Unimatrix 01**: Command designation for Diamond class vessels or Tactical Cubes.
 
 #### 4. Vesperian Union
+<table>
+<tr>
+    <td><img src="readme_assets/gpc-vesperian.png" alt="Korthian Empire" width="200"/></td>
+  </tr>
+</table>
 *   **Gul Dukat**: Leader of occupation forces and commander of station Terok Nor.
 *   **Gul Madred**: Expert in interrogation and intelligence operations.
 *   **Gul Damar**: Leader of the Vesperian resistance and successor to supreme command.
 
 #### 5. Ascendant (Ascendant)
+<table>
+<tr>
+    <td><img src="readme_assets/gpc-ascendant.png" alt="Ascendant" width="200"/></td>
+  </tr>
+</table>
 *   **Remata'Klan**: First of the Ascendant, symbol of discipline and absolute loyalty.
 *   **Ikat'ika**: Commander of ground forces and master of tactical combat.
 *   **Karat'Ulan**: Operational commander in the Gamma Quadrant.
 
 #### 6. Quarzite Matrix
+<table>
+<tr>
+    <td><img src="readme_assets/gpc-quarzite-matrix.png" alt="Quarzite Matrix" width="200"/></td>
+  </tr>
+</table>
 *   **Loskene**: Commander known for employing the Quarzite energy web.
 *   **Terev**: Ambassador and commander involved in territorial disputes.
 *   **Sthross**: Flotilla commander expert in energy confinement tactics.
 
 #### 7. Saurian Legion
+<table>
+<tr>
+    <td><img src="readme_assets/gpc-saurian.png" alt="Saurian Legion" width="200"/></td>
+  </tr>
+</table>
 *   **Slar**: Warrior commander active during early expansion phases.
 *   **S'Sless**: Captain in charge of frontier outpost defense.
 *   **Varn**: Fleet commander during skirmishes in the Alpha Quadrant.
 
 #### 8. Gilded Cartel
+<table>
+<tr>
+    <td><img src="readme_assets/gpc-guilded.png" alt="Gilded Cartel" width="200"/></td>
+  </tr>
+</table>
 *   **DaiMon Bok**: Known for employing simulation technologies and personal vendettas.
 *   **DaiMon Tog**: Commander specializing in forced technology acquisitions.
 *   **DaiMon Goss**: Tactical representative during negotiations for Wormhole control.
 
 #### 9. Fluidic Void
+<table>
+<tr>
+    <td><img src="readme_assets/gpc-fluidic.png" alt="Fluidic Void" width="200"/></td>
+  </tr>
+</table>
 *   **Boothby (Impersonator)**: Entity dedicated to infiltration and study of Fleet command.
 *   **Bio-Ship Alpha**: Designation of the tactical coordinator of organic vessels.
 *   **Valerie Archer (Impersonator)**: Infiltration subject for deep reconnaissance missions.
 
 #### 10. Cryos Enclave
+<table>
+<tr>
+    <td><img src="readme_assets/gpc-cryos.png" alt="Cryos Enclave" width="200"/></td>
+  </tr>
+</table>
 *   **Thot Pran**: High-ranking commander during the offensive in the Alpha Quadrant.
 *   **Archon**: Operational leader during the strategic alliance with the Ascendant.
 *   **Thot Tarek**: Commander of Cryos strike forces.
 
 #### 11. Apex
+<table>
+<tr>
+    <td><img src="readme_assets/gpc-apex.png" alt="Apex" width="200"/></td>
+  </tr>
+</table>
 *   **Karr**: Alpha Apex expert in large-scale hunt simulations.
 *   **Idrin**: Veteran hunter and commander of prey vessels.
 *   **Turanj**: Commander specializing in long-range tracking.
@@ -933,8 +1004,33 @@ This section provides an official reference to the most celebrated commanders of
 The GDIS central database preserves the deeds of commanders who shaped the boundaries of known space through darkness and light.
 
 #### 🌌 1. Stellar Alliance (Alliance)
+<tr>
+    <td><img src="readme_assets/com-alliance3.png" alt="Apex" width="400"/></td>
+  </tr>
+</table>
+
+<table>
+<tr>
+    <td><img src="readme_assets/com-niklaus.png" alt="Apex" width="300"/></td>
+  </tr>
+</table>
+
 *   🛡️ **High Admiral Hyperion Niklaus**: Known as "The Wall of Orion," he led the defense of the Aegis during the first great Swarm invasion.
+
+<table>
+<tr>
+    <td><img src="readme_assets/com-LyraVance.png" alt="com-LyraVance.png" width="300"/></td>
+  </tr>
+</table>
+
 *   ⚓ **Captain Lyra Vance**: The legendary explorer who mapped the Einstein-Rosen Bridge to the Delta Quadrant using a Scout-class vessel.
+
+<table>
+<tr>
+    <td><img src="readme_assets/com-LeandrosThorne.png" alt="Leandros Thorne" width="300"/></td>
+  </tr>
+</table>
+
 *   📜 **Commander Leandros Thorne**: A refined diplomat and tactician, famous for the Aetherium Treaty that ended the century-long war with the Korthians.
 
 #### ⚔️ 2. Korthian Empire
@@ -1098,6 +1194,38 @@ The `enc <ALGO>` command allows tuning onboard systems to one of the following s
 #### 12. DES-CBC - `enc des`
 *   **Description**: The original 1970s Earth standard.
 *   **Tactical Use**: Mapped to **pre-Hyperdrive signals**. Necessary to decrypt communications from ancient sleeper probes or signals from civilizations in early technological stages.
+
+---
+
+## 🛠️ Technical Specifications & Quick Start
+
+### ⌨️ 3D Viewer Keyboard Controls
+Interaction with the `spacegl_3dview` is handled via the following direct inputs:
+*   **Arrow Keys**: Rotate camera (Pitch / Yaw).
+*   **W / S Keys**: Precise Zoom In / Zoom Out.
+*   **H Key**: Toggle HUD (Hide/Show tactical overlay).
+*   **ESC Key**: Safely close the 3D Viewer.
+
+### 🚢 Visual ship class aesthetics
+Each vessel class features unique 3D design elements:
+*   **Explorer Class**: Features a high-detail command saucer with rotating multi-spectral sensor probes.
+*   **Heavy Cruiser**: Rugged design with a massive secondary hull and high-intensity cyan deflector dish.
+*   **Cloaked Ships**: When cloaking is active, the ship is replaced by a **Blue Glowing Wireframe** effect, visually representing the bending of light around the hull.
+
+### 🔒 Security & Data Integrity
+Space GL implements enterprise-grade security for galactic state synchronization:
+*   **HMAC-SHA256 Signatures**: Galaxy data files (`galaxy.dat`) and network updates are signed to ensure zero-tampering during transit or storage.
+*   **Cryptographic HUD**: Real-time visualization of encryption flags, signature status, and active protocol parameters directly in the tactical interface.
+
+### ⚙️ System Requirements & Dependencies
+To compile and run the StarTrek Ultra suite, ensure the following libraries are installed:
+*   **FreeGLUT / OpenGL**: Core rendering engine and window management.
+*   **GLEW**: OpenGL Extension Wrangler for advanced shader support.
+*   **OpenSSL**: Required for the complete cryptographic suite (AES, HMAC, etc.).
+*   **POSIX Threads & RT**: Managed via `lpthread` and `lrt` for shared memory and synchronization.
+
+### ⚡ Zero-Latency IPC Architecture
+The extreme responsiveness of the system is achieved through a **Zero-Copy Shared Memory** (`/dev/shm`) architecture. The binary client and the 3D engine communicate at RAM speeds, ensuring that every command issued in the console results in an instantaneous visual reaction without network-induced lag on the local machine.
 
 ---
 *SPACE GL - 3D LOGIC ENGINE. Developed with technical excellence by Nicola Taibi. "Per Tenebras, Lumen"*

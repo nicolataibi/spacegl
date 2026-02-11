@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 3
+%global rel 4
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -58,6 +58,7 @@ mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_datadir}/%{name}
 mkdir -p %{buildroot}%{_datadir}/%{name}/readme_assets
 cp -p readme_assets/*.jpg %{buildroot}%{_datadir}/%{name}/readme_assets/
+cp -p readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_assets/
 
 # Install binaries
 install -p -m 0755 spacegl_server %{buildroot}%{_bindir}/
@@ -101,6 +102,5 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/readme_assets/
 
 %changelog
-* Tue Feb 10 2026 Nicola Taibi <tua@email.it> - 2026.02.09-3
-- Add license header to HOWTO.txt
-- Clean up %files section in spec
+* Tue Feb 10 2026 Nicola Taibi <tua@email.it> - 2026.02.09-4
+- PNG files added.
