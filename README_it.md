@@ -4,6 +4,11 @@
 ### Website: https://github.com/nicolataibi/spacegl
 ### Authors: Nicola Taibi, Supported by Google Gemini
 ### Copyright (C) 2026 Nicola Taibi - Licensed under GPL-3.0-or-later
+#### **Licenza: CC BY 4.0 (Attribuzione)**
+#### Tutte le immagini dei personaggi e le interfacce grafiche presenti in questa collezione sono rilasciate sotto la licenza [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/deed.it). 
+#### **Cosa puoi fare:** * Sei libero di condividere, copiare, distribuire e adattare il materiale per qualsiasi scopo, anche commerciale. 
+#### **Condizioni:** * È necessario fornire i crediti appropriati citando **Nicola Taibi** e fornendo un link alla licenza.
+#### *“Questa collezione presenta asset generati dall'intelligenza artificiale, curati e ideati tramite prompt da Nicola Taibi, generati da Gemini (Google IA)”*
 **Persistent Galaxy Tactical Navigation & Combat Simulator**
 
 <table>
@@ -879,8 +884,10 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 <table>
 <tr>
     <td><img src="readme_assets/gpc-korthian.png" alt="Korthian Empire" width="200"/></td>
+    <td><img src="readme_assets/actor-khor-khorak-dahar.png" alt="Alto Comando Korthian" width="200"/></td>
   </tr>
 </table>
+
 *   **Kor**: Il leggendario "Maestro Dahar", pioniere dei primi contatti tattici con l'Alleanza.
 *   **Khorak**: Comandante Supremo delle forze Korthian durante la Grande Guerra Galattica.
 *   **Dahar**: Cancelliere e veterano della Guerra Civile Korthian.
@@ -889,18 +896,22 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 <table>
 <tr>
     <td><img src="readme_assets/gpc-xylari.png" alt="Xylari Star Empire" width="200"/></td>
+    <td><img src="readme_assets/actor-alara-valerius-selatal.png" alt="Alto Comando Xylario" width="200"/></td>
   </tr>
 </table>
+
 *   **Valerius**: Comandante di vascelli di classe D'deridex e storico avversario tattico.
 *   **Alara**: Comandante operativo e stratega specializzata in operazioni di infiltrazione.
-*   **Donatra**: Comandante della *Valdore*, nota per la cooperazione tattica durante la crisi di Shinzon.
+*   **Sela Tal**: Comandante della Nightshade, celebre per la manipolazione dei confini e l'orchestrazione del blocco silenzioso nel Settore Ombra.
 
 #### 3. Collettivo Swarm
 <table>
 <tr>
     <td><img src="readme_assets/gpc-swarm.png" alt="Swarm Collective" width="200"/></td>
+    <td><img src="readme_assets/actor-nodo-queen-matrix.png" alt="Collettivo Swarm" width="200"/></td>
   </tr>
 </table>
+
 *   🤖 **Nodo-Alpha 01**: La prima intelligenza dell'alveare a coordinare l'assimilazione tecnologica di interi sistemi stellari.
 *   **La Regina**: Nodo di coordinamento centrale del Collettivo.
 *   **Unimatrice 01**: Designazione di comando per i vascelli di classe Diamond o i Cubi Tattici.
@@ -908,9 +919,11 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 #### 4. Unione Vesperiana
 <table>
 <tr>
-    <td><img src="readme_assets/gpc-vesperian.png" alt="Korthian Empire" width="200"/></td>
+    <td><img src="readme_assets/gpc-vesperian.png" alt="Unione Vesperiana" width="200"/></td>
+    <td><img src="readme_assets/actor-madred-dukat-damar.png" alt="Unione Vesperiana" width="200"/></td>
   </tr>
 </table>
+
 *   **Gul Dukat**: Leader delle forze d'occupazione e comandante della stazione Terok Nor.
 *   **Gul Madred**: Esperto in interrogatori e operazioni di intelligence.
 *   **Gul Damar**: Leader della resistenza vesperiana e successore al comando supremo.
@@ -919,8 +932,10 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 <table>
 <tr>
     <td><img src="readme_assets/gpc-ascendant.png" alt="Ascendant" width="200"/></td>
+    <td><img src="readme_assets/actor-ramata-ikatika-karatulan.png" alt="Alto Comando Ascendente" width="200"/></td>
   </tr>
 </table>
+
 *   **Remata'Klan**: Primo degli Ascendant, simbolo di disciplina e lealtà assoluta.
 *   **Ikat'ika**: Comandante delle forze di terra e maestro del combattimento tattico.
 *   **Karat'Ulan**: Comandante operativo nel Quadrante Gamma.
@@ -929,8 +944,10 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 <table>
 <tr>
     <td><img src="readme_assets/gpc-quarzite-matrix.png" alt="Quarzite Matrix" width="200"/></td>
+    <td><img src="readme_assets/actor-loskene-terev-sthross.png" alt="Matrice Quarzite" width="200"/></td>
   </tr>
 </table>
+
 *   **Loskene**: Comandante noto per l'impiego della rete energetica Quarzite.
 *   **Terev**: Ambasciatore e comandante coinvolto in dispute territoriali.
 *   **Sthross**: Comandante di flottiglia esperto in tattiche di confinamento energetico.
@@ -939,8 +956,10 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 <table>
 <tr>
     <td><img src="readme_assets/gpc-saurian.png" alt="Saurian Legion" width="200"/></td>
+    <td><img src="readme_assets/actor-slar-sless-varn.png" alt="Legione Sauriana" width="200"/></td>
   </tr>
 </table>
+
 *   **Slar**: Comandante guerriero attivo durante le prime fasi di espansione.
 *   **S'Sless**: Capitano incaricato della difesa degli avamposti di frontiera.
 *   **Varn**: Comandante della flotta durante le scaramucce nel Quadrante Alfa.
@@ -949,8 +968,10 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 <table>
 <tr>
     <td><img src="readme_assets/gpc-guilded.png" alt="Gilded Cartel" width="200"/></td>
+    <td><img src="readme_assets/actor-tog-bok-goss.png" alt="Cartello Dorato" width="200"/></td>
   </tr>
 </table>
+
 *   **DaiMon Bok**: Noto per l'impiego di tecnologie di simulazione e vendette personali.
 *   **DaiMon Tog**: Comandante specializzato in acquisizioni tecnologiche forzate.
 *   **DaiMon Goss**: Rappresentante tattico durante i negoziati per il controllo del Wormhole.
@@ -959,8 +980,10 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 <table>
 <tr>
     <td><img src="readme_assets/gpc-fluidic.png" alt="Fluidic Void" width="200"/></td>
+    <td><img src="readme_assets/actor-boothby-archer-nodo.png" alt="Vuoto Fluidico" width="200"/></td>
   </tr>
 </table>
+
 *   **Boothby (Impostore)**: Entità dedicata all'infiltrazione e allo studio del comando della Flotta.
 *   **Bio-Nave Alpha**: Designazione del coordinatore tattico dei vascelli organici.
 *   **Valerie Archer (Impostore)**: Soggetto di infiltrazione per missioni di ricognizione profonda.
@@ -969,8 +992,10 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 <table>
 <tr>
     <td><img src="readme_assets/gpc-cryos.png" alt="Cryos Enclave" width="200"/></td>
+    <td><img src="readme_assets/actor-pran-archon-tarex.png" alt="Enclave Cryos" width="200"/></td>
   </tr>
 </table>
+
 *   **Thot Pran**: Comandante di alto rango durante l'offensiva nel Quadrante Alfa.
 *   **Archon**: Leader operativo durante l'alleanza strategica con gli Ascendant.
 *   **Thot Tarek**: Comandante delle forze d'attacco Cryos.
@@ -979,8 +1004,10 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 <table>
 <tr>
     <td><img src="readme_assets/gpc-apex.png" alt="Apex" width="200"/></td>
+    <td><img src="readme_assets/actor-idrin-karr-turanj.png" alt="Apex" width="200"/></td>
   </tr>
 </table>
+
 *   **Karr**: Alpha Apex esperto in simulazioni di caccia su larga scala.
 *   **Idrin**: Cacciatore veterano e comandante di vascelli preda.
 *   **Turanj**: Comandante specializzato nel tracciamento a lungo raggio.
@@ -1044,33 +1071,87 @@ L'**Alleanza Stellare** rappresenta il principale baluardo di stabilità e coope
 *   📜 **Comandante Leandros Thorne**: Un raffinato diplomatico e tattico, famoso per il Trattato di Aetherium che pose fine alla guerra centenaria con i Korthian.
 
 #### ⚔️ 2. Impero Korthian
+<table>
+<tr>
+    <td><img src="readme_assets/arald-korthian.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 *   🩸 **Signore della Guerra Khorak**: Il tattico più brutale dell'impero, famoso per la sua dottrina del "Fuoco Perpetuo" e la conquista del Settore Nero.
 *   🗡️ **Generale Valkar**: Un leggendario comandante che unificò le casate in guerra sotto un unico vessillo di conquista galattica.
 
 #### 🎭 3. Impero Stellare Xylari
+<table>
+<tr>
+    <td><img src="readme_assets/arald-xylari.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 *   🐍 **Gran Pretore Nyx**: Maestro di furtività e sabotaggio, svanì per dieci anni prima di riemergere con una flotta fantasma nel cuore del territorio nemico.
 *   👁️ **Inquisitore Malakor**: Il primo a utilizzare le frequenze di crittografia Camellia per manipolare i flussi di dati dei sensori nemici.
 
 #### 🕸️ 4. Collettivo Swarm
+<table>
+<tr>
+    <td><img src="readme_assets/arald-swarm.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 *   🤖 **Nodo-Alpha 01**: La prima intelligenza dell'alveare a coordinare l'assimilazione tecnologica di interi sistemi stellari.
 *   🔗 **Unity Prime**: Un'entità biomeccanica incaricata di ottimizzare il consumo di massa stellare nelle nebulose energetiche.
 
 #### 🏛️ 5. Unione Vesperiana
+<table>
+<tr>
+    <td><img src="readme_assets/arald-vesperian.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 *   📐 **Legato Thrax**: Architetto della difesa galattica, noto per aver trasformato semplici asteroidi in fortezze inespugnabili.
 
 #### 🔮 6. L'Ascendenza (The Ascendancy)
+<table>
+<tr>
+    <td><img src="readme_assets/arald-ascendancy.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 *   🛐 **Primo Arconte Voth**: La guida spirituale e militare che guidò la sua flotta "Ascendente" attraverso il Grande Vuoto.
 
 #### 💎 7. Matrice Quarzite
+<table>
+<tr>
+    <td><img src="readme_assets/arald-quarzite.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 *   💠 **Rifrazione Zero**: Un'entità cristallina pura capace di calcolare rotte iperspaziali a una velocità superiore a qualsiasi computer biologico.
 
 #### 💎 8. Cartello Dorato
+<table>
+<tr>
+    <td><img src="readme_assets/arald-gilded.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 *   📈 **Barone Silas**: Il magnate che monopolizzò il commercio di Void-Essence e Aetherium attraverso tre quadranti.
 
 #### ❄️ 9. Enclave Cryos
+<table>
+<tr>
+    <td><img src="readme_assets/arald-enclave.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 *   🧊 **Custode Boreas**: Governatore delle distese ghiacciate, esperto in tattiche di guerriglia termica e soppressione del segnale.
 
 #### 🎯 10. Apex Stalker
+<table>
+<tr>
+    <td><img src="readme_assets/arald-apex.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 *   🏹 **Alpha Hunter Kael**: Noto come "Il Fantasma del Settore Zero", rinomato per non aver mai mancato un bersaglio con i suoi siluri al plasma a guida manuale.
 
 ---
@@ -1081,22 +1162,52 @@ L'**Alleanza Stellare** rappresenta il principale baluardo di stabilità e coope
 In Space GL, la scelta della classe del vascello definisce il profilo operativo del Comandante. Di seguito sono riportati i riferimenti per le classi principali:
 
 #### 🏛️ Classe Legacy (Incrociatore Pesante)
+<table>
+<tr>
+    <td><img src="readme_assets/ship-legacy.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 Il simbolo dell'esplorazione dell'Alleanza. Un vascello equilibrato, versatile e robusto.
 *   **Comandante di Riferimento**: **Hyperion Niklaus**. La sua leadership sull'Aegis originale ha definito gli standard tattici dell'accademia.
 
 #### 🛡️ Classe Esploratore (Nave Ammiraglia)
+<table>
+<tr>
+    <td><img src="readme_assets/ships-lyra.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 Progettata per missioni di lunga durata e primo contatto. Dispone dei sistemi GDIS più avanzati.
 *   **Comandante di Riferimento**: **Lyra Vance**. Eccelleva nell'uso dei sensori a lungo raggio per evitare conflitti non necessari.
 
 #### ⚔️ Classe Nave Ammiraglia (Incrociatore Tattico)
+<table>
+<tr>
+    <td><img src="readme_assets/ship-thorne.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 L'ultima espressione della potenza di fuoco dell'Alleanza, equipaggiata con pesanti banchi Ion Beam.
 *   **Comandante di Riferimento**: **Leandros Thorne**. Famoso per l'uso coordinato di scudi localizzati e salve di siluri al plasma.
 
 #### 🔭 Nave Scientifica (Esploratore Scientifico)
+<table>
+<tr>
+    <td><img src="readme_assets/ship-malakor.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 Un vascello specializzato nell'analisi di anomalie spaziali e nella raccolta di Aetherium.
 *   **Comandante di Riferimento**: **Inquisitore Malakor** (Acquisito). Sebbene Xylari, le sue teorie sulla risonanza spaziale sono studiate in ogni missione scientifica.
 
 #### 🛠️ Altre Classi Operative
+<table>
+<tr>
+    <td><img src="readme_assets/ships.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
 L'Alleanza impiega anche vascelli specializzati come la classe **Carrier** (coordinamento droni) e **Tactical Cruiser** (difesa perimetrale), ciascuno ottimizzato per scenari di crisi specifici.
 
 ---
