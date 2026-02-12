@@ -375,6 +375,27 @@ Space GL implements a dynamic reputation system that manages relationships betwe
 *   **Space Monsters**: Includes the **Crystalline Entity** and the **Space Amoeba**, unique creatures that actively hunt vessels to feed on their energy.
 *   **Ion Storms**: Meteorological phenomena moving through the galaxy, capable of blinding sensors and diverting ships' courses.
 
+## 💎 Resources and Materials Guide
+
+The galaxy is rich in raw materials and exotic elements essential for ship maintenance and advanced operations.
+
+| ID | Resource | Primary Source | Extraction Method | Main Use |
+| :--- | :--- | :--- | :--- | :--- |
+| **1** | **Aetherium** | Black Holes / Wrecks | `har` / `bor` | Hyperdrive Jumps (`jum`), Energy conversion |
+| **2** | **Neo-Titanium** | Planets / Wrecks | `min` / `dis` | System Repairs (`rep`), Energy conversion |
+| **3** | **Void-Essence** | Planets / Asteroids | `min` | Torpedo Warheads production (`con 3`) |
+| **4** | **Graphene** | Planets / Asteroids | `min` | **Field Hull Repairs** (`fix`) |
+| **5** | **Synaptics** | Derelicts / Wrecks | `bor` / `dis` | Complex System Repairs (`rep`) |
+| **6** | **Nebular Gas** | Comets / Nebulae | `cha` (Tail) / `min` | High-efficiency Energy conversion (`con 6`) |
+| **7** | **Composite** | Class-H Planets | `min` | **Hull Reinforcement** (`hull`) |
+| **8** | **Dark-Matter** | Rare Asteroids/Stars | `min` / `sco` | Ultra-dense Energy source (`con 8`) |
+
+### Detailed Resource Acquisition
+*   **Planetary Mining (`min`)**: Scanning planets with `scan` reveals their resource type. Use `min` at close range (< 3.1) to extract minerals. **Composite** is typically found on Class-H planets.
+*   **Salvaging Wrecks (`dis`)**: After combat, use `dis` on vessel debris to recover **Neo-Titanium** and **Synaptics Chips**.
+*   **Boarding Ops (`bor`)**: Sending teams to derelict ships or disabled enemies can yield high-tech components like **Synaptics** or rare **Aetherium** crystals.
+*   **Comet Interception**: Chasing a comet (`cha`) and flying through its tail (< 0.6 units) automatically collects **Nebular Gas**.
+
 ---
 
 ## 🕹️ Operational Command Manual
@@ -390,6 +411,7 @@ Below is the complete list of available commands, grouped by function.
 *   `imp <H> <M> <S>`: **Impulse Drive**. Sub-light engines. `S` represents speed from 0.0 to 1.0 (Full Impulse).
     *   `S`: Speed (0.0 - 1.0).
     *   `imp 0 0 0`: All Stop.
+*   `pos <H> <M>`: **Positioning (Alignment)**. Orients the ship to a specific Heading and Mark without engaging engines. Ideal for tactical positioning before a jump or Ion Beam fire.
 *   `cal <QX> <QY> <QZ> [SX SY SZ]`: **Navigational Computer (High Precision)**. Generates a full report with Heading, Mark, and a **Velocity Comparison Table**. If sector coordinates (SX, SY, SZ) are provided, it calculates the pinpoint route to that specific location.
 *   `ical <X> <Y> <Z>`: **Impulse Calculator (ETA)**. Calculates H, M, and ETA to reach precise coordinates (0.0-10.0) within the current quadrant, based on current engine power allocation.
     
@@ -611,6 +633,7 @@ The HUD displays "LIFE SUPPORT: XX.X%", which is directly linked to the integrit
     *   **Selection**: Reply with the number `1`, `2`, or `3` to execute the action.
     *   **Risks**: Resistance chance (30% for players, higher for NPCs) may cause team casualties.
 *   `dis`: **Dismantle**. Dismantles enemy wrecks for resources (Dist < 1.5).
+*   `fix`: **Field Hull Repair**. Uses **50 Graphene and 20 Neo-Titanium** to restore +15% Hull Integrity (up to a max of 80%).
 *   `min`: **Mining**. Extracts resources from an orbiting planet or asteroid (Dist < 3.1).
     *   **Selective Priority**:
         1.  If a target is locked (`lock <ID>`), the system grants it absolute priority.
@@ -757,13 +780,11 @@ The system uses spatial projection algorithms to anchor information directly abo
 *   **Visual Latching**: Combat effects (Ion Beams, explosions) are temporally synchronized with server logic, providing immediate visual feedback on hit impact.
 
 #### 🧭 3D Tactical Compass (`axs`)
-By activating visual axes (`axs`), the simulator projects a spherical reference system centered on your ship.
-
-**Axis Convention Note**: The graphics engine uses the **OpenGL (Y-Up)** standard.
-*   **X (Red)**: Transverse axis (Left/Right).
-*   **Y (Green)**: Vertical axis (Up/Down). This is the rotation axis for *Heading*.
-*   **Z (Blue)**: Longitudinal axis (Depth/Forward motion).
-*   **Boundary Coordinates**: At the center of each face of the tactical cube, the coordinates `[X,Y,Z]` of adjacent quadrants are projected.
+By activating visual axes (`axs`), the simulator projects a dual spherical reference system centered on your ship:
+*   **Fixed Horizontal Ring (White)**: Anchored to the galactic plane (XZ). Includes cardinal markers (N, E, S, W) and 30° ticks for absolute orientation.
+*   **Tilting Heading Ring (Cyan)**: Locked to the ship's flight plane. It tilts with pitch to provide a constant directional reference relative to the ship's nose.
+*   **Vertical Mark Arc (Yellow)**: Anchored to the galactic zenith, allowing precise reading of pitch (climb/dive).
+*   **Fixed Galactic Axes**: X (Red), Y (Green), and Z (Blue) remain absolute reference points.
 
 ---
 
@@ -1222,7 +1243,9 @@ A vessel specialized in analyzing spatial anomalies and gathering Aetherium.
 #### 🛠️ Other Operational Classes
 <table>
 <tr>
-    <td><img src="readme_assets/ships.png" alt="Emblem" width="200"/></td>
+    <td><img src="readme_assets/ships1.png" alt="Emblem base" width="200"/></td>
+    <td><img src="readme_assets/ships2.png" alt="Emblem medium" width="200"/></td>
+    <td><img src="readme_assets/ships3.png" alt="Emblem high" width="200"/></td>
  </tr>
 </table>
 

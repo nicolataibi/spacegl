@@ -114,6 +114,8 @@ typedef struct {
     uint8_t shm_server_pubkey[32];
     int shm_q[3];
     float shm_s[3];
+    float shm_h;
+    float shm_m;
     int64_t shm_galaxy[11][11][11];
     
     /* Deep Space Telemetry Metrics */

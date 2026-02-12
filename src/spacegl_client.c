@@ -475,10 +475,11 @@ void *network_listener(void *arg) {
                 g_shared_state->shm_q[0] = upd.q1;
                 g_shared_state->shm_q[1] = upd.q2;
                 g_shared_state->shm_q[2] = upd.q3;
-                g_shared_state->shm_s[0] = (float)upd.s1;
-                g_shared_state->shm_s[1] = (float)upd.s2;
-                g_shared_state->shm_s[2] = (float)upd.s3;
-                sprintf(g_shared_state->quadrant, "Q-%d-%d-%d", upd.q1, upd.q2, upd.q3);
+                            g_shared_state->shm_s[0] = (float)upd.s1;
+                            g_shared_state->shm_s[1] = (float)upd.s2;
+                            g_shared_state->shm_s[2] = (float)upd.s3;
+                            g_shared_state->shm_h = upd.van_h;
+                            g_shared_state->shm_m = upd.van_m;                sprintf(g_shared_state->quadrant, "Q-%d-%d-%d", upd.q1, upd.q2, upd.q3);
 
                 /* Update dynamic galaxy data (e.g. Ion Storms, Supernovas) */
                 int mq1 = upd.map_update_q[0], mq2 = upd.map_update_q[1], mq3 = upd.map_update_q[2];

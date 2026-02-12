@@ -375,6 +375,27 @@ Space GL implementa un sistema di reputazione dinamico che gestisce le relazioni
 *   **Mostri Spaziali**: Include l'**Entità Cristallina** e l'**Ameba Spaziale**, creature uniche che cacciano attivamente i vascelli per nutrirsi della loro energia.
 *   **Tempeste Ioniche**: Fenomeni meteorologici che si spostano nella galassia, capaci di accecare i sensori e deviare la rotta delle navi.
 
+## 💎 Guida alle Risorse e ai Materiali
+
+La galassia è ricca di materie prime ed elementi esotici essenziali per la manutenzione della nave e le operazioni avanzate.
+
+| ID | Risorsa | Fonte Primaria | Metodo di Estrazione | Utilizzo Principale |
+| :--- | :--- | :--- | :--- | :--- |
+| **1** | **Aetherium** | Buchi Neri / Relitti | `har` / `bor` | Salti Hyperdrive (`jum`), Conversione energia |
+| **2** | **Neo-Titanium** | Pianeti / Relitti | `min` / `dis` | Riparazione sistemi (`rep`), Conversione energia |
+| **3** | **Void-Essence** | Pianeti / Asteroidi | `min` | Produzione testate per siluri (`con 3`) |
+| **4** | **Grafene** | Pianeti / Asteroidi | `min` | **Riparazioni Scafo** (`fix`) |
+| **5** | **Synaptics** | Relitti / Detriti | `bor` / `dis` | Riparazioni complesse (`rep`) |
+| **6** | **Gas Nebulare** | Comete / Nebulose | `cha` (Coda) / `min` | Conversione energetica efficiente (`con 6`) |
+| **7** | **Composite** | Pianeti Classe-H | `min` | **Rinforzo dello Scafo** (`hull`) |
+| **8** | **Dark-Matter** | Asteroidi Rari / Stelle | `min` / `sco` | Fonte di energia ultra-densa (`con 8`) |
+
+### Dettaglio Reperimento Risorse
+*   **Estrazione Planetaria (`min`)**: Scansionando i pianeti con `scan` si rivela il tipo di risorsa. Usa `min` a breve distanza (< 3.1) per estrarre i minerali. Il **Composite** si trova tipicamente sui pianeti di Classe-H.
+*   **Smantellamento Relitti (`dis`)**: Dopo un combattimento, usa `dis` sui detriti dei vascelli per recuperare **Neo-Titanium** e **Chip Synaptics**.
+*   **Operazioni d'Abbordaggio (`bor`)**: Inviare squadre su navi alla deriva o nemici disabilitati può fruttare componenti ad alta tecnologia come i **Synaptics** o rari cristalli di **Aetherium**.
+*   **Intercettazione Comete**: Inseguendo una cometa (`cha`) e volando attraverso la sua coda (< 0.6 unità) raccoglierai automaticamente **Gas Nebulare**.
+
 ---
 
 ## 🕹️ Manuale Operativo dei Comandi
@@ -390,6 +411,7 @@ Di seguito la lista completa dei comandi disponibili, raggruppati per funzione.
 *   `imp <H> <M> <S>`: **Impulse Drive**. Motori sub-luce. `S` rappresenta la velocità da 0.0 a 1.0 (Full Impulse).
     *   `S`: Velocità (0.0 - 1.0).
     *   `imp 0 0 0`: All Stop (Arresto).
+*   `pos <H> <M>`: **Posizionamento (Allineamento)**. Orienta la nave su un determinato Heading e Mark senza attivare i motori. Utile per puntare obiettivi prima di un attacco o di un salto.
 *   `cal <QX> <QY> <QZ> [SX SY SZ]`: **Computer di Navigazione (Alta Precisione)**. Genera un rapporto completo con Heading, Mark e una **Tabella di Confronto delle Velocità**. Se vengono fornite le coordinate di settore (SX, SY, SZ), calcola la rotta precisa verso quella posizione.
 *   `ical <X> <Y> <Z>`: **Calcolatore d'Impulso (ETA)**. Calcola H, M ed ETA per raggiungere coordinate precise (0.0-10.0) all'interno del quadrante attuale, basandosi sull'attuale allocazione di potenza ai motori.
     
@@ -611,6 +633,7 @@ L'HUD visualizza "LIFE SUPPORT: XX.X%", che è direttamente collegato all'integr
     *   **Selezione**: Rispondi con il numero `1`, `2` o `3` per eseguire l'azione.
     *   **Rischi**: Possibilità di resistenza (30% per i giocatori, più alta per gli NPC) che può causare perdite nella squadra.
 *   `dis`: **Smantellamento**. Smantella i relitti nemici per le risorse (Dist < 1.5).
+*   `fix`: **Riparazione Scafo**. Usa **50 Grafene e 20 Neo-Titanium** per ripristinare +15% di Integrità Scafo (fino a un max dell'80%).
 *   `min`: **Estrazione**. Estrae risorse da un pianeta o asteroide in orbita (Dist < 3.1).
     *   **Priorità Selettiva**:
         1.  Se un bersaglio è agganciato (`lock <ID>`), il sistema gli garantisce la priorità assoluta.
@@ -745,13 +768,11 @@ Il sistema utilizza algoritmi di proiezione spaziale per ancorare le informazion
 *   **Visual Latching**: Gli effetti di combattimento (Ion Beam, esplosioni) sono sincronizzati temporalmente con la logica del server, fornendo un feedback visivo immediato sull'impatto del colpo.
 
 #### 🧭 Bussola Tattica 3D (`axs`)
-Attivando gli assi visivi (`axs`), il simulatore proietta un sistema di riferimento sferico centrato sulla tua nave.
-
-**Nota sulla Convenzione degli Assi**: Il motore grafico utilizza lo standard **OpenGL (Y-Up)**.
-*   **X (Rosso)**: Asse trasversale (Sinistra/Destra).
-*   **Y (Verde)**: Asse verticale (Alto/Basso). Questo è l'asse di rotazione per l'**Heading**.
-*   **Z (Blu)**: Asse longitudinale (Profondità/Movimento in avanti).
-*   **Coordinate di Confine**: Al centro di ogni faccia del cubo tattico, sono proiettate le coordinate `[X,Y,Z]` dei quadranti adiacenti.
+Attivando gli assi visivi (`axs`), il simulatore proietta un doppio sistema di riferimento sferico centrato sulla tua nave:
+*   **Anello Orizzontale Fisso (Bianco)**: Ancorato al piano galattico (XZ). Include marcatori cardinali (N, E, S, W) e tacche ogni 30° per un orientamento assoluto.
+*   **Anello Heading Inclinabile (Ciano)**: Solidale al piano di volo della nave. Si inclina con il beccheggio per fornire un riferimento direzionale costante rispetto alla prua.
+*   **Arco del Mark Verticale (Giallo)**: Ancorato allo zenit galattico, permette una lettura precisa del beccheggio (salita/discesa).
+*   **Assi Galattici Fissi**: Gli assi X (Rosso), Y (Verde) e Z (Blu) rimangono punti di riferimento assoluti.
 
 ---
 
@@ -1204,7 +1225,9 @@ Un vascello specializzato nell'analisi di anomalie spaziali e nella raccolta di 
 #### 🛠️ Altre Classi Operative
 <table>
 <tr>
-    <td><img src="readme_assets/ships.png" alt="Emblem" width="200"/></td>
+    <td><img src="readme_assets/ships1.png" alt="Emblem base" width="200"/></td>
+    <td><img src="readme_assets/ships2.png" alt="Emblem medium" width="200"/></td>
+    <td><img src="readme_assets/ships3.png" alt="Emblem high" width="200"/></td>
  </tr>
 </table>
 

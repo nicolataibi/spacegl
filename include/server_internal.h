@@ -33,7 +33,8 @@ typedef enum {
     NAV_STATE_IMPULSE, 
     NAV_STATE_CHASE,
     NAV_STATE_ALIGN_IMPULSE,
-    NAV_STATE_WORMHOLE
+    NAV_STATE_WORMHOLE,
+    NAV_STATE_ALIGN_ONLY
 } NavState;
 
 typedef struct {

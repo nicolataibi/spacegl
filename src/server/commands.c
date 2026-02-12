@@ -1559,6 +1559,26 @@ void handle_cal(int i, const char *params) {
     }
 }
 
+void handle_pos(int i, const char *params) {
+    double h, m;
+    if (sscanf(params, "%lf %lf", &h, &m) == 2) {
+        normalize_upright(&h, &m);
+        players[i].target_h = h; players[i].target_m = m;
+        players[i].start_h = players[i].state.van_h; players[i].start_m = players[i].state.van_m;
+        players[i].nav_state = NAV_STATE_ALIGN_ONLY;
+        
+        double dh = players[i].target_h - players[i].state.van_h;
+        while(dh>180) dh-=360; 
+        while(dh<-180) dh+=360;
+        if(fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0) players[i].nav_timer=10;
+        else players[i].nav_timer = 60;
+        
+        send_server_msg(i, "HELMSMAN", "Course correction: Aligning ship to new orientation.");
+    } else {
+        send_server_msg(i, "COMPUTER", "Usage: pos <H> <M>");
+    }
+}
+
 void handle_who(int i, const char *params) {
     char b[1024]=WHITE "\n--- ACTIVE CAPTAINS LOG ---\n" RESET;
     for(int j=0; j<MAX_CLIENTS; j++) if(players[j].active) {
@@ -1753,6 +1773,28 @@ void handle_xxx(int i, const char *params) {
     players[i].state.boom = (NetPoint){(float)players[i].state.s1, (float)players[i].state.s2, (float)players[i].state.s3, 1};
 }
 
+void handle_fix(int i, const char *params) {
+    /* Cost: 50 Graphene (inventory[4]) + 20 Neo-Titanium (inventory[2]) */
+    if (players[i].state.inventory[4] >= 50 && players[i].state.inventory[2] >= 20) {
+        if (players[i].state.hull_integrity >= 80.0f) {
+            send_server_msg(i, "ENGINEERING", "Hull integrity is at maximum field-repair capacity (80%). Starbase required for full overhaul.");
+            return;
+        }
+        
+        players[i].state.inventory[4] -= 50;
+        players[i].state.inventory[2] -= 20;
+        
+        players[i].state.hull_integrity += 15.0f;
+        if (players[i].state.hull_integrity > 80.0f) players[i].state.hull_integrity = 80.0f;
+        
+        char msg[128];
+        sprintf(msg, "Field repairs complete. Hull integrity restored to %.1f%%. [Graphene -50, Neo-Titanium -20]", players[i].state.hull_integrity);
+        send_server_msg(i, "ENGINEERING", msg);
+    } else {
+        send_server_msg(i, "COMPUTER", "Insufficient materials for hull repair (Req: 50 Graphene, 20 Neo-Titanium).");
+    }
+}
+
 void handle_hull(int i, const char *params) {
     if (players[i].state.inventory[7] >= 100) {
         players[i].state.inventory[7] -= 100;
@@ -1852,6 +1894,7 @@ void handle_ical(int i, const char *params) {
 static const CommandDef command_registry[] = {
     {"nav ", handle_nav, "Hyperdrive Navigation <H> <M> <W> [Factor]"},
     {"imp ", handle_imp, "Impulse Drive <H> <M> <S>"},
+    {"pos ", handle_pos, "Position Ship (Align) <H> <M>"},
     {"jum ", handle_jum, "Wormhole Jump <Q1> <Q2> <Q3>"},
     {"apr ", handle_apr, "Approach target <ID> <DIST>"},
     {"cha",  handle_cha, "Chase locked target"},
@@ -1875,6 +1918,7 @@ static const CommandDef command_registry[] = {
     {"con ", handle_con, "Resource Converter"},
     {"load ",handle_load, "Load Cargo"},
     {"rep",  handle_rep, "Repair Systems"},
+    {"fix",  handle_fix, "Field Hull Repair (50 Graphene + 20 Neo-Ti)"},
     {"sta",  handle_sta, "Status Report"},
     {"inv",  handle_inv, "Inventory Report"},
     {"dam",  handle_dam, "Damage Report"},

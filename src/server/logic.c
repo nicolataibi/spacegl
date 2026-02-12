@@ -806,7 +806,7 @@ void update_game_logic() {
         players[i].state.energy -= passive_drain;
         if (players[i].state.energy < 0) players[i].state.energy = 0;
 
-        if (players[i].nav_state == NAV_STATE_ALIGN || players[i].nav_state == NAV_STATE_ALIGN_IMPULSE) {
+        if (players[i].nav_state == NAV_STATE_ALIGN || players[i].nav_state == NAV_STATE_ALIGN_IMPULSE || players[i].nav_state == NAV_STATE_ALIGN_ONLY) {
             players[i].nav_timer--;
             
             double diff_h = players[i].target_h - players[i].start_h;
@@ -847,10 +847,13 @@ void update_game_logic() {
                     char msg[128];
                     sprintf(msg, "Hyperdrive drive engaged. Velocity: Hyperdrive %.1f. ETA: %.1f seconds.", factor, (double)players[i].nav_timer / 30.0);
                     send_server_msg(i, "HELMSMAN", msg);
-                } else {
+                } else if (players[i].nav_state == NAV_STATE_ALIGN_IMPULSE) {
                     players[i].nav_state = NAV_STATE_IMPULSE;
                     char msg[64]; sprintf(msg, "Impulse engaged at %.0f%%.", players[i].hyper_speed * 200.0);
                     send_server_msg(i, "HELMSMAN", msg);
+                } else {
+                    players[i].nav_state = NAV_STATE_IDLE;
+                    send_server_msg(i, "HELMSMAN", "Ship orientation adjusted and stabilized.");
                 }
             }
         }

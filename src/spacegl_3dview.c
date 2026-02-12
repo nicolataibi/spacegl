@@ -1209,6 +1209,37 @@ void drawHeadingRing() {
     }
 }
 
+void drawFixedCompass() {
+    /* Fixed Horizontal Compass - White */
+    glDisable(GL_LIGHTING);
+    glColor4f(1.0f, 1.0f, 1.0f, 0.4f);
+    
+    /* Outer Ring */
+    glBegin(GL_LINE_LOOP);
+    for(int i=0; i<360; i+=5) {
+        float rad = i * M_PI / 180.0f;
+        glVertex3f(sin(rad)*3.0f, 0, cos(rad)*3.0f);
+    }
+    glEnd();
+
+    /* Inner Ticks and Labels */
+    glColor3f(0.9f, 0.9f, 0.9f);
+    for(int i=0; i<360; i+=30) {
+        float rad = i * M_PI / 180.0f;
+        glBegin(GL_LINES);
+        glVertex3f(sin(rad)*2.9f, 0, cos(rad)*2.9f);
+        glVertex3f(sin(rad)*3.1f, 0, cos(rad)*3.1f);
+        glEnd();
+        
+        if (i % 90 == 0) {
+            float lx = sin(rad)*3.3f;
+            float lz = cos(rad)*3.3f;
+            const char* nsew[] = {"N", "E", "S", "W"}; /* Simplified N=0, E=90, S=180, W=270 */
+            drawText3D(lx, 0.1f, lz, nsew[i/90]);
+        }
+    }
+}
+
 void drawMarkArc() {
     /* 3. Mark Arc (Frontal Vertical plane -90 to +90) */
     glColor4f(1.0f, 1.0f, 0.0f, 0.2f);
@@ -2981,6 +3012,9 @@ void display() {
             glColor3f(0, 0, 0.5); glVertex3f(0,0,-5.5); glVertex3f(0,0,5.5);
             glEnd();
 
+            /* 1.5 FIXED HORIZONTAL COMPASS (White) */
+            drawFixedCompass();
+
             /* 2. HEADING RING (Tilts with Pitch) */
             glPushMatrix();
             float h_rad = objects[0].h * M_PI / 180.0f;
@@ -3280,6 +3314,9 @@ void display() {
         float disp_s2 = 5.0f - PlayerZ;
         float disp_s3 = PlayerY + 5.0f;
         sprintf(buf, "QUADRANT: %s  |  SECTOR: [%.2f, %.2f, %.2f]", g_quadrant, disp_s1, disp_s2, disp_s3); 
+        drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
+
+        sprintf(buf, "HEADING: %03.0f\302\260  |  MARK: %+03.0f\302\260", g_shared_state->shm_h, g_shared_state->shm_m);
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 25;
 
         /* 2. Vital Resources */
