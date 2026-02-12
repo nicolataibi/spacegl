@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 6
+%global rel 7
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
