@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 4
+%global rel 5
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -102,5 +102,5 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/readme_assets/
 
 %changelog
-* Tue Feb 10 2026 Nicola Taibi <tua@email.it> - 2026.02.09-4
+* Tue Feb 10 2026 Nicola Taibi <tua@email.it> - 2026.02.09-5
 - PNG files added.

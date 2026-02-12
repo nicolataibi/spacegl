@@ -8,20 +8,20 @@
 
 <table>
   <tr>
+    <td><img src="readme_assets/StellarAlliance-LegacyClass.jpg" alt="Stellar Alliance Legacy Class" width="400"/></td>
     <td><img src="readme_assets/startup.jpg" alt="Space GL Startup" width="400"/></td>
+  </tr>
+  <tr>
     <td><img src="readme_assets/running.jpg" alt="Space GL Running" width="400"/></td>
-  </tr>
-  <tr>
     <td><img src="readme_assets/combat.jpg" alt="Space Combat" width="400"/></td>
+  </tr>
+  <tr>
     <td><img src="readme_assets/comets.jpg" alt="Comets and Asteroids" width="400"/></td>
-  </tr>
-  <tr>
     <td><img src="readme_assets/space-monster.jpg" alt="Space Monster" width="400"/></td>
-    <td><img src="readme_assets/rift.jpg" alt="Spatial Rift" width="400"/></td>
   </tr>
   <tr>
+    <td><img src="readme_assets/rift.jpg" alt="Spatial Rift" width="400"/></td>
     <td><img src="readme_assets/shields.jpg" alt="Defensive Shields" width="400"/></td>
-    <td></td>
   </tr>
   <tr>
     <td><img src="readme_assets/wormhole-enter.jpg" alt="Wormhole Entry" width="400"/></td>
@@ -1003,15 +1003,41 @@ This section provides an official reference to the most celebrated commanders of
 
 The GDIS central database preserves the deeds of commanders who shaped the boundaries of known space through darkness and light.
 
-#### 🌌 1. Stellar Alliance (Alliance)
-<tr>
-    <td><img src="readme_assets/com-alliance3.png" alt="Apex" width="400"/></td>
-  </tr>
-</table>
+## 🌌 Alleanza Stellare (L'Alleanza)
 
 <table>
 <tr>
-    <td><img src="readme_assets/com-niklaus.png" alt="Apex" width="300"/></td>
+    <td><img src="readme_assets/com-alliance3.png" alt="Alliance Emblem" width="400"/></td>
+  </tr>
+</table>
+
+---
+
+> **Command Note:** The Stellar Alliance is not merely a military coalition, but an ideal of order and progress standing against the chaos of the frontier territories and the darkness of unexplored quadrants.
+
+---
+
+### 🏛️ Overview
+The **Stellar Alliance** stands as the primary bastion of stability and cooperation among the powers of the quadrant. Founded on the principles of **proactive diplomacy**, **scientific exploration**, and **collective defense**, the Alliance serves as the coordinating entity between diverse civilizations to counter systemic threats that endanger known space.
+
+### 🛡️ Strategic Pillars
+
+* **Strategic Doctrine** Unlike expansionist or collectivist powers, the Alliance favors an approach based on **multilateralism**. Its strength lies in its ability to integrate heterogeneous tactics and technologies from various cultures under a unified command.
+
+* **Diplomatic Excellence** It is the hub of galactic negotiation, renowned for its skill in transforming century-long conflicts into lasting peace treaties through dialogue and tactical mediation.
+
+* **Military Capability** Although peace-oriented, the Alliance maintains a highly specialized elite fleet. It excels in:
+    * Defense of strategic chokepoints.
+    * Mapping of complex spatial anomalies.
+    * Management of large-scale humanitarian or biological crises.
+
+* **Operational Objectives** The preservation of freedom of navigation, the protection of interstellar trade, and organized resistance against forces of technological assimilation or biological annihilation.
+---
+
+<table>
+<tr>
+    <td><img src="readme_assets/com-niklaus.png" alt="Emblem" width="200"/></td>
+    <td><img src="readme_assets/actor-HighAdmiralHyperionNiklaus.png" alt="High Admiral Hyperion Niklaus" width="200"/></td>
   </tr>
 </table>
 
@@ -1019,7 +1045,8 @@ The GDIS central database preserves the deeds of commanders who shaped the bound
 
 <table>
 <tr>
-    <td><img src="readme_assets/com-LyraVance.png" alt="com-LyraVance.png" width="300"/></td>
+    <td><img src="readme_assets/com-LyraVance.png" alt="Emblem" width="200"/></td>
+    <td><img src="readme_assets/actor-CaptainLyraVance.png" alt="Captain Lyra Vance" width="200"/></td>
   </tr>
 </table>
 
@@ -1027,7 +1054,8 @@ The GDIS central database preserves the deeds of commanders who shaped the bound
 
 <table>
 <tr>
-    <td><img src="readme_assets/com-LeandrosThorne.png" alt="Leandros Thorne" width="300"/></td>
+    <td><img src="readme_assets/com-LeandrosThorne.png" alt="Emblem" width="200"/></td>
+    <td><img src="readme_assets/actor-CommanderLeandrosThorne.png" alt="Commander Leandros Thorne" width="200"/></td>
   </tr>
 </table>
 

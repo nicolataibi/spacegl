@@ -8,20 +8,20 @@
 
 <table>
   <tr>
+    <td><img src="readme_assets/StellarAlliance-LegacyClass.jpg" alt="Stellar Alliance Legacy Class" width="400"/></td>
     <td><img src="readme_assets/startup.jpg" alt="Space GL Startup" width="400"/></td>
+  </tr>
+  <tr>
     <td><img src="readme_assets/running.jpg" alt="Space GL Running" width="400"/></td>
-  </tr>
-  <tr>
     <td><img src="readme_assets/combat.jpg" alt="Space Combat" width="400"/></td>
+  </tr>
+  <tr>
     <td><img src="readme_assets/comets.jpg" alt="Comets and Asteroids" width="400"/></td>
-  </tr>
-  <tr>
     <td><img src="readme_assets/space-monster.jpg" alt="Space Monster" width="400"/></td>
-    <td><img src="readme_assets/rift.jpg" alt="Spatial Rift" width="400"/></td>
   </tr>
   <tr>
+    <td><img src="readme_assets/rift.jpg" alt="Spatial Rift" width="400"/></td>
     <td><img src="readme_assets/shields.jpg" alt="Defensive Shields" width="400"/></td>
-    <td></td>
   </tr>
   <tr>
     <td><img src="readme_assets/wormhole-enter.jpg" alt="Wormhole Entry" width="400"/></td>
@@ -991,29 +991,54 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 
 Il database centrale GDIS preserva le gesta dei comandanti che hanno plasmato i confini dello spazio conosciuto attraverso le tenebre e la luce.
 
-#### 🌌 1. Alleanza Stellare (Alliance)
+## 🌌 1. Alleanza Stellare (Alliance)
 <table>
 <tr>
-    <td><img src="readme_assets/com-alliance3.png" alt="Apex" width="400"/></td>
+    <td><img src="readme_assets/com-alliance3.png" alt="Alliance Emblem" width="400"/></td>
   </tr>
 </table>
 
+---
+> **Nota di Comando:** L'Alleanza Stellare non è solo una coalizione militare, ma un ideale di ordine e progresso che si contrappone al caos dei territori di frontiera e all'oscurità dei quadranti inesplorati.
+---
+### 🏛️ Panoramica Generale
+L'**Alleanza Stellare** rappresenta il principale baluardo di stabilità e cooperazione tra le potenze del quadrante. Fondata sui principi della **diplomazia proattiva**, dell'**esplorazione scientifica** e della **difesa collettiva**, l'Alleanza funge da entità coordinatrice tra diverse civiltà per contrastare le minacce sistemiche che mettono a rischio lo spazio conosciuto.
+
+### 🛡️ Pilastri Strategici
+
+* **Dottrina Strategica** A differenza delle potenze espansioniste o collettiviste, l'Alleanza predilige un approccio basato sul **multilateralismo**. La sua forza risiede nella capacità di integrare tattiche e tecnologie eterogenee provenienti da culture diverse sotto un comando unico e coordinato.
+
+* **Eccellenza Diplomatica** È il fulcro della negoziazione galattica, celebre per la sua abilità nel trasformare conflitti secolari in trattati di pace duraturi attraverso il dialogo costante e la mediazione tattica.
+
+* **Capacità Militare** Sebbene orientata alla pace, l'Alleanza mantiene una flotta d'élite altamente specializzata. Eccelle in particolare:
+    * Nella difesa di punti di passaggio strategici (*chokepoints*).
+    * Nella mappatura di anomalie spaziali complesse.
+    * Nella gestione di crisi umanitarie o biologiche su vasta scala.
+
+* **Obiettivi Operativi** La preservazione della libertà di navigazione, la tutela del commercio interstellare e la resistenza organizzata contro le forze di assimilazione tecnologica o di annientamento biologico.
+
+---
+
+
 <table>
 <tr>
-    <td><img src="readme_assets/com-niklaus.png" alt="Apex" width="300"/></td>
+    <td><img src="readme_assets/com-niklaus.png" alt="Emblem" width="200"/></td>
+    <td><img src="readme_assets/actor-HighAdmiralHyperionNiklaus.png" alt="High Admiral Hyperion Niklaus" width="200"/></td>
   </tr>
 </table>
 
 *   🛡️ **Alto Ammiraglio Hyperion Niklaus**: Noto come "Il Muro di Orione", guidò la difesa dell'Aegis durante la prima grande invasione Swarm.
 <table>
 <tr>
-    <td><img src="readme_assets/com-LyraVance.png" alt="com-LyraVance.png" width="300"/></td>
+    <td><img src="readme_assets/com-LyraVance.png" alt="Emblem" width="200"/></td>
+    <td><img src="readme_assets/actor-CaptainLyraVance.png" alt="Captain Lyra Vance" width="200"/></td>
   </tr>
 </table>
 *   ⚓ **Capitano Lyra Vance**: La leggendaria esploratrice che mappò il Ponte di Einstein-Rosen verso il Quadrante Delta usando un vascello di classe Scout.
 <table>
 <tr>
-    <td><img src="readme_assets/com-LeandrosThorne.png" alt="Leandros Thorne" width="300"/></td>
+    <td><img src="readme_assets/com-LeandrosThorne.png" alt="Emblem" width="200"/></td>
+    <td><img src="readme_assets/actor-CommanderLeandrosThorne.png" alt="Commander Leandros Thorne" width="200"/></td>
   </tr>
 </table>
 *   📜 **Comandante Leandros Thorne**: Un raffinato diplomatico e tattico, famoso per il Trattato di Aetherium che pose fine alla guerra centenaria con i Korthian.
