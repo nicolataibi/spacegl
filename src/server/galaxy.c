@@ -281,11 +281,25 @@ void rebuild_spatial_index() {
                 int c_neb = (q->nebula_count > 9) ? 9 : q->nebula_count;
                 int c_bh = (q->bh_count > 9) ? 9 : q->bh_count;
                 int c_p = (q->planet_count > 9) ? 9 : q->planet_count;
-                int c_k = (q->npc_count + q->player_count) > 9 ? 9 : (q->npc_count + q->player_count);
+                int c_npc = (q->npc_count > 9) ? 9 : q->npc_count;
+                int c_u = (q->player_count > 9) ? 9 : q->player_count;
                 int c_b = (q->base_count > 9) ? 9 : q->base_count;
                 int c_s = (q->star_count > 9) ? 9 : q->star_count;
                 
-                spacegl_master.g[i][j][l] = (long long)c_mon * 10000000000000000LL + (long long)c_rift * 100000000000000LL + (long long)c_plat * 10000000000000LL + (long long)c_buoy * 1000000000000LL + (long long)c_mine * 100000000000LL + (long long)c_der * 10000000000LL + (long long)c_ast * 1000000000LL + (long long)c_com * 100000000LL + c_pul * 1000000 + c_neb * 100000 + c_bh * 10000 + c_p * 1000 + c_k * 100 + c_b * 10 + c_s;
+                /* Preserve Ion Storm flag (10^7 digit) */
+                long long storm_flag = (spacegl_master.g[i][j][l] / 10000000LL) % 10;
+
+                spacegl_master.g[i][j][l] = (long long)c_mon * 10000000000000000LL 
+                                          + (long long)c_u   * 1000000000000000LL
+                                          + (long long)c_rift * 100000000000000LL 
+                                          + (long long)c_plat * 10000000000000LL 
+                                          + (long long)c_buoy * 1000000000000LL 
+                                          + (long long)c_mine * 100000000000LL 
+                                          + (long long)c_der * 10000000000LL 
+                                          + (long long)c_ast * 1000000000LL 
+                                          + (long long)c_com * 100000000LL 
+                                          + (long long)storm_flag * 10000000LL
+                                          + c_pul * 1000000 + c_neb * 100000 + c_bh * 10000 + c_p * 1000 + c_npc * 100 + c_b * 10 + c_s;
             }
 }
 

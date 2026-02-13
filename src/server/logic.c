@@ -650,7 +650,25 @@ void update_game_logic() {
                 if (players[i].hyper_speed > 0.1) {
                     if (global_tick % 30 == 0) {
                         int dmg = (int)(players[i].hyper_speed * 1000.0);
-                        for(int s=0; s<6; s++) players[i].state.shields[s] -= (dmg/10);
+                        int shield_absorbed = 0;
+                        for(int s=0; s<6; s++) {
+                            if (players[i].state.shields[s] > 0) {
+                                int abs = (players[i].state.shields[s] >= dmg/10) ? dmg/10 : players[i].state.shields[s];
+                                players[i].state.shields[s] -= abs;
+                                shield_absorbed += abs;
+                            }
+                        }
+                        if (shield_absorbed < dmg) {
+                             float hull_dmg = (dmg - shield_absorbed) / 500.0f;
+                             players[i].state.hull_integrity -= hull_dmg;
+                             if (players[i].state.hull_integrity < 0) players[i].state.hull_integrity = 0;
+                             
+                             if (players[i].state.hull_integrity <= 0) {
+                                 players[i].state.energy = 0; players[i].state.crew_count = 0; players[i].active = 0;
+                                 players[i].state.boom = (NetPoint){(float)players[i].state.s1, (float)players[i].state.s2, (float)players[i].state.s3, 1};
+                                 send_server_msg(i, "CRITICAL", "SHIP DESTROYED BY ASTEROID COLLISION.");
+                             }
+                        }
                         players[i].state.system_health[1] -= 0.5f; /* Impulse engines damage */
                         send_server_msg(i, "WARNING", "Colliding with asteroids! Reduce speed!");
                     }

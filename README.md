@@ -453,8 +453,8 @@ The effectiveness of your sensors depends directly on the health of the **Sensor
     *   **Standard Data**: Shows only object presence using their initials (e.g., `[H . N . S]`).
     *   **Enhanced Data**: If the ship is near a **Communication Buoy** (< 1.2 units), sensors switch to numeric display revealing the exact count (e.g., `[1 . 2 . 8]`). The boost resets when moving away from the buoy.
     *   **Navigation Solution**: Each quadrant includes `H / M / W` parameters calculated to reach it immediately.
-    *   **Primary Legend**: `[ H P N B S ]` (Black Holes, Planets, NPCs, Bases, Stars).
-    *   **Anomaly Symbols**: `~`:Nebula, `*`:Pulsar, `+`:Comet, `#`:Asteroid, `M`:Monster, `>`:Rift.
+    *   **Primary Legend**: `[ H P N B S ]` (Black Holes, Planets, NPCs/Vessels, Bases, Stars). `N` counts all ships (NPCs and other players); your own vessel is automatically excluded from the local quadrant count.
+    *   **Anomaly Symbols**: `~`:Nebula, `*`:Pulsar, `!`:Ion Storm, `+`:Comet, `#`:Asteroid, `M`:Monster, `>`:Rift.
     *   **Localization**: Your current quadrant is highlighted with a blue background.
 *   `aux probe <QX> <QY> <QZ>`: **Deep Space Sensor Probe**. Launches an automated probe to a specific quadrant.
     *   **Galactic Entity**: Probes are global objects. They traverse intermediate quadrants in real-time and are **visible to all players** along their flight path.
@@ -528,10 +528,10 @@ Distances expressed in sector units (0.0 - 10.0). If your distance is greater th
 
 | Object / Entity | Command / Action | Minimum Distance | Effect / Interaction |
 | :--- | :--- | :--- | :--- |
-| **Star** | `sco` | **< 2.0** | Solar scooping (energy recharge) |
-| **Planet** | `min` | **< 2.0** | Planetary mining |
-| **Starbase** | `doc` | **< 2.0** | Full repair, energy and torpedo refill |
-| **Black Hole** | `har` | **< 2.0** | Plasma Reserves harvesting |
+| **Star** | `sco` | **< 3.1** | Solar scooping (energy recharge) |
+| **Planet** | `min` | **< 3.1** | Planetary mining |
+| **Starbase** | `doc` | **< 3.1** | Full repair (Hull, Shields, Systems), refill, crew and prisoners debrief |
+| **Black Hole** | `har` | **< 3.1** | Plasma Reserves harvesting |
 | **Derelict** | `dis` | **< 1.5** | Dismantling for resources |
 | **Enemy Ship** | `bor` | **< 1.0** | Boarding party operation |
 | **Enemy Ship** | `pha` (Fire) | **< 6.0** | Maximum NPC Ion Beam range |
@@ -548,10 +548,10 @@ The `apr <ID> <DIST>` command allows you to automatically approach any object de
 | :--- | :--- | :--- | :--- | :--- |
 | **Captains (Players)** | 1 - 32 | `rad`, `pha`, `tor`, `bor` | **< 1.0** (`bor`) | Galactic Tracking |
 | **NPC Ships (Aliens)** | 1000 - 1999 | `pha`, `tor`, `bor`, `scan` | **< 1.0** (`bor`) | Galactic Tracking |
-| **Starbases** | 2000 - 2199 | `doc`, `scan` | **< 2.0** | Current quadrant only |
+| **Starbases** | 2000 - 2199 | `doc`, `scan` | **< 3.1** | Current quadrant only |
 | **Planets** | 3000 - 3999 | `min`, `scan` | **< 3.1** | Current quadrant only |
-| **Stars** | 4000 - 6999 | `sco`, `scan` | **< 2.0** | Current quadrant only |
-| **Black Holes** | 7000 - 7199 | `har`, `scan` | **< 2.0** | Current quadrant only |
+| **Stars** | 4000 - 6999 | `sco`, `scan` | **< 3.1** | Current quadrant only |
+| **Black Holes** | 7000 - 7199 | `har`, `scan` | **< 3.1** | Current quadrant only |
 | **Nebulas** | 8000 - 8499 | `scan` | - | Current quadrant only |
 | **Pulsars** | 9000 - 9199 | `scan` | - | Current quadrant only |
 | **Comets** | 10000 - 10299 | `cha`, `scan` | **< 0.6** (Gas) | **Galactic Tracking** |
@@ -708,10 +708,12 @@ The Space GL bridge operates via a high-precision Command Line Interface (CLI). 
 #### 🛰️ Advanced Navigation & Utility Commands
 *   `nav <H> <M> <W> [F]`: **Hyperdrive Navigation**. Plots a Hyperdrive course towards relative coordinates. `H`: Heading (0-359), `M`: Mark (-90/+90), `W`: Distance in quadrants, `F`: Optional Hyperdrive Factor (1.0 - 9.9).
 *   `imp <H> <M> <S>`: **Impulse Drive**. Sub-light navigation within the current sector. `S`: Speed in percentage (1-100%). Use `imp <S>` to only adjust speed.
+*   `pos <H> <M>`: **Positioning (Alignment)**. Orients the ship on Heading/Mark without movement.
 *   `jum <Q1> <Q2> <Q3>`: **Wormhole Jump**. Generates a spatial tunnel to a distant quadrant. Requires **5000 Energy and 1 Aetherium Crystal**.
 *   `apr <ID> [DIST]`: **Automatic Approach**. Autopilot intercepts the specified object at the desired distance (default 2.0). Works galaxy-wide for ships and comets.
 *   `cha`: **Chase Target**. Actively pursues the currently locked (`lock`) target.
 *   `rep <ID>`: **Repair System**. Initiates repairs on a subsystem (1: Hyperdrive, 2: Impulse, 3: Sensors, 4: Ion Beams, 5: Torpedoes, etc.).
+*   `fix`: **Field Hull Repair**. Restores +15% integrity (50 Graphene, 20 Neo-Ti).
 *   `inv`: **Inventory Report**. Detailed list of resources in cargo (Aetherium, Neo-Titanium, Nebular Gas, etc.).
 *   `dam`: **Damage Report**. Detailed status of hull integrity and systems.
 *   `cal <Q1> <Q2> <Q3>`: **Hyperdrive Calculator**. Calculates the vector towards the center of a distant quadrant.
@@ -1051,7 +1053,7 @@ This section provides an official reference to the most celebrated commanders of
 
 The GDIS central database preserves the deeds of commanders who shaped the boundaries of known space through darkness and light.
 
-## 🌌 Alleanza Stellare (L'Alleanza)
+## 🌌 Stellar Alliance (The Alliance)
 
 <table>
 <tr>
@@ -1246,6 +1248,7 @@ A vessel specialized in analyzing spatial anomalies and gathering Aetherium.
     <td><img src="readme_assets/ships1.png" alt="Emblem base" width="200"/></td>
     <td><img src="readme_assets/ships2.png" alt="Emblem medium" width="200"/></td>
     <td><img src="readme_assets/ships3.png" alt="Emblem high" width="200"/></td>
+    <td><img src="readme_assets/ships4.png" alt="Emblem high" width="200"/></td>
  </tr>
 </table>
 

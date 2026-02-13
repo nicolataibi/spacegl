@@ -453,8 +453,8 @@ L'efficacia dei tuoi sensori dipende direttamente dallo stato di salute del **si
     *   **Dati Standard**: Mostra solo la presenza di oggetti usando le loro iniziali (es. `[H . N . S]`).
     *   **Dati Potenziati**: Se la nave è vicino a una **Boa di Comunicazione** (< 1.2 unità), i sensori passano alla visualizzazione numerica rivelando il conteggio esatto (es. `[1 . 2 . 8]`). Il potenziamento si resetta quando ci si allontana dalla boa.
     *   **Soluzione di Navigazione**: Ogni quadrante include i parametri `H / M / W` calcolati per raggiungerlo immediatamente.
-    *   **Legenda Primaria**: `[ H P N B S ]` (Buchi Neri, Pianeti, NPC, Basi, Stelle).
-    *   **Simbologia Anomalie**: `~`:Nebulosa, `*`:Pulsar, `+`:Cometa, `#`:Asteroide, `M`:Mostro, `>`:Rift.
+    *   **Legenda Primaria**: `[ H P N B S ]` (Buchi Neri, Pianeti, NPC/Vascelle, Basi, Stelle). `N` conta tutte le navi (NPC e altri giocatori); il tuo vascello è automaticamente escluso dal conteggio del quadrante locale.
+    *   **Simbologia Anomalie**: `~`:Nebulosa, `*`:Pulsar, `!`:Tempesta Ionica, `+`:Cometa, `#`:Asteroide, `M`:Mostro, `>`:Rift.
     *   **Localizzazione**: Il tuo quadrante attuale è evidenziato con uno sfondo blu.
 *   `aux probe <QX> <QY> <QZ>`: **Sonda Sensoriale Dello spazio profondo**. Lancia una sonda automatizzata in un quadrante specifico.
     *   **Entità Galattica**: Le sonde sono oggetti globali. Attraversano i quadranti intermedi in tempo reale e sono **visibili a tutti i giocatori** lungo la loro rotta di volo.
@@ -528,10 +528,10 @@ Distanze espresse in unità di settore (0.0 - 10.0). Se la tua distanza è super
 
 | Oggetto / Entità | Comando / Azione | Distanza Minima | Effetto / Interazione |
 | :--- | :--- | :--- | :--- |
-| **Stella** | `sco` | **< 2.0** | Ricarica solare (Solar scooping) |
-| **Pianeta** | `min` | **< 2.0** | Estrazione planetaria |
-| **Base Stellare** | `doc` | **< 2.0** | Riparazione completa, ricarica energia e siluri |
-| **Buco Nero** | `har` | **< 2.0** | Raccolta Plasma Reserves |
+| **Stella** | `sco` | **< 3.1** | Ricarica solare (Solar scooping) |
+| **Pianeta** | `min` | **< 3.1** | Estrazione planetaria |
+| **Base Stellare** | `doc` | **< 3.1** | Riparazione completa (Scafo, Scudi, Sistemi), ricarica energia, siluri, equipaggio e sbarco prigionieri |
+| **Buco Nero** | `har` | **< 3.1** | Raccolta Plasma Reserves |
 | **Relitto** | `dis` | **< 1.5** | Smantellamento per risorse |
 | **Nave Nemica** | `bor` | **< 1.0** | Operazione squadra d'abbordaggio |
 | **Nave Nemica** | `pha` (Fuoco) | **< 6.0** | Gittata massima Ion Beam NPC |
@@ -548,10 +548,10 @@ Il comando `apr <ID> <DIST>` ti permette di avvicinarti automaticamente a qualsi
 | :--- | :--- | :--- | :--- | :--- |
 | **Capitani (Giocatori)** | 1 - 32 | `rad`, `pha`, `tor`, `bor` | **< 1.0** (`bor`) | Tracciamento Galattico |
 | **Navi NPC (Alieni)** | 1000 - 1999 | `pha`, `tor`, `bor`, `scan` | **< 1.0** (`bor`) | Tracciamento Galattico |
-| **Basi Stellari** | 2000 - 2199 | `doc`, `scan` | **< 2.0** | Solo quadrante attuale |
+| **Basi Stellari** | 2000 - 2199 | `doc`, `scan` | **< 3.1** | Solo quadrante attuale |
 | **Pianeti** | 3000 - 3999 | `min`, `scan` | **< 3.1** | Solo quadrante attuale |
-| **Stelle** | 4000 - 6999 | `sco`, `scan` | **< 2.0** | Solo quadrante attuale |
-| **Buchi Neri** | 7000 - 7199 | `har`, `scan` | **< 2.0** | Solo quadrante attuale |
+| **Stelle** | 4000 - 6999 | `sco`, `scan` | **< 3.1** | Solo quadrante attuale |
+| **Buchi Neri** | 7000 - 7199 | `har`, `scan` | **< 3.1** | Solo quadrante attuale |
 | **Nebulose** | 8000 - 8499 | `scan` | - | Solo quadrante attuale |
 | **Pulsar** | 9000 - 9199 | `scan` | - | Solo quadrante attuale |
 | **Comete** | 10000 - 10299 | `cha`, `scan` | **< 0.6** (Gas) | **Tracciamento Galattico** |
@@ -708,10 +708,12 @@ Il ponte di comando di Space GL opera tramite un'interfaccia a riga di comando (
 #### 🛰️ Comandi Avanzati di Navigazione e Utilità
 *   `nav <H> <M> <W> [F]`: **Navigazione Hyperdrive**. Traccia una rotta Hyperdrive verso coordinate relative. `H`: Heading (0-359), `M`: Mark (-90/+90), `W`: Distanza in quadranti, `F`: Fattore Hyperdrive opzionale (1.0 - 9.9).
 *   `imp <H> <M> <S>`: **Motore a Impulso**. Navigazione sub-luce all'interno del settore attuale. `S`: Velocità in percentuale (1-100%). Usa `imp <S>` per regolare solo la velocità.
+*   `pos <H> <M>`: **Posizionamento (Allineamento)**. Orienta la nave su Heading/Mark senza movimento.
 *   `jum <Q1> <Q2> <Q3>`: **Salto Wormhole**. Genera un tunnel spaziale verso un quadrante distante. Richiede **5000 Energia e 1 Cristallo di Aetherium**.
 *   `apr <ID> [DIST]`: **Avvicinamento Automatico**. L'autopilota intercetta l'oggetto specificato alla distanza desiderata (default 2.0). Funziona in tutta la galassia per navi e comete.
 *   `cha`: **Inseguimento Bersaglio**. Insegue attivamente il bersaglio attualmente agganciato (`lock`).
 *   `rep <ID>`: **Riparazione Sistema**. Avvia le riparazioni su un sottosistema (1: Hyperdrive, 2: Impulse, 3: Sensori, 4: Ion Beam, 5: Siluri, ecc.).
+*   `fix`: **Riparazione Scafo**. Ripristina +15% di integrità (50 Grafene, 20 Neo-Ti).
 *   `inv`: **Rapporto Inventario**. Elenco dettagliato delle risorse nella stiva (Aetherium, Neo-Titanium, Gas Nebulare, ecc.).
 *   `dam`: **Rapporto Danni**. Stato dettagliato dell'integrità dello scafo e dei sistemi.
 *   `cal <Q1> <Q2> <Q3>`: **Calcolatore Hyperdrive**. Calcola il vettore verso il centro di un quadrante distante.
@@ -1228,6 +1230,7 @@ Un vascello specializzato nell'analisi di anomalie spaziali e nella raccolta di 
     <td><img src="readme_assets/ships1.png" alt="Emblem base" width="200"/></td>
     <td><img src="readme_assets/ships2.png" alt="Emblem medium" width="200"/></td>
     <td><img src="readme_assets/ships3.png" alt="Emblem high" width="200"/></td>
+    <td><img src="readme_assets/ships4.png" alt="Emblem high" width="200"/></td>
  </tr>
 </table>
 

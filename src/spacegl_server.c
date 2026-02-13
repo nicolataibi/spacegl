@@ -331,15 +331,21 @@ int main(int argc, char *argv[]) {
                                 if (is_new) {
                                     strcpy(players[slot].name, pkt.name); players[slot].faction = pkt.faction; players[slot].ship_class = pkt.ship_class;
                                     players[slot].state.energy = 9999999; players[slot].state.torpedoes = 1000;
-                                    int crew = 400;
+                                    int crew = 200;
                                     switch(pkt.ship_class) {
                                         case SHIP_CLASS_EXPLORER:    crew = 1012; break;
-                                        case SHIP_CLASS_FLAGSHIP: crew = 850; break;
-                                        case SHIP_CLASS_LEGACY: crew = 430; break;
+                                        case SHIP_CLASS_FLAGSHIP:    crew = 850; break;
+                                        case SHIP_CLASS_LEGACY:      crew = 430; break;
                                         case SHIP_CLASS_HEAVY_CRUISER: crew = 750; break;
-                                        case SHIP_CLASS_ESCORT:   crew = 50; break;
-                                        case SHIP_CLASS_SCIENCE:  crew = 150; break;
+                                        case SHIP_CLASS_ESCORT:      crew = 50; break;
+                                        case SHIP_CLASS_SCIENCE:     crew = 150; break;
                                         case SHIP_CLASS_RESEARCH:    crew = 80; break;
+                                        case SHIP_CLASS_SCOUT:       crew = 30; break;
+                                        case SHIP_CLASS_MULTI_ENGINE: crew = 500; break;
+                                        case SHIP_CLASS_CARRIER:     crew = 1200; break;
+                                        case SHIP_CLASS_TACTICAL:    crew = 800; break;
+                                        case SHIP_CLASS_DIPLOMATIC:  crew = 300; break;
+                                        case SHIP_CLASS_FRIGATE:     crew = 250; break;
                                         default: crew = 200; break;
                                     }
                                     players[slot].state.crew_count = crew;
@@ -351,7 +357,7 @@ int main(int argc, char *argv[]) {
                                                                         players[slot].gy = (players[slot].state.q2 - 1) * 10.0 + players[slot].state.s2;
                                                                         players[slot].gz = (players[slot].state.q3 - 1) * 10.0 + players[slot].state.s3;
                                                                         
-                                                                                                                players[slot].state.inventory[1] = 10; /* Initial Isotope-X for jumps */
+                                                                                                                players[slot].state.inventory[1] = 10; /* Initial Aetherium for jumps */
                                                                         
                                                                                                                 players[slot].state.hull_integrity = 100.0f;
                                                                         
@@ -361,7 +367,7 @@ int main(int argc, char *argv[]) {
                                                                         memset(players[slot].state.probes, 0, sizeof(players[slot].state.probes));
                                 }
                                 
-                                /* WELCOME PACKAGE: Ensure all captains (new or returning) have at least 10 Isotope-X for Jumps */
+                                /* WELCOME PACKAGE: Ensure all captains (new or returning) have at least 10 Aetherium for Jumps */
                                 if (players[slot].state.inventory[1] < 10) {
                                     players[slot].state.inventory[1] = 10;
                                 }

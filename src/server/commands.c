@@ -475,7 +475,7 @@ void handle_srs(int i, const char *params) {
         char status[64] = ""; if (nid == locked_id) strcat(status, RED "[LOCKED]" RESET);
         const char *neb_names[] = {"Standard Class", "High-Energy Class", "Dark Matter Class", "Ionic Class", "Gravimetric Class", "Temporal Class"};
         const char *n_name = (nb->type >= 0 && nb->type < 6) ? neb_names[nb->type] : "Unknown";
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "%-10s %-5d [%.1f,%.1f,%.1f] %-5.1f %03.0f / %+03.0f     %s %s\n", "Tactical Cruiser", nid, nb->x, nb->y, nb->z, d, h, m, n_name, status);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "%-10s %-5d [%.1f,%.1f,%.1f] %-5.1f %03.0f / %+03.0f     %s Nebula %s\n", "Nebula", nid, nb->x, nb->y, nb->z, d, h, m, n_name, status);
     }
 
     /* 8. Pulsars */
@@ -691,10 +691,16 @@ void handle_lrs(int i, const char *params) {
                     }
 
                     int s=v%10, b_cnt=(v/10)%10, k=(v/100)%10, p=(v/1000)%10, bh=(v/10000)%10;
-                    int neb=(v/100000)%10, pul=(v/1000000)%10, com=(v/100000000)%10, ast=(v/1000000000)%10;
+                    int neb=(v/100000)%10, pul=(v/1000000)%10, storm=(v/10000000LL)%10, com=(v/100000000)%10, ast=(v/1000000000)%10;
                     int mon=(v/10000000000000000LL)%10;
+                    int u=(v/1000000000000000LL)%10;
                     int rift=(v/100000000000000LL)%10;
                     
+                    /* Combined Vessel Count (NPCs + Players) */
+                    int vessels = k + u;
+                    /* If it's the current quadrant, don't count the player themselves in the 'N' count to avoid confusion */
+                    if (nq1 == q1 && nq2 == q2 && nq3 == q3 && vessels > 0) vessels--;
+
                     /* Navigation Solution */
                     double dx = (nq1 - q1) * 10.0; double dy = (nq2 - q2) * 10.0; double dz = (nq3 - q3) * 10.0;
                     double dist = sqrt(dx*dx + dy*dy + dz*dz);
@@ -739,7 +745,7 @@ void handle_lrs(int i, const char *params) {
 
                                             if(p>0) snprintf(p_s, sizeof(p_s), "%s%d" RESET, CYAN, p); else strcpy(p_s, ".");
 
-                                            if(k>0) snprintf(n_s, sizeof(n_s), "%s%d" RESET, RED, k); else strcpy(n_s, ".");
+                                            if(vessels>0) snprintf(n_s, sizeof(n_s), "%s%d" RESET, RED, vessels); else strcpy(n_s, ".");
 
                                             if(b_cnt>0) snprintf(b_s, sizeof(b_s), "%s%d" RESET, GREEN, b_cnt); else strcpy(b_s, ".");
 
@@ -751,7 +757,7 @@ void handle_lrs(int i, const char *params) {
 
                                             if(p>0)  snprintf(p_s, sizeof(p_s), "%sP" RESET, CYAN);    else strcpy(p_s, ".");
 
-                                            if(k>0)  snprintf(n_s, sizeof(n_s), "%sN" RESET, RED);     else strcpy(n_s, ".");
+                                            if(vessels>0)  snprintf(n_s, sizeof(n_s), "%sN" RESET, RED);     else strcpy(n_s, ".");
 
                                             if(b_cnt>0) snprintf(b_s, sizeof(b_s), "%sB" RESET, GREEN); else strcpy(b_s, ".");
 
@@ -768,6 +774,7 @@ void handle_lrs(int i, const char *params) {
                                         if(neb>0)  strcat(an_info, "~"); 
 
                                         if(pul>0)  strcat(an_info, "*"); 
+                                        if(storm>0) strcat(an_info, "!");
 
                                         if(com>0)  strcat(an_info, "+");
 
@@ -990,6 +997,7 @@ void handle_scan(int i, const char *params) {
                  found = true;
                  snprintf(rep, 1024, CYAN "\n--- SENSOR SCAN ANALYSIS: TARGET ID %d ---" RESET, tid);
                  snprintf(rep+strlen(rep), 1024-strlen(rep), "COMMANDER: %s\n", t->name);
+                 snprintf(rep+strlen(rep), 1024-strlen(rep), "HULL INTEGRITY: %.1f%%\n", t->state.hull_integrity);
                  snprintf(rep+strlen(rep), 1024-strlen(rep), "ENERGY: %d | CREW: %d | TORPS: %d\n", t->state.energy, t->state.crew_count, t->state.torpedoes);
                  strcat(rep, BLUE "SYSTEMS STATUS:\n" RESET);
                  const char* sys[] = {"Hyperdrive", "Impulse", "Sensors", "Transp", "Ion Beams", "Torps", "Computer", "Life", "Shields", "Aux"};
@@ -1134,7 +1142,7 @@ void handle_bor(int i, const char *params) {
         
         if (found) {
             double dx=tx-players[i].state.s1, dy=ty-players[i].state.s2, dz=tz-players[i].state.s3; double dist=sqrt(dx*dx+dy*dy+dz*dz);
-            if (dist < 1.0) {
+            if (dist < DIST_BOARDING_MAX) {
                 /* New logic: If target is a PLAYER, show interactive menu */
                 if (tid >= 1 && tid <= 32) {
                     ConnectedPlayer *target = &players[tid-1];
@@ -1159,6 +1167,20 @@ void handle_bor(int i, const char *params) {
                     return;
                 }
 
+                if (tid >= 11000 && tid < 11000+MAX_DERELICTS) {
+                    /* Derelict Boarding: Interactive Menu */
+                    players[i].pending_bor_target = tid;
+                    players[i].pending_bor_type = 4; /* DERELICT */
+                    char menu[512];
+                    sprintf(menu, WHITE "\n--- BOARDING MENU: DERELICT WRECK [%d] ---\n" RESET 
+                           "1: Salvage Resources (Search cargo bay)\n"
+                           "2: Recover Data (Search computer logs for map data)\n"
+                           "3: Field Repairs (Use derelict parts for emergency fix)\n"
+                           YELLOW "Type the number to confirm choice." RESET, tid);
+                    send_server_msg(i, "BOARDING", menu);
+                    return;
+                }
+
                 if (tid >= 16000) {
                     /* Platform Boarding: Interactive Menu */
                     players[i].pending_bor_target = tid;
@@ -1175,7 +1197,7 @@ void handle_bor(int i, const char *params) {
 
                 if (rand()%100 < 45) { /* 45% success (slightly increased) */
                     int reward = rand()%4; /* Added 4th reward type */
-                    if (reward == 0) { players[i].state.inventory[1] += 5; send_server_msg(i, "BOARDING", "Success! Captured Isotope-X crystals."); }
+                    if (reward == 0) { players[i].state.inventory[1] += 5; send_server_msg(i, "BOARDING", "Success! Captured Aetherium crystals."); }
                     else if (reward == 1) { players[i].state.inventory[5] += 100; send_server_msg(i, "ENGINEERING", "Salvaged advanced Synaptics Chips from the ship's computer."); }
                     else if (reward == 2) { 
                         /* Recover Crew or Prisoners */
@@ -1332,7 +1354,7 @@ void handle_har(int i, const char *params) {
         players[i].state.inventory[1] += 100; 
         int s_idx = rand()%6; players[i].state.shields[s_idx] -= 1000; 
         if(players[i].state.shields[s_idx]<0) players[i].state.shields[s_idx]=0; 
-        send_server_msg(i, "ENGINEERING", "Antimatter harvested and stored. Isotope-X crystals stabilized (+100)."); 
+        send_server_msg(i, "ENGINEERING", "Antimatter harvested and stored. Aetherium crystals stabilized (+100)."); 
     } 
     else send_server_msg(i, "COMPUTER", "No black hole in range for antimatter harvesting.");
 }
@@ -1342,12 +1364,45 @@ void handle_doc(int i, const char *params) {
         double d=sqrt(pow(bases[b].x-players[i].state.s1,2)+pow(bases[b].y-players[i].state.s2,2)+pow(bases[b].z-players[i].state.s3,2)); if(d <= (DIST_DOCKING_MAX + 0.05f)) { near=true; break; } 
     }
     if(near) { 
-        players[i].state.energy=1000000; 
-        players[i].state.torpedoes=1000; 
-        players[i].state.cargo_energy=1000000;
-        players[i].state.cargo_torpedoes=1000;
-        for(int s=0; s<8; s++) players[i].state.system_health[s]=100.0f; 
-        send_server_msg(i, "STARBASE", "Docking complete. Reactor and Cargo Bay replenished."); 
+        players[i].state.energy=ENERGY_BASE_RECHARGE; 
+        players[i].state.torpedoes=MAX_TORPEDO_CAPACITY; 
+        players[i].state.cargo_energy=MAX_ENERGY_CAPACITY;
+        players[i].state.cargo_torpedoes=MAX_TORPEDO_CAPACITY;
+        players[i].state.hull_integrity = 100.0f;
+        players[i].state.life_support = 100.0f;
+        players[i].state.ion_beam_charge = 100.0f;
+        players[i].state.tube_state = 0; /* READY */
+        for(int s=0; s<6; s++) players[i].state.shields[s] = SHIELD_MAX_STRENGTH;
+        for(int s=0; s<10; s++) players[i].state.system_health[s]=100.0f; 
+        
+        int crew = 200;
+        switch(players[i].ship_class) {
+            case SHIP_CLASS_EXPLORER:    crew = 1012; break;
+            case SHIP_CLASS_FLAGSHIP:    crew = 850; break;
+            case SHIP_CLASS_LEGACY:      crew = 430; break;
+            case SHIP_CLASS_HEAVY_CRUISER: crew = 750; break;
+            case SHIP_CLASS_ESCORT:      crew = 50; break;
+            case SHIP_CLASS_SCIENCE:     crew = 150; break;
+            case SHIP_CLASS_RESEARCH:    crew = 80; break;
+            case SHIP_CLASS_SCOUT:       crew = 30; break;
+            case SHIP_CLASS_MULTI_ENGINE: crew = 500; break;
+            case SHIP_CLASS_CARRIER:     crew = 1200; break;
+            case SHIP_CLASS_TACTICAL:    crew = 800; break;
+            case SHIP_CLASS_DIPLOMATIC:  crew = 300; break;
+            case SHIP_CLASS_FRIGATE:     crew = 250; break;
+            default: crew = 200; break;
+        }
+        players[i].state.crew_count = crew;
+        if (players[i].state.composite_plating < 1000) players[i].state.composite_plating = 1000;
+
+        if (players[i].state.prison_unit > 0) {
+            char p_msg[128];
+            sprintf(p_msg, "%d prisoners transferred to starbase security for debriefing.", players[i].state.prison_unit);
+            send_server_msg(i, "SECURITY", p_msg);
+            players[i].state.prison_unit = 0;
+        }
+
+        send_server_msg(i, "STARBASE", "Docking complete. Ship fully repaired and replenished."); 
     } 
     else send_server_msg(i,"COMPUTER","No starbase in range.");
 }
@@ -1481,6 +1536,9 @@ void handle_sta(int i, const char *params) {
     strcat(b, BLUE "\n[ DEFENSIVE GRID AND ARMAMENTS ]\n" RESET);
     snprintf(b+strlen(b), 4096-strlen(b), " SHIELDS: F:%-4d R:%-4d T:%-4d B:%-4d L:%-4d RI:%-4d\n Plasma Torpedoes: %-2d  LOCK: %s\n", players[i].state.shields[0], players[i].state.shields[1], players[i].state.shields[2], players[i].state.shields[3], players[i].state.shields[4], players[i].state.shields[5], players[i].state.torpedoes, (players[i].state.lock_target > 0) ? RED "[ LOCKED ]" RESET : "[ NONE ]");
     strcat(b, BLUE "\n[ SYSTEMS INTEGRITY ]\n" RESET);
+    float h_int = players[i].state.hull_integrity;
+    const char* h_col = (h_int > 75) ? GREEN : (h_int > 25) ? YELLOW : RED;
+    snprintf(b+strlen(b), 4096-strlen(b), " PHYSICAL HULL: %s%.1f%%" RESET "\n", h_col, h_int);
     const char* sys[] = {"Hyperdrive","Imp","Sens","Tran","Phas","Torp","Comp","Life"};
     for(int s=0; s<8; s++) { float hp = players[i].state.system_health[s]; const char* col = (hp > 75) ? GREEN : (hp > 25) ? YELLOW : RED; snprintf(b+strlen(b), 4096-strlen(b), " %-8s: %s%5.1f%%" RESET " ", sys[s], col, hp); if (s == 3) strcat(b, "\n"); }
     strcat(b, CYAN "\n'-----------------------------------------------------------------'\n" RESET);
@@ -1496,7 +1554,9 @@ void handle_inv(int i, const char *params) {
 }
 
 void handle_dam(int i, const char *params) {
-    char b[512]=RED "\n--- DAMAGE REPORT ---" RESET; char sbuf[64]; const char* sys[]={"Hyperdrive","Impulse","Sensors","Transp","Ion Beams","Torps","Computer","Life"};
+    char b[512]=RED "\n--- DAMAGE REPORT ---" RESET; 
+    sprintf(b+strlen(b), "\n HULL INTEGRITY: %.1f%%\n", players[i].state.hull_integrity);
+    char sbuf[64]; const char* sys[]={"Hyperdrive","Impulse","Sensors","Transp","Ion Beams","Torps","Computer","Life"};
     for(int s=0; s<8; s++){ sprintf(sbuf," %-10s: %.1f%%\n",sys[s],players[i].state.system_health[s]); strcat(b,sbuf); }
     send_server_msg(i, "ENGINEERING", b);
 }
@@ -1813,9 +1873,9 @@ void handle_jum(int i, const char *params) {
             return;
         }
         
-        /* Cost calculation: 5000 Energy + 1 Isotope-X crystal */
+        /* Cost calculation: 5000 Energy + 1 Aetherium crystal */
         if (players[i].state.energy < 5000 || players[i].state.inventory[1] < 1) {
-             send_server_msg(i, "ENGINEERING", "Insufficient resources for Wormhole generation (Req: 5000 Energy, 1 Isotope-X).");
+             send_server_msg(i, "ENGINEERING", "Insufficient resources for Wormhole generation (Req: 5000 Energy, 1 Aetherium).");
              return;
         }
 
@@ -1934,15 +1994,21 @@ static const CommandDef command_registry[] = {
 };
 
 void handle_help(int i, const char *params) {
-    char *b = calloc(4096, sizeof(char));
+    size_t buf_size = 8192;
+    char *b = calloc(buf_size, sizeof(char));
     if (!b) return;
     
-    strcpy(b, CYAN "\n--- LCARS COMMAND DIRECTORY ---" RESET);
+    size_t offset = 0;
+    offset += snprintf(b + offset, buf_size - offset, CYAN "\n--- LCARS COMMAND DIRECTORY ---" RESET "\n");
     for (int c = 0; command_registry[c].name != NULL; c++) {
-        char line[128];
-        snprintf(line, sizeof(line), WHITE "%-8s" RESET " : %s\n", command_registry[c].name, command_registry[c].description);
-        strcat(b, line);
+        char line[256];
+        int n = snprintf(line, sizeof(line), WHITE "%-10s" RESET " : %s\n", command_registry[c].name, command_registry[c].description);
+        if (offset + n < buf_size - 1) {
+            memcpy(b + offset, line, (size_t)n);
+            offset += (size_t)n;
+        }
     }
+    b[offset] = '\0';
     send_server_msg(i, "COMPUTER", b);
     free(b);
 }
@@ -1964,6 +2030,9 @@ void process_command(int i, const char *cmd) {
             if (tid <= 32) {
                 target_p = &players[tid-1];
                 tx = target_p->state.s1; ty = target_p->state.s2; tz = target_p->state.s3;
+            } else if (tid >= 11000 && tid < 11000 + MAX_DERELICTS) {
+                int d_idx = tid - 11000;
+                tx = derelicts[d_idx].x; ty = derelicts[d_idx].y; tz = derelicts[d_idx].z;
             } else if (tid >= 16000) {
                 int pt_idx = tid - 16000;
                 tx = platforms[pt_idx].x; ty = platforms[pt_idx].y; tz = platforms[pt_idx].z;
@@ -1973,7 +2042,7 @@ void process_command(int i, const char *cmd) {
             double dx = tx - players[i].state.s1;
             double dy = ty - players[i].state.s2;
             double dz = tz - players[i].state.s3;
-            if (sqrt(dx*dx+dy*dy+dz*dz) > 1.2) {
+            if (sqrt(dx*dx+dy*dy+dz*dz) > (DIST_BOARDING_MAX + 0.2f)) {
                 send_server_msg(i, "COMPUTER", "Target out of transporter range. Operation cancelled.");
             } else {
                 if (players[i].pending_bor_type == 1) { /* ALLY PLAYER */
@@ -2030,6 +2099,31 @@ void process_command(int i, const char *cmd) {
                             send_server_msg(i, "BOARDING", "Salvage successful. Retrieved 250 Synaptics Chips.");
                         }
                     }
+                } else if (players[i].pending_bor_type == 4) { /* DERELICT WRECK */
+                    if (choice == 1) { /* Salvage Resources */
+                        int res_idx = 1 + rand()%8; int amt = 50 + rand()%150;
+                        const char* r_names[] = {"-","Aetherium","Neo-Titanium","Void-Essence","Graphene","Synaptics","Nebular Gas","Composite","Dark-Matter"};
+                        players[i].state.inventory[res_idx] += amt;
+                        char s_msg[128]; sprintf(s_msg, "[RADIO] BOARDING (Alliance Command): Salvage successful. Retrieved %d units of %s.", amt, r_names[res_idx]);
+                        send_server_msg(i, "BOARDING", s_msg);
+                    } else if (choice == 2) { /* Recover Data */
+                        /* Reveal 3-5 random quadrants in the map */
+                        int revealed = 0;
+                        for(int r=0; r<10; r++) {
+                            int rq1=rand()%10+1, rq2=rand()%10+1, rq3=rand()%10+1;
+                            if (players[i].state.z[rq1][rq2][rq3] == 0) {
+                                players[i].state.z[rq1][rq2][rq3] = 1;
+                                revealed++;
+                            }
+                            if (revealed >= 3) break;
+                        }
+                        send_server_msg(i, "BOARDING", "[RADIO] BOARDING (Alliance Command): Data recovery successful. Navigational charts updated with 3 new quadrants.");
+                    } else { /* Field Repairs */
+                        int sys = rand()%10;
+                        players[i].state.system_health[sys] += 30.0f;
+                        if (players[i].state.system_health[sys] > 100.0f) players[i].state.system_health[sys] = 100.0f;
+                        send_server_msg(i, "BOARDING", "[RADIO] ENGINEERING (Alliance Command): Emergency repairs complete using derelict components.");
+                    }
                 }
             }
             players[i].pending_bor_target = 0;
@@ -2069,10 +2163,18 @@ void process_command(int i, const char *cmd) {
                 strcat(hb, WHITE " USAGE:  " GREEN "imp <Heading> <Mark> <Speed%>" RESET "\n"
                            " INFO:   Sub-light propulsion. Speed: 1-100%% of max.\n"
                            "         Max speed scales with Engine power (see 'pow').\n");
+            } else if (strcmp(n, "pos") == 0) {
+                strcat(hb, WHITE " USAGE:  " GREEN "pos <Heading> <Mark>" RESET "\n"
+                           " INFO:   Alignment maneuver. Orients the ship without movement.\n"
+                           "         Essential for tactical positioning and manual firing.\n");
+            } else if (strcmp(n, "fix") == 0) {
+                strcat(hb, WHITE " USAGE:  " GREEN "fix" RESET "\n"
+                           " INFO:   Field Hull Repair. Restores +15%% Integrity (up to 80%%).\n"
+                           "         COST: 50 Graphene, 20 Neo-Titanium.\n");
             } else if (strcmp(n, "jum") == 0) {
                 strcat(hb, WHITE " USAGE:  " GREEN "jum <Q1> <Q2> <Q3>" RESET "\n"
                            " INFO:   Instantaneous trans-quadrant jump.\n"
-                           "         COST: 5000 Energy + 1 Isotope-X Crystal.\n");
+                           "         COST: 5000 Energy + 1 Aetherium Crystal.\n");
             } else if (strcmp(n, "apr") == 0) {
                 strcat(hb, WHITE " USAGE:  " GREEN "apr <ID> [Distance]" RESET "\n"
                            " INFO:   Autopilot approach. Default distance is 2.0.\n"

@@ -229,19 +229,27 @@ int main(int argc, char *argv[]) {
             for(int i=1; i<=10; i++) {
                 long long bpnbs = spacegl_master.g[i][j][q3];
                 int mon  = (bpnbs/10000000000000000LL)%10;
+                int user = (bpnbs/1000000000000000LL)%10;
                 int rift = (bpnbs/100000000000000LL)%10;
                 int plat = (bpnbs/10000000000000LL)%10;
                 int buoy = (bpnbs/1000000000000LL)%10;
                 int mine = (bpnbs/100000000000LL)%10;
                 int der  = (bpnbs/10000000000LL)%10;
-                int ast  = (bpnbs/1000000000)%10;
-                int com  = (bpnbs/100000000)%10;
-                int s = (bpnbs/10000000)%10;
-                int p = (bpnbs/1000000)%10;
-                int n = (bpnbs/100000)%10;
+                int ast  = (bpnbs/1000000000LL)%10;
+                int com  = (bpnbs/100000000LL)%10;
+                int stm  = (bpnbs/10000000LL)%10;
+                int pul  = (bpnbs/1000000LL)%10;
+                int neb  = (bpnbs/100000LL)%10;
+                int bh   = (bpnbs/10000LL)%10;
+                int p    = (bpnbs/1000LL)%10;
+                int n    = (bpnbs/100LL)%10;
+                int b    = (bpnbs/10LL)%10;
+                int s    = bpnbs%10;
                 
-                if (s > 0) printf(" ~ "); /* Stellar Storm */
+                if (stm > 0) printf(" ! "); /* Ion Storm */
                 else if (mon > 0) printf(" M "); /* Monster */
+                else if (n > 0) printf(" N ");   /* NPC */
+                else if (user > 0) printf(" U "); /* Player */
                 else if (rift > 0) printf(" R "); /* Rift */
                 else if (plat > 0) printf(" T "); /* Turret */
                 else if (buoy > 0) printf(" @ "); /* Buoy */
@@ -249,8 +257,12 @@ int main(int argc, char *argv[]) {
                 else if (der > 0) printf(" D "); /* Derelict */
                 else if (ast > 0) printf(" A "); /* Asteroid */
                 else if (com > 0) printf(" C "); /* Comet */
-                else if (p > 0) printf(" P "); /* Pulsar */
-                else if (n > 0) printf(" N "); /* Nebula */
+                else if (pul > 0) printf(" * "); /* Pulsar */
+                else if (neb > 0) printf(" ~ "); /* Nebula */
+                else if (bh > 0) printf(" H ");  /* Black Hole */
+                else if (p > 0) printf(" P ");   /* Planet */
+                else if (b > 0) printf(" B ");   /* Base */
+                else if (s > 0) printf(" S ");   /* Star */
                 else printf(" . ");
             }
             printf(" (Y:%d)\n", j);

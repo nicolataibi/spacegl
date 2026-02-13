@@ -2279,8 +2279,9 @@ void drawExplorerMap() {
                 /* Use absolute value for digit extraction to handle supernova (negative) quadrants */
                 int64_t uval = (val < 0) ? -val : val;
 
-                /* Color coding based on M|Su|R|T|B|M|D|A|C|S|Pu|N|BH|P|K|B|S (17 digits) */
+                /* Color coding based on M|U|R|T|B|M|D|A|C|S|Pu|N|BH|P|K|B|S (17 digits) */
                 int monster  = (uval / 10000000000000000LL) % 10;
+                int player   = (uval / 1000000000000000LL) % 10;
                 int rift     = (uval / 100000000000000LL) % 10;
                 int platform = (uval / 10000000000000LL) % 10;
                 int buoy     = (uval / 1000000000000LL) % 10;
@@ -2295,7 +2296,7 @@ void drawExplorerMap() {
                 int pl    = (uval / 1000LL) % 10;
                 int en    = (uval / 100LL) % 10;
                 int bs    = (uval / 10LL) % 10;
-                int st    = uval % 10;
+                int st    = (uval) % 10;
 
                 /* Apply Filter */
                 if (g_map_filter > 0) {
@@ -2304,7 +2305,7 @@ void drawExplorerMap() {
                         case 1: if(st>0) match=true; break;
                         case 2: if(pl>0) match=true; break;
                         case 3: if(bs>0) match=true; break;
-                        case 4: if(en>0) match=true; break;
+                        case 4: if(en>0 || player>0) match=true; break;
                         case 5: if(bh>0) match=true; break;
                         case 6: if(neb>0) match=true; break;
                         case 7: if(pul>0) match=true; break;
@@ -2369,7 +2370,7 @@ void drawExplorerMap() {
                     else if (effective_filter == 7 || (effective_filter == 0 && pul > 0)) glColor3f(1.0, 0.5, 0); /* Orange - Pulsar */
                     else if (effective_filter == 6 || (effective_filter == 0 && neb > 0)) glColor3f(0.7, 0.7, 0.7); /* Grey - Nebula */
                     else if (effective_filter == 5 || (effective_filter == 0 && bh > 0)) glColor3f(0.6, 0, 1.0); /* Purple - Black Hole */
-                    else if (effective_filter == 4 || (effective_filter == 0 && en > 0)) glColor3f(1, 0, 0); /* Red - Hostile */
+                    else if (effective_filter == 4 || (effective_filter == 0 && (en > 0 || player > 0))) glColor3f(1, 0, 0); /* Red - Hostile/Vessel */
                     else if (effective_filter == 3 || (effective_filter == 0 && bs > 0)) glColor3f(0, 1, 0); /* Green - Base */
                     else if (effective_filter == 2 || (effective_filter == 0 && pl > 0)) glColor3f(0, 0.8, 1); /* Cyan - Planet */
                     else if (effective_filter == 1 || (effective_filter == 0 && st > 0)) glColor3f(1, 1, 0); /* Yellow - Star */
@@ -2850,6 +2851,12 @@ void drawShieldEffect() {
     
     glPopMatrix();
     glPopAttrib();
+}
+
+void reshape(int w, int h) {
+    if (w != 1280 || h != 720) {
+        glutReshapeWindow(1280, 720);
+    }
 }
 
 void display() {
@@ -3897,7 +3904,7 @@ int main(int argc, char** argv) {
     glLightfv(GL_LIGHT0, GL_DIFFUSE, white);
     glLightfv(GL_LIGHT0, GL_SPECULAR, white);
         initStars(); initVBOs(); glMatrixMode(GL_PROJECTION); gluPerspective(45, 1.77, 1, 500); glMatrixMode(GL_MODELVIEW);
-        glutDisplayFunc(display); glutKeyboardFunc(keyboard); glutSpecialFunc(special); glutTimerFunc(16, timer, 0);
+        glutDisplayFunc(display); glutReshapeFunc(reshape); glutKeyboardFunc(keyboard); glutSpecialFunc(special); glutTimerFunc(16, timer, 0);
         
         printf("[3D VIEW] Ready. Sending handshake to parent (PID %d).\n", getppid());
         kill(getppid(), SIGUSR2); 
