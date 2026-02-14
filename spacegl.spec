@@ -102,7 +102,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/readme_assets/
 
 %changelog
-* Tue Feb 13 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
+* Sat Feb 14 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
 - NAV: *
 From the code analysis, I found that the implementation of the nav command is structurally correct but lacks some critical checks for realism and game balancing:
 
