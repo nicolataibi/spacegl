@@ -472,6 +472,12 @@ void *network_listener(void *arg) {
                 }
                 
                 g_shared_state->is_cloaked = upd.is_cloaked;
+                g_shared_state->shm_is_docked = upd.is_docked;
+                g_shared_state->shm_show_axes = upd.show_axes;
+                g_shared_state->shm_show_grid = upd.show_grid;
+                g_shared_state->shm_show_bridge = upd.show_bridge;
+                g_shared_state->shm_show_map = upd.show_map;
+                g_shared_state->shm_map_filter = upd.map_filter;
                 g_shared_state->shm_q[0] = upd.q1;
                 g_shared_state->shm_q[1] = upd.q2;
                 g_shared_state->shm_q[2] = upd.q3;
@@ -485,6 +491,12 @@ void *network_listener(void *arg) {
                 int mq1 = upd.map_update_q[0], mq2 = upd.map_update_q[1], mq3 = upd.map_update_q[2];
                 if (mq1 >= 1 && mq1 <= 10 && mq2 >= 1 && mq2 <= 10 && mq3 >= 1 && mq3 <= 10) {
                     g_shared_state->shm_galaxy[mq1][mq2][mq3] = upd.map_update_val;
+                }
+                
+                /* Handle 2nd quadrant update */
+                int m2q1 = upd.map_update_q2[0], m2q2 = upd.map_update_q2[1], m2q3 = upd.map_update_q2[2];
+                if (m2q1 >= 1 && m2q1 <= 10 && m2q2 >= 1 && m2q2 <= 10 && m2q3 >= 1 && m2q3 <= 10) {
+                    g_shared_state->shm_galaxy[m2q1][m2q2][m2q3] = upd.map_update_val2;
                 }
 
                 g_shared_state->object_count = upd.object_count;
@@ -897,6 +909,7 @@ int main(int argc, char *argv[]) {
                         printf(B_WHITE "bor ID" RESET "       : Boarding party operation (Dist < 1.0). Works on Lock.\n");
                         printf(B_WHITE "min" RESET "          : Planetary Mining (Must be in orbit dist < 2.0)\n");
                         printf(B_WHITE "doc" RESET "          : Dock with Starbase (Replenish/Repair, same faction)\n");
+                        printf(B_WHITE "und" RESET "          : Undock (Release clamps from Starbase)\n");
                         printf(B_WHITE "con T A" RESET "      : Convert (1:Aeth->E, 2:Neo-Ti->E, 3:Void-E->Torps, 6:Gas->E, 7:Comp->E)\n");
                         printf(B_WHITE "load T A" RESET "     : Load from Cargo Bay (1:Energy, 2:Torps)\n");
                         printf(B_WHITE "hull" RESET "         : Reinforce Hull (Uses 100 Composite for +500 Plating)\n");
@@ -921,104 +934,18 @@ int main(int argc, char *argv[]) {
                         printf(B_WHITE "map [XX]" RESET "     : Toggle Starmap. Optional Filter (st,pl,bs,en,bh,ne,pu,is,co,as,de,mi,bu,pf,ri,mo)\n");
                         printf(B_WHITE "bridge [view]" RESET "  : Change Bridge View (top, bottom, up, down, left, right, rear, off)\n");
                         printf(B_WHITE "xxx" RESET "          : Self-Destruct\n");
-                    } else if (strncmp(g_input_buf, "dis ", 4) == 0 || strcmp(g_input_buf, "dis") == 0) {
+                    } else if (strcmp(g_input_buf, "axs") == 0 || 
+                               strcmp(g_input_buf, "grd") == 0 || 
+                               strncmp(g_input_buf, "bridge", 6) == 0 ||
+                               strncmp(g_input_buf, "map", 3) == 0 ||
+                               strncmp(g_input_buf, "dis ", 4) == 0 || 
+                               strcmp(g_input_buf, "dis") == 0) {
                         PacketCommand cpkt = {PKT_COMMAND, ""};
                         size_t clen = strlen(g_input_buf);
                         if (clen > 255) clen = 255;
                         memcpy(cpkt.cmd, g_input_buf, clen);
                         cpkt.cmd[clen] = '\0';
                         send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "axs") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_show_axes = !g_shared_state->shm_show_axes;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                            printf("Axes toggled.\n");
-                        }
-                    } else if (strcmp(g_input_buf, "grd") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_show_grid = !g_shared_state->shm_show_grid;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                            printf("Grid toggled.\n");
-                        }
-                    } else if (strncmp(g_input_buf, "bridge", 6) == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            int current = g_shared_state->shm_show_bridge;
-                            int is_bottom = (current >= 11);
-
-                            if (strstr(g_input_buf, "off")) {
-                                g_shared_state->shm_show_bridge = 0;
-                                printf("Bridge view: OFF\n");
-                            } else if (strstr(g_input_buf, "top") || strstr(g_input_buf, "on")) {
-                                g_shared_state->shm_show_bridge = 1;
-                                printf("Bridge view: TOP FORWARD\n");
-                            } else if (strstr(g_input_buf, "bottom")) {
-                                g_shared_state->shm_show_bridge = 11;
-                                printf("Bridge view: BOTTOM FORWARD\n");
-                            } else if (strstr(g_input_buf, "left")) {
-                                g_shared_state->shm_show_bridge = (is_bottom ? 12 : 2);
-                                printf("Bridge view: %s LEFT\n", is_bottom ? "BOTTOM" : "TOP");
-                            } else if (strstr(g_input_buf, "right")) {
-                                g_shared_state->shm_show_bridge = (is_bottom ? 13 : 3);
-                                printf("Bridge view: %s RIGHT\n", is_bottom ? "BOTTOM" : "TOP");
-                            } else if (strstr(g_input_buf, "up")) {
-                                g_shared_state->shm_show_bridge = (is_bottom ? 14 : 4);
-                                printf("Bridge view: %s UP\n", is_bottom ? "BOTTOM" : "TOP");
-                            } else if (strstr(g_input_buf, "down")) {
-                                g_shared_state->shm_show_bridge = (is_bottom ? 15 : 5);
-                                printf("Bridge view: %s DOWN\n", is_bottom ? "BOTTOM" : "TOP");
-                            } else if (strstr(g_input_buf, "rear")) {
-                                g_shared_state->shm_show_bridge = (is_bottom ? 16 : 6);
-                                printf("Bridge view: %s REAR\n", is_bottom ? "BOTTOM" : "TOP");
-                            } else {
-                                if (current > 0) g_shared_state->shm_show_bridge = 0;
-                                else g_shared_state->shm_show_bridge = 1;
-                                if (g_shared_state->shm_show_bridge) printf("Bridge view toggled: ON (TOP)\n");
-                                else printf("Bridge view toggled: OFF\n");
-                            }
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                    } else if (strncmp(g_input_buf, "map", 3) == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            if (strlen(g_input_buf) == 3) {
-                                g_shared_state->shm_show_map = !g_shared_state->shm_show_map;
-                                g_shared_state->shm_map_filter = 0;
-                                if (g_shared_state->shm_show_map) printf("Starmap toggled ON (All objects).\n");
-                                else printf("Starmap toggled OFF.\n");
-                            } else {
-                                /* Handle map filters: map st, map pl, etc. */
-                                const char *f = g_input_buf + 4;
-                                int filter = 0;
-                                if (strcmp(f, "st") == 0) filter = 1;      /* Star */
-                                else if (strcmp(f, "pl") == 0) filter = 2; /* Planet */
-                                else if (strcmp(f, "bs") == 0) filter = 3; /* Base */
-                                else if (strcmp(f, "en") == 0) filter = 4; /* Enemy/Hostile */
-                                else if (strcmp(f, "bh") == 0) filter = 5; /* Black Hole */
-                                else if (strcmp(f, "ne") == 0) filter = 6; /* Nebula */
-                                else if (strcmp(f, "pu") == 0) filter = 7; /* Pulsar */
-                                else if (strcmp(f, "is") == 0) filter = 8; /* Ion Storm */
-                                else if (strcmp(f, "co") == 0) filter = 9; /* Comet */
-                                else if (strcmp(f, "as") == 0) filter = 10;/* Asteroid */
-                                else if (strcmp(f, "de") == 0) filter = 11;/* Derelict */
-                                else if (strcmp(f, "mi") == 0) filter = 12;/* Mine */
-                                else if (strcmp(f, "bu") == 0) filter = 13;/* Buoy */
-                                else if (strcmp(f, "pf") == 0) filter = 14;/* Platform */
-                                else if (strcmp(f, "ri") == 0) filter = 15;/* Rift */
-                                else if (strcmp(f, "mo") == 0) filter = 16;/* Monster */
-                                
-                                if (filter > 0) {
-                                    g_shared_state->shm_show_map = 1;
-                                    g_shared_state->shm_map_filter = filter;
-                                    printf("Starmap Filter: %s\n", f);
-                                } else {
-                                    printf("Unknown map filter: %s. Valid: st,pl,bs,en,bh,ne,pu,is,co,as,de,mi,bu,pf,ri,mo\n", f);
-                                }
-                            }
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
                     } else if (strcmp(g_input_buf, "enc aes") == 0) {
                         if (g_shared_state) {
                             pthread_mutex_lock(&g_shared_state->mutex);

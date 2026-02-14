@@ -34,7 +34,8 @@ typedef enum {
     NAV_STATE_CHASE,
     NAV_STATE_ALIGN_IMPULSE,
     NAV_STATE_WORMHOLE,
-    NAV_STATE_ALIGN_ONLY
+    NAV_STATE_ALIGN_ONLY,
+    NAV_STATE_DOCKING
 } NavState;
 
 typedef struct {
@@ -68,6 +69,7 @@ typedef struct {
     
     /* Jump Visuals */
     double wx, wy, wz;      /* Wormhole entrance coords */
+    int is_docked;          /* Persistent docking state */
     int shield_regen_delay;
     int renegade_timer;     /* Ticks until faction forgives friendly fire */
     

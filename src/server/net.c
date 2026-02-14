@@ -110,13 +110,31 @@ void broadcast_message(PacketMessage *msg) {
 
     pthread_mutex_lock(&game_mutex);
     
-    int sender_algo = CRYPTO_NONE;
+    int sender_idx = -1;
     for(int j=0; j<MAX_CLIENTS; j++) {
         if (players[j].active && strcmp(players[j].name, msg->from) == 0) {
-            sender_algo = players[j].crypto_algo;
+            sender_idx = j;
             break;
         }
     }
+
+    /* Integrity and Energy Checks for the Sender */
+    if (sender_idx != -1) {
+        if (players[sender_idx].state.system_health[9] < 5.0f) {
+            /* Unlock before sending server msg to avoid deadlock if send_server_msg locks */
+            pthread_mutex_unlock(&game_mutex); 
+            send_server_msg(sender_idx, "COMPUTER", "COMMUNICATIONS FAILURE: Subspace array damaged.");
+            return;
+        }
+        if (players[sender_idx].state.energy < 5) {
+            pthread_mutex_unlock(&game_mutex);
+            send_server_msg(sender_idx, "COMPUTER", "Insufficient energy for transmission.");
+            return;
+        }
+        players[sender_idx].state.energy -= 5;
+    }
+
+    int sender_algo = (sender_idx != -1) ? players[sender_idx].crypto_algo : CRYPTO_NONE;
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (players[i].active && players[i].socket != 0) {

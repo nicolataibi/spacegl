@@ -478,6 +478,7 @@ int g_show_axes = 0;
 int g_show_grid = 0;
 int g_show_map = 0;
 int g_show_bridge = 0;
+int g_is_docked = 0;
 int g_map_filter = 0;
 int g_my_q[3] = {1,1,1};
 int64_t g_galaxy[11][11][11];
@@ -664,6 +665,7 @@ void loadGameState() {
     for(int s=0; s<10; s++) g_system_health[s] = g_shared_state->shm_system_health[s];
     for(int inv=0; inv<10; inv++) g_inventory[inv] = g_shared_state->inventory[inv];
     g_lock_target = g_shared_state->shm_lock_target;
+    g_is_docked = g_shared_state->shm_is_docked;
     int total_s = 0;
     for(int s=0; s<6; s++) {
         /* Always detect a hit if the shared state value is less than our last tracked value,
@@ -883,7 +885,8 @@ void loadGameState() {
         g_wormhole.x = g_shared_state->wormhole.shm_x - 5.0f;
         g_wormhole.y = g_shared_state->wormhole.shm_z - 5.0f;
         g_wormhole.z = 5.0f - g_shared_state->wormhole.shm_y;
-        g_wormhole.h = 0; g_wormhole.m = 0;
+        g_wormhole.h = g_shared_state->shm_h; 
+        g_wormhole.m = g_shared_state->shm_m;
         g_wormhole.active = 1;
     } else {
         g_wormhole.active = 0;
@@ -898,10 +901,10 @@ void loadGameState() {
         if (fabs(jx) > 50.0f || fabs(jy) > 50.0f) {
              g_shared_state->jump_arrival.active = 0;
         } else {
-            g_jump_arrival.x = jx; g_jump_arrival.y = jy; g_jump_arrival.z = jz;
-            g_jump_arrival.h = 0; g_jump_arrival.m = 0;
-            g_jump_arrival.active = 1;
-            g_jump_arrival.timer = 300;
+                    g_jump_arrival.x = jx; g_jump_arrival.y = jy; g_jump_arrival.z = jz;
+                    g_jump_arrival.h = g_shared_state->shm_h; 
+                    g_jump_arrival.m = g_shared_state->shm_m;
+                    g_jump_arrival.active = 1;            g_jump_arrival.timer = 300;
             g_arrival_fx.x = jx; g_arrival_fx.y = jy; g_arrival_fx.z = jz;
             g_arrival_fx.timer = 300;
             
@@ -1830,9 +1833,9 @@ void drawWormhole(float x, float y, float z, float h, float m, int type) {
         glMaterialf(GL_FRONT, GL_SHININESS, 100.0f);
         glColor3f(0.05f, 0.05f, 0.05f);
     } else {
-        /* ARRIVAL: Golden White Star */
-        float mat_amb[] = {0.5f, 0.4f, 0.2f, 1.0f};
-        float mat_diff[] = {1.0f, 0.9f, 0.7f, 1.0f};
+        /* ARRIVAL: Brilliant White/Blue Singularity */
+        float mat_amb[] = {0.8f, 0.8f, 1.0f, 1.0f};
+        float mat_diff[] = {1.0f, 1.0f, 1.0f, 1.0f};
         float mat_spec[] = {1.0f, 1.0f, 1.0f, 1.0f};
         glMaterialfv(GL_FRONT, GL_AMBIENT, mat_amb);
         glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diff);
@@ -1867,8 +1870,8 @@ void drawWormhole(float x, float y, float z, float h, float m, int type) {
         for(int i=0; i<Nr; i++){
             float r = rs + (float)i * dr;
             /* zz represents the distance from the center sphere along the axis */
-            float base_z = 0.6f + 2.0f * sqrt(rs * (r - rs));
-            float zz = (type == 1) ? (2.64f - base_z) : base_z;
+            /* Start at sphere surface (0.35f) and curve outwards */
+            float zz = 0.35f + 2.0f * sqrt(rs * (r - rs));
             
             float fade = 1.0f - (float)i/(float)Nr;
             if (type == 0) glColor4f(0.3f*fade, 0.0f, 1.0f*fade, 0.8f*fade); 
@@ -1886,8 +1889,7 @@ void drawWormhole(float x, float y, float z, float h, float m, int type) {
             glBegin(GL_LINE_STRIP);
             for(int i=0; i<Nr; i++){
                 float r = rs + (float)i * dr;
-                float base_z = 0.6f + 2.0f * sqrt(rs * (r - rs));
-                float zz = (type == 1) ? (2.64f - base_z) : base_z;
+                float zz = 0.35f + 2.0f * sqrt(rs * (r - rs));
                 
                 float fade = 1.0f - (float)i/(float)Nr;
                 if (type == 0) glColor4f(0.2f*fade, 0.0f, 0.6f*fade, 0.6f*fade);
@@ -2235,7 +2237,42 @@ void drawMonster(int type, float x, float y, float z) {
     }
 }
 
+void drawGalacticCompass() {
+    glDisable(GL_LIGHTING);
+    glPushMatrix();
+    /* Position the compass at the top center, aligned with the vertical axis */
+    glTranslatef(0.0f, 9.0f, 0.0f);
+    
+    float len = 1.5f;
+    glLineWidth(2.0f);
+    
+    /* Z-Axis (0/180 Degrees) - Blue */
+    glColor3f(0.3f, 0.3f, 1.0f);
+    glBegin(GL_LINES); glVertex3f(0,0,-len); glVertex3f(0,0,len); glEnd();
+    drawText3D(0, 0, len + 0.2f, "0");
+    drawText3D(0, 0, -len - 0.5f, "180");
+
+    /* X-Axis (90/270 Degrees) - Red */
+    glColor3f(1.0f, 0.3f, 0.3f);
+    glBegin(GL_LINES); glVertex3f(-len,0,0); glVertex3f(len,0,0); glEnd();
+    drawText3D(len + 0.2f, 0, 0, "90");
+    drawText3D(-len - 0.5f, 0, 0, "270");
+
+    /* Y-Axis (Mark) - Green */
+    glColor3f(0.3f, 1.0f, 0.3f);
+    glBegin(GL_LINES); glVertex3f(0,-len,0); glVertex3f(0,len,0); glEnd();
+    drawText3D(0, len + 0.2f, 0, "M:+90");
+    drawText3D(0, -len - 0.5f, 0, "M:-90");
+    
+    glColor3f(1, 1, 1);
+    glutWireSphere(0.1f, 8, 8);
+    
+    glPopMatrix();
+    glEnable(GL_LIGHTING);
+}
+
 void drawExplorerMap() {
+    drawGalacticCompass();
     glDisable(GL_LIGHTING);
     float gap = 1.2f;
     float offset = - (10.0f * gap) / 2.0f;
@@ -2330,8 +2367,42 @@ void drawExplorerMap() {
                     float s_glow = 0.4f + sin(pulse*6.0f)*0.15f;
                     glColor4f(1, 1, 1, 0.8);
                     glutWireCube(s_glow);
+                    
+                    /* Directional Vector (Heading Needle) - Tensor Style */
+                    glDisable(GL_LIGHTING);
+                    double r_h = g_shared_state->shm_h * M_PI / 180.0;
+                    double r_m = g_shared_state->shm_m * M_PI / 180.0;
+                    
+                    /* Map axes to screen coordinates */
+                    float v_x = sin(r_h) * cos(r_m);
+                    float v_y = sin(r_m);
+                    float v_z = cos(r_h) * cos(r_m);
+                    
+                    float line_len = gap * 1.5f;
+                    glLineWidth(1.0f);
+                    glBegin(GL_LINES);
+                    glColor3f(1.0f, 1.0f, 0.0f); /* Bright Yellow Line */
+                    glVertex3f(0, 0, 0);
+                    glVertex3f(v_x * line_len, v_y * line_len, v_z * line_len);
+                    glEnd();
+                    
+                    /* Pointer head - Red Cone Tip */
+                    glPushMatrix();
+                    glTranslatef(v_x * line_len, v_y * line_len, v_z * line_len);
+                    /* Rotate cone to point in the same direction as the vector */
+                    glRotatef(g_shared_state->shm_h, 0, 1, 0);
+                    glRotatef(-g_shared_state->shm_m, 1, 0, 0);
+                    glColor3f(1.0f, 0.0f, 0.0f); /* Red Pointer */
+                    glutSolidCone(0.05, 0.15, 8, 8);
+                    glPopMatrix();
+                    
+                    glLineWidth(1.0f);
+                    
                     glColor3f(1, 1, 1);
-                    drawText3D(-0.3f, 0.4f, 0, "YOU");
+                    char you_msg[64];
+                    sprintf(you_msg, "YOU (H:%03.0f M:%+03.0f)", g_shared_state->shm_h, g_shared_state->shm_m);
+                    drawText3D(-0.3f, 0.4f, 0, you_msg);
+                    glEnable(GL_LIGHTING);
                 }
 
                 if (g_sn_pos.active && x == g_sn_q[0] && y == g_sn_q[1] && z == g_sn_q[2]) {
@@ -2472,16 +2543,37 @@ void drawJumpArrival() {
     glPushMatrix();
     glTranslatef(g_jump_arrival.x, g_jump_arrival.y, g_jump_arrival.z);
     
-    /* Phase 1: Pure Golden Wormhole (Timer 300 -> 120 : 3 seconds @ 60fps) */
-    /* Phase 2: Ship materialization with Flash (Timer 120 -> 0) */
+    /* Phase 1: Brilliant White Wormhole */
     float wh_scale = (g_jump_arrival.timer < 60) ? (g_jump_arrival.timer / 60.0f) : 1.0f;
     
     glPushMatrix();
     glScalef(wh_scale, wh_scale, wh_scale);
-    drawWormhole(0, 0, 0, g_jump_arrival.h, g_jump_arrival.m, 1); /* Type 1: Arrival (Gold) */
+    drawWormhole(0, 0, 0, g_jump_arrival.h, g_jump_arrival.m, 1); /* Type 1: Arrival (White) */
     glPopMatrix();
     
-    /* Delay the flash: only starts when timer < 120 (after 3 seconds @ 60fps) */
+    /* Phase 2: Ship Emerging (Timer 300 -> 180) */
+    if (g_jump_arrival.timer > 180) {
+        float progress = 1.0f - (g_jump_arrival.timer - 180) / 120.0f; /* 0.0 at 300, 1.0 at 180 */
+        
+        glPushMatrix();
+        /* Align with ship longitudinal axis (same as wormhole cones) */
+        glRotatef(g_jump_arrival.h - 90.0f, 0, 1, 0);
+        glRotatef(g_jump_arrival.m, 0, 0, 1);
+        glRotatef(90, 0, 1, 0); 
+        
+        /* Move ship from 0 to 4 units along the axis */
+        glTranslatef(0, 0, progress * 4.0f);
+        
+        /* Render ship with materialization glow */
+        glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        float glow = 1.0f - progress;
+        glColor4f(0.8f + glow*0.2f, 0.8f + glow*0.2f, 1.0f, 0.5f + glow*0.5f);
+        drawAllianceShip(g_player_class, 0, 0); /* Angles are 0 because we already rotated the matrix */
+        glDisable(GL_BLEND);
+        glPopMatrix();
+    }
+
+    /* Phase 3: Final Flash */
     if (g_jump_arrival.timer < 120) {
         float flash_t = 1.0f - (g_jump_arrival.timer / 120.0f);
         drawGlow(0.5f + flash_t * 5.0f, 1.0f, 1.0f, 1.0f, (1.0f - flash_t) * 0.9f);
@@ -3089,11 +3181,14 @@ void display() {
             }
 
             if (objects[i].type == 1) { 
-                if (objects[i].faction == 0) { // FACTION_ALLIANCE
+                /* Hide ship if it's currently emerging from a wormhole */
+                bool is_emerging = (g_jump_arrival.timer > 180);
+                
+                if (!is_emerging && objects[i].faction == 0) { // FACTION_ALLIANCE
                     if (!g_is_cloaked_rendering) glUseProgram(hullShaderProgram);
                     drawAllianceShip(objects[i].ship_class, objects[i].h, objects[i].m);
                     glUseProgram(0);
-                } else {
+                } else if (!is_emerging) {
                     /* Non-Alliance Player: Use Faction model */
                     glRotatef(objects[i].h - 90.0f, 0, 1, 0); glRotatef(objects[i].m, 0, 0, 1);
                     if (!g_is_cloaked_rendering) glUseProgram(hullShaderProgram);
@@ -3312,6 +3407,15 @@ void display() {
             sprintf(buf, "Alliance - %s - CAPTAIN: %s", getClassName(g_player_class), g_player_name);
         } else {
             sprintf(buf, "%s - CAPTAIN: %s", getFactionHUDName(g_shared_state->objects[0].faction), g_player_name);
+        }
+        drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
+
+        if (g_is_docked) {
+            glColor3f(0.0f, 1.0f, 0.0f); /* Green */
+            sprintf(buf, "SHIP STATUS: DOCKED (Systems Secured)");
+        } else {
+            glColor3f(0.0f, 1.0f, 1.0f); /* Bright Cyan */
+            sprintf(buf, "SHIP STATUS: UNDOCKED (Deep Space Active)");
         }
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
 

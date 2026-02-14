@@ -409,23 +409,58 @@ Below is the complete list of available commands, grouped by function.
     *   `Dist`: Distance in Quadrants (supports decimals, e.g. `1.73`).
     *   `Factor`: (Optional) Hyperdrive Factor from 1.0 to 9.9 (Default: 6.0).
 *   `imp <H> <M> <S>`: **Impulse Drive**. Sub-light engines. `S` represents speed from 0.0 to 1.0 (Full Impulse).
+    *   **Requirements**: Minimum 10% Impulse system integrity (ID 1).
+    *   **Cost**: 100 units of Energy for initialization (50 for speed-only updates).
+    *   **Dynamics**: Continuous energy drain proportional to speed. Automatic shutdown if integrity reaches 0% or energy is depleted.
     *   `S`: Speed (0.0 - 1.0).
     *   `imp 0 0 0`: All Stop.
-*   `pos <H> <M>`: **Positioning (Alignment)**. Orients the ship to a specific Heading and Mark without engaging engines. Ideal for tactical positioning before a jump or Ion Beam fire.
-*   `cal <QX> <QY> <QZ> [SX SY SZ]`: **Navigational Computer (High Precision)**. Generates a full report with Heading, Mark, and a **Velocity Comparison Table**. If sector coordinates (SX, SY, SZ) are provided, it calculates the pinpoint route to that specific location.
-*   `ical <X> <Y> <Z>`: **Impulse Calculator (ETA)**. Calculates H, M, and ETA to reach precise coordinates (0.0-10.0) within the current quadrant, based on current engine power allocation.
+*   `pos <H> <M>`: **Positioning (Alignment)**. Orients the ship to a specific Heading and Mark without engaging engines. 
+    *   **Requirements**: Minimum 10% Impulse system integrity (ID 1).
+    *   **Cost**: 20 units of Energy.
+    *   Ideal for tactical positioning before a jump or Ion Beam fire.
+*   `cal <QX> <QY> <QZ> [SX SY SZ]`: **Navigational Computer (High Precision)**. Generates a full report with Heading, Mark, and a **Velocity Comparison Table**.
+    *   **Requirements**: Minimum 10% Computer system integrity (ID 6).
+    *   **Cost**: 25 units of Energy per computation.
+    *   **Data Reliability**: If computer integrity is below 50%, calculations may fail or return corrupted results.
+    *   If sector coordinates (SX, SY, SZ) are provided, it calculates the pinpoint route to that specific location and suggests the exact `nav` command to copy.
+*   `ical <X> <Y> <Z>`: **Impulse Calculator (ETA)**. Calculates H, M, and ETA to reach precise coordinates (0.0-10.0) within the current quadrant.
+    *   **Requirements**: Minimum 10% Computer system integrity (ID 6).
+    *   **Cost**: 10 units of Energy per computation.
+    *   **Data Reliability**: If computer integrity is below 50%, calculations may return corrupted or incomplete data.
+    *   Calculates vector and travel time based on current engine power allocation.
     
-    *   `jum <QX> <QY> <QZ>`: **Wormhole Jump (Einstein-Rosen Bridge)**.
-     Generates a wormhole for an instant jump to the destination quadrant.
-    *   **Requirements**: 5000 units of Energy and 1 Aetherium Crystal.
-    *   **Procedure**: Requires a singularity stabilization sequence of about 3 seconds.
-*   `apr [ID] [DIST]`: **Approach Autopilot**. Automatic approach to target ID up to DIST distance.
+    *   `jum <QX> <QY> <QZ>`: **Wormhole Jump (Einstein-Rosen Bridge)**. Generates a wormhole for an instant jump to the destination quadrant.
+    *   **Requirements**: 5000 units of Energy, 1 Aetherium Crystal, and minimum 50% health for both **Hyperdrive (ID 0)** and **Sensors (ID 2)**.
+    *   **Risks**: Chance of collapse and resource loss if integrity is below 75%.
+    *   **Dynamics**: Causes 1-3% structural stress damage to the hull upon initiation.
+    *   **Procedure**: Requires a singularity stabilization sequence of about 15 seconds.
+*   `apr <ID> [DIST]`: **Approach Autopilot**. Automatic approach to target ID up to DIST distance.
+    *   **Requirements**: Minimum 10% integrity for both **Impulse Drive (ID 1)** and **Computer (ID 6)**.
+    *   **Cost**: 100 units of Energy for autopilot engagement.
+    *   **Validation**: Target must be detectable by sensors and not cloaked (unless the target belongs to your own faction).
     *   If no ID is provided, it uses the currently **locked target**.
     *   If only one number is provided, it is treated as **distance** for the locked target (if < 100).
+    *   Provides specific radio confirmation mentioning the target's name.
 *   `cha`: **Chase Autopilot**. Actively chases the locked target, maintaining intercept trajectory.
+    *   **Requirements**: Minimum 10% integrity for both **Impulse Drive (ID 1)** and **Computer (ID 6)**. Must have an active **Target Lock** (`lock`).
+    *   **Cost**: 150 units of Energy for pursuit engagement.
+    *   **Dynamics**: Continuously recalculates the intercept vector to follow moving targets across the galaxy.
 *   `rad <MSG>`: **Deep Space Radio**. Sends a global message. Use `@Faction` for team chat or `#ID` for private messages.
+*   `und`: **Undock**. Manually release docking clamps from a Starbase.
+    *   **Requirements**: Minimum 10% Auxiliary system integrity (ID 9).
+    *   **Cost**: 50 units of Energy.
+    *   Note: Engaging engines (`nav`/`imp`) also triggers an automatic undock.
 *   `doc`: **Docking**. Dock at a Starbase (requires close range).
+    *   **Requirements**: Starbase must belong to your **own Faction**. Minimum 10% Impulse (ID 1) and 10% Auxiliary (ID 9) integrity required.
+    *   **Cost**: 100 units of Energy for clamp engagement.
+    *   **Procedure**: Requires a **10-second stabilization sequence**. Ship must remain stationary and in range.
+    *   **Effect**: Full repair of Hull, Shields, and all 10 Subsystems. Complete replenishment of Energy, Torpedoes, and Crew. Debriefs any prisoners.
 *   `map [FILTER]`: **Stellar Cartography**. Activates global 10x10x10 3D visualization of the entire galaxy.
+    *   **Requirements**: Minimum 15% Computer system integrity (ID 6). Automatically disabled if integrity falls below 5%.
+    *   **Cost**: 50 units of Energy per toggle or filter change.
+    *   **Orientation**: 
+        *   **3D Tactical Needle**: A thin yellow line with a red cone pointer indicates the ship's current Heading and Mark directly within the map.
+        *   **3D Galactic Compass**: A synchronized axis reference (Blue: 0°, Red: 90°, Green: Mark) is displayed at the top center of the view.
     *   **Optional Filters**: You can display only specific categories using: `map st` (Stars), `map pl` (Planets), `map bs` (Bases), `map en` (Enemies), `map bh` (Black Holes), `map ne` (Nebulas), `map pu` (Pulsars), `map is` (Storms), `map co` (Comets), `map as` (Asteroids), `map de` (Derelicts), `map mi` (Mines), `map bu` (Buoys), `map pf` (Platforms), `map ri` (Rifts), `map mo` (Monsters).
     *   **Vertical HUD**: In map mode, a legend on the left side shows colors and filter codes for each object.
     *   **Dynamic Anomalies**:
@@ -435,6 +470,9 @@ Below is the complete list of available commands, grouped by function.
 
 ### 🔬 Sensors and Scanners
 *   `scan <ID>`: **Deep Scan Analysis**. Performs a deep scan of the target or anomaly.
+    *   **Requirements**: Minimum 20% Sensor system integrity (ID 2).
+    *   **Cost**: 20 units of Energy per deep scan.
+    *   **Data Scrambling**: If sensor integrity is below 50%, some telemetry data (like exact integrity percentages or energy levels) will appear as scrambled or missing.
     *   **Vessels**: Reveals hull integrity, shield levels per quadrant, residual energy, crew count, and subsystem damage.
     *   **Anomalies**: Provides scientific data on Nebulas and Pulsars.
 
@@ -447,8 +485,14 @@ The effectiveness of your sensors depends directly on the health of the **Sensor
 *   **Repair**: Use `rep 2` to restore nominal sensor precision.
 
 *   `srs`: **Short Range Sensors**. Detailed scan of the current quadrant.
+    *   **Requirements**: Minimum 5% Sensor system integrity (ID 2).
+    *   **Cost**: 10 units of Energy per scan.
+    *   **Telemetry Noise**: If sensor integrity is below 50%, a warning is issued and data precision begins to degrade.
     *   **Neighborhood Scan**: If the ship is near sector boundaries (< 2.5 units), sensors automatically detect objects in adjacent quadrants, listing them in a dedicated section to prevent ambushes.
 *   `lrs`: **Long Range Sensors**. 3x3x3 scan of surrounding quadrants displayed via **GDIS Tactical Console**.
+    *   **Requirements**: Minimum 15% Sensor system integrity (ID 2).
+    *   **Cost**: 25 units of Energy per scan.
+    *   **Telemetry Instability**: If sensor integrity is below 50%, data precision degrades and a warning is issued.
     *   **Layout**: Each quadrant is displayed on a single line for immediate readability (Coordinates, Navigation, Objects, and Anomalies).
     *   **Standard Data**: Shows only object presence using their initials (e.g., `[H . N . S]`).
     *   **Enhanced Data**: If the ship is near a **Communication Buoy** (< 1.2 units), sensors switch to numeric display revealing the exact count (e.g., `[1 . 2 . 8]`). The boost resets when moving away from the buoy.
@@ -457,31 +501,56 @@ The effectiveness of your sensors depends directly on the health of the **Sensor
     *   **Anomaly Symbols**: `~`:Nebula, `*`:Pulsar, `!`:Ion Storm, `+`:Comet, `#`:Asteroid, `M`:Monster, `>`:Rift.
     *   **Localization**: Your current quadrant is highlighted with a blue background.
 *   `aux probe <QX> <QY> <QZ>`: **Deep Space Sensor Probe**. Launches an automated probe to a specific quadrant.
-    *   **Galactic Entity**: Probes are global objects. They traverse intermediate quadrants in real-time and are **visible to all players** along their flight path.
-    *   **Sensor Integration**: Probes appear in the **SRS (Short Range Sensors)** list for any ship in the same sector (ID range 19000+), revealing the **Owner's Name** and current status.
-    *   **Functionality**: Displays **ETA** and mission status in the owner's HUD.
-    *   **Data Retrieval**: Upon arrival, it reveals the quadrant's composition (`H P N B S`) in the owner's map and sends a live telemetry report.
-    *   **Persistence**: Remains at the target location as a **Derelict** (Red rings) after the mission.
-    *   **Command `aux report <1-3>`**: Requests a fresh sensor update from an active probe.
+    *   **Requirements**: Minimum 10% Auxiliary system integrity (ID 9). Launch requires minimum 25% health for both **Sensors (ID 2)** and **Computer (ID 6)**.
+    *   **Cost**: 1000 units of Energy per launch.
+    *   **Command `aux report <1-3>`**: Requests a fresh sensor update from an active probe. Cost: 50 units of Energy.
     *   **Command `aux recover <1-3>`**: Recovers a probe if the ship is in the same quadrant and within range (< 2.0 units), freeing the slot and restoring 500 energy units.
+    *   **Command `aux jettison`**: Ejects the Hyperdrive Core in an emergency. Requires 100 units of Energy. WARNING: Destroys the ship!
 *   `sta`: **Status Report**. Complete report on ship state, mission, and **Crew** monitoring.
+    *   **Requirements**: Minimum 5% Computer system integrity (ID 6).
+    *   **Cost**: 10 units of Energy for full systems diagnostic.
+    *   **Data Reliability**: If computer integrity is below 30%, diagnostics data (including telemetry and crew count) may appear corrupted or randomized.
+    *   **Coverage**: Provides real-time tracking of Reactor levels, Cargo reserves, Shield grids, and integrity for all 10 ship subsystems.
 *   `dam`: **Damage Report**. Detailed system damage.
 *   `who`: List of active captains in the galaxy.
 
 ### ⚔️ Tactical Combat
 *   `pha <E>`: **Fire Ion Beams**. Fires Ion Beams at the locked target (`lock`) using energy E. 
+    *   **Requirements**: Minimum 10% Ion Beam system integrity (ID 4).
+    *   **Accuracy**: Chance to miss if **Sensors (ID 2)** are damaged (below 50% health).
+    *   **Hardware Risk**: Firing with more than 10,000 units of energy carries a 5% risk of minor system overheating/damage.
 *   `pha <ID> <E>`: Fires Ion Beams at a specific target ID. Damage decreases with distance.
 *   `cha`: **Chase**. Automatically chases and intercepts the locked target.
 *   `rad <MSG>`: **Radio**. Sends a Deep Space message to other captains (@Faction for team chat).
-*   `axs` / `grd`: **Visual Guides**. Toggles 3D axes or tactical grid overlay.
-*   `bridge [top/bottom/up/down/left/right/rear/off]`: **Bridge View**. Toggles a cinematic first-person view.
-    *   `top/on`: Standard bridge view above the command dome.
-    *   `bottom`: Under-hull perspective.
-    *   `up/down/left/right/rear`: Changes looking direction while maintaining the current position (top/bottom).
-*   `enc <algo>`: **Encryption Toggle**. Enables or disables encryption in real-time. Supports **AES-256-GCM**, **ChaCha20**, **ARIA**, **Camellia**, **Blowfish**, **RC4**, **CAST5**, **IDEA**, **3DES**, and **PQC (ML-KEM)**. Essential for protecting communications and reading secure messages from other captains.
+*   `axs`: **AR Tactical Compass**. Toggles the augmented reality holographic compass.
+    *   **Requirements**: Minimum 10% Computer system integrity (ID 6). Automatically disabled if integrity falls below 5%.
+    *   **Cost**: 10 units of Energy per toggle.
+*   `grd`: **Tactical Grid**. Toggles the 3D tactical grid overlay.
+    *   **Requirements**: Minimum 10% Computer system integrity (ID 6). Automatically disabled if integrity falls below 5%.
+    *   **Cost**: 10 units of Energy per toggle.
+*   `bridge [view]`: **Bridge View**. Toggles or changes the cinematic first-person view.
+    *   **Requirements**: Minimum 10% Computer system integrity (ID 6). Automatically disabled if integrity falls below 5%.
+    *   **Cost**: 10 units of Energy per view change.
+    *   **Parameters**: Supports `top`, `bottom`, `left`, `right`, `up`, `down`, `rear`, `off`. The view intelligently persists between upper and lower hull perspectives.
+    *   `top/on`: Standard bridge view (Forward).
+    *   `bottom`: Under-hull perspective (Forward).
+    *   `up/down/left/right/rear`: Changes looking direction relative to current hull perspective.
+    *   `off`: Disables bridge view.
+*   `enc <algo>`: **Encryption Toggle**. Enables or disables encryption in real-time. 
+    *   **Requirements**: Minimum 10% Computer system integrity (ID 6). **PQC (ML-KEM)** requires minimum 50% integrity.
+    *   **Cost**: 50 units of Energy for standard algorithms, 250 units for PQC. Disabling encryption (`enc off`) is free.
+    *   Supports **AES-256-GCM**, **ChaCha20**, **ARIA**, **Camellia**, **Blowfish**, **RC4**, **CAST5**, **IDEA**, **3DES**, and **PQC (ML-KEM)**. Essential for protecting communications and reading secure messages from other captains.
 *   `tor`: **Fire Plasma Torpedo**. Launches an auto-guided torpedo at the locked target.
+    *   **Requirements**: Minimum 50% Torpedo system integrity (ID 5).
+    *   **Cost**: 250 units of Energy per launch.
+    *   **Risks**: Chance of misfire (torpedo lost, no launch) if system integrity is below 75%.
+    *   **Guidance**: Accuracy of the auto-guidance system depends on **Sensors (ID 2)** health. Damaged sensors reduce the torpedo's ability to correct its course.
 *   `tor <H> <M>`: Launches a torpedo in manual ballistic mode (Heading/Mark).
-*   `lock <ID>`: **Target Lock**. Locks targeting systems onto target ID (0 to unlock). Essential for automated Ion Beam and torpedo guidance.
+*   `lock <ID>`: **Target Lock**. Locks targeting systems onto target ID (0 to unlock). 
+    *   **Requirements**: Minimum 10% Sensor system integrity (ID 2).
+    *   **Cost**: 5 units of Energy per lock acquisition.
+    *   **Validation**: Target must be present in the current quadrant and not cloaked (unless the target belongs to your own faction).
+    *   Essential for automated Ion Beam and torpedo guidance.
 
 
 ### 🆔 Galactic Identifier Schema (Universal ID)
@@ -564,8 +633,21 @@ The `apr <ID> <DIST>` command allows you to automatically approach any object de
 | **Space Monsters** | 18000 - 18029 | `pha`, `tor`, `scan` | **< 1.5** | **Galactic Tracking** |
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Shield Configuration**. Distributes energy to the 6 shields.
-*   `clo`: **Cloaking Device**. Activates/Deactivates cloak. Consumes 15 energy units/tick. Provides invisibility to NPCs and other factions; unstable in nebulas.
+    *   **Requirements**: Minimum 10% Shield system integrity (ID 8).
+    *   **Energy Dynamics**: Charging shields draws energy directly from the main reactor. Discharging shields returns 80% of the energy to the reactor.
+    *   **Limits**: Maximum capacity is 10,000 units per quadrant.
+    *   **Cost**: 50 units of Energy per reconfiguration pulse.
+*   `clo`: **Cloaking Device**. Activates/Deactivates cloak. 
+    *   **Requirements**: Minimum 15% Auxiliary system integrity (ID 9).
+    *   **Cost**: 500 units of Energy for initialization. 
+    *   **Dynamics**: Consumes 15 energy units/tick while active. Automatic decloak occurs if Auxiliary integrity falls below 5%.
+    *   **Reliability**: If Auxiliary health is between 15% and 50%, there is a chance the field fails to stabilize during activation.
+    *   Provides invisibility to NPCs and other factions; unstable in nebulas. Consumes energy and limits sensors.
 *   `pow <E> <S> <W>`: **Power Allocation**. Allocates reactor energy (Engines, Shields, Weapons %).
+    *   **Requirements**: Minimum 10% Computer system integrity (ID 6).
+    *   **Cost**: 50 units of Energy per reconfiguration.
+    *   **Feedback**: Provides immediate confirmation of the new percentage distribution.
+    *   **Strategic Impact**: Dictates performance of sub-light engines, shield recharge rate, and Ion Beam intensity.
 *   `aux jettison`: **Eject Hyperdrive Synaptics**. Ejects the core (Suicide maneuver / Last resort).
 *   `xxx`: **Self-Destruct**. Sequential self-destruction.
 
@@ -625,40 +707,73 @@ The HUD displays "LIFE SUPPORT: XX.X%", which is directly linked to the integrit
 
 ### 📦 Operations and Resources
 *   `bor [ID]`: **Boarding Party**. Sends boarding parties (Dist < 1.0).
+    *   **Requirements**: Minimum 20% Transporter system integrity (ID 3).
+    *   **Cost**: 5000 units of Energy per attempt.
+    *   **Success Chance**: Scaled by Transporter integrity (Base 20% + up to 40%).
     *   Works on the currently **locked target** if no ID is specified.
     *   **NPC/Derelict Interaction**: Automatic rewards (Aetherium, Chips, Repairs, Survivors, or Prisoners).
-    *   **Player-to-Player Interaction**: Opens an **Interactive Tactical Menu** with specific choices:
+    *   **Player-to-Player Interaction**: Opens an **Interactive Tactical Menu** with specific choices.
         *   **Allied Vessels**: `1`: Transfer Energy, `2`: Repair System, `3`: Send Crew Reinforcements.
         *   **Hostile Vessels**: `1`: Sabotage System, `2`: Raid Cargo Hold, `3`: Capture Hostages.
     *   **Selection**: Reply with the number `1`, `2`, or `3` to execute the action.
     *   **Risks**: Resistance chance (30% for players, higher for NPCs) may cause team casualties.
 *   `dis`: **Dismantle**. Dismantles enemy wrecks for resources (Dist < 1.5).
-*   `fix`: **Field Hull Repair**. Uses **50 Graphene and 20 Neo-Titanium** to restore +15% Hull Integrity (up to a max of 80%).
+    *   **Requirements**: Minimum 15% Transporter system integrity (ID 3).
+    *   **Cost**: 500 units of Energy per operation.
+    *   **Yield**: Resource recovery efficiency depends on **Transporter (ID 3)** health. Damaged systems result in lower yields.
+    *   **Targets**: Works on destroyed NPC vessels and ancient derelict wrecks.
+*   `fix`: **Field Hull Repair**. Uses **50 Graphene and 20 Neo-Titanium** to restore Hull Integrity (up to a max of 80%).
+    *   **Requirements**: Minimum 10% Auxiliary system integrity (ID 9).
+    *   **Cost**: 500 units of Energy per repair pulse.
+    *   **Yield**: Structural restoration efficiency (10% to 20% range) depends on **Auxiliary (ID 9)** health.
+    *   **Limit**: Field repairs cannot exceed 80% total hull integrity. Starbase docking is required for full overhaul.
 *   `min`: **Mining**. Extracts resources from an orbiting planet or asteroid (Dist < 3.1).
+    *   **Requirements**: Minimum 15% Transporter system integrity (ID 3).
+    *   **Cost**: 250 units of Energy per extraction pulse.
+    *   **Yield**: Efficiency of mineral extraction depends on **Transporter (ID 3)** health.
     *   **Selective Priority**:
         1.  If a target is locked (`lock <ID>`), the system grants it absolute priority.
         2.  Without a lock, the system will mine the **absolute closest** mineable object.
-    *   **Radio Feedback**:
-        *   Asteroids: `[RADIO] MINING (Alliance Command): Asteroid extraction complete.`
-        *   Planets: `[RADIO] GEOLOGY (Alliance Command): Planetary mining successful.`
+    *   **Feedback**: Provides detailed radio confirmation of the amount and type of resource collected.
 *   `sco`: **Solar Scooping**. Collects energy from a star (Dist < 3.1).
+    *   **Requirements**: Minimum 15% Auxiliary system integrity (ID 9).
+    *   **Cost**: 100 units of Energy per collection cycle.
+    *   **Efficiency**: Harvested energy (up to 5000 units) depends on **Auxiliary (ID 9)** health.
+    *   **Hazard**: Scooping generates intense heat. If shields are insufficient to absorb the thermal load, the **Hull Integrity** and **Life Support** systems will sustain direct damage.
 *   `har`: **Harvest Plasma Reserves**. Collects antimatter from a black hole (Dist < 3.1).
+    *   **Requirements**: Minimum 25% Auxiliary system integrity (ID 9).
+    *   **Cost**: 500 units of Energy per collection cycle.
+    *   **Efficiency**: Harvested energy (up to 10,000 units) and Aetherium crystals depend on **Auxiliary (ID 9)** health.
+    *   **Extreme Hazard**: Harvesting near a singularity is extremely dangerous. If shields are insufficient, the ship will sustain heavy **Hull damage** and critical failures in **Sensors**, **Computer**, and **Life Support** systems.
 *   `con T A`: **Convert Resources**. Converts raw materials into energy or torpedoes (`T`: resource type, `A`: amount).
-    *   `1`: Aetherium -> Energy (x10).
-    *   `2`: Neo-Titanium -> Energy (x2).
-    *   `3`: Void-Essence -> Torpedoes (1 per 20).
-    *   `6`: Gas -> Energy (x5).
-    *   `7`: Composite -> Energy (x4).
-    *   `8`: **Dark-Matter** -> Energy (x25). [Maximum Efficiency]. Extremely rare radioactive mineral. Convert it with `con 8 <amount>` to instantly recharge Cargo energy reserves.
+    *   **Requirements**: Minimum 15% Auxiliary system integrity (ID 9).
+    *   **Cost**: 100 units of Energy per conversion cycle.
+    *   **Efficiency**: Conversion yield depends on **Auxiliary (ID 9)** health (70% to 100% range). Damaged systems result in significant resource loss during processing.
+    *   **Resource Mapping**:
+        *   `1`: Aetherium -> Energy (x10 base).
+        *   `2`: Neo-Titanium -> Energy (x2 base).
+        *   `3`: Void-Essence -> Torpedoes (1 per 20 base).
+        *   `6`: Gas -> Energy (x5 base).
+        *   `7`: Composite -> Energy (x4 base).
+        *   `8`: **Dark-Matter** -> Energy (x25 base). [Maximum Efficiency].
 *   `load <T> <A>`: **Load Systems**. Transfers energy or torpedoes from cargo to active systems.
-    *   `1`: Energy (Main Reactor). Max capacity: 9,999,999 units. Allows converting harvested Plasma Reserves from Black Holes into operational energy.
-    *   `2`: Torpedoes (Launch Tubes). Max capacity: 1000 units.
+    *   **Requirements**: Minimum 10% Auxiliary system integrity (ID 9).
+    *   **Cost**: 25 units of Energy per transfer cycle.
+    *   **Types**:
+        *   `1`: Energy (Main Reactor). Max capacity: 9,999,999 units.
+        *   `2`: Torpedoes (Launch Tubes). Max capacity: 1000 units.
+    *   **Feedback**: Confirms the exact amount of resources moved to active duty.
 
-#### 🏗️ Hull Reinforcement (Hull Plating)
 *   `hull`: **Reinforce Hull**. Uses **100 units of Composite** to apply reinforced plating to the hull (+500 integrity units).
-    *   Composite plating acts as a secondary physical shield, absorbing residual damage that bypasses energy shields before it hits the main reactor.
-    *   Plating status is visible in the 3D HUD and via the `sta` command.
-*   `inv`: **Inventory**. Shows cargo bay content, including raw materials (**Graphene**, **Synaptics**, **Composite**) and **Prisoners**.
+    *   **Requirements**: Minimum 10% Auxiliary system integrity (ID 9).
+    *   **Cost**: 1000 units of Energy per integration cycle.
+    *   **Limit**: Maximum composite plating capacity is 5000 units.
+    *   Composite plating acts as a secondary physical shield, absorbing residual damage that bypasses energy shields before it hits the hull. Plating status is visible in the 3D HUD.
+*   `inv`: **Inventory Report**. Shows cargo bay content, including raw materials (**Graphene**, **Synaptics**, **Composite**) and **Prisoners**.
+    *   **Requirements**: Minimum 5% Computer system integrity (ID 6).
+    *   **Cost**: 5 units of Energy per manifest scan.
+    *   **Data Reliability**: If computer integrity is below 30%, logistics data may appear corrupted or scrambled.
+    *   **Registry**: Monitors Aetherium, Neo-Titanium, Void-Essence, Graphene, Synaptics, Nebular Gas, Composite, Dark-Matter, Plasma Reserves, Cargo Torpedoes, and the Prison Unit.
 
 ### 📦 Cargo and Resource Management
 
@@ -692,9 +807,11 @@ Space GL distinguishes between **Active Systems**, **Cargo Storage**, and the **
 
 *   **Resource Conversion**: Raw materials must be converted (`con`) into **CARGO Plasma Reserves** or **CARGO Torpedoes** before loading into active systems.
 
-*   `rep [ID]`: **Repair**. Repairs a damaged system (health < 100%) restoring it to full efficiency. Essential for fixing sensor noise or reactivating offline weapons.
-    *   **Cost**: Each repair consumes **50 Neo-Titanium** and **10 Synaptics Chips**.
-    *   **Usage**: If no ID is provided, lists all 10 ship systems with their current integrity status.
+*   `rep [ID]`: **Repair**. Repairs a damaged system (health < 100%) restoring it to full efficiency. 
+    *   **Requirements**: Minimum 10% Computer system integrity (ID 6) to coordinate maintenance.
+    *   **Cost**: 500 units of Energy per repair cycle.
+    *   **Materials**: Each repair consumes **50 Neo-Titanium** and **10 Synaptics Chips**.
+    *   **Usage**: If no ID is provided, lists all 10 ship systems with their current integrity status and color-coded health indicators.
     *   **System IDs**: `0`: Hyperdrive, `1`: Impulse, `2`: Sensors, `3`: Transp, `4`: Ion Beams, `5`: Torps, `6`: Computer, `7`: Life Support, `8`: Shields, `9`: Aux.
 *   **Crew Management**: 
     *   Initial personnel number depends on ship class (e.g., 1012 for Explorer, 50 for Escort).    *   **Vital Integrity**: If **Life Support** drops below 75%, the crew will start suffering periodic losses.
@@ -707,8 +824,16 @@ The Space GL bridge operates via a high-precision Command Line Interface (CLI). 
 
 #### 🛰️ Advanced Navigation & Utility Commands
 *   `nav <H> <M> <W> [F]`: **Hyperdrive Navigation**. Plots a Hyperdrive course towards relative coordinates. `H`: Heading (0-359), `M`: Mark (-90/+90), `W`: Distance in quadrants, `F`: Optional Hyperdrive Factor (1.0 - 9.9).
-*   `imp <H> <M> <S>`: **Impulse Drive**. Sub-light navigation within the current sector. `S`: Speed in percentage (1-100%). Use `imp <S>` to only adjust speed.
-*   `pos <H> <M>`: **Positioning (Alignment)**. Orients the ship on Heading/Mark without movement.
+*   `imp <H> <M> <S>`: **Impulse Drive**. Sub-light engines. `S` represents speed from 0.0 to 1.0 (Full Impulse).
+    *   **Requirements**: Minimum 10% Impulse system integrity (ID 1).
+    *   **Cost**: 100 units of Energy for initialization (50 for speed-only updates).
+    *   **Dynamics**: Continuous energy drain proportional to speed. Automatic shutdown if integrity reaches 0% or energy is depleted.
+    *   `S`: Speed (0.0 - 1.0).
+    *   `imp 0 0 0`: All Stop.
+*   `pos <H> <M>`: **Positioning (Alignment)**. Orients the ship to a specific Heading and Mark without engaging engines. 
+    *   **Requirements**: Minimum 10% Impulse system integrity (ID 1).
+    *   **Cost**: 20 units of Energy.
+    *   Ideal for tactical positioning before a jump or Ion Beam fire.
 *   `jum <Q1> <Q2> <Q3>`: **Wormhole Jump**. Generates a spatial tunnel to a distant quadrant. Requires **5000 Energy and 1 Aetherium Crystal**.
 *   `apr <ID> [DIST]`: **Automatic Approach**. Autopilot intercepts the specified object at the desired distance (default 2.0). Works galaxy-wide for ships and comets.
 *   `cha`: **Chase Target**. Actively pursues the currently locked (`lock`) target.
@@ -716,10 +841,25 @@ The Space GL bridge operates via a high-precision Command Line Interface (CLI). 
 *   `fix`: **Field Hull Repair**. Restores +15% integrity (50 Graphene, 20 Neo-Ti).
 *   `inv`: **Inventory Report**. Detailed list of resources in cargo (Aetherium, Neo-Titanium, Nebular Gas, etc.).
 *   `dam`: **Damage Report**. Detailed status of hull integrity and systems.
-*   `cal <Q1> <Q2> <Q3>`: **Hyperdrive Calculator**. Calculates the vector towards the center of a distant quadrant.
-*   `cal <Q1> <Q2> <Q3> <X> <Y> <Z>`: **Pinpoint Calculator**. Calculates the vector towards precise sector coordinates `[X, Y, Z]` in a distant quadrant. Provides arrival times and suggests the exact `nav` command to copy.
-*   `ical <X> <Y> <Z>`: **Impulse Calculator (ETA)**. Provides a full navigational computation for precise sector coordinates [0.0 - 10.0], including real-time travel time at current power levels.
-*   `who`: **Captains Registry**. Lists all commanders currently active in the galaxy, their tracking IDs, and current position. Crucial for identifying allies or potential predators before entering a sector.
+    *   **Requirements**: Minimum 5% Computer system integrity (ID 6).
+    *   **Cost**: 5 units of Energy per integrity scan.
+    *   **Data Reliability**: If computer integrity is below 30%, sensor parity errors may cause some system status data to appear as unknown or scrambled.
+    *   **Registry**: Provides precise monitoring for all 10 ship subsystems using color-coded status indicators (Green/Yellow/Red).
+*   `cal <QX> <QY> <QZ> [SX SY SZ]`: **Navigational Computer (High Precision)**. Generates a full report with Heading, Mark, and a **Velocity Comparison Table**.
+    *   **Requirements**: Minimum 10% Computer system integrity (ID 6).
+    *   **Cost**: 25 units of Energy per computation.
+    *   **Data Reliability**: If computer integrity is below 50%, calculations will return **Data Corrupted** results with parity errors.
+    *   If sector coordinates (SX, SY, SZ) are provided, it calculates the pinpoint route to that specific location and suggests the exact `nav` command to copy.
+*   `ical <X> <Y> <Z>`: **Impulse Calculator (ETA)**. Calculates H, M, and ETA to reach precise coordinates (0.0-10.0) within the current quadrant.
+    *   **Requirements**: Minimum 10% Computer system integrity (ID 6).
+    *   **Cost**: 10 units of Energy per computation.
+    *   **Data Reliability**: If computer integrity is below 50%, calculations will return corrupted results.
+    *   Calculates vector and travel time based on current engine power allocation.
+*   `who`: **Captains Registry**. Lists all commanders currently active in the galaxy, their tracking IDs, and current position. 
+    *   **Requirements**: Minimum 5% Computer system integrity (ID 6).
+    *   **Cost**: 10 units of Energy for sub-space synchronization.
+    *   **Data Reliability**: If computer integrity is below 40%, the position and faction of distant captains may be obscured or hidden.
+    *   Crucial for identifying allies or potential predators before entering a sector.
 *   `sta`: **Status Report**. Complete systems diagnostic, including energy levels, hardware integrity, and power distribution.
 *   `hull`: **Composite Reinforcement**. If you have **100 units of Composite** in cargo, this command applies reinforced plating to the hull (+500 HP physical shield), visible as gold in the HUD.
 
@@ -739,7 +879,9 @@ In Space GL, encryption is not just about security—it's a **tactical frequency
 **Tactical Implication**: If an allied fleet decides to operate on "ARIA Frequency", every member must set `enc aria`. Those staying on AES will see only static noise (**`<< SIGNAL DISTURBED >>`**), allowing secure and secret communications even in crowded sectors.
 
 ### 📡 Communications and Miscellaneous
-*   `rad <MSG>`: Sends radio message to all (Open channel).
+*   `rad <MSG>`: **Radio**. Sends a radio message to all (Open channel).
+    *   **Requirements**: Minimum 5% Auxiliary system integrity (ID 9).
+    *   **Cost**: 5 units of Energy per transmission.
     *   **Faction Table (@Fac)**:
         | Faction | Full Name | Abbreviated |
         | :--- | :--- | :--- |
@@ -755,6 +897,10 @@ In Space GL, encryption is not just about security—it's a **tactical frequency
         | **Saurian / Cryos / Apex** | Full Name | - |
 *   `rad #ID <MSG>`: Private message to player ID.
 *   `psy`: **Psychological Warfare**. Attempts a bluff (Corbomite Maneuver).
+    *   **Requirements**: Minimum 20% Computer system integrity (ID 6) and at least one Anti-Matter device in inventory.
+    *   **Cost**: 500 units of Energy per broadcast.
+    *   **Effect**: 60% chance to force all hostile NPCs in the quadrant to flee.
+    *   **Risk**: If the bluff fails, NPCs will detect the deception and become more aggressive, switching to Chase mode.
 *   `axs` / `grd`: Toggles 3D visual guides (Axes / Grid).
 *   `h` (hotkey): Hides the HUD for a "cinematic" view.
         | **Alliance** | `@Alliance` | `@Fed` |
@@ -889,7 +1035,7 @@ The quadrant is scattered with natural phenomena detectable by both sensors and 
 *   **Ion Storms**:
     *   **Effect**: Random global events synchronized in real-time on the map.
     *   **Frequency**: High (statistical average of one event every 5-6 minutes).
-    *   **Technical Impact**: Hitting a storm **instantly halves** sensor health (ID 2).
+    *   **Technical Impact**: Hitting a storm causes a **minor 1.5% loss** in sensor health (ID 2).
     *   **Functional Degradation**: Damaged sensors (< 100%) produce "noise" in SRS/LRS reports (ghost objects, missing data, or imprecise coordinates). Below 25%, sensors become nearly unusable.
     *   **Technical Details**: Checked every 1000 ticks (33s), 20% event probability, with a 50% specific weight for ion storms.
     *   **Hazard**: Can blind sensors or violently push the ship off course.

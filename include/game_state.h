@@ -120,6 +120,9 @@ typedef struct {
     /* Visual preferences */
     uint8_t show_axes;
     uint8_t show_grid;
+    uint8_t show_bridge;
+    uint8_t show_map;
+    uint8_t map_filter;
     uint8_t shm_crypto_algo;
     int32_t composite_plating;
 

@@ -408,24 +408,59 @@ Di seguito la lista completa dei comandi disponibili, raggruppati per funzione.
     *   `M`: Mark (-90 a +90).
     *   `Dist`: Distanza in Quadranti (supporta decimali, es. `1.73`).
     *   `Fattore`: (Opzionale) Fattore Hyperdrive da 1.0 a 9.9 (Default: 6.0).
-*   `imp <H> <M> <S>`: **Impulse Drive**. Motori sub-luce. `S` rappresenta la velocità da 0.0 a 1.0 (Full Impulse).
+*   `imp <H> <M> <S>`: **Motore a Impulso**. Motori sub-luce. `S` rappresenta la velocità da 0.0 a 1.0 (Full Impulse).
+    *   **Requisiti**: Minimo 10% di integrità del sistema Impulse (ID 1).
+    *   **Costo**: 100 unità di Energia per l'inizializzazione (50 per aggiornamenti di sola velocità).
+    *   **Dinamiche**: Drenaggio energetico continuo proporzionale alla velocità. Spegnimento automatico se l'integrità raggiunge lo 0% o l'energia si esaurisce.
     *   `S`: Velocità (0.0 - 1.0).
     *   `imp 0 0 0`: All Stop (Arresto).
-*   `pos <H> <M>`: **Posizionamento (Allineamento)**. Orienta la nave su un determinato Heading e Mark senza attivare i motori. Utile per puntare obiettivi prima di un attacco o di un salto.
-*   `cal <QX> <QY> <QZ> [SX SY SZ]`: **Computer di Navigazione (Alta Precisione)**. Genera un rapporto completo con Heading, Mark e una **Tabella di Confronto delle Velocità**. Se vengono fornite le coordinate di settore (SX, SY, SZ), calcola la rotta precisa verso quella posizione.
-*   `ical <X> <Y> <Z>`: **Calcolatore d'Impulso (ETA)**. Calcola H, M ed ETA per raggiungere coordinate precise (0.0-10.0) all'interno del quadrante attuale, basandosi sull'attuale allocazione di potenza ai motori.
+*   `pos <H> <M>`: **Posizionamento (Allineamento)**. Orienta la nave su un determinato Heading e Mark senza attivare i motori. 
+    *   **Requisiti**: Minimo 10% di integrità del sistema Impulse (ID 1).
+    *   **Costo**: 20 unità di Energia.
+    *   Utile per puntare obiettivi prima di un attacco o di un salto.
+*   `cal <QX> <QY> <QZ> [SX SY SZ]`: **Computer di Navigazione (Alta Precisione)**. Genera un rapporto completo con Heading, Mark e una **Tabella di Confronto delle Velocità**. 
+    *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6).
+    *   **Costo**: 25 unità di Energia per ogni calcolo.
+    *   **Affidabilità Dati**: Se l'integrità del computer è inferiore al 50%, i calcoli potrebbero fallire o restituire risultati corrotti.
+    *   Se vengono fornite le coordinate di settore (SX, SY, SZ), calcola la rotta precisa verso quella posizione e suggerisce il comando `nav` esatto da copiare.
+*   `ical <X> <Y> <Z>`: **Calcolatore d'Impulso (ETA)**. Calcola H, M ed ETA per raggiungere coordinate precise (0.0-10.0) all'interno del quadrante attuale.
+    *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6).
+    *   **Costo**: 10 unità di Energia per ogni calcolo.
+    *   **Affidabilità Dati**: Se l'integrità del computer è inferiore al 50%, i calcoli potrebbero restituire dati corrotti o incompleti.
+    *   Calcola il vettore e il tempo di viaggio basandosi sull'attuale allocazione di potenza ai motori.
     
-    *   `jum <QX> <QY> <QZ>`: **Salto Wormhole (Ponte di Einstein-Rosen)**.
-     Genera un wormhole per un salto istantaneo verso il quadrante di destinazione.
-    *   **Requisiti**: 5000 unità di Energia e 1 Cristallo di Aetherium.
-    *   **Procedura**: Richiede una sequenza di stabilizzazione della singolarità di circa 3 secondi.
+    *   `jum <QX> <QY> <QZ>`: **Salto Wormhole (Ponte di Einstein-Rosen)**. Genera un wormhole per un salto istantaneo verso il quadrante di destinazione.
+    *   **Requisiti**: 5000 unità di Energia, 1 Cristallo di Aetherium e minimo 50% di salute per i sistemi **Hyperdrive (ID 0)** e **Sensori (ID 2)**.
+    *   **Rischi**: Possibilità di collasso del wormhole e perdita di risorse se l'integrità è inferiore al 75%.
+    *   **Dinamiche**: Causa l'1-3% di danni da stress strutturale allo scafo all'attivazione.
+    *   **Procedura**: Richiede una sequenza di stabilizzazione della singolarità di circa 15 secondi.
 *   `apr [ID] [DIST]`: **Autopilota di Avvicinamento**. Avvicinamento automatico al bersaglio ID fino alla distanza DIST.
+    *   **Requisiti**: Minimo 10% di integrità per i sistemi **Impulse (ID 1)** e **Computer (ID 6)**.
+    *   **Costo**: 100 unità di Energia per l'ingaggio dell'autopilota.
+    *   **Validazione**: Il bersaglio deve essere rilevabile dai sensori e non occultato (a meno che non appartenga alla propria fazione).
     *   Se non viene fornito un ID, utilizza il **bersaglio attualmente agganciato**.
     *   Se viene fornito un solo numero, viene interpretato come **distanza** per il bersaglio agganciato (se < 100).
+    *   Fornisce una conferma radio specifica menzionando il nome del bersaglio.
 *   `cha`: **Autopilota di Inseguimento**. Insegue attivamente il bersaglio agganciato, mantenendo la traiettoria di intercettazione.
+    *   **Requisiti**: Minimo 10% di integrità per i sistemi **Impulse (ID 1)** e **Computer (ID 6)**. Richiede un **Aggancio Bersaglio** (`lock`) attivo.
+    *   **Costo**: 150 unità di Energia per l'ingaggio dell'inseguimento.
+    *   **Dinamiche**: Ricalcola continuamente il vettore di intercettazione per seguire bersagli mobili attraverso la galassia.
 *   `rad <MSG>`: **Radio Dello spazio profondo**. Invia un messaggio globale. Usa `@Fazione` per chat di squadra o `#ID` per messaggi privati.
-*   `doc`: **Attracco**. Attracca a una Base Stellare (richiede distanza ravvicinata).
+*   `und`: **Sgancio (Undock)**. Rilascia manualmente i morsetti di attracco dalla Base Stellare.
+    *   **Requisiti**: Minimo 10% di integrità del sistema Ausiliario (ID 9).
+    *   **Costo**: 50 unità di Energia.
+    *   **Nota**: L'attivazione dei motori (`nav`/`imp`) attiva comunque lo sgancio automatico.
+*   `doc`: **Attracco (Docking)**. Attracca a una Base Stellare (richiede distanza ravvicinata).
+    *   **Requisiti**: La Base Stellare deve appartenere alla propria **Fazione**. Minimo 10% di integrità dei sistemi Impulse (ID 1) e Ausiliari (ID 9).
+    *   **Costo**: 100 unità di Energia per l'ingaggio dei morsetti.
+    *   **Procedura**: Richiede una **sequenza di stabilizzazione di 10 secondi**. La nave deve rimanere ferma e a portata.
+    *   **Effetto**: Riparazione completa di Scafo, Scudi e tutti i 10 Sottosistemi. Rifornimento completo di Energia, Siluri ed Equipaggio. Sbarco di eventuali prigionieri.
 *   `map [FILTRO]`: **Cartografia Stellare**. Attiva la visualizzazione 3D globale 10x10x10 dell'intera galassia.
+    *   **Requisiti**: Minimo 15% di integrità del sistema Computer (ID 6). Disattivata automaticamente se l'integrità scende sotto il 5%.
+    *   **Costo**: 50 unità di Energia per ogni attivazione o cambio filtro.
+    *   **Orientamento**: 
+        *   **Vettore Tattico 3D**: Una linea gialla sottile con una punta a cono rossa indica la direzione (Heading e Mark) della nave direttamente nella mappa.
+        *   **Bussola Galattica 3D**: Un sistema di assi sincronizzato (Blu: 0°, Rosso: 90°, Verde: Mark) è visualizzato in alto al centro per il riferimento spaziale assoluto.
     *   **Filtri Opzionali**: Puoi visualizzare solo categorie specifiche usando: `map st` (Stelle), `map pl` (Pianeti), `map bs` (Basi), `map en` (Nemici), `map bh` (Buchi Neri), `map ne` (Nebulose), `map pu` (Pulsar), `map is` (Tempeste), `map co` (Comete), `map as` (Asteroidi), `map de` (Relitti), `map mi` (Mine), `map bu` (Boe), `map pf` (Piattaforme), `map ri` (Rift), `map mo` (Mostri).
     *   **HUD Verticale**: In modalità mappa, una legenda a sinistra mostra i colori e i codici filtro per ogni oggetto.
     *   **Anomalie Dinamiche**:
@@ -435,6 +470,9 @@ Di seguito la lista completa dei comandi disponibili, raggruppati per funzione.
 
 ### 🔬 Sensori e Scanner
 *   `scan <ID>`: **Analisi Scansione Profonda**. Esegue una scansione profonda del bersaglio o dell'anomalia.
+    *   **Requisiti**: Minimo 20% di integrità del sistema Sensori (ID 2).
+    *   **Costo**: 20 unità di Energia per ogni scansione profonda.
+    *   **Scrambling dei Dati**: Se l'integrità dei sensori è inferiore al 50%, alcuni dati telemetrici (come percentuali esatte o livelli di energia) appariranno offuscati o mancanti.
     *   **Vascelli**: Rivela l'integrità dello scafo, i livelli degli scudi per quadrante, l'energia residua, il numero dell'equipaggio e i danni ai sottosistemi.
     *   **Anomalie**: Fornisce dati scientifici su Nebulose e Pulsar.
 
@@ -447,8 +485,14 @@ L'efficacia dei tuoi sensori dipende direttamente dallo stato di salute del **si
 *   **Riparazione**: Usa `rep 2` per ripristinare la precisione nominale dei sensori.
 
 *   `srs`: **Sensori a Corto Raggio**. Scansione dettagliata del quadrante attuale.
+    *   **Requisiti**: Minimo 5% di integrità del sistema Sensori (ID 2).
+    *   **Costo**: 10 unità di Energia per scansione.
+    *   **Rumore Telemetrico**: Se l'integrità dei sensori è inferiore al 50%, viene emesso un avviso e la precisione dei dati inizia a degradare.
     *   **Scansione del Vicinato**: Se la nave è vicina ai confini del settore (< 2.5 unità), i sensori rilevano automaticamente gli oggetti nei quadranti adiacenti, elencandoli in una sezione dedicata per prevenire imboscate.
 *   `lrs`: **Sensori a Lungo Raggio**. Scansione 3x3x3 dei quadranti circostanti visualizzata tramite **Console Tattica GDIS**.
+    *   **Requisiti**: Minimo 15% di integrità del sistema Sensori (ID 2).
+    *   **Costo**: 25 unità di Energia per scansione.
+    *   **Instabilità Telemetrica**: Se l'integrità dei sensori è inferiore al 50%, la precisione dei dati degrada e viene emesso un avviso.
     *   **Layout**: Ogni quadrante è visualizzato su una singola riga per un'immediata leggibilità (Coordinate, Navigazione, Oggetti e Anomalie).
     *   **Dati Standard**: Mostra solo la presenza di oggetti usando le loro iniziali (es. `[H . N . S]`).
     *   **Dati Potenziati**: Se la nave è vicino a una **Boa di Comunicazione** (< 1.2 unità), i sensori passano alla visualizzazione numerica rivelando il conteggio esatto (es. `[1 . 2 . 8]`). Il potenziamento si resetta quando ci si allontana dalla boa.
@@ -457,31 +501,56 @@ L'efficacia dei tuoi sensori dipende direttamente dallo stato di salute del **si
     *   **Simbologia Anomalie**: `~`:Nebulosa, `*`:Pulsar, `!`:Tempesta Ionica, `+`:Cometa, `#`:Asteroide, `M`:Mostro, `>`:Rift.
     *   **Localizzazione**: Il tuo quadrante attuale è evidenziato con uno sfondo blu.
 *   `aux probe <QX> <QY> <QZ>`: **Sonda Sensoriale Dello spazio profondo**. Lancia una sonda automatizzata in un quadrante specifico.
-    *   **Entità Galattica**: Le sonde sono oggetti globali. Attraversano i quadranti intermedi in tempo reale e sono **visibili a tutti i giocatori** lungo la loro rotta di volo.
-    *   **Integrazione Sensori**: Le sonde appaiono nella lista **SRS (Sensori a Corto Raggio)** per qualsiasi nave nello stesso settore (ID range 19000+), rivelando il **Nome del Proprietario** e lo stato attuale.
-    *   **Funzionalità**: Visualizza l'**ETA** e lo stato della missione nell'HUD del proprietario.
-    *   **Recupero Dati**: All'arrivo, rivela la composizione del quadrante (`H P N B S`) nella mappa del proprietario e invia un rapporto telemetrico in diretta.
-    *   **Persistenza**: Rimane nella posizione bersaglio come un **Relitto** (Anelli rossi) dopo la missione.
-    *   **Comando `aux report <1-3>`**: Richiede un nuovo aggiornamento sensoriale da una sonda attiva.
+    *   **Requisiti**: Minimo 10% di integrità del sistema Ausiliario (ID 9). Il lancio richiede il 25% di salute per i **Sensori (ID 2)** e il **Computer (ID 6)**.
+    *   **Costo**: 1000 unità di Energia per il lancio.
+    *   **Comando `aux report <1-3>`**: Richiede un nuovo aggiornamento sensoriale da una sonda attiva. Costo: 50 unità di Energia.
     *   **Comando `aux recover <1-3>`**: Recupera una sonda se la nave è nello stesso quadrante e a portata (< 2.0 unità), liberando lo slot e ripristinando 500 unità di energia.
+    *   **Comando `aux jettison`**: Espelle il nucleo Hyperdrive in emergenza. Richiede 100 unità di Energia. ATTENZIONE: Distrugge la nave!
 *   `sta`: **Rapporto di Stato**. Rapporto completo sullo stato della nave, la missione e il monitoraggio dell'**Equipaggio**.
+    *   **Requisiti**: Minimo 5% di integrità del sistema Computer (ID 6).
+    *   **Costo**: 10 unità di Energia per la diagnostica completa dei sistemi.
+    *   **Affidabilità Dati**: Se l'integrità del computer è inferiore al 30%, i dati diagnostici (inclusi telemetria e conteggio equipaggio) potrebbero apparire corrotti o casuali.
+    *   **Copertura**: Fornisce il tracciamento in tempo reale dei livelli del Reattore, riserve di Carico, griglie degli Scudi e l'integrità di tutti i 10 sottosistemi della nave.
 *   `dam`: **Rapporto Danni**. Dettaglio dei danni ai sistemi.
 *   `who`: Elenco dei capitani attivi nella galassia.
 
 ### ⚔️ Combattimento Tattico
 *   `pha <E>`: **Fuoco Ion Beam**. Spara Ion Beam al bersaglio agganciato (`lock`) usando l'energia E. 
+    *   **Requisiti**: Minimo 10% di integrità del sistema Ion Beam (ID 4).
+    *   **Precisione**: Possibilità di mancare il bersaglio se i **Sensori (ID 2)** sono danneggiati (sotto il 50% di salute).
+    *   **Rischio Hardware**: Sparare con più di 10.000 unità di energia comporta un rischio del 5% di surriscaldamento/danni minori al sistema.
 *   `pha <ID> <E>`: Spara Ion Beam a uno specifico bersaglio ID. Il danno diminuisce con la distanza.
 *   `cha`: **Inseguimento**. Insegue e intercetta automaticamente il bersaglio agganciato.
 *   `rad <MSG>`: **Radio**. Invia un messaggio Dello spazio profondo ad altri capitani (@Fazione per chat di squadra).
-*   `axs` / `grd`: **Guide Visive**. Attiva/disattiva gli assi 3D o la griglia tattica sovrapposta.
-*   `bridge [top/bottom/up/down/left/right/rear/off]`: **Vista Ponte**. Attiva una vista cinematografica in prima persona.
-    *   `top/on`: Vista ponte standard sopra la cupola di comando.
-    *   `bottom`: Prospettiva da sotto lo scafo.
-    *   `up/down/left/right/rear`: Cambia la direzione dello sguardo mantenendo la posizione attuale (sopra/sotto).
-*   `enc <algo>`: **Commutazione Crittografia**. Abilita o disabilita la crittografia in tempo reale. Supporta **AES-256-GCM**, **ChaCha20**, **ARIA**, **Camellia**, **Blowfish**, **RC4**, **CAST5**, **IDEA**, **3DES** e **PQC (ML-KEM)**. Essenziale per proteggere le comunicazioni e leggere i messaggi sicuri degli altri capitani.
+*   `axs`: **Bussola Tattica AR**. Attiva/disattiva la bussola olografica in realtà aumentata.
+    *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6). Disattivata automaticamente se l'integrità scende sotto il 5%.
+    *   **Costo**: 10 unità di Energia per ogni commutazione.
+*   `grd`: **Griglia Tattica**. Attiva/disattiva la griglia tattica 3D sovrapposta.
+    *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6). Disattivata automaticamente se l'integrità scende sotto il 5%.
+    *   **Costo**: 10 unità di Energia per ogni commutazione.
+*   `bridge [view]`: **Vista Ponte**. Attiva o cambia la vista cinematografica in prima persona.
+    *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6). Disattivata automaticamente se l'integrità scende sotto il 5%.
+    *   **Costo**: 10 unità di Energia per ogni cambio di visuale.
+    *   **Parametri**: Supporta `top`, `bottom`, `left`, `right`, `up`, `down`, `rear`, `off`. La visuale mantiene intelligentemente la prospettiva tra il ponte superiore e quello inferiore.
+    *   `top/on`: Vista ponte standard (Frontale).
+    *   `bottom`: Prospettiva da sotto lo scafo (Frontale).
+    *   `up/down/left/right/rear`: Cambia la direzione dello sguardo rispetto alla prospettiva attuale.
+    *   `off`: Disattiva la vista ponte.
+*   `enc <algo>`: **Commutazione Crittografia**. Abilita o disabilita la crittografia in tempo reale. 
+    *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6). **PQC (ML-KEM)** richiede minimo 50% di integrità.
+    *   **Costo**: 50 unità di Energia per gli algoritmi standard, 250 unità per PQC. Disabilitare la cifratura (`enc off`) è gratuito.
+    *   Supporta **AES-256-GCM**, **ChaCha20**, **ARIA**, **Camellia**, **Blowfish**, **RC4**, **CAST5**, **IDEA**, **3DES** e **PQC (ML-KEM)**. Essenziale per proteggere le comunicazioni e leggere i messaggi sicuri degli altri capitani.
 *   `tor`: **Lancio Siluro al plasma**. Lancia un siluro autoguidato al bersaglio agganciato.
+    *   **Requisiti**: Minimo 50% di integrità del sistema Siluri (ID 5).
+    *   **Costo**: 250 unità di Energia per lancio.
+    *   **Rischi**: Possibilità di malfunzionamento (siluro perso, nessun lancio) se l'integrità è inferiore al 75%.
+    *   **Guida**: L'accuratezza del sistema di autoguida dipende dalla salute dei **Sensori (ID 2)**. Sensori danneggiati riducono la capacità del siluro di correggere la propria rotta.
 *   `tor <H> <M>`: Lancia un siluro in modalità balistica manuale (Heading/Mark).
-*   `lock <ID>`: **Aggancio Bersaglio**. Aggancia i sistemi di puntamento sul bersaglio ID (0 per sbloccare). Essenziale per la guida automatizzata di Ion Beam e siluri.
+*   `lock <ID>`: **Aggancio Bersaglio**. Aggancia i sistemi di puntamento sul bersaglio ID (0 per sbloccare). 
+    *   **Requisiti**: Minimo 10% di integrità del sistema Sensori (ID 2).
+    *   **Costo**: 5 unità di Energia per l'acquisizione dell'aggancio.
+    *   **Validazione**: Il bersaglio deve essere presente nel quadrante attuale e non occultato (a meno che non appartenga alla propria fazione).
+    *   Essenziale per la guida automatizzata di Ion Beam e siluri.
 
 
 ### 🆔 Schema Identificativi Galattici (Universal ID)
@@ -564,8 +633,21 @@ Il comando `apr <ID> <DIST>` ti permette di avvicinarti automaticamente a qualsi
 | **Mostri Spaziali** | 18000 - 18029 | `pha`, `tor`, `scan` | **< 1.5** | **Tracciamento Galattico** |
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Configurazione Scudi**. Distribuisce l'energia ai 6 scudi.
-*   `clo`: **Dispositivo di Occultamento**. Attiva/Disattiva l'occultamento. Consuma 15 unità di energia/tick. Fornisce invisibilità agli NPC e alle altre fazioni; instabile nelle nebulose.
+    *   **Requisiti**: Minimo 10% di integrità del sistema Scudi (ID 8).
+    *   **Dinamiche Energetiche**: Caricare gli scudi preleva energia direttamente dal reattore principale. Scaricare gli scudi restituisce l'80% dell'energia al reattore.
+    *   **Limiti**: La capacità massima è di 10.000 unità per quadrante.
+    *   **Costo**: 50 unità di Energia per ogni impulso di riconfigurazione.
+*   `clo`: **Dispositivo di Occultamento**. Attiva/Disattiva l'occultamento. 
+    *   **Requisiti**: Minimo 15% di integrità del sistema Ausiliario (ID 9).
+    *   **Costo**: 500 unità di Energia per l'inizializzazione.
+    *   **Dinamiche**: Consuma 15 unità di energia/tick mentre è attivo. Il disoccultamento automatico avviene se l'integrità Ausiliaria scende sotto il 5%.
+    *   **Affidabilità**: Se la salute degli Ausiliari è tra il 15% e il 50%, c'è una probabilità che il campo non riesca a stabilizzarsi durante l'attivazione.
+    *   Fornisce invisibilità agli NPC e alle altre fazioni; instabile nelle nebulose. Consuma energia e limita i sensori.
 *   `pow <E> <S> <W>`: **Allocazione di Potenza**. Alloca l'energia del reattore (Motori, Scudi, Armi %).
+    *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6).
+    *   **Costo**: 50 unità di Energia per ogni riconfigurazione.
+    *   **Feedback**: Fornisce una conferma immediata della nuova distribuzione percentuale.
+    *   **Impatto Strategico**: Determina le prestazioni dei motori sub-luce, il tasso di ricarica degli scudi e l'intensità dei banchi Ion Beam.
 *   `aux jettison`: **Espulsione Synaptics Hyperdrive**. Espelle il nucleo (Manovra suicida / Ultima risorsa).
 *   `xxx`: **Autodistruzione**. Autodistruzione sequenziale.
 
@@ -625,6 +707,9 @@ L'HUD visualizza "LIFE SUPPORT: XX.X%", che è direttamente collegato all'integr
 
 ### 📦 Operazioni e Risorse
 *   `bor [ID]`: **Squadra d'Abbordaggio**. Invia squadre d'abbordaggio (Dist < 1.0).
+    *   **Requisiti**: Minimo 20% di integrità del sistema Trasportatori (ID 3).
+    *   **Costo**: 5000 unità di Energia per tentativo.
+    *   **Probabilità di Successo**: Scalata dall'integrità dei Trasportatori (Base 20% + fino al 40%).
     *   Funziona sul **bersaglio attualmente agganciato** se non viene specificato alcun ID.
     *   **Interazione NPC/Relitto**: Ricompense automatiche (Aetherium, Chip, Riparazioni, Superstiti o Prigionieri).
     *   **Interazione Giocatore-Giocatore**: Apre un **Menu Tattico Interattivo** con scelte specifiche:
@@ -633,32 +718,62 @@ L'HUD visualizza "LIFE SUPPORT: XX.X%", che è direttamente collegato all'integr
     *   **Selezione**: Rispondi con il numero `1`, `2` o `3` per eseguire l'azione.
     *   **Rischi**: Possibilità di resistenza (30% per i giocatori, più alta per gli NPC) che può causare perdite nella squadra.
 *   `dis`: **Smantellamento**. Smantella i relitti nemici per le risorse (Dist < 1.5).
-*   `fix`: **Riparazione Scafo**. Usa **50 Grafene e 20 Neo-Titanium** per ripristinare +15% di Integrità Scafo (fino a un max dell'80%).
+    *   **Requisiti**: Minimo 15% di integrità del sistema Trasportatori (ID 3).
+    *   **Costo**: 500 unità di Energia per ogni operazione.
+    *   **Resa**: L'efficienza del recupero risorse dipende dalla salute dei **Trasportatori (ID 3)**. Sistemi danneggiati producono una resa inferiore.
+    *   **Bersagli**: Funziona sui vascelli NPC distrutti e sui relitti antichi (derelict).
+*   `fix`: **Riparazione Scafo**. Usa **50 Grafene e 20 Neo-Titanium** per ripristinare l'integrità dello scafo (fino a un max dell'80%).
+    *   **Requisiti**: Minimo 10% di integrità del sistema Ausiliario (ID 9).
+    *   **Costo**: 500 unità di Energia per ogni impulso di riparazione.
+    *   **Resa**: L'efficienza del ripristino strutturale (range 10% - 20%) dipende dalla salute dei sistemi **Ausiliari (ID 9)**.
+    *   **Limite**: Le riparazioni sul campo non possono superare l'80% di integrità totale. È necessario l'attracco in Base Stellare per una revisione completa.
 *   `min`: **Estrazione**. Estrae risorse da un pianeta o asteroide in orbita (Dist < 3.1).
+    *   **Requisiti**: Minimo 15% di integrità del sistema Trasportatori (ID 3).
+    *   **Costo**: 250 unità di Energia per ogni impulso di estrazione.
+    *   **Resa**: L'efficienza dell'estrazione mineraria dipende dalla salute dei **Trasportatori (ID 3)**.
     *   **Priorità Selettiva**:
         1.  Se un bersaglio è agganciato (`lock <ID>`), il sistema gli garantisce la priorità assoluta.
         2.  Senza un aggancio, il sistema estrarrà l'oggetto estraibile **assolutamente più vicino**.
-    *   **Feedback Radio**:
-        *   Asteroidi: `[RADIO] MINING (Comando dell'Alleanza): Estrazione asteroide completata.`
-        *   Pianeti: `[RADIO] GEOLOGY (Comando dell'Alleanza): Estrazione planetaria riuscita.`
+    *   **Feedback**: Fornisce una conferma radio dettagliata sulla quantità e sul tipo di risorsa raccolta.
 *   `sco`: **Solar Scooping**. Raccoglie energia da una stella (Dist < 3.1).
+    *   **Requisiti**: Minimo 15% di integrità del sistema Ausiliario (ID 9).
+    *   **Costo**: 100 unità di Energia per ogni ciclo di raccolta.
+    *   **Efficienza**: L'energia raccolta (fino a 5000 unità) dipende dalla salute del sistema **Ausiliario (ID 9)**.
+    *   **Pericolo**: La raccolta solare genera calore intenso. Se gli scudi sono insufficienti, l'**Integrità dello Scafo** e il **Supporto Vitale** subiranno danni diretti.
 *   `har`: **Raccolta Plasma Reserves**. Raccoglie antimateria da un buco nero (Dist < 3.1).
+    *   **Requisiti**: Minimo 25% di integrità del sistema Ausiliario (ID 9).
+    *   **Costo**: 500 unità di Energia per ogni ciclo di raccolta.
+    *   **Efficienza**: L'energia (fino a 10.000 unità) e i cristalli di Aetherium raccolti dipendono dalla salute del sistema **Ausiliario (ID 9)**.
+    *   **Pericolo Estremo**: La raccolta presso una singolarità è estremamente rischiosa. Se gli scudi sono insufficienti, la nave subirà pesanti **danni allo scafo** e guasti critici ai sistemi **Sensori**, **Computer** e **Supporto Vitale**.
 *   `con T A`: **Conversione Risorse**. Converte materie prime in energia o siluri (`T`: tipo di risorsa, `A`: quantità).
-    *   `1`: Aetherium -> Energia (x10).
-    *   `2`: Neo-Titanium -> Energia (x2).
-    *   `3`: Void-Essence -> Siluri (1 ogni 20).
-    *   `6`: Gas -> Energia (x5).
-    *   `7`: Composite -> Energia (x4).
-    *   `8`: **Dark-Matter** -> Energia (x25). [Massima Efficienza]. Minerale radioattivo estremamente raro. Convertilo con `con 8 <amount>` per ricaricare istantaneamente le riserve di energia del Cargo.
+    *   **Requisiti**: Minimo 15% di integrità del sistema Ausiliario (ID 9).
+    *   **Costo**: 100 unità di Energia per ogni ciclo di conversione.
+    *   **Efficienza**: La resa della conversione dipende dalla salute dei sistemi **Ausiliari (ID 9)** (range 70% - 100%). Sistemi danneggiati causano una perdita significativa di risorse durante il processo.
+    *   **Mappatura Risorse**:
+        *   `1`: Aetherium -> Energia (base x10).
+        *   `2`: Neo-Titanium -> Energia (base x2).
+        *   `3`: Void-Essence -> Siluri (base 1 ogni 20).
+        *   `6`: Gas -> Energia (base x5).
+        *   `7`: Composite -> Energia (base x4).
+        *   `8`: **Dark-Matter** -> Energia (base x25). [Massima Efficienza].
 *   `load <T> <A>`: **Caricamento Sistemi**. Trasferisce energia o siluri dalla stiva ai sistemi attivi.
-    *   `1`: Energia (Reattore Principale). Capacità max: 9.999.999 unità. Permette di convertire l'Plasma Reserves raccolta dai Buchi Neri in energia operativa.
-    *   `2`: Siluri (Tubi di Lancio). Capacità max: 1000 unità.
+    *   **Requisiti**: Minimo 10% di integrità del sistema Ausiliario (ID 9).
+    *   **Costo**: 25 unità di Energia per ogni ciclo di trasferimento.
+    *   **Tipi**:
+        *   `1`: Energia (Reattore Principale). Capacità max: 9.999.999 unità.
+        *   `2`: Siluri (Tubi di Lancio). Capacità max: 1000 unità.
+    *   **Feedback**: Conferma l'esatta quantità di risorse spostate nei sistemi operativi.
 
-#### 🏗️ Rinforzo dello Scafo (Hull Plating)
 *   `hull`: **Rinforzo Scafo**. Usa **100 unità di Composite** per applicare una placcatura rinforzata allo scafo (+500 unità di integrità).
-    *   La placcatura in Composite funge da scudo fisico secondario, assorbendo i danni residui che superano gli scudi energetici prima che colpiscano il reattore principale.
-    *   Lo stato della placcatura è visibile nell'HUD 3D e tramite il comando `sta`.
-*   `inv`: **Inventario**. Mostra il contenuto della stiva di carico, inclusi i materiali grezzi (**Grafene**, **Synaptics**, **Composite**) e i **Prigionieri**.
+    *   **Requisiti**: Minimo 10% di integrità del sistema Ausiliario (ID 9).
+    *   **Costo**: 1000 unità di Energia per ogni ciclo di integrazione.
+    *   **Limite**: La capacità massima della placcatura composita è di 5000 unità.
+    *   La placcatura in Composite funge da scudo fisico secondario, assorbendo i danni residui che superano gli scudi energetici prima che colpiscano lo scafo. Lo stato della placcatura è visibile nell'HUD 3D.
+*   `inv`: **Rapporto Inventario**. Mostra il contenuto della stiva di carico, inclusi i materiali grezzi (**Grafene**, **Synaptics**, **Composite**) e i **Prigionieri**.
+    *   **Requisiti**: Minimo 5% di integrità del sistema Computer (ID 6).
+    *   **Costo**: 5 unità di Energia per ogni scansione del manifesto.
+    *   **Affidabilità Dati**: Se l'integrità del computer è inferiore al 30%, i dati logistici potrebbero apparire corrotti o offuscati.
+    *   **Registro**: Monitora Aetherium, Neo-Titanium, Void-Essence, Grafene, Synaptics, Gas Nebulare, Composite, Dark-Matter, Plasma Reserves, Siluri da Carico e l'Unità Prigione.
 
 ### 📦 Gestione del Carico e delle Risorse
 
@@ -692,9 +807,11 @@ Space GL distingue tra **Sistemi Attivi**, **Stoccaggio del Carico** e l'**Unit�
 
 *   **Conversione delle Risorse**: Le materie prime devono essere convertite (`con`) in **CARGO Plasma Reserves** o **CARGO Torpedoes** prima di essere caricate nei sistemi attivi.
 
-*   `rep [ID]`: **Riparazione**. Ripara un sistema danneggiato (salute < 100%) ripristinandolo alla piena efficienza. Essenziale per correggere il rumore dei sensori o riattivare le armi offline.
-    *   **Costo**: Ogni riparazione consuma **50 Neo-Titanium** e **10 Chip Synaptics**.
-    *   **Utilizzo**: Se non viene fornito alcun ID, elenca tutti i 10 sistemi della nave con il loro attuale stato di integrità.
+*   `rep [ID]`: **Riparazione**. Ripara un sistema danneggiato (salute < 100%) ripristinandolo alla piena efficienza. 
+    *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6) per coordinare la manutenzione.
+    *   **Costo**: 500 unità di Energia per ogni ciclo di riparazione.
+    *   **Materiali**: Ogni riparazione consuma **50 Neo-Titanium** e **10 Chip Synaptics**.
+    *   **Utilizzo**: Se non viene fornito alcun ID, elenca tutti i 10 sistemi della nave con il loro attuale stato di integrità e indicatori di salute colorati.
     *   **ID dei Sistemi**: `0`: Hyperdrive, `1`: Impulse, `2`: Sensori, `3`: Transp, `4`: Ion Beam, `5`: Torpedini, `6`: Computer, `7`: Supporto Vitale, `8`: Scudi, `9`: Ausiliari.
 *   **Gestione dell'Equipaggio**: 
     *   Il numero iniziale del personale dipende dalla classe della nave (es. 1012 per l'Esploratore, 50 per la Scorta).    *   **Integrità Vitale**: Se il **Supporto Vitale** scende sotto il 75%, l'equipaggio inizierà a subire perdite periodiche.
@@ -716,10 +833,18 @@ Il ponte di comando di Space GL opera tramite un'interfaccia a riga di comando (
 *   `fix`: **Riparazione Scafo**. Ripristina +15% di integrità (50 Grafene, 20 Neo-Ti).
 *   `inv`: **Rapporto Inventario**. Elenco dettagliato delle risorse nella stiva (Aetherium, Neo-Titanium, Gas Nebulare, ecc.).
 *   `dam`: **Rapporto Danni**. Stato dettagliato dell'integrità dello scafo e dei sistemi.
+    *   **Requisiti**: Minimo 5% di integrità del sistema Computer (ID 6).
+    *   **Costo**: 5 unità di Energia per ogni scansione di integrità.
+    *   **Affidabilità Dati**: Se l'integrità del computer è inferiore al 30%, errori di parità dei sensori potrebbero causare l'offuscamento di alcuni dati sullo stato dei sistemi.
+    *   **Registro**: Fornisce un monitoraggio preciso per tutti i 10 sottosistemi della nave utilizzando indicatori di stato colorati (Verde/Giallo/Rosso).
 *   `cal <Q1> <Q2> <Q3>`: **Calcolatore Hyperdrive**. Calcola il vettore verso il centro di un quadrante distante.
 *   `cal <Q1> <Q2> <Q3> <X> <Y> <Z>`: **Calcolatore di Precisione**. Calcola il vettore verso coordinate di settore precise `[X, Y, Z]` in un quadrante distante. Fornisce i tempi di arrivo e suggerisce il comando `nav` esatto da copiare.
 *   `ical <X> <Y> <Z>`: **Calcolatore d'Impulso (ETA)**. Fornisce un calcolo di navigazione completo per le coordinate di settore precise [0.0 - 10.0], incluso il tempo di viaggio in tempo reale ai livelli di potenza attuali.
-*   `who`: **Registro dei Capitani**. Elenca tutti i comandanti attualmente attivi nella galassia, i loro ID di tracciamento e la posizione attuale. Fondamentale per identificare alleati o potenziali predatori prima di entrare in un settore.
+*   `who`: **Registro dei Capitani**. Elenca tutti i comandanti attualmente attivi nella galassia, i loro ID di tracciamento e la posizione attuale. 
+    *   **Requisiti**: Minimo 5% di integrità del sistema Computer (ID 6).
+    *   **Costo**: 10 unità di Energia per la sincronizzazione subspaziale.
+    *   **Affidabilità Dati**: Se l'integrità del computer è inferiore al 40%, la posizione e la fazione dei capitani distanti potrebbero essere oscurate o nascoste.
+    *   Fondamentale per identificare alleati o potenziali predatori prima di entrare in un settore.
 *   `sta`: **Rapporto di Stato**. Diagnostica completa dei sistemi, inclusi i livelli di energia, l'integrità dell'hardware e la distribuzione della potenza.
 *   `hull`: **Rinforzo in Composite**. Se hai **100 unità di Composite** nella stiva, questo comando applica una placcatura rinforzata allo scafo (+500 HP di scudo fisico), visibile come oro nell'HUD.
 
@@ -739,9 +864,11 @@ In Space GL, la crittografia non riguarda solo la sicurezza: è una **scelta di 
 **Implicazione Tattica**: Se una flotta alleata decide di operare sulla "Frequenza ARIA", ogni membro deve impostare `enc aria`. Chi rimane su AES vedrà solo rumore statico (**`<< SIGNAL DISTURBED >>`**), permettendo comunicazioni sicure e segrete anche in settori affollati.
 
 ### 📡 Comunicazioni e Varie
-*   `rad <MSG>`: Invia un messaggio radio a tutti (Canale aperto).
+*   `rad <MSG>`: **Radio**. Invia un messaggio radio a tutti (Canale aperto).
+    *   **Requisiti**: Minimo 5% di integrità del sistema Ausiliario (ID 9).
+    *   **Costo**: 5 unità di Energia per trasmissione.
     *   **Tabella delle Fazioni (@Fac)**:
-        | Fazione | Nome Completo | Abbreviato |
+        | Faction | Nome Completo | Abbreviato |
         | :--- | :--- | :--- |
         | **Alleanza** | `@Alliance` | `@Fed` |
         | **Korthian** | `@Korthian` | `@Kli` |
@@ -755,6 +882,10 @@ In Space GL, la crittografia non riguarda solo la sicurezza: è una **scelta di 
         | **Saurian / Cryos / Apex** | Nome Completo | - |
 *   `rad #ID <MSG>`: Messaggio privato all'ID del giocatore.
 *   `psy`: **Guerra Psicologica**. Tenta un bluff (Manovra Corbomite).
+    *   **Requisiti**: Minimo 20% di integrità del sistema Computer (ID 6) e almeno un dispositivo Anti-Materia in inventario.
+    *   **Costo**: 500 unità di Energia per ogni trasmissione.
+    *   **Effetto**: 60% di probabilità di costringere tutti gli NPC ostili nel quadrante alla fuga.
+    *   **Rischio**: Se il bluff fallisce, gli NPC rileveranno l'inganno e diventeranno più aggressivi, passando alla modalità Inseguimento (Chase).
 *   `axs` / `grd`: Attiva/disattiva le guide visive 3D (Assi / Griglia).
 *   `h` (tasto rapido): Nasconde l'HUD per una vista "cinematografica".
 
@@ -877,7 +1008,7 @@ Il quadrante è disseminato di fenomeni naturali rilevabili sia dai sensori che 
 *   **Tempeste Ioniche**:
     *   **Effetto**: Eventi globali casuali sincronizzati in tempo reale sulla mappa.
     *   **Frequenza**: Alta (media statistica di un evento ogni 5-6 minuti).
-    *   **Impatto Tecnico**: Colpire una tempesta **dimezza istantaneamente** la salute dei sensori (ID 2).
+    *   **Impatto Tecnico**: Colpire una tempesta causa una **lieve perdita dell'1,5%** della salute dei sensori (ID 2).
     *   **Degradazione Funzionale**: I sensori danneggiati (< 100%) producono "rumore" nei rapporti SRS/LRS (oggetti fantasma, dati mancanti o coordinate imprecise). Sotto il 25%, i sensori diventano quasi inutilizzabili.
     *   **Dettagli Tecnici**: Controllati ogni 1000 tick (33s), probabilità di evento del 20%, con un peso specifico del 50% per le tempeste ioniche.
     *   **Pericolo**: Possono accecare i sensori o spingere violentemente la nave fuori rotta.

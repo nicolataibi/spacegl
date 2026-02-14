@@ -567,7 +567,7 @@ void update_game_logic() {
             int event_type = rand() % 4; /* 0,1 = Ion Storm, 2 = Shear, 3 = Power Surge */
             if (event_type <= 1) {
                 send_server_msg(i, "SCIENCE", "Ion Storm detected! Sensors effectively blinded.");
-                players[i].state.system_health[2] *= 0.5f; /* Damage sensors */
+                players[i].state.system_health[2] *= 0.985f; /* Minimized damage: 1.5% loss */
                 /* Mark storm in galaxy grid for the map (8th digit - 10^7) */
                 int q1=players[i].state.q1, q2=players[i].state.q2, q3=players[i].state.q3;
                 if (IS_Q_VALID(q1,q2,q3)) {
@@ -820,7 +820,15 @@ void update_game_logic() {
 
         /* 2. Passive and Systems Energy Drain */
         int passive_drain = 1; /* Minimal base usage */
-        if (players[i].state.is_cloaked) passive_drain += 15; /* Cloak cost */
+        if (players[i].state.is_cloaked) {
+            /* Forced decloak if systems are too damaged */
+            if (players[i].state.system_health[9] < 5.0f) {
+                players[i].state.is_cloaked = 0;
+                send_server_msg(i, "CRITICAL", "CLOAKING FIELD COLLAPSED: Auxiliary systems non-functional!");
+            } else {
+                passive_drain += 15; /* Cloak cost */
+            }
+        }
         players[i].state.energy -= passive_drain;
         if (players[i].state.energy < 0) players[i].state.energy = 0;
 
@@ -876,20 +884,44 @@ void update_game_logic() {
             }
         }
         else if (players[i].nav_state == NAV_STATE_HYPERDRIVE) {
-            players[i].nav_timer--;
-            players[i].gx += players[i].dx * players[i].hyper_speed;
-            players[i].gy += players[i].dy * players[i].hyper_speed;
-            players[i].gz += players[i].dz * players[i].hyper_speed;
-            
-            /* Recalculate local sector and quadrant for visualization */
-            players[i].state.q1 = get_q_from_g(players[i].gx);
-            players[i].state.q2 = get_q_from_g(players[i].gy);
-            players[i].state.q3 = get_q_from_g(players[i].gz);
-            players[i].state.s1 = players[i].gx - (players[i].state.q1 - 1) * 10.0;
-            players[i].state.s2 = players[i].gy - (players[i].state.q2 - 1) * 10.0;
-            players[i].state.s3 = players[i].gz - (players[i].state.q3 - 1) * 10.0;
+            if (players[i].state.system_health[0] < 20.0f) {
+                players[i].nav_state = NAV_STATE_REALIGN;
+                players[i].nav_timer = 60;
+                players[i].start_h = players[i].state.van_h;
+                players[i].start_m = players[i].state.van_m;
+                send_server_msg(i, "ENGINEERING", "HYPERDRIVE FAILURE: System integrity critical. Dropping to sub-light!");
+            } else {
+                int drain = 5 + (int)(players[i].hyper_speed * 50);
+                if (players[i].state.energy >= drain) {
+                    players[i].state.energy -= drain;
+                    players[i].nav_timer--;
+                    players[i].gx += players[i].dx * players[i].hyper_speed;
+                    players[i].gy += players[i].dy * players[i].hyper_speed;
+                    players[i].gz += players[i].dz * players[i].hyper_speed;
+                    
+                    /* Recalculate local sector and quadrant for visualization */
+                    players[i].state.q1 = get_q_from_g(players[i].gx);
+                    players[i].state.q2 = get_q_from_g(players[i].gy);
+                    players[i].state.q3 = get_q_from_g(players[i].gz);
+                    players[i].state.s1 = players[i].gx - (players[i].state.q1 - 1) * 10.0;
+                    players[i].state.s2 = players[i].gy - (players[i].state.q2 - 1) * 10.0;
+                    players[i].state.s3 = players[i].gz - (players[i].state.q3 - 1) * 10.0;
 
-            if (players[i].nav_timer <= 0) { players[i].nav_state = NAV_STATE_REALIGN; players[i].nav_timer = 60; players[i].start_h = players[i].state.van_h; players[i].start_m = players[i].state.van_m; }
+                    if (players[i].nav_timer <= 0) { 
+                        players[i].nav_state = NAV_STATE_REALIGN; 
+                        players[i].nav_timer = 60; 
+                        players[i].start_h = players[i].state.van_h; 
+                        players[i].start_m = players[i].state.van_m; 
+                    }
+                } else {
+                    players[i].state.energy = 0;
+                    players[i].nav_state = NAV_STATE_REALIGN;
+                    players[i].nav_timer = 60;
+                    players[i].start_h = players[i].state.van_h;
+                    players[i].start_m = players[i].state.van_m;
+                    send_server_msg(i, "ENGINEERING", "EMERGENCY DROP: Insufficient energy for Hyperdrive sustain.");
+                }
+            }
         }
         else if (players[i].nav_state == NAV_STATE_REALIGN) {
             players[i].nav_timer--;
@@ -902,20 +934,32 @@ void update_game_logic() {
             }
         }
         else if (players[i].nav_state == NAV_STATE_IMPULSE) {
-            if (players[i].state.energy > 0) {
-                players[i].state.energy -= 1;
-                /* Speed Scales with Engine Power (0.0 - 1.0). Baseline is 10x, max is 25x */
-                float engine_mult = 8.0f + (players[i].state.power_dist[0] * 17.0f);
-                players[i].gx += players[i].dx * players[i].hyper_speed * engine_mult;
-                players[i].gy += players[i].dy * players[i].hyper_speed * engine_mult;
-                players[i].gz += players[i].dz * players[i].hyper_speed * engine_mult;
-                
-                players[i].state.q1 = get_q_from_g(players[i].gx);
-                players[i].state.q2 = get_q_from_g(players[i].gy);
-                players[i].state.q3 = get_q_from_g(players[i].gz);
-                players[i].state.s1 = players[i].gx - (players[i].state.q1 - 1) * 10.0;
-                players[i].state.s2 = players[i].gy - (players[i].state.q2 - 1) * 10.0;
-                players[i].state.s3 = players[i].gz - (players[i].state.q3 - 1) * 10.0;
+            if (players[i].state.system_health[1] <= 0.0f) {
+                players[i].nav_state = NAV_STATE_IDLE;
+                players[i].hyper_speed = 0;
+                send_server_msg(i, "ENGINEERING", "IMPULSE FAILURE: Engine core shut down.");
+            } else if (players[i].state.energy > 0) {
+                int drain = 1 + (int)(players[i].hyper_speed * 10.0);
+                if (players[i].state.energy < drain) {
+                    players[i].state.energy = 0;
+                    players[i].nav_state = NAV_STATE_IDLE;
+                    players[i].hyper_speed = 0;
+                    send_server_msg(i, "COMPUTER", "Impulse drive failure: Zero energy.");
+                } else {
+                    players[i].state.energy -= drain;
+                    /* Speed Scales with Engine Power (0.0 - 1.0). Baseline is 10x, max is 25x */
+                    float engine_mult = 8.0f + (players[i].state.power_dist[0] * 17.0f);
+                    players[i].gx += players[i].dx * players[i].hyper_speed * engine_mult;
+                    players[i].gy += players[i].dy * players[i].hyper_speed * engine_mult;
+                    players[i].gz += players[i].dz * players[i].hyper_speed * engine_mult;
+                    
+                    players[i].state.q1 = get_q_from_g(players[i].gx);
+                    players[i].state.q2 = get_q_from_g(players[i].gy);
+                    players[i].state.q3 = get_q_from_g(players[i].gz);
+                    players[i].state.s1 = players[i].gx - (players[i].state.q1 - 1) * 10.0;
+                    players[i].state.s2 = players[i].gy - (players[i].state.q2 - 1) * 10.0;
+                    players[i].state.s3 = players[i].gz - (players[i].state.q3 - 1) * 10.0;
+                }
             } else {
                 players[i].nav_state = NAV_STATE_IDLE;
                 send_server_msg(i, "COMPUTER", "Impulse drive failure: Zero energy.");
@@ -934,21 +978,21 @@ void update_game_logic() {
 
             /* Update Wormhole visual position in packet (Only before jump) */
             if (players[i].nav_timer > 300) {
-                players[i].state.wormhole = (NetPoint){(float)players[i].wx, (float)players[i].wy, (float)players[i].wz, 1};
+                /* Relativize to CURRENT quadrant so it renders correctly even if in adjacent Q */
+                float rwx = (float)(players[i].wx - (players[i].state.q1 - 1) * 10.0);
+                float rwy = (float)(players[i].wy - (players[i].state.q2 - 1) * 10.0);
+                float rwz = (float)(players[i].wz - (players[i].state.q3 - 1) * 10.0);
+                players[i].state.wormhole = (NetPoint){rwx, rwy, rwz, 1};
             } else {
                 players[i].state.wormhole.active = 0;
             }
 
             /* Move ship INTO the wormhole during the entry phase (ticks 450-300) */
             if (players[i].nav_timer > 300 && players[i].nav_timer < 380) {
-                 /* Absolute coordinates of the entry mouth */
-                 double target_gx = (players[i].state.q1 - 1) * 10.0 + players[i].wx;
-                 double target_gy = (players[i].state.q2 - 1) * 10.0 + players[i].wy;
-                 double target_gz = (players[i].state.q3 - 1) * 10.0 + players[i].wz;
-                 
-                 players[i].gx += (target_gx - players[i].gx) * 0.05;
-                 players[i].gy += (target_gy - players[i].gy) * 0.05;
-                 players[i].gz += (target_gz - players[i].gz) * 0.05;
+                 /* Movement target is now direct absolute galactic coordinate */
+                 players[i].gx += (players[i].wx - players[i].gx) * 0.05;
+                 players[i].gy += (players[i].wy - players[i].gy) * 0.05;
+                 players[i].gz += (players[i].wz - players[i].gz) * 0.05;
             }
 
             /* EXECUTE JUMP at T=300 (leave 10 seconds for arrival contemplations) */
@@ -966,7 +1010,17 @@ void update_game_logic() {
                 float ts2 = (float)(players[i].gy - (tq2 - 1) * 10.0);
                 float ts3 = (float)(players[i].gz - (tq3 - 1) * 10.0);
                 
-                players[i].state.jump_arrival = (NetPoint){ts1, ts2, ts3, 1};
+                /* Calculate arrival wormhole: 4 units behind the ship's new position */
+                double r_h = players[i].state.van_h * M_PI / 180.0;
+                double r_m = players[i].state.van_m * M_PI / 180.0;
+                double f_dx = sin(r_h) * cos(r_m);
+                double f_dy = -cos(r_h) * cos(r_m);
+                double f_dz = sin(r_m);
+                
+                float ats1 = (float)(ts1 - 4.0 * f_dx);
+                float ats2 = (float)(ts2 - 4.0 * f_dy);
+                float ats3 = (float)(ts3 - 4.0 * f_dz);
+                players[i].state.jump_arrival = (NetPoint){ats1, ats2, ats3, 1};
                 players[i].state.wormhole.active = 0;
             }
 
@@ -979,6 +1033,68 @@ void update_game_logic() {
                 players[i].state.wormhole.active = 0;
                 players[i].state.jump_arrival.active = 0;
                 send_server_msg(i, "HELMSMAN", "Wormhole traversal successful. Welcome to destination.");
+            }
+        }
+        else if (players[i].nav_state == NAV_STATE_DOCKING) {
+            players[i].nav_timer--;
+            
+            /* Verify proximity every tick to ensure player doesn't drift away */
+            int b_idx = players[i].pending_bor_target - 2000;
+            if (b_idx < 0 || b_idx >= MAX_BASES || !bases[b_idx].active) {
+                players[i].nav_state = NAV_STATE_IDLE;
+                send_server_msg(i, "STARBASE", "Docking aborted: Starbase link lost.");
+            } else {
+                double d=sqrt(pow(bases[b_idx].x-players[i].state.s1,2)+pow(bases[b_idx].y-players[i].state.s2,2)+pow(bases[b_idx].z-players[i].state.s3,2));
+                if (d > (DIST_DOCKING_MAX + 0.5f)) {
+                    players[i].nav_state = NAV_STATE_IDLE;
+                    send_server_msg(i, "STARBASE", "Docking aborted: Ship drifted out of range.");
+                }
+            }
+
+            if (players[i].nav_state == NAV_STATE_DOCKING && players[i].nav_timer <= 0) {
+                /* Docking Successful: Perform full replenishment */
+                players[i].state.energy = ENERGY_BASE_RECHARGE; 
+                players[i].state.torpedoes = MAX_TORPEDO_CAPACITY; 
+                players[i].state.cargo_energy = MAX_ENERGY_CAPACITY;
+                players[i].state.cargo_torpedoes = MAX_TORPEDO_CAPACITY;
+                players[i].state.hull_integrity = 100.0f;
+                players[i].state.life_support = 100.0f;
+                players[i].state.ion_beam_charge = 100.0f;
+                players[i].state.tube_state = 0;
+                for(int s=0; s<6; s++) players[i].state.shields[s] = SHIELD_MAX_STRENGTH;
+                for(int s=0; s<10; s++) players[i].state.system_health[s] = 100.0f; 
+                
+                int crew = 200;
+                switch(players[i].ship_class) {
+                    case SHIP_CLASS_EXPLORER:    crew = 1012; break;
+                    case SHIP_CLASS_FLAGSHIP:    crew = 850; break;
+                    case SHIP_CLASS_LEGACY:      crew = 430; break;
+                    case SHIP_CLASS_HEAVY_CRUISER: crew = 750; break;
+                    case SHIP_CLASS_ESCORT:      crew = 50; break;
+                    case SHIP_CLASS_SCIENCE:     crew = 150; break;
+                    case SHIP_CLASS_RESEARCH:    crew = 80; break;
+                    case SHIP_CLASS_SCOUT:       crew = 30; break;
+                    case SHIP_CLASS_MULTI_ENGINE: crew = 500; break;
+                    case SHIP_CLASS_CARRIER:     crew = 1200; break;
+                    case SHIP_CLASS_TACTICAL:    crew = 800; break;
+                    case SHIP_CLASS_DIPLOMATIC:  crew = 300; break;
+                    case SHIP_CLASS_FRIGATE:     crew = 250; break;
+                    default: crew = 200; break;
+                }
+                players[i].state.crew_count = crew;
+                if (players[i].state.composite_plating < 1000) players[i].state.composite_plating = 1000;
+
+                if (players[i].state.prison_unit > 0) {
+                    char p_msg[128];
+                    sprintf(p_msg, "%d prisoners transferred to starbase security for debriefing.", players[i].state.prison_unit);
+                    send_server_msg(i, "SECURITY", p_msg);
+                    players[i].state.prison_unit = 0;
+                }
+
+                players[i].nav_state = NAV_STATE_IDLE;
+                players[i].pending_bor_target = 0;
+                players[i].is_docked = 1;
+                send_server_msg(i, "STARBASE", "Docking complete. Ship fully repaired and replenished. All systems green.");
             }
         }
         else if (players[i].nav_state == NAV_STATE_CHASE) {
@@ -1258,10 +1374,13 @@ void update_game_logic() {
                     double dx = target_x - players[i].tx, dy = target_y - players[i].ty, dz = target_z - players[i].tz;
                     double d = sqrt(dx*dx + dy*dy + dz*dz);
                     if (d > 0.01) {
-                        /* Aggressive guidance: 50% correction per tick */
-                        players[i].tdx = (players[i].tdx * 0.5) + ((dx/d) * 0.5);
-                        players[i].tdy = (players[i].tdy * 0.5) + ((dy/d) * 0.5);
-                        players[i].tdz = (players[i].tdz * 0.5) + ((dz/d) * 0.5);
+                        /* Guidance accuracy scales with sensor health */
+                        float sensor_integrity = players[i].state.system_health[2] / 100.0f;
+                        float correction_factor = 0.1f + (sensor_integrity * 0.4f); /* 0.1 to 0.5 range */
+                        
+                        players[i].tdx = (players[i].tdx * (1.0f - correction_factor)) + ((dx/d) * correction_factor);
+                        players[i].tdy = (players[i].tdy * (1.0f - correction_factor)) + ((dy/d) * correction_factor);
+                        players[i].tdz = (players[i].tdz * (1.0f - correction_factor)) + ((dz/d) * correction_factor);
                         double s = sqrt(players[i].tdx*players[i].tdx + players[i].tdy*players[i].tdy + players[i].tdz*players[i].tdz);
                         players[i].tdx /= s; players[i].tdy /= s; players[i].tdz /= s;
                     }
@@ -1420,6 +1539,23 @@ void update_game_logic() {
         upd.tube_state = players[i].state.tube_state;
         upd.ion_beam_charge = players[i].state.ion_beam_charge;
         upd.is_cloaked = players[i].state.is_cloaked;
+        upd.is_docked = players[i].is_docked || (players[i].nav_state == NAV_STATE_DOCKING);
+        
+        /* Computer integrity check for HUD and Visual Aids */
+        if (players[i].state.system_health[6] < 5.0f) {
+            upd.show_axes = 0;
+            upd.show_grid = 0;
+            upd.show_bridge = 0;
+            upd.show_map = 0;
+            upd.map_filter = 0;
+        } else {
+            upd.show_axes = players[i].state.show_axes;
+            upd.show_grid = players[i].state.show_grid;
+            upd.show_bridge = players[i].state.show_bridge;
+            upd.show_map = players[i].state.show_map;
+            upd.map_filter = players[i].state.map_filter;
+        }
+
         upd.encryption_enabled = players[i].crypto_algo;
         int o_idx = 0;
         upd.objects[o_idx] = (NetObject){(float)players[i].state.s1,(float)players[i].state.s2,(float)players[i].state.s3,(float)players[i].state.van_h,(float)players[i].state.van_m,1,players[i].ship_class,1,(int)players[i].state.hull_integrity,players[i].state.energy,players[i].state.composite_plating,(int)players[i].state.hull_integrity,players[i].faction,i+1,players[i].state.is_cloaked,""};
@@ -1493,7 +1629,7 @@ void update_game_logic() {
         upd.object_count = o_idx;
         upd.beam_count = players[i].state.beam_count; for(int b=0; b<upd.beam_count && b<MAX_NET_BEAMS; b++) upd.beams[b] = players[i].state.beams[b];
         
-        /* Map Synchronizer: Always send supernova quadrant if active, otherwise send current */
+        /* Map Synchronizer: Send current quadrant data */
         if (supernova_event.supernova_timer > 0) {
             upd.map_update_q[0] = supernova_event.supernova_q1;
             upd.map_update_q[1] = supernova_event.supernova_q2;
@@ -1506,7 +1642,18 @@ void update_game_logic() {
             upd.map_update_val = spacegl_master.g[upd.q1][upd.q2][upd.q3];
         }
 
-        upd.torp = players[i].state.torp; upd.boom = players[i].state.boom; upd.dismantle = players[i].state.dismantle; 
+        /* 2nd Map Synchronizer: Send a random quadrant to slowly refresh the whole galaxy map on the client */
+        int rq1 = rand()%10 + 1;
+        int rq2 = rand()%10 + 1;
+        int rq3 = rand()%10 + 1;
+        upd.map_update_q2[0] = rq1;
+        upd.map_update_q2[1] = rq2;
+        upd.map_update_q2[2] = rq3;
+        upd.map_update_val2 = spacegl_master.g[rq1][rq2][rq3];
+
+        upd.torp = players[i].state.torp; 
+        upd.boom = players[i].state.boom; 
+        upd.dismantle = players[i].state.dismantle; 
         upd.wormhole = players[i].state.wormhole;
         upd.jump_arrival = players[i].state.jump_arrival;
         upd.recovery_fx = players[i].state.recovery_fx;

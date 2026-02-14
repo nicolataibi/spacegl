@@ -106,6 +106,7 @@ typedef struct {
     int shm_show_grid;
     int shm_show_map;
     int shm_show_bridge;
+    int shm_is_docked;
     int shm_map_filter; /* 0=All, 1=Star, 2=Planet, 3=Base, 4=Hostile, 5=BH, 6=Nebula, 7=Pulsar, 8=Storm, 9=Comet, 10=Asteroid, 11=Derelict, 12=Mine, 13=Buoy, 14=Platform, 15=Rift, 16=Monster */
     int is_cloaked;
     int shm_crypto_algo;
