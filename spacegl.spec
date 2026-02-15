@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 11
+%global rel 12
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -102,7 +102,13 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/readme_assets/
 
 %changelog
-* Sun Feb 15 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
-- APR command bug fix
-- Ship Status in 3d viewer's hud
-- Torpedo system added
+* Mon Feb 16 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
+- hyperdrive, impulse speed changes
+- cal, ical changes
+- hull damages changes
+- galaxy initial setup changes
+- pulsar classification
+- new types of probes
+- absolute galactic coordinate used
+- new wormhole sequence
+- OTHER removed

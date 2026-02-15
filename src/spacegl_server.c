@@ -246,10 +246,10 @@ int main(int argc, char *argv[]) {
                 int r = read_all(fd, &type, sizeof(int));
                 
                 if (r <= 0) {
-                    /* Disconnect */
+                    /* Disconnect: Keep player record for persistence, just close socket */
                     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
                     pthread_mutex_lock(&game_mutex);
-                    for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) { players[i].socket = 0; players[i].active = 0; break; }
+                    for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) { players[i].socket = 0; break; }
                     pthread_mutex_unlock(&game_mutex);
                     close(fd);
                     LOG_DEBUG("Connection closed: FD %d\n", fd);
@@ -316,14 +316,33 @@ int main(int argc, char *argv[]) {
                             int found = 0;
                             for(int j=0; j<MAX_CLIENTS; j++) { if (players[j].name[0] != '\0' && strcmp(players[j].name, pkt.name) == 0) { found = 1; break; } }
                             pthread_mutex_unlock(&game_mutex);
+                            LOG_DEBUG("Identity Check: '%s' -> %s\n", pkt.name, found ? "RECOGNIZED" : "NEW RECRUIT");
                             write_all(fd, &found, sizeof(int));
                         } else {
                             pthread_mutex_lock(&game_mutex);
                             int slot = -1;
-                            for(int j=0; j<MAX_CLIENTS; j++) { if (players[j].name[0] != '\0' && strcmp(players[j].name, pkt.name) == 0) { slot = j; break; } }
-                            if (slot == -1) { for(int j=0; j<MAX_CLIENTS; j++) if (players[j].name[0] == '\0') { slot = j; break; } }
+                            /* 1. Try to find a player with the same name (persistence) */
+                            for(int j=0; j<MAX_CLIENTS; j++) { 
+                                if (players[j].name[0] != '\0' && strcmp(players[j].name, pkt.name) == 0) { 
+                                    slot = j; 
+                                    break; 
+                                } 
+                            }
+                            
+                            /* 2. If not found, try to find the temporary slot reserved for this FD */
+                            if (slot == -1) {
+                                for(int j=0; j<MAX_CLIENTS; j++) if (players[j].socket == fd && players[j].name[0] == '\0') { slot = j; break; }
+                            }
+                            
+                            /* 3. If still not found, take ANY free slot */
+                            if (slot == -1) {
+                                for(int j=0; j<MAX_CLIENTS; j++) if (players[j].name[0] == '\0' && players[j].socket == 0) { slot = j; break; }
+                            }
                             
                             if (slot != -1) {
+                                /* Clean up any other slot that might be holding this socket (from the handshake reserve) */
+                                for(int j=0; j<MAX_CLIENTS; j++) if (j != slot && players[j].socket == fd) { players[j].socket = 0; }
+
                                 players[slot].socket = fd;
                                 int is_new = (players[slot].name[0] == '\0');
                                 players[slot].active = 0; /* Block updates during sync */

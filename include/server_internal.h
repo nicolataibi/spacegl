@@ -84,6 +84,7 @@ typedef struct {
     int pending_bor_target; /* ID of target player */
     int pending_bor_type;   /* 1: Ally, 2: Enemy */
 
+    int death_timer;        /* Ticks until final destruction explosion */
     SpaceGLGame state;
 } ConnectedPlayer;
 
@@ -100,10 +101,10 @@ typedef enum {
 typedef struct { int id, faction, q1, q2, q3; double x, y, z; int active; } NPCStar;
 typedef struct { int id, q1, q2, q3; double x, y, z; int active; } NPCBlackHole;
 typedef struct { int id, q1, q2, q3; double x, y, z; int type, active; } NPCNebula;
-typedef struct { int id, q1, q2, q3; double x, y, z; int active; } NPCPulsar;
+typedef struct { int id, q1, q2, q3; double x, y, z; int type, active; } NPCPulsar;
 typedef struct { int id, q1, q2, q3; double x, y, z, h, m; double a, b, angle, speed, inc; double cx, cy, cz; int active; } NPCComet;
 typedef struct { int id, q1, q2, q3; double x, y, z; float size; int resource_type, amount, active; } NPCAsteroid;
-typedef struct { int id, q1, q2, q3; double x, y, z; int ship_class; int active; int faction; } NPCDerelict;
+typedef struct { int id, q1, q2, q3; double x, y, z; int ship_class; int active; int faction; char name[64]; } NPCDerelict;
 typedef struct { int id, q1, q2, q3; double x, y, z; int faction; int active; } NPCMine;
 typedef struct { int id, q1, q2, q3; double x, y, z; int active; } NPCBuoy;
 typedef struct { int id, faction, q1, q2, q3; double x, y, z; int health, energy, active; int fire_cooldown; } NPCPlatform;
@@ -124,6 +125,8 @@ typedef struct {
     double dx, dy, dz;
     double tx, ty, tz; 
     uint8_t is_cloaked;
+    int death_timer;
+    char name[64];
 } NPCShip;
 
 typedef struct { int id, q1, q2, q3; double x, y, z; int resource_type, amount, active; } NPCPlanet;
@@ -131,7 +134,7 @@ typedef struct { int id, faction, q1, q2, q3; double x, y, z; int health, active
 
 /* --- Limits --- */
 
-#define MAX_NPC 1000
+#define MAX_NPC 2500
 #define MAX_PLANETS 1000
 #define MAX_BASES 200
 #define MAX_STARS 3000
@@ -140,7 +143,7 @@ typedef struct { int id, faction, q1, q2, q3; double x, y, z; int health, active
 #define MAX_PULSARS 200
 #define MAX_COMETS 300
 #define MAX_ASTEROIDS 2000
-#define MAX_DERELICTS 150
+#define MAX_DERELICTS 2500
 #define MAX_MINES 1000
 #define MAX_BUOYS 100
 #define MAX_PLATFORMS 200
@@ -271,6 +274,7 @@ void send_server_msg(int p_idx, const char *from, const char *text);
 void process_command(int p_idx, const char *cmd);
 void update_game_logic();
 bool is_player_in_nebula(int p_idx);
+void apply_hull_damage(int p_idx, float amount);
 
 int read_all(int fd, void *buf, size_t len);
 int write_all(int fd, const void *buf, size_t len);

@@ -367,6 +367,8 @@ int load_galaxy() {
     for(int i=0; i<MAX_CLIENTS; i++) {
         players[i].active = 0;
         players[i].socket = 0;
+        /* Mutex must be re-initialized after loading from raw memory */
+        pthread_mutex_init(&players[i].socket_mutex, NULL);
     }
     
     printf("--- PERSISTENT GALAXY LOADED SUCCESSFULLY ---\n");
@@ -401,6 +403,40 @@ const char* get_species_name(int s) {
     }
 }
 
+static const char* ALLIANCE_NAMES[] = {"Enterprise", "Defiant", "Voyager", "Discovery", "Stargazer", "Reliant", "Saratoga", "Yorktown", "Intrepid", "Constellation", "Excelsior", "Hood", "Potemkin", "Victory", "Valiant", "Thunderchild", "Yeager", "Appalachia", "Bellerophon", "Budapest", "Curry", "Grissom", "Hathaway", "Kyushu", "Melbourne", "New Orleans", "Niagara", "Oberth", "Prometheus", "Rutledge", "Ticonderoga", "Zodiac", "Endeavour", "Ahwahnee", "Chekov", "Clement", "Drake", "Equinox", "Farragut", "Gettysburg", "Horatio", "Kearsarge", "Lantree", "Maryland", "Nautilus", "Pasteur", "Quark", "Renegade", "Solstice", "Trieste", "Universal", "Venture", "Whorfin", "Xerxes", "Yamato", "Zapata", "Aries", "Bismarck", "Cairo", "Dante", "Excalibur", "Fearless", "Gallant", "Helsinki", "Iwo Jima", "Justin", "Kongo", "Lexington", "Musashi", "Nova", "Olympic", "Phoenix", "Repulse", "Sutherland", "Tian An Men", "Ulysses", "Valley Forge", "Washington", "Ajax", "Berlin", "Centaur", "Dreadnought", "Enterprise-A", "Freedom", "Grafton", "Honshu", "Independence", "Janus", "Korolev", "Lakota", "Majestic", "Nebula", "Orion", "Peregrine", "Rigel", "Surak", "Thunderbolt", "Unity", "Vesta", "Wyoming"};
+static const char* KORTHIAN_NAMES[] = {"Gorkon", "Negh'Var", "Vor'cha", "K'mpec", "Kronos One", "B'Moth", "Ch'Tang", "D'Kyr", "Gr'oth", "Hegh'ta", "IKS Bortas", "IKS Pagh", "IKS Rotarran", "IKS Wo'r'iv", "K'Ehleyr", "M'Char", "Ni'Var", "Pagh'tem-far", "Qu'Vat", "Somraw", "T'Ong", "Vorn", "Ya'Vang", "Zapola", "Amar", "Buruk", "D'k Tahg", "Fek'lhr", "Gron", "H'chak", "I'dan", "J'Dan", "K'lar", "L'Kor", "Maht-H'a", "N'Garen", "O'Tang", "P'Trell", "Q'Mok", "R'Ur", "S'Vak", "T'Kumbra", "U'Gak", "V'Rek", "W'Tang", "X'Kor", "Y'Dan", "Z'Kor", "K'Vort", "B'rel"};
+static const char* XYLARI_NAMES[] = {"Gal Gath'thong", "Haakona", "Khazara", "Decius", "Belak", "Makar", "T'Vran", "Vahladore", "Apnex", "Bortas", "Centurion", "D'deridex", "Elite", "Firehawk", "Goroth", "H'ros", "Icarus", "Jae'rod", "K'Vort", "L'Vak", "Mogai", "Norexan", "O'Ran", "P'Vak", "Qu'Vat", "R'Vak", "S'Vak", "T'Vak", "U'Vak", "V'Vak", "W'Vak", "X'Vak", "Y'Vak", "Z'Vak", "Shadow One", "Nightshade", "Black Talon", "Void Stalker"};
+static const char* SWARM_NAMES[] = {"Cube 01", "Sphere 22", "Diamond 4", "Tactical Cube 13", "Probe 9", "Queen's Vessel", "Unimatrice 0", "Unimatrice 1", "Node Alpha", "Node Beta", "Interceptor 5", "Scout 8", "Assimilation Unit", "Regeneration Hub", "Hive Ship", "Matrix One"};
+static const char* VESPERIAN_NAMES[] = {"Trager", "Vetar", "Groumall", "Cuirass", "Aldara", "Bok'Nor", "Ch'Targh", "Dreadnought", "Ekar", "Fek'lhr", "Galor", "Heka", "Indra", "Janissary", "Keldon", "Lektop", "Makar", "Naprem", "Obsidian", "Praetor", "Quark", "Rakal", "Selin", "Tain", "Ulave", "Vrax", "Warlock", "Xenon", "Yarin", "Zarth"};
+static const char* ASCENDANT_NAMES[] = {"Vorta's Command", "Jem'Hadar Scout", "Dominion Heavy", "Founder's Guard", "Gamma Attack", "Alpha Strike", "Beta Patrol", "Ketracel's Hope", "White Guard", "Shapeshifter"};
+static const char* QUARZITE_NAMES[] = {"Crystal Web", "Prism", "Refraction", "Net Weaver", "Grid Guardian", "Spectrum", "Geometry", "Lattice", "Crystalline", "Array"};
+static const char* SAURIAN_NAMES[] = {"Hunter", "Stalker", "Lizard", "Cold Blood", "Desert Fang", "Sand King", "Apex Predator", "Tail Strike", "Green Claw", "Scale"};
+static const char* GILDED_NAMES[] = {"Gold Pressed", "Latinum Dream", "Profit Margin", "Rule of Acquisition", "Grand Nagus", "Marauder", "Trade Wind", "Market Force", "Credit", "Greed"};
+static const char* FLUIDIC_NAMES[] = {"Bio-Ship 1", "Organism", "Cellular", "Enzyme", "Protector", "Void Swimmer", "Fluidic Alpha", "Genetic", "Mutant", "Anomaly"};
+static const char* CRYOS_NAMES[] = {"Freezer", "Cold Death", "Zero Kelvin", "Ice Stalker", "Snow Blind", "Blizzard", "Glacier", "Frost Bite", "Hibernate", "Sub-Zero"};
+static const char* APEX_NAMES[] = {"Hirogen Alpha", "Great Hunter", "Trophy Room", "Predator", "Prey Finder", "Tracking", "Kill Stroke", "Honor Bound", "Spirit", "Ancient"};
+
+const char* get_random_ship_name(int faction) {
+    const char** list = NULL;
+    int size = 0;
+    switch(faction) {
+        case FACTION_ALLIANCE: list = ALLIANCE_NAMES; size = sizeof(ALLIANCE_NAMES)/sizeof(char*); break;
+        case FACTION_KORTHIAN: list = KORTHIAN_NAMES; size = sizeof(KORTHIAN_NAMES)/sizeof(char*); break;
+        case FACTION_XYLARI: list = XYLARI_NAMES; size = sizeof(XYLARI_NAMES)/sizeof(char*); break;
+        case FACTION_SWARM: list = SWARM_NAMES; size = sizeof(SWARM_NAMES)/sizeof(char*); break;
+        case FACTION_VESPERIAN: list = VESPERIAN_NAMES; size = sizeof(VESPERIAN_NAMES)/sizeof(char*); break;
+        case FACTION_JEM_HADAR: list = ASCENDANT_NAMES; size = sizeof(ASCENDANT_NAMES)/sizeof(char*); break;
+        case FACTION_THOLIAN: list = QUARZITE_NAMES; size = sizeof(QUARZITE_NAMES)/sizeof(char*); break;
+        case FACTION_GORN: list = SAURIAN_NAMES; size = sizeof(SAURIAN_NAMES)/sizeof(char*); break;
+        case FACTION_GILDED: list = GILDED_NAMES; size = sizeof(GILDED_NAMES)/sizeof(char*); break;
+        case FACTION_SPECIES_8472: list = FLUIDIC_NAMES; size = sizeof(FLUIDIC_NAMES)/sizeof(char*); break;
+        case FACTION_BREEN: list = CRYOS_NAMES; size = sizeof(CRYOS_NAMES)/sizeof(char*); break;
+        case FACTION_HIROGEN: list = APEX_NAMES; size = sizeof(APEX_NAMES)/sizeof(char*); break;
+        default: return "Unknown Vessel";
+    }
+    return list[rand() % size];
+}
+
 void generate_galaxy() {
     printf("Generating Master Galaxy...\n");
     memset(&spacegl_master, 0, sizeof(SpaceGLGame));
@@ -422,12 +458,56 @@ void generate_galaxy() {
     memset(monsters, 0, sizeof(monsters));
 
     int n_count = 0, b_count = 0, p_count = 0, s_count = 0, bh_count = 0, neb_count = 0, pul_count = 0, com_count = 0, ast_count = 0, der_count = 0, mine_count = 0, buoy_count = 0, plat_count = 0, rift_count = 0, mon_count = 0;
+    int faction_counts[21] = {0};
+    int class_der_counts[14] = {0};
+    int star_spectral_counts[7] = {0}; /* O, B, A, F, G, K, M */
+    int nebula_type_counts[6] = {0};   /* Standard, High-Energy, Dark Matter, Ionic, Gravimetric, Temporal */
+    int pulsar_type_counts[3] = {0};   /* Rotation-Powered, Accretion-Powered, Magnetar */
+    int monster_type_counts[2] = {0};  /* Crystalline, Amoeba */
     
+    /* 1. Generate NPC Ships: 70-100 for each faction (10-20) */
+    for(int faction = 10; faction <= 20; faction++) {
+        int count = 70 + (rand() % 31);
+        for(int k=0; k<count && n_count < MAX_NPC; k++) {
+            NPCShip *n = &npcs[n_count];
+            n->id = n_count; n->faction = faction; n->active = 1;
+            n->q1 = 1 + rand()%10; n->q2 = 1 + rand()%10; n->q3 = 1 + rand()%10;
+            n->x = (rand()%100)/10.0; n->y = (rand()%100)/10.0; n->z = (rand()%100)/10.0;
+            n->gx = (n->q1-1)*10.0 + n->x; n->gy = (n->q2-1)*10.0 + n->y; n->gz = (n->q3-1)*10.0 + n->z;
+            
+            int energy = 10000;
+            if (faction == FACTION_SWARM) energy = 80000 + (rand()%20001);
+            else if (faction == FACTION_SPECIES_8472 || faction == FACTION_HIROGEN) energy = 60000 + (rand()%20001);
+            else if (faction == FACTION_KORTHIAN || faction == FACTION_XYLARI || faction == FACTION_JEM_HADAR) energy = 30000 + (rand()%20001);
+            n->energy = energy; n->engine_health = 100.0f; n->health = 1000;
+            if (faction == FACTION_SWARM) n->plating = 100000;
+            else if (faction == FACTION_HIROGEN || faction == FACTION_SPECIES_8472) n->plating = 50000;
+            else n->plating = 15000;
+            n->nav_timer = 60 + rand()%241; n->ai_state = AI_STATE_PATROL;
+            strncpy(n->name, get_random_ship_name(faction), 63);
+            n_count++;
+            faction_counts[faction]++;
+        }
+    }
+
+    /* 2. Generate Alliance Wrecks: 70-100 for each ship class (0-12) */
+    for(int sclass = 0; sclass <= 12; sclass++) {
+        int count = 70 + (rand() % 31);
+        for(int k=0; k<count && der_count < MAX_DERELICTS; k++) {
+            NPCDerelict *d = &derelicts[der_count];
+            d->id = der_count; d->faction = FACTION_ALLIANCE; d->active = 1; d->ship_class = sclass;
+            d->q1 = 1 + rand()%10; d->q2 = 1 + rand()%10; d->q3 = 1 + rand()%10;
+            d->x = (rand()%100)/10.0; d->y = (rand()%100)/10.0; d->z = (rand()%100)/10.0;
+            strncpy(d->name, get_random_ship_name(FACTION_ALLIANCE), 63);
+            der_count++;
+            class_der_counts[sclass]++;
+        }
+    }
+
+    /* 3. Generate Static Celestial Objects and Anomalies */
     for(int i=1; i<=10; i++)
         for(int j=1; j<=10; j++)
             for(int l=1; l<=10; l++) {
-                int r = rand()%100;
-                int kling = (r > 96) ? 3 : (r > 92) ? 2 : (r > 85) ? 1 : 0;
                 int base = (rand()%100 > 98) ? 1 : 0;
                 int planets_cnt = (rand()%100 > 90) ? (rand()%2 + 1) : 0;
                 int star = (rand()%100 < 40) ? (rand()%3 + 1) : 0;
@@ -436,133 +516,146 @@ void generate_galaxy() {
                 int pul = (rand()%100 < 5) ? 1 : 0;
                 int com = (rand()%100 < 10) ? 1 : 0;
                 int ast_field = (rand()%100 < 20) ? (rand()%10 + 5) : 0;
-                int der = (rand()%100 < 5) ? 1 : 0;
-                int mine_field = (kling > 0 && rand()%100 < 30) ? (rand()%5 + 3) : 0;
+                int mine_field = (rand()%100 < 10) ? (rand()%5 + 3) : 0;
                 int buoy = (rand()%100 < 8) ? 1 : 0;
-                int plat = (kling > 0 && rand()%100 < 40) ? (rand()%2 + 1) : 0;
+                int plat = (rand()%100 < 15) ? (rand()%2 + 1) : 0;
                 int rift = (rand()%100 < 5) ? 1 : 0;
                 int mon = (rand()%100 < 2) ? 1 : 0;
                 
-                int actual_k = 0, actual_b = 0, actual_p = 0, actual_s = 0, actual_bh = 0, actual_neb = 0, actual_pul = 0, actual_com = 0, actual_ast = 0, actual_der = 0, actual_mine = 0, actual_buoy = 0, actual_plat = 0, actual_rift = 0, actual_mon = 0;
-                
-                for(int e=0; e<kling && n_count < MAX_NPC; e++) {
-                    int faction = 10+(rand()%11);
-                    int energy = 10000;
-                    if (faction == FACTION_SWARM) energy = 80000 + (rand()%20001);
-                    else if (faction == FACTION_SPECIES_8472 || faction == FACTION_HIROGEN) energy = 60000 + (rand()%20001);
-                    else if (faction == FACTION_KORTHIAN || faction == FACTION_XYLARI || faction == FACTION_JEM_HADAR) energy = 30000 + (rand()%20001);
-                    
-                    NPCShip *n = &npcs[n_count];
-                    n->id = n_count; n->faction = faction; n->active = 1;
-                    n->q1 = i; n->q2 = j; n->q3 = l;
-                    n->x = (rand()%100)/10.0; n->y = (rand()%100)/10.0; n->z = (rand()%100)/10.0;
-                    n->gx = (i-1)*10.0 + n->x; n->gy = (j-1)*10.0 + n->y; n->gz = (l-1)*10.0 + n->z;
-                    n->energy = energy; n->engine_health = 100.0f;
-                    n->health = 1000;
-                    if (faction == FACTION_SWARM) n->plating = 100000;
-                    else if (faction == FACTION_HIROGEN || faction == FACTION_SPECIES_8472) n->plating = 50000;
-                    else n->plating = 15000;
-                    n->nav_timer = 60 + rand()%241; n->ai_state = AI_STATE_PATROL;
-                    n_count++; actual_k++;
-                }
                 for(int b=0; b<base && b_count < MAX_BASES; b++) {
-                    bases[b_count] = (NPCBase){.id=b_count, .faction=FACTION_ALLIANCE, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .health=5000, .active=1}; b_count++; actual_b++;
+                    bases[b_count] = (NPCBase){.id=b_count, .faction=FACTION_ALLIANCE, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .health=5000, .active=1}; b_count++;
                 }
                 for(int p=0; p<planets_cnt && p_count < MAX_PLANETS; p++) {
-                    planets[p_count] = (NPCPlanet){.id=p_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .resource_type=(rand()%8)+1, .amount=1000, .active=1}; p_count++; actual_p++;
+                    planets[p_count] = (NPCPlanet){.id=p_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .resource_type=(rand()%8)+1, .amount=1000, .active=1}; p_count++;
                 }
                 for(int s=0; s<star && s_count < MAX_STARS; s++) {
-                    stars_data[s_count] = (NPCStar){.id=s_count, .faction=4, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1}; s_count++; actual_s++;
+                    int spectral = rand() % 7;
+                    stars_data[s_count] = (NPCStar){.id=s_count, .faction=spectral, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1}; 
+                    star_spectral_counts[spectral]++;
+                    s_count++;
                 }
                 for(int h=0; h<bh && bh_count < MAX_BH; h++) {
-                    black_holes[bh_count] = (NPCBlackHole){.id=bh_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1}; bh_count++; actual_bh++;
+                    black_holes[bh_count] = (NPCBlackHole){.id=bh_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1}; bh_count++;
                 }
                 for(int n=0; n<neb && neb_count < MAX_NEBULAS; n++) {
-                    int n_type = rand() % 6; /* 0=Standard, 1=High-Energy, 2=Dark Matter, 3=Ionic, 4=Gravimetric, 5=Temporal */
-                    nebulas[neb_count] = (NPCNebula){.id=neb_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .type=n_type, .active=1}; neb_count++; actual_neb++;
+                    int n_type = rand() % 6;
+                    nebulas[neb_count] = (NPCNebula){.id=neb_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .type=n_type, .active=1}; 
+                    nebula_type_counts[n_type]++;
+                    neb_count++;
                 }
                 for(int p=0; p<pul && pul_count < MAX_PULSARS; p++) {
-                    pulsars[pul_count] = (NPCPulsar){.id=pul_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1}; pul_count++; actual_pul++;
+                    int p_type = rand() % 3;
+                    pulsars[pul_count] = (NPCPulsar){.id=pul_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .type=p_type, .active=1}; 
+                    pulsar_type_counts[p_type]++;
+                    pul_count++;
                 }
                 for(int c=0; c<com && com_count < MAX_COMETS; c++) {
-                    double a = 10.0 + (rand()%300)/10.0; /* Semi-major axis 10-40 */
-                    double b = a * (0.5 + (rand()%40)/100.0); /* Elliptical (eccentricity) */
-                    double inc = (rand()%360) * M_PI/180.0;
-                    double angle = (rand()%360) * M_PI/180.0;
-                    double speed = 0.02 / a; /* Linear speed ~0.02 */
-                    
-                    comets[com_count] = (NPCComet){
-                        .id=com_count, .q1=i, .q2=j, .q3=l, 
-                        .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, 
-                        .a=a, .b=b, .angle=angle, .speed=speed, .inc=inc,
-                        .cx=50.0 + (rand()%100-50)/10.0, .cy=50.0 + (rand()%100-50)/10.0, .cz=50.0 + (rand()%100-50)/10.0,
-                        .active=1
-                    }; 
-                    com_count++; actual_com++;
+                    double a = 10.0 + (rand()%300)/10.0; double b = a * (0.5 + (rand()%40)/100.0);
+                    comets[com_count] = (NPCComet){.id=com_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .a=a, .b=b, .angle=(rand()%360)*M_PI/180.0, .speed=0.02/a, .inc=(rand()%360)*M_PI/180.0, .cx=50.0 + (rand()%100-50)/10.0, .cy=50.0 + (rand()%100-50)/10.0, .cz=50.0 + (rand()%100-50)/10.0, .active=1}; com_count++;
                 }
                 for(int a=0; a<ast_field && ast_count < MAX_ASTEROIDS; a++) {
-                    asteroids[ast_count] = (NPCAsteroid){
-                        .id=ast_count, .q1=i, .q2=j, .q3=l, 
-                        .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, 
-                        .size=0.1f+(rand()%20)/100.0f, 
-                        .resource_type=(rand()%8)+1, /* Random type 1-8 */
-                        .amount=100 + rand()%401,
-                        .active=1
-                    }; 
-                    ast_count++; actual_ast++;
-                }
-                for(int d=0; d<der && der_count < MAX_DERELICTS; d++) {
-                    int dfac = FACTION_ALLIANCE;
-                    if (rand()%100 < 20) dfac = 10 + (rand()%11); /* 20% chance of alien wreck */
-                    derelicts[der_count] = (NPCDerelict){.id=der_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .ship_class=rand()%13, .active=1, .faction=dfac}; der_count++; actual_der++;
+                    asteroids[ast_count] = (NPCAsteroid){.id=ast_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .size=0.1f+(rand()%20)/100.0f, .resource_type=(rand()%8)+1, .amount=100 + rand()%401, .active=1}; ast_count++;
                 }
                 for(int m=0; m<mine_field && mine_count < MAX_MINES; m++) {
-                    mines[mine_count] = (NPCMine){.id=mine_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .faction=FACTION_KORTHIAN, .active=1}; mine_count++; actual_mine++;
+                    mines[mine_count] = (NPCMine){.id=mine_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .faction=FACTION_KORTHIAN, .active=1}; mine_count++;
                 }
                 for(int bu=0; bu<buoy && buoy_count < MAX_BUOYS; bu++) {
-                    buoys[buoy_count] = (NPCBuoy){.id=buoy_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1}; buoy_count++; actual_buoy++;
+                    buoys[buoy_count] = (NPCBuoy){.id=buoy_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1}; buoy_count++;
                 }
                 for(int pt=0; pt<plat && plat_count < MAX_PLATFORMS; pt++) {
-                    platforms[plat_count] = (NPCPlatform){.id=plat_count, .faction=FACTION_KORTHIAN, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .health=5000, .energy=10000, .fire_cooldown=0, .active=1}; plat_count++; actual_plat++;
+                    platforms[plat_count] = (NPCPlatform){.id=plat_count, .faction=FACTION_KORTHIAN, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .health=5000, .energy=10000, .fire_cooldown=0, .active=1}; plat_count++;
                 }
                 for(int rf=0; rf<rift && rift_count < MAX_RIFTS; rf++) {
-                    rifts[rift_count] = (NPCRift){.id=rift_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1}; rift_count++; actual_rift++;
+                    rifts[rift_count] = (NPCRift){.id=rift_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1}; rift_count++;
                 }
                 for(int mo=0; mo<mon && mon_count < MAX_MONSTERS; mo++) {
-                    int type = (rand()%100 < 50) ? 30 : 31; /* 30=Crystalline, 31=Amoeba */
-                    monsters[mon_count] = (NPCMonster){.id=mon_count, .type=type, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .health=100000, .energy=100000, .active=1, .behavior_timer=0}; mon_count++; actual_mon++;
+                    int m_type_idx = (rand()%100 < 50) ? 0 : 1;
+                    int m_type = (m_type_idx == 0) ? 30 : 31;
+                    monsters[mon_count] = (NPCMonster){.id=mon_count, .type=m_type, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .health=100000, .energy=100000, .active=1, .behavior_timer=0}; 
+                    monster_type_counts[m_type_idx]++;
+                    mon_count++;
                 }
+            }
 
-                /* Cap values to 9 for BPNBS encoding */
-                int c_mon = actual_mon > 9 ? 9 : actual_mon;
-                int c_rift = actual_rift > 9 ? 9 : actual_rift;
-                int c_plat = actual_plat > 9 ? 9 : actual_plat;
-                int c_buoy = actual_buoy > 9 ? 9 : actual_buoy;
-                int c_mine = actual_mine > 9 ? 9 : actual_mine;
-                int c_der = actual_der > 9 ? 9 : actual_der;
-                int c_ast = actual_ast > 9 ? 9 : actual_ast;
-                int c_com = actual_com > 9 ? 9 : actual_com;
-                int c_pul = actual_pul > 9 ? 9 : actual_pul;
-                int c_neb = actual_neb > 9 ? 9 : actual_neb;
-                int c_bh = actual_bh > 9 ? 9 : actual_bh;
-                int c_p = actual_p > 9 ? 9 : actual_p;
-                int c_k = actual_k > 9 ? 9 : actual_k;
-                int c_b = actual_b > 9 ? 9 : actual_b;
-                int c_s = actual_s > 9 ? 9 : actual_s;
+    /* 4. Final Spatial Indexing and Galaxy Grid population */
+    rebuild_spatial_index();
+    for(int i=1; i<=10; i++)
+        for(int j=1; j<=10; j++)
+            for(int l=1; l<=10; l++) {
+                QuadrantIndex *q = &spatial_index[i][j][l];
+                int c_mon = (q->monster_count > 9) ? 9 : q->monster_count;
+                int c_rift = (q->rift_count > 9) ? 9 : q->rift_count;
+                int c_plat = (q->platform_count > 9) ? 9 : q->platform_count;
+                int c_buoy = (q->buoy_count > 9) ? 9 : q->buoy_count;
+                int c_mine = (q->mine_count > 9) ? 9 : q->mine_count;
+                int c_der = (q->derelict_count > 9) ? 9 : q->derelict_count;
+                int c_ast = (q->asteroid_count > 9) ? 9 : q->asteroid_count;
+                int c_com = (q->comet_count > 9) ? 9 : q->comet_count;
+                int c_pul = (q->pulsar_count > 9) ? 9 : q->pulsar_count;
+                int c_neb = (q->nebula_count > 9) ? 9 : q->nebula_count;
+                int c_bh = (q->bh_count > 9) ? 9 : q->bh_count;
+                int c_p = (q->planet_count > 9) ? 9 : q->planet_count;
+                int c_npc = (q->npc_count > 9) ? 9 : q->npc_count;
+                int c_u = (q->player_count > 9) ? 9 : q->player_count;
+                int c_b = (q->base_count > 9) ? 9 : q->base_count;
+                int c_s = (q->star_count > 9) ? 9 : q->star_count;
+                
+                /* Preserve Ion Storm flag (10^7 digit) */
+                long long storm_flag = (spacegl_master.g[i][j][l] / 10000000LL) % 10;
 
-                spacegl_master.g[i][j][l] = (long long)c_mon * 10000000000000000LL + (long long)c_rift * 100000000000000LL + (long long)c_plat * 10000000000000LL + (long long)c_buoy * 1000000000000LL + (long long)c_mine * 100000000000LL + (long long)c_der * 10000000000LL + (long long)c_ast * 1000000000LL + (long long)c_com * 100000000LL + c_pul * 1000000 + c_neb * 100000 + c_bh * 10000 + c_p * 1000 + c_k * 100 + c_b * 10 + c_s;
-                spacegl_master.k9 += actual_k;
-                spacegl_master.b9 += actual_b;
+                spacegl_master.g[i][j][l] = (long long)c_mon * 10000000000000000LL 
+                                          + (long long)c_u   * 1000000000000000LL
+                                          + (long long)c_rift * 100000000000000LL 
+                                          + (long long)c_plat * 10000000000000LL 
+                                          + (long long)c_buoy * 1000000000000LL 
+                                          + (long long)c_mine * 100000000000LL 
+                                          + (long long)c_der * 10000000000LL 
+                                          + (long long)c_ast * 1000000000LL 
+                                          + (long long)c_com * 100000000LL 
+                                          + (long long)storm_flag * 10000000LL
+                                          + c_pul * 1000000 + c_neb * 100000 + c_bh * 10000 + c_p * 1000 + c_npc * 100 + c_b * 10 + c_s;
             }
 
     printf("\n%s .--- GALAXY GENERATION COMPLETED: ASTROMETRICS REPORT ----------.%s\n", B_CYAN, RESET);
-    printf("%s | %s 🚀 Vessels (NPCs):     %s%-5d %s| %s 🪐 Planets:            %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, n_count, B_CYAN, B_WHITE, B_GREEN, p_count, B_CYAN);
-    printf("%s | %s ☀️ Stars:              %s%-5d %s| %s 🛰️ Starbases:          %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, s_count, B_CYAN, B_WHITE, B_GREEN, b_count, B_CYAN);
-    printf("%s | %s 🕳️ Black Holes:        %s%-5d %s| %s ☁️ Nebulas:            %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, bh_count, B_CYAN, B_WHITE, B_GREEN, neb_count, B_CYAN);
-    printf("%s | %s 🌟 Pulsars:            %s%-5d %s| %s ☄️ Comets:             %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, pul_count, B_CYAN, B_WHITE, B_GREEN, com_count, B_CYAN);
-    printf("%s | %s 💎 Asteroids:          %s%-5d %s| %s 🏚️ Derelicts:          %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, ast_count, B_CYAN, B_WHITE, B_GREEN, der_count, B_CYAN);
+    printf("%s | %s 🚀 TOTAL VESSELS: %s%-5d %s| %s 🪐 Planets:            %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, n_count, B_CYAN, B_WHITE, B_GREEN, p_count, B_CYAN);
+    printf("%s | %s 🏚️ TOTAL WRECKS:  %s%-5d %s| %s 🛰️ Starbases:          %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, der_count, B_CYAN, B_WHITE, B_GREEN, b_count, B_CYAN);
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    
+    printf("%s | %s [ STAR SPECTRAL TYPES ]    %s| %s [ NEBULA CLASSIFICATION ]  %s|\n", B_CYAN, B_YELLOW, B_CYAN, B_YELLOW, B_CYAN);
+    const char* spectrals[] = {"O (Blue)", "B (White)", "A (White)", "F (Yellow)", "G (Yellow)", "K (Orange)", "M (Red)"};
+    const char* neb_classes[] = {"Standard", "High-Energy", "Dark Matter", "Ionic", "Gravimetric", "Temporal"};
+    for(int k=0; k<7; k++) {
+        const char* s_name = spectrals[k];
+        const char* n_name = (k < 6) ? neb_classes[k] : "";
+        char n_val_str[32] = "";
+        if (k < 6) sprintf(n_val_str, "%s%-4d", B_GREEN, nebula_type_counts[k]);
+        printf("%s | %s %-12s: %s%-4d %s| %s %-12s: %-14s %s|\n", B_CYAN, B_WHITE, s_name, B_GREEN, star_spectral_counts[k], B_CYAN, B_WHITE, n_name, n_val_str, B_CYAN);
+    }
+
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ FACTION BREAKDOWN ]      %s| %s [ ALLIANCE WRECKS ]        %s|\n", B_CYAN, B_YELLOW, B_CYAN, B_YELLOW, B_CYAN);
+    
+    const char* ship_classes[] = {"LEGACY", "SCOUT", "CRUISER", "ENGINE", "ESCORT", "EXPLORER", "FLAGSHIP", "SCIENCE", "CARRIER", "TACTICAL", "DIPLOMAT", "RESEARCH", "FRIGATE"};
+    for(int f=10; f<=20; f++) {
+        int cidx = f - 10;
+        const char* fname = get_species_name(f);
+        const char* cname = (cidx < 13) ? ship_classes[cidx] : "OTHER";
+        int cval = (cidx < 13) ? class_der_counts[cidx] : 0;
+        printf("%s | %s %-12s: %s%-4d %s| %s %-12s: %s%-4d %s|\n", B_CYAN, B_WHITE, fname, B_GREEN, faction_counts[f], B_CYAN, B_WHITE, cname, B_GREEN, cval, B_CYAN);
+    }
+
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ CLASS-OMEGA THREATS ]    %s| %s [ PULSAR CLASSIFICATION ]  %s|\n", B_CYAN, B_YELLOW, B_CYAN, B_YELLOW, B_CYAN);
+    const char* p_classes[] = {"Rotation-Pwr", "Accretion-Pwr", "Magnetar"};
+    printf("%s | %s Crystalline Ent: %s%-4d %s| %s %-12s: %s%-4d %s|\n", B_CYAN, B_WHITE, B_RED, monster_type_counts[0], B_CYAN, B_WHITE, p_classes[0], B_GREEN, pulsar_type_counts[0], B_CYAN);
+    printf("%s | %s Space Amoebas:   %s%-4d %s| %s %-12s: %s%-4d %s|\n", B_CYAN, B_WHITE, B_RED, monster_type_counts[1], B_CYAN, B_WHITE, p_classes[1], B_GREEN, pulsar_type_counts[1], B_CYAN);
+    printf("%s | %s                       %s| %s %-12s: %s%-4d %s|\n", B_CYAN, "", B_CYAN, B_WHITE, p_classes[2], B_GREEN, pulsar_type_counts[2], B_CYAN);
+
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s ☀️ Total Stars:        %s%-5d %s| %s 🕳️ Black Holes:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, s_count, B_CYAN, B_WHITE, B_GREEN, bh_count, B_CYAN);
+    printf("%s | %s ☁️ Total Nebulas:      %s%-5d %s| %s 🌟 Total Pulsars:      %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, neb_count, B_CYAN, B_WHITE, B_GREEN, pul_count, B_CYAN);
+    printf("%s | %s ☄️ Comets:             %s%-5d %s| %s 💎 Asteroids:          %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, com_count, B_CYAN, B_WHITE, B_GREEN, ast_count, B_CYAN);
     printf("%s | %s 💣 Mines:              %s%-5d %s| %s 📡 Buoys:              %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, mine_count, B_CYAN, B_WHITE, B_GREEN, buoy_count, B_CYAN);
     printf("%s | %s 🛡️ Defense Platforms:  %s%-5d %s| %s 🌀 Spacetime Rifts:    %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, plat_count, B_CYAN, B_WHITE, B_GREEN, rift_count, B_CYAN);
-    printf("%s | %s 👾 Class-Omega Threats:%s%-5d                                 %s|\n", B_CYAN, B_WHITE, B_RED, mon_count, B_CYAN);
     printf("%s '---------------------------------------------------------------'%s\n\n", B_CYAN, RESET);
 }

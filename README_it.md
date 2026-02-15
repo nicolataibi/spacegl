@@ -102,6 +102,42 @@ Questo permette agli amministratori di creare varianti del gioco (es. *Hardcore 
 
 ---
 
+## 🌌 La Galassia Persistente
+
+Space GL offre un universo vasto e densamente popolato che persiste anche dopo il riavvio del server.
+
+### 1. Scala e Popolazione
+La galassia è un cubo 10x10x10 che contiene **1.000 quadranti unici**.
+*   **Fazioni NPC:** Ognuna delle 11 fazioni aliene (Korthian, Swarm, Xylari, etc.) mantiene una flotta permanente composta da **70 a 100 vascelli unici** sempre attivi.
+*   **L'Eredità dell'Alleanza:** Sparse tra le stelle si trovano da **70 a 100 relitti storici (derelicts)** per OGNI classe di nave dell'Alleanza, offrendo un ricco scenario per il recupero e l'esplorazione.
+*   **Diversità Celestiale:**
+    *   **Stelle:** Classificate in 7 tipi spettrali: **O (Blu)**, **B (Bianca)**, **A (Bianca)**, **F (Gialla)**, **G (Gialla)**, **K (Arancio)** e **M (Rossa)**.
+    *   **Pulsar:** Stelle di neutroni categorizzate in 3 classi scientifiche: **Rotation-Powered**, **Accretion-Powered** e **Magnetar**.
+    *   **Nebulose:** Categorizzate in 6 classi tattiche: **Standard**, **Alta Energia**, **Materia Oscura**, **Ionica**, **Gravimetrica** e **Temporale**.
+    *   **Minacce Classe-Omega:** Monitoraggio specifico di entità uniche come l'**Entità Cristallina** e l'**Ameba Spaziale**.
+*   **Identificazione Univoca:** Ogni vascello nella galassia, sia esso attivo o un relitto, possiede un **nome proprio** estratto da database storici specifici per fazione (es. *IKS Bortas* per i Korthian, *Enterprise* per l'Alleanza). Le etichette generiche "(OTHER)" sono state completamente eliminate dai sensori.
+
+### 2. Navigazione Avanzata (Standard GDIS)
+Il sistema di navigazione è stato riprogettato per garantire precisione matematica e fluidità visiva:
+*   **Coordinate Galattiche Assolute:** Tutti i calcoli di movimento e distanza utilizzano una scala standardizzata **0.0 - 100.0 assoluta**. Questo garantisce puntamenti coerenti anche quando si attraversano i confini dei quadranti.
+*   **Navigazione di Precisione (`nav`):** Il comando `nav` ora integra un sistema di blocco della destinazione. Una volta raggiunte le coordinate `target_gx/gy/gz` calcolate, la nave disattiverà automaticamente i motori e uscirà dall'Hyperdrive nella posizione precisa richiesta.
+*   **Calibrazione Hyperdrive:** Il sistema di propulsione segue una progressione lineare dove il **Fattore 9.9 copre 1 quadrante (10 unità) in esattamente 1 secondo** alla potenza nominale. Al **Fattore 0.1**, un vascello copre la stessa distanza in 100 secondi. La velocità è ulteriormente influenzata dall'allocazione di potenza ai motori (da 0.1x a 1.6x) e dall'integrità del sistema.
+*   **Modello Energetico e Danni Realistico:** 
+    *   **Drenaggio Quadratico**: Il consumo energetico dell'Hyperdrive scala quadraticamente con la velocità ($E \propto Fattore^2$). I salti ad alta velocità sono significativamente più dispendiosi.
+    *   **Penalità Integrità**: I sistemi di propulsione danneggiati (Hyperdrive/Impulse) subiscono una riduzione della velocità effettiva e un aumento dello spreco energetico (dissipazione di calore). Il consumo è inversamente proporzionale all'integrità del sistema.
+    *   **Efficienza**: Le prestazioni nominali si ottengono al 100% della salute del sistema. Sotto il 100%, i tempi di percorrenza aumentano e il carico sul reattore diventa più pesante.
+*   **Autopilota Fluido (LERP Tracking):** Il comando `apr` (approach) non esegue più uno scatto istantaneo dell'orientamento. Utilizza invece l'**Interpolazione Lineare (LERP)** per allineare dolcemente la prua (heading) e il mark della nave con il bersaglio, prevenendo rotazioni erratiche e offrendo un'esperienza di volo cinematografica.
+*   **Limiti Galattici:** I confini della galassia sono applicati rigidamente a **[0.05, 99.95]**. Le navi che tentano di uscire dalla galassia attiveranno automaticamente i freni di emergenza e invertiranno la rotta (virata di 180°) per rimanere nello spazio navigabile.
+
+### 3. Revisione del Combattimento Tattico (Logica NPC)
+Il combattimento contro i vascelli NPC presenta ora un modello di danno sofisticato:
+*   **Scaling della Precisione:** Il danno dei siluri varia in base all'accuratezza dell'impatto. I colpi diretti (<0.2 unità) ricevono un **bonus del 1.2x**, mentre i colpi di striscio (0.5-0.8 unità) sono ridotti allo **0.7x**.
+*   **Resistenza di Fazione:** Le tecnologie degli scafi alieni reagiscono diversamente ai siluri dell'Alleanza. Le **Bio-corazze (Swarm, Species 8472)** riducono il danno a **0.6x**, mentre gli scafi fragili commerciali o da esplorazione (**Gilded, Gorn**) subiscono danni aumentati a **1.4x**.
+*   **Difesa a Strati (Plating vs. Hull):** I siluri devono prima erodere il **Plating** (corazza composita) di un vascello prima di infliggere danni strutturali allo **Hull** (scafo).
+*   **Danni Sistemici ai Motori:** Ogni impatto andato a segno infligge dal **10% al 20% di danno permanente** ai motori dell'NPC, causandone la perdita di velocità e manovrabilità durante il corso della battaglia.
+
+---
+
 ### 🔐 Architettura di Sicurezza: Protocollo "Dual-Layer"
 
 Space GL implementa un modello di sicurezza di livello militare, progettato per garantire la segretezza delle comunicazioni anche in ambienti multi-squadra ostili.
@@ -251,8 +287,14 @@ Il visualizzatore 3D è un motore di rendering standalone basato su **OpenGL e G
     *   **Equipaggio (CREW)**: Monitoraggio in tempo reale del personale, vitale per la sopravvivenza della missione.
 *   **Engine degli Effetti (VFX)**:
     *   **Trail Engine**: Ogni nave lascia una scia ionica persistente che aiuta a visualizzarne il vettore di movimento.
-    *   **Combat FX**: Visualizzazione in tempo reale di raggi Ion Beam gestiti via **GLSL Shader**, siluri al plasma con bagliore dinamico ed esplosioni volumetriche.
-    *   **Dismantle Particles**: Un sistema particellare dedicato anima lo smantellamento dei relitti nemici durante le operazioni di recupero risorse.
+    *   **Tipologie di Esplosioni ed Effetti Tattici**:
+        *   💥 **Esplosione Volumetrica Standard**: Innescata dalla distruzione di un vascello. Una sfera arancione/gialla in rapida espansione con rilascio di oltre 100 particelle calde persistenti.
+        *   🌠 **Impatto Siluro al Plasma**: Detonazione ad alta energia che genera un flash cromatico derivato dal nucleo di singolarità del siluro.
+        *   ✨ **Particelle di Smantellamento**: Utilizzate durante il comando `dis` o l'abbordaggio. Il relitto si dissolve in una nuvola di frammenti che ereditano i colori della fazione originale.
+        *   🔥 **Evento Supernova**: Un segnale cataclismatico globale rappresentato da un enorme cubo rosso pulsante nel settore interessato, con viraggio cromatico dell'intero spazio circostante.
+        *   ⚡ **Materializzazione di Salto**: Un flash di radiazione di Hawking bianco brillante che precede la comparsa fisica di un vascello in uscita da un Wormhole.
+        *   🔧 **Feedback di Impatto (Hit Sparks)**: Scintille azzurre per gli impatti sugli scudi e frammenti metallici (acciaio, rame, bianco incandescente) per i danni diretti allo scafo.
+        *   🌟 **Fascio di Recupero**: Un raggio trasportatore dorato verticale per le operazioni di raccolta risorse e cargo.
 *   **Cubo Tattico 3D**: La griglia wireframe che avvolge il settore è ora allineata verticalmente ai livelli di profondità (S3) del comando `lrs`:
     *   🟩 **Piano Superiore (Verde)**: Corrisponde a `[ LONG RANGE DEPTH +1 ]` (Quota superiore).
     *   🟨 **Centro (Giallo)**: Corrisponde a `[ LOCAL TACTICAL ZONE 0 ]` (Tua quota attuale).
@@ -422,25 +464,23 @@ Di seguito la lista completa dei comandi disponibili, raggruppati per funzione.
     *   `M`: Mark (-90 a +90).
     *   `Dist`: Distanza in Quadranti (supporta decimali, es. `1.73`).
     *   `Fattore`: (Opzionale) Fattore Hyperdrive da 1.0 a 9.9 (Default: 6.0).
-*   `imp <H> <M> <S>`: **Motore a Impulso**. Motori sub-luce. `S` rappresenta la velocità da 0.0 a 1.0 (Full Impulse).
+*   `imp <H> <M> <S> [Dist]`: **Motore a Impulso**. Motori sub-luce. `S` rappresenta la velocità da 0.0 a 10.0.
     *   **Requisiti**: Minimo 10% di integrità del sistema Impulse (ID 1).
     *   **Costo**: 100 unità di Energia per l'inizializzazione (50 per aggiornamenti di sola velocità).
-    *   **Dinamiche**: Drenaggio energetico continuo proporzionale alla velocità. Spegnimento automatico se l'integrità raggiunge lo 0% o l'energia si esaurisce.
-    *   `S`: Velocità (0.0 - 1.0).
-    *   `imp 0 0 0`: All Stop (Arresto).
+    *   **Arresto di Precisione**: Se viene fornito il parametro opzionale `[Dist]`, il vascello spegnerà automaticamente i motori una volta raggiunte le coordinate di destinazione.
+    *   `S`: Velocità (0.0 - 10.0). `imp 0` per All Stop (Arresto).
 *   `pos <H> <M>`: **Posizionamento (Allineamento)**. Orienta la nave su un determinato Heading e Mark senza attivare i motori. 
     *   **Requisiti**: Minimo 10% di integrità del sistema Impulse (ID 1).
     *   **Costo**: 20 unità di Energia.
     *   Utile per puntare obiettivi prima di un attacco o di un salto.
 *   `cal <QX> <QY> <QZ> [SX SY SZ]`: **Computer di Navigazione (Alta Precisione)**. Genera un rapporto completo con Heading, Mark e una **Tabella di Confronto delle Velocità**. 
     *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6).
-    *   **Costo**: 25 unità di Energia per ogni calcolo.
+    *   **Sincronizzazione Reale**: Le stime temporali sono perfettamente allineate con la fisica reale della nave (Fattore 9.9 = 10 unità/sec).
     *   **Affidabilità Dati**: Se l'integrità del computer è inferiore al 50%, i calcoli potrebbero fallire o restituire risultati corrotti.
-    *   Se vengono fornite le coordinate di settore (SX, SY, SZ), calcola la rotta precisa verso quella posizione e suggerisce il comando `nav` esatto da copiare.
 *   `ical <X> <Y> <Z>`: **Calcolatore d'Impulso (ETA)**. Calcola H, M ed ETA per raggiungere coordinate precise (0.0-10.0) all'interno del quadrante attuale.
     *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6).
-    *   **Costo**: 10 unità di Energia per ogni calcolo.
-    *   **Affidabilità Dati**: Se l'integrità del computer è inferiore al 50%, i calcoli potrebbero restituire dati corrotti o incompleti.
+    *   **Consapevolezza Tattica**: Il calcolo dell'ETA tiene conto dell'**Allocazione di Potenza** attuale e dell'**Integrità dei Motori**.
+    *   **Suggerimento di Precisione**: Il computer genera un comando `imp` completo che include la distanza necessaria per un **arresto automatico** a destinazione.
     *   Calcola il vettore e il tempo di viaggio basandosi sull'attuale allocazione di potenza ai motori.
     
     *   `jum <QX> <QY> <QZ>`: **Salto Wormhole (Ponte di Einstein-Rosen)**. Genera un wormhole per un salto istantaneo verso il quadrante di destinazione.
@@ -514,12 +554,21 @@ L'efficacia dei tuoi sensori dipende direttamente dallo stato di salute del **si
     *   **Legenda Primaria**: `[ H P N B S ]` (Buchi Neri, Pianeti, NPC/Vascelle, Basi, Stelle). `N` conta tutte le navi (NPC e altri giocatori); il tuo vascello è automaticamente escluso dal conteggio del quadrante locale.
     *   **Simbologia Anomalie**: `~`:Nebulosa, `*`:Pulsar, `!`:Tempesta Ionica, `+`:Cometa, `#`:Asteroide, `M`:Mostro, `>`:Rift.
     *   **Localizzazione**: Il tuo quadrante attuale è evidenziato con uno sfondo blu.
+*   `aux`: **Panoramica Sistemi Ausiliari**. Visualizza lo stato di tutte le sonde sensoriali attive.
 *   `aux probe <QX> <QY> <QZ>`: **Sonda Sensoriale Dello spazio profondo**. Lancia una sonda automatizzata in un quadrante specifico.
     *   **Requisiti**: Minimo 10% di integrità del sistema Ausiliario (ID 9). Il lancio richiede il 25% di salute per i **Sensori (ID 2)** e il **Computer (ID 6)**.
     *   **Costo**: 1000 unità di Energia per il lancio.
-    *   **Comando `aux report <1-3>`**: Richiede un nuovo aggiornamento sensoriale da una sonda attiva. Costo: 50 unità di Energia.
-    *   **Comando `aux recover <1-3>`**: Recupera una sonda se la nave è nello stesso quadrante e a portata (< 2.0 unità), liberando lo slot e ripristinando 500 unità di energia.
-    *   **Comando `aux jettison`**: Espelle il nucleo Hyperdrive in emergenza. Richiede 100 unità di Energia. ATTENZIONE: Distrugge la nave!
+    *   **Tempo di Viaggio**: Le sonde viaggiano fisicamente attraverso la galassia. Verrai notificato via radio quando la sonda raggiungerà la destinazione. Solo allora potrai richiedere un rapporto telemetrico.
+    *   **Feedback Visivo**: Le sonde attive nel tuo settore attuale vengono renderizzate con modelli 3D unici basati sullo slot di appartenenza:
+        *   **Sonda 1**: Cubo ciano pulsante con nucleo luminoso.
+        *   **Sonda 2**: Sfera verde con tre anelli azzurri rotanti.
+        *   **Sonda 3**: Sfera arancione con tre quadrati wireframe in orbita.
+    *   Tutti i modelli sono scalati per un'alta visibilità durante le operazioni nello spazio profondo.
+*   `aux report <1-3>`: **Telemetria Sonda**. Richiede un rapporto scientifico dettagliato da una sonda attiva, inclusa la classificazione di nebulose e pulsar. Costo: 50 Energia.
+    *   **Condizione**: La sonda deve aver raggiunto la destinazione (Stato: ACTIVE). Richiedere un rapporto mentre la sonda è ancora in viaggio fallirà.
+*   `aux recover <1-3>`: **Recupero Sonda**. Recupera una sonda se la nave è nello stesso quadrante e a portata (< 2.0 unità), liberando lo slot e ripristinando 500 unità di energia.
+*   `aux jettison`: **Espulsione d'Emergenza Hyperdrive**. Espelle il nucleo Hyperdrive per prevenire una breccia imminente nel reattore.
+    *   **Effetto**: Distrugge istantaneamente l'**Hyperdrive (ID 0)** e causa massicci **danni allo Scafo e ai Sistemi**. La nave rimarrà alla deriva e incapace di saltare fino alle riparazioni in una Base Stellare. Richiede 1000 Energia.
 *   `sta`: **Rapporto di Stato**. Rapporto completo sullo stato della nave, la missione e il monitoraggio dell'**Equipaggio**.
     *   **Requisiti**: Minimo 5% di integrità del sistema Computer (ID 6).
     *   **Costo**: 10 unità di Energia per la diagnostica completa dei sistemi.
@@ -680,9 +729,7 @@ La nave è protetta da 6 quadranti indipendenti: **Frontale (F), Posteriore (R),
 
 *   **Danni Localizzati**: Gli attacchi (Ion Beam/Siluri) ora colpiscono quadranti specifici in base all'angolo relativo di impatto.
 *   **Integrità dello Scafo**: Rappresenta la salute fisica della nave (0-100%). Se un quadrante di scudo raggiunge lo 0% o l'impatto è eccessivamente potente, il danno residuo colpisce direttamente l'integrità strutturale.
-*   **Danni ai Sistemi Interni**: Quando lo scafo viene colpito direttamente (scudi a zero), c'è un'alta probabilità di subire danni ai sottosistemi (motori, armi, sensori, ecc.).
-    *   **Ion Beam**: Moderata possibilità di danni casuali ai sistemi.
-    *   **Siluri**: Altissima probabilità (>50%) di guasti critici al sistema all'impatto.
+*   **Danni ai Sistemi Interni**: Ogni colpo diretto allo scafo (quando gli scudi sono abbassati o bypassati) causa automaticamente una piccola percentuale di danno (1-5%) a un sistema di bordo scelto a caso (Motori, Sensori, Computer, ecc.). Questo rende l'esposizione dello scafo estremamente pericolosa anche contro armi a bassa potenza.
 *   **Placcatura dello Scafo (Composite)**: Una placcatura aggiuntiva (comando `hull`) funge da buffer: assorbe i danni fisici *prima* che colpiscano l'integrità dello scafo.
 *   **Condizione di Distruzione**: Se l'**Integrità dello Scafo raggiunge lo 0%**, la nave esplode istantaneamente, indipendentemente dall'energia rimanente o dai livelli degli scudi.
 *   **Rigenerazione Continua**: A differenza dei vecchi sistemi, la rigenerazione degli scudi è continua ma scala con lo stato dell'hardware.
@@ -955,6 +1002,9 @@ L'interfaccia sullo schermo (Overlay) fornisce un monitoraggio costante dei para
 *   **Integrità dello Scafo**: Stato fisico dello scafo (0-100%). Se scende a zero, il vascello è perso.
 *   **Placcatura dello Scafo**: Indicatore dorato dell'integrità dello scafo rinforzato in Composite (visibile solo se presente).
 *   **Coordinate di Settore**: Conversione istantanea dei dati spaziali in coordinate relative `[S1, S2, S3]` (0.0 - 10.0), speculari a quelle usate nei comandi `nav` e `imp`.
+*   **🌐 Sistema di Coordinate Galattiche Assolute (GDIS)**:
+    *   Per garantire precisione millimetrica, il server utilizza coordinate assolute su un cubo galattico di **100x100x100** unità. 
+    *   Tutti i comandi critici (`apr`, `bor`, `pha`, `tor`) utilizzano questo riferimento globale per eliminare errori di raggio d'azione tra settori diversi.
 *   **Rilevatore di Minacce**: Un contatore dinamico indica il numero di vascelli ostili rilevati dai sensori nel quadrante attuale.
 *   **Suite di Diagnostica Deep Space Uplink**: Un pannello diagnostico avanzato (in basso a destra) che monitora la salute del collegamento neurale/dati. Mostra in tempo reale l'Uptime del Link, il **Pulse Jitter**, l'**Integrità del Segnale**, l'efficienza del protocollo e lo stato attivo della crittografia **AES-256-GCM**.
 
@@ -1410,6 +1460,23 @@ L'ultima espressione della potenza di fuoco dell'Alleanza, equipaggiata con pesa
 
 Un vascello specializzato nell'analisi di anomalie spaziali e nella raccolta di Aetherium.
 *   **Comandante di Riferimento**: **Inquisitore Malakor** (Acquisito). Sebbene Xylari, le sue teorie sulla risonanza spaziale sono studiate in ogni missione scientifica.
+
+### 🛠️ Sistemi Tattici e di Navigazione Avanzati
+
+Il progetto implementa soluzioni ingegneristiche all'avanguardia per garantire la superiorità operativa nello spazio profondo:
+
+#### 🚀 1. Autopilota di Avvicinamento (Precision APR)
+Il sistema di navigazione assistita (`apr`) opera con una precisione millimetrica, garantendo una tolleranza di arresto di **0.01 unità di settore**.
+*   **Finalità**: Questa calibrazione estrema è essenziale per le operazioni di **Boarding (`bor`)** e **Docking**, che richiedono il posizionamento del vascello entro raggi d'azione estremamente ridotti (< 1.0 unità).
+*   **Versatilità**: Il sistema di puntamento è universale e garantisce la stessa precisione verso navi di qualsiasi fazione (Quarzite, Korthian, Swarm), basi stellari o anomalie galattiche.
+
+#### 💣 2. Sistema Torpedini Multi-Tubo (4-Tube Rotary System)
+L'architettura tattica del vascello prevede ora **4 tubi lancia-torpedini indipendenti** a rotazione automatica.
+*   **Cadenza di Fuoco**: Il sistema permette di lanciare fino a 4 siluri in rapida successione prima di saturare i buffer di caricamento.
+*   **Ciclo di Ricarica**: Ogni tubo opera su un timer di ricarica indipendente di **3 secondi** (90 tick del server).
+*   **Interfaccia HUD**: Lo stato di ogni singolo tubo è monitorato in tempo reale sul visore 3D tramite i codici: `[R]` (Pronto), `[L]` (In ricarica), `[F]` (In lancio).
+
+---
 
 #### 🛠️ Altre Classi Operative
 <table>
