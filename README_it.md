@@ -240,7 +240,15 @@ Il visualizzatore 3D è un motore di rendering standalone basato su **OpenGL e G
         *   ⚡ **Tempesta Ionica** (Bianco Wireframe): Perturbazione energetica locale.
     *   Le **tempeste ioniche** attive sono visualizzate come gusci energetici bianchi che avvolgono il quadrante.
     *   La posizione attuale del giocatore è evidenziata da un **indicatore bianco pulsante**, facilitando la navigazione a lungo raggio.
-*   **HUD Tattico Dinamico**: Implementa una proiezione 2D-su-3D (via `gluProject`) per ancorare etichette, barre della salute e identificativi direttamente sopra i vascelli. L'overlay include ora il monitoraggio in tempo reale dell'**Equipaggio (CREW)**, vitale per la sopravvivenza della missione.
+*   **HUD Tattico Dinamico**: Implementa una proiezione 2D-su-3D (via `gluProject`) per ancorare etichette, barre della salute e identificativi direttamente sopra i vascelli.
+    *   **Indicatori Ship Status**: L'HUD mostra ora gli stati operativi in tempo reale:
+        *   `DOCKED`: Stato verde, nave ancorata alla base.
+        *   `RED ALERT`: Rosso pulsante, postazioni di combattimento attive, potenza ottimizzata.
+        *   `HYPERDRIVE / IMPULSE`: Modalità di propulsione attive.
+        *   `ORBITING / SLINGSHOT`: Meccaniche orbitali specializzate.
+        *   `DRIFTING (EMERGENCY)`: Inerzia cinetica dovuta a perdita di potenza o guasto ai motori.
+    *   **Guerra Elettronica (EWAR)**: Un avviso dedicato appare se i sensori sono disturbati da tempeste ioniche o emettitori ostili.
+    *   **Equipaggio (CREW)**: Monitoraggio in tempo reale del personale, vitale per la sopravvivenza della missione.
 *   **Engine degli Effetti (VFX)**:
     *   **Trail Engine**: Ogni nave lascia una scia ionica persistente che aiuta a visualizzarne il vettore di movimento.
     *   **Combat FX**: Visualizzazione in tempo reale di raggi Ion Beam gestiti via **GLSL Shader**, siluri al plasma con bagliore dinamico ed esplosioni volumetriche.
@@ -365,6 +373,9 @@ Space GL implementa un sistema di reputazione dinamico che gestisce le relazioni
     *   Allo scadere del tempo, se non sono state commesse altre ostilità, il Comando di Settore concederà l'amnistia: `Amnesty granted. Your status has been restored to active duty.` e le unità della fazione torneranno ad essere neutrali/alleate.
 
 ### ⚠️ Pericoli e Risorse Tattiche
+*   **Interferenza Elettronica (Jamming)**: In presenza di tempeste ioniche o nemici specializzati, i sensori possono essere **disturbati**. La mappa galattica diventa illeggibile e i calcoli di navigazione vengono corrotti.
+*   **Fionda Gravitazionale (Slingshot)**: Volare ad alta velocità vicino a stelle o buchi neri può innescare un'accelerazione gravitazionale gratuita, con rischio di danni strutturali.
+*   **Deriva di Emergenza (Drift)**: In assenza di energia o propulsione, la nave entra in uno stato di deriva inerziale fino al completo arresto.
 *   **Campi di Asteroidi**: Detriti rocciosi che rappresentano un rischio fisico. Il danno da collisione aumenta con la velocità della nave.
 *   **Mine Spaziali**: Ordigni esplosivi occulti piazzati da fazioni ostili. Rilevabili solo tramite scansione ravvicinata.
 *   **Relitti alla Deriva (Derelicts)**: Gusci di navi distrutte. Possono essere smantellati (`dis`) per recuperare componenti e risorse.
@@ -404,6 +415,9 @@ Di seguito la lista completa dei comandi disponibili, raggruppati per funzione.
 
 ### 🚀 Navigazione
 *   `nav <H> <M> <Dist> [Fattore]`: **Navigazione Hyperdrive ad Alta Precisione**. Imposta rotta, distanza precisa e velocità opzionale.
+    *   **Requisiti**: Minimo 50% di integrità per **Hyperdrive (ID 0)** e **Sensori (ID 2)**.
+    *   **Costo**: 5000 unità di Energia e 1 **Cristallo di Aetherium** per l'attivazione.
+    *   **Dinamica**: Consumo energetico continuo proporzionale al fattore. Uscita automatica dall'iperspazio se l'integrità scende sotto il 50% o l'energia si esaurisce.
     *   `H`: Heading (0-359).
     *   `M`: Mark (-90 a +90).
     *   `Dist`: Distanza in Quadranti (supporta decimali, es. `1.73`).
@@ -574,9 +588,9 @@ Per interagire con gli oggetti galattici usando i comandi `lock`, `scan`, `pha`,
 | **Piattaforme** | 16.000 - 16.999| `lock 16000` | Distruzione sentinelle ostili |
 | **Rift Spaziali** | 17.000 - 17.999| `lock 17000` | Utilizzo per salti casuali |
 | **Mostri** | 18.000 - 18.999| `lock 18000` | Scenari di combattimento estremo |
-| **Sonde** | 19.000 - 19.999| `scan 19000` | Raccolta dati automatizzata |
+| **Sonde** | 19.000 - 19.999| `apr 19000` | Recupero e telemetria automatizzata |
 
-**Nota**: L'aggancio funziona solo se l'oggetto è nel tuo quadrante attuale. Se l'ID esiste ma è lontano, il computer indicherà le coordinate `Q[x,y,z]` del bersaglio.
+**Nota**: L'aggancio e l'autopilota (`apr`) funzionano solo se l'oggetto è nel tuo quadrante attuale. Se l'ID esiste ma è lontano, il computer indicherà le coordinate `Q[x,y,z]` del bersaglio.
 
 ### 🔄 Workflow Tattico Raccomandato
 Per eseguire operazioni complesse (estrazione, rifornimento, abbordaggio), segui questa sequenza ottimizzata:
@@ -591,6 +605,8 @@ Per eseguire operazioni complesse (estrazione, rifornimento, abbordaggio), segui
     *   `bor` per i **Relitti** (Recupero tecnologico e riparazioni).
     *   `cha` per le **Comete** (Inseguimento e raccolta gas).
     *   `pha` / `tor` per **Nemici/Mostri/Piattaforme** (Combattimento).
+
+**Nota sulla Portata Inter-Settore**: I comandi `apr` (avvicinamento) e `dis` (smantellamento) utilizzano ora un sistema di risoluzione globale. Questo significa che puoi puntare e raggiungere qualsiasi relitto o oggetto visibile sul tuo HUD o identificato dai sensori, anche se si trova in un quadrante adiacente al tuo. Il sistema gestirà automaticamente la navigazione a lungo raggio.
 
 ### 📏 Tabella delle Distanze di Interazione
 Distanze espresse in unità di settore (0.0 - 10.0). Se la tua distanza è superiore al limite, il computer risponderà con "No [object] in range".
@@ -699,9 +715,11 @@ Il comando `clo` attiva un'avanzata tecnologia di occultamento che manipola la l
 ### 💓 Supporto Vitale e Sicurezza dell'Equipaggio
 L'HUD visualizza "LIFE SUPPORT: XX.X%", che è direttamente collegato all'integrità dei sistemi vitali della nave.
 *   **Inizializzazione**: Ogni missione inizia con il Supporto Vitale al 100%.
-*   **Soglia Critica**: Se la percentuale scende sotto il **75%**, l'equipaggio inizierà a subire perdite a causa di fallimenti ambientali (radiazioni, perdita di ossigeno o fluttuazioni di gravità).
+*   **Soglia Critica**: Se la percentuale scende sotto il **75%**, l'equipaggio inizierà a subire perdite periodiche.
+*   **Gestione Rigorosa**: Il conteggio dell'equipaggio è protetto e non può mai scendere sotto lo zero.
+*   **Fine Missione Istantanea**: Se il numero dell'equipaggio raggiunge lo **zero**, il vascello viene dichiarato perso istantaneamente. I sistemi si disattivano, l'energia viene azzerata e viene generata un'esplosione strutturale.
+*   **Limiti Tattici**: Durante le operazioni di abbordaggio (`bor`), non è possibile trasferire o catturare più personale di quello effettivamente presente a bordo dei vascelli coinvolti.
 *   **Riparazioni di Emergenza**: Mantenere il Supporto Vitale sopra la soglia è la massima priorità. Usa immediatamente `rep 7` se l'integrità è compromessa.
-*   **Fallimento della Missione**: Se il numero dell'equipaggio raggiunge lo **zero**, il vascello viene dichiarato perso e la simulazione termina.
 
 **Feedback HUD**: L'allocazione attuale è visibile nel pannello diagnostico in basso a destra come `POWER: E:XX% S:XX% W:XX%`. Il monitoraggio è essenziale per assicurarsi che la nave sia ottimizzata per la fase di missione corrente (Esplorazione vs. Combattimento).
 
@@ -711,7 +729,9 @@ L'HUD visualizza "LIFE SUPPORT: XX.X%", che è direttamente collegato all'integr
     *   **Costo**: 5000 unità di Energia per tentativo.
     *   **Probabilità di Successo**: Scalata dall'integrità dei Trasportatori (Base 20% + fino al 40%).
     *   Funziona sul **bersaglio attualmente agganciato** se non viene specificato alcun ID.
-    *   **Interazione NPC/Relitto**: Ricompense automatiche (Aetherium, Chip, Riparazioni, Superstiti o Prigionieri).
+    *   **Interazione NPC/Relitto**: Apre un **Menu Tattico** specifico:
+        *   **Vascelli Ostili (NPC)**: `1`: Sabotaggio Motori (Immobilizzazione), `2`: Raid Stiva (Risorse), `3`: Cattura Prigionieri. **Nota**: L'abbordaggio NPC richiede che il bersaglio sia **disabilitato** (Motori < 50% o Scafo < 50%).
+        *   **Relitti/Derelict**: `1`: Recupero Risorse, `2`: Decrittazione Dati Mappa, `3`: Riparazioni d'Emergenza, `4`: Salvataggio Superstiti (Equipaggio). **Nota**: L'abbordaggio dei relitti non ne causa più la distruzione automatica.
     *   **Interazione Giocatore-Giocatore**: Apre un **Menu Tattico Interattivo** con scelte specifiche:
         *   **Vascelli Alleati**: `1`: Trasferisci Energia, `2`: Ripara Sistema, `3`: Invia Rinforzi Equipaggio.
         *   **Vascelli Ostili**: `1`: Sabotaggio Sistema, `2`: Incursione nella Stiva, `3`: Cattura Ostaggi.
@@ -822,13 +842,17 @@ Space GL distingue tra **Sistemi Attivi**, **Stoccaggio del Carico** e l'**Unit�
 
 Il ponte di comando di Space GL opera tramite un'interfaccia a riga di comando (CLI) ad alta precisione. Oltre alla navigazione e al combattimento, il simulatore implementa un sofisticato sistema di **Guerra Elettronica** basato sulla crittografia del mondo reale.
 
+**Nota sull'Help**: Il comando `help` è gestito centralmente dal server. Questo garantisce che la directory dei comandi LCARS sia sempre sincronizzata con le ultime capacità tattiche e le specifiche degli ID degli oggetti.
+
 #### 🛰️ Comandi Avanzati di Navigazione e Utilità
+*   `red`: **Allarme Rosso**. Commuta lo stato di allerta tattica. Bilancia automaticamente la potenza tra scudi e armi. HUD pulsante rosso.
+*   `orb`: **Orbita Planetaria**. Entra in un'orbita stabile attorno al pianeta agganciato (< 1.0 unità). Fornisce stabilità tattica.
 *   `nav <H> <M> <W> [F]`: **Navigazione Hyperdrive**. Traccia una rotta Hyperdrive verso coordinate relative. `H`: Heading (0-359), `M`: Mark (-90/+90), `W`: Distanza in quadranti, `F`: Fattore Hyperdrive opzionale (1.0 - 9.9).
 *   `imp <H> <M> <S>`: **Motore a Impulso**. Navigazione sub-luce all'interno del settore attuale. `S`: Velocità in percentuale (1-100%). Usa `imp <S>` per regolare solo la velocità.
 *   `pos <H> <M>`: **Posizionamento (Allineamento)**. Orienta la nave su Heading/Mark senza movimento.
 *   `jum <Q1> <Q2> <Q3>`: **Salto Wormhole**. Genera un tunnel spaziale verso un quadrante distante. Richiede **5000 Energia e 1 Cristallo di Aetherium**.
 *   `apr <ID> [DIST]`: **Avvicinamento Automatico**. L'autopilota intercetta l'oggetto specificato alla distanza desiderata (default 2.0). Funziona in tutta la galassia per navi e comete.
-*   `cha`: **Inseguimento Bersaglio**. Insegue attivamente il bersaglio attualmente agganciato (`lock`).
+*   `cha`: **Inseguimento Bersaglio**. Insegue attivamente il bersaglio attualmente agganciato (`lock`). Per gli NPC ostili, mantiene una distanza di sicurezza di **3.0 unità** se operativi, avvicinandosi a **1.5 unità** solo se disabilitati. Per le comete, mantiene la distanza di raccolta gas (< 0.6).
 *   `rep <ID>`: **Riparazione Sistema**. Avvia le riparazioni su un sottosistema (1: Hyperdrive, 2: Impulse, 3: Sensori, 4: Ion Beam, 5: Siluri, ecc.).
 *   `fix`: **Riparazione Scafo**. Ripristina +15% di integrità (50 Grafene, 20 Neo-Ti).
 *   `inv`: **Rapporto Inventario**. Elenco dettagliato delle risorse nella stiva (Aetherium, Neo-Titanium, Gas Nebulare, ecc.).
@@ -946,12 +970,16 @@ Il comandante può configurare la propria interfaccia tramite rapidi comandi CLI
 ## ⚠️ Rapporto Tattico: Minacce e Ostacoli
 
 ### Capacità delle Navi NPC
-Le navi controllate dal computer (Korthian, Xylari, Swarm, ecc.) operano con protocolli di combattimento standardizzati:
+Le navi controllate dal computer (Korthian, Xylari, Swarm, ecc.) operano con protocolli di combattimento avanzati:
 *   **Armamento Primario**: Attualmente, le navi NPC sono equipaggiate esclusivamente con **Banchi Ion Beam**.
-*   **Potenza di Fuoco**: I Ion Beam nemici infliggono un danno costante di **10 unità** di energia per colpo (ridotto per bilanciamento).
+*   **Integrità NPC**: Ogni vascello NPC possiede un sistema di difesa a due livelli:
+    *   **Placcatura (Plating)**: Uno scudo fisico iniziale che assorbe i danni residui.
+    *   **Scafo (Health)**: L'integrità strutturale interna (Max 1000).
+*   **Danni ai Sistemi**: I colpi che penetrano la corazza hanno il **15% di probabilità** di danneggiare i motori nemici (`engine_health`).
+*   **Disattivazione Motori**: Se l'integrità dello scafo di una nave NPC scende sotto il **50% (500 HP)**, i suoi motori vengono disattivati permanentemente. La nave rimarrà immobile, facilitando le manovre di abbordaggio (`bor`).
 *   **Portata di Ingaggio**: Le navi ostili apriranno automaticamente il fuoco se un giocatore entra in un raggio di **6.0 unità** (Settore).
 *   **Cadenza di Fuoco**: Circa un colpo ogni 5 secondi.
-*   **Tattiche**: Le navi NPC non usano siluri al plasma. La loro strategia principale consiste nell'approccio diretto (Chase) o nella fuga se l'energia scende sotto i livelli critici.
+*   **Tattiche**: Le navi NPC non usano siluri al plasma. La loro strategia principale consiste nell'approccio diretto (`cha`) o nella fuga se l'energia scende sotto i livelli critici.
 
 ### ☄️ Dinamiche dei Siluri al plasma
 I siluri (comando `tor`) sono armi simulate fisicamente con alta precisione:
@@ -963,6 +991,9 @@ I siluri (comando `tor`) sono armi simulate fisicamente con alta precisione:
 
 ### 🌪️ Anomalie Spaziali e Rischi Ambientali
 Il quadrante è disseminato di fenomeni naturali rilevabili sia dai sensori che dalla **vista tattica 3D**:
+*   **Mostri Spaziali (ID 18xxx)**: Entità biologiche ostili (Entità Cristallina, Amoeba Spaziale). Sono estremamente aggressive e possono essere inseguite con il comando `cha`.
+*   **Piattaforme di Difesa (ID 16xxx)**: Strutture fisse pesantemente armate che proteggono settori strategici. Possono essere agganciate (`lock`), scansionate (`scan`) e distrutte con fasatori o siluri.
+*   **Rift Spaziali (ID 17xxx)**: Distorsioni nel tessuto spazio-temporale.
 *   **Nebulose (ID 8xxx)**:
     *   **Classi**: Standard, Alta Energia, Materia Oscura, Ionica, Gravimetrica, Temporale.
     *   **Effetto**: Nubi di gas e particelle che interferiscono con i sensori a corto e lungo raggio (rumore telemetrico e distorsione).
@@ -973,15 +1004,25 @@ Il quadrante è disseminato di fenomeni naturali rilevabili sia dai sensori che 
     *   **Effetto**: Stelle di neutroni a rotazione rapida che emettono radiazioni letali.
     *   **Vista 3D**: Visibili come nuclei luminosi con fasci di radiazioni rotanti.
     *   **Pericolo**: Avvicinarsi troppo (Distanza < 2.5) danneggia gravemente gli scudi e uccide rapidamente l'equipaggio per avvelenamento da radiazioni.
-*   **Comete (ID 6xxx)**:
-    *   **Effetto**: Oggetti in movimento veloce che attraversano il settore.
+*   **Comete (ID 10xxx)**:
+    *   **Effetto**: Oggetti in movimento veloce che attraversano il settore in orbite eccentriche.
     *   **Vista 3D**: Nuclei ghiacciati con una scia blu di gas e polvere.
-    *   **Risorsa**: Avvicinarsi alla coda (< 0.6) permette la raccolta di gas rari.
+    *   **Azioni Tattiche**: Possono essere agganciate (`lock`), scansionate (`scan`) e intercettate con l'autopilota (`apr`).
+    *   **Raccolta Risorse**: Avvicinarsi alla coda (**Distanza < 0.6**) permette la raccolta automatica di **Gas Nebulare**.
+    *   **Strategia**: Usa il comando `cha` (Inseguimento) per sincronizzare la velocità della nave con quella della cometa, facilitando il mantenimento della posizione nella scia per una raccolta ottimale.
 *   **Campi di Asteroidi (ID 8xxx)**:
     *   **Effetto**: Ammassi di rocce spaziali di varie dimensioni.
     *   **Vista 3D**: Rocce marroni rotanti con forme irregolari.
-    *   **Pericolo**: Navigare all'interno ad alta velocità d'impulso (> 0.1) causa danni continui a scudi e motori.
-*   **Relitti di Navi (ID 7xxx)**:
+    *   **Pericolo**: Navigare all'interno a velocità d'impulso superiore a **0.1** causa danni continui agli scudi. Se gli scudi sono esauriti, l'**Integrità dello Scafo** viene erosa progressivamente. Ridurre la velocità sotto 0.1 per navigare in sicurezza.
+*   **Singolarità / Buchi Neri (ID 7xxx)**:
+    *   **Slingshot Stress**: Durante una manovra di fionda gravitazionale (`NAV_STATE_SLINGSHOT`), velocità superiori a **1.5** causano stress strutturale con danni periodici allo scafo.
+    *   **Raccolta Pericolosa**: L'estrazione di antimateria (`har`) senza protezione degli scudi danneggia direttamente lo scafo a causa delle forze di marea.
+
+### 🛠️ Manutenzione e Riparazioni
+**Nota Importante**: L'integrità dello scafo **non si rigenera mai autonomamente**. 
+*   **Riparazione sul campo**: Usa il comando `fix` (richiede 50 Grafene e 20 Neo-Ti).
+*   **Revisione Totale**: Attracca a una Base Stellare (`doc`) per un ripristino completo e gratuito.
+*   **Sistemi**: Solo gli scudi energetici si ricaricano autonomamente (se il reattore ha energia sufficiente e il sistema ID 8 è operativo).
     *   **Effetto**: Vascelli del Comando dell'Alleanza o alieni abbandonati.
     *   **Vista 3D**: Scafi scuri e freddi che fluttuano lentamente nello spazio.
     *   **Opportunità**: Possono essere esplorati tramite il comando `bor` (abbordaggio) per recuperare Aetherium, Chip Synaptics o per eseguire riparazioni di emergenza istantanee.
@@ -1050,11 +1091,11 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 <table>
 <tr>
     <td><img src="readme_assets/gpc-xylari.png" alt="Xylari Star Empire" width="200"/></td>
-    <td><img src="readme_assets/actor-alara-valerius-selatal.png" alt="Alto Comando Xylario" width="200"/></td>
+    <td><img src="readme_assets/actor-alara-xal-selatal.png" alt="Alto Comando Xylario" width="200"/></td>
   </tr>
 </table>
 
-*   **Valerius**: Comandante di vascelli di classe D'deridex e storico avversario tattico.
+*   **Xal'Tar**: Comandante di vascelli di classe D'deridex e storico avversario tattico.
 *   **Alara**: Comandante operativo e stratega specializzata in operazioni di infiltrazione.
 *   **Sela Tal**: Comandante della Nightshade, celebre per la manipolazione dei confini e l'orchestrazione del blocco silenzioso nel Settore Ombra.
 
@@ -1140,7 +1181,7 @@ Questa sezione fornisce un riferimento ufficiale ai comandanti più celebrati de
 
 *   **Boothby (Impostore)**: Entità dedicata all'infiltrazione e allo studio del comando della Flotta.
 *   **Bio-Nave Alpha**: Designazione del coordinatore tattico dei vascelli organici.
-*   **Valerie Archer (Impostore)**: Soggetto di infiltrazione per missioni di ricognizione profonda.
+*   **Lyrerie Archer (Impostore)**: Soggetto di infiltrazione per missioni di ricognizione profonda.
 
 #### 10. Enclave Cryos
 <table>

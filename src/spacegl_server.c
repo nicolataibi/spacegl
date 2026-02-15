@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
     printf(" | \033[1;37m   ╚══════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚══════╝     ╚═════╝ ╚══════╝         \033[1;31m  |\n" );
     printf(" |                                                                            |\n" );
     printf(" | \033[1;31m             ---  G A L A C T I C   S E R V E R   C O R E  ---            \033[1;31m |\n" );
-    printf(" | \033[1;33m          \"Per Tenebras, Lumen\" (Attraverso le tenebre, la luce)          \033[1;31m |\n" );
+    printf(" | \033[1;33m          \"Per Tenebras, Lumen\" (Through darkness, light)                 \033[1;31m |\n" );
     printf(" |                                                                            |\n" );
     printf(" | \033[1;37m  Copyright (C) 2026 \033[1;32mNicola Taibi\033[1;37m                                        \033[1;31m  |\n" );
     printf(" | \033[1;37m  AI Core Support by \033[1;34mGoogle Gemini\033[1;37m                                       \033[1;31m  |\n" );

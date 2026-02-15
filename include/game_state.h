@@ -108,6 +108,8 @@ typedef struct {
     float power_dist[3];
     uint8_t is_playing_dead;
     uint8_t is_cloaked;
+    uint8_t red_alert;
+    uint8_t is_jammed;
     float system_health[10];
     float hull_integrity;
     float life_support;

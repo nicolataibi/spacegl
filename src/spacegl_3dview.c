@@ -479,6 +479,9 @@ int g_show_grid = 0;
 int g_show_map = 0;
 int g_show_bridge = 0;
 int g_is_docked = 0;
+int g_red_alert = 0;
+int g_is_jammed = 0;
+int g_nav_state = 0;
 int g_map_filter = 0;
 int g_my_q[3] = {1,1,1};
 int64_t g_galaxy[11][11][11];
@@ -666,6 +669,9 @@ void loadGameState() {
     for(int inv=0; inv<10; inv++) g_inventory[inv] = g_shared_state->inventory[inv];
     g_lock_target = g_shared_state->shm_lock_target;
     g_is_docked = g_shared_state->shm_is_docked;
+    g_red_alert = g_shared_state->shm_red_alert;
+    g_is_jammed = g_shared_state->shm_is_jammed;
+    g_nav_state = g_shared_state->shm_nav_state;
     int total_s = 0;
     for(int s=0; s<6; s++) {
         /* Always detect a hit if the shared state value is less than our last tracked value,
@@ -2378,7 +2384,7 @@ void drawExplorerMap() {
                     float v_y = sin(r_m);
                     float v_z = cos(r_h) * cos(r_m);
                     
-                    float line_len = gap * 1.5f;
+                    float line_len = gap * 0.75f;
                     glLineWidth(1.0f);
                     glBegin(GL_LINES);
                     glColor3f(1.0f, 1.0f, 0.0f); /* Bright Yellow Line */
@@ -2393,7 +2399,7 @@ void drawExplorerMap() {
                     glRotatef(g_shared_state->shm_h, 0, 1, 0);
                     glRotatef(-g_shared_state->shm_m, 1, 0, 0);
                     glColor3f(1.0f, 0.0f, 0.0f); /* Red Pointer */
-                    glutSolidCone(0.05, 0.15, 8, 8);
+                    glutSolidCone(0.1, 0.3, 8, 8);
                     glPopMatrix();
                     
                     glLineWidth(1.0f);
@@ -2968,8 +2974,7 @@ void display() {
     glMatrixMode(GL_MODELVIEW); glLoadIdentity();
 
     /* Cinematic Camera Transition */
-    float target_zoom = -35.0f; /* Map Zoom */
-    float current_zoom = zoom * (1.0f - map_anim) + target_zoom * map_anim;
+    float current_zoom = zoom - (21.0f * map_anim);
     
     if (bridge_anim > 0.001f && objects[0].id != 0) {
         if (bridge_anim >= 0.999f) {
@@ -3351,7 +3356,12 @@ void display() {
         /* Show Map specific text */
         glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity(); gluOrtho2D(0, 1000, 0, 1000); glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
         glDisable(GL_LIGHTING); glColor3f(0, 1, 1);
-        drawText3D(20, 960, 0, "--- STELLAR CARTOGRAPHY: FULL GALAXY VIEW ---");
+        if (g_is_jammed) {
+            glColor3f(1, 0, 0);
+            drawText3D(20, 960, 0, "--- CARTOGRAPHY FAILURE: SENSORS JAMMED ---");
+        } else {
+            drawText3D(20, 960, 0, "--- STELLAR CARTOGRAPHY: FULL GALAXY VIEW ---");
+        }
         
         int fy = 920;
         /* Vertical list: Color Block + Object Name */
@@ -3413,11 +3423,36 @@ void display() {
         if (g_is_docked) {
             glColor3f(0.0f, 1.0f, 0.0f); /* Green */
             sprintf(buf, "SHIP STATUS: DOCKED (Systems Secured)");
+        } else if (g_red_alert) {
+            float blink = (float)sin(glutGet(GLUT_ELAPSED_TIME)*0.01) * 0.5f + 0.5f;
+            glColor3f(1.0f, blink * 0.3f, 0.0f); /* Pulsing Red/Orange */
+            sprintf(buf, "SHIP STATUS: RED ALERT (Battle Stations)");
         } else {
             glColor3f(0.0f, 1.0f, 1.0f); /* Bright Cyan */
-            sprintf(buf, "SHIP STATUS: UNDOCKED (Deep Space Active)");
+            const char* st_name = "ACTIVE";
+            switch(g_nav_state) {
+                case 1:  st_name = "ALIGNING"; break;
+                case 2:  st_name = "HYPERDRIVE"; break;
+                case 3:  st_name = "REALIGNING"; break;
+                case 4:  st_name = "IMPULSE"; break;
+                case 5:  st_name = "CHASING"; break;
+                case 6:  st_name = "ALIGNING (IMP)"; break;
+                case 7:  st_name = "WORMHOLE JUMP"; break;
+                case 8:  st_name = "RE-ORIENTING"; break;
+                case 9:  st_name = "DOCKING SEQUENCE"; break;
+                case 10: st_name = "DRIFTING (EMERGENCY)"; break;
+                case 11: st_name = "ORBITING"; break;
+                case 12: st_name = "GRAV-SLINGSHOT"; break;
+                default: st_name = "ACTIVE"; break;
+            }
+            sprintf(buf, "SHIP STATUS: %s", st_name);
         }
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
+
+        if (g_is_jammed) {
+            glColor3f(1.0f, 1.0f, 1.0f);
+            drawText3D(x_off, y_pos, 0, "WARNING: ELECTRONIC WARFARE JAMMING ACTIVE"); y_pos -= 20;
+        }
 
         glColor3f(0.0f, 1.0f, 1.0f); /* Cyan */
         /* Convert focal point coordinates back to Stellar sector coordinates (0 to 10) */

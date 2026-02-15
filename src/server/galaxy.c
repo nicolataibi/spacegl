@@ -458,6 +458,10 @@ void generate_galaxy() {
                     n->x = (rand()%100)/10.0; n->y = (rand()%100)/10.0; n->z = (rand()%100)/10.0;
                     n->gx = (i-1)*10.0 + n->x; n->gy = (j-1)*10.0 + n->y; n->gz = (l-1)*10.0 + n->z;
                     n->energy = energy; n->engine_health = 100.0f;
+                    n->health = 1000;
+                    if (faction == FACTION_SWARM) n->plating = 100000;
+                    else if (faction == FACTION_HIROGEN || faction == FACTION_SPECIES_8472) n->plating = 50000;
+                    else n->plating = 15000;
                     n->nav_timer = 60 + rand()%241; n->ai_state = AI_STATE_PATROL;
                     n_count++; actual_k++;
                 }
@@ -508,7 +512,9 @@ void generate_galaxy() {
                     ast_count++; actual_ast++;
                 }
                 for(int d=0; d<der && der_count < MAX_DERELICTS; d++) {
-                    derelicts[der_count] = (NPCDerelict){.id=der_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .ship_class=rand()%13, .active=1}; der_count++; actual_der++;
+                    int dfac = FACTION_ALLIANCE;
+                    if (rand()%100 < 20) dfac = 10 + (rand()%11); /* 20% chance of alien wreck */
+                    derelicts[der_count] = (NPCDerelict){.id=der_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .ship_class=rand()%13, .active=1, .faction=dfac}; der_count++; actual_der++;
                 }
                 for(int m=0; m<mine_field && mine_count < MAX_MINES; m++) {
                     mines[mine_count] = (NPCMine){.id=mine_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .faction=FACTION_KORTHIAN, .active=1}; mine_count++; actual_mine++;

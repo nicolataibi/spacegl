@@ -35,7 +35,11 @@ typedef enum {
     NAV_STATE_ALIGN_IMPULSE,
     NAV_STATE_WORMHOLE,
     NAV_STATE_ALIGN_ONLY,
-    NAV_STATE_DOCKING
+    NAV_STATE_DOCKING,
+    NAV_STATE_DRIFT,
+    NAV_STATE_ORBIT,
+    NAV_STATE_SLINGSHOT,
+    NAV_STATE_APPROACH
 } NavState;
 
 typedef struct {
@@ -58,6 +62,7 @@ typedef struct {
     int nav_timer;
     double hyper_speed;
     double approach_dist;
+    int apr_target;
     
     /* Torpedo State */
     bool torp_active;
@@ -96,7 +101,7 @@ typedef struct { int id, q1, q2, q3; double x, y, z; int type, active; } NPCNebu
 typedef struct { int id, q1, q2, q3; double x, y, z; int active; } NPCPulsar;
 typedef struct { int id, q1, q2, q3; double x, y, z, h, m; double a, b, angle, speed, inc; double cx, cy, cz; int active; } NPCComet;
 typedef struct { int id, q1, q2, q3; double x, y, z; float size; int resource_type, amount, active; } NPCAsteroid;
-typedef struct { int id, q1, q2, q3; double x, y, z; int ship_class; int active; } NPCDerelict;
+typedef struct { int id, q1, q2, q3; double x, y, z; int ship_class; int active; int faction; } NPCDerelict;
 typedef struct { int id, q1, q2, q3; double x, y, z; int faction; int active; } NPCMine;
 typedef struct { int id, q1, q2, q3; double x, y, z; int active; } NPCBuoy;
 typedef struct { int id, faction, q1, q2, q3; double x, y, z; int health, energy, active; int fire_cooldown; } NPCPlatform;
@@ -108,6 +113,7 @@ typedef struct {
     double x, y, z, h, m; 
     double gx, gy, gz; /* Absolute Galactic Coordinates 0-100 */
     int energy, active; 
+    int health, plating;
     float engine_health; 
     int fire_cooldown; 
     AIState ai_state; 

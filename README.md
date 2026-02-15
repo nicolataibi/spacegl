@@ -240,7 +240,15 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
         *   ⚡ **Ion Storm** (White Wireframe): Local energy perturbation.
     *   Active **ion storms** are visualized as white energy shells surrounding the quadrant.
     *   The player's current position is highlighted by a **pulsing white indicator**, facilitating long-range navigation.
-*   **Dynamic Tactical HUD**: Implements a 2D-on-3D projection (via `gluProject`) to anchor labels, health bars, and IDs directly above vessels. The overlay now includes real-time monitoring of **Crew (CREW)**, vital for mission survival.
+*   **Dynamic Tactical HUD**: Implements a 2D-on-3D projection (via `gluProject`) to anchor labels, health bars, and IDs directly above vessels.
+    *   **Ship Status Indicators**: The HUD now displays real-time operational states:
+        *   `DOCKED`: Green status, ship is secured at base.
+        *   `RED ALERT`: Pulsing red, battle stations active, power optimized for combat.
+        *   `HYPERDRIVE / IMPULSE`: Active propulsion modes.
+        *   `ORBITING / SLINGSHOT`: Specialized orbital mechanics.
+        *   `DRIFTING (EMERGENCY)`: Kinetic inertia due to power loss or engine failure.
+    *   **Electronic Warfare (EWAR)**: A dedicated warning appears if sensors are jammed by Ion Storms or hostile emitters.
+    *   **Crew (CREW)**: Real-time monitoring of personnel, vital for mission survival.
 *   **Effects Engine (VFX)**:
     *   **Trail Engine**: Each ship leaves a persistent ionic trail that helps visualize its movement vector.
     *   **Combat FX**: Real-time visualization of Ion Beam beams managed via **GLSL Shaders**, Plasma Torpedoes with dynamic glow, and volumetric explosions.
@@ -365,6 +373,9 @@ Space GL implements a dynamic reputation system that manages relationships betwe
     *   When the timer expires, if no further hostilities have been committed, Sector Command will grant amnesty: `Amnesty granted. Your status has been restored to active duty.` and faction units will return to being neutral/allied.
 
 ### ⚠️ Tactical Hazards and Resources
+*   **Electronic Warfare Jamming**: In high-intensity Ion Storms or near specialized hostiles, ship sensors can be **jammed**. The Galaxy Map will fail to render and navigational computers will return corrupted data.
+*   **Gravitational Slingshot**: Flying at high speed near stars or black holes can trigger a gravitational assist, providing massive acceleration without energy cost, but risking hull stress damage.
+*   **Emergency Drift**: If energy is depleted or propulsion systems are destroyed, the ship enters a drift state, maintaining inertia until speed is neutralized.
 *   **Asteroid Fields**: Rocky debris posing a physical risk. Collision damage increases with ship speed.
 *   **Space Mines**: Hidden explosive devices placed by hostile factions. Detectable only via close-range scanning.
 *   **Derelict Ships**: Hulls of destroyed vessels. Can be dismantled (`dis`) to recover components and resources.
@@ -404,6 +415,9 @@ Below is the complete list of available commands, grouped by function.
 
 ### 🚀 Navigation
 *   `nav <H> <M> <Dist> [Factor]`: **High-Precision Hyperdrive Navigation**. Set course, precise distance and optional velocity.
+    *   **Requirements**: Minimum 50% integrity for both **Hyperdrive (ID 0)** and **Sensors (ID 2)**.
+    *   **Cost**: 5000 units of Energy and 1 **Aetherium Crystal** for activation.
+    *   **Dynamics**: Continuous energy drain proportional to factor. Automatic drop to sub-light if integrity falls below 50% or energy is depleted.
     *   `H`: Heading (0-359).
     *   `M`: Mark (-90 to +90).
     *   `Dist`: Distance in Quadrants (supports decimals, e.g. `1.73`).
@@ -574,9 +588,9 @@ To interact with galactic objects using the `lock`, `scan`, `pha`, `tor`, `bor`,
 | **Platforms** | 16,000 - 16,999| `lock 16000` | Destroying hostile sentinels |
 | **Spatial Rifts** | 17,000 - 17,999| `lock 17000` | Use for random jumps |
 | **Monsters** | 18,000 - 18,999| `lock 18000` | Extreme combat scenarios |
-| **Probes** | 19,000 - 19,999| `scan 19000` | Automated data collection |
+| **Probes** | 19,000 - 19,999| `apr 19000` | Recovery and automated telemetry |
 
-**Note**: Locking only works if the object is in your current quadrant. If the ID exists but is far away, the computer will indicate the target's `Q[x,y,z]` coordinates.
+**Note**: Locking and autopilot (`apr`) only work if the object is in your current quadrant. If the ID exists but is far away, the computer will indicate the target's `Q[x,y,z]` coordinates.
 
 ### 🔄 Recommended Tactical Workflow
 To perform complex operations (mining, resupply, boarding), follow this optimized sequence:
@@ -591,6 +605,8 @@ To perform complex operations (mining, resupply, boarding), follow this optimize
     *   `bor` for **Derelicts** (Tech recovery and repairs).
     *   `cha` for **Comets** (Chase and gas collection).
     *   `pha` / `tor` for **Enemies/Monsters/Platforms** (Combat).
+
+**Note on Inter-Sector Scope**: The `apr` (approach) and `dis` (dismantle) commands now use a global resolution system. This means you can target and reach any wreck or object visible on your HUD or identified by sensors, even if it is in an adjacent quadrant. The system will automatically handle long-range navigation.
 
 ### 📏 Interaction Distances Table
 Distances expressed in sector units (0.0 - 10.0). If your distance is greater than the limit, the computer will respond with "No [object] in range".
@@ -699,9 +715,11 @@ The `clo` command activates an advanced cloaking technology that manipulates lig
 ### 💓 Life Support and Crew Safety
 The HUD displays "LIFE SUPPORT: XX.X%", which is directly linked to the integrity of the ship's vital systems.
 *   **Initialization**: Every mission starts with Life Support at 100%.
-*   **Critical Threshold**: If the percentage drops below **75%**, the crew will begin to suffer casualties due to environmental failure (radiation, oxygen loss, or gravity fluctuations).
+*   **Critical Threshold**: If the percentage drops below **75%**, the crew will begin to suffer periodic casualties.
+*   **Rigid Management**: The crew count is protected and can never drop below zero.
+*   **Instant Mission Failure**: If the crew count reaches **zero**, the vessel is declared lost instantly. Systems deactivate, energy is zeroed out, and a structural explosion is triggered.
+*   **Tactical Limits**: During boarding operations (`bor`), it is impossible to transfer or capture more personnel than are actually present on the vessels involved.
 *   **Emergency Repairs**: Maintaining Life Support above the threshold is the highest priority. Use `rep 7` immediately if integrity is compromised.
-*   **Mission Failure**: If the crew count reaches **zero**, the vessel is declared lost, and the simulation ends.
 
 **HUD Feedback**: The current allocation is visible in the bottom-right diagnostics panel as `POWER: E:XX% S:XX% W:XX%`. Monitoring this is essential to ensure your ship is optimized for the current mission phase (Exploration vs. Combat).
 
@@ -711,12 +729,14 @@ The HUD displays "LIFE SUPPORT: XX.X%", which is directly linked to the integrit
     *   **Cost**: 5000 units of Energy per attempt.
     *   **Success Chance**: Scaled by Transporter integrity (Base 20% + up to 40%).
     *   Works on the currently **locked target** if no ID is specified.
-    *   **NPC/Derelict Interaction**: Automatic rewards (Aetherium, Chips, Repairs, Survivors, or Prisoners).
-    *   **Player-to-Player Interaction**: Opens an **Interactive Tactical Menu** with specific choices.
+    *   **NPC/Derelict Interaction**: Opens a specific **Tactical Menu**:
+        *   **Hostile NPC Vessels**: `1`: Sabotage Engines (Immobilization), `2`: Raid Cargo Bay (Resources), `3`: Capture Prisoners. **Note**: NPC boarding requires the target to be **disabled** (Engines < 50% or Hull < 50%).
+        *   **Wrecks/Derelicts**: `1`: Salvage Resources, `2`: Decrypt Map Data, `3`: Emergency Repairs, `4`: Rescue Survivors (Crew). **Note**: Boarding a derelict no longer causes its automatic destruction.
+    *   **Player-to-Player Interaction**: Opens an **Interactive Tactical Menu**:
         *   **Allied Vessels**: `1`: Transfer Energy, `2`: Repair System, `3`: Send Crew Reinforcements.
         *   **Hostile Vessels**: `1`: Sabotage System, `2`: Raid Cargo Hold, `3`: Capture Hostages.
     *   **Selection**: Reply with the number `1`, `2`, or `3` to execute the action.
-    *   **Risks**: Resistance chance (30% for players, higher for NPCs) may cause team casualties.
+    *   **Risks**: Resistance chance (30% for players, variable for NPCs) may cause team casualties.
 *   `dis`: **Dismantle**. Dismantles enemy wrecks for resources (Dist < 1.5).
     *   **Requirements**: Minimum 15% Transporter system integrity (ID 3).
     *   **Cost**: 500 units of Energy per operation.
@@ -822,7 +842,11 @@ Space GL distinguishes between **Active Systems**, **Cargo Storage**, and the **
 
 The Space GL bridge operates via a high-precision Command Line Interface (CLI). Beyond navigation and combat, the simulator implements a sophisticated **Electronic Warfare** system based on real-world cryptography.
 
+**Help Note**: The `help` command is managed centrally by the server. This ensures the LCARS command directory is always synchronized with the latest tactical capabilities and object ID specifications.
+
 #### 🛰️ Advanced Navigation & Utility Commands
+*   `red`: **Red Alert**. Toggles combat readiness. Automatically balances power to shields and weapons. High visibility red HUD.
+*   `orb`: **Planetary Orbit**. Enters a stable orbit around the locked planet (< 1.0 units). Provides tactical stability and sensor focus.
 *   `nav <H> <M> <W> [F]`: **Hyperdrive Navigation**. Plots a Hyperdrive course towards relative coordinates. `H`: Heading (0-359), `M`: Mark (-90/+90), `W`: Distance in quadrants, `F`: Optional Hyperdrive Factor (1.0 - 9.9).
 *   `imp <H> <M> <S>`: **Impulse Drive**. Sub-light engines. `S` represents speed from 0.0 to 1.0 (Full Impulse).
     *   **Requirements**: Minimum 10% Impulse system integrity (ID 1).
@@ -836,7 +860,7 @@ The Space GL bridge operates via a high-precision Command Line Interface (CLI). 
     *   Ideal for tactical positioning before a jump or Ion Beam fire.
 *   `jum <Q1> <Q2> <Q3>`: **Wormhole Jump**. Generates a spatial tunnel to a distant quadrant. Requires **5000 Energy and 1 Aetherium Crystal**.
 *   `apr <ID> [DIST]`: **Automatic Approach**. Autopilot intercepts the specified object at the desired distance (default 2.0). Works galaxy-wide for ships and comets.
-*   `cha`: **Chase Target**. Actively pursues the currently locked (`lock`) target.
+*   `cha`: **Chase Target**. Actively pursues the currently locked (`lock`) target. For hostile NPCs, it maintains a safety distance of **3.0 units** if operational, closing to **1.5 units** only when disabled. For comets, it maintains harvesting range (< 0.6).
 *   `rep <ID>`: **Repair System**. Initiates repairs on a subsystem (1: Hyperdrive, 2: Impulse, 3: Sensors, 4: Ion Beams, 5: Torpedoes, etc.).
 *   `fix`: **Field Hull Repair**. Restores +15% integrity (50 Graphene, 20 Neo-Ti).
 *   `inv`: **Inventory Report**. Detailed list of resources in cargo (Aetherium, Neo-Titanium, Nebular Gas, etc.).
@@ -973,12 +997,16 @@ The commander can configure their interface via quick CLI commands:
 ## ⚠️ Tactical Report: Threats and Obstacles
 
 ### NPC Ship Capabilities
-Computer-controlled ships (Korthians, Xylaris, Swarm, etc.) operate with standardized combat protocols:
+Computer-controlled ships (Korthians, Xylaris, Swarm, etc.) operate with advanced combat protocols:
 *   **Primary Armament**: Currently, NPC ships are equipped exclusively with **Ion Beam Banks**.
-*   **Firepower**: Enemy Ion Beams inflict constant damage of **10 units** of energy per hit (reduced for balance).
+*   **NPC Integrity**: Every NPC vessel has a two-tier defense system:
+    *   **Plating**: An initial physical shield that absorbs residual damage.
+    *   **Health**: Internal structural integrity (Max 1000).
+*   **System Damage**: Hits that penetrate the plating have a **15% probability** of damaging the enemy's engines (`engine_health`).
+*   **Engine Deactivation**: If an NPC ship's hull integrity drops below **50% (500 HP)**, its engines are permanently disabled. The ship will drift to a halt, facilitating boarding maneuvers (`bor`).
 *   **Engagement Range**: Hostile ships will automatically open fire if a player enters within a **6.0 unit** range (Sector).
 *   **Fire Rate**: Approximately one shot every 5 seconds.
-*   **Tactics**: NPC ships do not use Plasma Torpedoes. Their main strategy consists of direct approach (Chase) or fleeing if energy drops below critical levels.
+*   **Tactics**: NPC ships do not use Plasma Torpedoes. Their main strategy consists of direct approach (`cha`) or fleeing if energy drops below critical levels.
 
 ### ☄️ Plasma Torpedo Dynamics
 Torpedoes (`tor` command) are physically simulated weapons with high precision:
@@ -990,8 +1018,11 @@ Torpedoes (`tor` command) are physically simulated weapons with high precision:
 
 ### 🌪️ Space Anomalies and Environmental Hazards
 The quadrant is scattered with natural phenomena detectable by both sensors and the **3D tactical view**:
+*   **Space Monsters (ID 18xxx)**: Hostile biological entities (Crystalline Entity, Space Amoeba). They are extremely aggressive and can be tracked using the `cha` command.
+*   **Defense Platforms (ID 16xxx)**: Heavily armed static sentinels protecting strategic zones. They can be locked (`lock`), scanned (`scan`), and destroyed with phasers or torpedoes.
+*   **Spatial Rifts (ID 17xxx)**: Distortions in the fabric of space-time.
 *   **Nebulas (ID 8xxx)**:
-    *   **Classes**: Standard, High-Energy, Dark Matter, Ionic, Gravimetric, Temporal.
+    *   **Classes**: Standard, High-Energy, Dark Matter, Ionic, Gravimetrica, Temporal.
     *   **Effect**: Clouds of gas and particles that interfere with short and long range sensors (telemetry noise and distortion).
     *   **3D View**: Colored gas volumes based on class (Purple/Blue for Standard, Yellow/Orange for High-Energy, Black/Purple for Dark Matter, etc.).
     *   **Hazard**: Remaining inside (Distance < 2.0) causes constant energy drain and inhibits shield regeneration.
@@ -1000,15 +1031,25 @@ The quadrant is scattered with natural phenomena detectable by both sensors and 
     *   **Effect**: Rapidly rotating neutron stars emitting deadly radiation.
     *   **3D View**: Visible as bright cores with rotating radiation beams.
     *   **Hazard**: Approaching too close (Distance < 2.5) severely damages shields and rapidly kills crew via radiation poisoning.
-*   **Comets (ID 6xxx)**:
-    *   **Effect**: Fast-moving objects traversing the sector.
+*   **Comets (ID 10xxx)**:
+    *   **Effect**: Fast-moving objects traversing the sector in eccentric orbits.
     *   **3D View**: Icy nuclei with a blue trail of gas and dust.
-    *   **Resource**: Approaching the tail (< 0.6) allows the collection of rare gases.
+    *   **Tactical Actions**: Can be locked (`lock`), scanned (`scan`), and intercepted via autopilot (`apr`).
+    *   **Resource Harvesting**: Approaching the tail (**Distance < 0.6**) allows the automatic collection of **Nebular Gas**.
+    *   **Strategy**: Use the `cha` (Chase) command to synchronize your ship's velocity with the comet, making it easier to stay within the tail for optimal harvesting.
 *   **Asteroid Fields (ID 8xxx)**:
     *   **Effect**: Clusters of space rocks of various sizes.
     *   **3D View**: Rotating brown rocks with irregular shapes.
-    *   **Hazard**: Navigating inside at high impulse speed (> 0.1) causes continuous damage to shields and engines.
-*   **Derelict Ships (ID 7xxx)**:
+    *   **Hazard**: Navigating inside at impulse speeds higher than **0.1** causes continuous shield damage. If shields are depleted, **Hull Integrity** will be progressively eroded. Reduce speed below 0.1 for safe passage.
+*   **Singularities / Black Holes (ID 7xxx)**:
+    *   **Slingshot Stress**: During a gravitational slingshot maneuver (`NAV_STATE_SLINGSHOT`), speeds exceeding **1.5** cause structural stress, dealing periodic hull damage.
+    *   **Dangerous Harvesting**: Extracting antimatter (`har`) without shield protection directly damages the hull due to tidal forces.
+
+### 🛠️ Maintenance and Repairs
+**Important Note**: Hull integrity **never regenerates autonomously**.
+*   **Field Repairs**: Use the `fix` command (requires 50 Graphene and 20 Neo-Ti).
+*   **Full Overhaul**: Dock at a Starbase (`doc`) for a complete and free hull restoration.
+*   **Systems**: Only energy shields recharge autonomously (provided the reactor has energy and system ID 8 is operational).
     *   **Effect**: Abandoned Alliance Command or alien vessels.
     *   **3D View**: Dark and cold hulls drifting slowly in space.
     *   **Opportunity**: Can be explored via the `bor` (boarding) command to recover Aetherium, Synaptics Chips, or to perform instant emergency repairs.
@@ -1077,11 +1118,11 @@ This section provides an official reference to the most celebrated commanders of
 <table>
 <tr>
     <td><img src="readme_assets/gpc-xylari.png" alt="Xylari Star Empire" width="200"/></td>
-    <td><img src="readme_assets/actor-alara-valerius-selatal.png" alt="Xylari High Command" width="200"/></td>
+    <td><img src="readme_assets/actor-alara-xal-selatal.png" alt="Xylari High Command" width="200"/></td>
   </tr>
 </table>
 
-*   **Valerius**: Commander of D'deridex class vessels and historic tactical adversary.
+*   **Xal'Tar**: Commander of D'deridex class vessels and historic tactical adversary.
 *   **Alara**: Operational commander and strategist specializing in infiltration operations.
 *   **Sela Tal**: Commander of the Nightshade, renowned for border manipulation and the orchestration of the silent blockade in the Shadow Sector.
 
@@ -1167,7 +1208,7 @@ This section provides an official reference to the most celebrated commanders of
 
 *   **Boothby (Impersonator)**: Entity dedicated to infiltration and study of Fleet command.
 *   **Bio-Ship Alpha**: Designation of the tactical coordinator of organic vessels.
-*   **Valerie Archer (Impersonator)**: Infiltration subject for deep reconnaissance missions.
+*   **Lyrerie Archer (Impersonator)**: Infiltration subject for deep reconnaissance missions.
 
 #### 10. Cryos Enclave
 <table>

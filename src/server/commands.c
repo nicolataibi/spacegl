@@ -78,6 +78,8 @@ void handle_axs(int i, const char *params);
 void handle_grd(int i, const char *params);
 void handle_bridge(int i, const char *params);
 void handle_map(int i, const char *params);
+void handle_red(int i, const char *params);
+void handle_orb(int i, const char *params);
 
 /* Helper to check if a player is near a communication buoy (< DIST_BUOY_BOOST) */
 static bool is_near_buoy(int i) {
@@ -223,12 +225,12 @@ void handle_nav(int i, const char *params) {
     double h, m, w, factor = 6.0;
     int args = sscanf(params, "%lf %lf %lf %lf", &h, &m, &w, &factor);
     if (args >= 3) {
-        if (players[i].state.system_health[0] < 25.0f) {
-            send_server_msg(i, "ENGINEERING", "Hyperdrive system is OFFLINE.");
+        if (players[i].state.system_health[0] < 50.0f || players[i].state.system_health[2] < 50.0f) {
+            send_server_msg(i, "ENGINEERING", "CRITICAL: Hyperdrive and Sensors must be above 50% integrity.");
             return;
         }
-        if (players[i].state.energy < 2000) {
-            send_server_msg(i, "COMPUTER", "Insufficient energy for Hyperdrive (Req: 2000).");
+        if (players[i].state.energy < 5000 || players[i].state.inventory[1] < 1) {
+            send_server_msg(i, "COMPUTER", "Insufficient resources for Hyperdrive (Req: 5000 Energy, 1 Aetherium).");
             return;
         }
         if (factor < 1.0) factor = 1.0; 
@@ -241,7 +243,9 @@ void handle_nav(int i, const char *params) {
         players[i].target_gx = (players[i].state.q1-1)*10.0+players[i].state.s1+players[i].dx*w*10.0;
         players[i].target_gy = (players[i].state.q2-1)*10.0+players[i].state.s2+players[i].dy*w*10.0;
         players[i].target_gz = (players[i].state.q3-1)*10.0+players[i].state.s3+players[i].dz*w*10.0;
-        players[i].hyper_speed = factor; players[i].nav_state = NAV_STATE_ALIGN; players[i].state.energy -= 2000;
+        players[i].hyper_speed = factor; players[i].nav_state = NAV_STATE_ALIGN; 
+        players[i].state.energy -= 5000;
+        players[i].state.inventory[1] -= 1;
         double dh = players[i].target_h - players[i].state.van_h;
         while(dh>180) dh-=360; 
         while(dh<-180) dh+=360;
@@ -345,9 +349,11 @@ void handle_apr(int i, const char *params) {
             }
         } else if (tid >= 1000 && tid < 1000+MAX_NPC) {
             int idx = tid - 1000;
-            if (npcs[idx].active && (!npcs[idx].is_cloaked || npcs[idx].faction == players[i].faction)) {
-                tx = npcs[idx].gx; ty = npcs[idx].gy; tz = npcs[idx].gz; found = true;
-                strncpy(target_name, get_species_name(npcs[idx].faction), 63);
+            if (npcs[idx].active && npcs[idx].q1 == pq1 && npcs[idx].q2 == pq2 && npcs[idx].q3 == pq3) {
+                if (!npcs[idx].is_cloaked || npcs[idx].faction == players[i].faction) {
+                    tx = (npcs[idx].q1-1)*10.0 + npcs[idx].x; ty = (npcs[idx].q2-1)*10.0 + npcs[idx].y; tz = (npcs[idx].q3-1)*10.0 + npcs[idx].z; found = true;
+                    strncpy(target_name, get_species_name(npcs[idx].faction), 63);
+                }
             }
         } else {
             /* Local objects check */
@@ -364,6 +370,23 @@ void handle_apr(int i, const char *params) {
             else if (tid >= 16000 && tid < 16000+MAX_PLATFORMS) { for(int p=0; p<lq->platform_count; p++) if(lq->platforms[p]->id+16000 == tid) { tx = (lq->platforms[p]->q1-1)*10+lq->platforms[p]->x; ty = (lq->platforms[p]->q2-1)*10+lq->platforms[p]->y; tz = (lq->platforms[p]->q3-1)*10+lq->platforms[p]->z; found = true; strcpy(target_name, "Defense Platform"); } }
             else if (tid >= 17000 && tid < 17000+MAX_RIFTS) { for(int r=0; r<lq->rift_count; r++) if(lq->rifts[r]->id+17000 == tid) { tx = (lq->rifts[r]->q1-1)*10+lq->rifts[r]->x; ty = (lq->rifts[r]->q2-1)*10+lq->rifts[r]->y; tz = (lq->rifts[r]->q3-1)*10+lq->rifts[r]->z; found = true; strcpy(target_name, "Spatial Rift"); } }
             else if (tid >= 18000 && tid < 18000+MAX_MONSTERS) { for(int m=0; m<lq->monster_count; m++) if(lq->monsters[m]->id+18000 == tid) { tx = (lq->monsters[m]->q1-1)*10+lq->monsters[m]->x; ty = (lq->monsters[m]->q2-1)*10+lq->monsters[m]->y; tz = (lq->monsters[m]->q3-1)*10+lq->monsters[m]->z; found = true; strcpy(target_name, "Monster"); } }
+            else if (tid >= 19000 && tid < 19200) {
+                int p_idx = (tid - 19000) / 3;
+                int pr_idx = (tid - 19000) % 3;
+                if (p_idx < MAX_CLIENTS && players[p_idx].state.probes[pr_idx].active) {
+                    /* Check if probe is in the same quadrant */
+                    int pr_q1 = get_q_from_g(players[p_idx].state.probes[pr_idx].gx);
+                    int pr_q2 = get_q_from_g(players[p_idx].state.probes[pr_idx].gy);
+                    int pr_q3 = get_q_from_g(players[p_idx].state.probes[pr_idx].gz);
+                    if (pr_q1 == pq1 && pr_q2 == pq2 && pr_q3 == pq3) {
+                        tx = players[p_idx].state.probes[pr_idx].gx;
+                        ty = players[p_idx].state.probes[pr_idx].gy;
+                        tz = players[p_idx].state.probes[pr_idx].gz;
+                        found = true;
+                        snprintf(target_name, 64, "Probe %d", tid);
+                    }
+                }
+            }
         }
 
         if (found) {
@@ -379,6 +402,7 @@ void handle_apr(int i, const char *params) {
                 players[i].target_gy = cy + players[i].dy * (d - tdist); 
                 players[i].target_gz = cz + players[i].dz * (d - tdist);
                 players[i].approach_dist = tdist;
+                players[i].apr_target = tid;
                 players[i].nav_state = NAV_STATE_ALIGN; players[i].nav_timer = 60; 
                 players[i].start_h = players[i].state.van_h; players[i].start_m = players[i].state.van_m;
                 
@@ -402,6 +426,7 @@ void handle_cha(int i, const char *params) {
     if (tid > 0) {
         players[i].state.energy -= 150; 
         players[i].nav_state = NAV_STATE_CHASE;
+        players[i].hyper_speed = 0; /* Reset speed to prevent initial overshoot */
         char msg[64];
         snprintf(msg, sizeof(msg), "Chase mode engaged for target ID %d.", tid);
         send_server_msg(i, "HELMSMAN", msg);
@@ -658,6 +683,24 @@ void handle_pha(int i, const char *params) {
     
     if (tid >= 1 && tid <= 32 && players[tid-1].active && players[tid-1].state.q1 == pq1 && players[tid-1].state.q2 == pq2 && players[tid-1].state.q3 == pq3) { tx=players[tid-1].state.s1; ty=players[tid-1].state.s2; tz=players[tid-1].state.s3; found=true; }
     else if (tid >= 1000 && tid < 1000+MAX_NPC && npcs[tid-1000].active && npcs[tid-1000].q1 == pq1 && npcs[tid-1000].q2 == pq2 && npcs[tid-1000].q3 == pq3) { tx=npcs[tid-1000].x; ty=npcs[tid-1000].y; tz=npcs[tid-1000].z; found=true; }
+    else if (tid >= 16000 && tid < 16000+MAX_PLATFORMS && platforms[tid-16000].active && platforms[tid-16000].q1 == pq1 && platforms[tid-16000].q2 == pq2 && platforms[tid-16000].q3 == pq3) { tx=platforms[tid-16000].x; ty=platforms[tid-16000].y; tz=platforms[tid-16000].z; found=true; }
+    else if (tid >= 18000 && tid < 18000+MAX_MONSTERS && monsters[tid-18000].active && monsters[tid-18000].q1 == pq1 && monsters[tid-18000].q2 == pq2 && monsters[tid-18000].q3 == pq3) { tx=monsters[tid-18000].x; ty=monsters[tid-18000].y; tz=monsters[tid-18000].z; found=true; }
+    else if (tid >= 19000 && tid < 19200) {
+        int p_idx = (tid - 19000) / 3;
+        int pr_idx = (tid - 19000) % 3;
+        if (p_idx < MAX_CLIENTS && players[p_idx].state.probes[pr_idx].active) {
+            /* Check if probe is in the same quadrant */
+            int pr_q1 = get_q_from_g(players[p_idx].state.probes[pr_idx].gx);
+            int pr_q2 = get_q_from_g(players[p_idx].state.probes[pr_idx].gy);
+            int pr_q3 = get_q_from_g(players[p_idx].state.probes[pr_idx].gz);
+            if (pr_q1 == pq1 && pr_q2 == pq2 && pr_q3 == pq3) {
+                tx = players[p_idx].state.probes[pr_idx].s1;
+                ty = players[p_idx].state.probes[pr_idx].s2;
+                tz = players[p_idx].state.probes[pr_idx].s3;
+                found = true;
+            }
+        }
+    }
     
     if (found) {
         double dx=tx-players[i].state.s1, dy=ty-players[i].state.s2, dz=tz-players[i].state.s3; 
@@ -704,6 +747,53 @@ void handle_pha(int i, const char *params) {
                 target->active = 0; target->state.boom = (NetPoint){(float)target->state.s1,(float)target->state.s2,(float)target->state.s3,1};
             }
             send_server_msg(tid-1, "WARNING", "UNDER Ion Beam ATTACK!");
+        } else if (tid >= 1000 && tid < 1000+MAX_NPC) {
+            NPCShip *target = &npcs[tid-1000];
+            int dmg_rem = hit;
+            if (target->plating >= dmg_rem) { target->plating -= dmg_rem; dmg_rem = 0; }
+            else { dmg_rem -= target->plating; target->plating = 0; }
+            
+            if (dmg_rem > 0) {
+                target->health -= (dmg_rem / 100);
+                /* Chance to damage internal systems (Engines) */
+                if (rand() % 100 < 15) {
+                    float sys_dmg = 5.0f + (rand() % 15);
+                    target->engine_health -= sys_dmg;
+                    if (target->engine_health < 0) target->engine_health = 0;
+                    send_server_msg(i, "TACTICAL", "Hull impact! Target maneuvering capability degraded.");
+                }
+            }
+            if (target->health <= 0 || target->energy <= 0) {
+                target->active = 0; players[i].state.boom = (NetPoint){(float)target->x, (float)target->y, (float)target->z, 1};
+                send_server_msg(i, "TACTICAL", "Target vessel neutralized.");
+            }
+        } else if (tid >= 16000 && tid < 16000+MAX_PLATFORMS) {
+            NPCPlatform *target = &platforms[tid-16000];
+            int dmg_rem = hit;
+            if (target->energy >= dmg_rem) { target->energy -= dmg_rem; dmg_rem = 0; }
+            else { dmg_rem -= target->energy; target->energy = 0; }
+            
+            if (dmg_rem > 0) target->health -= (dmg_rem / 10);
+            if (target->health <= 0) {
+                target->active = 0; players[i].state.boom = (NetPoint){(float)target->x, (float)target->y, (float)target->z, 1};
+                send_server_msg(i, "TACTICAL", "Defense platform neutralized.");
+            }
+        } else if (tid >= 18000 && tid < 18000+MAX_MONSTERS) {
+            NPCMonster *target = &monsters[tid-18000];
+            target->health -= (hit / 50);
+            if (target->health <= 0) {
+                target->active = 0; players[i].state.boom = (NetPoint){(float)target->x, (float)target->y, (float)target->z, 1};
+                send_server_msg(i, "TACTICAL", "Anomaly neutralized.");
+            }
+        } else if (tid >= 19000 && tid < 19200) {
+            int p_idx = (tid - 19000) / 3;
+            int pr_idx = (tid - 19000) % 3;
+            if (p_idx < MAX_CLIENTS && players[p_idx].state.probes[pr_idx].active) {
+                players[p_idx].state.probes[pr_idx].active = 0;
+                players[i].state.boom = (NetPoint){(float)players[p_idx].state.probes[pr_idx].s1, (float)players[p_idx].state.probes[pr_idx].s2, (float)players[p_idx].state.probes[pr_idx].s3, 1};
+                send_server_msg(i, "TACTICAL", "Probe neutralized.");
+                if (p_idx != i) send_server_msg(p_idx, "WARNING", "Telemetry lost: Probe destroyed by external fire.");
+            }
         }
         char msg[64]; sprintf(msg, "Ion Beams hit for %d damage.", hit); send_server_msg(i, "TACTICAL", msg);
     } else send_server_msg(i, "COMPUTER", "Target out of range.");
@@ -850,6 +940,13 @@ void handle_lock(int i, const char *params) {
             else if (tid >= 10000 && tid < 10000+MAX_COMETS) { for(int c=0; c<lq->comet_count; c++) if(lq->comets[c]->id+10000 == tid) found = true; }
             else if (tid >= 16000 && tid < 16000+MAX_PLATFORMS) { for(int p=0; p<lq->platform_count; p++) if(lq->platforms[p]->id+16000 == tid) found = true; }
             else if (tid >= 18000 && tid < 18000+MAX_MONSTERS) { for(int m=0; m<lq->monster_count; m++) if(lq->monsters[m]->id+18000 == tid) found = true; }
+            else if (tid >= 19000 && tid < 19200) {
+                int p_idx = (tid - 19000) / 3;
+                int pr_idx = (tid - 19000) % 3;
+                if (p_idx < MAX_CLIENTS && players[p_idx].state.probes[pr_idx].active) {
+                    found = true;
+                }
+            }
         }
 
         if (found) {
@@ -946,6 +1043,22 @@ void handle_scan(int i, const char *params) {
                     sprintf(rep, RED "\n--- XENO-BIOLOGICAL THREAT ---" RESET "\nTYPE: %s\nADVISORY: Highly aggressive. Close proximity will result in rapid energy drain.\n", 
                         (lq->monsters[m]->type==30)?"Crystalline Entity":"Space Amoeba");
                 }
+            } else if (tid >= 16000 && tid < 16000+MAX_PLATFORMS) {
+                for(int p=0; p<lq->platform_count; p++) if(lq->platforms[p]->id+16000 == tid) {
+                    found = true;
+                    sprintf(rep, CYAN "\n--- DEFENSE PLATFORM SCAN ---" RESET "\nENERGY: %d units\nFACTION: %s\nSTATUS: ACTIVE\n", 
+                        scrambled ? 0 : lq->platforms[p]->energy, get_species_name(lq->platforms[p]->faction));
+                }
+            } else if (tid >= 19000 && tid < 19200) {
+                int p_idx = (tid - 19000) / 3;
+                int pr_idx = (tid - 19000) % 3;
+                if (p_idx < MAX_CLIENTS && players[p_idx].state.probes[pr_idx].active) {
+                    found = true;
+                    const char *status_str[] = {"LAUNCHED", "ARRIVED", "TRANSMITTING"};
+                    int s = players[p_idx].state.probes[pr_idx].status;
+                    sprintf(rep, CYAN "\n--- SENSOR PROBE ANALYSIS ---" RESET "\nID: %d\nORIGIN: %s\nSTATUS: %s\n", 
+                        tid, players[p_idx].name, (s>=0 && s<3) ? status_str[s] : "UNKNOWN");
+                }
             }
         }
 
@@ -1018,8 +1131,8 @@ void handle_bor(int i, const char *params) {
             if (dist < 1.0) {
                 players[i].state.energy -= 5000;
 
-                /* 3. Success probability base (20% to 60% based on integrity) */
-                int success_chance = 20 + (int)(players[i].state.system_health[3] * 0.4f);
+                /* 3. Success probability base (halved failure chance: 60% to 80% success) */
+                int success_chance = 60 + (int)(players[i].state.system_health[3] * 0.2f);
 
                 /* Handle Player Boarding via Interactive Menu */
                 if (tid >= 1 && tid <= 32) {
@@ -1048,6 +1161,7 @@ void handle_bor(int i, const char *params) {
                 /* Handle other targets with probability logic */
                 if (rand()%100 < success_chance) {
                     if (tid >= 11000 && tid < 11000+MAX_DERELICTS) {
+                        /* ... derelict menu ... */
                         players[i].pending_bor_target = tid;
                         players[i].pending_bor_type = 4;
                         char menu[512];
@@ -1055,9 +1169,11 @@ void handle_bor(int i, const char *params) {
                                "1: Salvage Resources\n"
                                "2: Recover Data (Map reveal)\n"
                                "3: Field Repairs\n"
+                               "4: Rescue Survivors (Crew)\n"
                                YELLOW "Type the number to confirm choice." RESET, tid);
                         send_server_msg(i, "BOARDING", menu);
                     } else if (tid >= 16000) {
+                        /* ... platform menu ... */
                         players[i].pending_bor_target = tid;
                         players[i].pending_bor_type = 3;
                         char menu[512];
@@ -1066,6 +1182,23 @@ void handle_bor(int i, const char *params) {
                                "2: Overload Reactor\n"
                                "3: Salvage Tech\n"
                                WHITE "Type the number to confirm choice." RESET, tid);
+                        send_server_msg(i, "BOARDING", menu);
+                    } else if (tid >= 1000 && tid < 1000+MAX_NPC) {
+                        NPCShip *target_npc = &npcs[tid-1000];
+                        /* Requirement: Target must be disabled (Engines < 50% OR Hull < 50%) */
+                        if (target_npc->engine_health >= 50.0f && target_npc->health >= 500) {
+                            send_server_msg(i, "SECURITY", "BOARDING DENIED: Target vessel is still fully operational. Disable engines or damage hull first!");
+                            return;
+                        }
+                        
+                        players[i].pending_bor_target = tid;
+                        players[i].pending_bor_type = 2; /* Enemy */
+                        char menu[512];
+                        sprintf(menu, RED "\n--- BOARDING MENU: HOSTILE NPC [%d] ---\n" RESET 
+                               "1: Sabotage Engines\n"
+                               "2: Raid Cargo Bay\n"
+                               "3: Take Hostages\n"
+                               YELLOW "Type the number to confirm choice." RESET, tid);
                         send_server_msg(i, "BOARDING", menu);
                     } else {
                         /* NPC success reward */
@@ -1079,7 +1212,9 @@ void handle_bor(int i, const char *params) {
                         }
                     }
                 } else {
-                    int loss = 5 + rand()%15; players[i].state.crew_count -= loss;
+                    int loss = 5 + rand()%15; 
+                    players[i].state.crew_count -= loss;
+                    if (players[i].state.crew_count < 0) players[i].state.crew_count = 0;
                     send_server_msg(i, "SECURITY", "Boarding party repelled! Heavy casualties reported.");
                 }
             } else send_server_msg(i, "COMPUTER", "Target not in transporter range (< 1.0).");
@@ -1106,54 +1241,71 @@ void handle_dis(int i, const char *params) {
             return;
         }
 
-        int pq1=players[i].state.q1, pq2=players[i].state.q2, pq3=players[i].state.q3;
         bool done = false;
         
         /* 4. Yield scaling based on Transporter integrity (0.7 to 1.0 multiplier) */
         float transporter_mult = 0.7f + (players[i].state.system_health[3] / 100.0f) * 0.3f;
 
         /* Case: NPC Ship Wreck (ID 1000+) */
-        if (tid >= 1000 && tid < 1000+MAX_NPC && npcs[tid-1000].active && npcs[tid-1000].q1 == pq1 && npcs[tid-1000].q2 == pq2 && npcs[tid-1000].q3 == pq3) {
-            /* 3. Range Check: 1.5 units */
-            double dx=npcs[tid-1000].x-players[i].state.s1, dy=npcs[tid-1000].y-players[i].state.s2, dz=npcs[tid-1000].z-players[i].state.s3;
-            if (sqrt(dx*dx+dy*dy+dz*dz) < 1.5) {
-                players[i].state.energy -= 500;
-                int yield = (int)((npcs[tid-1000].energy / 100) * transporter_mult); 
-                if (yield < 10) yield = 10;
-                players[i].state.inventory[2] += yield; /* Neo-Titanium */
-                players[i].state.inventory[5] += yield / 5; /* Synaptics */
-                npcs[tid-1000].active = 0;
+        if (tid >= 1000 && tid < 1000+MAX_NPC) {
+            int n_idx = tid-1000;
+            if (npcs[n_idx].active) {
+                double tx = (npcs[n_idx].q1-1)*10.0 + npcs[n_idx].x;
+                double ty = (npcs[n_idx].q2-1)*10.0 + npcs[n_idx].y;
+                double tz = (npcs[n_idx].q3-1)*10.0 + npcs[n_idx].z;
+                double dx = tx - players[i].gx, dy = ty - players[i].gy, dz = tz - players[i].gz;
                 
-                /* Visual FX */
-                players[i].state.dismantle = (NetDismantle){(float)npcs[tid-1000].x, (float)npcs[tid-1000].y, (float)npcs[tid-1000].z, npcs[tid-1000].faction, 1};
-                
-                char msg[128];
-                sprintf(msg, "Vessel dismantled. Recovered %d Neo-Titanium and %d Synaptics.", yield, yield/5);
-                send_server_msg(i, "ENGINEERING", msg);
-                if (players[i].state.lock_target == tid) players[i].state.lock_target = 0;
-                done = true;
-            } else { send_server_msg(i, "COMPUTER", "Not in range for dismantling (< 1.5)."); return; }
+                if (sqrt(dx*dx+dy*dy+dz*dz) < 1.5) {
+                    players[i].state.energy -= 500;
+                    int yield = (int)((npcs[n_idx].energy / 100) * transporter_mult); 
+                    if (yield < 10) yield = 10;
+                    players[i].state.inventory[2] += yield; /* Neo-Titanium */
+                    players[i].state.inventory[5] += yield / 5; /* Synaptics */
+                    npcs[n_idx].active = 0;
+                    
+                    /* Visual FX */
+                    float rs1 = (float)(tx - (players[i].state.q1-1)*10.0);
+                    float rs2 = (float)(ty - (players[i].state.q2-1)*10.0);
+                    float rs3 = (float)(tz - (players[i].state.q3-1)*10.0);
+                    players[i].state.dismantle = (NetDismantle){rs1, rs2, rs3, npcs[n_idx].faction, 1};
+                    
+                    char msg[128];
+                    sprintf(msg, "Vessel dismantled. Recovered %d Neo-Titanium and %d Synaptics.", yield, yield/5);
+                    send_server_msg(i, "ENGINEERING", msg);
+                    if (players[i].state.lock_target == tid) players[i].state.lock_target = 0;
+                    done = true;
+                } else { send_server_msg(i, "COMPUTER", "Not in range for dismantling (< 1.5)."); return; }
+            }
         } 
         /* Case: Static Derelict Wreck (ID 11000+) */
-        else if (tid >= 11000 && tid < 11000+MAX_DERELICTS && derelicts[tid-11000].active && derelicts[tid-11000].q1 == pq1 && derelicts[tid-11000].q2 == pq2 && derelicts[tid-11000].q3 == pq3) {
+        else if (tid >= 11000 && tid < 11000+MAX_DERELICTS) {
             int d_idx = tid-11000;
-            double dx=derelicts[d_idx].x-players[i].state.s1, dy=derelicts[d_idx].y-players[i].state.s2, dz=derelicts[d_idx].z-players[i].state.s3;
-            if (sqrt(dx*dx+dy*dy+dz*dz) < 1.5) {
-                players[i].state.energy -= 500;
-                int yield = (int)((50 + rand()%150) * transporter_mult); 
-                players[i].state.inventory[2] += yield; 
-                players[i].state.inventory[5] += yield / 4; 
-                derelicts[d_idx].active = 0;
+            if (derelicts[d_idx].active) {
+                double tx = (derelicts[d_idx].q1-1)*10.0 + derelicts[d_idx].x;
+                double ty = (derelicts[d_idx].q2-1)*10.0 + derelicts[d_idx].y;
+                double tz = (derelicts[d_idx].q3-1)*10.0 + derelicts[d_idx].z;
+                double dx = tx - players[i].gx, dy = ty - players[i].gy, dz = tz - players[i].gz;
                 
-                /* Visual FX */
-                players[i].state.dismantle = (NetDismantle){(float)derelicts[d_idx].x, (float)derelicts[d_idx].y, (float)derelicts[d_idx].z, 0, 1};
-                
-                char msg[128];
-                sprintf(msg, "Ancient wreck dismantled. Recovered %d Neo-Titanium and %d Synaptics.", yield, yield/4);
-                send_server_msg(i, "ENGINEERING", msg);
-                if (players[i].state.lock_target == tid) players[i].state.lock_target = 0;
-                done = true;
-            } else { send_server_msg(i, "COMPUTER", "Not in range for dismantling (< 1.5)."); return; }
+                if (sqrt(dx*dx+dy*dy+dz*dz) < 1.5) {
+                    players[i].state.energy -= 500;
+                    int yield = (int)((50 + rand()%150) * transporter_mult); 
+                    players[i].state.inventory[2] += yield; 
+                    players[i].state.inventory[5] += yield / 4; 
+                    derelicts[d_idx].active = 0;
+                    
+                    /* Visual FX - Correct mapping to NetDismantle struct */
+                    float rs1 = (float)(tx - (players[i].state.q1-1)*10.0);
+                    float rs2 = (float)(ty - (players[i].state.q2-1)*10.0);
+                    float rs3 = (float)(tz - (players[i].state.q3-1)*10.0);
+                    players[i].state.dismantle = (NetDismantle){rs1, rs2, rs3, derelicts[d_idx].faction, 1};
+                    
+                    char msg[128];
+                    sprintf(msg, "Ancient wreck dismantled. Recovered %d Neo-Titanium and %d Synaptics.", yield, yield/4);
+                    send_server_msg(i, "ENGINEERING", msg);
+                    if (players[i].state.lock_target == tid) players[i].state.lock_target = 0;
+                    done = true;
+                } else { send_server_msg(i, "COMPUTER", "Not in range for dismantling (< 1.5)."); return; }
+            }
         }
 
         if (!done) send_server_msg(i, "COMPUTER", "Invalid dismantle target (Must be a wreck or derelict).");
@@ -1397,7 +1549,74 @@ void handle_doc(int i, const char *params) {
 }
 
 void handle_con(int i, const char *params) {
-    send_server_msg(i, "ENGINEERING", "Matter-Energy conversion complete.");
+    int type, amount;
+    if (sscanf(params, "%d %d", &type, &amount) != 2) {
+        send_server_msg(i, "COMPUTER", "Usage: con <Type> <Amount>");
+        return;
+    }
+
+    /* 1. Hardware Requirement: Auxiliary (ID 9) >= 15% */
+    if (players[i].state.system_health[9] < 15.0f) {
+        send_server_msg(i, "ENGINEERING", "CONVERTER FAILURE: Auxiliary systems integrity too low (< 15%).");
+        return;
+    }
+
+    /* 2. Energy Cost: 100 units */
+    if (players[i].state.energy < 100) {
+        send_server_msg(i, "COMPUTER", "Insufficient energy for conversion cycle (Req: 100).");
+        return;
+    }
+
+    if (amount <= 0) return;
+    if (type < 1 || type > 8 || players[i].state.inventory[type] < amount) {
+        send_server_msg(i, "LOGISTICS", "Insufficient resources in cargo bay.");
+        return;
+    }
+
+    /* 3. Efficiency based on Auxiliary health (70% - 100%) */
+    float efficiency = 0.7f + (players[i].state.system_health[9] / 100.0f) * 0.3f;
+    players[i].state.energy -= 100;
+    players[i].state.inventory[type] -= amount;
+
+    char msg[128];
+    if (type == 1) { /* Aetherium -> Energy x10 */
+        int gain = (int)(amount * 10 * efficiency);
+        players[i].state.cargo_energy += gain;
+        if (players[i].state.cargo_energy > 1000000) players[i].state.cargo_energy = 1000000;
+        sprintf(msg, "Converted %d Aetherium into %d Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+    } else if (type == 2) { /* Neo-Titanium -> Energy x2 */
+        int gain = (int)(amount * 2 * efficiency);
+        players[i].state.cargo_energy += gain;
+        if (players[i].state.cargo_energy > 1000000) players[i].state.cargo_energy = 1000000;
+        sprintf(msg, "Converted %d Neo-Titanium into %d Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+    } else if (type == 3) { /* Void-Essence -> Torpedoes (1/20) */
+        int gain = (int)((amount / 20.0f) * efficiency);
+        players[i].state.cargo_torpedoes += gain;
+        if (players[i].state.cargo_torpedoes > 1000) players[i].state.cargo_torpedoes = 1000;
+        sprintf(msg, "Converted %d Void-Essence into %d Torpedoes. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+    } else if (type == 6) { /* Gas -> Energy x5 */
+        int gain = (int)(amount * 5 * efficiency);
+        players[i].state.cargo_energy += gain;
+        if (players[i].state.cargo_energy > 1000000) players[i].state.cargo_energy = 1000000;
+        sprintf(msg, "Converted %d Nebular Gas into %d Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+    } else if (type == 7) { /* Composite -> Energy x4 */
+        int gain = (int)(amount * 4 * efficiency);
+        players[i].state.cargo_energy += gain;
+        if (players[i].state.cargo_energy > 1000000) players[i].state.cargo_energy = 1000000;
+        sprintf(msg, "Converted %d Composite into %d Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+    } else if (type == 8) { /* Dark-Matter -> Energy x25 */
+        int gain = (int)(amount * 25 * efficiency);
+        players[i].state.cargo_energy += gain;
+        if (players[i].state.cargo_energy > 1000000) players[i].state.cargo_energy = 1000000;
+        sprintf(msg, "Converted %d Dark-Matter into %d Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+    } else {
+        send_server_msg(i, "COMPUTER", "Resource type not suitable for atomic conversion.");
+        players[i].state.energy += 100; /* Refund */
+        players[i].state.inventory[type] += amount;
+        return;
+    }
+
+    send_server_msg(i, "ENGINEERING", msg);
 }
 
 void handle_load(int i, const char *params) {
@@ -1783,12 +2002,69 @@ void handle_cal(int i, const char *params) {
 }
 
 void handle_ical(int i, const char *params) {
+    /* 1. Hardware Requirement: Computer (ID 6) >= 10% */
+    if (players[i].state.system_health[6] < 10.0f) {
+        send_server_msg(i, "COMPUTER", "CALCULATION FAILURE: Navigation core offline.");
+        return;
+    }
+
+    /* 2. Energy Cost: 10 units */
+    if (players[i].state.energy < 10) {
+        send_server_msg(i, "COMPUTER", "Insufficient energy for impulse computation.");
+        return;
+    }
+
     double tx, ty, tz;
     if (sscanf(params, "%lf %lf %lf", &tx, &ty, &tz) == 3) {
-        char buf[256];
-        sprintf(buf, "\n--- IMPULSE NAVIGATION COMPUTATION ---\nDESTINATION: [%.1f, %.1f, %.1f]\n", tx, ty, tz);
+        players[i].state.energy -= 10;
+        float comp_h = players[i].state.system_health[6];
+        /* 3. Data Reliability logic: Scrambling if integrity < 50% */
+        bool scrambled = (comp_h < 50.0f && (rand() % 100 > (int)comp_h));
+
+        double s1 = players[i].state.s1;
+        double s2 = players[i].state.s2;
+        double s3 = players[i].state.s3;
+
+        double dx = tx - s1;
+        double dy = ty - s2;
+        double dz = tz - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+
+        if (d < 0.001) {
+            send_server_msg(i, "COMPUTER", "Target matches current sector position.");
+            return;
+        }
+
+        double h = atan2(dx, -dy) * 180.0 / M_PI; if (h < 0) h += 360;
+        double m = asin(dz / d) * 180.0 / M_PI;
+
+        /* 4. ETA Calculation based on current engine power allocation */
+        /* Baseline full impulse (0.5) at 100% power is speed_per_tick */
+        float engine_mult = 8.0f + (players[i].state.power_dist[0] * 17.0f);
+        double speed_per_tick = 0.5 * engine_mult; /* units/tick */
+        double eta_sec = (d / speed_per_tick) / 30.0;
+
+        char buf[512];
+        if (scrambled) {
+            sprintf(buf, "\n" RED "--- IMPULSE NAVIGATION: DATA CORRUPTED ---" RESET "\n"
+                         " DESTINATION: [%.1f, %.1f, %.1f]\n"
+                         " BEARING:     ???.? / %+.1f\n"
+                         " ETA:         ??.? sec\n"
+                         " WARNING: Logic core parity error. Results unreliable.\n", 
+                         tx, ty, tz, (rand()%180-90)*1.0);
+        } else {
+            sprintf(buf, "\n" CYAN "--- IMPULSE NAVIGATION COMPUTATION ---" RESET "\n"
+                         " DESTINATION: [%.1f, %.1f, %.1f]\n"
+                         " BEARING:     %05.1f / %+05.1f\n"
+                         " DISTANCE:    %.2f units\n"
+                         " ETA:         %.1f sec (at Full Impulse)\n"
+                         " COMMAND:     " WHITE "imp %.1f %.1f 1.0" RESET "\n",
+                         tx, ty, tz, h, m, d, eta_sec, h, m);
+        }
         send_server_msg(i, "COMPUTER", buf);
-    } else send_server_msg(i, "COMPUTER", "Usage: ical <X> <Y> <Z>");
+    } else {
+        send_server_msg(i, "COMPUTER", "Usage: ical <X> <Y> <Z>");
+    }
 }
 
 void handle_who(int i, const char *params) {
@@ -2266,58 +2542,94 @@ void handle_aux(int i, const char *params) {
 /* --- Command Registry Table --- */
 
 static const CommandDef command_registry[] = {
-    {"nav ", handle_nav, "Hyperdrive Navigation"},
-    {"imp ", handle_imp, "Impulse Drive"},
-    {"pos ", handle_pos, "Position Ship"},
-    {"jum ", handle_jum, "Wormhole Jump"},
-    {"apr ", handle_apr, "Approach target"},
-    {"cha",  handle_cha, "Chase locked target"},
-    {"srs",  handle_srs, "Short Range Sensors"},
-    {"lrs",  handle_lrs, "Long Range Sensors"},
-    {"pha ", handle_pha, "Fire Ion Beams"},
-    {"tor",  handle_tor, "Fire Torpedo"},
-    {"she ", handle_she, "Shield Configuration"},
-    {"lock ",handle_lock, "Target Lock-on"},
-    {"enc ", handle_enc,  "Encryption Toggle"},
-    {"pow ", handle_pow,  "Power Allocation"},
-    {"psy",  handle_psy,  "Psychological Warfare"},
-    {"scan ",handle_scan, "Detailed Scan"},
-    {"clo",  handle_clo, "Cloaking Device"},
-    {"bor",  handle_bor, "Boarding Party"},
-    {"dis",  handle_dis, "Dismantle Wreck"},
-    {"min",  handle_min, "Planetary Mining"},
-    {"sco",  handle_sco, "Solar Scooping"},
-    {"har",  handle_har, "Antimatter Harvest"},
-    {"doc",  handle_doc, "Dock at Starbase"},
-    {"con ", handle_con, "Resource Converter"},
-    {"load ",handle_load, "Load Cargo"},
-    {"rep",  handle_rep, "Repair Systems"},
-    {"fix",  handle_fix, "Field Hull Repair"},
-    {"sta",  handle_sta, "Status Report"},
-    {"inv",  handle_inv, "Inventory Report"},
-    {"dam",  handle_dam, "Damage Report"},
-    {"cal ", handle_cal, "Hyperdrive Calculator"},
-    {"ical ",handle_ical, "Impulse Calculator"},
-    {"who",  handle_who, "Active Captains List"},
-    {"help", handle_help, "Display directory"},
-    {"aux ", handle_aux, "Auxiliary (probe/report/recover)"},
-    {"xxx",  handle_xxx, "Self-Destruct"},
-    {"hull", handle_hull, "Reinforce Hull"},
+    {"nav ", handle_nav, "Hyperdrive Navigation (H 0-359, M -90/90, W Dist, F Factor 1-9.9)"},
+    {"imp ", handle_imp, "Impulse Drive (H, M, Speed 0.0-1.0). imp 0 0 0 to stop."},
+    {"pos ", handle_pos, "Position Ship (Align orientation without movement)"},
+    {"jum ", handle_jum, "Wormhole Jump (Instant travel, costs 5000 En + 1 Aetherium)"},
+    {"apr ", handle_apr, "Approach target autopilot (ID DIST). Works on Lock."},
+    {"cha",  handle_cha, "Chase locked target (Inter-sector aware)"},
+    {"srs",  handle_srs, "Short Range Sensors (Current Quadrant View)"},
+    {"lrs",  handle_lrs, "Long Range Sensors (LCARS Tactical Grid)"},
+    {"pha ", handle_pha, "Fire Ion Beams at locked target (uses Energy E)"},
+    {"tor",  handle_tor, "Launch Plasma Torpedo at locked target or Heading/Mark"},
+    {"she ", handle_she, "Shield Configuration (F R T B L RI)"},
+    {"lock ",handle_lock, "Target Lock-on (0:Self, 1+:Nearby vessels)"},
+    {"enc ", handle_enc,  "Encryption Toggle (aes, chacha, aria, camellia, ..., pqc)"},
+    {"pow ", handle_pow,  "Power Allocation (Engines, Shields, Weapons %)"},
+    {"psy",  handle_psy,  "Psychological Warfare (Anti-Matter Bluff)"},
+    {"scan ",handle_scan, "Detailed analysis of vessel or anomaly"},
+    {"clo",  handle_clo, "Toggle Cloaking Device (Consumes constant Energy)"},
+    {"bor",  handle_bor, "Boarding party operation (Dist < 1.0). Works on Lock."},
+    {"dis",  handle_dis, "Dismantle enemy wreck/derelict (Dist < 1.5)"},
+    {"min",  handle_min, "Planetary Mining (Must be in orbit dist < 2.0)"},
+    {"sco",  handle_sco, "Solar scooping for energy"},
+    {"har",  handle_har, "Antimatter harvest from Black Hole"},
+    {"doc",  handle_doc, "Dock with Starbase (Replenish/Repair, same faction)"},
+    {"con ", handle_con, "Convert resources (1:Aeth->E, 2:Neo-Ti->E, 3:Void-E->Torps, 6:Gas->E, 7:Comp->E)"},
+    {"load ",handle_load, "Load from Cargo Bay (1:Energy, 2:Torps)"},
+    {"rep",  handle_rep, "Repair System (Uses 50 Neo-Titanium + 10 Synaptics)"},
+    {"fix",  handle_fix, "Field Hull Repair (50 Graphene + 20 Neo-Ti)"},
+    {"sta",  handle_sta, "Mission Status Report"},
+    {"inv",  handle_inv, "Cargo Inventory Report"},
+    {"dam",  handle_dam, "Detailed Damage Report"},
+    {"cal ", handle_cal, "Hyperdrive Calc (Pinpoint Precision Route & ETA)"},
+    {"ical ",handle_ical, "Impulse Calculator (Sector ETA at current power)"},
+    {"who",  handle_who, "List active captains in galaxy"},
+    {"help", handle_help, "Display LCARS Command Directory"},
+    {"aux ", handle_aux, "Auxiliary (probe/report/recover/jettison)"},
+    {"xxx",  handle_xxx, "Self-Destruct (WARNING!)"},
+    {"hull", handle_hull, "Reinforce Hull (Uses 100 Composite for +500 Plating)"},
     {"supernova", handle_supernova, "Admin: Trigger Supernova"},
     {"axs",  handle_axs,  "Toggle AR Compass"},
     {"grd",  handle_grd,  "Toggle Tactical Grid"},
-    {"bridge", handle_bridge, "Toggle Bridge View"},
-    {"map",    handle_map,    "Toggle Galaxy Map"},
+    {"bridge", handle_bridge, "Change Bridge View (top, bottom, up, down, left, right, rear, off)"},
+    {"map",    handle_map,    "Toggle Galaxy Map with optional Filter"},
+    {"red",    handle_red,    "Toggle Red Alert / Condition Green"},
+    {"orb",    handle_orb,    "Enter planetary orbit (Must be near target planet < 1.0)"},
     {"und",    handle_und,    "Undock from Starbase"},
     {"undock", handle_und,    "Undock from Starbase (alias)"},
     {NULL, NULL, NULL}
 };
 
+void handle_red(int i, const char *params) {
+    if (players[i].state.system_health[6] < 10.0f) {
+        send_server_msg(i, "COMPUTER", "RED ALERT FAILURE: Tactical coordination core damaged.");
+        return;
+    }
+    players[i].state.red_alert = !players[i].state.red_alert;
+    if (players[i].state.red_alert) {
+        send_server_msg(i, "COMMAND", "RED ALERT! Shields energized. Weapons to standby.");
+    } else {
+        send_server_msg(i, "COMMAND", "Stand down to Condition Green.");
+    }
+}
+
+void handle_orb(int i, const char *params) {
+    if (players[i].state.system_health[1] < 10.0f) {
+        send_server_msg(i, "ENGINEERING", "ORBITAL ENTRY FAILURE: Maneuvering thrusters offline.");
+        return;
+    }
+    int tid = players[i].state.lock_target;
+    if (tid >= 3000 && tid < 3000 + MAX_PLANETS) {
+        int p = tid - 3000;
+        double dx = planets[p].x - players[i].state.s1;
+        double dy = planets[p].y - players[i].state.s2;
+        double dz = planets[p].z - players[i].state.s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        if (d < 1.0) {
+            players[i].nav_state = NAV_STATE_ORBIT;
+            send_server_msg(i, "HELMSMAN", "Establishing stable orbit around target planet.");
+        } else send_server_msg(i, "COMPUTER", "Target planet too distant for orbital capture (< 1.0 required).");
+    } else send_server_msg(i, "COMPUTER", "No planet locked for orbital entry.");
+}
+
 void handle_help(int i, const char *params) {
-    char b[2048] = CYAN "\n--- LCARS COMMAND DIRECTORY ---" RESET "\n";
+    char b[8192] = CYAN "\n--- LCARS COMMAND DIRECTORY ---" RESET "\n";
     for (int c = 0; command_registry[c].name != NULL; c++) {
-        char line[128]; sprintf(line, WHITE "%-10s" RESET " : %s\n", command_registry[c].name, command_registry[c].description);
-        strcat(b, line);
+        char line[256]; sprintf(line, WHITE "%-10s" RESET " : %s\n", command_registry[c].name, command_registry[c].description);
+        if (strlen(b) + strlen(line) < sizeof(b) - 1) {
+            strcat(b, line);
+        }
     }
     send_server_msg(i, "COMPUTER", b);
 }
@@ -2327,8 +2639,7 @@ void process_command(int i, const char *cmd) {
     
     /* 1. Intercept numeric input for pending boarding actions */
     if (players[i].pending_bor_target > 0) {
-        // ... (logica boarding esistente)
-        if (strlen(cmd) == 1 && cmd[0] >= '1' && cmd[0] <= '3') {
+        if (strlen(cmd) == 1 && cmd[0] >= '1' && cmd[0] <= '4') {
             int choice = cmd[0] - '0';
             int tid = players[i].pending_bor_target;
             double tx=0, ty=0, tz=0;
@@ -2336,6 +2647,7 @@ void process_command(int i, const char *cmd) {
 
             /* Resolve target position */
             if (tid <= 32) { target_p = &players[tid-1]; tx = target_p->state.s1; ty = target_p->state.s2; tz = target_p->state.s3; }
+            else if (tid >= 1000 && tid < 1000 + MAX_NPC) { int n_idx = tid - 1000; tx = npcs[n_idx].x; ty = npcs[n_idx].y; tz = npcs[n_idx].z; }
             else if (tid >= 11000 && tid < 11000 + MAX_DERELICTS) { int d_idx = tid - 11000; tx = derelicts[d_idx].x; ty = derelicts[d_idx].y; tz = derelicts[d_idx].z; }
             else if (tid >= 16000) { int pt_idx = tid - 16000; tx = platforms[pt_idx].x; ty = platforms[pt_idx].y; tz = platforms[pt_idx].z; }
 
@@ -2347,18 +2659,40 @@ void process_command(int i, const char *cmd) {
                 if (players[i].pending_bor_type == 1) { /* ALLY PLAYER */
                     if (choice == 1) { players[i].state.energy -= 50000; target_p->state.energy += 50000; send_server_msg(i, "ENGINEERING", "Energy transferred."); }
                     else if (choice == 2) { int s = rand()%10; target_p->state.system_health[s] = 100.0f; send_server_msg(i, "ENGINEERING", "Repairs complete."); }
-                    else { players[i].state.crew_count -= 20; target_p->state.crew_count += 20; send_server_msg(i, "SECURITY", "Crew transferred."); }
-                } else if (players[i].pending_bor_type == 2) { /* ENEMY PLAYER */
-                    if (choice == 1) { int s = rand()%10; target_p->state.system_health[s] = 0.0f; send_server_msg(i, "BOARDING", "Sabotage successful."); }
-                    else if (choice == 2) { int r = 1 + rand()%8; int a = target_p->state.inventory[r]/2; target_p->state.inventory[r] -= a; players[i].state.inventory[r] += a; send_server_msg(i, "BOARDING", "Resources seized."); }
-                    else { int p = 5 + rand()%15; target_p->state.crew_count -= p; players[i].state.prison_unit += p; send_server_msg(i, "SECURITY", "Hostages taken."); }
+                    else { 
+                        int t_crew = (players[i].state.crew_count >= 20) ? 20 : players[i].state.crew_count;
+                        players[i].state.crew_count -= t_crew; target_p->state.crew_count += t_crew; 
+                        send_server_msg(i, "SECURITY", "Crew transferred."); 
+                    }
+                } else if (players[i].pending_bor_type == 2) { /* ENEMY PLAYER / NPC */
+                    if (tid <= 32) {
+                        if (choice == 1) { int s = rand()%10; target_p->state.system_health[s] = 0.0f; send_server_msg(i, "BOARDING", "Sabotage successful."); }
+                        else if (choice == 2) { int r = 1 + rand()%8; int a = target_p->state.inventory[r]/2; target_p->state.inventory[r] -= a; players[i].state.inventory[r] += a; send_server_msg(i, "BOARDING", "Resources seized."); }
+                        else { 
+                            int p = 5 + rand()%15; 
+                            if (target_p->state.crew_count < p) p = target_p->state.crew_count;
+                            target_p->state.crew_count -= p; players[i].state.prison_unit += p; 
+                            send_server_msg(i, "SECURITY", "Hostages taken."); 
+                        }
+                    } else {
+                        /* NPC Sabotage Effects */
+                        NPCShip *target_npc = &npcs[tid-1000];
+                        if (choice == 1) { target_npc->engine_health = 0.0f; target_npc->energy -= 10000; send_server_msg(i, "BOARDING", "NPC propulsion core sabotaged. Vessell is drifting."); }
+                        else if (choice == 2) { players[i].state.inventory[1 + rand()%7] += 50; send_server_msg(i, "BOARDING", "Raid successful. Secured NPC cargo."); }
+                        else { 
+                            int p = 10 + rand()%30; 
+                            if (target_npc->health < p) p = target_npc->health; /* Per NPC usiamo health come approssimazione crew */
+                            target_npc->health -= p;
+                            players[i].state.prison_unit += p; 
+                            send_server_msg(i, "SECURITY", "Captured enemy personnel."); 
+                        }
+                    }
                 } else if (players[i].pending_bor_type == 3) { /* PLATFORM */
                     int pt_idx = tid - 16000;
                     if (choice == 1) { platforms[pt_idx].faction = players[i].faction; send_server_msg(i, "BOARDING", "Platform captured."); }
                     else if (choice == 2) { platforms[pt_idx].active = 0; players[i].state.boom = (NetPoint){(float)platforms[pt_idx].x, (float)platforms[pt_idx].y, (float)platforms[pt_idx].z, 1}; send_server_msg(i, "BOARDING", "Platform destroyed."); }
                     else { players[i].state.inventory[5] += 250; send_server_msg(i, "BOARDING", "Tech salvaged."); }
                 } else if (players[i].pending_bor_type == 4) { /* DERELICT WRECK */
-                    int d_idx = tid - 11000;
                     
                     /* 1. Choice Specific Reward */
                     if (choice == 1) { /* Salvage extra resources */
@@ -2369,24 +2703,19 @@ void process_command(int i, const char *cmd) {
                         int rev = 0; for(int r=0; r<10; r++) { int rq1=rand()%10+1, rq2=rand()%10+1, rq3=rand()%10+1; if (players[i].state.z[rq1][rq2][rq3] == 0) { players[i].state.z[rq1][rq2][rq3] = 1; rev++; } if (rev >= 4) break; }
                         send_server_msg(i, "BOARDING", "Navigational logs decrypted. Star-charts updated with new quadrants."); 
                     }
-                    else { /* Emergency Field Repairs */
+                    else if (choice == 3) { /* Emergency Field Repairs */
                         int s = rand()%10; players[i].state.system_health[s] = 100.0f;
                         send_server_msg(i, "BOARDING", "Engineers recovered compatible spare parts. System fully restored."); 
                     }
+                    else if (choice == 4) { /* Crew Rescue (Survivors) */
+                        int found_crew = 10 + rand()%21;
+                        players[i].state.crew_count += found_crew;
+                        char msg[128]; sprintf(msg, "Search teams found %d survivors in stasis. They have been integrated into the crew.", found_crew);
+                        send_server_msg(i, "SECURITY", msg);
+                    }
 
-                    /* 2. Standard Dismantle Bonus (as requested) */
-                    float trans_mult = 0.7f + (players[i].state.system_health[3] / 100.0f) * 0.3f;
-                    int yield = (int)((80 + rand()%120) * trans_mult);
-                    players[i].state.inventory[2] += yield;     /* Neo-Titanium */
-                    players[i].state.inventory[5] += yield / 4; /* Synaptics */
-                    
-                    char msg[128];
-                    sprintf(msg, "Wreck structural collapse initiated. Salvaged additional %d Neo-Titanium and %d Synaptics.", yield, yield/4);
-                    send_server_msg(i, "ENGINEERING", msg);
-
-                    /* 3. Deactivation and Dismantle Visual FX */
-                    derelicts[d_idx].active = 0;
-                    players[i].state.dismantle = (NetDismantle){(float)derelicts[d_idx].x, (float)derelicts[d_idx].y, (float)derelicts[d_idx].z, 0, 1};
+                    /* 2. Removed automatic dismantling / collapse logic as requested.
+                       The derelict remains active for further boarding or dismantling via 'dis' command. */
                 }
             }
             players[i].pending_bor_target = 0;

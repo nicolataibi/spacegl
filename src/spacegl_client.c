@@ -473,6 +473,9 @@ void *network_listener(void *arg) {
                 
                 g_shared_state->is_cloaked = upd.is_cloaked;
                 g_shared_state->shm_is_docked = upd.is_docked;
+                g_shared_state->shm_red_alert = upd.red_alert;
+                g_shared_state->shm_is_jammed = upd.is_jammed;
+                g_shared_state->shm_nav_state = upd.nav_state;
                 g_shared_state->shm_show_axes = upd.show_axes;
                 g_shared_state->shm_show_grid = upd.show_grid;
                 g_shared_state->shm_show_bridge = upd.show_bridge;
@@ -659,7 +662,7 @@ int main(int argc, char *argv[]) {
     printf(B_CYAN " | " B_WHITE "   ╚══════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚══════╝     ╚═════╝ ╚══════╝         " B_CYAN "  |\n" RESET);
     printf(B_CYAN " |                                                                            |\n" RESET);
     printf(B_CYAN " | " B_YELLOW "              ---  SPACE EXPLORATION & COMBAT INTERFACE  ---              " B_CYAN " |\n" RESET);
-    printf(B_CYAN " | " B_MAGENTA "          \"Per Tenebras, Lumen\" (Attraverso le tenebre, la luce)          " B_CYAN " |\n" RESET);
+    printf(B_CYAN " | " B_MAGENTA "          \"Per Tenebras, Lumen\" (Through darkness, light)                 " B_CYAN " |\n" RESET);
     printf(B_CYAN " |                                                                            |\n" RESET);
         printf(B_CYAN " | " B_WHITE "  Copyright (C) 2026 " B_GREEN "Nicola Taibi" B_WHITE "                                        " B_CYAN "  |\n" RESET);
         printf(B_CYAN " | " B_WHITE "  AI Core Support by " B_BLUE "Google Gemini" B_WHITE "                                       " B_CYAN "  |\n" RESET);
@@ -883,58 +886,7 @@ int main(int argc, char *argv[]) {
                         disable_raw_mode();
                         exit(0);
                     }
-                    if (strcmp(g_input_buf, "help") == 0) {
-                        printf(B_CYAN "\n--- LCARS COMMAND DIRECTORY ---" RESET "\n");
-                        printf(B_WHITE "nav H M W [F]" RESET " : Hyperdrive Navigation (H 0-359, M -90/90, W Dist, F Factor 1-9.9)\n");
-                        printf(B_WHITE "imp H M S" RESET "    : Impulse Drive (H, M, Speed 0.0-1.0). imp 0 0 0 to stop.\n");
-                        printf(B_WHITE "pos H M" RESET "      : Position Ship (Align orientation without movement)\n");
-                        printf(B_WHITE "jum Q1 Q2 Q3" RESET " : Wormhole Jump (Instant travel, costs 5000 En + 1 Aetherium)\n");
-                        printf(B_WHITE "srs" RESET "          : Short Range Sensors (Current Quadrant View)\n");
-                        printf(B_WHITE "lrs" RESET "          : Long Range Sensors (LCARS Tactical Grid)\n");
-                        printf(B_WHITE "pha <E>" RESET "      : Fire Ion Beams at locked target (uses Energy E)\n");
-                        printf(B_WHITE "pha <ID> <E>" RESET " : Fire Ion Beams at specific target ID\n");
-                        printf(B_WHITE "tor" RESET "          : Launch Plasma Torpedo at locked target\n");
-                        printf(B_WHITE "tor <H> <M>" RESET "  : Launch Plasma Torpedo at specific Heading/Mark\n");
-                        printf(B_WHITE "she F R T B L RI" RESET " : Configure 6 Shield Quadrants\n");
-                        printf(B_WHITE "lock ID" RESET "      : Lock-on Target (0:Self, 1+:Nearby vessels)\n");
-                        printf(B_WHITE "enc <algo>" RESET "   : Toggle Encryption (aes, chacha, aria, camellia, ..., pqc)\n");
-                        printf(B_WHITE "scan ID" RESET "      : Detailed analysis of vessel or anomaly\n");
-                        printf(B_WHITE "pow E S W" RESET "    : Power Allocation (Engines, Shields, Weapons %%)\n");
-                        printf(B_WHITE "psy" RESET "          : Psychological Warfare (Anti-Matter Bluff)\n");
-                        printf(B_WHITE "aux probe QX QY QZ" RESET " : Launch sensor probe\n");
-                        printf(B_WHITE "aux report <N>" RESET "    : Request sensor update from Probe N\n");
-                        printf(B_WHITE "aux recover <N>" RESET "   : Recover Probe N in sector (+500 Energy)\n");
-                        printf(B_WHITE "aux jettison" RESET "      : Eject Hyperdrive Core (WARNING!)\n");
-                        printf(B_WHITE "dis ID" RESET "       : Dismantle enemy wreck/derelict (Dist < 1.5)\n");
-                        printf(B_WHITE "bor ID" RESET "       : Boarding party operation (Dist < 1.0). Works on Lock.\n");
-                        printf(B_WHITE "min" RESET "          : Planetary Mining (Must be in orbit dist < 2.0)\n");
-                        printf(B_WHITE "doc" RESET "          : Dock with Starbase (Replenish/Repair, same faction)\n");
-                        printf(B_WHITE "und" RESET "          : Undock (Release clamps from Starbase)\n");
-                        printf(B_WHITE "con T A" RESET "      : Convert (1:Aeth->E, 2:Neo-Ti->E, 3:Void-E->Torps, 6:Gas->E, 7:Comp->E)\n");
-                        printf(B_WHITE "load T A" RESET "     : Load from Cargo Bay (1:Energy, 2:Torps)\n");
-                        printf(B_WHITE "hull" RESET "         : Reinforce Hull (Uses 100 Composite for +500 Plating)\n");
-                        printf(B_WHITE "rep ID" RESET "       : Repair System (Uses 50 Neo-Titanium + 10 Synaptics)\n");
-                        printf(B_WHITE "fix" RESET "          : Field Hull Repair (50 Graphene + 20 Neo-Ti)\n");
-                        printf(B_WHITE "inv" RESET "          : Cargo Inventory Report\n");
-                        printf(B_WHITE "who" RESET "          : List active captains in galaxy\n");
-                        printf(B_WHITE "cal Q1..3 S1..3" RESET " : Hyperdrive Calc (Pinpoint Precision Route & ETA)\n");
-                        printf(B_WHITE "ical X Y Z" RESET "   : Impulse Calculator (Sector ETA at current power)\n");
-                        printf(B_WHITE "apr ID DIST" RESET "  : Approach target autopilot. Works on Lock.\n");
-                        printf(B_WHITE "cha" RESET "          : Chase locked target (Inter-sector aware)\n");
-                        printf(B_WHITE "sco" RESET "          : Solar scooping for energy\n");
-                        printf(B_WHITE "har" RESET "          : Antimatter harvest from Black Hole\n");
-                        printf(B_WHITE "sta" RESET "          : Mission Status Report\n");
-                        printf(B_WHITE "dam" RESET "          : Detailed Damage Report\n");
-                        printf(B_WHITE "rad MSG" RESET "      : Send Global Radio Message\n");
-                        printf(B_WHITE "rad @Fac MSG" RESET " : Send to Faction (e.g. @Xylari ...)\n");
-                        printf(B_WHITE "rad #ID MSG" RESET "  : Send Private Message to Player ID\n");
-                        printf(B_WHITE "clo" RESET "          : Toggle Cloaking Device (Consumes constant Energy)\n");
-                        printf(B_WHITE "axs" RESET "          : Toggle 3D Coordinate Axes\n");
-                        printf(B_WHITE "grd" RESET "          : Toggle 3D Tactical Grid\n");
-                        printf(B_WHITE "map [XX]" RESET "     : Toggle Starmap. Optional Filter (st,pl,bs,en,bh,ne,pu,is,co,as,de,mi,bu,pf,ri,mo)\n");
-                        printf(B_WHITE "bridge [view]" RESET "  : Change Bridge View (top, bottom, up, down, left, right, rear, off)\n");
-                        printf(B_WHITE "xxx" RESET "          : Self-Destruct\n");
-                    } else if (strcmp(g_input_buf, "axs") == 0 || 
+                    if (strcmp(g_input_buf, "axs") == 0 || 
                                strcmp(g_input_buf, "grd") == 0 || 
                                strncmp(g_input_buf, "bridge", 6) == 0 ||
                                strncmp(g_input_buf, "map", 3) == 0 ||

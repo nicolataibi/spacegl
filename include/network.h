@@ -154,6 +154,9 @@ typedef struct {
     uint8_t show_map;
     uint8_t map_filter;
     uint8_t encryption_enabled;
+    uint8_t red_alert;
+    uint8_t is_jammed;
+    uint8_t nav_state;
     NetPoint supernova_pos; 
     int32_t supernova_q[3];
     int64_t map_update_val;
