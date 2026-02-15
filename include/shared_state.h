@@ -96,6 +96,8 @@ typedef struct {
     float shm_system_health[10];
     float shm_power_dist[3];
     int shm_tube_state;
+    int tube_load_timers[4];
+    int current_tube;
     float shm_ion_beam_charge;
     float shm_life_support;
     int shm_anti_matter;

@@ -482,6 +482,9 @@ int g_is_docked = 0;
 int g_red_alert = 0;
 int g_is_jammed = 0;
 int g_nav_state = 0;
+int g_cloaked = 0;
+int g_tube_state = 0;
+float g_ion_charge = 0.0f;
 int g_map_filter = 0;
 int g_my_q[3] = {1,1,1};
 int64_t g_galaxy[11][11][11];
@@ -672,6 +675,9 @@ void loadGameState() {
     g_red_alert = g_shared_state->shm_red_alert;
     g_is_jammed = g_shared_state->shm_is_jammed;
     g_nav_state = g_shared_state->shm_nav_state;
+    g_cloaked = g_shared_state->is_cloaked;
+    g_tube_state = g_shared_state->shm_tube_state;
+    g_ion_charge = g_shared_state->shm_ion_beam_charge;
     int total_s = 0;
     for(int s=0; s<6; s++) {
         /* Always detect a hit if the shared state value is less than our last tracked value,
@@ -3452,6 +3458,37 @@ void display() {
         if (g_is_jammed) {
             glColor3f(1.0f, 1.0f, 1.0f);
             drawText3D(x_off, y_pos, 0, "WARNING: ELECTRONIC WARFARE JAMMING ACTIVE"); y_pos -= 20;
+        }
+
+        /* --- TACTICAL STATUS OVERLAY --- */
+        if (g_cloaked) {
+            float blink = (float)sin(glutGet(GLUT_ELAPSED_TIME)*0.015) * 0.5f + 0.5f;
+            glColor3f(0.3f, 0.6f, 1.0f); /* Soft Blue */
+            sprintf(buf, "CLOAKING DEVICE: ACTIVE (Signature Hidden) [%s]", (blink > 0.5f) ? "OK" : "  ");
+            drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
+        }
+
+        /* Torpedo Tube Status (Multi-tube HUD) */
+        sprintf(buf, "TORPEDO SYSTEM: ");
+        drawText3D(x_off, y_pos, 0, buf); 
+        int tx_off = x_off + 140;
+        for(int t=0; t<4; t++) {
+            const char* tube_str = "[R]"; /* Ready */
+            if (g_tube_state == 3) { glColor3f(0.5, 0.5, 0.5); tube_str = "[X]"; } /* Offline */
+            else if (g_tube_state == 1 && t == (g_shared_state->current_tube + 3) % 4) { glColor3f(1, 0, 0); tube_str = "[F]"; } /* Firing (approximate) */
+            else if (g_shared_state->tube_load_timers[t] > 0) { glColor3f(1, 1, 0); tube_str = "[L]"; } /* Loading */
+            else { glColor3f(0, 1, 1); tube_str = "[R]"; }
+            
+            drawText3D(tx_off, y_pos, 0, tube_str);
+            tx_off += 30;
+        }
+        y_pos -= 20;
+
+        /* Ion Beam Charge Bar */
+        if (g_ion_charge > 0) {
+            glColor3f(0, 0.8f, 1.0f);
+            sprintf(buf, "ION BEAM CHARGE: [%-10.*s] %.0f%%", (int)(g_ion_charge/10.0f), "============", g_ion_charge);
+            drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
         }
 
         glColor3f(0.0f, 1.0f, 1.0f); /* Cyan */

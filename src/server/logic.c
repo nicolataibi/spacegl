@@ -805,7 +805,14 @@ void update_game_logic() {
             players[i].state.energy -= (int)(recharge_rate * 2.0f);
         }
 
-        /* 1.2 Torpedo Loading Timer */
+        /* 1.2 Torpedo Loading Timer (Individual Tubes) */
+        bool any_loading = false;
+        for(int t=0; t<4; t++) {
+            if (players[i].tube_load_timers[t] > 0) {
+                players[i].tube_load_timers[t]--;
+                any_loading = true;
+            }
+        }
         if (players[i].torp_load_timer > 0) players[i].torp_load_timer--;
         
         /* 1.2.1 Renegade Timer Decrement */
@@ -819,7 +826,7 @@ void update_game_logic() {
         /* 1.3 Update Tube State for HUD */
         if (players[i].state.system_health[5] <= 50.0f) players[i].state.tube_state = 3; /* OFFLINE */
         else if (players[i].torp_active) players[i].state.tube_state = 1;                /* FIRING */
-        else if (players[i].torp_load_timer > 0) players[i].state.tube_state = 2;        /* LOADING */
+        else if (players[i].tube_load_timers[players[i].current_tube] > 0) players[i].state.tube_state = 2; /* Current tube LOADING */
         else players[i].state.tube_state = 0;                                           /* READY */
 
         /* 1.4 Update Life Support Value */
@@ -1251,7 +1258,11 @@ void update_game_logic() {
                 else if (tid >= 7000 && tid < 7000+MAX_BH) { int h = tid-7000; if(black_holes[h].active) { tx=(black_holes[h].q1-1)*10+black_holes[h].x; ty=(black_holes[h].q2-1)*10+black_holes[h].y; tz=(black_holes[h].q3-1)*10+black_holes[h].z; found=true; } }
                 else if (tid >= 10000 && tid < 10000+MAX_COMETS) { int c = tid-10000; if(comets[c].active) { tx=(comets[c].q1-1)*10+comets[c].x; ty=(comets[c].q2-1)*10+comets[c].y; tz=(comets[c].q3-1)*10+comets[c].z; found=true; } }
                 else if (tid >= 11000 && tid < 11000+MAX_DERELICTS) { int d = tid-11000; if(derelicts[d].active) { tx=(derelicts[d].q1-1)*10+derelicts[d].x; ty=(derelicts[d].q2-1)*10+derelicts[d].y; tz=(derelicts[d].q3-1)*10+derelicts[d].z; found=true; } }
+                else if (tid >= 12000 && tid < 12000+MAX_ASTEROIDS) { int a = tid-12000; if(asteroids[a].active) { tx=(asteroids[a].q1-1)*10+asteroids[a].x; ty=(asteroids[a].q2-1)*10+asteroids[a].y; tz=(asteroids[a].q3-1)*10+asteroids[a].z; found=true; } }
+                else if (tid >= 14000 && tid < 14000+MAX_MINES) { int m = tid-14000; if(mines[m].active) { tx=(mines[m].q1-1)*10+mines[m].x; ty=(mines[m].q2-1)*10+mines[m].y; tz=(mines[m].q3-1)*10+mines[m].z; found=true; } }
+                else if (tid >= 15000 && tid < 15000+MAX_BUOYS) { int b = tid-15000; if(buoys[b].active) { tx=(buoys[b].q1-1)*10+buoys[b].x; ty=(buoys[b].q2-1)*10+buoys[b].y; tz=(buoys[b].q3-1)*10+buoys[b].z; found=true; } }
                 else if (tid >= 16000 && tid < 16000+MAX_PLATFORMS) { int p = tid-16000; if(platforms[p].active) { tx=(platforms[p].q1-1)*10+platforms[p].x; ty=(platforms[p].q2-1)*10+platforms[p].y; tz=(platforms[p].q3-1)*10+platforms[p].z; found=true; } }
+                else if (tid >= 17000 && tid < 17000+MAX_RIFTS) { int r = tid-17000; if(rifts[r].active) { tx=(rifts[r].q1-1)*10+rifts[r].x; ty=(rifts[r].q2-1)*10+rifts[r].y; tz=(rifts[r].q3-1)*10+rifts[r].z; found=true; } }
                 else if (tid >= 18000 && tid < 18000+MAX_MONSTERS) { int m = tid-18000; if(monsters[m].active) { tx=(monsters[m].q1-1)*10+monsters[m].x; ty=(monsters[m].q2-1)*10+monsters[m].y; tz=(monsters[m].q3-1)*10+monsters[m].z; found=true; } }
             }
 
@@ -1790,6 +1801,8 @@ void update_game_logic() {
         upd.anti_matter_count = players[i].state.anti_matter_count;
         upd.lock_target = players[i].state.lock_target;
         upd.tube_state = players[i].state.tube_state;
+        for(int t=0; t<4; t++) upd.tube_load_timers[t] = players[i].tube_load_timers[t];
+        upd.current_tube = players[i].current_tube;
         upd.ion_beam_charge = players[i].state.ion_beam_charge;
         upd.is_cloaked = players[i].state.is_cloaked;
         upd.is_docked = players[i].is_docked || (players[i].nav_state == NAV_STATE_DOCKING);

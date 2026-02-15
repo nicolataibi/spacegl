@@ -1223,6 +1223,11 @@ Il database centrale GDIS preserva le gesta dei comandanti che hanno plasmato i 
 ---
 > **Nota di Comando:** L'Alleanza Stellare non è solo una coalizione militare, ma un ideale di ordine e progresso che si contrappone al caos dei territori di frontiera e all'oscurità dei quadranti inesplorati.
 ---
+
+🌌 **"Sidera Jungit Sapientia"**
+*(La saggezza unisce le stelle)*
+* **Perché rispecchia l'Alleanza**: Questo motto suggerisce che non è solo la forza militare o la tecnologia a tenere unita la galassia, ma la conoscenza condivisa e la comprensione intellettuale tra diverse civiltà. È perfetto per un'alleanza che valorizza la scienza e il coordinamento tattico.
+
 ### 🏛️ Panoramica Generale
 L'**Alleanza Stellare** rappresenta il principale baluardo di stabilità e cooperazione tra le potenze del quadrante. Fondata sui principi della **diplomazia proattiva**, dell'**esplorazione scientifica** e della **difesa collettiva**, l'Alleanza funge da entità coordinatrice tra diverse civiltà per contrastare le minacce sistemiche che mettono a rischio lo spazio conosciuto.
 
@@ -1250,12 +1255,21 @@ L'**Alleanza Stellare** rappresenta il principale baluardo di stabilità e coope
 </table>
 
 *   🛡️ **Alto Ammiraglio Hyperion Niklaus**: Noto come "Il Muro di Orione", guidò la difesa dell'Aegis durante la prima grande invasione Swarm.
+    > **"Per Tenebras, Lumen"**
+    > *(Attraverso le tenebre, la luce)*
+    >
+    > *   **Il Significato Strategico**: Questo motto incarna la missione esistenziale dell'Alleanza: la trasformazione dell'ignoto in conosciuto. Rappresenta la determinazione del comando nel penetrare i quadranti inesplorati e i settori più oscuri dello spazio non per conquistare, ma per illuminare.
+    > *   **La Dualità Tenebre/Luce**: Le "tenebre" non sono solo il vuoto fisico dello spazio profondo o la minaccia di civiltà ostili, ma simboleggiano l'entropia, l'ignoranza e il caos. La "luce" è la scienza, l'ordine tattico garantito dal sistema GDIS e la civiltà che l'Alleanza porta con sé.
+    > *   **Riferimento Tecnologico**: In un contesto di ingegneria navale, il motto riflette la resilienza dei sistemi: la capacità di un vascello (come la classe Deep Space Vanguard) di operare in condizioni di isolamento estremo, mantenendo accesa la "luce" della ragione e della funzionalità tecnologica anche di fronte alle sfide più cupe dell'universo.
+    >
+    > È il testamento spirituale di chiunque serva a bordo di una nave dell'Alleanza: la convinzione che, per quanto vasto sia il buio, la volontà umana sostenuta dalla conoscenza possa sempre trovare la via.
 <table>
 <tr>
     <td><img src="readme_assets/com-LyraVance.png" alt="Emblem" width="200"/></td>
     <td><img src="readme_assets/actor-CaptainLyraVance.png" alt="Captain Lyra Vance" width="200"/></td>
   </tr>
 </table>
+
 *   ⚓ **Capitano Lyra Vance**: La leggendaria esploratrice che mappò il Ponte di Einstein-Rosen verso il Quadrante Delta usando un vascello di classe Scout.
 <table>
 <tr>
@@ -1263,7 +1277,8 @@ L'**Alleanza Stellare** rappresenta il principale baluardo di stabilità e coope
     <td><img src="readme_assets/actor-CommanderLeandrosThorne.png" alt="Commander Leandros Thorne" width="200"/></td>
   </tr>
 </table>
-*   📜 **Comandante Leandros Thorne**: Un raffinato diplomatico e tattico, famoso per il Trattato di Aetherium che pose fine alla guerra centenaria con i Korthian.
+
+*   📜 **Comandante Leandros Thorne, Sr.**: Un raffinato diplomatico e tattico, famoso per il Trattato di Aetherium che pose fine alla guerra centenaria con i Korthian.
 
 #### ⚔️ 2. Impero Korthian
 <table>
@@ -1384,7 +1399,7 @@ Progettata per missioni di lunga durata e primo contatto. Dispone dei sistemi GD
 </table>
 
 L'ultima espressione della potenza di fuoco dell'Alleanza, equipaggiata con pesanti banchi Ion Beam.
-*   **Comandante di Riferimento**: **Leandros Thorne**. Famoso per l'uso coordinato di scudi localizzati e salve di siluri al plasma.
+*   **Comandante di Riferimento**: **Leandros Thorne, Jr**. Famoso per l'uso coordinato di scudi localizzati e salve di siluri al plasma.
 
 #### 🔭 Nave Scientifica (Esploratore Scientifico)
 <table>
@@ -1406,7 +1421,7 @@ Un vascello specializzato nell'analisi di anomalie spaziali e nella raccolta di 
  </tr>
 </table>
 
-L'Alleanza impiega anche vascelli specializzati come la classe **Carrier** (coordinamento droni) e **Tactical Cruiser** (difesa perimetrale), ciascuno ottimizzato per scenari di crisi specifici.
+L'Alleanza impiega anche vascelli specializzati come la classe **Carrier** (coordinamento droni), **Tactical Cruiser** (difesa perimetrale) e **Deep Space Vanguard** (classe Interstellar - proiezione di potenza e missioni a lungo raggio), ciascuno ottimizzato per scenari di crisi specifici. La *Deep Space Vanguard* eccelle in tattiche avanzate, armamenti pesanti e sistemi di propulsione sperimentali, garantendo massima versatilità nei viaggi interstellari prolungati.
 
 ---
 
@@ -1537,14 +1552,44 @@ Space GL implementa la sicurezza di livello enterprise per la sincronizzazione d
 *   **HUD Crittografico**: Visualizzazione in tempo reale dei flag di crittografia, dello stato della firma e dei parametri del protocollo attivo direttamente nell'interfaccia tattica.
 
 ### ⚙️ Requisiti di Sistema e Dipendenze
-Per compilare ed eseguire la suite StarTrek Ultra, assicurati che siano installate le seguenti librerie:
+Per compilare ed eseguire la suite SPACE GL, assicurati che siano installate le seguenti librerie:
 *   **FreeGLUT / OpenGL**: Motore di rendering principale e gestione delle finestre.
 *   **GLEW**: OpenGL Extension Wrangler per il supporto avanzato agli shader.
 *   **OpenSSL**: Richiesto per la suite crittografica completa (AES, HMAC, ecc.).
 *   **POSIX Threads & RT**: Gestiti tramite `lpthread` e `lrt` per la memoria condivisa e la sincronizzazione.
 
-### ⚡ Architettura IPC a Latenza Zero
-L'estrema reattività del sistema è ottenuta attraverso un'architettura **Zero-Copy Shared Memory** (`/dev/shm`). Il client binario e il motore 3D comunicano alle velocità della RAM, assicurando che ogni comando impartito nella console risulti in una reazione visiva istantanea senza lag indotto dalla rete sulla macchina locale.
+### 🚀 Zero-Latency IPC Architecture
+
+L'architettura di sistema è progettata per eliminare il collo di bottiglia del networking locale, tipico delle soluzioni client-server tradizionali, garantendo una latenza deterministica prossima allo zero.
+
+#### 🧠 1. Shared Memory Foundation (`/dev/shm`)
+Invece di affidarsi a socket TCP/UDP o Named Pipes (che richiedono molteplici context switch tra kernel e user space), il sistema utilizza la **memoria condivisa POSIX**.
+*   **Mappatura**: Il Client crea un oggetto di memoria in `/dev/shm` (un file system in RAM) tramite `shm_open`.
+*   **Indirizzamento**: Entrambi i processi mappano lo stesso segmento fisico nei propri spazi di indirizzamento virtuali tramite `mmap()`. 
+*   **Vantaggio**: Una volta stabilita la mappatura, lo scambio di dati avviene a **velocità di bus della RAM**, senza overhead di sistema operativo per il transito dei byte.
+
+#### 🔄 2. Sincronizzazione Inter-Processo (`PTHREAD_SHARED`)
+La coerenza dei dati tra il thread di rete del Client e il loop di rendering del Visualizzatore è gestita tramite primitive di sincronizzazione atomiche allocate direttamente nella memoria condivisa:
+*   **Mutex Process-Shared**: Utilizzo di `pthread_mutex_t` inizializzati con l'attributo `PTHREAD_PROCESS_SHARED`. Questo permette di bloccare l'accesso alla struttura `GameState` in modo sicuro tra processi diversi.
+*   **Semafori POSIX**: Un `sem_t` viene utilizzato per implementare un meccanismo di *Signaling* a bassa latenza. Quando il Client riceve un pacchetto dal server remoto, aggiorna la memoria e incrementa il semaforo, svegliando istantaneamente il thread `shm_listener` del motore 3D.
+
+#### ⚡ 3. Meccanismo Zero-Copy
+A differenza delle architetture basate su messaggi (dove i dati vengono serializzati, copiati in un buffer, inviati e deserializzati), SPACE GL implementa una vera filosofia **Zero-Copy**:
+*   **Aggiornamento sul posto**: I dati ricevuti dal network vengono scritti direttamente nella struttura `SharedObject` puntata da `g_shared_state`.
+*   **Accesso Diretto**: Il motore grafico legge i valori necessari (coordinate, stati degli scudi, vettori di movimento) accedendo direttamente ai puntatori della memoria condivisa, eliminando qualsiasi operazione di bufferizzazione intermedia.
+
+#### 🛡️ 4. Orchestrazione e Resilienza del Ciclo di Vita
+Il Client binario agisce come **Supervisore (Orchestrator)** del ciclo di vita IPC:
+1.  **Init**: Genera un path univoco (es. `/st_shm_[PID]`), alloca lo spazio con `ftruncate` e inizializza i mutex.
+2.  **Spawn**: Lancia il Visualizzatore passandogli l'identificativo del segmento come argomento.
+3.  **Cleanup**: In caso di chiusura o crash intercettato tramite segnali (`SIGINT`, `SIGTERM`), il Client invoca `shm_unlink`. Questo assicura che il segmento di memoria venga rimosso dal sistema, evitando "memory orphans" in `/dev/shm`.
+
+***
+
+**Stack Tecnologico IPC:**
+*   **API**: POSIX Real-time Extensions (librt).
+*   **Strutture Dati**: `GameState` con `#pragma pack(1)` per garantire il binary alignment identico tra compilazioni diverse.
+*   **Latenza Misurata**: < 100 microsecondi per il passaggio di stato tra logica e rendering.
 
 ---
 *SPACE GL - 3D LOGIC ENGINE. Sviluppato con eccellenza tecnica da Nicola Taibi. "Per Tenebras, Lumen"*

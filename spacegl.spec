@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 10
+%global rel 11
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -103,7 +103,6 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 
 %changelog
 * Sun Feb 15 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
-- Nav, Con, Ical changes
-- New command: Red, Orb
-- Help unification on server side
-- Ion beam and Chase bugfix
+- APR command bug fix
+- Ship Status in 3d viewer's hud
+- Torpedo system added

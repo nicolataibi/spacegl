@@ -801,8 +801,15 @@ void handle_pha(int i, const char *params) {
 
 void handle_tor(int i, const char *params) {
     if (players[i].state.system_health[5] < 50.0f) { send_server_msg(i, "TACTICAL", "Torpedo tubes OFFLINE."); return; }
-    if (players[i].torp_active) { send_server_msg(i, "TACTICAL", "Tubes currently FIRING."); return; }
-    if (players[i].torp_load_timer > 0) { send_server_msg(i, "TACTICAL", "Tubes are LOADING..."); return; }
+    if (players[i].torp_active) { send_server_msg(i, "TACTICAL", "Main firing sequence BUSY."); return; }
+    
+    /* Find next available tube in rotation */
+    int tube = players[i].current_tube;
+    if (players[i].tube_load_timers[tube] > 0) {
+        send_server_msg(i, "TACTICAL", "Current tube is LOADING. Cycle to next available.");
+        return;
+    }
+
     if (players[i].state.is_cloaked) { send_server_msg(i, "TACTICAL", "Cannot fire while cloaked."); return; }
     if (players[i].state.energy < 250) { send_server_msg(i, "COMPUTER", "Insufficient energy."); return; }
 
@@ -811,7 +818,8 @@ void handle_tor(int i, const char *params) {
         if (players[i].state.system_health[5] < 75.0f && (rand() % 100 > (int)players[i].state.system_health[5])) {
             players[i].state.torpedoes--;
             players[i].state.energy -= 100;
-            players[i].torp_load_timer = 90;
+            players[i].tube_load_timers[tube] = 90; /* 3 seconds at 30fps */
+            players[i].current_tube = (tube + 1) % 4;
             send_server_msg(i, "TACTICAL", "CRITICAL: Torpedo misfire! Warhead ejected.");
             return;
         }
@@ -829,7 +837,9 @@ void handle_tor(int i, const char *params) {
         players[i].state.energy -= 250;
         players[i].state.torpedoes--; 
         players[i].torp_active = true;
-        players[i].torp_load_timer = 150; 
+        players[i].tube_load_timers[tube] = 90; /* 3 seconds reload for this tube */
+        players[i].current_tube = (tube + 1) % 4; /* Rotate to next tube */
+        
         players[i].torp_timeout = 300;
         players[i].torp_target = manual ? 0 : players[i].state.lock_target;
         
@@ -938,7 +948,12 @@ void handle_lock(int i, const char *params) {
             else if (tid >= 4000 && tid < 4000+MAX_STARS) { for(int s=0; s<lq->star_count; s++) if(lq->stars[s]->id+4000 == tid) found = true; }
             else if (tid >= 7000 && tid < 7000+MAX_BH) { for(int h=0; h<lq->bh_count; h++) if(lq->black_holes[h]->id+7000 == tid) found = true; }
             else if (tid >= 10000 && tid < 10000+MAX_COMETS) { for(int c=0; c<lq->comet_count; c++) if(lq->comets[c]->id+10000 == tid) found = true; }
+            else if (tid >= 11000 && tid < 11000+MAX_DERELICTS) { for(int d=0; d<lq->derelict_count; d++) if(lq->derelicts[d]->id+11000 == tid) found = true; }
+            else if (tid >= 12000 && tid < 12000+MAX_ASTEROIDS) { for(int a=0; a<lq->asteroid_count; a++) if(lq->asteroids[a]->id+12000 == tid) found = true; }
+            else if (tid >= 14000 && tid < 14000+MAX_MINES) { for(int m=0; m<lq->mine_count; m++) if(lq->mines[m]->id+14000 == tid) found = true; }
+            else if (tid >= 15000 && tid < 15000+MAX_BUOYS) { for(int b=0; b<lq->buoy_count; b++) if(lq->buoys[b]->id+15000 == tid) found = true; }
             else if (tid >= 16000 && tid < 16000+MAX_PLATFORMS) { for(int p=0; p<lq->platform_count; p++) if(lq->platforms[p]->id+16000 == tid) found = true; }
+            else if (tid >= 17000 && tid < 17000+MAX_RIFTS) { for(int r=0; r<lq->rift_count; r++) if(lq->rifts[r]->id+17000 == tid) found = true; }
             else if (tid >= 18000 && tid < 18000+MAX_MONSTERS) { for(int m=0; m<lq->monster_count; m++) if(lq->monsters[m]->id+18000 == tid) found = true; }
             else if (tid >= 19000 && tid < 19200) {
                 int p_idx = (tid - 19000) / 3;
@@ -1036,6 +1051,36 @@ void handle_scan(int i, const char *params) {
                         "Temporal Class: Unpredictable holographic ghosting on sensors."
                     };
                     sprintf(rep, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\n%s\n", (lq->nebulas[n]->type>=0&&lq->nebulas[n]->type<6)?neb_desc[lq->nebulas[n]->type]:"Unknown phenomena.");
+                }
+            } else if (tid >= 10000 && tid < 10000+MAX_COMETS) {
+                for(int c=0; c<lq->comet_count; c++) if(lq->comets[c]->id+10000 == tid) {
+                    found = true;
+                    sprintf(rep, WHITE "\n--- COMET ANALYSIS ---" RESET "\nCOMPOSITION: Ice and Silicates\nVELOCITY: High-relative\nADVISORY: Proximity impact risk.\n");
+                }
+            } else if (tid >= 11000 && tid < 11000+MAX_DERELICTS) {
+                for(int d=0; d<lq->derelict_count; d++) if(lq->derelicts[d]->id+11000 == tid) {
+                    found = true;
+                    sprintf(rep, WHITE "\n--- DERELICT ANALYSIS ---" RESET "\nSTATUS: DEAD\nPOWER: NONE\nADVISORY: Salvage operations authorized.\n");
+                }
+            } else if (tid >= 12000 && tid < 12000+MAX_ASTEROIDS) {
+                for(int a=0; a<lq->asteroid_count; a++) if(lq->asteroids[a]->id+12000 == tid) {
+                    found = true;
+                    sprintf(rep, WHITE "\n--- ASTEROID ANALYSIS ---" RESET "\nCOMPOSITION: Carbonaceous/Metallic\nSIZE: Class-M\n");
+                }
+            } else if (tid >= 14000 && tid < 14000+MAX_MINES) {
+                for(int m=0; m<lq->mine_count; m++) if(lq->mines[m]->id+14000 == tid) {
+                    found = true;
+                    sprintf(rep, RED "\n--- WARNING: ORDNANCE DETECTED ---" RESET "\nTYPE: Proximity Mine\nSTATUS: ARMED\nADVISORY: Maintain safe distance.\n");
+                }
+            } else if (tid >= 15000 && tid < 15000+MAX_BUOYS) {
+                for(int b=0; b<lq->buoy_count; b++) if(lq->buoys[b]->id+15000 == tid) {
+                    found = true;
+                    sprintf(rep, CYAN "\n--- COMMUNICATION BUOY ---" RESET "\nSTATUS: BROADCASTING\nFREQUENCY: Standard Alliance Band\n");
+                }
+            } else if (tid >= 17000 && tid < 17000+MAX_RIFTS) {
+                for(int r=0; r<lq->rift_count; r++) if(lq->rifts[r]->id+17000 == tid) {
+                    found = true;
+                    sprintf(rep, MAGENTA "\n--- SPATIAL RIFT ANALYSIS ---" RESET "\nTYPE: Subspace Rupture\nADVISORY: Extreme gravitational shear detected.\n");
                 }
             } else if (tid >= 18000 && tid < 18000+MAX_MONSTERS) {
                 for(int m=0; m<lq->monster_count; m++) if(lq->monsters[m]->id+18000 == tid) {

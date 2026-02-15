@@ -66,7 +66,9 @@ typedef struct {
     
     /* Torpedo State */
     bool torp_active;
-    int torp_load_timer;
+    int torp_load_timer; /* Global/main tube timer (kept for compatibility) */
+    int tube_load_timers[4];
+    int current_tube;
     int torp_timeout;
     double tx, ty, tz;      /* Torpedo Current Position */
     double tdx, tdy, tdz;   /* Torpedo Vector */

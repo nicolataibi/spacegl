@@ -455,6 +455,8 @@ void *network_listener(void *arg) {
                 g_shared_state->shm_life_support = upd.life_support;
                 g_shared_state->shm_ion_beam_charge = upd.ion_beam_charge;
                 g_shared_state->shm_tube_state = upd.tube_state;
+                for(int t=0; t<4; t++) g_shared_state->tube_load_timers[t] = upd.tube_load_timers[t];
+                g_shared_state->current_tube = upd.current_tube;
                 g_shared_state->shm_anti_matter = upd.anti_matter_count;
                 for(int inv=0; inv<10; inv++) g_shared_state->inventory[inv] = upd.inventory[inv];
                 g_shared_state->shm_lock_target = upd.lock_target;

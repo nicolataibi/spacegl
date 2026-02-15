@@ -1254,6 +1254,10 @@ The GDIS central database preserves the deeds of commanders who shaped the bound
 
 ---
 
+🌌 **"Sidera Jungit Sapientia"**
+*(Wisdom unites the stars)*
+* **Why it reflects the Alliance**: This motto suggests that it is not just military strength or technology that holds the galaxy together, but shared knowledge and intellectual understanding between different civilizations. It is perfect for an alliance that values science and tactical coordination.
+
 ### 🏛️ Overview
 The **Stellar Alliance** stands as the primary bastion of stability and cooperation among the powers of the quadrant. Founded on the principles of **proactive diplomacy**, **scientific exploration**, and **collective defense**, the Alliance serves as the coordinating entity between diverse civilizations to counter systemic threats that endanger known space.
 
@@ -1279,6 +1283,14 @@ The **Stellar Alliance** stands as the primary bastion of stability and cooperat
 </table>
 
 *   🛡️ **High Admiral Hyperion Niklaus**: Known as "The Wall of Orion," he led the defense of the Aegis during the first great Swarm invasion.
+    > **"Per Tenebras, Lumen"**
+    > *(Through the darkness, the light)*
+    >
+    > *   **Strategic Significance**: This motto embodies the Alliance's existential mission: the transformation of the unknown into the known. It represents the command's determination to penetrate unexplored quadrants and the darkest sectors of space not to conquer, but to illuminate.
+    > *   **The Darkness/Light Duality**: "Darkness" is not just the physical vacuum of deep space or the threat of hostile civilizations, but symbolizes entropy, ignorance, and chaos. "Light" is science, the tactical order guaranteed by the GDIS system, and the civilization that the Alliance brings with it.
+    > *   **Technological Reference**: In the context of naval engineering, the motto reflects system resilience: the ability of a vessel (such as the Deep Space Vanguard class) to operate in extreme isolation, keeping the "light" of reason and technological functionality alive even in the face of the universe's gloomiest challenges.
+    >
+    > It is the spiritual testament of anyone serving aboard an Alliance ship: the conviction that, however vast the darkness, human will supported by knowledge can always find the way.
 
 <table>
 <tr>
@@ -1296,7 +1308,7 @@ The **Stellar Alliance** stands as the primary bastion of stability and cooperat
   </tr>
 </table>
 
-*   📜 **Commander Leandros Thorne**: A refined diplomat and tactician, famous for the Aetherium Treaty that ended the century-long war with the Korthians.
+*   📜 **Commander Leandros Thorne, Sr.**: A refined diplomat and tactician, famous for the Aetherium Treaty that ended the century-long war with the Korthians.
 
 #### ⚔️ 2. Korthian Empire
 <table>
@@ -1417,7 +1429,7 @@ Designed for long-duration missions and first contact. Features the most advance
 </table>
 
 The ultimate expression of Alliance firepower, equipped with heavy Ion Beam banks.
-*   **Reference Commander**: **Leandros Thorne**. Famous for the coordinated use of localized shields and plasma torpedo volleys.
+*   **Reference Commander**: **Leandros Thorne, Jr**. Famous for the coordinated use of localized shields and plasma torpedo volleys.
 
 #### 🔭 Science Vessel (Scientific Explorer)
 <table>
@@ -1439,7 +1451,7 @@ A vessel specialized in analyzing spatial anomalies and gathering Aetherium.
  </tr>
 </table>
 
-The Alliance also employs specialized vessels like the **Carrier** class (drone coordination) and **Tactical Cruiser** (perimeter defense), each optimized for specific crisis scenarios.
+The Alliance also employs specialized vessels like the **Carrier** class (drone coordination), **Tactical Cruiser** (perimeter defense), and **Deep Space Vanguard** (Interstellar class - power projection and long-range missions), each optimized for specific crisis scenarios. The *Deep Space Vanguard* excels in advanced tactics, heavy weaponry, and experimental propulsion systems, ensuring maximum versatility during extended interstellar journeys.
 
 ---
 
@@ -1570,14 +1582,44 @@ Space GL implements enterprise-grade security for galactic state synchronization
 *   **Cryptographic HUD**: Real-time visualization of encryption flags, signature status, and active protocol parameters directly in the tactical interface.
 
 ### ⚙️ System Requirements & Dependencies
-To compile and run the StarTrek Ultra suite, ensure the following libraries are installed:
+To compile and run the SPACE GL suite, ensure the following libraries are installed:
 *   **FreeGLUT / OpenGL**: Core rendering engine and window management.
 *   **GLEW**: OpenGL Extension Wrangler for advanced shader support.
 *   **OpenSSL**: Required for the complete cryptographic suite (AES, HMAC, etc.).
 *   **POSIX Threads & RT**: Managed via `lpthread` and `lrt` for shared memory and synchronization.
 
-### ⚡ Zero-Latency IPC Architecture
-The extreme responsiveness of the system is achieved through a **Zero-Copy Shared Memory** (`/dev/shm`) architecture. The binary client and the 3D engine communicate at RAM speeds, ensuring that every command issued in the console results in an instantaneous visual reaction without network-induced lag on the local machine.
+### 🚀 Zero-Latency IPC Architecture
+
+The system architecture is designed to eliminate the local networking bottleneck typical of traditional client-server solutions, ensuring near-zero deterministic latency.
+
+#### 🧠 1. Shared Memory Foundation (`/dev/shm`)
+Instead of relying on TCP/UDP sockets or Named Pipes (which require multiple context switches between kernel and user space), the system utilizes **POSIX shared memory**.
+*   **Mapping**: The Client creates a memory object in `/dev/shm` (a RAM-based file system) via `shm_open`.
+*   **Addressing**: Both processes map the same physical segment into their virtual address spaces using `mmap()`.
+*   **Advantage**: Once the mapping is established, data exchange occurs at **RAM bus speeds**, without operating system overhead for byte transit.
+
+#### 🔄 2. Inter-Process Synchronization (`PTHREAD_SHARED`)
+Data consistency between the Client's network thread and the Viewer's rendering loop is managed through atomic synchronization primitives allocated directly in shared memory:
+*   **Process-Shared Mutexes**: Usage of `pthread_mutex_t` initialized with the `PTHREAD_PROCESS_SHARED` attribute. This allows for safe access to the `GameState` structure across different processes.
+*   **POSIX Semaphores**: A `sem_t` is used to implement a low-latency *Signaling* mechanism. When the Client receives a packet from the remote server, it updates the memory and increments the semaphore, instantly waking the 3D engine's `shm_listener` thread.
+
+#### ⚡ 3. Zero-Copy Mechanism
+Unlike message-based architectures (where data is serialized, copied to a buffer, sent, and deserialized), SPACE GL implements a true **Zero-Copy** philosophy:
+*   **In-place Update**: Data received from the network is written directly into the `SharedObject` structure pointed to by `g_shared_state`.
+*   **Direct Access**: The graphics engine reads the necessary values (coordinates, shield states, movement vectors) by directly accessing the shared memory pointers, eliminating any intermediate buffering operations.
+
+#### 🛡️ 4. Lifecycle Orchestration and Resilience
+The binary Client acts as the **Orchestrator** of the IPC lifecycle:
+1.  **Init**: Generates a unique path (e.g., `/st_shm_[PID]`), allocates space with `ftruncate`, and initializes mutexes.
+2.  **Spawn**: Launches the Viewer, passing the segment identifier as an argument.
+3.  **Cleanup**: In case of closure or crash intercepted via signals (`SIGINT`, `SIGTERM`), the Client invokes `shm_unlink`. This ensures the memory segment is removed from the system, preventing "memory orphans" in `/dev/shm`.
+
+***
+
+**IPC Technology Stack:**
+*   **API**: POSIX Real-time Extensions (librt).
+*   **Data Structures**: `GameState` with `#pragma pack(1)` to ensure identical binary alignment across different compilations.
+*   **Measured Latency**: < 100 microseconds for state transfer between logic and rendering.
 
 ---
 *SPACE GL - 3D LOGIC ENGINE. Developed with technical excellence by Nicola Taibi. "Per Tenebras, Lumen"*
