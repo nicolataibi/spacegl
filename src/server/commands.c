@@ -221,12 +221,13 @@ void handle_pow(int i, const char *params) {
     } else send_server_msg(i, "COMPUTER", "Usage: pow <Engines> <Shields> <Weapons>");
 }
 
-/* Helper to calculate hyperdrive speed: Factor 9.9 = 10 units/sec (1 sec per quadrant) */
+/* Helper to calculate hyperdrive speed: Factor 9.9 calibrated for 
+   traversing the galaxy diagonal (40*sqrt(3) quads) in 10 seconds. 
+   Constant speed independent of power/health. */
 static double calculate_hyperdrive_speed(double factor) {
-    /* Precise scaling: Factor 9.9 / 29.7 = 0.3333 units/tick.
-       0.3333 * 30 ticks = 10 units/sec.
-       Calibrated for nominal engine_mult = 1.0. */
-    return factor / 29.7;
+    /* Scaling: Factor 9.9 / 42.868 = 0.23094 units/tick.
+       0.23094 * 300 ticks (10s) = 69.282 units (Galaxy Diagonal). */
+    return factor / 42.868;
 }
 
 void handle_nav(int i, const char *params) {
@@ -385,16 +386,19 @@ void handle_apr(int i, const char *params) {
         return;
     }
 
-    if (args == 0) tid = players[i].state.lock_target;
-    else if (args == 1 && tid < 100) { tdist = tid; tid = players[i].state.lock_target; }
+    if (args == 0) {
+        tid = players[i].state.lock_target;
+        tdist = 2.0;
+    } else if (args == 1) {
+        if (tid < 100) { /* Treat as distance for locked target */
+            tdist = tid;
+            tid = players[i].state.lock_target;
+        } else { /* Treat as ID with default distance */
+            tdist = 2.0;
+        }
+    }
 
     if (tid > 0) {
-        /* 2. Energy Cost check */
-        if (players[i].state.energy < 100) {
-            send_server_msg(i, "COMPUTER", "Insufficient energy for autopilot engagement (Req: 100).");
-            return;
-        }
-
         double tx = 0, ty = 0, tz = 0; 
         bool found = false;
         int pq1 = players[i].state.q1, pq2 = players[i].state.q2, pq3 = players[i].state.q3;
@@ -672,10 +676,9 @@ void handle_lrs(int i, const char *params) {
     bool sensor_boost = is_near_buoy(i);
     int scan_range = sensor_boost ? 2 : 1;
 
-    for (int dq3 = scan_range; dq3 >= -scan_range; dq3--) {
-        int nq3 = q3 + dq3;
-        if (nq3 < 1 || nq3 > 10) continue;
-
+        for (int dq3 = scan_range; dq3 >= -scan_range; dq3--) {
+            int nq3 = q3 + dq3;
+            if (nq3 < 1 || nq3 > GALAXY_SIZE) continue;
         char header[128];
         sprintf(header, B_YELLOW "[ DEPTH ZONE Z:%d ]" RESET "\n  QUADRANT      NAV (H/M/W)    OBJECTS [H P N B S]  ANOMALIES\n", nq3);
         strcat(b, header);
@@ -939,7 +942,7 @@ void handle_tor(int i, const char *params) {
         players[i].torp_target = manual ? 0 : players[i].state.lock_target;
         
         double rad_h = h * M_PI / 180.0; double rad_m = m * M_PI / 180.0;
-        players[i].tx = players[i].state.s1; players[i].ty = players[i].state.s2; players[i].tz = players[i].state.s3;
+        players[i].tx = players[i].gx; players[i].ty = players[i].gy; players[i].tz = players[i].gz;
         players[i].tdx = cos(rad_m) * sin(rad_h); players[i].tdy = cos(rad_m) * -cos(rad_h); players[i].tdz = sin(rad_m);
         
         send_server_msg(i, "TACTICAL", manual ? "Torpedo away (Manual)." : (players[i].torp_target > 0 ? "Torpedo away (Locked)." : "Torpedo away (Boresight)."));
@@ -1325,20 +1328,28 @@ void handle_bor(int i, const char *params) {
 
                 /* Handle other targets with probability logic */
                 if (rand()%100 < success_chance) {
-                    if (tid >= 11000 && tid < 11000+MAX_DERELICTS) {
-                        /* ... derelict menu ... */
-                        players[i].pending_bor_target = tid;
-                        players[i].pending_bor_type = 4;
-                        char menu[512];
-                        sprintf(menu, WHITE "\n--- BOARDING MENU: DERELICT WRECK [%d] ---\n" RESET 
-                               "1: Salvage Resources\n"
-                               "2: Recover Data (Map reveal)\n"
-                               "3: Field Repairs\n"
-                               "4: Rescue Survivors (Crew)\n"
-                               YELLOW "Type the number to confirm choice." RESET, tid);
-                        send_server_msg(i, "BOARDING", menu);
-                    } else if (tid >= 16000) {
-                        /* ... platform menu ... */
+                                    if (tid >= 11000 && tid < 11000+MAX_DERELICTS) {
+                                        int d_idx = tid - 11000;
+                                        players[i].pending_bor_target = tid;
+                                        players[i].pending_bor_type = 4;
+                                        char menu[512];
+                                        if (derelicts[d_idx].faction == players[i].faction) {
+                                            sprintf(menu, CYAN "\n--- BOARDING MENU: ALLIED WRECK [%d] ---\n" RESET 
+                                                   "1: Salvage Resources\n"
+                                                   "2: Recover Data (Map reveal)\n"
+                                                   "3: Field Repairs\n"
+                                                   "4: Rescue Survivors (Crew)\n"
+                                                   YELLOW "Type the number to confirm choice." RESET, tid);
+                                        } else {
+                                            sprintf(menu, RED "\n--- BOARDING MENU: ALIEN WRECK [%d] ---\n" RESET 
+                                                   "1: Salvage Resources\n"
+                                                   "2: Recover Data (Map reveal)\n"
+                                                   "3: Field Repairs\n"
+                                                   "4: Take Prisoners (Stasis units)\n"
+                                                   YELLOW "Type the number to confirm choice." RESET, tid);
+                                        }
+                                        send_server_msg(i, "BOARDING", menu);
+                                    } else if (tid >= 16000) {                        /* ... platform menu ... */
                         players[i].pending_bor_target = tid;
                         players[i].pending_bor_type = 3;
                         char menu[512];
@@ -2133,7 +2144,7 @@ void handle_cal(int i, const char *params) {
         double m = asin(dz / d) * 180.0 / M_PI;
         double q_dist = d / 10.0;
         
-        char buf[1024]; 
+        char buf[2048]; 
         if (scrambled) {
             sprintf(buf, "\n" RED ".--- NAVIGATIONAL COMPUTATION: DATA CORRUPTED ---." RESET "\n"
                          " DESTINATION:  " WHITE "Q[%d,%d,%d] Sector [?, ?, ?]" RESET "\n"
@@ -2142,27 +2153,42 @@ void handle_cal(int i, const char *params) {
                          " WARNING: Computer integrity low. Results unreliable.\n",
                          qx, qy, qz);
         } else {
-            sprintf(buf, "\n" CYAN ".--- NAVIGATIONAL COMPUTATION: PINPOINT PRECISION --." RESET "\n"
+            char table[2048];
+            sprintf(table, "\n" CYAN ".--- NAVIGATIONAL COMPUTATION: PINPOINT PRECISION --." RESET "\n"
                          " DESTINATION:  " WHITE "Q[%d,%d,%d] Sector [%.1f,%.1f,%.1f]" RESET "\n"
                          " BEARING:      " GREEN "Heading %.1f, Mark %+.1f" RESET "\n"
-                         " DISTANCE:     " YELLOW "%.2f Quadrants" RESET "\n\n"
-                         WHITE " HYPERDRIVE FACTOR   EST. TIME      NOTES" RESET "\n"
-                         " -----------   ---------      -----------------\n"
-                         " Hyperdrive 1.0      %6.1fs      Minimum Hyperdrive\n"
-                         " Hyperdrive 3.0      %6.1fs      Economic\n"
-                         " Hyperdrive 6.0      %6.1fs      Standard Cruise\n"
-                         " Hyperdrive 8.0      %6.1fs      High Pursuit\n"
-                         " Hyperdrive 9.9      %6.1fs      Maximum Hyperdrive\n"
-                         "-------------------------------------------------\n"
-                         " Use 'nav %.1f %.1f %.2f [Factor]'", 
-                         qx, qy, qz, sx, sy, sz, h, m, q_dist,
-                         (d / 1.0),
-                         (d / 3.0),
-                         (d / 6.0),
-                         (d / 8.0),
-                         (d / 9.9),
-                         h, m, q_dist
-            );
+                         " DISTANCE:     " YELLOW "%.2f Quadrants" RESET "\n"
+                         " STATUS:       " B_WHITE "Constant Speed Mode Active" RESET "\n\n"
+                         WHITE " FACTOR   TIME (1Q)   TIME (TOTAL)   NOTES" RESET "\n"
+                         " ------   ---------   ------------   -----------------\n",
+                         qx, qy, qz, sx, sy, sz, h, m, q_dist);
+
+            for (double f = 0.1; f <= 10.0; ) {
+                double cf = (f > 9.9) ? 9.9 : f;
+                
+                /* Formula: Time = q_dist * 14.289 / factor */
+                double t_1q = 14.289 / cf;
+                double t_total = q_dist * 14.289 / cf;
+                
+                const char* note = "";
+                if (cf < 0.2) note = "Minimum Jump";
+                else if (cf > 2.9 && cf < 3.2) note = "Economic";
+                else if (cf > 5.9 && cf < 6.2) note = "Standard Cruise";
+                else if (cf > 7.9 && cf < 8.2) note = "High Pursuit";
+                else if (cf > 9.8) note = "MAX VELOCITY";
+
+                char row[128];
+                sprintf(row, " %3.1f      %6.2fs      %6.1fs      %s\n", cf, t_1q, t_total, note);
+                strcat(table, row);
+                
+                if (f >= 9.9) break;
+                f += 0.5;
+                if (f > 9.9) f = 9.9;
+            }
+
+            sprintf(table + strlen(table), "-------------------------------------------------\n"
+                         " Use 'nav %.1f %.1f %.2f [Factor]'", h, m, q_dist);
+            snprintf(buf, sizeof(buf), "%s", table);
         }
         send_server_msg(i, "COMPUTER", buf);
     } else {
@@ -2909,7 +2935,7 @@ void process_command(int i, const char *cmd) {
                             target_p->state.crew_count -= p; players[i].state.prison_unit += p; 
                             send_server_msg(i, "SECURITY", "Hostages taken."); 
                         }
-                    } else {
+                    } else if (tid >= 1000 && tid < 1000 + MAX_NPC) {
                         /* NPC Sabotage Effects */
                         NPCShip *target_npc = &npcs[tid-1000];
                         if (choice == 1) { target_npc->engine_health = 0.0; target_npc->energy -= 10000; send_server_msg(i, "BOARDING", "NPC propulsion core sabotaged. Vessell is drifting."); }
@@ -2942,11 +2968,18 @@ void process_command(int i, const char *cmd) {
                         int s = rand()%10; players[i].state.system_health[s] = 100.0;
                         send_server_msg(i, "BOARDING", "Engineers recovered compatible spare parts. System fully restored."); 
                     }
-                    else if (choice == 4) { /* Crew Rescue (Survivors) */
-                        int found_crew = 10 + rand()%21;
-                        players[i].state.crew_count += found_crew;
-                        char msg[128]; sprintf(msg, "Search teams found %d survivors in stasis. They have been integrated into the crew.", found_crew);
-                        send_server_msg(i, "SECURITY", msg);
+                    else if (choice == 4) { /* Crew Rescue (Survivors) / Take Prisoners */
+                        int d_idx = tid - 11000;
+                        int found_people = 10 + rand()%21;
+                        if (derelicts[d_idx].faction == players[i].faction) {
+                            players[i].state.crew_count += found_people;
+                            char msg[128]; sprintf(msg, "Search teams found %d survivors in stasis. They have been integrated into the crew.", found_people);
+                            send_server_msg(i, "SECURITY", msg);
+                        } else {
+                            players[i].state.prison_unit += found_people;
+                            char msg[128]; sprintf(msg, "Boarding party secured %d enemy personnel from stasis pods. They have been moved to the prison unit.", found_people);
+                            send_server_msg(i, "SECURITY", msg);
+                        }
                     }
 
                     /* 2. Removed automatic dismantling / collapse logic as requested.

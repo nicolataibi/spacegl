@@ -577,13 +577,13 @@ void *network_listener(void *arg) {
 
                 /* Update dynamic galaxy data (e.g. Ion Storms, Supernovas) */
                 int mq1 = current_state.map_update_q[0], mq2 = current_state.map_update_q[1], mq3 = current_state.map_update_q[2];
-                if (mq1 >= 1 && mq1 <= 10 && mq2 >= 1 && mq2 <= 10 && mq3 >= 1 && mq3 <= 10) {
+                if (mq1 >= 1 && mq1 <= GALAXY_SIZE && mq2 >= 1 && mq2 <= GALAXY_SIZE && mq3 >= 1 && mq3 <= GALAXY_SIZE) {
                     g_shared_state->shm_galaxy[mq1][mq2][mq3] = current_state.map_update_val;
                 }
                 
                 /* Handle 2nd quadrant update */
                 int m2q1 = current_state.map_update_q2[0], m2q2 = current_state.map_update_q2[1], m2q3 = current_state.map_update_q2[2];
-                if (m2q1 >= 1 && m2q1 <= 10 && m2q2 >= 1 && m2q2 <= 10 && m2q3 >= 1 && m2q3 <= 10) {
+                if (m2q1 >= 1 && m2q1 <= GALAXY_SIZE && m2q2 >= 1 && m2q2 <= GALAXY_SIZE && m2q3 >= 1 && m2q3 <= GALAXY_SIZE) {
                     g_shared_state->shm_galaxy[m2q1][m2q2][m2q3] = current_state.map_update_val2;
                 }
 

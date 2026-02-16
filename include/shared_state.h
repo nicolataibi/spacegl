@@ -122,7 +122,7 @@ typedef struct {
     double shm_s[3];
     double shm_h;
     double shm_m;
-    int64_t shm_galaxy[11][11][11];
+    int64_t shm_galaxy[41][41][41];
     
     /* Deep Space Telemetry Metrics */
     double net_kbps;

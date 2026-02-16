@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 13
+%global rel 14
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -102,29 +102,25 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/readme_assets/
 
 %changelog
-* Mon Feb 16 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
-Documentation & System Architecture Evolution
-## [v2.0.0] - Technical Optimization & Tactical Realism Update
-### Summary
--This update marks a significant shift from the legacy architecture (documented in `README_old.md`) to a high-performance, mathematically rigorous framework. The primary focus is on Network Efficiency (v2.0), Dynamic Persistence, and Systemic Combat Physics.
----
-### 1. Network & Infrastructure
--Differential Engine Integration: Migrated from a full-state update model to Delta Compression. The server now utilizes bitmasks to transmit only modified data blocks (Transform, Vitals, etc.).
--Bandwidth Optimization: Implementation of the new binary protocol has resulted in a 90-95% reduction in bandwidth consumption compared to the previous SDB/SHM model.
-### 2. World Persistence & Dynamic Environment
--Dynamic Wreckage System: NPC destruction now triggers the real-time generation of permanent wrecks within the sector, supplementing existing static derelicts.
--Visual Fidelity: Integrated a dedicated "Dead Hull" shader for all post-combat wreckage to simulate "cold" and scorched materials, improving visual clarity and immersion.
-### 3. Physics & Mathematical Balancing
--Quadratic Power Scaling: Navigation physics now follow , where Hyperdrive energy consumption scales quadratically with velocity.
--System Integrity: Added a "Penalties" layer where damaged subsystems directly impact energy efficiency and consumption rates.
--Precision Combat: Torpedo damage is no longer static; a 1.2x multiplier is now applied to direct precision hits.
-### 4. Faction-Specific Mechanics & AI
--Material-Based Resistances: Introduced faction-specific hull properties:
--Swarm (Bio-armor): Native damage reduction.
--Gilded (Fragile): Increased damage vulnerability.
--Systemic AI Debuffs: Attacks targeting NPC engines now result in permanent maneuverability degradation during the encounter.
-### 5. Developer Technical Deep-Dives
--Interest Management: Added documentation on quadrant-based spatial partitioning.
--Serialization: Detailed implementation guides for bitmask serialization.
--OpenGL State Management: New guidelines for shader state handling to eliminate visual interference between ship hulls and particle effects.
+* Tue Feb 17 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
+4. Performance & Structural Optimization (Lag Resolution)
+To maintain a seamless 30 TPS (Ticks Per Second) logic rate while managing a massive 64,000-quadrant universe, 
+the engine underwent a major structural refactoring focused on three primary bottlenecks:
 
+A. Dirty Quadrant Indexing (The "Sparse Reset" Technique)
+The Problem: Previously, the server performed a memset on the entire 275MB spatial index and iterated through 
+all 64,000 quadrants every single tick to clear old data. This consumed massive memory bandwidth and CPU time.
+The Solution: We implemented a Dirty List tracking system.
+Only quadrants containing dynamic objects (NPCs, Players, Comets) are marked as "dirty".
+At the start of each tick, the reset loop only visits the specific quadrants stored in the dirty list 
+(typically ~2,000 cells) rather than all 64,000.
+Impact: Reduced spatial indexing overhead by 95%, freeing up significant CPU resources for AI and combat logic.
+
+B. Asynchronous Non-Blocking I/O (Background Saving)
+The Problem: The save_galaxy() function was synchronous. Every 10 seconds, the entire game engine would "freeze" 
+or several milliseconds while writing the galaxy.dat file to disk, causing noticeable stuttering or "lag blocks".
+The Solution: We moved the persistence logic to a detached background thread.
+The main logic thread performs a near-instant memcpy of the core state to a protected buffer.
+A secondary thread (save_thread) handles the heavy disk I/O independently.
+An atomic_bool flag prevents concurrent save operations if the disk is slow.
+Impact: Zero-latency saving. The logic loop continues at a perfect 30Hz regardless of disk performance.

@@ -34,7 +34,7 @@
 #include <pthread.h>
 #include "shared_state.h"
 
-#define IS_Q_VALID(q1,q2,q3) ((q1)>=1 && (q1)<=10 && (q2)>=1 && (q2)<=10 && (q3)>=1 && (q3)<=10)
+#define IS_Q_VALID(q1,q2,q3) ((q1)>=1 && (q1)<=40 && (q2)>=1 && (q2)<=40 && (q3)>=1 && (q3)<=40)
 
 #include "network.h"
 
@@ -489,7 +489,7 @@ int g_tube_state = 0;
 float g_ion_charge = 0.0;
 int g_map_filter = 0;
 int g_my_q[3] = {1,1,1};
-int64_t g_galaxy[11][11][11];
+int64_t g_galaxy[41][41][41];
 int g_show_hud = 1; /* Default HUD ON */
 char g_quadrant[128] = "Scanning...";
 char g_last_quadrant[128] = "";
@@ -2444,43 +2444,43 @@ void drawExplorerMap() {
     drawGalacticCompass();
     glDisable(GL_LIGHTING);
     double gap = 1.2;
-    double offset = - (10.0 * gap) / 2.0;
+    double offset = - (40.0 * gap) / 2.0;
 
     /* Draw full grid frame */
     glColor4f(0.2, 0.2, 0.5, 0.3);
     glPushMatrix();
     glTranslatef(0, 0, 0);
-    glScalef(10.0 * gap, 10.0 * gap, 10.0 * gap);
+    glScalef(40.0 * gap, 40.0 * gap, 40.0 * gap);
     glutWireCube(1.0);
     glPopMatrix();
 
     /* Draw Vertex Coordinates for orientation */
     glColor3f(0.5, 0.5, 0.5);
     char vbuf[32];
-    int v_coords[] = {1, 10};
+    int v_coords[] = {1, 40};
     for(int vz=0; vz<2; vz++) {
         for(int vy=0; vy<2; vy++) {
             for(int vx=0; vx<2; vx++) {
                 int cx = v_coords[vx], cy = v_coords[vy], cz = v_coords[vz];
-                double px = offset + cx * gap;
-                double py = offset + cz * gap;
-                double pz = offset + (11 - cy) * gap; /* Inverted Y for map display consistency */
+                double px = offset + (cx - 0.5) * gap;
+                double py = offset + (cz - 0.5) * gap;
+                double pz = offset + (40.5 - cy) * gap; /* Inverted Y for map display consistency */
                 sprintf(vbuf, "[%d,%d,%d]", cx, cy, cz);
                 drawText3D(px, py + 0.3, pz, vbuf);
             }
         }
     }
 
-    for(int z=1; z<=10; z++) {
-        for(int y=1; y<=10; y++) {
-            for(int x=1; x<=10; x++) {
+    for(int z=1; z<=40; z++) {
+        for(int y=1; y<=40; y++) {
+            for(int x=1; x<=40; x++) {
                 int64_t val = g_galaxy[x][y][z];
                 bool is_my_q = (x == g_my_q[0] && y == g_my_q[1] && z == g_my_q[2]);
                 if (val == 0 && !is_my_q) continue;
 
-                double px = offset + x * gap;
-                double py = offset + z * gap;
-                double pz = offset + (11 - y) * gap;
+                double px = offset + (x - 0.5) * gap;
+                double py = offset + (z - 0.5) * gap;
+                double pz = offset + (40.5 - y) * gap;
 
                 /* Use absolute value for digit extraction to handle supernova (negative) quadrants */
                 int64_t uval = (val < 0) ? -val : val;

@@ -73,8 +73,8 @@ typedef struct {
 
 typedef struct {
     /* Galaxy Data - Moved to TOP for reliable alignment and sync */
-    int64_t g[11][11][11];    /* The Galaxy Cube (BPNBS Encoding) */
-    int32_t z[11][11][11];          /* Scanned Map Cube */
+    int64_t g[41][41][41];    /* The Galaxy Cube (BPNBS Encoding) */
+    int32_t z[41][41][41];          /* Scanned Map Cube */
 
     /* Coordinates */
     int32_t q1, q2, q3;             /* Quadrant Position (X, Y, Z) */

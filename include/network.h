@@ -20,6 +20,7 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#include "game_config.h"
 #include "game_state.h"
 
 #pragma pack(push, 1)

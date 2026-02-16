@@ -254,17 +254,18 @@ typedef struct {
     int player_count;
 } QuadrantIndex;
 
-extern QuadrantIndex (*spatial_index)[11][11];
+extern QuadrantIndex (*spatial_index)[41][41];
 void rebuild_spatial_index();
 void init_static_spatial_index();
 
-#define IS_Q_VALID(q1,q2,q3) ((q1)>=1 && (q1)<=10 && (q2)>=1 && (q2)<=10 && (q3)>=1 && (q3)<=10)
+#define IS_Q_VALID(q1,q2,q3) ((q1)>=1 && (q1)<=GALAXY_SIZE && (q2)>=1 && (q2)<=GALAXY_SIZE && (q3)>=1 && (q3)<=GALAXY_SIZE)
 
-/* Helper to safely calculate quadrant from absolute coordinate (0-100) */
+/* Helper to safely calculate quadrant from absolute coordinate (0-400) */
 static inline int get_q_from_g(double g) {
-    int q = (int)(g / 10.0) + 1;
+    /* Use a small epsilon to avoid jitter jumping exactly on the boundary */
+    int q = (int)((g + 1e-6) / 10.0) + 1;
     if (q < 1) q = 1;
-    if (q > 10) q = 10;
+    if (q > GALAXY_SIZE) q = GALAXY_SIZE;
     return q;
 }
 
@@ -273,6 +274,8 @@ void normalize_upright(double *h, double *m);
 void generate_galaxy();
 int load_galaxy();
 void save_galaxy();
+void save_galaxy_async();
+void refresh_lrs_grid();
 void spawn_derelict(int q1, int q2, int q3, double x, double y, double z, int faction, int ship_class, const char* name);
 const char* get_species_name(int s);
 

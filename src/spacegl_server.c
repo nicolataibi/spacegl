@@ -368,7 +368,7 @@ int main(int argc, char *argv[]) {
                                         default: crew = 200; break;
                                     }
                                     players[slot].state.crew_count = crew;
-                                                                        players[slot].state.q1 = rand()%10 + 1; players[slot].state.q2 = rand()%10 + 1; players[slot].state.q3 = rand()%10 + 1;
+                                                                        players[slot].state.q1 = rand()%GALAXY_SIZE + 1; players[slot].state.q2 = rand()%GALAXY_SIZE + 1; players[slot].state.q3 = rand()%GALAXY_SIZE + 1;
                                                                         players[slot].state.s1 = 5.0; players[slot].state.s2 = 5.0; players[slot].state.s3 = 5.0;
                                                                         
                                                                         /* Initialize Absolute Galactic Coordinates */
@@ -438,7 +438,7 @@ int main(int argc, char *argv[]) {
                                         int rq1, rq2, rq3;
                                         /* Find a quadrant without a supernova */
                                         do {
-                                            rq1 = rand()%10 + 1; rq2 = rand()%10 + 1; rq3 = rand()%10 + 1;
+                                            rq1 = rand()%GALAXY_SIZE + 1; rq2 = rand()%GALAXY_SIZE + 1; rq3 = rand()%GALAXY_SIZE + 1;
                                         } while (supernova_event.supernova_timer > 0 && 
                                                  rq1 == supernova_event.supernova_q1 && 
                                                  rq2 == supernova_event.supernova_q2 && 

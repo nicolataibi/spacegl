@@ -114,8 +114,8 @@ void print_help() {
     printf("Usage: ./stellar_viewer [command]\n");
     printf("Commands:\n");
     printf("  stats             Show global galaxy statistics and security status\n");
-    printf("  map <q3>          Show a 2D map slice for Z quadrant q3\n");
-    printf("  list <q1> <q2> <q3>  List objects in quadrant (1-10)\n");
+    printf("  map <q3>          Show a 2D map slice for Z quadrant q3 (1-40)\n");
+    printf("  list <q1> <q2> <q3>  List objects in quadrant (1-40)\n");
     printf("  players           List all persistent players\n");
     printf("  search <name>     Search for a player or ship by name\n");
 }
@@ -218,15 +218,17 @@ int main(int argc, char *argv[]) {
     } 
     else if (strcmp(argv[1], "map") == 0 && argc == 3) {
         int q3 = atoi(argv[2]);
-        if (q3 < 1 || q3 > 10) {
-            printf("Invalid Z quadrant (1-10)\n");
+        if (q3 < 1 || q3 > GALAXY_SIZE) {
+            printf("Invalid Z quadrant (1-%d)\n", GALAXY_SIZE);
             return 1;
         }
         printf("--- Galaxy Map Slice (Z=%d) ---\n", q3);
-        printf("    1  2  3  4  5  6  7  8  9  10 (X)\n");
-        for(int j=1; j<=10; j++) {
+        printf("    ");
+        for(int x=1; x<=GALAXY_SIZE; x++) printf("%2d ", x % 100);
+        printf(" (X)\n");
+        for(int j=1; j<=GALAXY_SIZE; j++) {
             printf("%2d ", j);
-            for(int i=1; i<=10; i++) {
+            for(int i=1; i<=GALAXY_SIZE; i++) {
                 long long bpnbs = spacegl_master.g[i][j][q3];
                 int mon  = (bpnbs/10000000000000000LL)%10;
                 int user = (bpnbs/1000000000000000LL)%10;
@@ -274,7 +276,7 @@ int main(int argc, char *argv[]) {
         int q3 = atoi(argv[4]);
         
         if (!IS_Q_VALID(q1, q2, q3)) {
-            printf("Invalid quadrant coordinates (1-10)\n");
+            printf("Invalid quadrant coordinates (1-40)\n");
             return 1;
         }
 

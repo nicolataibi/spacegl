@@ -20,6 +20,8 @@
 #ifndef GAME_CONFIG_H
 #define GAME_CONFIG_H
 
+#define GALAXY_SIZE 40
+
 /* --- Resources & Limits --- */
 #define MAX_ENERGY_CAPACITY     1000000
 #define MAX_TORPEDO_CAPACITY    1000
