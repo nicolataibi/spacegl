@@ -109,13 +109,14 @@ Space GL offre un universo vasto e densamente popolato che persiste anche dopo i
 ### 1. Scala e Popolazione
 La galassia è un cubo 10x10x10 che contiene **1.000 quadranti unici**.
 *   **Fazioni NPC:** Ognuna delle 11 fazioni aliene (Korthian, Swarm, Xylari, etc.) mantiene una flotta permanente composta da **70 a 100 vascelli unici** sempre attivi.
-*   **L'Eredità dell'Alleanza:** Sparse tra le stelle si trovano da **70 a 100 relitti storici (derelicts)** per OGNI classe di nave dell'Alleanza, offrendo un ricco scenario per il recupero e l'esplorazione.
-*   **Diversità Celestiale:**
-    *   **Stelle:** Classificate in 7 tipi spettrali: **O (Blu)**, **B (Bianca)**, **A (Bianca)**, **F (Gialla)**, **G (Gialla)**, **K (Arancio)** e **M (Rossa)**.
-    *   **Pulsar:** Stelle di neutroni categorizzate in 3 classi scientifiche: **Rotation-Powered**, **Accretion-Powered** e **Magnetar**.
-    *   **Nebulose:** Categorizzate in 6 classi tattiche: **Standard**, **Alta Energia**, **Materia Oscura**, **Ionica**, **Gravimetrica** e **Temporale**.
-    *   **Minacce Classe-Omega:** Monitoraggio specifico di entità uniche come l'**Entità Cristallina** e l'**Ameba Spaziale**.
-*   **Identificazione Univoca:** Ogni vascello nella galassia, sia esso attivo o un relitto, possiede un **nome proprio** estratto da database storici specifici per fazione (es. *IKS Bortas* per i Korthian, *Enterprise* per l'Alleanza). Le etichette generiche "(OTHER)" sono state completamente eliminate dai sensori.
+*   **L'Eredità dell'Alleanza**: Sparse tra le stelle si trovano da **70 a 100 relitti storici (derelicts)** per OGNI classe di nave dell'Alleanza. Inoltre, ogni vascello NPC distrutto in combattimento genera ora un **relitto permanente** nel settore, offrendo un ricco scenario per il recupero e l'esplorazione.
+*   **Relitti Alieni**: La galassia ospita relitti pre-generati per tutte le fazioni aliene, offrendo opportunità di recupero tecnologico sin dall'inizio della missione.
+*   **Diversità Celestiale**:
+    *   **Stelle**: Classificate in 7 tipi spettrali: **O (Blu)**, **B (Bianca)**, **A (Bianca)**, **F (Gialla)**, **G (Gialla)**, **K (Arancio)** e **M (Rossa)**.
+    *   **Pulsar**: Stelle di neutroni categorizzate in 3 classi scientifiche: **Rotation-Powered**, **Accretion-Powered** e **Magnetar**.
+    *   **Nebulose**: Categorizzate in 6 classi tattiche: **Standard**, **Alta Energia**, **Materia Oscura**, **Ionica**, **Gravimetrica** e **Temporale**.
+    *   **Minacce Classe-Omega**: Monitoraggio specifico di entità uniche come l'**Entità Cristallina** e l'**Ameba Spaziale**.
+*   **Identificazione Univoca**: Ogni vascello nella galassia, sia esso attivo o un relitto, possiede un **nome proprio** estratto da database storici specifici per fazione (es. *IKS Bortas* per i Korthian, *Enterprise* per l'Alleanza). Le etichette generiche "(OTHER)" sono state completamente eliminate dai sensori.
 
 ### 2. Navigazione Avanzata (Standard GDIS)
 Il sistema di navigazione è stato riprogettato per garantire precisione matematica e fluidità visiva:
@@ -218,6 +219,7 @@ Grazie a questa pipeline, i comandi via terminale viaggiano nel "Subspazio" con 
 *   **Sicurezza e Stabilità**: Il codice è stato revisionato per eliminare rischi di Buffer Overflow tramite l'uso sistematico di `snprintf` e la gestione dinamica dei buffer tattici.
 *   **Spatial Partitioning**: Utilizza un indice spaziale 3D (Grid Index) per la gestione degli oggetti. Questo permette al server di scansionare solo gli oggetti locali al giocatore, garantendo prestazioni costanti ($O(1)$) indipendentemente dal numero totale di entità nella galassia.
 *   **Persistenza**: Salva lo stato dell'intero universo, inclusi i progressi dei giocatori, in `galaxy.dat` con controllo di versione binaria.
+*   **Diagnostica di Generazione**: In fase di creazione di una nuova galassia, il sistema produce un **Rapporto Astrometrico** dettagliato, includendo il censimento dei tipi di pianeti (basato sulle risorse), il breakdown dei relitti per classe e fazione, e la mappatura delle minacce di Classe-Omega.
 
 ### 2. Il Ponte di Comando (`stellar_client`)
 Il `stellar_client` rappresenta il nucleo operativo dell'esperienza utente, agendo come un sofisticato orchestratore tra l'operatore umano, il server remoto e il motore di rendering locale.
@@ -492,6 +494,7 @@ Di seguito la lista completa dei comandi disponibili, raggruppati per funzione.
     *   **Requisiti**: Minimo 10% di integrità per i sistemi **Impulse (ID 1)** e **Computer (ID 6)**.
     *   **Costo**: 100 unità di Energia per l'ingaggio dell'autopilota.
     *   **Validazione**: Il bersaglio deve essere rilevabile dai sensori e non occultato (a meno che non appartenga alla propria fazione).
+    *   **Tracking Globale**: Supporta l'inseguimento di oggetti statici (Stelle, Pianeti, Basi, Asteroidi, Relitti) attraverso i confini dei quadranti, permettendo viaggi a lungo raggio automatizzati senza dover ricalcolare la rotta ad ogni salto di settore.
     *   Se non viene fornito un ID, utilizza il **bersaglio attualmente agganciato**.
     *   Se viene fornito un solo numero, viene interpretato come **distanza** per il bersaglio agganciato (se < 100).
     *   Fornisce una conferma radio specifica menzionando il nome del bersaglio.
@@ -655,7 +658,7 @@ Per eseguire operazioni complesse (estrazione, rifornimento, abbordaggio), segui
     *   `cha` per le **Comete** (Inseguimento e raccolta gas).
     *   `pha` / `tor` per **Nemici/Mostri/Piattaforme** (Combattimento).
 
-**Nota sulla Portata Inter-Settore**: I comandi `apr` (avvicinamento) e `dis` (smantellamento) utilizzano ora un sistema di risoluzione globale. Questo significa che puoi puntare e raggiungere qualsiasi relitto o oggetto visibile sul tuo HUD o identificato dai sensori, anche se si trova in un quadrante adiacente al tuo. Il sistema gestirà automaticamente la navigazione a lungo raggio.
+**Nota sulla Portata Inter-Settore**: Il comando `dis` (smantellamento) utilizza un sistema di risoluzione globale. Questo significa che puoi puntare e smantellare qualsiasi relitto visibile sul tuo HUD o identificato dai sensori, anche se si trova in un quadrante adiacente al tuo. Il comando `apr` (avvicinamento) è invece limitato agli oggetti presenti nel quadrante attuale per garantire la sicurezza della navigazione a corto raggio.
 
 ### 📏 Tabella delle Distanze di Interazione
 Distanze espresse in unità di settore (0.0 - 10.0). Se la tua distanza è superiore al limite, il computer risponderà con "No [object] in range".
@@ -676,26 +679,26 @@ Distanze espresse in unità di settore (0.0 - 10.0). Se la tua distanza è super
 | **Corpo Celeste** | (Collisione) | **< 1.0** | Danni scafo e attivazione soccorso d'emergenza |
 
 ### 🚀 Autopilota (`apr`)
-Il comando `apr <ID> <DIST>` ti permette di avvicinarti automaticamente a qualsiasi oggetto rilevato dai sensori. Per le entità mobili, l'intercettazione funziona in tutta la galassia.
+Il comando `apr <ID> <DIST>` ti permette di avvicinarti automaticamente a qualsiasi oggetto rilevato dai sensori nel tuo quadrante attuale.
 
 | Categoria Oggetto | Intervallo ID | Comandi di Interazione | Dist. Min. | Note di Navigazione |
 | :--- | :--- | :--- | :--- | :--- |
-| **Capitani (Giocatori)** | 1 - 32 | `rad`, `pha`, `tor`, `bor` | **< 1.0** (`bor`) | Tracciamento Galattico |
-| **Navi NPC (Alieni)** | 1000 - 1999 | `pha`, `tor`, `bor`, `scan` | **< 1.0** (`bor`) | Tracciamento Galattico |
+| **Capitani (Giocatori)** | 1 - 32 | `rad`, `pha`, `tor`, `bor` | **< 1.0** (`bor`) | Solo quadrante attuale |
+| **Navi NPC (Alieni)** | 1000 - 1999 | `pha`, `tor`, `bor`, `scan` | **< 1.0** (`bor`) | Solo quadrante attuale |
 | **Basi Stellari** | 2000 - 2199 | `doc`, `scan` | **< 3.1** | Solo quadrante attuale |
 | **Pianeti** | 3000 - 3999 | `min`, `scan` | **< 3.1** | Solo quadrante attuale |
 | **Stelle** | 4000 - 6999 | `sco`, `scan` | **< 3.1** | Solo quadrante attuale |
 | **Buchi Neri** | 7000 - 7199 | `har`, `scan` | **< 3.1** | Solo quadrante attuale |
 | **Nebulose** | 8000 - 8499 | `scan` | - | Solo quadrante attuale |
 | **Pulsar** | 9000 - 9199 | `scan` | - | Solo quadrante attuale |
-| **Comete** | 10000 - 10299 | `cha`, `scan` | **< 0.6** (Gas) | **Tracciamento Galattico** |
+| **Comete** | 10000 - 10299 | `cha`, `scan` | **< 0.6** (Gas) | Solo quadrante attuale |
 | **Relitti** | 11000 - 11149 | `bor`, `dis`, `scan` | **< 1.5** | Solo quadrante attuale |
 | **Asteroidi** | 12000 - 13999 | `min`, `scan` | **< 3.1** | Solo quadrante attuale |
 | **Mine** | 14000 - 14999 | `scan` | - | Solo quadrante attuale |
 | **Boe Comm.** | 15000 - 15099 | `scan` | **< 1.2** | Solo quadrante attuale |
 | **Piattaforme Difesa** | 16000 - 16199 | `pha`, `tor`, `scan` | - | Solo quadrante attuale |
 | **Rift Spaziali** | 17000 - 17049 | `scan` | - | Solo quadrante attuale |
-| **Mostri Spaziali** | 18000 - 18029 | `pha`, `tor`, `scan` | **< 1.5** | **Tracciamento Galattico** |
+| **Mostri Spaziali** | 18000 - 18029 | `pha`, `tor`, `scan` | **< 1.5** | Solo quadrante attuale |
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Configurazione Scudi**. Distribuisce l'energia ai 6 scudi.
     *   **Requisiti**: Minimo 10% di integrità del sistema Scudi (ID 8).
@@ -775,7 +778,7 @@ L'HUD visualizza "LIFE SUPPORT: XX.X%", che è direttamente collegato all'integr
     *   **Requisiti**: Minimo 20% di integrità del sistema Trasportatori (ID 3).
     *   **Costo**: 5000 unità di Energia per tentativo.
     *   **Probabilità di Successo**: Scalata dall'integrità dei Trasportatori (Base 20% + fino al 40%).
-    *   Funziona sul **bersaglio attualmente agganciato** se non viene specificato alcun ID.
+    *   **Fallback Intelligente**: Se l'ID non viene specificato e non c'è un `lock` attivo, il comando agirà automaticamente sull'ultimo bersaglio impostato con `apr` (Autopilota).
     *   **Interazione NPC/Relitto**: Apre un **Menu Tattico** specifico:
         *   **Vascelli Ostili (NPC)**: `1`: Sabotaggio Motori (Immobilizzazione), `2`: Raid Stiva (Risorse), `3`: Cattura Prigionieri. **Nota**: L'abbordaggio NPC richiede che il bersaglio sia **disabilitato** (Motori < 50% o Scafo < 50%).
         *   **Relitti/Derelict**: `1`: Recupero Risorse, `2`: Decrittazione Dati Mappa, `3`: Riparazioni d'Emergenza, `4`: Salvataggio Superstiti (Equipaggio). **Nota**: L'abbordaggio dei relitti non ne causa più la distruzione automatica.
@@ -784,11 +787,12 @@ L'HUD visualizza "LIFE SUPPORT: XX.X%", che è direttamente collegato all'integr
         *   **Vascelli Ostili**: `1`: Sabotaggio Sistema, `2`: Incursione nella Stiva, `3`: Cattura Ostaggi.
     *   **Selezione**: Rispondi con il numero `1`, `2` o `3` per eseguire l'azione.
     *   **Rischi**: Possibilità di resistenza (30% per i giocatori, più alta per gli NPC) che può causare perdite nella squadra.
-*   `dis`: **Smantellamento**. Smantella i relitti nemici per le risorse (Dist < 1.5).
+*   `dis [ID]`: **Smantellamento**. Smantella i relitti nemici per le risorse (Dist < 1.5).
     *   **Requisiti**: Minimo 15% di integrità del sistema Trasportatori (ID 3).
     *   **Costo**: 500 unità di Energia per ogni operazione.
     *   **Resa**: L'efficienza del recupero risorse dipende dalla salute dei **Trasportatori (ID 3)**. Sistemi danneggiati producono una resa inferiore.
     *   **Bersagli**: Funziona sui vascelli NPC distrutti e sui relitti antichi (derelict).
+    *   **Fallback Intelligente**: Come per `bor`, supporta il targeting automatico sull'oggetto dell'autopilota (`apr`).
 *   `fix`: **Riparazione Scafo**. Usa **50 Grafene e 20 Neo-Titanium** per ripristinare l'integrità dello scafo (fino a un max dell'80%).
     *   **Requisiti**: Minimo 10% di integrità del sistema Ausiliario (ID 9).
     *   **Costo**: 500 unità di Energia per ogni impulso di riparazione.
@@ -1031,13 +1035,16 @@ Le navi controllate dal computer (Korthian, Xylari, Swarm, ecc.) operano con pro
 *   **Cadenza di Fuoco**: Circa un colpo ogni 5 secondi.
 *   **Tattiche**: Le navi NPC non usano siluri al plasma. La loro strategia principale consiste nell'approccio diretto (`cha`) o nella fuga se l'energia scende sotto i livelli critici.
 
-### ☄️ Dinamiche dei Siluri al plasma
+### ☄️ Dinamiche dei Siluri al plasma (Revisione 2026.02)
 I siluri (comando `tor`) sono armi simulate fisicamente con alta precisione:
-*   **Collisione**: I siluri devono colpire fisicamente il bersaglio (distanza **< 0.8**) per esplodere (raggio aumentato per prevenire il tunneling).
-*   **Guida**: Se lanciati con un `lock` attivo, i siluri correggono la loro rotta del **35%** per tick verso il bersaglio, permettendo di colpire navi agili.
-*   **Inseguimento Comete**: Puoi usare il comando `cha` (Inseguimento) per seguire le comete lungo la loro orbita galattica, facilitando la raccolta di gas.
+*   **Velocità**: 0.45 unità/tick (incrementata per superare la velocità di crociera delle navi).
+*   **Collisione**: I siluri devono colpire fisicamente il bersaglio (distanza **< 0.8**) per esplodere.
+*   **Modalità Boresight**: Anche senza un `lock` attivo, il siluro può colpire NPC o altri giocatori se la sua traiettoria interseca il loro raggio di collisione.
+*   **Guida**: Se lanciati con un `lock` attivo, i siluri correggono la loro rotta del **35%** per tick verso il bersaglio, influenzato dall'integrità dei **Sensori (ID 2)**.
+*   **Overhaul Visivo**: Nucleo geometrico aumentato (0.12), raggi di scarica stellare estesi (0.85) e bagliore di singolarità potenziato per la massima visibilità tattica.
 *   **Ostacoli**: I corpi celesti come **Stelle, Pianeti e Buchi Neri** sono oggetti fisici solidi. Un siluro che impatta contro di essi verrà assorbito/distrutto senza colpire il bersaglio dietro di essi. Usa il terreno galattico per coprirti!
 *   **Basi Stellari**: Anche le basi stellari bloccano i siluri. Attenzione al fuoco amico o incidentale.
+*   **Limiti**: La traiettoria è monitorata su tutti e tre gli assi (X, Y, Z); il siluro si autodistrugge se esce dai confini del settore (0-10) o dopo un timeout di 300 tick.
 
 ### 🌪️ Anomalie Spaziali e Rischi Ambientali
 Il quadrante è disseminato di fenomeni naturali rilevabili sia dai sensori che dalla **vista tattica 3D**:

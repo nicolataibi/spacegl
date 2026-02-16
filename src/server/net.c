@@ -193,3 +193,129 @@ void send_server_msg(int p_idx, const char *from, const char *text) {
     write_all(players[p_idx].socket, &msg, pkt_size);
     pthread_mutex_unlock(&players[p_idx].socket_mutex);
 }
+
+void send_optimized_update(int p_idx, PacketUpdate *upd) {
+    ConnectedPlayer *p = &players[p_idx];
+    uint64_t mask = 0;
+    
+    /* 1. Determine what changed */
+    if (p->last_sent_state.q1 != upd->q1 || p->last_sent_state.q2 != upd->q2 || p->last_sent_state.q3 != upd->q3 ||
+        p->last_sent_state.s1 != upd->s1 || p->last_sent_state.s2 != upd->s2 || p->last_sent_state.s3 != upd->s3 ||
+        p->last_sent_state.van_h != upd->van_h || p->last_sent_state.van_m != upd->van_m) mask |= UPD_TRANSFORM;
+
+    if (p->last_sent_state.energy != upd->energy || p->last_sent_state.torpedoes != upd->torpedoes || 
+        p->last_sent_state.hull_integrity != upd->hull_integrity || p->last_sent_state.cargo_energy != upd->cargo_energy ||
+        p->last_sent_state.cargo_torpedoes != upd->cargo_torpedoes || p->last_sent_state.crew_count != upd->crew_count ||
+        p->last_sent_state.prison_unit != upd->prison_unit || p->last_sent_state.composite_plating != upd->composite_plating) mask |= UPD_VITALS;
+
+    if (memcmp(p->last_sent_state.shields, upd->shields, sizeof(upd->shields)) != 0) mask |= UPD_SHIELDS;
+    if (memcmp(p->last_sent_state.system_health, upd->system_health, sizeof(upd->system_health)) != 0) mask |= UPD_SYSTEMS;
+    if (memcmp(p->last_sent_state.inventory, upd->inventory, sizeof(upd->inventory)) != 0 || 
+        p->last_sent_state.life_support != upd->life_support || p->last_sent_state.anti_matter_count != upd->anti_matter_count ||
+        memcmp(p->last_sent_state.power_dist, upd->power_dist, sizeof(upd->power_dist)) != 0) mask |= UPD_INTERNAL;
+    
+    if (p->last_sent_state.lock_target != upd->lock_target || p->last_sent_state.tube_state != upd->tube_state ||
+        p->last_sent_state.current_tube != upd->current_tube || p->last_sent_state.ion_beam_charge != upd->ion_beam_charge ||
+        memcmp(p->last_sent_state.tube_load_timers, upd->tube_load_timers, sizeof(upd->tube_load_timers)) != 0) mask |= UPD_COMBAT;
+    
+    if (p->last_sent_state.is_cloaked != upd->is_cloaked || p->last_sent_state.is_docked != upd->is_docked || 
+        p->last_sent_state.red_alert != upd->red_alert || p->last_sent_state.nav_state != upd->nav_state ||
+        p->last_sent_state.show_axes != upd->show_axes || p->last_sent_state.show_grid != upd->show_grid ||
+        p->last_sent_state.show_bridge != upd->show_bridge || p->last_sent_state.show_map != upd->show_map ||
+        p->last_sent_state.map_filter != upd->map_filter) mask |= UPD_FLAGS;
+
+    /* Effects, Probes and Beams are transient or frequently updated, usually we send them if not empty */
+    if (upd->boom.active || upd->torp.active || upd->wormhole.active || upd->recovery_fx.active || 
+        upd->dismantle.active || upd->jump_arrival.active || upd->supernova_pos.active) mask |= UPD_EFFECTS;
+    if (upd->probes[0].active || upd->probes[1].active || upd->probes[2].active) mask |= UPD_PROBES;
+    if (upd->beam_count > 0) mask |= UPD_COMBAT; /* Re-using combat for beams or add UPD_BEAMS if needed */
+
+    /* Interest Management: Only send objects if quadrant changed or enough time passed or object count changed significantly */
+    bool quadrant_changed = (p->last_q1 != upd->q1 || p->last_q2 != upd->q2 || p->last_q3 != upd->q3);
+    p->full_update_timer++;
+    if (quadrant_changed || p->full_update_timer > 300) {
+        mask |= UPD_OBJECTS | UPD_MAP | UPD_FULL;
+        p->full_update_timer = 0;
+        p->last_q1 = upd->q1; p->last_q2 = upd->q2; p->last_q3 = upd->q3;
+    } else if (p->last_sent_state.object_count != upd->object_count || memcmp(p->last_sent_state.objects, upd->objects, upd->object_count * sizeof(NetObject)) != 0) {
+        mask |= UPD_OBJECTS;
+    }
+
+    if (mask == 0) return; /* Nothing to send */
+
+    /* 2. Serialize Packet */
+    uint8_t buffer[sizeof(PacketUpdate) + 256]; /* Extra safety buffer */
+    PacketUpdateDelta *delta = (PacketUpdateDelta *)buffer;
+    delta->type = PKT_UPDATE_DELTA;
+    delta->frame_id = upd->frame_id;
+    delta->update_mask = mask;
+    
+    uint8_t *ptr = delta->data;
+    
+    if (mask & UPD_TRANSFORM) {
+        UpdateBlockTransform b = {upd->q1, upd->q2, upd->q3, upd->s1, upd->s2, upd->s3, upd->van_h, upd->van_m};
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+    }
+    if (mask & UPD_VITALS) {
+        UpdateBlockVitals b = {upd->energy, upd->torpedoes, upd->cargo_energy, upd->cargo_torpedoes, upd->crew_count, upd->prison_unit, upd->composite_plating, upd->hull_integrity};
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+    }
+    if (mask & UPD_SHIELDS) {
+        UpdateBlockShields b; memcpy(b.shields, upd->shields, sizeof(upd->shields));
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+    }
+    if (mask & UPD_SYSTEMS) {
+        UpdateBlockSystems b; memcpy(b.system_health, upd->system_health, sizeof(upd->system_health));
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+    }
+    if (mask & UPD_INTERNAL) {
+        UpdateBlockInternal b; memcpy(b.inventory, upd->inventory, sizeof(upd->inventory));
+        memcpy(b.power_dist, upd->power_dist, sizeof(upd->power_dist));
+        b.life_support = upd->life_support; b.anti_matter_count = upd->anti_matter_count;
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+    }
+    if (mask & UPD_COMBAT) {
+        UpdateBlockCombat b = {upd->lock_target, upd->tube_state, {0}, upd->current_tube, upd->ion_beam_charge};
+        memcpy(b.tube_load_timers, upd->tube_load_timers, sizeof(upd->tube_load_timers));
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        /* Beams inside combat or separate? Let's add beams if count > 0 */
+        int32_t bc = upd->beam_count;
+        memcpy(ptr, &bc, sizeof(int32_t)); ptr += sizeof(int32_t);
+        if (bc > 0) {
+            memcpy(ptr, upd->beams, bc * sizeof(NetBeam));
+            ptr += bc * sizeof(NetBeam);
+        }
+    }
+    if (mask & UPD_FLAGS) {
+        UpdateBlockFlags b = {upd->is_cloaked, upd->is_docked, upd->red_alert, upd->is_jammed, upd->nav_state, upd->show_axes, upd->show_grid, upd->show_bridge, upd->show_map, upd->map_filter};
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+    }
+    if (mask & UPD_EFFECTS) {
+        UpdateBlockEffects b = {upd->supernova_pos, {upd->supernova_q[0], upd->supernova_q[1], upd->supernova_q[2]}, upd->torp, upd->boom, upd->wormhole, upd->jump_arrival, upd->dismantle, upd->recovery_fx};
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+    }
+    if (mask & UPD_PROBES) {
+        UpdateBlockProbes b; memcpy(b.probes, upd->probes, sizeof(upd->probes));
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+    }
+    if (mask & UPD_OBJECTS) {
+        int32_t oc = upd->object_count;
+        memcpy(ptr, &oc, sizeof(int32_t)); ptr += sizeof(int32_t);
+        if (oc > 0) {
+            memcpy(ptr, upd->objects, oc * sizeof(NetObject));
+            ptr += oc * sizeof(NetObject);
+        }
+    }
+    if (mask & UPD_MAP) {
+        UpdateBlockMap b = {upd->map_update_val, {upd->map_update_q[0], upd->map_update_q[1], upd->map_update_q[2]}, upd->map_update_val2, {upd->map_update_q2[0], upd->map_update_q2[1], upd->map_update_q2[2]}};
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+    }
+
+    size_t total_size = ptr - buffer;
+    pthread_mutex_lock(&p->socket_mutex);
+    write_all(p->socket, buffer, total_size);
+    pthread_mutex_unlock(&p->socket_mutex);
+    
+    /* 3. Store state for next delta */
+    memcpy(&p->last_sent_state, upd, sizeof(PacketUpdate));
+}

@@ -32,6 +32,114 @@
 #define PKT_MESSAGE 4
 #define PKT_QUERY 5
 #define PKT_HANDSHAKE 6
+#define PKT_UPDATE_DELTA 7
+
+/* Update Mask Bits for Delta Compression */
+#define UPD_TRANSFORM (1ULL << 0)
+#define UPD_VITALS    (1ULL << 1)
+#define UPD_SHIELDS   (1ULL << 2)
+#define UPD_SYSTEMS   (1ULL << 3)
+#define UPD_INTERNAL  (1ULL << 4)
+#define UPD_COMBAT    (1ULL << 5)
+#define UPD_FLAGS     (1ULL << 6)
+#define UPD_EFFECTS   (1ULL << 7)
+#define UPD_PROBES    (1ULL << 8)
+#define UPD_OBJECTS   (1ULL << 9)
+#define UPD_MAP       (1ULL << 10)
+#define UPD_FULL      (0xFFFFFFFFFFFFFFFFULL)
+
+/* Delta Compression Blocks */
+typedef struct {
+    int32_t q1, q2, q3;
+    double s1, s2, s3;
+    double van_h, van_m;
+} UpdateBlockTransform;
+
+typedef struct {
+    int32_t energy;
+    int32_t torpedoes;
+    int32_t cargo_energy;
+    int32_t cargo_torpedoes;
+    int32_t crew_count;
+    int32_t prison_unit;
+    int32_t composite_plating;
+    double hull_integrity;
+} UpdateBlockVitals;
+
+typedef struct {
+    int32_t shields[6];
+} UpdateBlockShields;
+
+typedef struct {
+    double system_health[10];
+} UpdateBlockSystems;
+
+typedef struct {
+    int32_t inventory[10];
+    double power_dist[3];
+    double life_support;
+    int32_t anti_matter_count;
+} UpdateBlockInternal;
+
+typedef struct {
+    int32_t lock_target;
+    int32_t tube_state;
+    int32_t tube_load_timers[4];
+    int32_t current_tube;
+    double ion_beam_charge;
+} UpdateBlockCombat;
+
+typedef struct {
+    uint8_t is_cloaked;
+    uint8_t is_docked;
+    uint8_t red_alert;
+    uint8_t is_jammed;
+    uint8_t nav_state;
+    uint8_t show_axes;
+    uint8_t show_grid;
+    uint8_t show_bridge;
+    uint8_t show_map;
+    uint8_t map_filter;
+} UpdateBlockFlags;
+
+typedef struct {
+    NetPoint supernova_pos; 
+    int32_t supernova_q[3];
+    NetPoint torp;
+    NetPoint boom;
+    NetPoint wormhole;
+    NetPoint jump_arrival;
+    NetDismantle dismantle;
+    NetPoint recovery_fx;
+} UpdateBlockEffects;
+
+typedef struct {
+    NetProbe probes[3];
+} UpdateBlockProbes;
+
+typedef struct {
+    int32_t beam_count;
+    NetBeam beams[MAX_NET_BEAMS];
+} UpdateBlockBeams;
+
+typedef struct {
+    int32_t object_count;
+    NetObject objects[MAX_NET_OBJECTS];
+} UpdateBlockObjects;
+
+typedef struct {
+    int64_t map_update_val;
+    int32_t map_update_q[3];
+    int64_t map_update_val2;
+    int32_t map_update_q2[3];
+} UpdateBlockMap;
+
+typedef struct {
+    int32_t type;
+    int64_t frame_id;
+    uint64_t update_mask;
+    uint8_t data[]; /* Variable length payload */
+} PacketUpdateDelta;
 
 /* Magic Signature for Key Verification (32 bytes) */
 #define HANDSHAKE_MAGIC_STRING "SPACEGL-KEY-VERIFICATION-SIG-32B"
@@ -127,8 +235,8 @@ typedef struct {
     int32_t type;
     int64_t frame_id;
     int32_t q1, q2, q3;
-    float s1, s2, s3;
-    float van_h, van_m;
+    double s1, s2, s3;
+    double van_h, van_m;
     int32_t energy;
     int32_t torpedoes;
     int32_t cargo_energy;
@@ -136,18 +244,18 @@ typedef struct {
     int32_t crew_count;
     int32_t prison_unit;
     int32_t composite_plating;
-    float hull_integrity;
+    double hull_integrity;
     int32_t shields[6];
     int32_t inventory[10];
-    float system_health[10];
-    float power_dist[3];
-    float life_support;
+    double system_health[10];
+    double power_dist[3];
+    double life_support;
     int32_t anti_matter_count;
     int32_t lock_target;
     int32_t tube_state;
     int32_t tube_load_timers[4];
     int32_t current_tube;
-    float ion_beam_charge;
+    double ion_beam_charge;
     uint8_t is_cloaked;
     uint8_t is_docked;
     uint8_t show_axes;

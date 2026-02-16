@@ -178,9 +178,9 @@ void init_shm() {
     sem_init(&g_shared_state->data_ready, 1, 0);
     
     /* Initial Sector Position: Center (5,5,5) */
-    g_shared_state->shm_s[0] = 5.0f;
-    g_shared_state->shm_s[1] = 5.0f;
-    g_shared_state->shm_s[2] = 5.0f;
+    g_shared_state->shm_s[0] = 5.0;
+    g_shared_state->shm_s[1] = 5.0;
+    g_shared_state->shm_s[2] = 5.0;
 }
 
 void cleanup() {
@@ -353,35 +353,118 @@ void *network_listener(void *arg) {
             }
             free(msg);
             reprint_prompt();
-        } else if (type == PKT_UPDATE) {
-            PacketUpdate upd;
-            memset(&upd, 0, sizeof(PacketUpdate));
-            upd.type = type;
+        } else if (type == PKT_UPDATE || type == PKT_UPDATE_DELTA) {
+            static PacketUpdate current_state;
+            int current_pkt_size = sizeof(int32_t);
             
-            /* Read fixed part up to object_count field */
-            size_t fixed_size = offsetof(PacketUpdate, objects);
-            int r_fixed = read_all(sock, ((char*)&upd) + sizeof(int32_t), fixed_size - sizeof(int32_t));
-            
-            if (r_fixed <= 0) {
-                LOG_DEBUG("Failed to read PacketUpdate header. Read: %d, Expected: %zu\n", r_fixed, fixed_size - sizeof(int32_t));
-                break;
-            }
-            
-            /* Safety check for object count to prevent buffer overflow */
-            if (upd.object_count < 0 || upd.object_count > MAX_NET_OBJECTS) {
-                printf("Warning: Invalid object_count received: %d (at offset %zu)\n", upd.object_count, fixed_size);
-                /* DUMP next 16 bytes for debugging */
-                unsigned char dump[16];
-                if (read(sock, dump, 16) != 16) { /* Read dummy data */ }
-                LOG_DEBUG("Next bytes: %02x %02x %02x %02x...\n", dump[0], dump[1], dump[2], dump[3]);
-                break;
-            }
-
-            /* Read active objects only */
-            int r_objs = 0;
-            if (upd.object_count > 0) {
-                r_objs = read_all(sock, upd.objects, upd.object_count * sizeof(NetObject));
-                if (r_objs <= 0) break;
+            if (type == PKT_UPDATE) {
+                PacketUpdate upd;
+                memset(&upd, 0, sizeof(PacketUpdate));
+                upd.type = type;
+                size_t fixed_size = offsetof(PacketUpdate, objects);
+                int r_fixed = read_all(sock, ((char*)&upd) + sizeof(int32_t), fixed_size - sizeof(int32_t));
+                if (r_fixed <= 0) break;
+                if (upd.object_count > 0) {
+                    int r_objs = read_all(sock, upd.objects, upd.object_count * sizeof(NetObject));
+                    if (r_objs <= 0) break;
+                    current_pkt_size += r_objs;
+                }
+                current_pkt_size += r_fixed;
+                memcpy(&current_state, &upd, sizeof(PacketUpdate));
+            } else {
+                /* Handle DELTA Update */
+                PacketUpdateDelta header;
+                int r_head = read_all(sock, ((char*)&header) + sizeof(int32_t), sizeof(PacketUpdateDelta) - sizeof(int32_t));
+                if (r_head <= 0) break;
+                current_pkt_size += r_head;
+                
+                uint64_t mask = header.update_mask;
+                current_state.frame_id = header.frame_id;
+                
+                if (mask & UPD_TRANSFORM) {
+                    UpdateBlockTransform b; read_all(sock, &b, sizeof(b));
+                    current_state.q1 = b.q1; current_state.q2 = b.q2; current_state.q3 = b.q3;
+                    current_state.s1 = b.s1; current_state.s2 = b.s2; current_state.s3 = b.s3;
+                    current_state.van_h = b.van_h; current_state.van_m = b.van_m;
+                    current_pkt_size += sizeof(b);
+                }
+                if (mask & UPD_VITALS) {
+                    UpdateBlockVitals b; read_all(sock, &b, sizeof(b));
+                    current_state.energy = b.energy; current_state.torpedoes = b.torpedoes;
+                    current_state.cargo_energy = b.cargo_energy; current_state.cargo_torpedoes = b.cargo_torpedoes;
+                    current_state.crew_count = b.crew_count; current_state.prison_unit = b.prison_unit;
+                    current_state.composite_plating = b.composite_plating; current_state.hull_integrity = b.hull_integrity;
+                    current_pkt_size += sizeof(b);
+                }
+                if (mask & UPD_SHIELDS) {
+                    UpdateBlockShields b; read_all(sock, &b, sizeof(b));
+                    memcpy(current_state.shields, b.shields, sizeof(b.shields));
+                    current_pkt_size += sizeof(b);
+                }
+                if (mask & UPD_SYSTEMS) {
+                    UpdateBlockSystems b; read_all(sock, &b, sizeof(b));
+                    memcpy(current_state.system_health, b.system_health, sizeof(b.system_health));
+                    current_pkt_size += sizeof(b);
+                }
+                if (mask & UPD_INTERNAL) {
+                    UpdateBlockInternal b; read_all(sock, &b, sizeof(b));
+                    memcpy(current_state.inventory, b.inventory, sizeof(b.inventory));
+                    memcpy(current_state.power_dist, b.power_dist, sizeof(b.power_dist));
+                    current_state.life_support = b.life_support; current_state.anti_matter_count = b.anti_matter_count;
+                    current_pkt_size += sizeof(b);
+                }
+                if (mask & UPD_COMBAT) {
+                    UpdateBlockCombat b; read_all(sock, &b, sizeof(b));
+                    current_state.lock_target = b.lock_target; current_state.tube_state = b.tube_state;
+                    memcpy(current_state.tube_load_timers, b.tube_load_timers, sizeof(b.tube_load_timers));
+                    current_state.current_tube = b.current_tube; current_state.ion_beam_charge = b.ion_beam_charge;
+                    current_pkt_size += sizeof(b);
+                    int32_t bc; read_all(sock, &bc, sizeof(int32_t)); current_pkt_size += sizeof(int32_t);
+                    current_state.beam_count = bc;
+                    if (bc > 0) {
+                        read_all(sock, current_state.beams, bc * sizeof(NetBeam));
+                        current_pkt_size += bc * sizeof(NetBeam);
+                    }
+                }
+                if (mask & UPD_FLAGS) {
+                    UpdateBlockFlags b; read_all(sock, &b, sizeof(b));
+                    current_state.is_cloaked = b.is_cloaked; current_state.is_docked = b.is_docked;
+                    current_state.red_alert = b.red_alert; current_state.is_jammed = b.is_jammed;
+                    current_state.nav_state = b.nav_state; current_state.show_axes = b.show_axes;
+                    current_state.show_grid = b.show_grid; current_state.show_bridge = b.show_bridge;
+                    current_state.show_map = b.show_map; current_state.map_filter = b.map_filter;
+                    current_pkt_size += sizeof(b);
+                }
+                if (mask & UPD_EFFECTS) {
+                    UpdateBlockEffects b; read_all(sock, &b, sizeof(b));
+                    current_state.supernova_pos = b.supernova_pos;
+                    memcpy(current_state.supernova_q, b.supernova_q, sizeof(b.supernova_q));
+                    current_state.torp = b.torp; current_state.boom = b.boom;
+                    current_state.wormhole = b.wormhole; current_state.jump_arrival = b.jump_arrival;
+                    current_state.dismantle = b.dismantle; current_state.recovery_fx = b.recovery_fx;
+                    current_pkt_size += sizeof(b);
+                }
+                if (mask & UPD_PROBES) {
+                    UpdateBlockProbes b; read_all(sock, &b, sizeof(b));
+                    memcpy(current_state.probes, b.probes, sizeof(b.probes));
+                    current_pkt_size += sizeof(b);
+                }
+                if (mask & UPD_OBJECTS) {
+                    int32_t oc; read_all(sock, &oc, sizeof(int32_t)); current_pkt_size += sizeof(int32_t);
+                    current_state.object_count = oc;
+                    if (oc > 0) {
+                        read_all(sock, current_state.objects, oc * sizeof(NetObject));
+                        current_pkt_size += oc * sizeof(NetObject);
+                    }
+                }
+                if (mask & UPD_MAP) {
+                    UpdateBlockMap b; read_all(sock, &b, sizeof(b));
+                    current_state.map_update_val = b.map_update_val;
+                    memcpy(current_state.map_update_q, b.map_update_q, sizeof(b.map_update_q));
+                    current_state.map_update_val2 = b.map_update_val2;
+                    memcpy(current_state.map_update_q2, b.map_update_q2, sizeof(b.map_update_q2));
+                    current_pkt_size += sizeof(b);
+                }
             }
 
             /* --- Telemetry Calculation --- */
@@ -404,7 +487,6 @@ void *network_listener(void *arg) {
             }
             last_packet_arrival = now_secs;
 
-            int current_pkt_size = r_fixed + r_objs + sizeof(int);
             bytes_this_sec += current_pkt_size;
             packets_this_sec++;
 
@@ -413,19 +495,19 @@ void *network_listener(void *arg) {
             if (elapsed >= 1.0) {
                 if (g_shared_state) {
                     pthread_mutex_lock(&g_shared_state->mutex);
-                    g_shared_state->net_kbps = (float)(bytes_this_sec / 1024.0 / elapsed);
+                    g_shared_state->net_kbps = (bytes_this_sec / 1024.0 / elapsed);
                     g_shared_state->net_packet_count = (int)(packets_this_sec / elapsed);
                     g_shared_state->net_avg_packet_size = (packets_this_sec > 0) ? (int)(bytes_this_sec / packets_this_sec) : 0;
-                    g_shared_state->net_jitter = (packets_this_sec > 0) ? (float)(jitter_sum / packets_this_sec) : 0;
+                    g_shared_state->net_jitter = (packets_this_sec > 0) ? (jitter_sum / packets_this_sec) : 0;
                     g_shared_state->net_uptime = now_ts.tv_sec - link_start_ts.tv_sec;
                     /* Integrity: Based on jitter (lower jitter = higher integrity) */
-                    float integrity = 100.0f - (g_shared_state->net_jitter * 2.0f);
+                    double integrity = 100.0 - (g_shared_state->net_jitter * 2.0);
                     if (integrity < 0) integrity = 0;
                     if (integrity > 100) integrity = 100;
                     g_shared_state->net_integrity = integrity;
                     
                     /* Efficiency: How much we send vs the maximum possible packet size */
-                    g_shared_state->net_efficiency = 100.0f * (1.0f - (float)current_pkt_size / sizeof(PacketUpdate));
+                    g_shared_state->net_efficiency = 100.0 * (1.0 - (double)current_pkt_size / sizeof(PacketUpdate));
                     pthread_mutex_unlock(&g_shared_state->mutex);
                 }
                 bytes_this_sec = 0; packets_this_sec = 0; jitter_sum = 0; last_ts = now_ts;
@@ -437,162 +519,169 @@ void *network_listener(void *arg) {
             }
             
             if (g_shared_state) {
-                if (upd.object_count > MAX_OBJECTS) upd.object_count = MAX_OBJECTS;
+                if (current_state.object_count > MAX_OBJECTS) current_state.object_count = MAX_OBJECTS;
 
                 pthread_mutex_lock(&g_shared_state->mutex);
                 /* Sincronizziamo lo stato locale con i dati ottimizzati dal server */
-                g_shared_state->shm_energy = upd.energy;
-                g_shared_state->shm_composite_plating = upd.composite_plating;
-                g_shared_state->shm_hull_integrity = upd.hull_integrity;
-                g_shared_state->shm_crew = upd.crew_count;
-                g_shared_state->shm_prison_unit = upd.prison_unit;
-                g_shared_state->shm_torpedoes = upd.torpedoes;
-                g_shared_state->shm_cargo_energy = upd.cargo_energy;
-                g_shared_state->shm_cargo_torpedoes = upd.cargo_torpedoes;
-                for(int s=0; s<6; s++) g_shared_state->shm_shields[s] = upd.shields[s];
-                for(int sys=0; sys<10; sys++) g_shared_state->shm_system_health[sys] = upd.system_health[sys];
-                for(int p=0; p<3; p++) g_shared_state->shm_power_dist[p] = upd.power_dist[p];
-                g_shared_state->shm_life_support = upd.life_support;
-                g_shared_state->shm_ion_beam_charge = upd.ion_beam_charge;
-                g_shared_state->shm_tube_state = upd.tube_state;
-                for(int t=0; t<4; t++) g_shared_state->tube_load_timers[t] = upd.tube_load_timers[t];
-                g_shared_state->current_tube = upd.current_tube;
-                g_shared_state->shm_anti_matter = upd.anti_matter_count;
-                for(int inv=0; inv<10; inv++) g_shared_state->inventory[inv] = upd.inventory[inv];
-                g_shared_state->shm_lock_target = upd.lock_target;
+                g_shared_state->shm_energy = current_state.energy;
+                g_shared_state->shm_composite_plating = current_state.composite_plating;
+                g_shared_state->shm_hull_integrity = current_state.hull_integrity;
+                g_shared_state->shm_crew = current_state.crew_count;
+                g_shared_state->shm_prison_unit = current_state.prison_unit;
+                g_shared_state->shm_torpedoes = current_state.torpedoes;
+                g_shared_state->shm_cargo_energy = current_state.cargo_energy;
+                g_shared_state->shm_cargo_torpedoes = current_state.cargo_torpedoes;
+                for(int s=0; s<6; s++) g_shared_state->shm_shields[s] = current_state.shields[s];
+                for(int sys=0; sys<10; sys++) g_shared_state->shm_system_health[sys] = current_state.system_health[sys];
+                for(int p=0; p<3; p++) g_shared_state->shm_power_dist[p] = current_state.power_dist[p];
+                g_shared_state->shm_life_support = current_state.life_support;
+                g_shared_state->shm_ion_beam_charge = current_state.ion_beam_charge;
+                g_shared_state->shm_tube_state = current_state.tube_state;
+                for(int t=0; t<4; t++) g_shared_state->tube_load_timers[t] = current_state.tube_load_timers[t];
+                g_shared_state->current_tube = current_state.current_tube;
+                g_shared_state->shm_anti_matter = current_state.anti_matter_count;
+                for(int inv=0; inv<10; inv++) g_shared_state->inventory[inv] = current_state.inventory[inv];
+                g_shared_state->shm_lock_target = current_state.lock_target;
                 
                 for(int p=0; p<3; p++) {
-                    g_shared_state->probes[p].active = upd.probes[p].active;
-                    g_shared_state->probes[p].q1 = upd.probes[p].q1;
-                    g_shared_state->probes[p].q2 = upd.probes[p].q2;
-                    g_shared_state->probes[p].q3 = upd.probes[p].q3;
-                    g_shared_state->probes[p].s1 = upd.probes[p].s1;
-                    g_shared_state->probes[p].s2 = upd.probes[p].s2;
-                    g_shared_state->probes[p].s3 = upd.probes[p].s3;
-                    g_shared_state->probes[p].eta = upd.probes[p].eta;
-                    g_shared_state->probes[p].status = upd.probes[p].status;
+                    g_shared_state->probes[p].active = current_state.probes[p].active;
+                    g_shared_state->probes[p].q1 = current_state.probes[p].q1;
+                    g_shared_state->probes[p].q2 = current_state.probes[p].q2;
+                    g_shared_state->probes[p].q3 = current_state.probes[p].q3;
+                    g_shared_state->probes[p].s1 = current_state.probes[p].s1;
+                    g_shared_state->probes[p].s2 = current_state.probes[p].s2;
+                    g_shared_state->probes[p].s3 = current_state.probes[p].s3;
+                    g_shared_state->probes[p].eta = current_state.probes[p].eta;
+                    g_shared_state->probes[p].status = current_state.probes[p].status;
                 }
                 
-                g_shared_state->is_cloaked = upd.is_cloaked;
-                g_shared_state->shm_is_docked = upd.is_docked;
-                g_shared_state->shm_red_alert = upd.red_alert;
-                g_shared_state->shm_is_jammed = upd.is_jammed;
-                g_shared_state->shm_nav_state = upd.nav_state;
-                g_shared_state->shm_show_axes = upd.show_axes;
-                g_shared_state->shm_show_grid = upd.show_grid;
-                g_shared_state->shm_show_bridge = upd.show_bridge;
-                g_shared_state->shm_show_map = upd.show_map;
-                g_shared_state->shm_map_filter = upd.map_filter;
-                g_shared_state->shm_q[0] = upd.q1;
-                g_shared_state->shm_q[1] = upd.q2;
-                g_shared_state->shm_q[2] = upd.q3;
-                            g_shared_state->shm_s[0] = (float)upd.s1;
-                            g_shared_state->shm_s[1] = (float)upd.s2;
-                            g_shared_state->shm_s[2] = (float)upd.s3;
-                            g_shared_state->shm_h = upd.van_h;
-                            g_shared_state->shm_m = upd.van_m;                sprintf(g_shared_state->quadrant, "Q-%d-%d-%d", upd.q1, upd.q2, upd.q3);
+                g_shared_state->is_cloaked = current_state.is_cloaked;
+                g_shared_state->shm_is_docked = current_state.is_docked;
+                g_shared_state->shm_red_alert = current_state.red_alert;
+                g_shared_state->shm_is_jammed = current_state.is_jammed;
+                g_shared_state->shm_nav_state = current_state.nav_state;
+                g_shared_state->shm_show_axes = current_state.show_axes;
+                g_shared_state->shm_show_grid = current_state.show_grid;
+                g_shared_state->shm_show_bridge = current_state.show_bridge;
+                g_shared_state->shm_show_map = current_state.show_map;
+                g_shared_state->shm_map_filter = current_state.map_filter;
+                g_shared_state->shm_q[0] = current_state.q1;
+                g_shared_state->shm_q[1] = current_state.q2;
+                g_shared_state->shm_q[2] = current_state.q3;
+                g_shared_state->shm_s[0] = current_state.s1;
+                g_shared_state->shm_s[1] = current_state.s2;
+                g_shared_state->shm_s[2] = current_state.s3;
+                g_shared_state->shm_h = current_state.van_h;
+                g_shared_state->shm_m = current_state.van_m;
+                sprintf(g_shared_state->quadrant, "Q-%d-%d-%d", current_state.q1, current_state.q2, current_state.q3);
 
                 /* Update dynamic galaxy data (e.g. Ion Storms, Supernovas) */
-                int mq1 = upd.map_update_q[0], mq2 = upd.map_update_q[1], mq3 = upd.map_update_q[2];
+                int mq1 = current_state.map_update_q[0], mq2 = current_state.map_update_q[1], mq3 = current_state.map_update_q[2];
                 if (mq1 >= 1 && mq1 <= 10 && mq2 >= 1 && mq2 <= 10 && mq3 >= 1 && mq3 <= 10) {
-                    g_shared_state->shm_galaxy[mq1][mq2][mq3] = upd.map_update_val;
+                    g_shared_state->shm_galaxy[mq1][mq2][mq3] = current_state.map_update_val;
                 }
                 
                 /* Handle 2nd quadrant update */
-                int m2q1 = upd.map_update_q2[0], m2q2 = upd.map_update_q2[1], m2q3 = upd.map_update_q2[2];
+                int m2q1 = current_state.map_update_q2[0], m2q2 = current_state.map_update_q2[1], m2q3 = current_state.map_update_q2[2];
                 if (m2q1 >= 1 && m2q1 <= 10 && m2q2 >= 1 && m2q2 <= 10 && m2q3 >= 1 && m2q3 <= 10) {
-                    g_shared_state->shm_galaxy[m2q1][m2q2][m2q3] = upd.map_update_val2;
+                    g_shared_state->shm_galaxy[m2q1][m2q2][m2q3] = current_state.map_update_val2;
                 }
 
-                g_shared_state->object_count = upd.object_count;
-                for (int o=0; o < upd.object_count; o++) {
-                    g_shared_state->objects[o].shm_x = upd.objects[o].net_x;
-                    g_shared_state->objects[o].shm_y = upd.objects[o].net_y;
-                    g_shared_state->objects[o].shm_z = upd.objects[o].net_z;
-                    g_shared_state->objects[o].h = upd.objects[o].h;
-                    g_shared_state->objects[o].m = upd.objects[o].m;
-                    g_shared_state->objects[o].type = upd.objects[o].type;
-                    g_shared_state->objects[o].ship_class = upd.objects[o].ship_class;
-                    g_shared_state->objects[o].health_pct = upd.objects[o].health_pct;
-                    g_shared_state->objects[o].energy = upd.objects[o].energy;
-                    g_shared_state->objects[o].plating = upd.objects[o].plating;
-                    g_shared_state->objects[o].hull_integrity = upd.objects[o].hull_integrity;
-                    g_shared_state->objects[o].faction = upd.objects[o].faction;
-                    g_shared_state->objects[o].id = upd.objects[o].id;
-                    g_shared_state->objects[o].is_cloaked = upd.objects[o].is_cloaked;
-                    strncpy(g_shared_state->objects[o].shm_name, upd.objects[o].name, 63);
+                g_shared_state->object_count = current_state.object_count;
+                for (int o=0; o < current_state.object_count; o++) {
+                    g_shared_state->objects[o].shm_x = current_state.objects[o].net_x;
+                    g_shared_state->objects[o].shm_y = current_state.objects[o].net_y;
+                    g_shared_state->objects[o].shm_z = current_state.objects[o].net_z;
+                    g_shared_state->objects[o].h = current_state.objects[o].h;
+                    g_shared_state->objects[o].m = current_state.objects[o].m;
+                    g_shared_state->objects[o].type = current_state.objects[o].type;
+                    g_shared_state->objects[o].ship_class = current_state.objects[o].ship_class;
+                    g_shared_state->objects[o].health_pct = current_state.objects[o].health_pct;
+                    g_shared_state->objects[o].energy = current_state.objects[o].energy;
+                    g_shared_state->objects[o].plating = current_state.objects[o].plating;
+                    g_shared_state->objects[o].hull_integrity = current_state.objects[o].hull_integrity;
+                    g_shared_state->objects[o].faction = current_state.objects[o].faction;
+                    g_shared_state->objects[o].id = current_state.objects[o].id;
+                    g_shared_state->objects[o].is_cloaked = current_state.objects[o].is_cloaked;
+                    strncpy(g_shared_state->objects[o].shm_name, current_state.objects[o].name, 63);
                     g_shared_state->objects[o].active = 1;
                 }
                 
                 /* Append beams to shared state (Queue logic) */
-                if (upd.beam_count > 0) {
-                    for (int b=0; b < upd.beam_count; b++) {
+                if (current_state.beam_count > 0) {
+                    for (int b=0; b < current_state.beam_count; b++) {
                         if (g_shared_state->beam_count < MAX_BEAMS) {
                             int idx = g_shared_state->beam_count;
-                            g_shared_state->beams[idx].shm_sx = upd.beams[b].net_sx;
-                            g_shared_state->beams[idx].shm_sy = upd.beams[b].net_sy;
-                            g_shared_state->beams[idx].shm_sz = upd.beams[b].net_sz;
-                            g_shared_state->beams[idx].shm_tx = upd.beams[b].net_tx;
-                            g_shared_state->beams[idx].shm_ty = upd.beams[b].net_ty;
-                            g_shared_state->beams[idx].shm_tz = upd.beams[b].net_tz;
-                            g_shared_state->beams[idx].active = upd.beams[b].active;
+                            g_shared_state->beams[idx].shm_sx = current_state.beams[b].net_sx;
+                            g_shared_state->beams[idx].shm_sy = current_state.beams[b].net_sy;
+                            g_shared_state->beams[idx].shm_sz = current_state.beams[b].net_sz;
+                            g_shared_state->beams[idx].shm_tx = current_state.beams[b].net_tx;
+                            g_shared_state->beams[idx].shm_ty = current_state.beams[b].net_ty;
+                            g_shared_state->beams[idx].shm_tz = current_state.beams[b].net_tz;
+                            g_shared_state->beams[idx].active = current_state.beams[b].active;
                             g_shared_state->beam_count++;
                         }
                     }
+                    current_state.beam_count = 0;
                 }
                 
                 /* Projectile position */
-                g_shared_state->torp.shm_x = upd.torp.net_x;
-                g_shared_state->torp.shm_y = upd.torp.net_y;
-                g_shared_state->torp.shm_z = upd.torp.net_z;
-                g_shared_state->torp.active = upd.torp.active;
+                g_shared_state->torp.shm_x = current_state.torp.net_x;
+                g_shared_state->torp.shm_y = current_state.torp.net_y;
+                g_shared_state->torp.shm_z = current_state.torp.net_z;
+                g_shared_state->torp.active = current_state.torp.active;
                 
                 /* Event Latching */
-                if (upd.boom.active) {
-                    g_shared_state->boom.shm_x = upd.boom.net_x;
-                    g_shared_state->boom.shm_y = upd.boom.net_y;
-                    g_shared_state->boom.shm_z = upd.boom.net_z;
+                if (current_state.boom.active) {
+                    g_shared_state->boom.shm_x = current_state.boom.net_x;
+                    g_shared_state->boom.shm_y = current_state.boom.net_y;
+                    g_shared_state->boom.shm_z = current_state.boom.net_z;
                     g_shared_state->boom.active = 1;
+                    current_state.boom.active = 0;
                 }
                 
-                if (upd.dismantle.active) {
-                    g_shared_state->dismantle.shm_x = upd.dismantle.net_x;
-                    g_shared_state->dismantle.shm_y = upd.dismantle.net_y;
-                    g_shared_state->dismantle.shm_z = upd.dismantle.net_z;
-                    g_shared_state->dismantle.species = upd.dismantle.species;
+                if (current_state.dismantle.active) {
+                    g_shared_state->dismantle.shm_x = current_state.dismantle.net_x;
+                    g_shared_state->dismantle.shm_y = current_state.dismantle.net_y;
+                    g_shared_state->dismantle.shm_z = current_state.dismantle.net_z;
+                    g_shared_state->dismantle.species = current_state.dismantle.species;
                     g_shared_state->dismantle.active = 1;
+                    current_state.dismantle.active = 0;
                 }
                 
                 /* Wormhole Event */
-                g_shared_state->wormhole.shm_x = upd.wormhole.net_x;
-                g_shared_state->wormhole.shm_y = upd.wormhole.net_y;
-                g_shared_state->wormhole.shm_z = upd.wormhole.net_z;
-                g_shared_state->wormhole.active = upd.wormhole.active;
+                g_shared_state->wormhole.shm_x = current_state.wormhole.net_x;
+                g_shared_state->wormhole.shm_y = current_state.wormhole.net_y;
+                g_shared_state->wormhole.shm_z = current_state.wormhole.net_z;
+                g_shared_state->wormhole.active = current_state.wormhole.active;
 
                 /* Recovery FX */
-                g_shared_state->recovery_fx.shm_x = upd.recovery_fx.net_x;
-                g_shared_state->recovery_fx.shm_y = upd.recovery_fx.net_y;
-                g_shared_state->recovery_fx.shm_z = upd.recovery_fx.net_z;
-                g_shared_state->recovery_fx.active = upd.recovery_fx.active;
+                if (current_state.recovery_fx.active) {
+                    g_shared_state->recovery_fx.shm_x = current_state.recovery_fx.net_x;
+                    g_shared_state->recovery_fx.shm_y = current_state.recovery_fx.net_y;
+                    g_shared_state->recovery_fx.shm_z = current_state.recovery_fx.net_z;
+                    g_shared_state->recovery_fx.active = current_state.recovery_fx.active;
+                    current_state.recovery_fx.active = 0;
+                }
 
                 /* Jump Arrival Event */
-                if (upd.jump_arrival.active) {
-                    g_shared_state->jump_arrival.shm_x = upd.jump_arrival.net_x;
-                    g_shared_state->jump_arrival.shm_y = upd.jump_arrival.net_y;
-                    g_shared_state->jump_arrival.shm_z = upd.jump_arrival.net_z;
+                if (current_state.jump_arrival.active) {
+                    g_shared_state->jump_arrival.shm_x = current_state.jump_arrival.net_x;
+                    g_shared_state->jump_arrival.shm_y = current_state.jump_arrival.net_y;
+                    g_shared_state->jump_arrival.shm_z = current_state.jump_arrival.net_z;
                     g_shared_state->jump_arrival.active = 1;
                     /* Reset local copy to prevent repeated triggering */
-                    upd.jump_arrival.active = 0;
+                    current_state.jump_arrival.active = 0;
                 }
 
                 /* Supernova Event */
-                g_shared_state->supernova_pos.shm_x = upd.supernova_pos.net_x;
-                g_shared_state->supernova_pos.shm_y = upd.supernova_pos.net_y;
-                g_shared_state->supernova_pos.shm_z = upd.supernova_pos.net_z;
-                g_shared_state->supernova_pos.active = upd.supernova_pos.active;
-                g_shared_state->shm_sn_q[0] = upd.supernova_q[0];
-                g_shared_state->shm_sn_q[1] = upd.supernova_q[1];
-                g_shared_state->shm_sn_q[2] = upd.supernova_q[2];
+                g_shared_state->supernova_pos.shm_x = current_state.supernova_pos.net_x;
+                g_shared_state->supernova_pos.shm_y = current_state.supernova_pos.net_y;
+                g_shared_state->supernova_pos.shm_z = current_state.supernova_pos.net_z;
+                g_shared_state->supernova_pos.active = current_state.supernova_pos.active;
+                g_shared_state->shm_sn_q[0] = current_state.supernova_q[0];
+                g_shared_state->shm_sn_q[1] = current_state.supernova_q[1];
+                g_shared_state->shm_sn_q[2] = current_state.supernova_q[2];
                 
                 g_shared_state->frame_id++; 
                 pthread_mutex_unlock(&g_shared_state->mutex);

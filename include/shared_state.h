@@ -36,8 +36,8 @@
  */
 
 typedef struct {
-    float shm_x, shm_y, shm_z;
-    float h, m;
+    double shm_x, shm_y, shm_z;
+    double h, m;
     int type; /* 1=Player, 3=Base, 4=Star, 5=Planet, 6=BH, 10+=Enemies */
     int ship_class;
     int active;
@@ -52,18 +52,18 @@ typedef struct {
 } SharedObject;
 
 typedef struct {
-    float shm_sx, shm_sy, shm_sz; /* Source coordinates */
-    float shm_tx, shm_ty, shm_tz; /* Target coordinates */
+    double shm_sx, shm_sy, shm_sz; /* Source coordinates */
+    double shm_tx, shm_ty, shm_tz; /* Target coordinates */
     int active;
 } SharedBeam;
 
 typedef struct {
-    float shm_x, shm_y, shm_z;
+    double shm_x, shm_y, shm_z;
     int active;
 } SharedPoint;
 
 typedef struct {
-    float shm_x, shm_y, shm_z;
+    double shm_x, shm_y, shm_z;
     int species;
     int active;
 } SharedDismantle;
@@ -71,11 +71,11 @@ typedef struct {
 typedef struct {
     int active;
     int q1, q2, q3;
-    float s1, s2, s3;
-    float eta;
+    double s1, s2, s3;
+    double eta;
     int status;
-    float gx, gy, gz;
-    float vx, vy, vz;
+    double gx, gy, gz;
+    double vx, vy, vz;
 } SharedProbe;
 
 typedef struct {
@@ -88,18 +88,18 @@ typedef struct {
     int shm_prison_unit;
     int shm_torpedoes;
     int shm_composite_plating;
-    float shm_hull_integrity;
+    double shm_hull_integrity;
     int shm_shields[6];
     int shm_cargo_energy;
     int shm_cargo_torpedoes;
     int inventory[10];
-    float shm_system_health[10];
-    float shm_power_dist[3];
+    double shm_system_health[10];
+    double shm_power_dist[3];
     int shm_tube_state;
     int tube_load_timers[4];
     int current_tube;
-    float shm_ion_beam_charge;
-    float shm_life_support;
+    double shm_ion_beam_charge;
+    double shm_life_support;
     int shm_anti_matter;
     int shm_lock_target;
     int Korthians;
@@ -119,16 +119,16 @@ typedef struct {
     uint8_t shm_server_signature[64];
     uint8_t shm_server_pubkey[32];
     int shm_q[3];
-    float shm_s[3];
-    float shm_h;
-    float shm_m;
+    double shm_s[3];
+    double shm_h;
+    double shm_m;
     int64_t shm_galaxy[11][11][11];
     
     /* Deep Space Telemetry Metrics */
-    float net_kbps;
-    float net_efficiency;
-    float net_jitter;
-    float net_integrity;
+    double net_kbps;
+    double net_efficiency;
+    double net_jitter;
+    double net_integrity;
     int net_last_packet_size;
     int net_avg_packet_size;
     int net_packet_count;

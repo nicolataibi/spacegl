@@ -98,6 +98,46 @@ Configurable parameters include:
 
 *   **Events:** `TIMER_SUPERNOVA` (catastrophic countdown duration).
 
+---
+
+## 🛰️ Network Architecture & Optimization (v2.0)
+
+SpaceGL uses an authoritative server model with a high-performance binary protocol optimized for deep space simulations.
+
+*   **Delta Compression**: The engine employs a bitmask-based differential update system. Instead of sending the full game state (30KB+), the server transmits only changed "data blocks" (Transform, Vitals, Systems, etc.). This reduces average bandwidth usage by **90-95%**.
+*   **Interest Management**: Using the 10x10x10 spatial index, the server filters objects based on player location. Static entities (Stars, Planets) are cached on the client and only re-synchronized upon quadrant transition.
+*   **Zero-Latency IPC**: The client relays network data to the 3D viewer via **POSIX Shared Memory (SHM)**. This "Zero-Copy" approach allows the rendering engine to run at 60+ FPS with smooth interpolation (LERP), independent of network tick rate (30Hz).
+*   **Telemetries**: The HUD displays real-time network health:
+    *   **Efficiency**: Percentage of bandwidth saved by Delta Compression.
+    *   **Jitter**: Millisecond variance in packet arrival, used to tune the interpolation buffer.
+    *   **Integrity**: Connection quality score based on packet stability.
+
+### 🛠️ Technical Deep-Dive: Differential Engine
+
+For developers looking to extend the protocol, here is how the v2.0 engine handles data:
+
+#### 1. Bitmask Serialization
+The `PacketUpdateDelta` structure contains a 64-bit `update_mask`. Each bit corresponds to a specific `UpdateBlock` (defined in `network.h`). 
+- **Server-Side**: The logic compares the current `SpaceGLGame` state with the `last_sent_state` stored in the `ConnectedPlayer` struct. If any field in a block differs, the corresponding bit is set in the mask.
+- **Payload Packing**: Only blocks with an active bit are appended to the packet. This results in a variable-length stream that only carries "news".
+
+#### 2. Interest Management & Quadrant Caching
+To handle thousands of entities without saturating the client:
+- **Spatial Filtering**: The server performs a lookup in the `spatial_index[11][11][11]`. A client only receives updates for objects within their current quadrant.
+- **Static vs Dynamic**: Entities like Stars and Planets are considered "Static Quadrant Data". They are sent only once when a player enters a new quadrant (`quadrant_changed` logic) or during a full refresh.
+- **Refresh Cycle**: To guarantee eventual consistency even over lossy UDP-like streams (though we use TCP), a full synchronization (`UPD_FULL`) is forced every 300 frames (~10 seconds).
+
+#### 3. Client-Side Reconstruction
+The client maintains a persistent `static PacketUpdate current_state`. 
+1. **Receipt**: When a `PKT_UPDATE_DELTA` arrives, the client reads the mask.
+2. **Merging**: It reads the payload sequentially, overwriting only the specific blocks in `current_state` that were included by the server.
+3. **SHM Commit**: The updated `current_state` is then mirrored to the Shared Memory segment, ensuring the 3D Viewer always sees a consistent, full world view.
+4. **Shader State Management**: To ensure visual effects like explosions and dismantling particles render correctly, the viewer explicitly resets the GL pipeline using `glUseProgram(0)` before drawing non-shaded primitives. This prevents the primary hull shaders from interfering with fixed-function particle transparency.
+
+---
+
+---
+
 This allows admins to create custom game variants (e.g., *Hardcore Survival* with scarce resources or *Arcade Deathmatch* with overpowered weapons).
 
 ---
@@ -109,7 +149,8 @@ Space GL features a vast, densely populated universe that persists across server
 ### 1. Scale and Population
 The galaxy is a 10x10x10 cube containing **1,000 unique quadrants**.
 *   **NPC Factions:** Each of the 11 alien factions (Korthian, Swarm, Xylari, etc.) maintains a standing fleet of **70 to 100 unique vessels** active at all times.
-*   **The Alliance Legacy:** Scattered across the stars are **70 to 100 historical wrecks (derelicts)** for EACH Alliance ship class, providing a rich field for salvage and exploration.
+*   **The Alliance Legacy:** Scattered across the stars are **70 to 100 historical wrecks (derelicts)** for EACH Alliance ship class. Additionally, every NPC vessel destroyed in combat now generates a **permanent wreck** in the sector, providing a rich field for salvage and exploration.
+*   **Alien Wrecks**: The galaxy hosts pre-generated wrecks for all alien factions, offering technological salvage opportunities from the very beginning of the mission.
 *   **Celestial Diversity:**
     *   **Stars:** Classified into 7 spectral types: **O (Blue)**, **B (White)**, **A (White)**, **F (Yellow)**, **G (Yellow)**, **K (Orange)**, and **M (Red)**.
     *   **Pulsars:** Neutrons stars categorized into 3 scientific classes: **Rotation-Powered**, **Accretion-Powered**, and **Magnetar**.
@@ -218,6 +259,7 @@ This is the game's "engine". It manages the entire universe of 1000 quadrants.
 *   **Security & Stability**: The codebase has been audited to eliminate Buffer Overflow risks by systematically using `snprintf` and dynamic tactical buffer management.
 *   **Spatial Partitioning**: Uses a 3D spatial index (Grid Index) for object management. This allows the server to scan only objects local to the player, guaranteeing constant performance ($O(1)$) regardless of the total number of entities in the galaxy.
 *   **Persistence**: Saves the state of the entire universe, including player progress, in `galaxy.dat` with binary version control.
+*   **Generation Diagnostics**: When creating a new galaxy, the system produces a detailed **Astrometrics Report**, including a census of planet types (resource-based), a breakdown of wrecks by class and faction, and the mapping of Class-Omega threats.
 
 ### 2. The Command Bridge (`stellar_client`)
 The `stellar_client` represents the operational core of the user experience, acting as a sophisticated orchestrator between the human operator, the remote server, and the local rendering engine.
@@ -492,6 +534,7 @@ Below is the complete list of available commands, grouped by function.
     *   **Requirements**: Minimum 10% integrity for both **Impulse Drive (ID 1)** and **Computer (ID 6)**.
     *   **Cost**: 100 units of Energy for autopilot engagement.
     *   **Validation**: Target must be detectable by sensors and not cloaked (unless the target belongs to your own faction).
+    *   **Global Tracking**: Supports tracking of static objects (Stars, Planets, Bases, Asteroids, Derelicts) across quadrant boundaries, enabling automated long-range travel without recalculating course at every sector jump.
     *   If no ID is provided, it uses the currently **locked target**.
     *   If only one number is provided, it is treated as **distance** for the locked target (if < 100).
     *   Provides specific radio confirmation mentioning the target's name.
@@ -577,6 +620,20 @@ The effectiveness of your sensors depends directly on the health of the **Sensor
 *   `dam`: **Damage Report**. Detailed system damage.
 *   `who`: List of active captains in the galaxy.
 
+---
+
+## ☠️ Wreckage Persistence & Visuals
+
+SpaceGL features a high-fidelity wreckage system designed to enhance immersion and tactical scavenging.
+
+*   **True-to-Life Derelicts**: When a ship is destroyed (NPC or Player), it spawns a persistent wreck that matches the exact **Hull Geometry** and **Faction** of the original vessel. A destroyed *Korthian Battlecruiser* will leave a Korthian wreck, and a *Swarm Cube* will leave a dark, silent cube.
+*   **Visual State**: Wrecks are rendered with a specialized "Dead Hull" shader pass. This removes all emissive lighting (Warp nacelles, deflector dishes, windows) and applies a darkened, scorched material to the hull, clearly distinguishing active threats from debris.
+*   **Player Persistence**: Player ships destroyed by combat, crew loss, or self-destruct (`xxx`) now leave a permanent mark in the galaxy. These wrecks can be scanned or dismantled (`dis`) by other players for high-value resources.
+*   **Combat Effects**: 
+    *   **Snappy Phasers**: Ion beam pulses have been optimized for faster delivery and rapid fade-out, providing better visual feedback during intense combat.
+    *   **Dismantle Feedback**: Successful dismantling of a wreck triggers a specialized particle disintegration effect, synchronized across the network.
+    *   **HUD Integration**: Active sensor probes are now dynamically listed in the **Short Range Sensors (SRS)** overlay, allowing for immediate tactical monitoring alongside other objects.
+
 ### ⚔️ Tactical Combat
 *   `pha <E>`: **Fire Ion Beams**. Fires Ion Beams at the locked target (`lock`) using energy E. 
     *   **Requirements**: Minimum 10% Ion Beam system integrity (ID 4).
@@ -655,7 +712,7 @@ To perform complex operations (mining, resupply, boarding), follow this optimize
     *   `cha` for **Comets** (Chase and gas collection).
     *   `pha` / `tor` for **Enemies/Monsters/Platforms** (Combat).
 
-**Note on Inter-Sector Scope**: The `apr` (approach) and `dis` (dismantle) commands now use a global resolution system. This means you can target and reach any wreck or object visible on your HUD or identified by sensors, even if it is in an adjacent quadrant. The system will automatically handle long-range navigation.
+**Note on Inter-Sector Scope**: The `dis` (dismantle) command uses a global resolution system. This means you can target and dismantle any wreck visible on your HUD or identified by sensors, even if it is in an adjacent quadrant. The `apr` (approach) command is instead restricted to objects within the current quadrant to ensure short-range navigational safety.
 
 ### 📏 Interaction Distances Table
 Distances expressed in sector units (0.0 - 10.0). If your distance is greater than the limit, the computer will respond with "No [object] in range".
@@ -676,26 +733,26 @@ Distances expressed in sector units (0.0 - 10.0). If your distance is greater th
 | **Celestial Body** | (Collision) | **< 1.0** | Hull damage and emergency rescue trigger |
 
 ### 🚀 Autopilot (`apr`)
-The `apr <ID> <DIST>` command allows you to automatically approach any object detected by sensors. For mobile entities, interception works across the entire galaxy.
+The `apr <ID> <DIST>` command allows you to automatically approach any object detected by sensors in your current quadrant.
 
 | Object Category | ID Range | Interaction Commands | Min. Distance | Navigation Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| **Captains (Players)** | 1 - 32 | `rad`, `pha`, `tor`, `bor` | **< 1.0** (`bor`) | Galactic Tracking |
-| **NPC Ships (Aliens)** | 1000 - 1999 | `pha`, `tor`, `bor`, `scan` | **< 1.0** (`bor`) | Galactic Tracking |
+| **Captains (Players)** | 1 - 32 | `rad`, `pha`, `tor`, `bor` | **< 1.0** (`bor`) | Current quadrant only |
+| **NPC Ships (Aliens)** | 1000 - 1999 | `pha`, `tor`, `bor`, `scan` | **< 1.0** (`bor`) | Current quadrant only |
 | **Starbases** | 2000 - 2199 | `doc`, `scan` | **< 3.1** | Current quadrant only |
 | **Planets** | 3000 - 3999 | `min`, `scan` | **< 3.1** | Current quadrant only |
 | **Stars** | 4000 - 6999 | `sco`, `scan` | **< 3.1** | Current quadrant only |
 | **Black Holes** | 7000 - 7199 | `har`, `scan` | **< 3.1** | Current quadrant only |
 | **Nebulas** | 8000 - 8499 | `scan` | - | Current quadrant only |
 | **Pulsars** | 9000 - 9199 | `scan` | - | Current quadrant only |
-| **Comets** | 10000 - 10299 | `cha`, `scan` | **< 0.6** (Gas) | **Galactic Tracking** |
+| **Comets** | 10000 - 10299 | `cha`, `scan` | **< 0.6** (Gas) | Current quadrant only |
 | **Derelicts** | 11000 - 11149 | `bor`, `dis`, `scan` | **< 1.5** | Current quadrant only |
 | **Asteroids** | 12000 - 13999 | `min`, `scan` | **< 3.1** | Current quadrant only |
 | **Mines** | 14000 - 14999 | `scan` | - | Current quadrant only |
 | **Comm Buoys** | 15000 - 15099 | `scan` | **< 1.2** | Current quadrant only |
 | **Defense Platforms** | 16000 - 16199 | `pha`, `tor`, `scan` | - | Current quadrant only |
 | **Spatial Rifts** | 17000 - 17049 | `scan` | - | Current quadrant only |
-| **Space Monsters** | 18000 - 18029 | `pha`, `tor`, `scan` | **< 1.5** | **Galactic Tracking** |
+| **Space Monsters** | 18000 - 18029 | `pha`, `tor`, `scan` | **< 1.5** | Current quadrant only |
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Shield Configuration**. Distributes energy to the 6 shields.
     *   **Requirements**: Minimum 10% Shield system integrity (ID 8).
@@ -775,7 +832,7 @@ The HUD displays "LIFE SUPPORT: XX.X%", which is directly linked to the integrit
     *   **Requirements**: Minimum 20% Transporter system integrity (ID 3).
     *   **Cost**: 5000 units of Energy per attempt.
     *   **Success Chance**: Scaled by Transporter integrity (Base 20% + up to 40%).
-    *   Works on the currently **locked target** if no ID is specified.
+    *   **Intelligent Fallback**: If no ID is specified and no `lock` is active, the command defaults to the last target set by `apr` (Autopilot).
     *   **NPC/Derelict Interaction**: Opens a specific **Tactical Menu**:
         *   **Hostile NPC Vessels**: `1`: Sabotage Engines (Immobilization), `2`: Raid Cargo Bay (Resources), `3`: Capture Prisoners. **Note**: NPC boarding requires the target to be **disabled** (Engines < 50% or Hull < 50%).
         *   **Wrecks/Derelicts**: `1`: Salvage Resources, `2`: Decrypt Map Data, `3`: Emergency Repairs, `4`: Rescue Survivors (Crew). **Note**: Boarding a derelict no longer causes its automatic destruction.
@@ -784,11 +841,12 @@ The HUD displays "LIFE SUPPORT: XX.X%", which is directly linked to the integrit
         *   **Hostile Vessels**: `1`: Sabotage System, `2`: Raid Cargo Hold, `3`: Capture Hostages.
     *   **Selection**: Reply with the number `1`, `2`, or `3` to execute the action.
     *   **Risks**: Resistance chance (30% for players, variable for NPCs) may cause team casualties.
-*   `dis`: **Dismantle**. Dismantles enemy wrecks for resources (Dist < 1.5).
+*   `dis [ID]`: **Dismantle**. Dismantles enemy wrecks for resources (Dist < 1.5).
     *   **Requirements**: Minimum 15% Transporter system integrity (ID 3).
     *   **Cost**: 500 units of Energy per operation.
     *   **Yield**: Resource recovery efficiency depends on **Transporter (ID 3)** health. Damaged systems result in lower yields.
     *   **Targets**: Works on destroyed NPC vessels and ancient derelict wrecks.
+    *   **Intelligent Fallback**: Like `bor`, supports automatic targeting of the autopilot (`apr`) object.
 *   `fix`: **Field Hull Repair**. Uses **50 Graphene and 20 Neo-Titanium** to restore Hull Integrity (up to a max of 80%).
     *   **Requirements**: Minimum 10% Auxiliary system integrity (ID 9).
     *   **Cost**: 500 units of Energy per repair pulse.
@@ -1057,13 +1115,16 @@ Computer-controlled ships (Korthians, Xylaris, Swarm, etc.) operate with advance
 *   **Fire Rate**: Approximately one shot every 5 seconds.
 *   **Tactics**: NPC ships do not use Plasma Torpedoes. Their main strategy consists of direct approach (`cha`) or fleeing if energy drops below critical levels.
 
-### ☄️ Plasma Torpedo Dynamics
+### ☄️ Plasma Torpedo Dynamics (2026.02 Revision)
 Torpedoes (`tor` command) are physically simulated weapons with high precision:
-*   **Collision**: Torpedoes must physically hit the target (distance **< 0.8**) to explode (increased radius to prevent tunneling).
-*   **Guidance**: If launched with an active `lock`, torpedoes correct their course by **35%** per tick towards the target, allowing hits on agile ships.
-*   **Comet Chasing**: You can use the `cha` (Chase) command to follow comets along their galactic orbit, making gas collection easier.
+*   **Speed**: 0.45 units/tick (increased to outpace cruising ships).
+*   **Collision**: Torpedoes must physically hit the target (distance **< 0.8**) to explode.
+*   **Boresight Mode**: Even without an active `lock`, torpedoes can hit NPCs or other players if their trajectory intersects their collision radius.
+*   **Guidance**: If launched with an active `lock`, torpedoes correct their course by **35%** per tick, influenced by **Sensors (ID 2)** integrity.
+*   **Visual Overhaul**: Increased geometric core (0.12), extended stellar discharge rays (0.85), and boosted singularity glow for maximum tactical visibility.
 *   **Obstacles**: Celestial bodies like **Stars, Planets, and Black Holes** are solid physical objects. A torpedo impacting them will be absorbed/destroyed without hitting the target behind them. Use galactic terrain for cover!
 *   **Starbases**: Starbases also block torpedoes. Beware of friendly or incidental fire.
+*   **Boundaries**: Trajectory is monitored across all three axes (X, Y, Z); the torpedo self-destructs if it exits sector boundaries (0-10) or after a 300-tick timeout.
 
 ### 🌪️ Space Anomalies and Environmental Hazards
 The quadrant is scattered with natural phenomena detectable by both sensors and the **3D tactical view**:

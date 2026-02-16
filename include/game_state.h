@@ -29,14 +29,14 @@
 #define MAX_NET_BEAMS 8
 
 typedef struct {
-    float net_sx, net_sy, net_sz; /* Source coordinates */
-    float net_tx, net_ty, net_tz; /* Target coordinates */
+    double net_sx, net_sy, net_sz; /* Source coordinates */
+    double net_tx, net_ty, net_tz; /* Target coordinates */
     int32_t active;
 } NetBeam;
 
 typedef struct {
-    float net_x, net_y, net_z;
-    float h, m;
+    double net_x, net_y, net_z;
+    double h, m;
     int32_t type;       /* 1=Player, 3=Base, 4=Star, 5=Planet, etc */
     int32_t ship_class; /* Specifica il modello 3D (es. Galaxy, Constitution) */
     int32_t active;
@@ -51,12 +51,12 @@ typedef struct {
 } NetObject;
 
 typedef struct {
-    float net_x, net_y, net_z;
+    double net_x, net_y, net_z;
     int32_t active;
 } NetPoint;
 
 typedef struct {
-    float net_x, net_y, net_z;
+    double net_x, net_y, net_z;
     int32_t species;
     int32_t active;
 } NetDismantle;
@@ -64,11 +64,11 @@ typedef struct {
 typedef struct {
     int32_t active;
     int32_t q1, q2, q3;
-    float s1, s2, s3;
-    float eta;
+    double s1, s2, s3;
+    double eta;
     int32_t status; /* 0:LAUNCHED, 1:ARRIVED, 2:TRANSMITTING */
-    float gx, gy, gz; /* Galactic Absolute Position */
-    float vx, vy, vz; /* Galactic Velocity Vector */
+    double gx, gy, gz; /* Galactic Absolute Position */
+    double vx, vy, vz; /* Galactic Velocity Vector */
 } NetProbe;
 
 typedef struct {
@@ -79,7 +79,7 @@ typedef struct {
     /* Coordinates */
     int32_t q1, q2, q3;             /* Quadrant Position (X, Y, Z) */
     int32_t old_q1, old_q2, old_q3; /* Persistence tracking */
-    float s1, s2, s3;          /* Sector Position (X, Y, Z) - Changed double to float */
+    double s1, s2, s3;          /* Sector Position (X, Y, Z) */
 
     /* Metadata and Totals */
     int32_t k9, b9;
@@ -101,21 +101,21 @@ typedef struct {
     int32_t k3, b3, st3, p3, bh3;
     
     /* Ship Systems */
-    float van_h, van_m;         /* Changed double to float */
+    double van_h, van_m;
     int32_t lock_target;
     int32_t tube_state; /* 0:READY, 1:FIRING, 2:LOADING, 3:OFFLINE */
-    float ion_beam_charge;
-    float power_dist[3];
+    double ion_beam_charge;
+    double power_dist[3];
     uint8_t is_playing_dead;
     uint8_t is_cloaked;
     uint8_t red_alert;
     uint8_t is_jammed;
-    float system_health[10];
-    float hull_integrity;
-    float life_support;
+    double system_health[10];
+    double hull_integrity;
+    double life_support;
     
     /* Time & Meta */
-    float t, t0;                /* Changed double to float */
+    double t, t0;
     int32_t t9;
     int32_t anti_matter_count;
 

@@ -460,10 +460,13 @@ void generate_galaxy() {
     int n_count = 0, b_count = 0, p_count = 0, s_count = 0, bh_count = 0, neb_count = 0, pul_count = 0, com_count = 0, ast_count = 0, der_count = 0, mine_count = 0, buoy_count = 0, plat_count = 0, rift_count = 0, mon_count = 0;
     int faction_counts[21] = {0};
     int class_der_counts[14] = {0};
+    int faction_der_counts[21] = {0};
     int star_spectral_counts[7] = {0}; /* O, B, A, F, G, K, M */
     int nebula_type_counts[6] = {0};   /* Standard, High-Energy, Dark Matter, Ionic, Gravimetric, Temporal */
     int pulsar_type_counts[3] = {0};   /* Rotation-Powered, Accretion-Powered, Magnetar */
     int monster_type_counts[2] = {0};  /* Crystalline, Amoeba */
+    int planet_type_counts[9] = {0};   /* None, Aetherium, Neo-Ti, Void-E, Graphene, Synaptics, Gas, Composite, Dark-Matter */
+    int asteroid_type_counts[9] = {0}; /* Same resources as planets */
     
     /* 1. Generate NPC Ships: 70-100 for each faction (10-20) */
     for(int faction = 10; faction <= 20; faction++) {
@@ -483,6 +486,7 @@ void generate_galaxy() {
             if (faction == FACTION_SWARM) n->plating = 100000;
             else if (faction == FACTION_HIROGEN || faction == FACTION_SPECIES_8472) n->plating = 50000;
             else n->plating = 15000;
+            n->ship_class = SHIP_CLASS_GENERIC_ALIEN;
             n->nav_timer = 60 + rand()%241; n->ai_state = AI_STATE_PATROL;
             strncpy(n->name, get_random_ship_name(faction), 63);
             n_count++;
@@ -501,6 +505,20 @@ void generate_galaxy() {
             strncpy(d->name, get_random_ship_name(FACTION_ALLIANCE), 63);
             der_count++;
             class_der_counts[sclass]++;
+        }
+    }
+
+    /* 2b. Generate Alien Wrecks: 10-20 for each alien faction (10-20) */
+    for(int faction = 10; faction <= 20; faction++) {
+        int count = 10 + (rand() % 11);
+        for(int k=0; k<count && der_count < MAX_DERELICTS; k++) {
+            NPCDerelict *d = &derelicts[der_count];
+            d->id = der_count; d->faction = faction; d->active = 1; d->ship_class = SHIP_CLASS_GENERIC_ALIEN;
+            d->q1 = 1 + rand()%10; d->q2 = 1 + rand()%10; d->q3 = 1 + rand()%10;
+            d->x = (rand()%100)/10.0; d->y = (rand()%100)/10.0; d->z = (rand()%100)/10.0;
+            strncpy(d->name, get_random_ship_name(faction), 63);
+            der_count++;
+            faction_der_counts[faction]++;
         }
     }
 
@@ -526,7 +544,10 @@ void generate_galaxy() {
                     bases[b_count] = (NPCBase){.id=b_count, .faction=FACTION_ALLIANCE, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .health=5000, .active=1}; b_count++;
                 }
                 for(int p=0; p<planets_cnt && p_count < MAX_PLANETS; p++) {
-                    planets[p_count] = (NPCPlanet){.id=p_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .resource_type=(rand()%8)+1, .amount=1000, .active=1}; p_count++;
+                    int r_type = (rand()%8)+1;
+                    planets[p_count] = (NPCPlanet){.id=p_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .resource_type=r_type, .amount=1000, .active=1}; 
+                    planet_type_counts[r_type]++;
+                    p_count++;
                 }
                 for(int s=0; s<star && s_count < MAX_STARS; s++) {
                     int spectral = rand() % 7;
@@ -554,7 +575,10 @@ void generate_galaxy() {
                     comets[com_count] = (NPCComet){.id=com_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .a=a, .b=b, .angle=(rand()%360)*M_PI/180.0, .speed=0.02/a, .inc=(rand()%360)*M_PI/180.0, .cx=50.0 + (rand()%100-50)/10.0, .cy=50.0 + (rand()%100-50)/10.0, .cz=50.0 + (rand()%100-50)/10.0, .active=1}; com_count++;
                 }
                 for(int a=0; a<ast_field && ast_count < MAX_ASTEROIDS; a++) {
-                    asteroids[ast_count] = (NPCAsteroid){.id=ast_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .size=0.1f+(rand()%20)/100.0f, .resource_type=(rand()%8)+1, .amount=100 + rand()%401, .active=1}; ast_count++;
+                    int r_type = (rand()%8)+1;
+                    asteroids[ast_count] = (NPCAsteroid){.id=ast_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .size=0.1f+(rand()%20)/100.0f, .resource_type=r_type, .amount=100 + rand()%401, .active=1}; 
+                    asteroid_type_counts[r_type]++;
+                    ast_count++;
                 }
                 for(int m=0; m<mine_field && mine_count < MAX_MINES; m++) {
                     mines[mine_count] = (NPCMine){.id=mine_count, .q1=i, .q2=j, .q3=l, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .faction=FACTION_KORTHIAN, .active=1}; mine_count++;
@@ -633,15 +657,29 @@ void generate_galaxy() {
     }
 
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
-    printf("%s | %s [ FACTION BREAKDOWN ]      %s| %s [ ALLIANCE WRECKS ]        %s|\n", B_CYAN, B_YELLOW, B_CYAN, B_YELLOW, B_CYAN);
+    printf("%s | %s [ FACTION SHIPS ]          %s| %s [ ALLIANCE WRECKS ]        %s|\n", B_CYAN, B_YELLOW, B_CYAN, B_YELLOW, B_CYAN);
     
-    const char* ship_classes[] = {"LEGACY", "SCOUT", "CRUISER", "ENGINE", "ESCORT", "EXPLORER", "FLAGSHIP", "SCIENCE", "CARRIER", "TACTICAL", "DIPLOMAT", "RESEARCH", "FRIGATE"};
-    for(int f=10; f<=20; f++) {
-        int cidx = f - 10;
-        const char* fname = get_species_name(f);
-        const char* cname = (cidx < 13) ? ship_classes[cidx] : "OTHER";
-        int cval = (cidx < 13) ? class_der_counts[cidx] : 0;
-        printf("%s | %s %-12s: %s%-4d %s| %s %-12s: %s%-4d %s|\n", B_CYAN, B_WHITE, fname, B_GREEN, faction_counts[f], B_CYAN, B_WHITE, cname, B_GREEN, cval, B_CYAN);
+    const char* ship_classes_short[] = {"LEGACY", "SCOUT", "CRUISER", "ENGINE", "ESCORT", "EXPLORER", "FLAGSHIP", "SCIENCE", "CARRIER", "TACTICAL", "DIPLOMAT", "RESEARCH", "FRIGATE", "GENERIC"};
+    for(int k=0; k<14; k++) {
+        int faction = 10 + k;
+        char f_line[64] = "";
+        if (faction <= 20) {
+            sprintf(f_line, "%s %-12s: %s%-4d", B_WHITE, get_species_name(faction), B_GREEN, faction_counts[faction]);
+        } else {
+            sprintf(f_line, "                       ");
+        }
+        printf("%s | %s %s| %s %-12s: %s%-4d %s|\n", B_CYAN, f_line, B_CYAN, B_WHITE, ship_classes_short[k], B_GREEN, class_der_counts[k], B_CYAN);
+    }
+
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ ALIEN WRECKS ]                                             %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    for(int f=10; f<=20; f+=2) {
+        char f1[64], f2[64] = "";
+        sprintf(f1, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f), B_GREEN, faction_der_counts[f]);
+        if (f+1 <= 20) {
+            sprintf(f2, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f+1), B_GREEN, faction_der_counts[f+1]);
+        }
+        printf("%s | %s %s| %s %s %s|\n", B_CYAN, f1, B_CYAN, B_CYAN, f2, B_CYAN);
     }
 
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
@@ -652,6 +690,23 @@ void generate_galaxy() {
     printf("%s | %s                       %s| %s %-12s: %s%-4d %s|\n", B_CYAN, "", B_CYAN, B_WHITE, p_classes[2], B_GREEN, pulsar_type_counts[2], B_CYAN);
 
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ PLANETARY RESOURCES ]                                      %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    const char* res_names[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
+    for(int k=1; k<=8; k+=2) {
+        printf("%s | %s %-14s: %s%-4d %s| %s %-14s: %s%-4d %s|\n", 
+               B_CYAN, B_WHITE, res_names[k], B_GREEN, planet_type_counts[k], B_CYAN, 
+               B_WHITE, (k+1 <= 8) ? res_names[k+1] : "", B_GREEN, (k+1 <= 8) ? planet_type_counts[k+1] : 0, B_CYAN);
+    }
+
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ ASTEROID RESOURCES ]                                      %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    for(int k=1; k<=8; k+=2) {
+        printf("%s | %s %-14s: %s%-4d %s| %s %-14s: %s%-4d %s|\n", 
+               B_CYAN, B_WHITE, res_names[k], B_GREEN, asteroid_type_counts[k], B_CYAN, 
+               B_WHITE, (k+1 <= 8) ? res_names[k+1] : "", B_GREEN, (k+1 <= 8) ? asteroid_type_counts[k+1] : 0, B_CYAN);
+    }
+
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     printf("%s | %s ☀️ Total Stars:        %s%-5d %s| %s 🕳️ Black Holes:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, s_count, B_CYAN, B_WHITE, B_GREEN, bh_count, B_CYAN);
     printf("%s | %s ☁️ Total Nebulas:      %s%-5d %s| %s 🌟 Total Pulsars:      %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, neb_count, B_CYAN, B_WHITE, B_GREEN, pul_count, B_CYAN);
     printf("%s | %s ☄️ Comets:             %s%-5d %s| %s 💎 Asteroids:          %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, com_count, B_CYAN, B_WHITE, B_GREEN, ast_count, B_CYAN);
@@ -659,3 +714,25 @@ void generate_galaxy() {
     printf("%s | %s 🛡️ Defense Platforms:  %s%-5d %s| %s 🌀 Spacetime Rifts:    %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, plat_count, B_CYAN, B_WHITE, B_GREEN, rift_count, B_CYAN);
     printf("%s '---------------------------------------------------------------'%s\n\n", B_CYAN, RESET);
 }
+
+void spawn_derelict(int q1, int q2, int q3, double x, double y, double z, int faction, int ship_class, const char* name) {
+    for (int i = 0; i < MAX_DERELICTS; i++) {
+        if (!derelicts[i].active) {
+            derelicts[i].id = i;
+            derelicts[i].q1 = q1;
+            derelicts[i].q2 = q2;
+            derelicts[i].q3 = q3;
+            derelicts[i].x = x;
+            derelicts[i].y = y;
+            derelicts[i].z = z;
+            derelicts[i].faction = faction;
+            derelicts[i].ship_class = ship_class;
+            derelicts[i].active = 1;
+            strncpy(derelicts[i].name, name, 63);
+            derelicts[i].name[63] = '\0';
+            /* Spatial index will be rebuilt by game logic loop */
+            return;
+        }
+    }
+}
+

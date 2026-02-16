@@ -85,6 +85,12 @@ typedef struct {
     int pending_bor_type;   /* 1: Ally, 2: Enemy */
 
     int death_timer;        /* Ticks until final destruction explosion */
+    
+    /* Optimization State */
+    PacketUpdate last_sent_state;
+    int last_q1, last_q2, last_q3;
+    uint64_t full_update_timer;
+
     SpaceGLGame state;
 } ConnectedPlayer;
 
@@ -125,6 +131,7 @@ typedef struct {
     double dx, dy, dz;
     double tx, ty, tz; 
     uint8_t is_cloaked;
+    int ship_class;
     int death_timer;
     char name[64];
 } NPCShip;
@@ -203,7 +210,7 @@ extern SupernovaState supernova_event;
 
 #define LOG_DEBUG(...) do { if (g_debug) { printf("DEBUG: " __VA_ARGS__); fflush(stdout); } } while (0)
 
-#define GALAXY_VERSION 20260210
+#define GALAXY_VERSION 20260216
 
 /* Spatial Partitioning Index */
 typedef struct {
@@ -266,6 +273,7 @@ void normalize_upright(double *h, double *m);
 void generate_galaxy();
 int load_galaxy();
 void save_galaxy();
+void spawn_derelict(int q1, int q2, int q3, double x, double y, double z, int faction, int ship_class, const char* name);
 const char* get_species_name(int s);
 
 void broadcast_message(PacketMessage *msg);
@@ -274,7 +282,8 @@ void send_server_msg(int p_idx, const char *from, const char *text);
 void process_command(int p_idx, const char *cmd);
 void update_game_logic();
 bool is_player_in_nebula(int p_idx);
-void apply_hull_damage(int p_idx, float amount);
+void apply_hull_damage(int p_idx, double amount);
+void send_optimized_update(int p_idx, PacketUpdate *upd);
 
 int read_all(int fd, void *buf, size_t len);
 int write_all(int fd, const void *buf, size_t len);
