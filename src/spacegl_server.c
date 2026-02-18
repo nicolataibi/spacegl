@@ -348,8 +348,11 @@ int main(int argc, char *argv[]) {
                                 players[slot].active = 0; /* Block updates during sync */
 
                                 if (is_new) {
-                                    strcpy(players[slot].name, pkt.name); players[slot].faction = pkt.faction; players[slot].ship_class = pkt.ship_class;
-                                    players[slot].state.energy = 9999999; players[slot].state.torpedoes = 1000;
+                                    strcpy(players[slot].name, pkt.name);
+                                    players[slot].faction = pkt.faction;
+                                    players[slot].ship_class = pkt.ship_class;
+                                    players[slot].state.energy = MAX_ENERGY_CAPACITY;
+                                    players[slot].state.torpedoes = 1000;
                                     int crew = 200;
                                     switch(pkt.ship_class) {
                                         case SHIP_CLASS_EXPLORER:    crew = 1012; break;
@@ -368,8 +371,12 @@ int main(int argc, char *argv[]) {
                                         default: crew = 200; break;
                                     }
                                     players[slot].state.crew_count = crew;
-                                                                        players[slot].state.q1 = rand()%GALAXY_SIZE + 1; players[slot].state.q2 = rand()%GALAXY_SIZE + 1; players[slot].state.q3 = rand()%GALAXY_SIZE + 1;
-                                                                        players[slot].state.s1 = 5.0; players[slot].state.s2 = 5.0; players[slot].state.s3 = 5.0;
+                                    players[slot].state.q1 = rand()%GALAXY_SIZE + 1;
+                                    players[slot].state.q2 = rand()%GALAXY_SIZE + 1;
+                                    players[slot].state.q3 = rand()%GALAXY_SIZE + 1;
+                                    players[slot].state.s1 = 5.0;
+                                    players[slot].state.s2 = 5.0;
+                                    players[slot].state.s3 = 5.0;
                                                                         
                                                                         /* Initialize Absolute Galactic Coordinates */
                                                                         players[slot].gx = (players[slot].state.q1 - 1) * 10.0 + players[slot].state.s1;
@@ -378,12 +385,13 @@ int main(int argc, char *argv[]) {
                                                                         
                                                                                                                 players[slot].state.inventory[1] = 10; /* Initial Aetherium for jumps */
                                                                         
-                                                                                                                players[slot].state.hull_integrity = 100.0f;
-                                                                        
-                                                                                                                for(int s=0; s<10; s++) players[slot].state.system_health[s] = 100.0f;
-                                                                        players[slot].state.life_support = 100.0f;
-                                                                        players[slot].state.ion_beam_charge = 100.0f;
-                                                                        memset(players[slot].state.probes, 0, sizeof(players[slot].state.probes));
+                                    players[slot].state.hull_integrity = 100.0f;
+                                    for (int s = 0; s < 10; s++) {
+                                        players[slot].state.system_health[s] = 100.0f;
+                                    }
+                                    players[slot].state.life_support = 100.0f;
+                                    players[slot].state.ion_beam_charge = 100.0f;
+                                    memset(players[slot].state.probes, 0, sizeof(players[slot].state.probes));
                                 }
                                 
                                 /* WELCOME PACKAGE: Ensure all captains (new or returning) have at least 10 Aetherium for Jumps */
@@ -391,13 +399,15 @@ int main(int argc, char *argv[]) {
                                     players[slot].state.inventory[1] = 10;
                                 }
 
-                                /* SESSION INITIALIZATION: Reset transient event flags */
+                                /* SESSION INITIALIZATION: Reset transient event flags and force full sync */
                                 players[slot].renegade_timer = 0;
                                 players[slot].state.boom.active = 0;
                                 players[slot].state.torp.active = 0;
                                 players[slot].state.dismantle.active = 0;
                                 players[slot].state.beam_count = 0;
                                 players[slot].torp_active = false;
+                                players[slot].full_update_timer = 301; /* Force UPD_FULL on next network pulse */
+                                memset(&players[slot].last_sent_state, 0, sizeof(PacketUpdate));
                                 
                                 /* FORCE COORDINATE SYNC: Ensure HUD and Viewer align immediately */
                                 players[slot].state.q1 = get_q_from_g(players[slot].gx);
@@ -419,7 +429,7 @@ int main(int argc, char *argv[]) {
                                     pthread_mutex_lock(&game_mutex);
                                     LOG_DEBUG("Galaxy Master sent successfully to FD %d\n", fd);
                                     bool needs_rescue = false;
-                                    if (players[slot].state.energy <= 0 || players[slot].state.crew_count <= 0) needs_rescue = true;
+                                    if (players[slot].state.energy == 0 || players[slot].state.crew_count <= 0) needs_rescue = true;
                                     
                                     int pq1 = players[slot].state.q1, pq2 = players[slot].state.q2, pq3 = players[slot].state.q3;
                                     if (IS_Q_VALID(pq1, pq2, pq3)) {
@@ -435,27 +445,42 @@ int main(int argc, char *argv[]) {
                                     }
 
                                     if (needs_rescue) {
-                                        int rq1, rq2, rq3;
+                                        int rq1;
+                                        int rq2;
+                                        int rq3;
                                         /* Find a quadrant without a supernova */
                                         do {
-                                            rq1 = rand()%GALAXY_SIZE + 1; rq2 = rand()%GALAXY_SIZE + 1; rq3 = rand()%GALAXY_SIZE + 1;
+                                            rq1 = rand() % GALAXY_SIZE + 1;
+                                            rq2 = rand() % GALAXY_SIZE + 1;
+                                            rq3 = rand() % GALAXY_SIZE + 1;
                                         } while (supernova_event.supernova_timer > 0 && 
                                                  rq1 == supernova_event.supernova_q1 && 
                                                  rq2 == supernova_event.supernova_q2 && 
                                                  rq3 == supernova_event.supernova_q3);
 
-                                        players[slot].state.q1 = rq1; players[slot].state.q2 = rq2; players[slot].state.q3 = rq3;
-                                        players[slot].state.s1 = 5.0; players[slot].state.s2 = 5.0; players[slot].state.s3 = 5.0;
-                                        players[slot].state.energy = 9999999;
+                                        players[slot].state.q1 = rq1;
+                                        players[slot].state.q2 = rq2;
+                                        players[slot].state.q3 = rq3;
+                                        players[slot].state.s1 = 5.0;
+                                        players[slot].state.s2 = 5.0;
+                                        players[slot].state.s3 = 5.0;
+                                        players[slot].state.energy = MAX_ENERGY_CAPACITY;
                                         players[slot].state.torpedoes = 1000;
-                                        if (players[slot].state.crew_count <= 0) players[slot].state.crew_count = 100;
+                                        if (players[slot].state.crew_count <= 0) {
+                                            players[slot].state.crew_count = 100;
+                                        }
                                         players[slot].state.hull_integrity = 80.0f;
-                                        for(int s=0; s<10; s++) players[slot].state.system_health[s] = 80.0f;
-                                        players[slot].gx = (players[slot].state.q1-1)*10.0 + 5.0;
-                                        players[slot].gy = (players[slot].state.q2-1)*10.0 + 5.0;
-                                        players[slot].gz = (players[slot].state.q3-1)*10.0 + 5.0;
-                                        players[slot].nav_state = NAV_STATE_IDLE; players[slot].hyper_speed = 0;
-                                        players[slot].dx = 0; players[slot].dy = 0; players[slot].dz = 0;
+                                        for (int s = 0; s < 10; s++) {
+                                            players[slot].state.system_health[s] = 80.0f;
+                                        }
+                                        players[slot].gx = (players[slot].state.q1 - 1) * 10.0 + 5.0;
+                                        players[slot].gy = (players[slot].state.q2 - 1) * 10.0 + 5.0;
+                                        players[slot].gz = (players[slot].state.q3 - 1) * 10.0 + 5.0;
+                                        players[slot].nav_state = NAV_STATE_IDLE;
+                                        players[slot].hyper_speed = 0;
+                                        players[slot].dx = 0;
+                                        players[slot].dy = 0;
+                                        players[slot].dz = 0;
                                         players[slot].active = 1;
                                         players[slot].crypto_algo = CRYPTO_NONE; 
                                         pthread_mutex_unlock(&game_mutex);
@@ -475,7 +500,14 @@ int main(int argc, char *argv[]) {
                 } else if (p_idx != -1) {
                     if (type == PKT_COMMAND) {
                         PacketCommand pkt;
-                        if (read_all(fd, ((char*)&pkt) + sizeof(int), sizeof(PacketCommand) - sizeof(int)) > 0) process_command(p_idx, pkt.cmd);
+                        if (read_all(fd, ((char*)&pkt) + sizeof(int), sizeof(PacketCommand) - sizeof(int)) > 0) {
+                            if (process_command(p_idx, pkt.cmd)) {
+                                /* Profile was deleted (zztop), drop connection */
+                                epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                                close(fd);
+                                LOG_DEBUG("Connection dropped after zztop: FD %d\n", fd);
+                            }
+                        }
                     } else if (type == PKT_MESSAGE) {
                         PacketMessage pkt;
                         if (read_all(fd, ((char*)&pkt) + sizeof(int), offsetof(PacketMessage, text) - sizeof(int)) > 0) {

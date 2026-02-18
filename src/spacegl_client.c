@@ -261,18 +261,43 @@ void *network_listener(void *arg) {
                         
                         const EVP_CIPHER *cipher;
                         int is_gcm = 0;
-                        if (msg->crypto_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
-                        else if (msg->crypto_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
-                        else if (msg->crypto_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
-                        else if (msg->crypto_algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
-                        else if (msg->crypto_algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
-                        else if (msg->crypto_algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
-                        else if (msg->crypto_algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
-                        else if (msg->crypto_algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
-                        else if (msg->crypto_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
-                        else if (msg->crypto_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
-                        else if (msg->crypto_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-                        else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+                        if (msg->crypto_algo == CRYPTO_CHACHA) {
+                            cipher = EVP_chacha20_poly1305();
+                            is_gcm = 1;
+                        } else if (msg->crypto_algo == CRYPTO_ARIA) {
+                            cipher = EVP_aria_256_gcm();
+                            is_gcm = 1;
+                        } else if (msg->crypto_algo == CRYPTO_CAMELLIA) {
+                            cipher = EVP_camellia_256_ctr();
+                            is_gcm = 0;
+                        } else if (msg->crypto_algo == CRYPTO_SEED) {
+                            cipher = EVP_seed_cbc();
+                            is_gcm = 0;
+                        } else if (msg->crypto_algo == CRYPTO_CAST5) {
+                            cipher = EVP_cast5_cbc();
+                            is_gcm = 0;
+                        } else if (msg->crypto_algo == CRYPTO_IDEA) {
+                            cipher = EVP_idea_cbc();
+                            is_gcm = 0;
+                        } else if (msg->crypto_algo == CRYPTO_3DES) {
+                            cipher = EVP_des_ede3_cbc();
+                            is_gcm = 0;
+                        } else if (msg->crypto_algo == CRYPTO_BLOWFISH) {
+                            cipher = EVP_bf_cbc();
+                            is_gcm = 0;
+                        } else if (msg->crypto_algo == CRYPTO_RC4) {
+                            cipher = EVP_rc4();
+                            is_gcm = 0;
+                        } else if (msg->crypto_algo == CRYPTO_DES) {
+                            cipher = EVP_des_cbc();
+                            is_gcm = 0;
+                        } else if (msg->crypto_algo == CRYPTO_PQC) {
+                            cipher = EVP_aes_256_gcm();
+                            is_gcm = 1;
+                        } else {
+                            cipher = EVP_aes_256_gcm();
+                            is_gcm = 1;
+                        }
                         
                         const uint8_t *k = deep_space_key; /* Client currently uses Master Key */
                         

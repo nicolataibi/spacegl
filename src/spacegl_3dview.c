@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <inttypes.h>
 #include "shared_state.h"
 
 #define IS_Q_VALID(q1,q2,q3) ((q1)>=1 && (q1)<=40 && (q2)>=1 && (q2)<=40 && (q3)>=1 && (q3)<=40)
@@ -48,6 +49,7 @@ typedef struct {
 } FXParticle;
 
 void spawnParticle(double x, double y, double z, double vx, double vy, double vz, double r, double g, double b, double size, double life);
+void getFactionColor(int f, float* r, float* g, float* b);
 
 /* VBO Globals */
 GLuint vbo_stars = 0;
@@ -467,11 +469,13 @@ int g_hull_hit_timer = 0;
 float g_last_hull = 100.0;
 int g_last_shields_val_hit[6] = {0,0,0,0,0,0};
 
-int g_energy = 0, g_crew = 0, g_prison_unit = 0, g_shields = 0, g_Korthians = 0;
+uint64_t g_energy = 0;
+int g_crew = 0, g_prison_unit = 0, g_shields = 0, g_Korthians = 0;
 int g_composite_plating = 0;
 float g_hull_integrity = 100.0;
 int g_shields_val[6] = {0};
-int g_cargo_energy = 0, g_cargo_torps = 0, g_torpedoes_launcher = 0;
+uint64_t g_cargo_energy = 0;
+int g_cargo_torps = 0, g_torpedoes_launcher = 0;
 float g_system_health[10] = {0};
 float g_power_dist[3] = {0.33, 0.33, 0.34};
 int g_inventory[10] = {0};
@@ -505,7 +509,7 @@ typedef struct {
     int type;
     int ship_class;
     int health_pct;   /* HUD */
-    int energy;       /* HUD */
+    uint64_t energy;       /* HUD */
         int plating;       /* HUD */
         int hull_integrity; /* HUD */
         int faction;       /* HUD */
@@ -1010,16 +1014,23 @@ void loadGameState() {
         g_dismantle.z = 5.0 - g_shared_state->dismantle.shm_y;
         g_dismantle.species = g_shared_state->dismantle.species;
         g_dismantle.timer = 60;
+        
+        float fr, fg, fb;
+        getFactionColor(g_dismantle.species, &fr, &fg, &fb);
+
         for(int i=0; i<100; i++) {
             g_dismantle.particles[i].x = g_dismantle.x;
             g_dismantle.particles[i].y = g_dismantle.y;
             g_dismantle.particles[i].z = g_dismantle.z;
-            g_dismantle.particles[i].vx = ((rand()%100)-50)/150.0;
-            g_dismantle.particles[i].vy = ((rand()%100)-50)/150.0;
-            g_dismantle.particles[i].vz = ((rand()%100)-50)/150.0;
-            g_dismantle.particles[i].r = (rand()%100)/100.0;
-            g_dismantle.particles[i].g = (rand()%100)/100.0;
-            g_dismantle.particles[i].b = (rand()%100)/100.0;
+            /* Slower expansion velocity: divided by 450 instead of 150 */
+            g_dismantle.particles[i].vx = ((rand()%100)-50)/450.0;
+            g_dismantle.particles[i].vy = ((rand()%100)-50)/450.0;
+            g_dismantle.particles[i].vz = ((rand()%100)-50)/450.0;
+            /* Add some color variation to faction color */
+            float var = ((rand()%40)-20)/100.0;
+            g_dismantle.particles[i].r = fr + var;
+            g_dismantle.particles[i].g = fg + var;
+            g_dismantle.particles[i].b = fb + var;
             g_dismantle.particles[i].active = 1;
         }
         /* Reset event to prevent re-triggering */
@@ -1041,6 +1052,24 @@ void loadGameState() {
 void drawText3D(float x, float y, float z, const char* text) {
     glRasterPos3f(x, y, z);
     for(int i=0; i<strlen(text); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, text[i]);
+}
+
+void getFactionColor(int f, float* r, float* g, float* b) {
+    *r = 1.0; *g = 1.0; *b = 1.0; /* Default White */
+    switch(f) {
+        case 0:  *r = 0.4; *g = 0.7; *b = 1.0; break; /* Alliance Blue */
+        case 10: *r = 1.0; *g = 0.1; *b = 0.0; break; /* Korthian Red */
+        case 11: *r = 0.0; *g = 1.0; *b = 0.2; break; /* Xylari Green */
+        case 12: *r = 0.0; *g = 0.8; *b = 0.8; break; /* Swarm Cyan */
+        case 13: *r = 1.0; *g = 0.8; *b = 0.0; break; /* Vesperian Gold */
+        case 14: *r = 0.8; *g = 0.0; *b = 1.0; break; /* Ascendant Purple */
+        case 15: *r = 0.5; *g = 0.5; *b = 1.0; break; /* Quarzite Blue */
+        case 16: *r = 0.8; *g = 0.4; *b = 0.0; break; /* Saurian Orange */
+        case 17: *r = 1.0; *g = 1.0; *b = 0.0; break; /* Gilded Yellow */
+        case 18: *r = 0.3; *g = 1.0; *b = 0.3; break; /* Fluidic Green */
+        case 19: *r = 0.0; *g = 0.5; *b = 1.0; break; /* Cryos Deep Blue */
+        case 20: *r = 1.0; *g = 0.5; *b = 0.5; break; /* Apex Salmon */
+    }
 }
 
 const char* getSpeciesName(int s) {
@@ -1171,7 +1200,7 @@ void drawHUD(int obj_idx) {
                     type_name = "ASTEROID"; glColor3f(0.6, 0.4, 0.2); 
                     const char* res_names[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
                     int r_idx = obj->ship_class; if(r_idx<0) r_idx=0; if(r_idx>8) r_idx=8;
-                    sprintf(buf, "ASTEROID [%d]: %s (%d units)", id, res_names[r_idx], obj->energy);
+                    sprintf(buf, "ASTEROID [%d]: %s (%" PRIu64 " units)", id, res_names[r_idx], obj->energy);
                     handled_custom = true;
                 } break;
                 case 22: type_name = "DERELICT"; glColor3f(0.4, 0.4, 0.4); break;
@@ -1998,8 +2027,14 @@ void drawBlackHole(double x, double y, double z) {
     /* Billboard logic: face the camera */
     float m[16];
     glGetFloatv(GL_MODELVIEW_MATRIX, m);
-    for(int i=0; i<3; i++) for(int j=0; j<3; j++) {
-        if(i==j) m[i*4+j] = 1.0; else m[i*4+j] = 0.0;
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (i == j) {
+                m[i * 4 + j] = 1.0;
+            } else {
+                m[i * 4 + j] = 0.0;
+            }
+        }
     }
     glLoadMatrixf(m);
 
@@ -2036,20 +2071,22 @@ void drawStellarNebula(double x, double y, double z, int type) {
         
         double scale = 1.0 + i * 0.4;
         double alpha = 0.25 - (i * 0.04);
-        if (alpha < 0.05) alpha = 0.05;
+        if (alpha < 0.05) {
+            alpha = 0.05;
+        }
         
         if (type == 1) { /* High-Energy: Yellowish-Orange */
-            glColor4f(0.8 + i*0.05, 0.5 + i*0.1, 0.1, alpha);
+            glColor4f(0.8 + i * 0.05, 0.5 + i * 0.1, 0.1, alpha);
         } else if (type == 2) { /* Dark Matter: Dark Grey/Black with faint Purple */
-            glColor4f(0.1 + i*0.02, 0.05, 0.2 + i*0.02, alpha);
+            glColor4f(0.1 + i * 0.02, 0.05, 0.2 + i * 0.02, alpha);
         } else if (type == 3) { /* Ionic: Green-Cyan */
-            glColor4f(0.1, 0.6 + i*0.05, 0.4 + i*0.1, alpha);
+            glColor4f(0.1, 0.6 + i * 0.05, 0.4 + i * 0.1, alpha);
         } else if (type == 4) { /* Gravimetric: Lime/Yellow-Green */
-            glColor4f(0.5 + i*0.1, 0.7, 0.1, alpha);
+            glColor4f(0.5 + i * 0.1, 0.7, 0.1, alpha);
         } else if (type == 5) { /* Temporal: Magenta/Electric Purple */
-            glColor4f(0.8, 0.1, 0.8 + i*0.04, alpha);
+            glColor4f(0.8, 0.1, 0.8 + i * 0.04, alpha);
         } else { /* Standard (Default): Purple and Blue */
-            glColor4f(0.4 + i*0.1, 0.2, 0.6 + i*0.05, alpha);
+            glColor4f(0.4 + i * 0.1, 0.2, 0.6 + i * 0.05, alpha);
         }
         
         glScalef(scale, scale * 0.8, scale * 1.2);
@@ -2118,9 +2155,13 @@ void drawProbe(int p_idx, double x, double y, double z) {
     glPushMatrix();
     glTranslatef(x, y, z);
     
-    if (p_idx == 0) drawProbe1();
-    else if (p_idx == 1) drawProbe2();
-    else drawProbe3();
+    if (p_idx == 0) {
+        drawProbe1();
+    } else if (p_idx == 1) {
+        drawProbe2();
+    } else {
+        drawProbe3();
+    }
     
     glPopMatrix();
 }
@@ -2137,7 +2178,7 @@ void drawPulsar(double x, double y, double z) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glBegin(GL_LINES);
-    for (int i = -1; i <= 1; i+=2) {
+    for (int i = -1; i <= 1; i += 2) {
         glColor4f(1.0, 0.5, 0.0, 0.8);
         glVertex3f(0, 0, 0);
         glColor4f(1.0, 0.2, 0.0, 0.0);
@@ -2228,19 +2269,43 @@ void drawDerelict(int ship_class, int faction) {
         drawAllianceShip(ship_class, 0, 0);
     } else {
         /* Use Faction model for alien derelicts */
-        switch(faction) {
-            case 10: drawKorthian(0,0,0); break;
-            case 11: drawXylari(0,0,0); break;
-            case 12: drawSwarm(0,0,0); break;
-            case 13: drawVesperian(0,0,0); break;
-            case 14: drawAscendant(0,0,0); break;
-            case 15: drawQuarzite(0,0,0); break;
-            case 16: drawSaurian(0,0,0); break;
-            case 17: drawGilded(0,0,0); break;
-            case 18: drawFluidicVoid(0,0,0); break;
-            case 19: drawCryos(0,0,0); break;
-            case 20: drawApex(0,0,0); break;
-            default: drawAllianceShip(ship_class, 0, 0); break;
+        switch (faction) {
+            case 10: 
+                drawKorthian(0, 0, 0); 
+                break;
+            case 11: 
+                drawXylari(0, 0, 0); 
+                break;
+            case 12: 
+                drawSwarm(0, 0, 0); 
+                break;
+            case 13: 
+                drawVesperian(0, 0, 0); 
+                break;
+            case 14: 
+                drawAscendant(0, 0, 0); 
+                break;
+            case 15: 
+                drawQuarzite(0, 0, 0); 
+                break;
+            case 16: 
+                drawSaurian(0, 0, 0); 
+                break;
+            case 17: 
+                drawGilded(0, 0, 0); 
+                break;
+            case 18: 
+                drawFluidicVoid(0, 0, 0); 
+                break;
+            case 19: 
+                drawCryos(0, 0, 0); 
+                break;
+            case 20: 
+                drawApex(0, 0, 0); 
+                break;
+            default: 
+                drawAllianceShip(ship_class, 0, 0); 
+                break;
         }
     }
     g_is_derelict_rendering = 0;
@@ -2257,14 +2322,21 @@ void drawMine(double x, double y, double z) {
     
     /* Spikes */
     glColor3f(0.3, 0.3, 0.3);
-    for(int i=0; i<6; i++) {
+    for (int i = 0; i < 6; i++) {
         glPushMatrix();
-        if(i==0) glRotatef(90, 1,0,0);
-        else if(i==1) glRotatef(-90, 1,0,0);
-        else if(i==2) glRotatef(90, 0,1,0);
-        else if(i==3) glRotatef(-90, 0,1,0);
-        else if(i==4) glRotatef(90, 0,0,1);
-        else if(i==5) glRotatef(-90, 0,0,1);
+        if (i == 0) {
+            glRotatef(90, 1, 0, 0);
+        } else if (i == 1) {
+            glRotatef(-90, 1, 0, 0);
+        } else if (i == 2) {
+            glRotatef(90, 0, 1, 0);
+        } else if (i == 3) {
+            glRotatef(-90, 0, 1, 0);
+        } else if (i == 4) {
+            glRotatef(90, 0, 0, 1);
+        } else if (i == 5) {
+            glRotatef(-90, 0, 0, 1);
+        }
         glTranslatef(0, 0, 0.15);
         glutSolidCone(0.02, 0.1, 4, 4);
         glPopMatrix();
@@ -2378,9 +2450,9 @@ void drawMonster(int type, double x, double y, double z) {
         glRotatef(pulse * 20.0, 1, 1, 1);
         glColor3f(1.0, 1.0, 1.0);
         glutWireIcosahedron();
-        for(int i=0; i<4; i++) {
+        for (int i = 0; i < 4; i++) {
             glPushMatrix();
-            glRotatef(i*90, 0, 1, 0);
+            glRotatef(i * 90, 0, 1, 0);
             glScalef(0.2, 2.0, 0.2);
             glColor4f(0.8, 0.5, 1.0, 0.8);
             glutSolidCube(1.0);
@@ -2393,8 +2465,8 @@ void drawMonster(int type, double x, double y, double z) {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDisable(GL_LIGHTING);
         glPushMatrix();
-        double s = 1.0 + sin(pulse*2.0)*0.1;
-        glScalef(s, s*0.8, s*1.1);
+        double s = 1.0 + sin(pulse * 2.0) * 0.1;
+        glScalef(s, s * 0.8, s * 1.1);
         glColor4f(0.0, 0.6, 0.2, 0.6);
         glutSolidSphere(1.5, 16, 16);
         /* Nucleus */
@@ -2417,19 +2489,28 @@ void drawGalacticCompass() {
     
     /* Z-Axis (0/180 Degrees) - Blue */
     glColor3f(0.3, 0.3, 1.0);
-    glBegin(GL_LINES); glVertex3f(0,0,-len); glVertex3f(0,0,len); glEnd();
+    glBegin(GL_LINES);
+    glVertex3f(0, 0, -len);
+    glVertex3f(0, 0, len);
+    glEnd();
     drawText3D(0, 0, len + 0.2, "0");
     drawText3D(0, 0, -len - 0.5, "180");
 
     /* X-Axis (90/270 Degrees) - Red */
     glColor3f(1.0, 0.3, 0.3);
-    glBegin(GL_LINES); glVertex3f(-len,0,0); glVertex3f(len,0,0); glEnd();
+    glBegin(GL_LINES);
+    glVertex3f(-len, 0, 0);
+    glVertex3f(len, 0, 0);
+    glEnd();
     drawText3D(len + 0.2, 0, 0, "90");
     drawText3D(-len - 0.5, 0, 0, "270");
 
     /* Y-Axis (Mark) - Green */
     glColor3f(0.3, 1.0, 0.3);
-    glBegin(GL_LINES); glVertex3f(0,-len,0); glVertex3f(0,len,0); glEnd();
+    glBegin(GL_LINES);
+    glVertex3f(0, -len, 0);
+    glVertex3f(0, len, 0);
+    glEnd();
     drawText3D(0, len + 0.2, 0, "M:+90");
     drawText3D(0, -len - 0.5, 0, "M:-90");
     
@@ -2940,7 +3021,8 @@ void drawDismantle() {
             glPushMatrix();
             glTranslatef(g_dismantle.particles[i].x, g_dismantle.particles[i].y, g_dismantle.particles[i].z);
             glColor4f(g_dismantle.particles[i].r, g_dismantle.particles[i].g, g_dismantle.particles[i].b, alpha);
-            glutSolidSphere(0.05 * alpha, 8, 8);
+            /* Increased size to 0.3 instead of 0.05 */
+            glutSolidSphere(0.3 * alpha, 8, 8);
             glPopMatrix();
         }
     }
@@ -3268,10 +3350,13 @@ void display() {
 
     /* Sky color pulse */
     double sn_intensity = 0.0;
-    if (g_shared_state->shm_galaxy[g_shared_state->shm_q[0]][g_shared_state->shm_q[1]][g_shared_state->shm_q[2]] < 0) {
-        int timer = -g_shared_state->shm_galaxy[g_shared_state->shm_q[0]][g_shared_state->shm_q[1]][g_shared_state->shm_q[2]];
-        sn_intensity = 0.3 + sin(pulse*10.0) * 0.2;
-        if (timer < 300) sn_intensity += 0.3; 
+    int q1 = g_shared_state->shm_q[0], q2 = g_shared_state->shm_q[1], q3 = g_shared_state->shm_q[2];
+    if (q1 >= 0 && q1 <= 40 && q2 >= 0 && q2 <= 40 && q3 >= 0 && q3 <= 40) {
+        if (g_shared_state->shm_galaxy[q1][q2][q3] < 0) {
+            int timer = -g_shared_state->shm_galaxy[q1][q2][q3];
+            sn_intensity = 0.3 + sin(pulse*10.0) * 0.2;
+            if (timer < 300) sn_intensity += 0.3; 
+        }
     }
     
     /* Background fade to darker black in map mode */
@@ -3761,7 +3846,7 @@ void display() {
 
         /* 2. Vital Resources */
         glColor3f(1.0, 1.0, 1.0);
-        sprintf(buf, "ENERGY: %-7d (CARGO ANTIMATTER: %-7d) | TORPS: %-4d (CARGO TORPEDOES: %-4d)", g_energy, g_cargo_energy, g_torpedoes_launcher, g_cargo_torps);
+        sprintf(buf, "ENERGY: %-12" PRIu64 " (CARGO ANTIMATTER: %-12" PRIu64 ") | TORPS: %-4d (CARGO TORPEDOES: %-4d)", g_energy, g_cargo_energy, g_torpedoes_launcher, g_cargo_torps);
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 18;
         
         /* Hull Integrity Main Display */
@@ -3917,7 +4002,7 @@ void display() {
                     double dist = sqrt(dx*dx + dy*dy + dz*dz);
                     
                     glColor3f(1.0, 1.0, 1.0);
-                    sprintf(buf, "ANTIMATTER: %d (%d%%) | DIST: %.2f", objects[i].energy, objects[i].health_pct, dist);
+                    sprintf(buf, "ANTIMATTER: %" PRIu64 " (%d%%) | DIST: %.2f", objects[i].energy, objects[i].health_pct, dist);
                     drawText3D(tx_pos, ty_pos, 0, buf); ty_pos -= 15;
 
                     sprintf(buf, "HEADING: %.0f | MARK: %+.0f", objects[i].h, objects[i].m);
@@ -3962,7 +4047,9 @@ void display() {
                     case 18: t_name = "Fluidic Void"; break;
                     case 19: t_name = "Cryos"; break;
                     case 20: t_name = "Apex"; break;
+                    case 21: t_name = "ASTEROID"; break;
                     case 22: t_name = "DERELICT"; break;
+                    case 24: t_name = "BUOY"; break;
                     case 25: t_name = "PLATFORM"; break;
                     case 30: t_name = "ENTITY"; break;
                     case 31: t_name = "AMOEBA"; break;
@@ -3986,6 +4073,12 @@ void display() {
                     const char* n_cls[] = {"Mutara", "Metreon", "Dark Matter Cloud", "Paulson", "McAllister", "Arachnia"};
                     int n_idx = objects[i].ship_class; if(n_idx<0) n_idx=0; if(n_idx>5) n_idx=5;
                     sprintf(buf, "[%03d] NEBULA: %s", objects[i].id, n_cls[n_idx]);
+                } else if (objects[i].type == 21) {
+                    const char* as_res[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
+                    int r_idx = objects[i].ship_class; if(r_idx<0) r_idx=0; if(r_idx>8) r_idx=8;
+                    sprintf(buf, "[%03d] ASTEROID: %s", objects[i].id, as_res[r_idx]);
+                } else if (objects[i].type == 24) {
+                    sprintf(buf, "[%03d] COMM BUOY", objects[i].id);
                 }
                 else sprintf(buf, "[%03d] %s (%s)", objects[i].id, objects[i].name, t_name);
                 
@@ -4094,7 +4187,11 @@ void display() {
         ty -= 15;
     }
 
-    long long sn_val = g_shared_state->shm_galaxy[g_my_q[0]][g_my_q[1]][g_my_q[2]];
+    int mq1 = g_my_q[0], mq2 = g_my_q[1], mq3 = g_my_q[2];
+    long long sn_val = 0;
+    if (mq1 >= 0 && mq1 <= 40 && mq2 >= 0 && mq2 <= 40 && mq3 >= 0 && mq3 <= 40) {
+        sn_val = g_shared_state->shm_galaxy[mq1][mq2][mq3];
+    }
     if (g_show_hud && (g_sn_pos.active || sn_val < 0)) {
         /* Supernova Overlay - Centered and prominently Red */
         glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity(); gluOrtho2D(0, 1000, 0, 1000); 

@@ -104,40 +104,226 @@ typedef enum {
 
 /* --- Celestial and Tactical Entities --- */
 
-typedef struct { int id, faction, q1, q2, q3; double x, y, z; int active; } NPCStar;
-typedef struct { int id, q1, q2, q3; double x, y, z; int active; } NPCBlackHole;
-typedef struct { int id, q1, q2, q3; double x, y, z; int type, active; } NPCNebula;
-typedef struct { int id, q1, q2, q3; double x, y, z; int type, active; } NPCPulsar;
-typedef struct { int id, q1, q2, q3; double x, y, z, h, m; double a, b, angle, speed, inc; double cx, cy, cz; int active; } NPCComet;
-typedef struct { int id, q1, q2, q3; double x, y, z; float size; int resource_type, amount, active; } NPCAsteroid;
-typedef struct { int id, q1, q2, q3; double x, y, z; int ship_class; int active; int faction; char name[64]; } NPCDerelict;
-typedef struct { int id, q1, q2, q3; double x, y, z; int faction; int active; } NPCMine;
-typedef struct { int id, q1, q2, q3; double x, y, z; int active; } NPCBuoy;
-typedef struct { int id, faction, q1, q2, q3; double x, y, z; int health, energy, active; int fire_cooldown; } NPCPlatform;
-typedef struct { int id, q1, q2, q3; double x, y, z; int active; } NPCRift;
-typedef struct { int id, type, q1, q2, q3; double x, y, z; int health, energy, active; int behavior_timer; } NPCMonster;
+typedef struct { 
+    int id;
+    int faction;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int active; 
+} NPCStar;
 
 typedef struct { 
-    int id, faction, q1, q2, q3; 
-    double x, y, z, h, m; 
-    double gx, gy, gz; /* Absolute Galactic Coordinates 0-100 */
-    int energy, active; 
-    int health, plating;
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int active; 
+} NPCBlackHole;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int type;
+    int active; 
+} NPCNebula;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int type;
+    int active; 
+} NPCPulsar;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z;
+    double h;
+    double m; 
+    double a;
+    double b;
+    double angle;
+    double speed;
+    double inc; 
+    double cx;
+    double cy;
+    double cz; 
+    int active; 
+} NPCComet;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    float size; 
+    int resource_type;
+    int amount;
+    int active; 
+} NPCAsteroid;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int ship_class; 
+    int active; 
+    int faction; 
+    char name[64]; 
+} NPCDerelict;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int faction; 
+    int active; 
+} NPCMine;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int active; 
+} NPCBuoy;
+
+typedef struct { 
+    int id;
+    int faction;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int health;
+    uint64_t energy;
+    int active; 
+    int fire_cooldown; 
+} NPCPlatform;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int active; 
+} NPCRift;
+
+typedef struct { 
+    int id;
+    int type;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int health;
+    uint64_t energy;
+    int active; 
+    int behavior_timer; 
+} NPCMonster;
+
+typedef struct { 
+    int id;
+    int faction;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z;
+    double h;
+    double m; 
+    double gx;
+    double gy;
+    double gz; /* Absolute Galactic Coordinates 0-100 */
+    uint64_t energy;
+    int active; 
+    int health;
+    int plating;
     float engine_health; 
     int fire_cooldown; 
     AIState ai_state; 
     int target_player_idx; 
     int nav_timer; 
-    double dx, dy, dz;
-    double tx, ty, tz; 
+    double dx;
+    double dy;
+    double dz;
+    double tx;
+    double ty;
+    double tz; 
     uint8_t is_cloaked;
     int ship_class;
     int death_timer;
     char name[64];
 } NPCShip;
 
-typedef struct { int id, q1, q2, q3; double x, y, z; int resource_type, amount, active; } NPCPlanet;
-typedef struct { int id, faction, q1, q2, q3; double x, y, z; int health, active; } NPCBase;
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int resource_type;
+    int amount;
+    int active; 
+} NPCPlanet;
+
+typedef struct { 
+    int id;
+    int faction;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int health;
+    int active; 
+} NPCBase;
 
 /* --- Limits --- */
 
@@ -282,7 +468,7 @@ const char* get_species_name(int s);
 void broadcast_message(PacketMessage *msg);
 void send_server_msg(int p_idx, const char *from, const char *text);
 
-void process_command(int p_idx, const char *cmd);
+bool process_command(int p_idx, const char *cmd);
 void update_game_logic();
 bool is_player_in_nebula(int p_idx);
 void apply_hull_damage(int p_idx, double amount);

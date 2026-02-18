@@ -73,6 +73,18 @@ In another terminal, launch the client:
 3.  **Identification:** Only if the link is secured, you will be asked for your **Commander Name**.
 4.  **Configuration:** If it's your first time, you will select your Faction and Ship Class.
 
+### 5. Diagnostic Tools (SpaceGL Viewer)
+To monitor the galaxy in real-time or inspect the `galaxy.dat` save file, a dedicated administration tool is available:
+```bash
+# Usage examples
+./spacegl_viewer stats          # Global statistics and faction counts
+./spacegl_viewer master         # Vital ship status (Energy, Shields, Inventory)
+./spacegl_viewer list 10 1 39   # List objects and probes in a specific quadrant
+./spacegl_viewer search "Nick"  # Find the position of a player or NPC
+./spacegl_viewer report         # Generate a full registry of all objects (>14,000)
+```
+The viewer performs an automatic binary alignment check at startup to ensure the integrity of the read data.
+
 ---
 
 ## ⚙️ Configuration & Modding
@@ -159,7 +171,14 @@ The galaxy is a **40x40x40** cube containing **64,000 unique quadrants**.
     *   **Class-Omega Threats:** Specific monitoring of unique entities like the **Crystalline Entity** and the **Space Amoeba**.
 *   **Unique Identification:** Every vessel in the galaxy, whether active or a wreck, is assigned a **unique name** from faction-specific historical databases (e.g., *IKS Bortas* for Korthians, *Enterprise* for the Alliance). Generic "(OTHER)" labels have been completely eliminated from sensors.
 
-### 2. Advanced Navigation (GDIS Standard)
+### 2. Survival and Energy (Life Support)
+Simulation realism is ensured by a dynamic energy consumption system that never stops:
+*   **Life Support (Base Drain):** The ship constantly consumes **1 energy unit per tick** (~30/sec) to maintain life support systems.
+*   **Red Alert:** Tactical system energization triples the base consumption (**3 units/tick**).
+*   **Docking Safe Mode:** Energy consumption is completely suspended when the ship is connected to a Starbase (external power).
+*   **Energy Emergency:** If reserves drop to zero, **Life Support** begins to degrade by **0.1% per tick**. At **0%**, **crew casualties** will occur (1 member per second). Restoring energy will automatically recharge life support.
+
+### 3. Advanced Navigation (GDIS Standard)
 The navigation system has been overhauled for mathematical precision and visual fluidity:
 *   **Absolute Galactic Coordinates:** All movement and distance calculations use a standardized **0.0 - 400.0 absolute scale**. This ensures consistent targeting and torpedo tracking even when crossing quadrant boundaries.
 *   **Precision Navigation (`nav`):** The `nav` command now features an automatic destination lock. Once the vessel reaches the calculated `target_gx/gy/gz` coordinates, it will automatically disengage engines and drop out of Hyperdrive at the precise location.
@@ -211,6 +230,16 @@ To maintain a seamless 30 TPS (Ticks Per Second) logic rate while managing a mas
 | **Memory Write (Tick)** | 275 MB (memset) | ~150 KB (selective) | **1,800x Efficiency** |
 | **Save Latency** | ~50-200 ms (Stop-the-world) | < 1 ms (Async copy) | **Infinite fluidity** |
 | **LRS Grid Calc** | 1,920,000/sec | 64,000/sec | **30x Reduction** |
+
+#### ⚡ D. 64-bit Energy System & Safety Logic (v2.2)
+*   **The Problem**: The previous 32-bit `int` energy model was limited to 2.1 billion units, insufficient for massive fleet simulations or long-term persistence. Furthermore, direct subtractions were vulnerable to integer underflow.
+*   **The Solution**: We refactored the entire resource engine to use **64-bit unsigned integers (`uint64_t`)**.
+    *   **Increased Capacity**: `MAX_ENERGY_CAPACITY` boosted to **999,999,999,999** units.
+    *   **Underflow Protection**: All energy consumption logic (Combat, Navigation, Drain) now uses a "Safe-Subtract" pattern: `if (energy >= cost) energy -= cost; else energy = 0;`. This prevents the "unsigned wrap-around" that would otherwise grant ships infinite energy after depletion.
+    *   **Visual FX Overhaul (Dismantle)**: Enhanced the `dis` command particle system with a 6x increase in fragment size, optimized expansion physics, and accurate Faction Color mapping for high-fidelity tactical feedback.
+    *   **Login State Synchronization**: Optimized the network handshake to force an immediate full-state sync upon re-entry. This ensures that persistent tactical flags (AR Compass, Grid, HUD modes) are correctly restored in the 3D Viewer from the very first frame.
+    *   **Binary Sync**: Realigned Shared Memory (SHM) and Network packets to ensure zero-copy compatibility with the new 64-bit layouts.
+    *   **Impact**: Support for astronomical energy reserves and absolute logical stability during resource depletion.
 
 ---
 
@@ -594,7 +623,7 @@ Below is the complete list of available commands, grouped by function.
     *   **Requirements**: Minimum 10% integrity for both **Impulse Drive (ID 1)** and **Computer (ID 6)**.
     *   **Cost**: 100 units of Energy for autopilot engagement.
     *   **Validation**: Target must be detectable by sensors and not cloaked (unless the target belongs to your own faction).
-    *   **Global Tracking**: Supports tracking of static objects (Stars, Planets, Bases, Asteroids, Derelicts) across quadrant boundaries, enabling automated long-range travel without recalculating course at every sector jump.
+    *   **Quadrant Restricted**: Autopilot engagement is limited to objects within the ship's current quadrant to ensure navigational safety.
     *   If no ID is provided, it uses the currently **locked target**.
     *   If only one number is provided, it is treated as **distance** for the locked target (if < 100).
     *   Provides specific radio confirmation mentioning the target's name.
@@ -645,6 +674,7 @@ The effectiveness of your sensors depends directly on the health of the **Sensor
     *   **Requirements**: Minimum 5% Sensor system integrity (ID 2).
     *   **Cost**: 10 units of Energy per scan.
     *   **Telemetry Noise**: If sensor integrity is below 50%, a warning is issued and data precision begins to degrade.
+    *   **Asteroid Analysis**: Sensors provide immediate mineral composition analysis for all detected asteroids in the quadrant.
     *   **Neighborhood Scan**: If the ship is near sector boundaries (< 2.5 units), sensors automatically detect objects in adjacent quadrants, listing them in a dedicated section to prevent ambushes.
 *   `lrs`: **Long Range Sensors**. 3x3x3 scan of surrounding quadrants displayed via **GDIS Tactical Console**.
     *   **Requirements**: Minimum 15% Sensor system integrity (ID 2).
@@ -739,22 +769,22 @@ To interact with galactic objects using the `lock`, `scan`, `pha`, `tor`, `bor`,
 | Category | ID Range | Example | Primary Usage |
 | :--- | :--- | :--- | :--- |
 | **Player** | 1 - 999 | `lock 1` | Your vessel or other players |
-| **NPC (Enemy)** | 1,000 - 1,999 | `lock 1050` | Chasing (`cha`) and combat |
-| **Starbases** | 2,000 - 2,999 | `lock 2005` | Docking (`doc`) and resupply |
-| **Planets** | 3,000 - 3,999 | `lock 3012` | Planetary mining (`min`) |
-| **Stars** | 4,000 - 6,999 | `lock 4500` | Solar scooping (`sco`) |
-| **Black Holes** | 7,000 - 7,999 | `lock 7001` | Plasma Reserves harvest (`har`) |
-| **Nebulas** | 8,000 - 8,999 | `lock 8000` | Scientific analysis and cover |
-| **Pulsars** | 9,000 - 9.999 | `lock 9000` | Radiation monitoring |
-| **Comets** | 10,000 - 10,999| `lock 10001` | Chasing and rare gas collection |
-| **Derelicts** | 11,000 - 11,999| `lock 11005` | Boarding (`bor`) and tech recovery |
-| **Asteroids** | 12,000 - 13,999| `lock 12000` | Precision navigation |
-| **Mines** | 14,000 - 14,999| `lock 14000` | Tactical alert and avoidance |
-| **Comm Buoys** | 15,000 - 15,999| `lock 15000` | Data link and `lrs` boost |
-| **Platforms** | 16,000 - 16,999| `lock 16000` | Destroying hostile sentinels |
-| **Spatial Rifts** | 17,000 - 17,999| `lock 17000` | Use for random jumps |
-| **Monsters** | 18,000 - 18,999| `lock 18000` | Extreme combat scenarios |
-| **Probes** | 19,000 - 19,999| `apr 19000` | Recovery and automated telemetry |
+| **NPC (Enemy)** | 1,000 - 3,999 | `lock 1050` | Chasing (`cha`) and combat |
+| **Starbases** | 4,000 - 4,999 | `lock 4005` | Docking (`doc`) and resupply |
+| **Planets** | 5,000 - 6,999 | `lock 5012` | Planetary mining (`min`) |
+| **Stars** | 7,000 - 10,999 | `lock 7500` | Solar scooping (`sco`) |
+| **Black Holes** | 11,000 - 11,999 | `lock 11001` | Plasma Reserves harvest (`har`) |
+| **Nebulas** | 12,000 - 12,999 | `lock 12000` | Scientific analysis and cover |
+| **Pulsars** | 13,000 - 13,999 | `lock 13000` | Radiation monitoring |
+| **Comets** | 14,000 - 14,999 | `lock 14001` | Chasing and rare gas collection |
+| **Derelicts** | 15,000 - 17,999 | `lock 15005` | Boarding (`bor`) and tech recovery |
+| **Asteroids** | 18,000 - 20,499 | `lock 18000` | Precision navigation |
+| **Mines** | 20,500 - 21,999 | `lock 20500` | Tactical alert and avoidance |
+| **Comm Buoys** | 22,000 - 22,999 | `lock 22000` | Data link and `lrs` boost |
+| **Platforms** | 23,000 - 23,999 | `lock 23000` | Destroying hostile sentinels |
+| **Spatial Rifts** | 24,000 - 24,999 | `lock 24000` | Use for random jumps |
+| **Monsters** | 25,000 - 25,999 | `lock 25000` | Extreme combat scenarios |
+| **Probes** | 26,000 - 26,999 | `apr 26000` | Recovery and automated telemetry |
 
 **Note**: Locking and autopilot (`apr`) only work if the object is in your current quadrant. If the ID exists but is far away, the computer will indicate the target's `Q[x,y,z]` coordinates.
 
@@ -797,22 +827,22 @@ The `apr <ID> <DIST>` command allows you to automatically approach any object de
 
 | Object Category | ID Range | Interaction Commands | Min. Distance | Navigation Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| **Captains (Players)** | 1 - 32 | `rad`, `pha`, `tor`, `bor` | **< 1.0** (`bor`) | Current quadrant only |
-| **NPC Ships (Aliens)** | 1000 - 1999 | `pha`, `tor`, `bor`, `scan` | **< 1.0** (`bor`) | Current quadrant only |
-| **Starbases** | 2000 - 2199 | `doc`, `scan` | **< 3.1** | Current quadrant only |
-| **Planets** | 3000 - 3999 | `min`, `scan` | **< 3.1** | Current quadrant only |
-| **Stars** | 4000 - 6999 | `sco`, `scan` | **< 3.1** | Current quadrant only |
-| **Black Holes** | 7000 - 7199 | `har`, `scan` | **< 3.1** | Current quadrant only |
-| **Nebulas** | 8000 - 8499 | `scan` | - | Current quadrant only |
-| **Pulsars** | 9000 - 9199 | `scan` | - | Current quadrant only |
-| **Comets** | 10000 - 10299 | `cha`, `scan` | **< 0.6** (Gas) | Current quadrant only |
-| **Derelicts** | 11000 - 11149 | `bor`, `dis`, `scan` | **< 1.5** | Current quadrant only |
-| **Asteroids** | 12000 - 13999 | `min`, `scan` | **< 3.1** | Current quadrant only |
-| **Mines** | 14000 - 14999 | `scan` | - | Current quadrant only |
-| **Comm Buoys** | 15000 - 15099 | `scan` | **< 1.2** | Current quadrant only |
-| **Defense Platforms** | 16000 - 16199 | `pha`, `tor`, `scan` | - | Current quadrant only |
-| **Spatial Rifts** | 17000 - 17049 | `scan` | - | Current quadrant only |
-| **Space Monsters** | 18000 - 18029 | `pha`, `tor`, `scan` | **< 1.5** | Current quadrant only |
+| **Captains (Players)** | 1 - 999 | `rad`, `pha`, `tor`, `bor` | **< 1.0** (`bor`) | Current quadrant only |
+| **NPC Ships (Aliens)** | 1000 - 3999 | `pha`, `tor`, `bor`, `scan` | **< 1.0** (`bor`) | Current quadrant only |
+| **Starbases** | 4000 - 4999 | `doc`, `scan` | **< 3.1** | Current quadrant only |
+| **Planets** | 5000 - 6999 | `min`, `scan` | **< 3.1** | Current quadrant only |
+| **Stars** | 7000 - 10999 | `sco`, `scan` | **< 3.1** | Current quadrant only |
+| **Black Holes** | 11000 - 11999 | `har`, `scan` | **< 3.1** | Current quadrant only |
+| **Nebulas** | 12000 - 12999 | `scan` | - | Current quadrant only |
+| **Pulsars** | 13000 - 13999 | `scan` | - | Current quadrant only |
+| **Comets** | 14000 - 14999 | `cha`, `scan` | **< 0.6** (Gas) | Current quadrant only |
+| **Derelicts** | 15000 - 17999 | `bor`, `dis`, `scan` | **< 1.5** | Current quadrant only |
+| **Asteroids** | 18000 - 20499 | `min`, `scan` | **< 3.1** | Current quadrant only |
+| **Mines** | 20500 - 21999 | `scan` | - | Current quadrant only |
+| **Comm Buoys** | 22000 - 22999 | `scan` | **< 1.2** | Current quadrant only |
+| **Defense Platforms** | 23000 - 23999 | `pha`, `tor`, `scan` | - | Current quadrant only |
+| **Spatial Rifts** | 24000 - 24999 | `scan` | - | Current quadrant only |
+| **Space Monsters** | 25000 - 25999 | `pha`, `tor`, `scan` | **< 1.5** | Current quadrant only |
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Shield Configuration**. Distributes energy to the 6 shields.
     *   **Requirements**: Minimum 10% Shield system integrity (ID 8).
@@ -831,7 +861,8 @@ The `apr <ID> <DIST>` command allows you to automatically approach any object de
     *   **Feedback**: Provides immediate confirmation of the new percentage distribution.
     *   **Strategic Impact**: Dictates performance of sub-light engines, shield recharge rate, and Ion Beam intensity.
 *   `aux jettison`: **Eject Hyperdrive Synaptics**. Ejects the core (Suicide maneuver / Last resort).
-*   `xxx`: **Self-Destruct**. Sequential self-destruction.
+*   `xxx`: **Self-Destruct**. Sequential self-destruction. Triggers **Emergency Reentry** (see below).
+*   `zztop`: **Total System Wipe**. Permanently deletes your captain's profile and all career data from the galaxy database. This action is irreversible and drops your connection.
 
 ### ⚡ Reactor and Power Management
 
@@ -848,7 +879,10 @@ The ship is protected by 6 independent quadrants: **Front (F), Rear (R), Top (T)
 *   **Hull Integrity**: Represents the physical health of the ship (0-100%). If a shield quadrant reaches 0% or the impact is excessively powerful, residual damage directly hits the structural integrity.
 *   **Internal System Damage**: Every direct hit to the hull (when shields are down or bypassed) automatically causes a small percentage of damage (1-5%) to a random onboard system (Engines, Sensors, Computer, etc.). This makes hull exposure extremely dangerous even from low-power weapons.
 *   **Hull Plating (Composite)**: Additional plating (command `hull`) acts as a buffer: it absorbs physical damage *before* it affects Hull Integrity.
-*   **Destruction Condition**: If **Hull Integrity reaches 0%**, the ship instantly explodes, regardless of remaining energy or shield levels.
+*   **Emergency Reentry (No Game Over)**: If **Hull Integrity reaches 0%** (or Crew is lost), the ship is NOT permanently destroyed.
+    *   **Hull Transfer**: The damaged hull is ejected and becomes a **permanent derelict** in the current sector (which can be salvaged by other players).
+    *   **Rescue**: You are instantly relocated to a **safe quadrant** with a replacement vessel.
+    *   **Status**: The new ship starts with **80% system integrity**, full energy, and a basic torpedo loadout. Your career continues without disconnection.
 *   **Continuous Regeneration**: Unlike older systems, shield regeneration is continuous but scales with hardware health.
 *   **Shield Failure**: If a quadrant reaches 0% integrity, subsequent hits from that direction will deal direct damage to the hull and the main energy reactor.
 
@@ -945,7 +979,9 @@ The HUD displays "LIFE SUPPORT: XX.X%", which is directly linked to the integrit
     *   **Requirements**: Minimum 10% Auxiliary system integrity (ID 9).
     *   **Cost**: 25 units of Energy per transfer cycle.
     *   **Types**:
-        *   `1`: Energy (Main Reactor). Max capacity: 9,999,999 units.
+                        *   `1`: Energy (Main Reactor). Max capacity: 999,999,999,999 units.
+                
+        
         *   `2`: Torpedoes (Launch Tubes). Max capacity: 1000 units.
     *   **Feedback**: Confirms the exact amount of resources moved to active duty.
 

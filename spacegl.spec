@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 14
+%global rel 15
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -102,25 +102,14 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/readme_assets/
 
 %changelog
-* Tue Feb 17 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
-4. Performance & Structural Optimization (Lag Resolution)
-To maintain a seamless 30 TPS (Ticks Per Second) logic rate while managing a massive 64,000-quadrant universe, 
-the engine underwent a major structural refactoring focused on three primary bottlenecks:
-
-A. Dirty Quadrant Indexing (The "Sparse Reset" Technique)
-The Problem: Previously, the server performed a memset on the entire 275MB spatial index and iterated through 
-all 64,000 quadrants every single tick to clear old data. This consumed massive memory bandwidth and CPU time.
-The Solution: We implemented a Dirty List tracking system.
-Only quadrants containing dynamic objects (NPCs, Players, Comets) are marked as "dirty".
-At the start of each tick, the reset loop only visits the specific quadrants stored in the dirty list 
-(typically ~2,000 cells) rather than all 64,000.
-Impact: Reduced spatial indexing overhead by 95%, freeing up significant CPU resources for AI and combat logic.
-
-B. Asynchronous Non-Blocking I/O (Background Saving)
-The Problem: The save_galaxy() function was synchronous. Every 10 seconds, the entire game engine would "freeze" 
-or several milliseconds while writing the galaxy.dat file to disk, causing noticeable stuttering or "lag blocks".
-The Solution: We moved the persistence logic to a detached background thread.
-The main logic thread performs a near-instant memcpy of the core state to a protected buffer.
-A secondary thread (save_thread) handles the heavy disk I/O independently.
-An atomic_bool flag prevents concurrent save operations if the disk is slow.
-Impact: Zero-latency saving. The logic loop continues at a perfect 30Hz regardless of disk performance.
+* Wed Feb 18 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
+- Enemy players’ torpedoes have no effect on the ship’s shields; they only cause damage to the hull.
+- The lock must disengage if the object leaves the quadrant, is destroyed, or if the ship changes quadrant.
+- When the hull reaches 0%, all commands except xxx are disabled.
+- The “apr now” command is applicable to all objects present in the current quadrant.
+- Reorganization of galactic object IDs.
+- The ship is never destroyed but recovered.
+- Deletion of the captain and data from galaxy.dat.
+- Quadrant sensor: asteroids now display their composition.
+- Redefinition of the energy data type to 64-bit, set to 999,999,999,999.
+- When the client restarts, a full update of all status flags [UPD_FLAGS] is forced.

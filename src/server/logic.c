@@ -2,6 +2,19 @@
  * SPACE GL - 3D LOGIC ENGINE
  * Copyright (C) 2026 Nicola Taibi
  * License: GPL-3.0-or-later
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include <stdio.h>
@@ -10,6 +23,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <sys/socket.h>
+#include "game_config.h"
 #include "server_internal.h"
 
 bool is_player_in_nebula(int i) {
@@ -210,10 +224,12 @@ void update_npc_ai(int n) {
             if (dmg_rem > 0) {
                 double hull_dmg = dmg_rem / 1000.0;
                 apply_hull_damage(closest_p, hull_dmg);
-                target->state.energy -= (dmg_rem / 2);
+                uint64_t e_loss = (uint64_t)(dmg_rem / 2);
+                if (target->state.energy > e_loss) target->state.energy -= e_loss;
+                else target->state.energy = 0;
             }
             target->shield_regen_delay = 90;
-            if (target->state.hull_integrity <= 0 || target->state.energy <= 0) {
+            if (target->state.hull_integrity <= 0 || target->state.energy == 0) {
                 target->state.energy = 0;
                 target->state.hull_integrity = 0;
                 target->state.crew_count = 0;
@@ -474,7 +490,8 @@ void update_game_logic() {
             if (min_d < 4.0 && global_tick % 60 == 0) {
                 target->state.beam_count = 1; 
                 target->state.beams[0] = (NetBeam){monsters[mo].x, monsters[mo].y, monsters[mo].z, target->state.s1, target->state.s2, target->state.s3, 1};
-                target->state.energy -= 500; 
+                if (target->state.energy > 500) target->state.energy -= 500;
+                else target->state.energy = 0; 
                 send_server_msg((int)(target - players), "SCIENCE", "CRYSTALLINE RESONANCE DETECTED!");
             }
         }
@@ -506,10 +523,49 @@ void update_game_logic() {
         if (players[i].socket && players[i].death_timer > 0) {
             players[i].death_timer--;
             if (players[i].death_timer <= 0) {
-                players[i].active = 0;
+                /* TRANSFER HULL TO DERELICTS */
                 spawn_derelict(players[i].state.q1, players[i].state.q2, players[i].state.q3, players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].faction, players[i].ship_class, players[i].name);
                 players[i].state.boom = (NetPoint){players[i].state.s1, players[i].state.s2, players[i].state.s3, 1};
-                send_server_msg(i, "CRITICAL", "SHIP DESTROYED.");
+                
+                /* EMERGENCY REENTRY PROTOCOL: Instead of setting active=0, reset the ship to a safe state */
+                int rq1, rq2, rq3;
+                do {
+                    rq1 = rand() % GALAXY_SIZE + 1;
+                    rq2 = rand() % GALAXY_SIZE + 1;
+                    rq3 = rand() % GALAXY_SIZE + 1;
+                } while (supernova_event.supernova_timer > 0 && 
+                         rq1 == supernova_event.supernova_q1 && 
+                         rq2 == supernova_event.supernova_q2 && 
+                         rq3 == supernova_event.supernova_q3);
+
+                players[i].state.q1 = rq1;
+                players[i].state.q2 = rq2;
+                players[i].state.q3 = rq3;
+                players[i].state.s1 = 5.0;
+                players[i].state.s2 = 5.0;
+                players[i].state.s3 = 5.0;
+                players[i].state.energy = MAX_ENERGY_CAPACITY; /* Standard capacity */
+                players[i].state.torpedoes = 100;   /* Emergency reload */
+                if (players[i].state.crew_count <= 0) {
+                    players[i].state.crew_count = 100;
+                }
+                players[i].state.hull_integrity = 80.0f;
+                for (int s = 0; s < 10; s++) {
+                    players[i].state.system_health[s] = 80.0f;
+                }
+                players[i].gx = (players[i].state.q1 - 1) * 10.0 + 5.0;
+                players[i].gy = (players[i].state.q2 - 1) * 10.0 + 5.0;
+                players[i].gz = (players[i].state.q3 - 1) * 10.0 + 5.0;
+                players[i].nav_state = NAV_STATE_IDLE;
+                players[i].hyper_speed = 0;
+                players[i].dx = 0;
+                players[i].dy = 0;
+                players[i].dz = 0;
+                players[i].is_docked = 0;
+                players[i].torp_active = false;
+                players[i].state.torp.active = 0;
+                
+                send_server_msg(i, "COMMAND", "EMERGENCY REENTRY: Your hull was critical. Transferred to escape vessel and relocated to safe sector.");
             }
         }
     }
@@ -518,11 +574,106 @@ void update_game_logic() {
         if (!players[i].active) {
             continue;
         }
+        
+        /* DEAD SHIP LOGIC: Hull at or below zero */
+        if (players[i].state.hull_integrity <= 0.0) {
+            players[i].state.hull_integrity = 0.0;
+            players[i].nav_state = NAV_STATE_IDLE;
+            players[i].hyper_speed = 0;
+            players[i].dx = 0;
+            players[i].dy = 0;
+            players[i].dz = 0;
+            
+            /* Shields collapse completely */
+            for (int s = 0; s < 6; s++) {
+                players[i].state.shields[s] = 0;
+            }
+            
+            /* Trigger death sequence if not already counting down */
+            if (players[i].death_timer <= 0) {
+                players[i].death_timer = 150; /* 5 seconds until derelict spawn */
+                send_server_msg(i, "CRITICAL", "FALLIMENTO CRITICO: Integrità scafo esaurita. Segnale di emergenza attivato. Scialuppe espulse. NAVE ALLA DERIVA.");
+                send_server_msg(i, "CRITICAL", "EMERGENCY ESCAPE INITIATED. SHIP IS DEAD IN SPACE.");
+            }
+            
+            /* Periodic alert during countdown */
+            if (global_tick % 30 == 0) {
+                send_server_msg(i, "WARNING", "EVACUATE IMMEDIATELY: Hull collapse imminent.");
+            }
+            
+            continue; /* Skip normal updates for dead ship */
+        }
+
         if (players[i].state.crew_count <= 0) {
-            players[i].active = 0;
+            /* TRANSFER HULL TO DERELICTS */
             spawn_derelict(players[i].state.q1, players[i].state.q2, players[i].state.q3, players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].faction, players[i].ship_class, players[i].name);
             players[i].state.boom = (NetPoint){players[i].state.s1, players[i].state.s2, players[i].state.s3, 1};
+
+            /* EMERGENCY REENTRY PROTOCOL */
+            int rq1, rq2, rq3;
+            do {
+                rq1 = rand() % GALAXY_SIZE + 1;
+                rq2 = rand() % GALAXY_SIZE + 1;
+                rq3 = rand() % GALAXY_SIZE + 1;
+            } while (supernova_event.supernova_timer > 0 && 
+                     rq1 == supernova_event.supernova_q1 && 
+                     rq2 == supernova_event.supernova_q2 && 
+                     rq3 == supernova_event.supernova_q3);
+
+            players[i].state.q1 = rq1;
+            players[i].state.q2 = rq2;
+            players[i].state.q3 = rq3;
+            players[i].state.s1 = 5.0;
+            players[i].state.s2 = 5.0;
+            players[i].state.s3 = 5.0;
+            players[i].state.energy = MAX_ENERGY_CAPACITY;
+            players[i].state.torpedoes = 100;
+            players[i].state.crew_count = 100; /* Minimum crew for escape vessel */
+            players[i].state.hull_integrity = 80.0f;
+            for (int s = 0; s < 10; s++) {
+                players[i].state.system_health[s] = 80.0f;
+            }
+            players[i].gx = (players[i].state.q1 - 1) * 10.0 + 5.0;
+            players[i].gy = (players[i].state.q2 - 1) * 10.0 + 5.0;
+            players[i].gz = (players[i].state.q3 - 1) * 10.0 + 5.0;
+            players[i].nav_state = NAV_STATE_IDLE;
+            players[i].hyper_speed = 0;
+            players[i].dx = 0;
+            players[i].dy = 0;
+            players[i].dz = 0;
+            players[i].is_docked = 0;
+            players[i].torp_active = false;
+            players[i].state.torp.active = 0;
+
+            send_server_msg(i, "COMMAND", "EMERGENCY REENTRY: Crew casualties critical. Escape vessel engaged and relocated to safe sector.");
             continue;
+        }
+
+        /* --- BASE ENERGY DRAIN (Life Support & Systems) --- */
+        int base_drain = 1; /* Basic lifecycle drain */
+        if (players[i].state.red_alert) base_drain += 2; /* Red Alert overhead */
+        if (players[i].is_docked) base_drain = 0; /* No drain when docked */
+        
+        if (players[i].state.energy >= base_drain) {
+            players[i].state.energy -= base_drain;
+            /* Gradually recover life support if energy is present */
+            if (players[i].state.life_support < 100.0) players[i].state.life_support += 0.05;
+        } else {
+            players[i].state.energy = 0;
+            /* Life support failure if no energy */
+            if (players[i].state.life_support > 0.0) {
+                players[i].state.life_support -= 0.1;
+                if (global_tick % 300 == 0) send_server_msg(i, "LIFE SUPPORT", "CRITICAL: Life support failing. Energy reserves depleted.");
+            }
+        }
+
+        /* Crew casualties if life support is zero */
+        if (players[i].state.life_support <= 0.0) {
+            players[i].state.life_support = 0.0;
+            if (global_tick % 30 == 0 && players[i].state.crew_count > 0) {
+                players[i].state.crew_count--;
+                if (global_tick % 300 == 0) send_server_msg(i, "MEDICAL", "Emergency: Life support offline. Casualties reported.");
+            }
         }
 
         if (players[i].state.energy > 100) {
@@ -549,7 +700,9 @@ void update_game_logic() {
             if (players[i].state.ion_beam_charge > 100.0) {
                 players[i].state.ion_beam_charge = 100.0;
             }
-            players[i].state.energy -= (int)(recharge_rate * 2.0);
+            uint64_t r_cost = (uint64_t)(recharge_rate * 2.0);
+            if (players[i].state.energy >= r_cost) players[i].state.energy -= r_cost;
+            else players[i].state.energy = 0;
         }
 
         for(int t=0; t<4; t++) {
@@ -577,77 +730,137 @@ void update_game_logic() {
             int pq1 = players[i].state.q1; 
             int pq2 = players[i].state.q2; 
             int pq3 = players[i].state.q3;
-            if (tid >= 1 && tid <= 32) { 
-                if (players[tid-1].active) {
+            
+            /* Check if player ship has moved quadrant since last check */
+            if (pq1 != players[i].last_q1 || pq2 != players[i].last_q2 || pq3 != players[i].last_q3) {
+                /* Quadrant change: release lock automatically */
+                valid = false;
+            } else if (tid >= 1 && tid <= 32) { 
+                if (players[tid - 1].active && 
+                    players[tid - 1].state.q1 == pq1 && 
+                    players[tid - 1].state.q2 == pq2 && 
+                    players[tid - 1].state.q3 == pq3) {
                     valid = true; 
                 }
-            } else if (tid >= 1000 && tid < 1000+MAX_NPC) { 
-                if (npcs[tid-1000].active) {
+            } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) { 
+                if (npcs[tid - GALAXY_OBJECT_MIN_NPC].active && 
+                    npcs[tid - GALAXY_OBJECT_MIN_NPC].q1 == pq1 && 
+                    npcs[tid - GALAXY_OBJECT_MIN_NPC].q2 == pq2 && 
+                    npcs[tid - GALAXY_OBJECT_MIN_NPC].q3 == pq3) {
                     valid = true; 
                 }
-            } else if (tid >= 2000 && tid < 2000+MAX_BASES) { 
-                if (bases[tid-2000].active && bases[tid-2000].q1 == pq1 && bases[tid-2000].q2 == pq2 && bases[tid-2000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_STARBASE && tid <= GALAXY_OBJECT_MAX_STARBASE) { 
+                if (bases[tid - GALAXY_OBJECT_MIN_STARBASE].active && 
+                    bases[tid - GALAXY_OBJECT_MIN_STARBASE].q1 == pq1 && 
+                    bases[tid - GALAXY_OBJECT_MIN_STARBASE].q2 == pq2 && 
+                    bases[tid - GALAXY_OBJECT_MIN_STARBASE].q3 == pq3) {
                     valid = true; 
                 }
-            } else if (tid >= 3000 && tid < 3000+MAX_PLANETS) { 
-                if (planets[tid-3000].active && planets[tid-3000].q1 == pq1 && planets[tid-3000].q2 == pq2 && planets[tid-3000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_PLANET && tid <= GALAXY_OBJECT_MAX_PLANET) { 
+                if (planets[tid - GALAXY_OBJECT_MIN_PLANET].active && 
+                    planets[tid - GALAXY_OBJECT_MIN_PLANET].q1 == pq1 && 
+                    planets[tid - GALAXY_OBJECT_MIN_PLANET].q2 == pq2 && 
+                    planets[tid - GALAXY_OBJECT_MIN_PLANET].q3 == pq3) {
                     valid = true; 
                 }
-            } else if (tid >= 4000 && tid < 4000+MAX_STARS) {
-                if (stars_data[tid-4000].active && stars_data[tid-4000].q1 == pq1 && stars_data[tid-4000].q2 == pq2 && stars_data[tid-4000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_STAR && tid <= GALAXY_OBJECT_MAX_STAR) {
+                if (stars_data[tid - GALAXY_OBJECT_MIN_STAR].active && 
+                    stars_data[tid - GALAXY_OBJECT_MIN_STAR].q1 == pq1 && 
+                    stars_data[tid - GALAXY_OBJECT_MIN_STAR].q2 == pq2 && 
+                    stars_data[tid - GALAXY_OBJECT_MIN_STAR].q3 == pq3) {
                     valid = true;
                 }
-            } else if (tid >= 7000 && tid < 7000+MAX_BH) {
-                if (black_holes[tid-7000].active && black_holes[tid-7000].q1 == pq1 && black_holes[tid-7000].q2 == pq2 && black_holes[tid-7000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_BLACKHOLE && tid <= GALAXY_OBJECT_MAX_BLACKHOLE) {
+                if (black_holes[tid - GALAXY_OBJECT_MIN_BLACKHOLE].active && 
+                    black_holes[tid - GALAXY_OBJECT_MIN_BLACKHOLE].q1 == pq1 && 
+                    black_holes[tid - GALAXY_OBJECT_MIN_BLACKHOLE].q2 == pq2 && 
+                    black_holes[tid - GALAXY_OBJECT_MIN_BLACKHOLE].q3 == pq3) {
                     valid = true;
                 }
-            } else if (tid >= 8000 && tid < 8000+MAX_NEBULAS) {
-                if (nebulas[tid-8000].active && nebulas[tid-8000].q1 == pq1 && nebulas[tid-8000].q2 == pq2 && nebulas[tid-8000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_NEBULA && tid <= GALAXY_OBJECT_MAX_NEBULA) {
+                if (nebulas[tid - GALAXY_OBJECT_MIN_NEBULA].active && 
+                    nebulas[tid - GALAXY_OBJECT_MIN_NEBULA].q1 == pq1 && 
+                    nebulas[tid - GALAXY_OBJECT_MIN_NEBULA].q2 == pq2 && 
+                    nebulas[tid - GALAXY_OBJECT_MIN_NEBULA].q3 == pq3) {
                     valid = true;
                 }
-            } else if (tid >= 9000 && tid < 9000+MAX_PULSARS) {
-                if (pulsars[tid-9000].active && pulsars[tid-9000].q1 == pq1 && pulsars[tid-9000].q2 == pq2 && pulsars[tid-9000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_PULSAR && tid <= GALAXY_OBJECT_MAX_PULSAR) {
+                if (pulsars[tid - GALAXY_OBJECT_MIN_PULSAR].active && 
+                    pulsars[tid - GALAXY_OBJECT_MIN_PULSAR].q1 == pq1 && 
+                    pulsars[tid - GALAXY_OBJECT_MIN_PULSAR].q2 == pq2 && 
+                    pulsars[tid - GALAXY_OBJECT_MIN_PULSAR].q3 == pq3) {
                     valid = true;
                 }
-            } else if (tid >= 10000 && tid < 10000+MAX_COMETS) {
-                if (comets[tid-10000].active) {
+            } else if (tid >= GALAXY_OBJECT_MIN_COMET && tid <= GALAXY_OBJECT_MAX_COMET) {
+                if (comets[tid - GALAXY_OBJECT_MIN_COMET].active && 
+                    comets[tid - GALAXY_OBJECT_MIN_COMET].q1 == pq1 && 
+                    comets[tid - GALAXY_OBJECT_MIN_COMET].q2 == pq2 && 
+                    comets[tid - GALAXY_OBJECT_MIN_COMET].q3 == pq3) {
                     valid = true;
                 }
-            } else if (tid >= 11000 && tid < 11000+MAX_DERELICTS) {
-                if (derelicts[tid-11000].active) {
+            } else if (tid >= GALAXY_OBJECT_MIN_DERELICT && tid <= GALAXY_OBJECT_MAX_DERELICT) {
+                if (derelicts[tid - GALAXY_OBJECT_MIN_DERELICT].active && 
+                    derelicts[tid - GALAXY_OBJECT_MIN_DERELICT].q1 == pq1 && 
+                    derelicts[tid - GALAXY_OBJECT_MIN_DERELICT].q2 == pq2 && 
+                    derelicts[tid - GALAXY_OBJECT_MIN_DERELICT].q3 == pq3) {
                     valid = true;
                 }
-            } else if (tid >= 12000 && tid < 12000+MAX_ASTEROIDS) {
-                if (asteroids[tid-12000].active && asteroids[tid-12000].q1 == pq1 && asteroids[tid-12000].q2 == pq2 && asteroids[tid-12000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_ASTEROID && tid <= GALAXY_OBJECT_MAX_ASTEROID) {
+                if (asteroids[tid - GALAXY_OBJECT_MIN_ASTEROID].active && 
+                    asteroids[tid - GALAXY_OBJECT_MIN_ASTEROID].q1 == pq1 && 
+                    asteroids[tid - GALAXY_OBJECT_MIN_ASTEROID].q2 == pq2 && 
+                    asteroids[tid - GALAXY_OBJECT_MIN_ASTEROID].q3 == pq3) {
                     valid = true;
                 }
-            } else if (tid >= 14000 && tid < 14000+MAX_MINES) {
-                if (mines[tid-14000].active && mines[tid-14000].q1 == pq1 && mines[tid-14000].q2 == pq2 && mines[tid-14000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_MINE && tid <= GALAXY_OBJECT_MAX_MINE) {
+                if (mines[tid - GALAXY_OBJECT_MIN_MINE].active && 
+                    mines[tid - GALAXY_OBJECT_MIN_MINE].q1 == pq1 && 
+                    mines[tid - GALAXY_OBJECT_MIN_MINE].q2 == pq2 && 
+                    mines[tid - GALAXY_OBJECT_MIN_MINE].q3 == pq3) {
                     valid = true;
                 }
-            } else if (tid >= 15000 && tid < 15000+MAX_BUOYS) {
-                if (buoys[tid-15000].active && buoys[tid-15000].q1 == pq1 && buoys[tid-15000].q2 == pq2 && buoys[tid-15000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_BUOY && tid <= GALAXY_OBJECT_MAX_BUOY) {
+                if (buoys[tid - GALAXY_OBJECT_MIN_BUOY].active && 
+                    buoys[tid - GALAXY_OBJECT_MIN_BUOY].q1 == pq1 && 
+                    buoys[tid - GALAXY_OBJECT_MIN_BUOY].q2 == pq2 && 
+                    buoys[tid - GALAXY_OBJECT_MIN_BUOY].q3 == pq3) {
                     valid = true;
                 }
-            } else if (tid >= 16000 && tid < 16000+MAX_PLATFORMS) { 
-                if (platforms[tid-16000].active && platforms[tid-16000].q1 == pq1 && platforms[tid-16000].q2 == pq2 && platforms[tid-16000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM) { 
+                if (platforms[tid - GALAXY_OBJECT_MIN_PLATFORM].active && 
+                    platforms[tid - GALAXY_OBJECT_MIN_PLATFORM].q1 == pq1 && 
+                    platforms[tid - GALAXY_OBJECT_MIN_PLATFORM].q2 == pq2 && 
+                    platforms[tid - GALAXY_OBJECT_MIN_PLATFORM].q3 == pq3) {
                     valid = true; 
                 }
-            } else if (tid >= 17000 && tid < 17000+MAX_RIFTS) {
-                if (rifts[tid-17000].active && rifts[tid-17000].q1 == pq1 && rifts[tid-17000].q2 == pq2 && rifts[tid-17000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_RIFT && tid <= GALAXY_OBJECT_MAX_RIFT) {
+                if (rifts[tid - GALAXY_OBJECT_MIN_RIFT].active && 
+                    rifts[tid - GALAXY_OBJECT_MIN_RIFT].q1 == pq1 && 
+                    rifts[tid - GALAXY_OBJECT_MIN_RIFT].q2 == pq2 && 
+                    rifts[tid - GALAXY_OBJECT_MIN_RIFT].q3 == pq3) {
                     valid = true;
                 }
-            } else if (tid >= 18000 && tid < 18000+MAX_MONSTERS) {
-                if (monsters[tid-18000].active && monsters[tid-18000].q1 == pq1 && monsters[tid-18000].q2 == pq2 && monsters[tid-18000].q3 == pq3) {
+            } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER) {
+                if (monsters[tid - GALAXY_OBJECT_MIN_MONSTER].active && 
+                    monsters[tid - GALAXY_OBJECT_MIN_MONSTER].q1 == pq1 && 
+                    monsters[tid - GALAXY_OBJECT_MIN_MONSTER].q2 == pq2 && 
+                    monsters[tid - GALAXY_OBJECT_MIN_MONSTER].q3 == pq3) {
                     valid = true;
                 }
-            } else if (tid >= 19000 && tid < 19200) {
-                int p_idx = (tid - 19000) / 3;
-                int pr_idx = (tid - 19000) % 3;
+            } else if (tid >= GALAXY_OBJECT_MIN_PROBE && tid <= GALAXY_OBJECT_MAX_PROBE) {
+                int p_idx = (tid - GALAXY_OBJECT_MIN_PROBE) / 3;
+                int pr_idx = (tid - GALAXY_OBJECT_MIN_PROBE) % 3;
                 if (p_idx < MAX_CLIENTS && players[p_idx].state.probes[pr_idx].active) {
-                    valid = true;
+                    /* Check if probe is in the same quadrant */
+                    int pr_q1 = get_q_from_g(players[p_idx].state.probes[pr_idx].gx);
+                    int pr_q2 = get_q_from_g(players[p_idx].state.probes[pr_idx].gy);
+                    int pr_q3 = get_q_from_g(players[p_idx].state.probes[pr_idx].gz);
+                    if (pr_q1 == pq1 && pr_q2 == pq2 && pr_q3 == pq3) {
+                        valid = true;
+                    }
                 }
             }
+            
             if (!valid) { 
                 players[i].state.lock_target = 0; 
                 send_server_msg(i, "TACTICAL", "Target lost. Lock released."); 
@@ -748,30 +961,55 @@ void update_game_logic() {
 
             /* Galactic Boundary Enforcement: Stop and Invert on edge contact */
             bool oob = false;
-            if (players[i].gx < 0.05) { players[i].gx = 0.05; oob = true; }
-            if (players[i].gx > 399.95) { players[i].gx = 399.95; oob = true; }
-            if (players[i].gy < 0.05) { players[i].gy = 0.05; oob = true; }
-            if (players[i].gy > 399.95) { players[i].gy = 399.95; oob = true; }
-            if (players[i].gz < 0.05) { players[i].gz = 0.05; oob = true; }
-            if (players[i].gz > 399.95) { players[i].gz = 399.95; oob = true; }
+            if (players[i].gx < 0.05) {
+                players[i].gx = 0.05;
+                oob = true;
+            }
+            if (players[i].gx > 399.95) {
+                players[i].gx = 399.95;
+                oob = true;
+            }
+            if (players[i].gy < 0.05) {
+                players[i].gy = 0.05;
+                oob = true;
+            }
+            if (players[i].gy > 399.95) {
+                players[i].gy = 399.95;
+                oob = true;
+            }
+            if (players[i].gz < 0.05) {
+                players[i].gz = 0.05;
+                oob = true;
+            }
+            if (players[i].gz > 399.95) {
+                players[i].gz = 399.95;
+                oob = true;
+            }
 
             if (oob) {
                 players[i].nav_state = NAV_STATE_IDLE;
                 players[i].hyper_speed = 0;
-                players[i].dx = 0; players[i].dy = 0; players[i].dz = 0;
+                players[i].dx = 0;
+                players[i].dy = 0;
+                players[i].dz = 0;
                 players[i].state.van_h = fmod(players[i].state.van_h + 180.0, 360.0);
                 players[i].state.van_m = -players[i].state.van_m;
                 send_server_msg(i, "COMPUTER", "GALACTIC LIMIT REACHED: Engines disengaged. Position inverted.");
-                players[i].state.q1 = get_q_from_g(players[i].gx); players[i].state.q2 = get_q_from_g(players[i].gy); players[i].state.q3 = get_q_from_g(players[i].gz);
-                players[i].state.s1 = (players[i].gx - (players[i].state.q1 - 1) * 10.0); players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * 10.0); players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * 10.0);
+                players[i].state.q1 = get_q_from_g(players[i].gx);
+                players[i].state.q2 = get_q_from_g(players[i].gy);
+                players[i].state.q3 = get_q_from_g(players[i].gz);
+                players[i].state.s1 = (players[i].gx - (players[i].state.q1 - 1) * 10.0);
+                players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * 10.0);
+                players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * 10.0);
             }
             
             /* Realistic Hyperdrive consumption: Linear with factor, Inverse with integrity */
             double current_f = players[i].hyper_speed * 30.0;
             int drain = (int)((50.0 + (current_f * 50.0)) * (100.0 / hyper_h));
-            players[i].state.energy -= drain;
-
-            if (players[i].state.energy <= 0) {
+            
+            if (players[i].state.energy > drain) {
+                players[i].state.energy -= drain;
+            } else {
                 players[i].state.energy = 0;
                 players[i].nav_state = NAV_STATE_DRIFT;
                 send_server_msg(i, "COMPUTER", "Hyperdrive failure: Zero energy. Ship is drifting.");
@@ -822,29 +1060,54 @@ void update_game_logic() {
 
             /* Galactic Boundary Enforcement: Stop and Invert on edge contact */
             bool oob = false;
-            if (players[i].gx < 0.05) { players[i].gx = 0.05; oob = true; }
-            if (players[i].gx > 399.95) { players[i].gx = 399.95; oob = true; }
-            if (players[i].gy < 0.05) { players[i].gy = 0.05; oob = true; }
-            if (players[i].gy > 399.95) { players[i].gy = 399.95; oob = true; }
-            if (players[i].gz < 0.05) { players[i].gz = 0.05; oob = true; }
-            if (players[i].gz > 399.95) { players[i].gz = 399.95; oob = true; }
+            if (players[i].gx < 0.05) {
+                players[i].gx = 0.05;
+                oob = true;
+            }
+            if (players[i].gx > 399.95) {
+                players[i].gx = 399.95;
+                oob = true;
+            }
+            if (players[i].gy < 0.05) {
+                players[i].gy = 0.05;
+                oob = true;
+            }
+            if (players[i].gy > 399.95) {
+                players[i].gy = 399.95;
+                oob = true;
+            }
+            if (players[i].gz < 0.05) {
+                players[i].gz = 0.05;
+                oob = true;
+            }
+            if (players[i].gz > 399.95) {
+                players[i].gz = 399.95;
+                oob = true;
+            }
 
             if (oob) {
                 players[i].nav_state = NAV_STATE_IDLE;
                 players[i].hyper_speed = 0;
-                players[i].dx = 0; players[i].dy = 0; players[i].dz = 0;
+                players[i].dx = 0;
+                players[i].dy = 0;
+                players[i].dz = 0;
                 players[i].state.van_h = fmod(players[i].state.van_h + 180.0, 360.0);
                 players[i].state.van_m = -players[i].state.van_m;
                 send_server_msg(i, "COMPUTER", "GALACTIC LIMIT REACHED: Engines disengaged. Position inverted.");
-                players[i].state.q1 = get_q_from_g(players[i].gx); players[i].state.q2 = get_q_from_g(players[i].gy); players[i].state.q3 = get_q_from_g(players[i].gz);
-                players[i].state.s1 = (players[i].gx - (players[i].state.q1 - 1) * 10.0); players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * 10.0); players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * 10.0);
+                players[i].state.q1 = get_q_from_g(players[i].gx);
+                players[i].state.q2 = get_q_from_g(players[i].gy);
+                players[i].state.q3 = get_q_from_g(players[i].gz);
+                players[i].state.s1 = (players[i].gx - (players[i].state.q1 - 1) * 10.0);
+                players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * 10.0);
+                players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * 10.0);
             }
             
             /* Realistic Impulse consumption: Linear with speed, Inverse with integrity */
             int imp_drain = (int)((10.0 + (players[i].hyper_speed * 1000.0)) * (100.0 / impulse_h));
-            players[i].state.energy -= imp_drain;
-
-            if (players[i].state.energy <= 0) {
+            
+            if (players[i].state.energy > imp_drain) {
+                players[i].state.energy -= imp_drain;
+            } else {
                 players[i].state.energy = 0;
                 players[i].nav_state = NAV_STATE_DRIFT;
                 send_server_msg(i, "COMPUTER", "Impulse drive failure: Zero energy. Ship is drifting.");
@@ -867,64 +1130,174 @@ void update_game_logic() {
             if (players[i].nav_timer <= 0) players[i].nav_state = NAV_STATE_IDLE;
         } else if (players[i].nav_state == NAV_STATE_APPROACH) {
             /* Standardized target resolution for all ID ranges */
-            double tx=0, ty=0, tz=0; bool found=false;
+            double tx = 0;
+            double ty = 0;
+            double tz = 0;
+            bool found = false;
             int tid = players[i].apr_target;
-            int q1=players[i].state.q1, q2=players[i].state.q2, q3=players[i].state.q3;
+            int q1 = players[i].state.q1;
+            int q2 = players[i].state.q2;
+            int q3 = players[i].state.q3;
             
-            if (tid >= 1 && tid <= 32) { 
-                if (players[tid-1].active) { tx=players[tid-1].gx; ty=players[tid-1].gy; tz=players[tid-1].gz; found=true; } 
-            }
-            else if (tid >= 1000 && tid < 1000+MAX_NPC) { 
-                if (npcs[tid-1000].active) { tx=npcs[tid-1000].gx; ty=npcs[tid-1000].gy; tz=npcs[tid-1000].gz; found=true; } 
-            }
-            else {
+            if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER) { 
+                if (players[tid - 1].active) {
+                    tx = players[tid - 1].gx;
+                    ty = players[tid - 1].gy;
+                    tz = players[tid - 1].gz;
+                    found = true;
+                } 
+            } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) { 
+                if (npcs[tid - GALAXY_OBJECT_MIN_NPC].active) {
+                    tx = npcs[tid - GALAXY_OBJECT_MIN_NPC].gx;
+                    ty = npcs[tid - GALAXY_OBJECT_MIN_NPC].gy;
+                    tz = npcs[tid - GALAXY_OBJECT_MIN_NPC].gz;
+                    found = true;
+                } 
+            } else {
                 /* 1. Local objects check (Fast path) */
                 QuadrantIndex *lq = &spatial_index[q1][q2][q3];
-                if (tid >= 2000 && tid < 2000+MAX_BASES) { for(int b=0; b<lq->base_count; b++) if(lq->bases[b]->id+2000 == tid) { tx=(lq->bases[b]->q1-1)*10.0+lq->bases[b]->x; ty=(lq->bases[b]->q2-1)*10.0+lq->bases[b]->y; tz=(lq->bases[b]->q3-1)*10.0+lq->bases[b]->z; found=true; } }
-                else if (tid >= 3000 && tid < 3000+MAX_PLANETS) { for(int p=0; p<lq->planet_count; p++) if(lq->planets[p]->id+3000 == tid) { tx=(lq->planets[p]->q1-1)*10.0+lq->planets[p]->x; ty=(lq->planets[p]->q2-1)*10.0+lq->planets[p]->y; tz=(lq->planets[p]->q3-1)*10.0+lq->planets[p]->z; found=true; } }
-                else if (tid >= 4000 && tid < 4000+MAX_STARS) { for(int s=0; s<lq->star_count; s++) if(lq->stars[s]->id+4000 == tid) { tx=(lq->stars[s]->q1-1)*10.0+lq->stars[s]->x; ty=(lq->stars[s]->q2-1)*10.0+lq->stars[s]->y; tz=(lq->stars[s]->q3-1)*10.0+lq->stars[s]->z; found=true; } }
-                else if (tid >= 11000 && tid < 11000+MAX_DERELICTS) { for(int d=0; d<lq->derelict_count; d++) if(lq->derelicts[d]->id+11000 == tid) { tx=(lq->derelicts[d]->q1-1)*10.0+lq->derelicts[d]->x; ty=(lq->derelicts[d]->q2-1)*10.0+lq->derelicts[d]->y; tz=(lq->derelicts[d]->q3-1)*10.0+lq->derelicts[d]->z; found=true; } }
-                else if (tid >= 12000 && tid < 12000+MAX_ASTEROIDS) { for(int a=0; a<lq->asteroid_count; a++) if(lq->asteroids[a]->id+12000 == tid) { tx=(lq->asteroids[a]->q1-1)*10.0+lq->asteroids[a]->x; ty=(lq->asteroids[a]->q2-1)*10.0+lq->asteroids[a]->y; tz=(lq->asteroids[a]->q3-1)*10.0+lq->asteroids[a]->z; found=true; } }
-                else if (tid >= 16000 && tid < 16000+MAX_PLATFORMS) { for(int p=0; p<lq->platform_count; p++) if(lq->platforms[p]->id+16000 == tid) { tx=(lq->platforms[p]->q1-1)*10.0+lq->platforms[p]->x; ty=(lq->platforms[p]->q2-1)*10.0+lq->platforms[p]->y; tz=(lq->platforms[p]->q3-1)*10.0+lq->platforms[p]->z; found=true; } }
+                if (tid >= GALAXY_OBJECT_MIN_STARBASE && tid <= GALAXY_OBJECT_MAX_STARBASE) {
+                    for (int b = 0; b < lq->base_count; b++) {
+                        if (lq->bases[b]->id + GALAXY_OBJECT_MIN_STARBASE == tid) {
+                            tx = (lq->bases[b]->q1 - 1) * 10.0 + lq->bases[b]->x;
+                            ty = (lq->bases[b]->q2 - 1) * 10.0 + lq->bases[b]->y;
+                            tz = (lq->bases[b]->q3 - 1) * 10.0 + lq->bases[b]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_PLANET && tid <= GALAXY_OBJECT_MAX_PLANET) {
+                    for (int p = 0; p < lq->planet_count; p++) {
+                        if (lq->planets[p]->id + GALAXY_OBJECT_MIN_PLANET == tid) {
+                            tx = (lq->planets[p]->q1 - 1) * 10.0 + lq->planets[p]->x;
+                            ty = (lq->planets[p]->q2 - 1) * 10.0 + lq->planets[p]->y;
+                            tz = (lq->planets[p]->q3 - 1) * 10.0 + lq->planets[p]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_STAR && tid <= GALAXY_OBJECT_MAX_STAR) {
+                    for (int s = 0; s < lq->star_count; s++) {
+                        if (lq->stars[s]->id + GALAXY_OBJECT_MIN_STAR == tid) {
+                            tx = (lq->stars[s]->q1 - 1) * 10.0 + lq->stars[s]->x;
+                            ty = (lq->stars[s]->q2 - 1) * 10.0 + lq->stars[s]->y;
+                            tz = (lq->stars[s]->q3 - 1) * 10.0 + lq->stars[s]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_ASTEROID && tid <= GALAXY_OBJECT_MAX_ASTEROID) {
+                    for (int a = 0; a < lq->asteroid_count; a++) {
+                        if (lq->asteroids[a]->id + GALAXY_OBJECT_MIN_ASTEROID == tid) {
+                            tx = (lq->asteroids[a]->q1 - 1) * 10.0 + lq->asteroids[a]->x;
+                            ty = (lq->asteroids[a]->q2 - 1) * 10.0 + lq->asteroids[a]->y;
+                            tz = (lq->asteroids[a]->q3 - 1) * 10.0 + lq->asteroids[a]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_DERELICT && tid <= GALAXY_OBJECT_MAX_DERELICT) {
+                    for (int d = 0; d < lq->derelict_count; d++) {
+                        if (lq->derelicts[d]->id + GALAXY_OBJECT_MIN_DERELICT == tid) {
+                            tx = (lq->derelicts[d]->q1 - 1) * 10.0 + lq->derelicts[d]->x;
+                            ty = (lq->derelicts[d]->q2 - 1) * 10.0 + lq->derelicts[d]->y;
+                            tz = (lq->derelicts[d]->q3 - 1) * 10.0 + lq->derelicts[d]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM) {
+                    for (int p = 0; p < lq->platform_count; p++) {
+                        if (lq->platforms[p]->id + GALAXY_OBJECT_MIN_PLATFORM == tid) {
+                            tx = (lq->platforms[p]->q1 - 1) * 10.0 + lq->platforms[p]->x;
+                            ty = (lq->platforms[p]->q2 - 1) * 10.0 + lq->platforms[p]->y;
+                            tz = (lq->platforms[p]->q3 - 1) * 10.0 + lq->platforms[p]->z;
+                            found = true;
+                        }
+                    }
+                }
                 
                 /* 2. Global fallback (Cross-quadrant tracking) */
                 if (!found) {
-                    if (tid >= 2000 && tid < 2000+MAX_BASES && bases[tid-2000].active) { int idx=tid-2000; tx=(bases[idx].q1-1)*10.0+bases[idx].x; ty=(bases[idx].q2-1)*10.0+bases[idx].y; tz=(bases[idx].q3-1)*10.0+bases[idx].z; found=true; }
-                    else if (tid >= 3000 && tid < 3000+MAX_PLANETS && planets[tid-3000].active) { int idx=tid-3000; tx=(planets[idx].q1-1)*10.0+planets[idx].x; ty=(planets[idx].q2-1)*10.0+planets[idx].y; tz=(planets[idx].q3-1)*10.0+planets[idx].z; found=true; }
-                    else if (tid >= 4000 && tid < 4000+MAX_STARS && stars_data[tid-4000].active) { int idx=tid-4000; tx=(stars_data[idx].q1-1)*10.0+stars_data[idx].x; ty=(stars_data[idx].q2-1)*10.0+stars_data[idx].y; tz=(stars_data[idx].q3-1)*10.0+stars_data[idx].z; found=true; }
-                    else if (tid >= 7000 && tid < 7000+MAX_BH && black_holes[tid-7000].active) { int idx=tid-7000; tx=(black_holes[idx].q1-1)*10.0+black_holes[idx].x; ty=(black_holes[idx].q2-1)*10.0+black_holes[idx].y; tz=(black_holes[idx].q3-1)*10.0+black_holes[idx].z; found=true; }
-                    else if (tid >= 11000 && tid < 11000+MAX_DERELICTS && derelicts[tid-11000].active) { int idx=tid-11000; tx=(derelicts[idx].q1-1)*10.0+derelicts[idx].x; ty=(derelicts[idx].q2-1)*10.0+derelicts[idx].y; tz=(derelicts[idx].q3-1)*10.0+derelicts[idx].z; found=true; }
-                    else if (tid >= 12000 && tid < 12000+MAX_ASTEROIDS && asteroids[tid-12000].active) { int idx=tid-12000; tx=(asteroids[idx].q1-1)*10.0+asteroids[idx].x; ty=(asteroids[idx].q2-1)*10.0+asteroids[idx].y; tz=(asteroids[idx].q3-1)*10.0+asteroids[idx].z; found=true; }
+                    if (tid >= GALAXY_OBJECT_MIN_STARBASE && tid <= GALAXY_OBJECT_MAX_STARBASE && bases[tid - GALAXY_OBJECT_MIN_STARBASE].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_STARBASE;
+                        tx = (bases[idx].q1 - 1) * 10.0 + bases[idx].x;
+                        ty = (bases[idx].q2 - 1) * 10.0 + bases[idx].y;
+                        tz = (bases[idx].q3 - 1) * 10.0 + bases[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_PLANET && tid <= GALAXY_OBJECT_MAX_PLANET && planets[tid - GALAXY_OBJECT_MIN_PLANET].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_PLANET;
+                        tx = (planets[idx].q1 - 1) * 10.0 + planets[idx].x;
+                        ty = (planets[idx].q2 - 1) * 10.0 + planets[idx].y;
+                        tz = (planets[idx].q3 - 1) * 10.0 + planets[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_STAR && tid <= GALAXY_OBJECT_MAX_STAR && stars_data[tid - GALAXY_OBJECT_MIN_STAR].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_STAR;
+                        tx = (stars_data[idx].q1 - 1) * 10.0 + stars_data[idx].x;
+                        ty = (stars_data[idx].q2 - 1) * 10.0 + stars_data[idx].y;
+                        tz = (stars_data[idx].q3 - 1) * 10.0 + stars_data[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_BLACKHOLE && tid <= GALAXY_OBJECT_MAX_BLACKHOLE && black_holes[tid - GALAXY_OBJECT_MIN_BLACKHOLE].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_BLACKHOLE;
+                        tx = (black_holes[idx].q1 - 1) * 10.0 + black_holes[idx].x;
+                        ty = (black_holes[idx].q2 - 1) * 10.0 + black_holes[idx].y;
+                        tz = (black_holes[idx].q3 - 1) * 10.0 + black_holes[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_ASTEROID && tid <= GALAXY_OBJECT_MAX_ASTEROID && asteroids[tid - GALAXY_OBJECT_MIN_ASTEROID].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_ASTEROID;
+                        tx = (asteroids[idx].q1 - 1) * 10.0 + asteroids[idx].x;
+                        ty = (asteroids[idx].q2 - 1) * 10.0 + asteroids[idx].y;
+                        tz = (asteroids[idx].q3 - 1) * 10.0 + asteroids[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_DERELICT && tid <= GALAXY_OBJECT_MAX_DERELICT && derelicts[tid - GALAXY_OBJECT_MIN_DERELICT].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_DERELICT;
+                        tx = (derelicts[idx].q1 - 1) * 10.0 + derelicts[idx].x;
+                        ty = (derelicts[idx].q2 - 1) * 10.0 + derelicts[idx].y;
+                        tz = (derelicts[idx].q3 - 1) * 10.0 + derelicts[idx].z;
+                        found = true;
+                    }
                 }
             }
             
             if (found) {
                 double engine_mult = 0.5 + (players[i].state.power_dist[0] * 1.0);
-                double dx = tx - players[i].gx, dy = ty - players[i].gy, dz = tz - players[i].gz;
-                double dist = sqrt(dx*dx + dy*dy + dz*dz);
+                double dx = tx - players[i].gx;
+                double dy = ty - players[i].gy;
+                double dz = tz - players[i].gz;
+                double dist = sqrt(dx * dx + dy * dy + dz * dz);
                 if (dist > players[i].approach_dist + 0.05) {
-                    players[i].dx = dx/dist; players[i].dy = dy/dist; players[i].dz = dz/dist;
+                    players[i].dx = dx / dist;
+                    players[i].dy = dy / dist;
+                    players[i].dz = dz / dist;
                     players[i].gx += players[i].dx * 0.5 * engine_mult; 
                     players[i].gy += players[i].dy * 0.5 * engine_mult; 
                     players[i].gz += players[i].dz * 0.5 * engine_mult;
                     
                     /* Smooth Orientation Tracking (Avoid wild spinning) */
-                    double th = atan2(dx, -dy) * 180.0 / M_PI; if(th < 0) th += 360;
-                    double tm = asin(dz/dist) * 180.0 / M_PI;
+                    double th = atan2(dx, -dy) * 180.0 / M_PI;
+                    if (th < 0) {
+                        th += 360;
+                    }
+                    double tm = asin(dz / dist) * 180.0 / M_PI;
                     double dh = th - players[i].state.van_h;
-                    while(dh > 180) 
+                    while (dh > 180) {
                         dh -= 360; 
-                    while(dh < -180) 
+                    }
+                    while (dh < -180) {
                         dh += 360;
+                    }
                     players[i].state.van_h = fmod(players[i].state.van_h + dh * 0.15 + 360.0, 360.0);
                     players[i].state.van_m = (players[i].state.van_m + (tm - players[i].state.van_m) * 0.15);
                 } else {
-                    players[i].nav_state = NAV_STATE_IDLE; players[i].apr_target = 0;
+                    players[i].nav_state = NAV_STATE_IDLE;
+                    players[i].apr_target = 0;
                     send_server_msg(i, "COMPUTER", "Approach distance reached. Autopilot disengaged.");
                 }
-            } else { players[i].nav_state = NAV_STATE_IDLE; players[i].apr_target = 0; }
-            players[i].state.q1 = get_q_from_g(players[i].gx); players[i].state.q2 = get_q_from_g(players[i].gy); players[i].state.q3 = get_q_from_g(players[i].gz);
-            players[i].state.s1 = (players[i].gx - (players[i].state.q1 - 1) * 10.0); players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * 10.0); players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * 10.0);
+            } else {
+                players[i].nav_state = NAV_STATE_IDLE;
+                players[i].apr_target = 0;
+            }
+            players[i].state.q1 = get_q_from_g(players[i].gx);
+            players[i].state.q2 = get_q_from_g(players[i].gy);
+            players[i].state.q3 = get_q_from_g(players[i].gz);
+            players[i].state.s1 = (players[i].gx - (players[i].state.q1 - 1) * 10.0);
+            players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * 10.0);
+            players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * 10.0);
         } else if (players[i].nav_state == NAV_STATE_WORMHOLE) {
             players[i].nav_timer--;
             
@@ -1026,57 +1399,120 @@ void update_game_logic() {
             }
         } else if (players[i].nav_state == NAV_STATE_CHASE) {
             int tid = players[i].state.lock_target;
-            double tx=0, ty=0, tz=0; bool found=false;
-            if (tid >= 1 && tid <= 32) { if (players[tid-1].active) { tx=players[tid-1].gx; ty=players[tid-1].gy; tz=players[tid-1].gz; found=true; } }
-            else if (tid >= 1000 && tid < 1000+MAX_NPC) { if (npcs[tid-1000].active) { tx=npcs[tid-1000].gx; ty=npcs[tid-1000].gy; tz=npcs[tid-1000].gz; found=true; } }
-            else if (tid >= 10000 && tid < 10000+MAX_COMETS) { if (comets[tid-10000].active) { tx = (comets[tid-10000].q1-1)*10.0 + comets[tid-10000].x; ty = (comets[tid-10000].q2-1)*10.0 + comets[tid-10000].y; tz = (comets[tid-10000].q3-1)*10.0 + comets[tid-10000].z; found=true; } }
-            else if (tid >= 18000 && tid < 18000+MAX_MONSTERS) { if (monsters[tid-18000].active) { tx = (monsters[tid-18000].q1-1)*10.0 + monsters[tid-18000].x; ty = (monsters[tid-18000].q2-1)*10.0 + monsters[tid-18000].y; tz = (monsters[tid-18000].q3-1)*10.0 + monsters[tid-18000].z; found=true; } }
-            else if (tid >= 19000 && tid < 19200) { int p_idx=(tid-19000)/3; int pr_idx=(tid-19000)%3; if (p_idx < MAX_CLIENTS && players[p_idx].state.probes[pr_idx].active) { tx=players[p_idx].state.probes[pr_idx].gx; ty=players[p_idx].state.probes[pr_idx].gy; tz=players[p_idx].state.probes[pr_idx].gz; found=true; } }
+            double tx = 0;
+            double ty = 0;
+            double tz = 0;
+            bool found = false;
+            if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER) {
+                if (players[tid - 1].active) {
+                    tx = players[tid - 1].gx;
+                    ty = players[tid - 1].gy;
+                    tz = players[tid - 1].gz;
+                    found = true;
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) {
+                if (npcs[tid - GALAXY_OBJECT_MIN_NPC].active) {
+                    tx = npcs[tid - GALAXY_OBJECT_MIN_NPC].gx;
+                    ty = npcs[tid - GALAXY_OBJECT_MIN_NPC].gy;
+                    tz = npcs[tid - GALAXY_OBJECT_MIN_NPC].gz;
+                    found = true;
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_COMET && tid <= GALAXY_OBJECT_MAX_COMET) {
+                if (comets[tid - GALAXY_OBJECT_MIN_COMET].active) {
+                    tx = (comets[tid - GALAXY_OBJECT_MIN_COMET].q1 - 1) * 10.0 + comets[tid - GALAXY_OBJECT_MIN_COMET].x;
+                    ty = (comets[tid - GALAXY_OBJECT_MIN_COMET].q2 - 1) * 10.0 + comets[tid - GALAXY_OBJECT_MIN_COMET].y;
+                    tz = (comets[tid - GALAXY_OBJECT_MIN_COMET].q3 - 1) * 10.0 + comets[tid - GALAXY_OBJECT_MIN_COMET].z;
+                    found = true;
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER) {
+                if (monsters[tid - GALAXY_OBJECT_MIN_MONSTER].active) {
+                    tx = (monsters[tid - GALAXY_OBJECT_MIN_MONSTER].q1 - 1) * 10.0 + monsters[tid - GALAXY_OBJECT_MIN_MONSTER].x;
+                    ty = (monsters[tid - GALAXY_OBJECT_MIN_MONSTER].q2 - 1) * 10.0 + monsters[tid - GALAXY_OBJECT_MIN_MONSTER].y;
+                    tz = (monsters[tid - GALAXY_OBJECT_MIN_MONSTER].q3 - 1) * 10.0 + monsters[tid - GALAXY_OBJECT_MIN_MONSTER].z;
+                    found = true;
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_PROBE && tid <= GALAXY_OBJECT_MAX_PROBE) {
+                int p_idx = (tid - GALAXY_OBJECT_MIN_PROBE) / 3;
+                int pr_idx = (tid - GALAXY_OBJECT_MIN_PROBE) % 3;
+                if (p_idx < MAX_CLIENTS && players[p_idx].state.probes[pr_idx].active) {
+                    tx = players[p_idx].state.probes[pr_idx].gx;
+                    ty = players[p_idx].state.probes[pr_idx].gy;
+                    tz = players[p_idx].state.probes[pr_idx].gz;
+                    found = true;
+                }
+            }
             
             if (found) {
                 double engine_mult = 0.5 + (players[i].state.power_dist[0] * 1.0);
-                double dx = tx - players[i].gx, dy = ty - players[i].gy, dz = tz - players[i].gz;
-                double dist = sqrt(dx*dx + dy*dy + dz*dz);
+                double dx = tx - players[i].gx;
+                double dy = ty - players[i].gy;
+                double dz = tz - players[i].gz;
+                double dist = sqrt(dx * dx + dy * dy + dz * dz);
                 double target_dist = 2.0; /* Default chase distance */
-                if (tid >= 1000 && tid < 1000 + MAX_NPC) {
-                    target_dist = (npcs[tid-1000].health > 500) ? 3.0 : 1.5;
-                } else if (tid >= 10000 && tid < 10000 + MAX_COMETS) {
+                if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) {
+                    target_dist = (npcs[tid - GALAXY_OBJECT_MIN_NPC].health > 500) ? 3.0 : 1.5;
+                } else if (tid >= GALAXY_OBJECT_MIN_COMET && tid <= GALAXY_OBJECT_MAX_COMET) {
                     target_dist = 0.5; /* Harvesting range for comets */
-                } else if (tid >= 18000 && tid < 18000 + MAX_MONSTERS) {
+                } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER) {
                     target_dist = 2.5; /* Safety distance for monsters */
                 }
 
                 if (dist > target_dist + 0.1) {
-                    players[i].dx = dx/dist; players[i].dy = dy/dist; players[i].dz = dz/dist;
+                    players[i].dx = dx / dist;
+                    players[i].dy = dy / dist;
+                    players[i].dz = dz / dist;
                     players[i].gx += players[i].dx * 0.05 * engine_mult; 
                     players[i].gy += players[i].dy * 0.05 * engine_mult; 
                     players[i].gz += players[i].dz * 0.05 * engine_mult;
                 } else if (dist < target_dist - 0.1) {
-                    players[i].dx = -dx/dist; players[i].dy = -dy/dist; players[i].dz = -dz/dist;
+                    players[i].dx = -dx / dist;
+                    players[i].dy = -dy / dist;
+                    players[i].dz = -dz / dist;
                     players[i].gx += players[i].dx * 0.03 * engine_mult; 
                     players[i].gy += players[i].dy * 0.03 * engine_mult; 
                     players[i].gz += players[i].dz * 0.03 * engine_mult;
                 }
-                players[i].state.van_h = atan2(dx, -dy) * 180.0 / M_PI; if(players[i].state.van_h < 0) players[i].state.van_h += 360;
-                players[i].state.van_m = asin(dz/dist) * 180.0 / M_PI;
-            } else { players[i].nav_state = NAV_STATE_IDLE; send_server_msg(i, "COMPUTER", "Chase target lost."); }
-            players[i].state.q1 = get_q_from_g(players[i].gx); players[i].state.q2 = get_q_from_g(players[i].gy); players[i].state.q3 = get_q_from_g(players[i].gz);
-            players[i].state.s1 = (players[i].gx - (players[i].state.q1 - 1) * 10.0); players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * 10.0); players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * 10.0);
+                players[i].state.van_h = atan2(dx, -dy) * 180.0 / M_PI;
+                if (players[i].state.van_h < 0) {
+                    players[i].state.van_h += 360;
+                }
+                players[i].state.van_m = asin(dz / dist) * 180.0 / M_PI;
+            } else {
+                players[i].nav_state = NAV_STATE_IDLE;
+                send_server_msg(i, "COMPUTER", "Chase target lost.");
+            }
+            players[i].state.q1 = get_q_from_g(players[i].gx);
+            players[i].state.q2 = get_q_from_g(players[i].gy);
+            players[i].state.q3 = get_q_from_g(players[i].gz);
+            players[i].state.s1 = (players[i].gx - (players[i].state.q1 - 1) * 10.0);
+            players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * 10.0);
+            players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * 10.0);
             players[i].state.energy -= 2;
         } else if (players[i].nav_state == NAV_STATE_DOCKING) {
             players[i].nav_timer--;
-            int b_idx = players[i].pending_bor_target - 2000;
+            int b_idx = players[i].pending_bor_target - GALAXY_OBJECT_MIN_STARBASE;
             if (b_idx < 0 || b_idx >= MAX_BASES || !bases[b_idx].active) {
-                players[i].nav_state = NAV_STATE_IDLE; send_server_msg(i, "STARBASE", "Docking aborted: Starbase link lost.");
+                players[i].nav_state = NAV_STATE_IDLE;
+                send_server_msg(i, "STARBASE", "Docking aborted: Starbase link lost.");
             } else {
-                double d=sqrt(pow(bases[b_idx].x-players[i].state.s1,2)+pow(bases[b_idx].y-players[i].state.s2,2)+pow(bases[b_idx].z-players[i].state.s3,2));
-                if (d > 3.5) { players[i].nav_state = NAV_STATE_IDLE; send_server_msg(i, "STARBASE", "Docking aborted: Out of range."); }
+                double d = sqrt(pow(bases[b_idx].x - players[i].state.s1, 2) + 
+                                pow(bases[b_idx].y - players[i].state.s2, 2) + 
+                                pow(bases[b_idx].z - players[i].state.s3, 2));
+                if (d > 3.5) {
+                    players[i].nav_state = NAV_STATE_IDLE;
+                    send_server_msg(i, "STARBASE", "Docking aborted: Out of range.");
+                }
             }
             if (players[i].nav_state == NAV_STATE_DOCKING && players[i].nav_timer <= 0) {
-                players[i].state.energy = 9999999; players[i].state.torpedoes = 1000;
-                players[i].state.hull_integrity = 100.0; players[i].state.life_support = 100.0;
-                for(int s=0; s<10; s++) players[i].state.system_health[s] = 100.0;
-                players[i].is_docked = 1; players[i].nav_state = NAV_STATE_IDLE;
+                players[i].state.energy = MAX_ENERGY_CAPACITY;
+                players[i].state.torpedoes = 1000;
+                players[i].state.hull_integrity = 100.0;
+                players[i].state.life_support = 100.0;
+                for (int s = 0; s < 10; s++) {
+                    players[i].state.system_health[s] = 100.0;
+                }
+                players[i].is_docked = 1;
+                players[i].nav_state = NAV_STATE_IDLE;
                 send_server_msg(i, "STARBASE", "Docking complete. Systems replenished and repaired.");
             }
         } else if (players[i].nav_state == NAV_STATE_DRIFT) {
@@ -1099,22 +1535,22 @@ void update_game_logic() {
                 double target_gx = -1.0, target_gy = -1.0, target_gz = -1.0;
                 int tid = players[i].torp_target; 
                 
-                if (tid <= 32 && players[tid-1].active) { 
+                if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER && players[tid-1].active) { 
                     target_gx = players[tid-1].gx; target_gy = players[tid-1].gy; target_gz = players[tid-1].gz; 
-                } else if (tid >= 1000 && tid < 1000+MAX_NPC && npcs[tid-1000].active) { 
-                    target_gx = npcs[tid-1000].gx; target_gy = npcs[tid-1000].gy; target_gz = npcs[tid-1000].gz; 
-                } else if (tid >= 10000 && tid < 10000+MAX_COMETS && comets[tid-10000].active) { 
-                    target_gx = (comets[tid-10000].q1-1)*10.0 + comets[tid-10000].x; 
-                    target_gy = (comets[tid-10000].q2-1)*10.0 + comets[tid-10000].y; 
-                    target_gz = (comets[tid-10000].q3-1)*10.0 + comets[tid-10000].z; 
-                } else if (tid >= 16000 && tid < 16000+MAX_PLATFORMS && platforms[tid-16000].active) { 
-                    target_gx = (platforms[tid-16000].q1-1)*10.0 + platforms[tid-16000].x; 
-                    target_gy = (platforms[tid-16000].q2-1)*10.0 + platforms[tid-16000].y; 
-                    target_gz = (platforms[tid-16000].q3-1)*10.0 + platforms[tid-16000].z; 
-                } else if (tid >= 18000 && tid < 18000+MAX_MONSTERS && monsters[tid-18000].active) { 
-                    target_gx = (monsters[tid-18000].q1-1)*10.0 + monsters[tid-18000].x; 
-                    target_gy = (monsters[tid-18000].q2-1)*10.0 + monsters[tid-18000].y; 
-                    target_gz = (monsters[tid-18000].q3-1)*10.0 + monsters[tid-18000].z; 
+                } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC && npcs[tid-GALAXY_OBJECT_MIN_NPC].active) { 
+                    target_gx = npcs[tid-GALAXY_OBJECT_MIN_NPC].gx; target_gy = npcs[tid-GALAXY_OBJECT_MIN_NPC].gy; target_gz = npcs[tid-GALAXY_OBJECT_MIN_NPC].gz; 
+                } else if (tid >= GALAXY_OBJECT_MIN_COMET && tid <= GALAXY_OBJECT_MAX_COMET && comets[tid-GALAXY_OBJECT_MIN_COMET].active) { 
+                    target_gx = (comets[tid-GALAXY_OBJECT_MIN_COMET].q1-1)*10.0 + comets[tid-GALAXY_OBJECT_MIN_COMET].x; 
+                    target_gy = (comets[tid-GALAXY_OBJECT_MIN_COMET].q2-1)*10.0 + comets[tid-GALAXY_OBJECT_MIN_COMET].y; 
+                    target_gz = (comets[tid-GALAXY_OBJECT_MIN_COMET].q3-1)*10.0 + comets[tid-GALAXY_OBJECT_MIN_COMET].z; 
+                } else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM && platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].active) { 
+                    target_gx = (platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q1-1)*10.0 + platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].x; 
+                    target_gy = (platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q2-1)*10.0 + platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].y; 
+                    target_gz = (platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q3-1)*10.0 + platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].z; 
+                } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER && monsters[tid-GALAXY_OBJECT_MIN_MONSTER].active) { 
+                    target_gx = (monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q1-1)*10.0 + monsters[tid-GALAXY_OBJECT_MIN_MONSTER].x; 
+                    target_gy = (monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q2-1)*10.0 + monsters[tid-GALAXY_OBJECT_MIN_MONSTER].y; 
+                    target_gz = (monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q3-1)*10.0 + monsters[tid-GALAXY_OBJECT_MIN_MONSTER].z; 
                 }
 
                 if (target_gx != -1.0) {
@@ -1152,60 +1588,171 @@ void update_game_logic() {
                 for (int n = 0; n < MAX_NPC; n++) {
                     if (npcs[n].active) {
                         double d = sqrt(pow(players[i].tx - npcs[n].gx, 2) + pow(players[i].ty - npcs[n].gy, 2) + pow(players[i].tz - npcs[n].gz, 2));
-                        if (d < 0.8) { tid = npcs[n].id + 1000; break; }
+                        if (d < 0.8) { tid = npcs[n].id + GALAXY_OBJECT_MIN_NPC; break; }
                     }
                 }
                 if (tid == 0) {
                     for (int j = 0; j < MAX_CLIENTS; j++) {
                         if (players[j].active && j != i) {
                             double d = sqrt(pow(players[i].tx - players[j].gx, 2) + pow(players[i].ty - players[j].gy, 2) + pow(players[i].tz - players[j].gz, 2));
-                            if (d < 0.8) { tid = j + 1; break; }
+                            if (d < 0.8) { tid = j + GALAXY_OBJECT_MIN_PLAYER; break; }
                         }
                     }
                 }
             }
 
             if (tid > 0) {
-                if (tid <= 32) {
-                    ConnectedPlayer *p = &players[tid-1];
+                if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER) {
+                    ConnectedPlayer *p = &players[tid - 1];
                     if (p->active) {
-                        double d = sqrt(pow(players[i].tx - p->gx, 2) + pow(players[i].ty - p->gy, 2) + pow(players[i].tz - p->gz, 2));
+                        double d = sqrt(pow(players[i].tx - p->gx, 2) + 
+                                        pow(players[i].ty - p->gy, 2) + 
+                                        pow(players[i].tz - p->gz, 2));
                         if (d < 0.8) { 
-                            hit = true; p->state.energy -= 20000; apply_hull_damage(tid - 1, 15.0);
+                            hit = true;
+                            
+                            /* Total potential damage from a torpedo */
+                            int dmg_rem = 20000;
+                            
+                            /* Directional Shield Logic */
+                            double rel_dx = players[i].tx - p->gx;
+                            double rel_dy = players[i].ty - p->gy;
+                            double rel_dz = players[i].tz - p->gz;
+                            
+                            double angle = atan2(rel_dx, -rel_dy) * 180.0 / M_PI;
+                            if (angle < 0) {
+                                angle += 360;
+                            }
+                            double rel_angle = angle - p->state.van_h;
+                            while (rel_angle < 0) {
+                                rel_angle += 360; 
+                            }
+                            while (rel_angle >= 360) {
+                                rel_angle -= 360;
+                            }
+
+                            double dist_2d = sqrt(rel_dx * rel_dx + rel_dy * rel_dy);
+                            double vertical_angle = atan2(rel_dz, dist_2d) * 180.0 / M_PI;
+                            
+                            int s_idx = 0;
+                            if (vertical_angle > 45) {
+                                s_idx = 2; /* Top */
+                            } else if (vertical_angle < -45) {
+                                s_idx = 3; /* Bottom */
+                            } else {
+                                if (rel_angle > 315 || rel_angle <= 45) {
+                                    s_idx = 0; /* Front */
+                                } else if (rel_angle > 45 && rel_angle <= 135) {
+                                    s_idx = 5; /* Right */
+                                } else if (rel_angle > 135 && rel_angle <= 225) {
+                                    s_idx = 1; /* Rear */
+                                } else {
+                                    s_idx = 4; /* Left */
+                                }
+                            }
+
+                            /* Shield absorption */
+                            if (p->state.shields[s_idx] > 0) {
+                                if (p->state.shields[s_idx] >= dmg_rem) {
+                                    p->state.shields[s_idx] -= dmg_rem;
+                                    dmg_rem = 0;
+                                } else {
+                                    dmg_rem -= p->state.shields[s_idx];
+                                    p->state.shields[s_idx] = 0;
+                                }
+                            }
+
+                            /* Hull and Energy impact */
+                            if (dmg_rem > 0) {
+                                double hull_dmg = dmg_rem / 1000.0;
+                                apply_hull_damage(tid - 1, hull_dmg);
+                                p->state.energy -= (dmg_rem / 2);
+                            } else {
+                                /* Even if shields hold, take minor energy drain from impact stress */
+                                p->state.energy -= 500;
+                            }
+
+                            p->shield_regen_delay = 90;
                             p->state.boom = (NetPoint){p->state.s1, p->state.s2, p->state.s3, 1}; 
                             players[i].state.boom = (NetPoint){rel_tx, rel_ty, rel_tz, 1}; 
-                            if(p->state.energy <= 0) p->death_timer = 30;
+                            
+                            if (p->state.energy <= 0 || p->state.hull_integrity <= 0) {
+                                p->state.energy = 0;
+                                p->state.hull_integrity = 0;
+                                p->death_timer = 30;
+                            }
+                            
+                            send_server_msg(tid - 1, "WARNING", "TORPEDO IMPACT DETECTED!");
                         }
                     }
-                } else if (tid >= 1000 && tid < 1000+MAX_NPC) {
-                    NPCShip *npc = &npcs[tid-1000];
+                } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) {
+                    NPCShip *npc = &npcs[tid - GALAXY_OBJECT_MIN_NPC];
                     if (npc->active) {
-                        double d = sqrt(pow(players[i].tx - npc->gx, 2) + pow(players[i].ty - npc->gy, 2) + pow(players[i].tz - npc->gz, 2));
+                        double d = sqrt(pow(players[i].tx - npc->gx, 2) + 
+                                        pow(players[i].ty - npc->gy, 2) + 
+                                        pow(players[i].tz - npc->gz, 2));
                         if (d < 0.8) { 
                             hit = true; 
                             double precision_mult = (d < 0.2) ? 1.2 : (d < 0.5) ? 1.0 : 0.7;
                             double faction_mult = (npc->faction == FACTION_SWARM || npc->faction == FACTION_SPECIES_8472) ? 0.6 : (npc->faction == FACTION_GILDED || npc->faction == FACTION_GORN) ? 1.4 : 1.0;
                             int total_dmg = (int)(DMG_TORPEDO * precision_mult * faction_mult);
-                            if (npc->plating > 0) { if (npc->plating >= total_dmg) { npc->plating -= total_dmg; total_dmg = 0; } else { total_dmg -= npc->plating; npc->plating = 0; } }
-                            if (total_dmg > 0) npc->health -= (total_dmg / 100);
-                            npc->engine_health -= (10.0 + (rand()%11)); if (npc->engine_health < 0) npc->engine_health = 0;
+                            if (npc->plating > 0) {
+                                if (npc->plating >= total_dmg) {
+                                    npc->plating -= total_dmg;
+                                    total_dmg = 0;
+                                } else {
+                                    total_dmg -= npc->plating;
+                                    npc->plating = 0;
+                                }
+                            }
+                            if (total_dmg > 0) {
+                                npc->health -= (total_dmg / 100);
+                            }
+                            npc->engine_health -= (10.0 + (rand() % 11));
+                            if (npc->engine_health < 0) {
+                                npc->engine_health = 0;
+                            }
                             players[i].state.boom = (NetPoint){rel_tx, rel_ty, rel_tz, 1}; 
-                            if(npc->health <= 0) npc->death_timer = 30;
+                            if (npc->health <= 0) {
+                                npc->death_timer = 30;
+                            }
                         }
                     }
-                } else if (tid >= 16000 && tid < 16000+MAX_PLATFORMS) {
-                    NPCPlatform *plat = &platforms[tid-16000];
+                } else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM) {
+                    NPCPlatform *plat = &platforms[tid - GALAXY_OBJECT_MIN_PLATFORM];
                     if (plat->active) {
-                        double pgx = (plat->q1-1)*10.0 + plat->x, pgy = (plat->q2-1)*10.0 + plat->y, pgz = (plat->q3-1)*10.0 + plat->z;
-                        double d = sqrt(pow(players[i].tx - pgx, 2) + pow(players[i].ty - pgy, 2) + pow(players[i].tz - pgz, 2));
-                        if (d < 0.8) { hit = true; plat->health -= (DMG_TORPEDO / 100); players[i].state.boom = (NetPoint){rel_tx, rel_ty, rel_tz, 1}; if (plat->health <= 0) plat->active = 0; }
+                        double pgx = (plat->q1 - 1) * 10.0 + plat->x;
+                        double pgy = (plat->q2 - 1) * 10.0 + plat->y;
+                        double pgz = (plat->q3 - 1) * 10.0 + plat->z;
+                        double d = sqrt(pow(players[i].tx - pgx, 2) + 
+                                        pow(players[i].ty - pgy, 2) + 
+                                        pow(players[i].tz - pgz, 2));
+                        if (d < 0.8) {
+                            hit = true;
+                            plat->health -= (DMG_TORPEDO / 100);
+                            players[i].state.boom = (NetPoint){rel_tx, rel_ty, rel_tz, 1};
+                            if (plat->health <= 0) {
+                                plat->active = 0;
+                            }
+                        }
                     }
-                } else if (tid >= 18000 && tid < 18000+MAX_MONSTERS) {
-                    NPCMonster *mon = &monsters[tid-18000];
+                } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER) {
+                    NPCMonster *mon = &monsters[tid - GALAXY_OBJECT_MIN_MONSTER];
                     if (mon->active) {
-                        double mgx = (mon->q1-1)*10.0 + mon->x, mgy = (mon->q2-1)*10.0 + mon->y, mgz = (mon->q3-1)*10.0 + mon->z;
-                        double d = sqrt(pow(players[i].tx - mgx, 2) + pow(players[i].ty - mgy, 2) + pow(players[i].tz - mgz, 2));
-                        if (d < 0.8) { hit = true; mon->health -= (DMG_TORPEDO / 100); players[i].state.boom = (NetPoint){rel_tx, rel_ty, rel_tz, 1}; if (mon->health <= 0) mon->active = 0; }
+                        double mgx = (mon->q1 - 1) * 10.0 + mon->x;
+                        double mgy = (mon->q2 - 1) * 10.0 + mon->y;
+                        double mgz = (mon->q3 - 1) * 10.0 + mon->z;
+                        double d = sqrt(pow(players[i].tx - mgx, 2) + 
+                                        pow(players[i].ty - mgy, 2) + 
+                                        pow(players[i].tz - mgz, 2));
+                        if (d < 0.8) {
+                            hit = true;
+                            mon->health -= (DMG_TORPEDO / 100);
+                            players[i].state.boom = (NetPoint){rel_tx, rel_ty, rel_tz, 1};
+                            if (mon->health <= 0) {
+                                mon->active = 0;
+                            }
+                        }
                     }
                 }
             }
@@ -1284,7 +1831,7 @@ void update_game_logic() {
         /* 1. NPC Ships */
         for(int n=0; n<lq->npc_count && o_idx < MAX_NET_OBJECTS; n++) {
             NPCShip *npc = lq->npcs[n]; if (!npc->active) continue;
-            upd.objects[o_idx] = (NetObject){npc->x, npc->y, npc->z, npc->h, npc->m, npc->faction, npc->ship_class, 1, (int)(npc->health / 10), npc->energy, npc->plating, (int)(npc->health / 10), npc->faction, npc->id + 1000, npc->is_cloaked, ""};
+            upd.objects[o_idx] = (NetObject){npc->x, npc->y, npc->z, npc->h, npc->m, npc->faction, npc->ship_class, 1, (int)(npc->health / 10), npc->energy, npc->plating, (int)(npc->health / 10), npc->faction, npc->id + GALAXY_OBJECT_MIN_NPC, npc->is_cloaked, ""};
             snprintf(upd.objects[o_idx].name, 64, "%s", npc->name);
             o_idx++;
         }
@@ -1292,7 +1839,7 @@ void update_game_logic() {
         /* 2. Other Players */
         for(int j=0; j<lq->player_count && o_idx < MAX_NET_OBJECTS; j++) {
             ConnectedPlayer *p = lq->players[j]; if (p == &players[i] || !p->active) continue;
-            upd.objects[o_idx] = (NetObject){p->state.s1, p->state.s2, p->state.s3, p->state.van_h, p->state.van_m, 1, p->ship_class, 1, (int)p->state.hull_integrity, p->state.energy, 0, (int)p->state.hull_integrity, p->faction, (int)(p - players) + 1, p->state.is_cloaked, ""};
+            upd.objects[o_idx] = (NetObject){p->state.s1, p->state.s2, p->state.s3, p->state.van_h, p->state.van_m, 1, p->ship_class, 1, (int)p->state.hull_integrity, p->state.energy, 0, (int)p->state.hull_integrity, p->faction, (int)(p - players) + GALAXY_OBJECT_MIN_PLAYER, p->state.is_cloaked, ""};
             snprintf(upd.objects[o_idx].name, 64, "%s", p->name);
             o_idx++;
         }
@@ -1300,61 +1847,61 @@ void update_game_logic() {
         /* 3. Static Celestial Entities */
         for(int s=0; s<lq->star_count && o_idx < MAX_NET_OBJECTS; s++) {
             NPCStar *st = lq->stars[s]; if(!st->active) continue;
-            upd.objects[o_idx++] = (NetObject){st->x, st->y, st->z, 0, 0, 4, 0, 1, 100, 0, 0, 100, 4, st->id + 4000, 0, "Star"};
+            upd.objects[o_idx++] = (NetObject){st->x, st->y, st->z, 0, 0, 4, 0, 1, 100, 0, 0, 100, 4, st->id + GALAXY_OBJECT_MIN_STAR, 0, "Star"};
         }
         for(int p=0; p<lq->planet_count && o_idx < MAX_NET_OBJECTS; p++) {
             NPCPlanet *pl = lq->planets[p]; if(!pl->active) continue;
-            upd.objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 5, pl->resource_type, 1, 100, pl->amount, 0, 100, 5, pl->id + 3000, 0, "Planet"};
+            upd.objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 5, pl->resource_type, 1, 100, pl->amount, 0, 100, 5, pl->id + GALAXY_OBJECT_MIN_PLANET, 0, "Planet"};
         }
         for(int b=0; b<lq->base_count && o_idx < MAX_NET_OBJECTS; b++) {
             NPCBase *ba = lq->bases[b]; if(!ba->active) continue;
-            upd.objects[o_idx++] = (NetObject){ba->x, ba->y, ba->z, 0, 0, 3, 0, 1, (int)(ba->health/50), 0, 0, (int)(ba->health/50), 0, ba->id + 2000, 0, "Starbase"};
+            upd.objects[o_idx++] = (NetObject){ba->x, ba->y, ba->z, 0, 0, 3, 0, 1, (int)(ba->health/50), 0, 0, (int)(ba->health/50), 0, ba->id + GALAXY_OBJECT_MIN_STARBASE, 0, "Starbase"};
         }
         for(int h=0; h<lq->bh_count && o_idx < MAX_NET_OBJECTS; h++) {
             NPCBlackHole *bh = lq->black_holes[h]; if(!bh->active) continue;
-            upd.objects[o_idx++] = (NetObject){bh->x, bh->y, bh->z, 0, 0, 6, 0, 1, 100, 0, 0, 100, 6, bh->id + 7000, 0, "Black Hole"};
+            upd.objects[o_idx++] = (NetObject){bh->x, bh->y, bh->z, 0, 0, 6, 0, 1, 100, 0, 0, 100, 6, bh->id + GALAXY_OBJECT_MIN_BLACKHOLE, 0, "Black Hole"};
         }
         for(int n=0; n<lq->nebula_count && o_idx < MAX_NET_OBJECTS; n++) {
             NPCNebula *nb = lq->nebulas[n]; if(!nb->active) continue;
-            upd.objects[o_idx++] = (NetObject){nb->x, nb->y, nb->z, 0, 0, 7, nb->type, 1, 100, 0, 0, 100, 7, nb->id + 8000, 0, "Nebula"};
+            upd.objects[o_idx++] = (NetObject){nb->x, nb->y, nb->z, 0, 0, 7, nb->type, 1, 100, 0, 0, 100, 7, nb->id + GALAXY_OBJECT_MIN_NEBULA, 0, "Nebula"};
         }
         for(int p=0; p<lq->pulsar_count && o_idx < MAX_NET_OBJECTS; p++) {
             NPCPulsar *pu = lq->pulsars[p]; if(!pu->active) continue;
-            upd.objects[o_idx++] = (NetObject){pu->x, pu->y, pu->z, 0, 0, 8, 0, 1, 100, 0, 0, 100, 8, pu->id + 9000, 0, "Pulsar"};
+            upd.objects[o_idx++] = (NetObject){pu->x, pu->y, pu->z, 0, 0, 8, 0, 1, 100, 0, 0, 100, 8, pu->id + GALAXY_OBJECT_MIN_PULSAR, 0, "Pulsar"};
         }
         for(int c=0; c<lq->comet_count && o_idx < MAX_NET_OBJECTS; c++) {
             NPCComet *co = lq->comets[c]; if(!co->active) continue;
-            upd.objects[o_idx++] = (NetObject){co->x, co->y, co->z, 0, 0, 9, 0, 1, 100, 0, 0, 100, 9, co->id + 10000, 0, "Comet"};
+            upd.objects[o_idx++] = (NetObject){co->x, co->y, co->z, 0, 0, 9, 0, 1, 100, 0, 0, 100, 9, co->id + GALAXY_OBJECT_MIN_COMET, 0, "Comet"};
         }
         for(int d=0; d<lq->derelict_count && o_idx < MAX_NET_OBJECTS; d++) {
             NPCDerelict *de = lq->derelicts[d]; if(!de->active) continue;
-            upd.objects[o_idx] = (NetObject){de->x, de->y, de->z, 0, 0, 22, de->ship_class, 1, 100, 0, 0, 100, de->faction, de->id + 11000, 0, ""};
+            upd.objects[o_idx] = (NetObject){de->x, de->y, de->z, 0, 0, 22, de->ship_class, 1, 100, 0, 0, 100, de->faction, de->id + GALAXY_OBJECT_MIN_DERELICT, 0, ""};
             snprintf(upd.objects[o_idx].name, 64, "%s", de->name);
             o_idx++;
         }
         for(int a=0; a<lq->asteroid_count && o_idx < MAX_NET_OBJECTS; a++) {
             NPCAsteroid *as = lq->asteroids[a]; if(!as->active) continue;
-            upd.objects[o_idx++] = (NetObject){as->x, as->y, as->z, 0, 0, 21, as->resource_type, 1, 100, as->amount, (int)(as->size * 100), 100, 21, as->id + 12000, 0, "Asteroid"};
+            upd.objects[o_idx++] = (NetObject){as->x, as->y, as->z, 0, 0, 21, as->resource_type, 1, 100, as->amount, (int)(as->size * 100), 100, 21, as->id + GALAXY_OBJECT_MIN_ASTEROID, 0, "Asteroid"};
         }
         for(int m=0; m<lq->mine_count && o_idx < MAX_NET_OBJECTS; m++) {
             NPCMine *mi = lq->mines[m]; if(!mi->active) continue;
-            upd.objects[o_idx++] = (NetObject){mi->x, mi->y, mi->z, 0, 0, 23, 0, 1, 100, 0, 0, 100, 23, mi->id + 14000, 0, "Mine"};
+            upd.objects[o_idx++] = (NetObject){mi->x, mi->y, mi->z, 0, 0, 23, 0, 1, 100, 0, 0, 100, 23, mi->id + GALAXY_OBJECT_MIN_MINE, 0, "Mine"};
         }
         for(int b=0; b<lq->buoy_count && o_idx < MAX_NET_OBJECTS; b++) {
             NPCBuoy *bu = lq->buoys[b]; if(!bu->active) continue;
-            upd.objects[o_idx++] = (NetObject){bu->x, bu->y, bu->z, 0, 0, 24, 0, 1, 100, 0, 0, 100, 24, bu->id + 15000, 0, "Comm Buoy"};
+            upd.objects[o_idx++] = (NetObject){bu->x, bu->y, bu->z, 0, 0, 24, 0, 1, 100, 0, 0, 100, 24, bu->id + GALAXY_OBJECT_MIN_BUOY, 0, "Comm Buoy"};
         }
         for(int p=0; p<lq->platform_count && o_idx < MAX_NET_OBJECTS; p++) {
             NPCPlatform *pl = lq->platforms[p]; if(!pl->active) continue;
-            upd.objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 25, 0, 1, (int)(pl->health/50), 0, 0, (int)(pl->health/50), pl->faction, pl->id + 16000, 0, "Defense Platform"};
+            upd.objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 25, 0, 1, (int)(pl->health/50), 0, 0, (int)(pl->health/50), pl->faction, pl->id + GALAXY_OBJECT_MIN_PLATFORM, 0, "Defense Platform"};
         }
         for(int r=0; r<lq->rift_count && o_idx < MAX_NET_OBJECTS; r++) {
             NPCRift *ri = lq->rifts[r]; if(!ri->active) continue;
-            upd.objects[o_idx++] = (NetObject){ri->x, ri->y, ri->z, 0, 0, 26, 0, 1, 100, 0, 0, 100, 26, ri->id + 17000, 0, "Spatial Rift"};
+            upd.objects[o_idx++] = (NetObject){ri->x, ri->y, ri->z, 0, 0, 26, 0, 1, 100, 0, 0, 100, 26, ri->id + GALAXY_OBJECT_MIN_RIFT, 0, "Spatial Rift"};
         }
         for(int m=0; m<lq->monster_count && o_idx < MAX_NET_OBJECTS; m++) {
             NPCMonster *mo = lq->monsters[m]; if(!mo->active) continue;
-            upd.objects[o_idx] = (NetObject){mo->x, mo->y, mo->z, 0, 0, mo->type, 0, 1, (int)(mo->health/1000), 0, 0, (int)(mo->health/1000), 30, mo->id + 18000, 0, ""};
+            upd.objects[o_idx] = (NetObject){mo->x, mo->y, mo->z, 0, 0, mo->type, 0, 1, (int)(mo->health/1000), 0, 0, (int)(mo->health/1000), 30, mo->id + GALAXY_OBJECT_MIN_MONSTER, 0, ""};
             snprintf(upd.objects[o_idx].name, 64, "%s", (mo->type==30)?"Crystalline Entity":"Space Amoeba");
             o_idx++;
         }

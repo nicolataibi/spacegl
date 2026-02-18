@@ -73,6 +73,18 @@ In un altro terminale, lancia il client:
 3.  **Identificazione:** Solo se il link è sicuro, ti verrà chiesto il **Commander Name**.
 4.  **Configurazione:** Se è la tua prima volta, sceglierai Fazione e Classe della nave.
 
+### 5. Strumenti di Diagnostica (SpaceGL Viewer)
+Per monitorare la galassia in tempo reale o ispezionare il file di salvataggio `galaxy.dat`, è disponibile uno strumento di amministrazione dedicato:
+```bash
+# Esempi di utilizzo
+./spacegl_viewer stats          # Statistiche globali e conteggio fazioni
+./spacegl_viewer master         # Stato vitale della nave (Energia, Scudi, Inventario)
+./spacegl_viewer list 10 1 39   # Elenco oggetti e sonde in un quadrante specifico
+./spacegl_viewer search "Nick"  # Trova la posizione di un giocatore o NPC
+./spacegl_viewer report         # Genera un'anagrafica completa di tutti gli oggetti (>14.000)
+```
+Il viewer esegue una diagnostica automatica dell'allineamento binario all'avvio per garantire l'integrità dei dati letti.
+
 ---
 
 ## ⚙️ Configurazione Avanzata e Modding
@@ -119,7 +131,14 @@ La galassia è un cubo **40x40x40** che contiene **64.000 quadranti unici**.
     *   **Minacce Classe-Omega**: Monitoraggio specifico di entità uniche come l'**Entità Cristallina** e l'**Ameba Spaziale**.
 *   **Identificazione Univoca**: Ogni vascello nella galassia, sia esso attivo o un relitto, possiede un **nome proprio** estratto da database storici specifici per fazione (es. *IKS Bortas* per i Korthian, *Enterprise* per l'Alleanza). Le etichette generiche "(OTHER)" sono state completamente eliminate dai sensori.
 
-### 2. Navigazione Avanzata (Standard GDIS)
+### 2. Sopravvivenza ed Energia (Life Support)
+Il realismo della simulazione è garantito da un sistema di consumo energetico dinamico che non si ferma mai:
+*   **Life Support (Base Drain)**: La nave consuma costantemente **1 unità di energia per tick** (~30/sec) per mantenere i sistemi vitali.
+*   **Allarme Rosso**: L'energizzazione dei sistemi tattici triplica il consumo di base (**3 unità/tick**).
+*   **Docking Safe Mode**: Il consumo energetico è completamente sospeso quando la nave è collegata a una Base Stellare (alimentazione esterna).
+*   **Emergenza Energia**: Se le riserve scendono a zero, il **Supporto Vitale** inizia a degradarsi dello **0.1% per tick**. Al raggiungimento dello **0%**, si verificheranno **vittime tra l'equipaggio** (1 membro al secondo). Ripristinare l'energia ricaricherà automaticamente il supporto vitale.
+
+### 3. Navigazione Avanzata (Standard GDIS)
 Il sistema di navigazione è stato riprogettato per garantire precisione matematica e fluidità visiva:
 *   **Coordinate Galattiche Assolute:** Tutti i calcoli di movimento e distanza utilizzano una scala standardizzata **0.0 - 400.0 assoluta**. Questo garantisce puntamenti coerenti e tracciamento dei siluri affidabile anche quando si attraversano i confini dei quadranti.
 *   **Navigazione di Precisione (`nav`):** Il comando `nav` ora integra un sistema di blocco della destinazione. Una volta raggiunte le coordinate `target_gx/gy/gz` calcolate, la nave disattiverà automaticamente i motori e uscirà dall'Hyperdrive nella posizione precisa richiesta.
@@ -131,12 +150,18 @@ Il sistema di navigazione è stato riprogettato per garantire precisione matemat
 *   **Limiti Galattici:** I confini della galassia sono applicati rigidamente a **[0.05, 399.95]**. Le navi che tentano di uscire dalla galassia attiveranno automaticamente i freni di emergenza e invertiranno la rotta (virata di 180°) per rimanere nello spazio navigabile.
 
 ### 3. Revisione del Combattimento Tattico
-Il combattimento contro i vascelli NPC presenta ora un modello di danno sofisticato e un tracciamento degli ordigni migliorato:
+Il combattimento presenta ora un modello di danno sofisticato, con tracciamento degli ordigni migliorato e gestione dinamica delle difese:
 *   **Tracciamento Assoluto Ordigni:** I siluri si muovono ora utilizzando le **Coordinate Galattiche Assolute**. Questo permette a un siluro lanciato in un quadrante di colpire con successo un bersaglio che si è spostato in un settore adiacente, eliminando i "mancamenti fantasma" ai confini.
 *   **Homing Migliorato:** Il sistema di autoguida dei siluri è stato potenziato (fattore di correzione 45%), affidandosi alla salute dei **Sensori (ID 2)** per la precisione.
 *   **Scaling della Precisione:** Il danno dei siluri varia in base all'accuratezza dell'impatto. I colpi diretti (<0.2 unità) ricevono un **bonus del 1.2x**, mentre i colpi di striscio (0.5-0.8 unità) sono ridotti allo **0.7x**.
 *   **Resistenza di Fazione:** Le tecnologie degli scafi alieni reagiscono diversamente ai siluri dell'Alleanza. Le **Bio-corazze (Swarm, Species 8472)** riducono il danno a **0.6x**, mentre gli scafi fragili commerciali o da esplorazione (**Gilded, Gorn**) subiscono danni aumentati a **1.4x**.
-*   **Difesa a Strati (Plating vs. Hull):** I siluri devono prima erodere il **Plating** (corazza composita) di un vascello prima di infliggere danni strutturali allo **Hull** (scafo).
+*   **Difesa a Strati e Assorbimento Scudi:**
+    *   **Assorbimento Direzionale**: I siluri colpiscono ora settori specifici degli scudi (**Frontale, Posteriore, Superiore, Inferiore, Sinistro, Destro**) in base all'angolo di impatto relativo.
+    *   **Priorità Difensiva**: Il danno viene assorbito prioritariamente dallo scudo del settore colpito. Solo se lo scudo è esaurito o insufficiente, il danno residuo viene applicato al **Plating** (corazza composita) e infine allo **Hull** (scafo).
+    *   **Drenaggio Energetico**: Anche se gli scudi reggono l'impatto, lo stress cinetico causa un drenaggio minore delle riserve energetiche della nave.
+*   **Gestione Intelligente del Lock Target**:
+    *   **Rilascio Automatico**: Per garantire la coerenza tattica, il sistema di puntamento (`lock`) viene disattivato automaticamente se il bersaglio viene distrutto, se esce dal quadrante attuale o se la nave del giocatore cambia settore.
+    *   **Validazione Continua**: Il computer di bordo monitora costantemente la validità del bersaglio ad ogni tick logico.
 *   **Danni Sistemici ai Motori:** Ogni impatto andato a segno infligge dal **10% al 20% di danno permanente** ai motori dell'NPC, causandone la perdita di velocità e manovrabilità durante il corso della battaglia.
 
 ### 4. Ottimizzazione Prestazioni e Strutturale (Risoluzione Lag)
@@ -171,6 +196,16 @@ Per mantenere un tasso logico di 30 TPS (Tick Per Secondo) costante gestendo un 
 | **Scrittura Memoria (Tick)**| 275 MB (memset) | ~150 KB (selettiva) | **1.800x più efficiente** |
 | **Latenza Salvataggio** | ~50-200 ms (Stop-the-world) | < 1 ms (Copia asincrona) | **Fluidità infinita** |
 | **Calcolo Griglia LRS** | 1.920.000/sec | 64.000/sec | **Riduzione di 30x** |
+
+#### ⚡ D. Sistema Energetico a 64-bit e Logica di Sicurezza (v2.2)
+*   **Il Problema**: Il precedente modello a 32-bit (`int`) limitava l'energia a circa 2 miliardi di unità, insufficienti per simulazioni di grandi flotte o persistenza a lungo termine. Inoltre, le sottrazioni dirette erano vulnerabili all'underflow.
+*   **La Soluzione**: Abbiamo rifattorizzato l'intero motore delle risorse per utilizzare **interi a 64-bit senza segno (`uint64_t`)**.
+    *   **Capacità Maggiorata**: `MAX_ENERGY_CAPACITY` elevato a **999.999.999.999** unità.
+    *   **Protezione Underflow**: Tutta la logica di consumo (Combattimento, Navigazione, Drenaggio) utilizza ora un pattern di "Sottrazione Sicura": `if (energy >= cost) energy -= cost; else energy = 0;`. Questo previene il "wrap-around" degli unsigned che garantirebbe energia infinita dopo l'esaurimento.
+    *   **Overhaul Effetti Visivi (Smantellamento)**: Potenziato il sistema particellare del comando `dis` con un aumento di 6 volte della dimensione dei frammenti, fisica di espansione ottimizzata e mappatura accurata dei Colori di Fazione per un feedback tattico ad alta fedeltà.
+    *   **Sincronizzazione Stato al Login**: Ottimizzato l'handshake di rete per forzare una sincronizzazione totale immediata al rientro in gioco. Questo garantisce che i flag tattici persistenti (Bussola AR, Griglia, modalità HUD) siano ripristinati correttamente nel Visualizzatore 3D fin dal primo frame.
+    *   **Sincronizzazione Binaria**: Riallineati i pacchetti di rete e la memoria condivisa (SHM) per garantire la compatibilità zero-copy con il nuovo layout a 64-bit.
+    *   **Impatto**: Supporto per riserve energetiche astronomiche e stabilità logica assoluta durante la deplezione delle risorse.
 
 ---
 
@@ -554,7 +589,7 @@ Di seguito la lista completa dei comandi disponibili, raggruppati per funzione.
     *   **Requisiti**: Minimo 10% di integrità per i sistemi **Impulse (ID 1)** e **Computer (ID 6)**.
     *   **Costo**: 100 unità di Energia per l'ingaggio dell'autopilota.
     *   **Validazione**: Il bersaglio deve essere rilevabile dai sensori e non occultato (a meno che non appartenga alla propria fazione).
-    *   **Tracking Globale**: Supporta l'inseguimento di oggetti statici (Stelle, Pianeti, Basi, Asteroidi, Relitti) attraverso i confini dei quadranti, permettendo viaggi a lungo raggio automatizzati senza dover ricalcolare la rotta ad ogni salto di settore.
+    *   **Limitazione Quadrante**: L'attivazione dell'autopilota è limitata agli oggetti presenti nel quadrante attuale della nave per garantire la sicurezza della navigazione.
     *   Se non viene fornito un ID, utilizza il **bersaglio attualmente agganciato**.
     *   Se viene fornito un solo numero, viene interpretato come **distanza** per il bersaglio agganciato (se < 100).
     *   Fornisce una conferma radio specifica menzionando il nome del bersaglio.
@@ -605,6 +640,7 @@ L'efficacia dei tuoi sensori dipende direttamente dallo stato di salute del **si
     *   **Requisiti**: Minimo 5% di integrità del sistema Sensori (ID 2).
     *   **Costo**: 10 unità di Energia per scansione.
     *   **Rumore Telemetrico**: Se l'integrità dei sensori è inferiore al 50%, viene emesso un avviso e la precisione dei dati inizia a degradare.
+    *   **Analisi Asteroidi**: I sensori forniscono un'analisi immediata della composizione minerale per tutti gli asteroidi rilevati nel quadrante.
     *   **Scansione del Vicinato**: Se la nave è vicina ai confini del settore (< 2.5 unità), i sensori rilevano automaticamente gli oggetti nei quadranti adiacenti, elencandoli in una sezione dedicata per prevenire imboscate.
 *   `lrs`: **Sensori a Lungo Raggio**. Scansione 3x3x3 dei quadranti circostanti visualizzata tramite **Console Tattica GDIS**.
     *   **Requisiti**: Minimo 15% di integrità del sistema Sensori (ID 2).
@@ -672,10 +708,12 @@ L'efficacia dei tuoi sensori dipende direttamente dallo stato di salute del **si
     *   **Rischi**: Possibilità di malfunzionamento (siluro perso, nessun lancio) se l'integrità è inferiore al 75%.
     *   **Guida**: L'accuratezza del sistema di autoguida dipende dalla salute dei **Sensori (ID 2)**. Sensori danneggiati riducono la capacità del siluro di correggere la propria rotta.
 *   `tor <H> <M>`: Lancia un siluro in modalità balistica manuale (Heading/Mark).
-*   `lock <ID>`: **Aggancio Bersaglio**. Aggancia i sistemi di puntamento sul bersaglio ID (0 per sbloccare). 
+*   `lock <ID>`: **Aggancio Bersaglio**. Aggancia i sistemi di puntamento sul bersaglio ID.
+    *   **Rilascio manuale**: Usa `lock off` per liberare i sistemi di puntamento.
     *   **Requisiti**: Minimo 10% di integrità del sistema Sensori (ID 2).
     *   **Costo**: 5 unità di Energia per l'acquisizione dell'aggancio.
-    *   **Validazione**: Il bersaglio deve essere presente nel quadrante attuale e non occultato (a meno che non appartenga alla propria fazione).
+    *   **Validazione e Restrizioni**: Il bersaglio deve essere presente nel **quadrante attuale** e non occultato (a meno che non appartenga alla propria fazione).
+    *   **Rilascio Automatico**: Il lock si disinserisce istantaneamente se il bersaglio viene distrutto, esce dal settore o se la nave del giocatore cambia quadrante.
     *   Essenziale per la guida automatizzata di Ion Beam e siluri.
 
 
@@ -685,24 +723,24 @@ Per interagire con gli oggetti galattici usando i comandi `lock`, `scan`, `pha`,
 | Categoria | Intervallo ID | Esempio | Utilizzo Primario |
 | :--- | :--- | :--- | :--- |
 | **Giocatore** | 1 - 999 | `lock 1` | Tuo vascello o altri giocatori |
-| **NPC (Nemico)** | 1.000 - 1.999 | `lock 1050` | Inseguimento (`cha`) e combattimento |
-| **Basi Stellari** | 2.000 - 2.999 | `lock 2005` | Attracco (`doc`) e rifornimento |
-| **Pianeti** | 3.000 - 3.999 | `lock 3012` | Estrazione planetaria (`min`) |
-| **Stelle** | 4.000 - 6.999 | `lock 4500` | Ricarica solare (`sco`) |
-| **Buchi Neri** | 7.000 - 7.999 | `lock 7001` | Raccolta Plasma Reserves (`har`) |
-| **Nebulose** | 8.000 - 8.999 | `lock 8000` | Analisi scientifica e copertura |
-| **Pulsar** | 9.000 - 9.999 | `lock 9000` | Monitoraggio radiazioni |
-| **Comete** | 10.000 - 10.999| `lock 10001` | Inseguimento e raccolta gas rari |
-| **Relitti** | 11.000 - 11.999| `lock 11005` | Abbordaggio (`bor`) e recupero tech |
-| **Asteroidi** | 12.000 - 13.999| `lock 12000` | Navigazione di precisione |
-| **Mine** | 14.000 - 14.999| `lock 14000` | Allerta tattica ed evitamento |
-| **Boe Comm.** | 15.000 - 15.999| `lock 15000` | Link dati e potenziamento `lrs` |
-| **Piattaforme** | 16.000 - 16.999| `lock 16000` | Distruzione sentinelle ostili |
-| **Rift Spaziali** | 17.000 - 17.999| `lock 17000` | Utilizzo per salti casuali |
-| **Mostri** | 18.000 - 18.999| `lock 18000` | Scenari di combattimento estremo |
-| **Sonde** | 19.000 - 19.999| `apr 19000` | Recupero e telemetria automatizzata |
+| **NPC (Nemico)** | 1.000 - 3.999 | `lock 1050` | Inseguimento (`cha`) e combattimento |
+| **Basi Stellari** | 4.000 - 4.999 | `lock 4005` | Attracco (`doc`) e rifornimento |
+| **Pianeti** | 5.000 - 6.999 | `lock 5012` | Estrazione planetaria (`min`) |
+| **Stelle** | 7.000 - 10.999 | `lock 7500` | Ricarica solare (`sco`) |
+| **Buchi Neri** | 11.000 - 11.999 | `lock 11001` | Raccolta Plasma Reserves (`har`) |
+| **Nebulose** | 12.000 - 12.999 | `lock 12000` | Analisi scientifica e copertura |
+| **Pulsar** | 13.000 - 13.999 | `lock 13000` | Monitoraggio radiazioni |
+| **Comete** | 14.000 - 14.999 | `lock 14001` | Inseguimento e raccolta gas rari |
+| **Relitti** | 15.000 - 17.999 | `lock 15005` | Abbordaggio (`bor`) e recupero tech |
+| **Asteroidi** | 18.000 - 20.499 | `lock 18000` | Navigazione di precisione |
+| **Mine** | 20.500 - 21.999 | `lock 20500` | Allerta tattica ed evitamento |
+| **Boe Comm.** | 22.000 - 22.999 | `lock 22000` | Link dati e potenziamento `lrs` |
+| **Piattaforme** | 23.000 - 23.999 | `lock 23000` | Distruzione sentinelle ostili |
+| **Rift Spaziali** | 24.000 - 24.999 | `lock 24000` | Utilizzo per salti casuali |
+| **Mostri** | 25.000 - 25.999 | `lock 25000` | Scenari di combattimento estremo |
+| **Sonde** | 26.000 - 26.999 | `apr 26000` | Recupero e telemetria automatizzata |
 
-**Nota**: L'aggancio e l'autopilota (`apr`) funzionano solo se l'oggetto è nel tuo quadrante attuale. Se l'ID esiste ma è lontano, il computer indicherà le coordinate `Q[x,y,z]` del bersaglio.
+**Nota**: L'aggancio e l'autopilota (`apr`) funzionano **esclusivamente** se l'oggetto è nel tuo quadrante attuale. Se l'ID esiste ma è lontano, il computer indicherà le coordinate `Q[x,y,z]` del bersaglio. Questo vincolo garantisce che l'autopilota operi solo su bersagli effettivamente rilevabili dai sensori a corto raggio.
 
 ### 🔄 Workflow Tattico Raccomandato
 Per eseguire operazioni complesse (estrazione, rifornimento, abbordaggio), segui questa sequenza ottimizzata:
@@ -743,22 +781,22 @@ Il comando `apr <ID> <DIST>` ti permette di avvicinarti automaticamente a qualsi
 
 | Categoria Oggetto | Intervallo ID | Comandi di Interazione | Dist. Min. | Note di Navigazione |
 | :--- | :--- | :--- | :--- | :--- |
-| **Capitani (Giocatori)** | 1 - 32 | `rad`, `pha`, `tor`, `bor` | **< 1.0** (`bor`) | Solo quadrante attuale |
-| **Navi NPC (Alieni)** | 1000 - 1999 | `pha`, `tor`, `bor`, `scan` | **< 1.0** (`bor`) | Solo quadrante attuale |
-| **Basi Stellari** | 2000 - 2199 | `doc`, `scan` | **< 3.1** | Solo quadrante attuale |
-| **Pianeti** | 3000 - 3999 | `min`, `scan` | **< 3.1** | Solo quadrante attuale |
-| **Stelle** | 4000 - 6999 | `sco`, `scan` | **< 3.1** | Solo quadrante attuale |
-| **Buchi Neri** | 7000 - 7199 | `har`, `scan` | **< 3.1** | Solo quadrante attuale |
-| **Nebulose** | 8000 - 8499 | `scan` | - | Solo quadrante attuale |
-| **Pulsar** | 9000 - 9199 | `scan` | - | Solo quadrante attuale |
-| **Comete** | 10000 - 10299 | `cha`, `scan` | **< 0.6** (Gas) | Solo quadrante attuale |
-| **Relitti** | 11000 - 11149 | `bor`, `dis`, `scan` | **< 1.5** | Solo quadrante attuale |
-| **Asteroidi** | 12000 - 13999 | `min`, `scan` | **< 3.1** | Solo quadrante attuale |
-| **Mine** | 14000 - 14999 | `scan` | - | Solo quadrante attuale |
-| **Boe Comm.** | 15000 - 15099 | `scan` | **< 1.2** | Solo quadrante attuale |
-| **Piattaforme Difesa** | 16000 - 16199 | `pha`, `tor`, `scan` | - | Solo quadrante attuale |
-| **Rift Spaziali** | 17000 - 17049 | `scan` | - | Solo quadrante attuale |
-| **Mostri Spaziali** | 18000 - 18029 | `pha`, `tor`, `scan` | **< 1.5** | Solo quadrante attuale |
+| **Capitani (Giocatori)** | 1 - 999 | `rad`, `pha`, `tor`, `bor` | **< 1.0** (`bor`) | Solo quadrante attuale |
+| **Navi NPC (Alieni)** | 1000 - 3999 | `pha`, `tor`, `bor`, `scan` | **< 1.0** (`bor`) | Solo quadrante attuale |
+| **Basi Stellari** | 4000 - 4999 | `doc`, `scan` | **< 3.1** | Solo quadrante attuale |
+| **Pianeti** | 5000 - 6999 | `min`, `scan` | **< 3.1** | Solo quadrante attuale |
+| **Stelle** | 7000 - 10999 | `sco`, `scan` | **< 3.1** | Solo quadrante attuale |
+| **Buchi Neri** | 11000 - 11999 | `har`, `scan` | **< 3.1** | Solo quadrante attuale |
+| **Nebulose** | 12000 - 12999 | `scan` | - | Solo quadrante attuale |
+| **Pulsar** | 13000 - 13999 | `scan` | - | Solo quadrante attuale |
+| **Comete** | 14000 - 14999 | `cha`, `scan` | **< 0.6** (Gas) | Solo quadrante attuale |
+| **Relitti** | 15000 - 17999 | `bor`, `dis`, `scan` | **< 1.5** | Solo quadrante attuale |
+| **Asteroidi** | 18000 - 20499 | `min`, `scan` | **< 3.1** | Solo quadrante attuale |
+| **Mine** | 20500 - 21999 | `scan` | - | Solo quadrante attuale |
+| **Boe Comm.** | 22000 - 22999 | `scan` | **< 1.2** | Solo quadrante attuale |
+| **Piattaforme Difesa** | 23000 - 23999 | `pha`, `tor`, `scan` | - | Solo quadrante attuale |
+| **Rift Spaziali** | 24000 - 24999 | `scan` | - | Solo quadrante attuale |
+| **Mostri Spaziali** | 25000 - 25999 | `pha`, `tor`, `scan` | **< 1.5** | Solo quadrante attuale |
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Configurazione Scudi**. Distribuisce l'energia ai 6 scudi.
     *   **Requisiti**: Minimo 10% di integrità del sistema Scudi (ID 8).
@@ -777,7 +815,8 @@ Il comando `apr <ID> <DIST>` ti permette di avvicinarti automaticamente a qualsi
     *   **Feedback**: Fornisce una conferma immediata della nuova distribuzione percentuale.
     *   **Impatto Strategico**: Determina le prestazioni dei motori sub-luce, il tasso di ricarica degli scudi e l'intensità dei banchi Ion Beam.
 *   `aux jettison`: **Espulsione Synaptics Hyperdrive**. Espelle il nucleo (Manovra suicida / Ultima risorsa).
-*   `xxx`: **Autodistruzione**. Autodistruzione sequenziale.
+*   `xxx`: **Autodistruzione**. Autodistruzione sequenziale. Attiva il **Rientro di Emergenza** (vedi sotto).
+*   `zztop`: **Cancellazione Totale Profilo**. Purga permanentemente il nome del capitano e tutti i dati della carriera dal database della galassia. Questa azione è irreversibile e interrompe la connessione.
 
 ### ⚡ Gestione del Reattore e della Potenza
 
@@ -794,7 +833,10 @@ La nave è protetta da 6 quadranti indipendenti: **Frontale (F), Posteriore (R),
 *   **Integrità dello Scafo**: Rappresenta la salute fisica della nave (0-100%). Se un quadrante di scudo raggiunge lo 0% o l'impatto è eccessivamente potente, il danno residuo colpisce direttamente l'integrità strutturale.
 *   **Danni ai Sistemi Interni**: Ogni colpo diretto allo scafo (quando gli scudi sono abbassati o bypassati) causa automaticamente una piccola percentuale di danno (1-5%) a un sistema di bordo scelto a caso (Motori, Sensori, Computer, ecc.). Questo rende l'esposizione dello scafo estremamente pericolosa anche contro armi a bassa potenza.
 *   **Placcatura dello Scafo (Composite)**: Una placcatura aggiuntiva (comando `hull`) funge da buffer: assorbe i danni fisici *prima* che colpiscano l'integrità dello scafo.
-*   **Condizione di Distruzione**: Se l'**Integrità dello Scafo raggiunge lo 0%**, la nave esplode istantaneamente, indipendentemente dall'energia rimanente o dai livelli degli scudi.
+*   **Rientro di Emergenza (Nessun Game Over)**: Se l'**Integrità dello Scafo raggiunge lo 0%** (o l'Equipaggio viene perso), la nave NON viene distrutta permanentemente.
+    *   **Trasferimento Scafo**: Lo scafo danneggiato viene espulso e diventa un **relitto permanente** nel settore attuale (recuperabile da altri giocatori).
+    *   **Salvataggio**: Verrai istantaneamente trasferito in un **quadrante sicuro** con un vascello sostitutivo.
+    *   **Stato**: La nuova nave inizia con **80% di integrità dei sistemi**, energia al massimo e una scorta base di siluri. La tua carriera continua senza disconnessione.
 *   **Rigenerazione Continua**: A differenza dei vecchi sistemi, la rigenerazione degli scudi è continua ma scala con lo stato dell'hardware.
 *   **Fallimento dello Scudo**: Se un quadrante raggiunge lo 0% di integrità, i successivi colpi da quella direzione infliggeranno danni diretti allo scafo e al reattore energetico principale.
 
@@ -891,7 +933,7 @@ L'HUD visualizza "LIFE SUPPORT: XX.X%", che è direttamente collegato all'integr
     *   **Requisiti**: Minimo 10% di integrità del sistema Ausiliario (ID 9).
     *   **Costo**: 25 unità di Energia per ogni ciclo di trasferimento.
     *   **Tipi**:
-        *   `1`: Energia (Reattore Principale). Capacità max: 9.999.999 unità.
+        *   `1`: Energia (Reattore Principale). Capacità max: 999.999.999.999 unità.
         *   `2`: Siluri (Tubi di Lancio). Capacità max: 1000 unità.
     *   **Feedback**: Conferma l'esatta quantità di risorse spostate nei sistemi operativi.
 

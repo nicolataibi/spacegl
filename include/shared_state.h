@@ -42,7 +42,7 @@ typedef struct {
     int ship_class;
     int active;
     int health_pct;
-    int energy;
+    uint64_t energy;
     int plating;
     int hull_integrity;
     int faction;
@@ -83,14 +83,14 @@ typedef struct {
     sem_t data_ready;
     
     /* UI Info */
-    int shm_energy;
+    uint64_t shm_energy;
     int shm_crew;
     int shm_prison_unit;
     int shm_torpedoes;
     int shm_composite_plating;
     double shm_hull_integrity;
     int shm_shields[6];
-    int shm_cargo_energy;
+    uint64_t shm_cargo_energy;
     int shm_cargo_torpedoes;
     int inventory[10];
     double shm_system_health[10];

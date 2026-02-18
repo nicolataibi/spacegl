@@ -41,7 +41,7 @@ typedef struct {
     int32_t ship_class; /* Specifica il modello 3D (es. Galaxy, Constitution) */
     int32_t active;
     int32_t health_pct; /* 0-100% Health/Energy status for HUD */
-    int32_t energy;     /* Remaining energy units */
+    uint64_t energy;     /* Remaining energy units */
     int32_t plating;    /* Composite Plating */
     int32_t hull_integrity; /* Physical Hull % */
     int32_t faction;    /* Faction ID */
@@ -87,9 +87,9 @@ typedef struct {
     char captain_name[64];
 
     /* Resources & Status */
-    int32_t energy;
+    uint64_t energy;
     int32_t torpedoes;
-    int32_t cargo_energy;
+    uint64_t cargo_energy;
     int32_t cargo_torpedoes;
     int32_t crew_count;
     int32_t prison_unit;

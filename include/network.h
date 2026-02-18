@@ -57,9 +57,9 @@ typedef struct {
 } UpdateBlockTransform;
 
 typedef struct {
-    int32_t energy;
+    uint64_t energy;
     int32_t torpedoes;
-    int32_t cargo_energy;
+    uint64_t cargo_energy;
     int32_t cargo_torpedoes;
     int32_t crew_count;
     int32_t prison_unit;
@@ -238,9 +238,9 @@ typedef struct {
     int32_t q1, q2, q3;
     double s1, s2, s3;
     double van_h, van_m;
-    int32_t energy;
+    uint64_t energy;
     int32_t torpedoes;
-    int32_t cargo_energy;
+    uint64_t cargo_energy;
     int32_t cargo_torpedoes;
     int32_t crew_count;
     int32_t prison_unit;

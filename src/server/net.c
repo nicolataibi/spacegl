@@ -41,18 +41,43 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
     const EVP_CIPHER *cipher;
     int is_gcm = 0;
 
-    if (msg->crypto_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    if (msg->crypto_algo == CRYPTO_CHACHA) {
+        cipher = EVP_chacha20_poly1305();
+        is_gcm = 1;
+    } else if (msg->crypto_algo == CRYPTO_ARIA) {
+        cipher = EVP_aria_256_gcm();
+        is_gcm = 1;
+    } else if (msg->crypto_algo == CRYPTO_CAMELLIA) {
+        cipher = EVP_camellia_256_ctr();
+        is_gcm = 0;
+    } else if (msg->crypto_algo == CRYPTO_SEED) {
+        cipher = EVP_seed_cbc();
+        is_gcm = 0;
+    } else if (msg->crypto_algo == CRYPTO_CAST5) {
+        cipher = EVP_cast5_cbc();
+        is_gcm = 0;
+    } else if (msg->crypto_algo == CRYPTO_IDEA) {
+        cipher = EVP_idea_cbc();
+        is_gcm = 0;
+    } else if (msg->crypto_algo == CRYPTO_3DES) {
+        cipher = EVP_des_ede3_cbc();
+        is_gcm = 0;
+    } else if (msg->crypto_algo == CRYPTO_BLOWFISH) {
+        cipher = EVP_bf_cbc();
+        is_gcm = 0;
+    } else if (msg->crypto_algo == CRYPTO_RC4) {
+        cipher = EVP_rc4();
+        is_gcm = 0;
+    } else if (msg->crypto_algo == CRYPTO_DES) {
+        cipher = EVP_des_cbc();
+        is_gcm = 0;
+    } else if (msg->crypto_algo == CRYPTO_PQC) {
+        cipher = EVP_aes_256_gcm();
+        is_gcm = 1;
+    } else {
+        cipher = EVP_aes_256_gcm();
+        is_gcm = 1;
+    }
     
     /* We use the random IV for encryption. 
        THEN we will XOR the IV in the packet for transmission. */
@@ -150,12 +175,19 @@ void broadcast_message(PacketMessage *msg) {
                 individual_msg.is_encrypted = 1;
                 individual_msg.crypto_algo = sender_algo;
                 const uint8_t *k = players[i].session_key;
-                bool all_zero = true; for(int z=0; z<32; z++) if(k[z]!=0) all_zero=false;
+                bool all_zero = true;
+                for (int z = 0; z < 32; z++) {
+                    if (k[z] != 0) {
+                        all_zero = false;
+                    }
+                }
                 encrypt_payload(&individual_msg, plaintext, all_zero ? MASTER_SESSION_KEY : k);
             } else {
                 individual_msg.is_encrypted = 0;
                 size_t tlen = strlen(plaintext);
-                if (tlen > 65535) tlen = 65535;
+                if (tlen > 65535) {
+                    tlen = 65535;
+                }
                 memcpy(individual_msg.text, plaintext, tlen);
                 individual_msg.text[tlen] = '\0';
                 individual_msg.length = tlen;
@@ -180,7 +212,12 @@ void send_server_msg(int p_idx, const char *from, const char *text) {
         msg.is_encrypted = 1;
         msg.crypto_algo = players[p_idx].crypto_algo;
         const uint8_t *k = players[p_idx].session_key;
-        bool all_zero = true; for(int z=0; z<32; z++) if(k[z]!=0) all_zero=false;
+        bool all_zero = true;
+        for (int z = 0; z < 32; z++) {
+            if (k[z] != 0) {
+                all_zero = false;
+            }
+        }
         encrypt_payload(&msg, text, all_zero ? MASTER_SESSION_KEY : k);
     } else {
         msg.is_encrypted = 0;
@@ -253,62 +290,128 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     uint8_t *ptr = delta->data;
     
     if (mask & UPD_TRANSFORM) {
-        UpdateBlockTransform b = {upd->q1, upd->q2, upd->q3, upd->s1, upd->s2, upd->s3, upd->van_h, upd->van_m};
-        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        UpdateBlockTransform b = {
+            upd->q1, 
+            upd->q2, 
+            upd->q3, 
+            upd->s1, 
+            upd->s2, 
+            upd->s3, 
+            upd->van_h, 
+            upd->van_m
+        };
+        memcpy(ptr, &b, sizeof(b));
+        ptr += sizeof(b);
     }
     if (mask & UPD_VITALS) {
-        UpdateBlockVitals b = {upd->energy, upd->torpedoes, upd->cargo_energy, upd->cargo_torpedoes, upd->crew_count, upd->prison_unit, upd->composite_plating, upd->hull_integrity};
-        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        UpdateBlockVitals b = {
+            upd->energy, 
+            upd->torpedoes, 
+            upd->cargo_energy, 
+            upd->cargo_torpedoes, 
+            upd->crew_count, 
+            upd->prison_unit, 
+            upd->composite_plating, 
+            upd->hull_integrity
+        };
+        memcpy(ptr, &b, sizeof(b));
+        ptr += sizeof(b);
     }
     if (mask & UPD_SHIELDS) {
-        UpdateBlockShields b; memcpy(b.shields, upd->shields, sizeof(upd->shields));
-        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        UpdateBlockShields b;
+        memcpy(b.shields, upd->shields, sizeof(upd->shields));
+        memcpy(ptr, &b, sizeof(b));
+        ptr += sizeof(b);
     }
     if (mask & UPD_SYSTEMS) {
-        UpdateBlockSystems b; memcpy(b.system_health, upd->system_health, sizeof(upd->system_health));
-        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        UpdateBlockSystems b;
+        memcpy(b.system_health, upd->system_health, sizeof(upd->system_health));
+        memcpy(ptr, &b, sizeof(b));
+        ptr += sizeof(b);
     }
     if (mask & UPD_INTERNAL) {
-        UpdateBlockInternal b; memcpy(b.inventory, upd->inventory, sizeof(upd->inventory));
+        UpdateBlockInternal b;
+        memcpy(b.inventory, upd->inventory, sizeof(upd->inventory));
         memcpy(b.power_dist, upd->power_dist, sizeof(upd->power_dist));
-        b.life_support = upd->life_support; b.anti_matter_count = upd->anti_matter_count;
-        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        b.life_support = upd->life_support;
+        b.anti_matter_count = upd->anti_matter_count;
+        memcpy(ptr, &b, sizeof(b));
+        ptr += sizeof(b);
     }
     if (mask & UPD_COMBAT) {
-        UpdateBlockCombat b = {upd->lock_target, upd->tube_state, {0}, upd->current_tube, upd->ion_beam_charge};
+        UpdateBlockCombat b = {
+            upd->lock_target, 
+            upd->tube_state, 
+            {0}, 
+            upd->current_tube, 
+            upd->ion_beam_charge
+        };
         memcpy(b.tube_load_timers, upd->tube_load_timers, sizeof(upd->tube_load_timers));
-        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        memcpy(ptr, &b, sizeof(b));
+        ptr += sizeof(b);
         /* Beams inside combat or separate? Let's add beams if count > 0 */
         int32_t bc = upd->beam_count;
-        memcpy(ptr, &bc, sizeof(int32_t)); ptr += sizeof(int32_t);
+        memcpy(ptr, &bc, sizeof(int32_t));
+        ptr += sizeof(int32_t);
         if (bc > 0) {
             memcpy(ptr, upd->beams, bc * sizeof(NetBeam));
             ptr += bc * sizeof(NetBeam);
         }
     }
     if (mask & UPD_FLAGS) {
-        UpdateBlockFlags b = {upd->is_cloaked, upd->is_docked, upd->red_alert, upd->is_jammed, upd->nav_state, upd->show_axes, upd->show_grid, upd->show_bridge, upd->show_map, upd->map_filter};
-        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        UpdateBlockFlags b = {
+            upd->is_cloaked, 
+            upd->is_docked, 
+            upd->red_alert, 
+            upd->is_jammed, 
+            upd->nav_state, 
+            upd->show_axes, 
+            upd->show_grid, 
+            upd->show_bridge, 
+            upd->show_map, 
+            upd->map_filter
+        };
+        memcpy(ptr, &b, sizeof(b));
+        ptr += sizeof(b);
     }
     if (mask & UPD_EFFECTS) {
-        UpdateBlockEffects b = {upd->supernova_pos, {upd->supernova_q[0], upd->supernova_q[1], upd->supernova_q[2]}, upd->torp, upd->boom, upd->wormhole, upd->jump_arrival, upd->dismantle, upd->recovery_fx};
-        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        UpdateBlockEffects b = {
+            upd->supernova_pos, 
+            {upd->supernova_q[0], upd->supernova_q[1], upd->supernova_q[2]}, 
+            upd->torp, 
+            upd->boom, 
+            upd->wormhole, 
+            upd->jump_arrival, 
+            upd->dismantle, 
+            upd->recovery_fx
+        };
+        memcpy(ptr, &b, sizeof(b));
+        ptr += sizeof(b);
     }
     if (mask & UPD_PROBES) {
-        UpdateBlockProbes b; memcpy(b.probes, upd->probes, sizeof(upd->probes));
-        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        UpdateBlockProbes b;
+        memcpy(b.probes, upd->probes, sizeof(upd->probes));
+        memcpy(ptr, &b, sizeof(b));
+        ptr += sizeof(b);
     }
     if (mask & UPD_OBJECTS) {
         int32_t oc = upd->object_count;
-        memcpy(ptr, &oc, sizeof(int32_t)); ptr += sizeof(int32_t);
+        memcpy(ptr, &oc, sizeof(int32_t));
+        ptr += sizeof(int32_t);
         if (oc > 0) {
             memcpy(ptr, upd->objects, oc * sizeof(NetObject));
             ptr += oc * sizeof(NetObject);
         }
     }
     if (mask & UPD_MAP) {
-        UpdateBlockMap b = {upd->map_update_val, {upd->map_update_q[0], upd->map_update_q[1], upd->map_update_q[2]}, upd->map_update_val2, {upd->map_update_q2[0], upd->map_update_q2[1], upd->map_update_q2[2]}};
-        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        UpdateBlockMap b = {
+            upd->map_update_val, 
+            {upd->map_update_q[0], upd->map_update_q[1], upd->map_update_q[2]}, 
+            upd->map_update_val2, 
+            {upd->map_update_q2[0], upd->map_update_q2[1], upd->map_update_q2[2]}
+        };
+        memcpy(ptr, &b, sizeof(b));
+        ptr += sizeof(b);
     }
 
     size_t total_size = ptr - buffer;
