@@ -54,6 +54,7 @@ typedef struct {
     int32_t q1, q2, q3;
     double s1, s2, s3;
     double van_h, van_m;
+    double eta;
 } UpdateBlockTransform;
 
 typedef struct {
@@ -106,7 +107,7 @@ typedef struct {
 typedef struct {
     NetPoint supernova_pos; 
     int32_t supernova_q[3];
-    NetPoint torp;
+    NetPoint torps[4];
     NetPoint boom;
     NetPoint wormhole;
     NetPoint jump_arrival;
@@ -238,6 +239,7 @@ typedef struct {
     int32_t q1, q2, q3;
     double s1, s2, s3;
     double van_h, van_m;
+    double eta;
     uint64_t energy;
     int32_t torpedoes;
     uint64_t cargo_energy;
@@ -274,7 +276,7 @@ typedef struct {
     int32_t map_update_q[3];
     int64_t map_update_val2;
     int32_t map_update_q2[3];
-    NetPoint torp;
+    NetPoint torps[4];
     NetPoint boom;
     NetPoint wormhole;
     NetPoint jump_arrival;

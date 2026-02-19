@@ -122,6 +122,7 @@ typedef struct {
     double shm_s[3];
     double shm_h;
     double shm_m;
+    double shm_eta;
     int64_t shm_galaxy[41][41][41];
     
     /* Deep Space Telemetry Metrics */
@@ -141,7 +142,7 @@ typedef struct {
     int beam_count;
     SharedBeam beams[MAX_BEAMS];
     
-    SharedPoint torp;
+    SharedPoint torps[4];
     SharedPoint boom;
     SharedPoint wormhole;
     SharedPoint jump_arrival;

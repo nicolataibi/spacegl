@@ -497,12 +497,12 @@ void generate_galaxy() {
             n->q1 = 1 + rand() % GALAXY_SIZE;
             n->q2 = 1 + rand() % GALAXY_SIZE;
             n->q3 = 1 + rand() % GALAXY_SIZE;
-            n->x = (rand() % 100) / 10.0;
-            n->y = (rand() % 100) / 10.0;
-            n->z = (rand() % 100) / 10.0;
-            n->gx = (n->q1 - 1) * 10.0 + n->x;
-            n->gy = (n->q2 - 1) * 10.0 + n->y;
-            n->gz = (n->q3 - 1) * 10.0 + n->z;
+            n->x = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0;
+            n->y = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0;
+            n->z = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0;
+            n->gx = (n->q1 - 1) * QUADRANT_SIZE + n->x;
+            n->gy = (n->q2 - 1) * QUADRANT_SIZE + n->y;
+            n->gz = (n->q3 - 1) * QUADRANT_SIZE + n->z;
             
             uint64_t energy = 10000;
             if (faction == FACTION_SWARM) {
@@ -542,9 +542,9 @@ void generate_galaxy() {
             d->q1 = 1 + rand() % GALAXY_SIZE;
             d->q2 = 1 + rand() % GALAXY_SIZE;
             d->q3 = 1 + rand() % GALAXY_SIZE;
-            d->x = (rand() % 100) / 10.0;
-            d->y = (rand() % 100) / 10.0;
-            d->z = (rand() % 100) / 10.0;
+            d->x = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0;
+            d->y = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0;
+            d->z = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0;
             strncpy(d->name, get_random_ship_name(FACTION_ALLIANCE), 63);
             der_count++;
             class_der_counts[sclass]++;
@@ -562,9 +562,9 @@ void generate_galaxy() {
             d->q1 = 1 + rand() % GALAXY_SIZE;
             d->q2 = 1 + rand() % GALAXY_SIZE;
             d->q3 = 1 + rand() % GALAXY_SIZE;
-            d->x = (rand() % 100) / 10.0;
-            d->y = (rand() % 100) / 10.0;
-            d->z = (rand() % 100) / 10.0;
+            d->x = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0;
+            d->y = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0;
+            d->z = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0;
             strncpy(d->name, get_random_ship_name(faction), 63);
             der_count++;
             faction_der_counts[faction]++;
@@ -574,7 +574,7 @@ void generate_galaxy() {
     int target_bases = GALAXY_CREATE_OBJECT_MIN_BASE + (rand() % (GALAXY_CREATE_OBJECT_MAX_BASE - GALAXY_CREATE_OBJECT_MIN_BASE + 1));
     for (int i = 0; i < target_bases && b_count < MAX_BASES; i++) {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
-        bases[b_count] = (NPCBase){.id=b_count, .faction=FACTION_ALLIANCE, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .health=5000, .active=1};
+        bases[b_count] = (NPCBase){.id=b_count, .faction=FACTION_ALLIANCE, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .health=5000, .active=1};
         b_count++;
     }
 
@@ -582,7 +582,7 @@ void generate_galaxy() {
     for (int i = 0; i < target_planets && p_count < MAX_PLANETS; i++) {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
         int r_type = (rand() % 8) + 1;
-        planets[p_count] = (NPCPlanet){.id=p_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .resource_type=r_type, .amount=1000, .active=1};
+        planets[p_count] = (NPCPlanet){.id=p_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .resource_type=r_type, .amount=1000, .active=1};
         planet_type_counts[r_type]++;
         p_count++;
     }
@@ -591,7 +591,7 @@ void generate_galaxy() {
     for (int i = 0; i < target_stars && s_count < MAX_STARS; i++) {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
         int spectral = rand() % 7;
-        stars_data[s_count] = (NPCStar){.id=s_count, .faction=spectral, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1};
+        stars_data[s_count] = (NPCStar){.id=s_count, .faction=spectral, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .active=1};
         star_spectral_counts[spectral]++;
         s_count++;
     }
@@ -599,7 +599,7 @@ void generate_galaxy() {
     int target_bh = GALAXY_CREATE_OBJECT_MIN_BLACK_HOLE + (rand() % (GALAXY_CREATE_OBJECT_MAX_BLACK_HOLE - GALAXY_CREATE_OBJECT_MIN_BLACK_HOLE + 1));
     for (int i = 0; i < target_bh && bh_count < MAX_BH; i++) {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
-        black_holes[bh_count] = (NPCBlackHole){.id=bh_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1};
+        black_holes[bh_count] = (NPCBlackHole){.id=bh_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .active=1};
         bh_count++;
     }
 
@@ -607,7 +607,7 @@ void generate_galaxy() {
     for (int i = 0; i < target_neb && neb_count < MAX_NEBULAS; i++) {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
         int n_type = rand() % 6;
-        nebulas[neb_count] = (NPCNebula){.id=neb_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .type=n_type, .active=1};
+        nebulas[neb_count] = (NPCNebula){.id=neb_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .type=n_type, .active=1};
         nebula_type_counts[n_type]++;
         neb_count++;
     }
@@ -616,7 +616,7 @@ void generate_galaxy() {
     for (int i = 0; i < target_pul && pul_count < MAX_PULSARS; i++) {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
         int p_type = rand() % 3;
-        pulsars[pul_count] = (NPCPulsar){.id=pul_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .type=p_type, .active=1};
+        pulsars[pul_count] = (NPCPulsar){.id=pul_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .type=p_type, .active=1};
         pulsar_type_counts[p_type]++;
         pul_count++;
     }
@@ -626,24 +626,24 @@ void generate_galaxy() {
         int q1 = 1 + rand() % GALAXY_SIZE;
         int q2 = 1 + rand() % GALAXY_SIZE;
         int q3 = 1 + rand() % GALAXY_SIZE;
-        double a = 10.0 + (rand() % 300) / 10.0;
+        double a = 10.0 + (rand() % (int)(QUADRANT_SIZE * 30)) / 10.0;
         double b = a * (0.5 + (rand() % 40) / 100.0);
         comets[com_count] = (NPCComet){
             .id = com_count, 
             .q1 = q1, 
             .q2 = q2, 
             .q3 = q3, 
-            .x = (rand() % 100) / 10.0, 
-            .y = (rand() % 100) / 10.0, 
-            .z = (rand() % 100) / 10.0, 
+            .x = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0, 
+            .y = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0, 
+            .z = (rand() % (int)(QUADRANT_SIZE * 10)) / 10.0, 
             .a = a, 
             .b = b, 
             .angle = (rand() % 360) * M_PI / 180.0, 
             .speed = 0.02 / a, 
             .inc = (rand() % 360) * M_PI / 180.0, 
-            .cx = 50.0 + (rand() % 100 - 50) / 10.0, 
-            .cy = 50.0 + (rand() % 100 - 50) / 10.0, 
-            .cz = 50.0 + (rand() % 100 - 50) / 10.0, 
+            .cx = (GALAXY_SIZE * QUADRANT_SIZE / 2.0) + (rand() % (int)(QUADRANT_SIZE * 10) - (QUADRANT_SIZE * 5)) / 10.0, 
+            .cy = (GALAXY_SIZE * QUADRANT_SIZE / 2.0) + (rand() % (int)(QUADRANT_SIZE * 10) - (QUADRANT_SIZE * 5)) / 10.0, 
+            .cz = (GALAXY_SIZE * QUADRANT_SIZE / 2.0) + (rand() % (int)(QUADRANT_SIZE * 10) - (QUADRANT_SIZE * 5)) / 10.0, 
             .active = 1
         };
         com_count++;
@@ -654,7 +654,7 @@ void generate_galaxy() {
         int cluster_size = GALAXY_CREATE_OBJECT_MIN_ASTEROID_CLUSTER + (rand() % (GALAXY_CREATE_OBJECT_MAX_ASTEROID_CLUSTER - GALAXY_CREATE_OBJECT_MIN_ASTEROID_CLUSTER + 1));
         for (int k = 0; k < cluster_size && ast_count < MAX_ASTEROIDS; k++) {
             int r_type = (rand() % 8) + 1;
-            asteroids[ast_count] = (NPCAsteroid){.id=ast_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .size=0.1f+(rand()%20)/100.0f, .resource_type=r_type, .amount=100 + rand()%401, .active=1};
+            asteroids[ast_count] = (NPCAsteroid){.id=ast_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .size=0.1f+(rand()%20)/100.0f, .resource_type=r_type, .amount=100 + rand()%401, .active=1};
             asteroid_type_counts[r_type]++;
             ast_count++;
         }
@@ -664,7 +664,7 @@ void generate_galaxy() {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
         int field_size = GALAXY_CREATE_OBJECT_MIN_MINE_FIELD + (rand() % (GALAXY_CREATE_OBJECT_MAX_MINE_FIELD - GALAXY_CREATE_OBJECT_MIN_MINE_FIELD + 1));
         for (int k = 0; k < field_size && mine_count < MAX_MINES; k++) {
-            mines[mine_count] = (NPCMine){.id=mine_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .faction=FACTION_KORTHIAN, .active=1};
+            mines[mine_count] = (NPCMine){.id=mine_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .faction=FACTION_KORTHIAN, .active=1};
             mine_count++;
         }
     }
@@ -672,21 +672,21 @@ void generate_galaxy() {
     int target_buoy = GALAXY_CREATE_OBJECT_MIN_BUOY + (rand() % (GALAXY_CREATE_OBJECT_MAX_BUOY - GALAXY_CREATE_OBJECT_MIN_BUOY + 1));
     for (int i = 0; i < target_buoy && buoy_count < MAX_BUOYS; i++) {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
-        buoys[buoy_count] = (NPCBuoy){.id=buoy_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1};
+        buoys[buoy_count] = (NPCBuoy){.id=buoy_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .active=1};
         buoy_count++;
     }
 
     int target_plat = GALAXY_CREATE_OBJECT_MIN_PLATFORM + (rand() % (GALAXY_CREATE_OBJECT_MAX_PLATFORM - GALAXY_CREATE_OBJECT_MIN_PLATFORM + 1));
     for (int i = 0; i < target_plat && plat_count < MAX_PLATFORMS; i++) {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
-        platforms[plat_count] = (NPCPlatform){.id=plat_count, .faction=FACTION_KORTHIAN, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .health=5000, .energy=10000, .fire_cooldown=0, .active=1};
+        platforms[plat_count] = (NPCPlatform){.id=plat_count, .faction=FACTION_KORTHIAN, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .health=5000, .energy=10000, .fire_cooldown=0, .active=1};
         plat_count++;
     }
 
     int target_rift = GALAXY_CREATE_OBJECT_MIN_RIFT + (rand() % (GALAXY_CREATE_OBJECT_MAX_RIFT - GALAXY_CREATE_OBJECT_MIN_RIFT + 1));
     for (int i = 0; i < target_rift && rift_count < MAX_RIFTS; i++) {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
-        rifts[rift_count] = (NPCRift){.id=rift_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .active=1};
+        rifts[rift_count] = (NPCRift){.id=rift_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .active=1};
         rift_count++;
     }
 
@@ -695,7 +695,7 @@ void generate_galaxy() {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
         int m_type_idx = (rand()%100 < 50) ? 0 : 1;
         int m_type = (m_type_idx == 0) ? 30 : 31;
-        monsters[mon_count] = (NPCMonster){.id=mon_count, .type=m_type, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%100)/10.0, .y=(rand()%100)/10.0, .z=(rand()%100)/10.0, .health=100000, .energy=100000, .active=1, .behavior_timer=0};
+        monsters[mon_count] = (NPCMonster){.id=mon_count, .type=m_type, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .y=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .z=(rand()%(int)(QUADRANT_SIZE * 10))/10.0, .health=100000, .energy=100000, .active=1, .behavior_timer=0};
         monster_type_counts[m_type_idx]++;
         mon_count++;
     }

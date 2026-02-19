@@ -64,15 +64,21 @@ typedef struct {
     double approach_dist;
     int apr_target;
     
-    /* Torpedo State */
-    bool torp_active;
-    int torp_load_timer; /* Global/main tube timer (kept for compatibility) */
+    /* Torpedo System (4-Tube Rotary System) */
+    struct {
+        bool active;
+        double tx, ty, tz;      /* Position */
+        double tdx, tdy, tdz;   /* Vector */
+        int target;
+        int timeout;
+    } torp_slots[4];
+    
     int tube_load_timers[4];
     int current_tube;
-    int torp_timeout;
-    double tx, ty, tz;      /* Torpedo Current Position */
-    double tdx, tdy, tdz;   /* Torpedo Vector */
-    int torp_target;        /* ID of target */
+    
+    /* Global/Legacy compatibility (optional, but keep structure clean) */
+    int torp_load_timer; 
+    bool torp_active; /* Still used to signal "any torpedo active" for HUD simplify */
     
     /* Jump Visuals */
     double wx, wy, wz;      /* Wormhole entrance coords */
@@ -396,7 +402,7 @@ extern SupernovaState supernova_event;
 
 #define LOG_DEBUG(...) do { if (g_debug) { printf("DEBUG: " __VA_ARGS__); fflush(stdout); } } while (0)
 
-#define GALAXY_VERSION 20260216
+#define GALAXY_VERSION 20260218
 
 /* Spatial Partitioning Index */
 typedef struct {
@@ -446,10 +452,10 @@ void init_static_spatial_index();
 
 #define IS_Q_VALID(q1,q2,q3) ((q1)>=1 && (q1)<=GALAXY_SIZE && (q2)>=1 && (q2)<=GALAXY_SIZE && (q3)>=1 && (q3)<=GALAXY_SIZE)
 
-/* Helper to safely calculate quadrant from absolute coordinate (0-400) */
+/* Helper to safely calculate quadrant from absolute coordinate (0-1600) */
 static inline int get_q_from_g(double g) {
     /* Use a small epsilon to avoid jitter jumping exactly on the boundary */
-    int q = (int)((g + 1e-6) / 10.0) + 1;
+    int q = (int)((g + 1e-6) / QUADRANT_SIZE) + 1;
     if (q < 1) q = 1;
     if (q > GALAXY_SIZE) q = GALAXY_SIZE;
     return q;

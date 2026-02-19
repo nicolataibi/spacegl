@@ -21,6 +21,10 @@
 #define GAME_CONFIG_H
 
 #define GALAXY_SIZE 40
+#define QUADRANT_SIZE 40.0
+
+#define TACTICAL_CUBE_W 1920
+#define TACTICAL_CUBE_H 1080
 
 /* --- Resources & Limits --- */
 #define MAX_ENERGY_CAPACITY     999999999999ULL

@@ -35,6 +35,28 @@
 </table>
 
 Space GL è un simulatore spaziale avanzato che unisce la profondità strategica dei classici giochi testuali anni '70 con un'architettura moderna Client-Server e una visualizzazione 3D accelerata hardware.
+---
+
+## 🚀 Novità Versione 2.3 (Deep Space Expansion)
+
+L'aggiornamento 2.3 trasforma radicalmente la scala e la precisione del simulatore:
+*   **Scala Galattica 1600x**: Ogni quadrante (40x40x40) è ora composto da una matrice di **40x40 settori**, portando il volume totale a 1600 unità per lato.
+*   **Precisione al Centesimo**: Tutti i calcoli di navigazione, i sensori e i sugerimenti del computer (`cal`, `ical`) operano ora con precisione millimetrica (**%.2f**).
+*   **ETA HUD**: Il visore 3D visualizza ora il tempo stimato di arrivo in secondi (in giallo) durante il volo verso una destinazione fissata.
+*   **Ricalibrazione Fisica**: La velocità Hyperdrive è stata sincronizzata per permettere l'attraversamento della diagonale galattica in **40 secondi** costanti al Fattore 9.9.
+*   **Tactical Cube 40x**: Il cubo del quadrante nel visore 3D è stato scalato a 40x40x40 unità per una navigazione più spaziosa e realistica.
+
+
+---
+
+## 🚀 Novità Versione 2.3 (Deep Space Expansion)
+
+L'aggiornamento 2.3 trasforma radicalmente la scala e la precisione del simulatore:
+*   **Scala Galattica 1600x**: Ogni quadrante (40x40x40) è ora composto da una matrice di **40x40 settori**, portando il volume totale a 1600 unità per lato.
+*   **Precisione al Centesimo**: Tutti i calcoli di navigazione, i sensori e le sugerimenti del computer (`cal`, `ical`) operano ora con precisione millimetrica (**%.2f**).
+*   **ETA HUD**: Il visore 3D visualizza ora il tempo stimato di arrivo in secondi (in giallo) durante il volo verso una destinazione fissata.
+*   **Ricalibrazione Fisica**: La velocità Hyperdrive è stata sincronizzata per permettere l'attraversamento della diagonale galattica in **40 secondi** costanti al Fattore 9.9.
+*   **Tactical Cube 40x**: Il cubo del quadrante nel visore 3D è stato scalato a 40x40x40 unità per una navigazione più spaziosa e realistica.
 
 ---
 
@@ -119,7 +141,7 @@ Questo permette agli amministratori di creare varianti del gioco (es. *Hardcore 
 Space GL offre un universo vasto e densamente popolato che persiste anche dopo il riavvio del server.
 
 ### 1. Scala e Popolazione
-La galassia è un cubo **40x40x40** che contiene **64.000 quadranti unici**.
+La galassia è un cubo **40x40x40** che contiene **64.000 quadranti unici**. Ogni quadrante è ulteriormente suddiviso in una matrice di **40x40x40 settori (unità)**, creando un sistema di coordinate assolute che spazia da **0.0 a 1600.0**.
 *   **Fazioni NPC:** Ognuna delle 11 fazioni aliene (Korthian, Swarm, Xylari, etc.) mantiene una flotta permanente composta da **70 a 100 vascelli unici** sempre attivi.
 *   **Distribuzione Omogenea:** Corpi celesti, basi stellari e anomalie sono distribuiti proceduralmente nell'intero volume di 64.000 quadranti per garantire un'esperienza di esplorazione bilanciata.
 *   **L'Eredità dell'Alleanza**: Sparse tra le stelle si trovano da **70 a 100 relitti storici (derelicts)** per OGNI classe di nave dell'Alleanza. Inoltre, ogni vascello NPC distrutto in combattimento genera ora un **relitto permanente** nel settore, offrendo un ricco scenario per il recupero e l'esplorazione.
@@ -140,14 +162,14 @@ Il realismo della simulazione è garantito da un sistema di consumo energetico d
 
 ### 3. Navigazione Avanzata (Standard GDIS)
 Il sistema di navigazione è stato riprogettato per garantire precisione matematica e fluidità visiva:
-*   **Coordinate Galattiche Assolute:** Tutti i calcoli di movimento e distanza utilizzano una scala standardizzata **0.0 - 400.0 assoluta**. Questo garantisce puntamenti coerenti e tracciamento dei siluri affidabile anche quando si attraversano i confini dei quadranti.
+*   **Coordinate Galattiche Assolute:** Tutti i calcoli di movimento e distanza utilizzano una scala standardizzata **0.0 - 1600.0 assoluta**. Questo garantisce puntamenti coerenti e tracciamento dei siluri affidabile anche quando si attraversano i confini dei quadranti.
 *   **Navigazione di Precisione (`nav`):** Il comando `nav` ora integra un sistema di blocco della destinazione. Una volta raggiunte le coordinate `target_gx/gy/gz` calcolate, la nave disattiverà automaticamente i motori e uscirà dall'Hyperdrive nella posizione precisa richiesta.
-*   **Ricalibrazione Hyperdrive (Velocità Costante):** Il sistema di propulsione è stato calibrato per transiti ad altissima velocità. **Il Fattore 9.9 percorre l'intera diagonale della galassia (circa 69.3 unità) in esattamente 10 secondi.** La velocità è perfettamente costante e indipendente dalla potenza dei motori o dall'integrità per garantire tempi di arrivo corrispondenti alle stime del comando `cal`.
+*   **Ricalibrazione Hyperdrive (Velocità Costante):** Il sistema di propulsione è stato calibrato per transiti ad altissima velocità. **Il Fattore 9.9 percorre l'intera diagonale della galassia (circa 2771 unità) in esattamente 40 secondi.** La velocità è perfettamente costante e indipendente dalla potenza dei motori o dall'integrità per garantire tempi di arrivo corrispondenti alle stime del comando `cal`.
 *   **Modello Energetico e Danni:** 
     *   **Drenaggio Lineare**: Il consumo energetico dell'Hyperdrive scala linearmente con la velocità.
     *   **Penalità Integrità**: I sistemi di propulsione danneggiati (Hyperdrive/Impulse) subiscono un aumento dello spreco energetico (dissipazione di calore). Il consumo è inversamente proporzionale all'integrità del sistema.
 *   **Autopilota Fluido (LERP Tracking):** Il comando `apr` (approach) non esegue più uno scatto istantaneo dell'orientamento. Utilizza invece l'**Interpolazione Lineare (LERP)** per allineare dolcemente la prua (heading) e il mark della nave con il bersaglio, prevenendo rotazioni erratiche e offrendo un'esperienza di volo cinematografica.
-*   **Limiti Galattici:** I confini della galassia sono applicati rigidamente a **[0.05, 399.95]**. Le navi che tentano di uscire dalla galassia attiveranno automaticamente i freni di emergenza e invertiranno la rotta (virata di 180°) per rimanere nello spazio navigabile.
+*   **Limiti Galattici:** I confini della galassia sono applicati rigidamente a **[0.05, 1599.95]**. Le navi che tentano di uscire dalla galassia attiveranno automaticamente i freni di emergenza e invertiranno la rotta (virata di 180°) per rimanere nello spazio navigabile.
 
 ### 3. Revisione del Combattimento Tattico
 Il combattimento presenta ora un modello di danno sofisticato, con tracciamento degli ordigni migliorato e gestione dinamica delle difese:
@@ -204,6 +226,7 @@ Per mantenere un tasso logico di 30 TPS (Tick Per Secondo) costante gestendo un 
     *   **Protezione Underflow**: Tutta la logica di consumo (Combattimento, Navigazione, Drenaggio) utilizza ora un pattern di "Sottrazione Sicura": `if (energy >= cost) energy -= cost; else energy = 0;`. Questo previene il "wrap-around" degli unsigned che garantirebbe energia infinita dopo l'esaurimento.
     *   **Overhaul Effetti Visivi (Smantellamento)**: Potenziato il sistema particellare del comando `dis` con un aumento di 6 volte della dimensione dei frammenti, fisica di espansione ottimizzata e mappatura accurata dei Colori di Fazione per un feedback tattico ad alta fedeltà.
     *   **Sincronizzazione Stato al Login**: Ottimizzato l'handshake di rete per forzare una sincronizzazione totale immediata al rientro in gioco. Questo garantisce che i flag tattici persistenti (Bussola AR, Griglia, modalità HUD) siano ripristinati correttamente nel Visualizzatore 3D fin dal primo frame.
+    *   **Layout Binario e Versionamento**: Aggiornato `GALAXY_VERSION` a **20260218**. Questo cambiamento richiede la generazione di un nuovo file `galaxy.dat` per mantenere l'integrità binaria con le nuove strutture dati a 64-bit.
     *   **Sincronizzazione Binaria**: Riallineati i pacchetti di rete e la memoria condivisa (SHM) per garantire la compatibilità zero-copy con il nuovo layout a 64-bit.
     *   **Impatto**: Supporto per riserve energetiche astronomiche e stabilità logica assoluta durante la deplezione delle risorse.
 
@@ -565,7 +588,7 @@ Di seguito la lista completa dei comandi disponibili, raggruppati per funzione.
     *   **Requisiti**: Minimo 10% di integrità del sistema Impulse (ID 1).
     *   **Costo**: 100 unità di Energia per l'inizializzazione (50 per aggiornamenti di sola velocità).
     *   **Arresto di Precisione**: Se viene fornito il parametro opzionale `[Dist]`, il vascello spegnerà automaticamente i motori una volta raggiunte le coordinate di destinazione.
-    *   `S`: Velocità (0.0 - 10.0). `imp 0` per All Stop (Arresto).
+    *   `S`: Velocità (0.0 - 40.0). `imp 0` per All Stop (Arresto).
 *   `pos <H> <M>`: **Posizionamento (Allineamento)**. Orienta la nave su un determinato Heading e Mark senza attivare i motori. 
     *   **Requisiti**: Minimo 10% di integrità del sistema Impulse (ID 1).
     *   **Costo**: 20 unità di Energia.
@@ -574,7 +597,7 @@ Di seguito la lista completa dei comandi disponibili, raggruppati per funzione.
     *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6).
     *   **Sincronizzazione Reale**: Le stime temporali sono perfettamente allineate con la velocità costante della nave (Fattore 9.9 = diagonale galattica in 10s).
     *   **Affidabilità Dati**: Se l'integrità del computer è inferiore al 50%, i calcoli potrebbero fallire o restituire risultati corrotti.
-*   `ical <X> <Y> <Z>`: **Calcolatore d'Impulso (ETA)**. Calcola H, M ed ETA per raggiungere coordinate precise (0.0-10.0) all'interno del quadrante attuale.
+*   `ical <X> <Y> <Z>`: **Calcolatore d'Impulso (ETA)**. Calcola H, M ed ETA per raggiungere coordinate precise (0.0-40.0) all'interno del quadrante attuale.
     *   **Requisiti**: Minimo 10% di integrità del sistema Computer (ID 6).
     *   **Consapevolezza Tattica**: Il calcolo dell'ETA tiene conto dell'**Allocazione di Potenza** attuale e dell'**Integrità dei Motori**.
     *   **Suggerimento di Precisione**: Il computer genera un comando `imp` completo che include la distanza necessaria per un **arresto automatico** a destinazione.
@@ -703,8 +726,12 @@ L'efficacia dei tuoi sensori dipende direttamente dallo stato di salute del **si
     *   **Costo**: 50 unità di Energia per gli algoritmi standard, 250 unità per PQC. Disabilitare la cifratura (`enc off`) è gratuito.
     *   Supporta **AES-256-GCM**, **ChaCha20**, **ARIA**, **Camellia**, **Blowfish**, **RC4**, **CAST5**, **IDEA**, **3DES** e **PQC (ML-KEM)**. Essenziale per proteggere le comunicazioni e leggere i messaggi sicuri degli altri capitani.
 *   `tor`: **Lancio Siluro al plasma**. Lancia un siluro autoguidato al bersaglio agganciato.
+    *   **Sistema a 4 Tubi**: Il vascello dispone di 4 tubi di lancio indipendenti con rotazione automatica. È possibile lanciare fino a 4 siluri in rapida successione.
+    *   **Visibilità Universale**: I siluri in volo sono visibili sui visori 3D di tutti i giocatori nel settore.
+    *   **Confini Settore**: I siluri esplodono istantaneamente se raggiungono i confini del quadrante attuale (0.0 - 40.0).
     *   **Requisiti**: Minimo 50% di integrità del sistema Siluri (ID 5).
     *   **Costo**: 250 unità di Energia per lancio.
+    *   **Ricarica**: Ogni tubo richiede circa 3 secondi (90 tick) per la ricarica dopo il lancio.
     *   **Rischi**: Possibilità di malfunzionamento (siluro perso, nessun lancio) se l'integrità è inferiore al 75%.
     *   **Guida**: L'accuratezza del sistema di autoguida dipende dalla salute dei **Sensori (ID 2)**. Sensori danneggiati riducono la capacità del siluro di correggere la propria rotta.
 *   `tor <H> <M>`: Lancia un siluro in modalità balistica manuale (Heading/Mark).
@@ -759,7 +786,7 @@ Per eseguire operazioni complesse (estrazione, rifornimento, abbordaggio), segui
 **Nota sulla Portata Inter-Settore**: Il comando `dis` (smantellamento) utilizza un sistema di risoluzione globale. Questo significa che puoi puntare e smantellare qualsiasi relitto visibile sul tuo HUD o identificato dai sensori, anche se si trova in un quadrante adiacente al tuo. Il comando `apr` (avvicinamento) è invece limitato agli oggetti presenti nel quadrante attuale per garantire la sicurezza della navigazione a corto raggio.
 
 ### 📏 Tabella delle Distanze di Interazione
-Distanze espresse in unità di settore (0.0 - 10.0). Se la tua distanza è superiore al limite, il computer risponderà con "No [object] in range".
+Distanze espresse in unità di settore (0.0 - 40.0). Se la tua distanza è superiore al limite, il computer risponderà con "No [object] in range".
 
 | Oggetto / Entità | Comando / Azione | Distanza Minima | Effetto / Interazione |
 | :--- | :--- | :--- | :--- |
@@ -815,7 +842,7 @@ Il comando `apr <ID> <DIST>` ti permette di avvicinarti automaticamente a qualsi
     *   **Feedback**: Fornisce una conferma immediata della nuova distribuzione percentuale.
     *   **Impatto Strategico**: Determina le prestazioni dei motori sub-luce, il tasso di ricarica degli scudi e l'intensità dei banchi Ion Beam.
 *   `aux jettison`: **Espulsione Synaptics Hyperdrive**. Espelle il nucleo (Manovra suicida / Ultima risorsa).
-*   `xxx`: **Autodistruzione**. Autodistruzione sequenziale. Attiva il **Rientro di Emergenza** (vedi sotto).
+*   `xxx`: **Riposizionamento di Emergenza**. Attiva un **Tactical Warp** immediato verso un settore sicuro, lasciando un relitto dello scafo precedente. Ripristina sistemi ed energia all'80%.
 *   `zztop`: **Cancellazione Totale Profilo**. Purga permanentemente il nome del capitano e tutti i dati della carriera dal database della galassia. Questa azione è irreversibile e interrompe la connessione.
 
 ### ⚡ Gestione del Reattore e della Potenza
@@ -950,9 +977,15 @@ L'HUD visualizza "LIFE SUPPORT: XX.X%", che è direttamente collegato all'integr
 
 ### 📦 Gestione del Carico e delle Risorse
 
-Space GL distingue tra **Sistemi Attivi**, **Stoccaggio del Carico** e l'**Unità Prigione**. Questo è riflesso nell'HUD come `ENERGY: X (CARGO: Y)`.
-
-
+Space GL distingue tra **Sistemi Attivi**, **Stoccaggio del Carico** e l'**Unità Prigione**. Questo è riflesso nell'HUD come:
+*   **ENERGY: X (CARGO ANTIMATTER: Y)**: Riserve principali vs stoccaggio stiva.
+*   **TORPS: X (CARGO TORPEDOES: Y)**: Stato lanciasiluri e inventario (su righe separate).
+*   **LOCK: [ID]**: Stato del puntamento bersaglio, sopra il sistema siluri.
+*   **HULL INTEGRITY / PLATING**: Integrità scafo e corazzatura.
+*   **CREW / PRISON UNIT**: Monitoraggio equipaggio e prigionieri.
+*   **SYSTEMS HEALTH**: Griglia diagnostica per i 10 sottosistemi.
+*   **CARGO INVENTORY**: Tracciamento per 8 tipi di risorse speciali.
+*   **PROBES STATUS**: Stato in tempo reale delle sonde.
 
 *   **Energia/Siluri Attivi**: Queste sono le risorse attualmente disponibili per l'uso immediato.
 
@@ -1016,7 +1049,7 @@ Il ponte di comando di Space GL opera tramite un'interfaccia a riga di comando (
     *   **Registro**: Fornisce un monitoraggio preciso per tutti i 10 sottosistemi della nave utilizzando indicatori di stato colorati (Verde/Giallo/Rosso).
 *   `cal <Q1> <Q2> <Q3>`: **Calcolatore Hyperdrive**. Calcola il vettore verso il centro di un quadrante distante.
 *   `cal <Q1> <Q2> <Q3> <X> <Y> <Z>`: **Calcolatore di Precisione**. Calcola il vettore verso coordinate di settore precise `[X, Y, Z]` in un quadrante distante. Fornisce i tempi di arrivo e suggerisce il comando `nav` esatto da copiare.
-*   `ical <X> <Y> <Z>`: **Calcolatore d'Impulso (ETA)**. Fornisce un calcolo di navigazione completo per le coordinate di settore precise [0.0 - 10.0], incluso il tempo di viaggio in tempo reale ai livelli di potenza attuali.
+*   `ical <X> <Y> <Z>`: **Calcolatore d'Impulso (ETA)**. Fornisce un calcolo di navigazione completo per le coordinate di settore precise [0.0 - 40.0], incluso il tempo di viaggio in tempo reale ai livelli di potenza attuali.
 *   `who`: **Registro dei Capitani**. Elenca tutti i comandanti attualmente attivi nella galassia, i loro ID di tracciamento e la posizione attuale. 
     *   **Requisiti**: Minimo 5% di integrità del sistema Computer (ID 6).
     *   **Costo**: 10 unità di Energia per la sincronizzazione subspaziale.
@@ -1107,7 +1140,7 @@ L'interfaccia sullo schermo (Overlay) fornisce un monitoraggio costante dei para
 *   **Monitoraggio del Carico**: Monitoraggio esplicito delle riserve di **CARGO ANTIMATTER** e **CARGO TORPEDOES** per un rifornimento rapido.
 *   **Integrità dello Scafo**: Stato fisico dello scafo (0-100%). Se scende a zero, il vascello è perso.
 *   **Placcatura dello Scafo**: Indicatore dorato dell'integrità dello scafo rinforzato in Composite (visibile solo se presente).
-*   **Coordinate di Settore**: Conversione istantanea dei dati spaziali in coordinate relative `[S1, S2, S3]` (0.0 - 10.0), speculari a quelle usate nei comandi `nav` e `imp`.
+*   **Coordinate di Settore**: Conversione istantanea dei dati spaziali in coordinate relative `[S1, S2, S3]` (0.0 - 40.0), speculari a quelle usate nei comandi `nav` e `imp`.
 *   **🌐 Sistema di Coordinate Galattiche Assolute (GDIS)**:
     *   Per garantire precisione millimetrica, il server utilizza coordinate assolute su un cubo galattico di **100x100x100** unità. 
     *   Tutti i comandi critici (`apr`, `bor`, `pha`, `tor`) utilizzano questo riferimento globale per eliminare errori di raggio d'azione tra settori diversi.
@@ -1575,8 +1608,9 @@ Un vascello specializzato nell'analisi di anomalie spaziali e nella raccolta di 
 Il progetto implementa soluzioni ingegneristiche all'avanguardia per garantire la superiorità operativa nello spazio profondo:
 
 #### 🚀 1. Autopilota di Avvicinamento (Precision APR)
-Il sistema di navigazione assistita (`apr`) opera con una precisione millimetrica, garantendo una tolleranza di arresto di **0.01 unità di settore**.
-*   **Finalità**: Questa calibrazione estrema è essenziale per le operazioni di **Boarding (`bor`)** e **Docking**, che richiedono il posizionamento del vascello entro raggi d'azione estremamente ridotti (< 1.0 unità).
+Il sistema di navigazione assistita (`apr`) opera con alta precisione, garantendo una tolleranza di arresto di **0.1 unità di settore**.
+*   **Arrivo Fluido**: Include una **rampa di decelerazione lineare** entro 1.0 unità dal bersaglio e un **aggancio finale** (snap) per eliminare il tremolio di HUD e bussola all'arrivo.
+*   **Finalità**: Questa calibrazione è essenziale per le operazioni di **Boarding (`bor`)** e **Docking**, che richiedono il posizionamento del vascello entro raggi d'azione estremamente ridotti (< 1.0 unità).
 *   **Versatilità**: Il sistema di puntamento è universale e garantisce la stessa precisione verso navi di qualsiasi fazione (Quarzite, Korthian, Swarm), basi stellari o anomalie galattiche.
 
 #### 💣 2. Sistema Torpedini Multi-Tubo (4-Tube Rotary System)
@@ -1714,6 +1748,16 @@ L'interazione con `spacegl_3dview` è gestita tramite i seguenti input diretti:
 *   **Tasti Freccia**: Ruotano la telecamera (Beccheggio / Imbardata).
 *   **Tasti W / S**: Zoom In / Zoom Out precisi.
 *   **Tasto H**: Commuta l'HUD (Nasconde/Mostra l'overlay tattico).
+*   **Tasto F7**: Cambia il livello di **Anisotropic Filtering** (1x - 16x) per la nitidezza delle texture inclinate.
+*   **Tasto F8**: Regola la densità dello **Starfield** (1000 - 8000 stelle) per bilanciare resa estetica e prestazioni.
+*   **Tasto ESC**: Chiude il visore 3D.
+
+### 🖥️ Prestazioni Visive e Rendering (Revisione 2026.02)
+Il visore 3D è stato ottimizzato per monitor moderni:
+*   **Risoluzione Nativa**: Supporto Full HD (**1920x1080**) tramite definizioni macro (`TACTICAL_CUBE_W/H`).
+*   **HUD Multi-Tubo**: Visualizzazione in tempo reale degli stati dei 4 tubi di lancio (`[R]` Ready, `[L]` Loading, `[F]` Firing).
+*   **GFX Status**: Una riga telemetrica dedicata mostra i parametri attuali di filtraggio e densità stellare.
+*   **Scambio Fuoco Condiviso**: Sia i siluri che i fasci dei fasatori (Ion Beams) sono ora oggetti fisici sincronizzati; ogni lampo di energia nel quadrante è visibile a tutti i giocatori, permettendo l'osservazione di battaglie remote.
 *   **Tasto ESC**: Chiude in sicurezza il Visualizzatore 3D.
 
 ### 🚢 Estetica delle classi di navi visuali

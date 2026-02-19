@@ -35,6 +35,17 @@
 </table>
 
 Space GL is an advanced space simulator combining the strategic depth of classic 70s text-based games with a modern Client-Server architecture and hardware-accelerated 3D visualization.
+---
+
+## 🚀 What's New in Version 2.3 (Deep Space Expansion)
+
+Update 2.3 radically transforms the scale and precision of the simulator:
+*   **1600x Galactic Scale**: Each quadrant (40x40x40) is now composed of a **40x40 sector matrix**, bringing the total volume to 1600 units per side.
+*   **Hundredth Precision**: All navigation calculations, sensors, and computer suggestions (`cal`, `ical`) now operate with pinpoint precision (**%.2f**).
+*   **ETA HUD**: The 3D viewer now displays the estimated time of arrival in seconds (in yellow) while flying to a set destination.
+*   **Physics Recalibration**: Hyperdrive speed has been synchronized to allow crossing the galactic diagonal in a constant **40 seconds** at Factor 9.9.
+*   **40x Tactical Cube**: The quadrant cube in the 3D viewer has been scaled to 40x40x40 units for more spacious and realistic navigation.
+
 
 ---
 
@@ -159,7 +170,7 @@ This allows admins to create custom game variants (e.g., *Hardcore Survival* wit
 Space GL features a vast, densely populated universe that persists across server restarts.
 
 ### 1. Scale and Population
-The galaxy is a **40x40x40** cube containing **64,000 unique quadrants**.
+The galaxy is a **40x40x40** cube containing **64,000 unique quadrants**. Each quadrant is further subdivided into a matrix of **40x40x40 sectors (units)**, creating an absolute coordinate system ranging from **0.0 to 1600.0**.
 *   **NPC Factions:** Each of the 11 alien factions (Korthian, Swarm, Xylari, etc.) maintains a standing fleet of **70 to 100 unique vessels** active at all times.
 *   **Homogeneous Distribution:** Celestial objects, starbases, and anomalies are procedurally distributed across the entire 64,000-quadrant volume to ensure a balanced exploration experience.
 *   **The Alliance Legacy:** Scattered across the stars are **70 to 100 historical wrecks (derelicts)** for EACH Alliance ship class. Additionally, every NPC vessel destroyed in combat now generates a **permanent wreck** in the sector, providing a rich field for salvage and exploration.
@@ -180,14 +191,14 @@ Simulation realism is ensured by a dynamic energy consumption system that never 
 
 ### 3. Advanced Navigation (GDIS Standard)
 The navigation system has been overhauled for mathematical precision and visual fluidity:
-*   **Absolute Galactic Coordinates:** All movement and distance calculations use a standardized **0.0 - 400.0 absolute scale**. This ensures consistent targeting and torpedo tracking even when crossing quadrant boundaries.
+*   **Absolute Galactic Coordinates:** All movement and distance calculations use a standardized **0.0 - 1600.0 absolute scale**. This ensures consistent targeting and torpedo tracking even when crossing quadrant boundaries.
 *   **Precision Navigation (`nav`):** The `nav` command now features an automatic destination lock. Once the vessel reaches the calculated `target_gx/gy/gz` coordinates, it will automatically disengage engines and drop out of Hyperdrive at the precise location.
-*   **Hyperdrive Recalibration (Constant Speed):** The propulsion system has been calibrated for ultra-high-speed transit. **Factor 9.9 traverses the entire galaxy diagonal (approx. 69.3 units) in exactly 10 seconds.** Velocity is perfectly constant and independent of power distribution or system integrity to guarantee arrival times matching the `cal` command estimates.
+*   **Hyperdrive Recalibration (Constant Speed):** The propulsion system has been calibrated for ultra-high-speed transit. **Factor 9.9 traverses the entire galaxy diagonal (approx. 2771 units) in exactly 40 seconds.** Velocity is perfectly constant and independent of power distribution or system integrity to guarantee arrival times matching the `cal` command estimates.
 *   **Energy & Damage Model:** 
     *   **Linear Drain**: Hyperdrive energy consumption scales linearly with speed.
     *   **Integrity Penalty**: Damaged propulsion systems (Hyperdrive/Impulse) suffer from increased energy waste (heat dissipation). Consumption is inversely proportional to system integrity.
 *   **Smooth Autopilot (LERP Tracking):** The `apr` (approach) command no longer "snaps" the ship's orientation. Instead, it uses **Linear Interpolation (LERP)** to smoothly align the vessel's heading and mark with the target, preventing erratic spinning and providing a cinematic flight experience.
-*   **Boundary Enforcement:** Galactic limits are enforced at **[0.05, 399.95]**. Ships attempting to exit the galaxy will automatically engage emergency brakes and invert their heading (180° turn) to remain within navigable space.
+*   **Boundary Enforcement:** Galactic limits are enforced at **[0.05, 1599.95]**. Ships attempting to exit the galaxy will automatically engage emergency brakes and invert their heading (180° turn) to remain within navigable space.
 
 ### 3. Tactical Combat Overhaul
 Combat against NPC vessels features a sophisticated damage model and improved ordnance tracking:
@@ -238,6 +249,7 @@ To maintain a seamless 30 TPS (Ticks Per Second) logic rate while managing a mas
     *   **Underflow Protection**: All energy consumption logic (Combat, Navigation, Drain) now uses a "Safe-Subtract" pattern: `if (energy >= cost) energy -= cost; else energy = 0;`. This prevents the "unsigned wrap-around" that would otherwise grant ships infinite energy after depletion.
     *   **Visual FX Overhaul (Dismantle)**: Enhanced the `dis` command particle system with a 6x increase in fragment size, optimized expansion physics, and accurate Faction Color mapping for high-fidelity tactical feedback.
     *   **Login State Synchronization**: Optimized the network handshake to force an immediate full-state sync upon re-entry. This ensures that persistent tactical flags (AR Compass, Grid, HUD modes) are correctly restored in the 3D Viewer from the very first frame.
+    *   **Binary Layout & Versioning**: Updated `GALAXY_VERSION` to **20260218**. This change mandates a fresh `galaxy.dat` generation to maintain binary integrity with the new 64-bit data structures.
     *   **Binary Sync**: Realigned Shared Memory (SHM) and Network packets to ensure zero-copy compatibility with the new 64-bit layouts.
     *   **Impact**: Support for astronomical energy reserves and absolute logical stability during resource depletion.
 
@@ -599,7 +611,7 @@ Below is the complete list of available commands, grouped by function.
     *   **Requirements**: Minimum 10% Impulse system integrity (ID 1).
     *   **Cost**: 100 units of Energy for initialization (50 for speed-only updates).
     *   **Precision Stop**: If the optional `[Dist]` parameter is provided, the vessel will automatically disengage engines upon reaching the target coordinates.
-    *   `S`: Speed (0.0 - 10.0). `imp 0` for All Stop.
+    *   `S`: Speed (0.0 - 40.0). `imp 0` for All Stop.
 *   `pos <H> <M>`: **Positioning (Alignment)**. Orients the ship to a specific Heading and Mark without engaging engines. 
     *   **Requirements**: Minimum 10% Impulse system integrity (ID 1).
     *   **Cost**: 20 units of Energy.
@@ -608,7 +620,7 @@ Below is the complete list of available commands, grouped by function.
     *   **Requirements**: Minimum 10% Computer system integrity (ID 6).
     *   **Real-time Estimation**: Estimates are perfectly synchronized with the constant ship speed (Factor 9.9 = galaxy diagonal in 10s).
     *   **Data Reliability**: If computer integrity is below 50%, calculations may fail or return corrupted results.
-*   `ical <X> <Y> <Z>`: **Impulse Calculator (ETA)**. Calculates H, M, and ETA to reach precise coordinates (0.0-10.0) within the current quadrant.
+*   `ical <X> <Y> <Z>`: **Impulse Calculator (ETA)**. Calculates H, M, and ETA to reach precise coordinates (0.0-40.0) within the current quadrant.
     *   **Requirements**: Minimum 10% Computer system integrity (ID 6).
     *   **Tactical Awareness**: ETA calculation accounts for current **Power Allocation** and **Engine Integrity**.
     *   **Precision Suggestion**: The computer generates a complete `imp` command including the required distance for an **automatic stop** at the destination.
@@ -718,7 +730,7 @@ SpaceGL features a high-fidelity wreckage system designed to enhance immersion a
 
 *   **True-to-Life Derelicts**: When a ship is destroyed (NPC or Player), it spawns a persistent wreck that matches the exact **Hull Geometry** and **Faction** of the original vessel. A destroyed *Korthian Battlecruiser* will leave a Korthian wreck, and a *Swarm Cube* will leave a dark, silent cube.
 *   **Visual State**: Wrecks are rendered with a specialized "Dead Hull" shader pass. This removes all emissive lighting (Warp nacelles, deflector dishes, windows) and applies a darkened, scorched material to the hull, clearly distinguishing active threats from debris.
-*   **Player Persistence**: Player ships destroyed by combat, crew loss, or self-destruct (`xxx`) now leave a permanent mark in the galaxy. These wrecks can be scanned or dismantled (`dis`) by other players for high-value resources.
+*   **Player Persistence**: Player ships destroyed by combat, crew loss, or emergency repositioning (`xxx`) now leave a permanent mark in the galaxy. These wrecks can be scanned or dismantled (`dis`) by other players for high-value resources.
 *   **Combat Effects**: 
     *   **Snappy Phasers**: Ion beam pulses have been optimized for faster delivery and rapid fade-out, providing better visual feedback during intense combat.
     *   **Dismantle Feedback**: Successful dismantling of a wreck triggers a specialized particle disintegration effect, synchronized across the network.
@@ -751,8 +763,12 @@ SpaceGL features a high-fidelity wreckage system designed to enhance immersion a
     *   **Cost**: 50 units of Energy for standard algorithms, 250 units for PQC. Disabling encryption (`enc off`) is free.
     *   Supports **AES-256-GCM**, **ChaCha20**, **ARIA**, **Camellia**, **Blowfish**, **RC4**, **CAST5**, **IDEA**, **3DES**, and **PQC (ML-KEM)**. Essential for protecting communications and reading secure messages from other captains.
 *   `tor`: **Fire Plasma Torpedo**. Launches an auto-guided torpedo at the locked target.
+    *   **4-Tube Rotary System**: The vessel features 4 independent launch tubes. You can fire up to 4 torpedoes in rapid succession.
+    *   **Universal Visibility**: Torpedoes in flight are physically rendered and visible to all players in the sector.
+    *   **Sector Boundaries**: Torpedoes explode immediately upon hitting the edge of the current quadrant (0.0 - 40.0).
     *   **Requirements**: Minimum 50% Torpedo system integrity (ID 5).
     *   **Cost**: 250 units of Energy per launch.
+    *   **Reload**: Each tube requires approximately 3 seconds (90 ticks) to reload after firing.
     *   **Risks**: Chance of misfire (torpedo lost, no launch) if system integrity is below 75%.
     *   **Guidance**: Accuracy of the auto-guidance system depends on **Sensors (ID 2)** health. Damaged sensors reduce the torpedo's ability to correct its course.
 *   `tor <H> <M>`: Launches a torpedo in manual ballistic mode (Heading/Mark).
@@ -805,7 +821,7 @@ To perform complex operations (mining, resupply, boarding), follow this optimize
 **Note on Inter-Sector Scope**: The `dis` (dismantle) command uses a global resolution system. This means you can target and dismantle any wreck visible on your HUD or identified by sensors, even if it is in an adjacent quadrant. The `apr` (approach) command is instead restricted to objects within the current quadrant to ensure short-range navigational safety.
 
 ### 📏 Interaction Distances Table
-Distances expressed in sector units (0.0 - 10.0). If your distance is greater than the limit, the computer will respond with "No [object] in range".
+Distances expressed in sector units (0.0 - 40.0). If your distance is greater than the limit, the computer will respond with "No [object] in range".
 
 | Object / Entity | Command / Action | Minimum Distance | Effect / Interaction |
 | :--- | :--- | :--- | :--- |
@@ -861,7 +877,7 @@ The `apr <ID> <DIST>` command allows you to automatically approach any object de
     *   **Feedback**: Provides immediate confirmation of the new percentage distribution.
     *   **Strategic Impact**: Dictates performance of sub-light engines, shield recharge rate, and Ion Beam intensity.
 *   `aux jettison`: **Eject Hyperdrive Synaptics**. Ejects the core (Suicide maneuver / Last resort).
-*   `xxx`: **Self-Destruct**. Sequential self-destruction. Triggers **Emergency Reentry** (see below).
+*   `xxx`: **Emergency Repositioning**. Triggers an immediate **Tactical Warp** to a safe sector, leaving a hull derelict behind. Restore systems and energy to 80%.
 *   `zztop`: **Total System Wipe**. Permanently deletes your captain's profile and all career data from the galaxy database. This action is irreversible and drops your connection.
 
 ### ⚡ Reactor and Power Management
@@ -998,9 +1014,15 @@ The HUD displays "LIFE SUPPORT: XX.X%", which is directly linked to the integrit
 
 ### 📦 Cargo and Resource Management
 
-Space GL distinguishes between **Active Systems**, **Cargo Storage**, and the **Prison Unit**. This is reflected in the HUD as `ENERGY: X (CARGO: Y)`.
-
-
+Space GL distinguishes between **Active Systems**, **Cargo Storage**, and the **Prison Unit**. This is reflected in the HUD as:
+*   **ENERGY: X (CARGO ANTIMATTER: Y)**: Main reserves vs cargo storage.
+*   **TORPS: X (CARGO TORPEDOES: Y)**: Launcher status and inventory (now on separate lines).
+*   **LOCK: [ID]**: Target lock status, positioned above the torpedo system.
+*   **HULL INTEGRITY / PLATING**: Structural health and armor status.
+*   **CREW / PRISON UNIT**: Life support and detention tracking.
+*   **SYSTEMS HEALTH**: Diagnostic grid for all 10 ship subsystems.
+*   **CARGO INVENTORY**: 8-slot resource tracking for materials.
+*   **PROBES STATUS**: Real-time status of deep space sensor probes.
 
 *   **Active Energy/Torps**: These are resources currently available for immediate use.
 
@@ -1053,7 +1075,7 @@ The Space GL bridge operates via a high-precision Command Line Interface (CLI). 
     *   **Requirements**: Minimum 10% Impulse system integrity (ID 1).
     *   **Cost**: 100 units of Energy for initialization (50 for speed-only updates).
     *   **Precision Stop**: If the optional `[Dist]` parameter is provided, the vessel will automatically disengage engines upon reaching the target coordinates.
-    *   `S`: Speed (0.0 - 10.0). `imp 0` for All Stop.
+    *   `S`: Speed (0.0 - 40.0). `imp 0` for All Stop.
 *   `pos <H> <M>`: **Positioning (Alignment)**. Orients the ship to a specific Heading and Mark without engaging engines. 
     *   **Requirements**: Minimum 10% Impulse system integrity (ID 1).
     *   **Cost**: 20 units of Energy.
@@ -1074,7 +1096,7 @@ The Space GL bridge operates via a high-precision Command Line Interface (CLI). 
     *   **Cost**: 25 units of Energy per computation.
     *   **Data Reliability**: If computer integrity is below 50%, calculations will return **Data Corrupted** results with parity errors.
     *   If sector coordinates (SX, SY, SZ) are provided, it calculates the pinpoint route to that specific location and suggests the exact `nav` command to copy.
-*   `ical <X> <Y> <Z>`: **Impulse Calculator (ETA)**. Calculates H, M, and ETA to reach precise coordinates (0.0-10.0) within the current quadrant.
+*   `ical <X> <Y> <Z>`: **Impulse Calculator (ETA)**. Calculates H, M, and ETA to reach precise coordinates (0.0-40.0) within the current quadrant.
     *   **Requirements**: Minimum 10% Computer system integrity (ID 6).
     *   **Cost**: 10 units of Energy per computation.
     *   **Data Reliability**: If computer integrity is below 50%, calculations will return corrupted results.
@@ -1181,7 +1203,7 @@ The on-screen interface (Overlay) provides constant monitoring of vital paramete
 *   **Cargo Monitoring**: Explicit monitoring of **CARGO ANTIMATTER** and **CARGO TORPEDOES** reserves for rapid resupply.
 *   **Hull Integrity**: Physical state of the hull (0-100%). If it drops to zero, the vessel is lost.
 *   **Hull Plating**: Golden indicator of Composite-reinforced hull integrity (visible only if present).
-*   **Sector Coordinates**: Instant conversion of spatial data into relative coordinates `[S1, S2, S3]` (0.0 - 10.0), mirroring those used in `nav` and `imp` commands.
+*   **Sector Coordinates**: Instant conversion of spatial data into relative coordinates `[S1, S2, S3]` (0.0 - 40.0), mirroring those used in `nav` and `imp` commands.
 *   **🌐 Galactic Deep Space Indexing (GDIS)**:
     *   To ensure maximum precision, the server uses absolute coordinates on a **100x100x100** unit galactic cube.
     *   All critical commands (`apr`, `bor`, `pha`, `tor`) leverage this global reference to eliminate range calculation errors between different sectors.
@@ -1652,8 +1674,9 @@ A vessel specialized in analyzing spatial anomalies and gathering Aetherium.
 The project implements cutting-edge engineering solutions to ensure operational superiority in deep space:
 
 #### 🚀 1. Precision Approach Autopilot (APR)
-The assisted navigation system (`apr`) operates with millimeter precision, ensuring a stopping tolerance of **0.01 sector units**.
-*   **Purpose**: This extreme calibration is essential for **Boarding (`bor`)** and **Docking** operations, which require the vessel to be positioned within extremely tight ranges (< 1.0 units).
+The assisted navigation system (`apr`) operates with high precision, ensuring a stopping tolerance of **0.1 sector units**.
+*   **Smooth Arrival**: It includes a **linear deceleration ramp** when within 1.0 unit of the target and a **final position snap** to eliminate HUD/Compass trembling upon arrival.
+*   **Purpose**: This calibration is essential for **Boarding (`bor`)** and **Docking** operations, which require the vessel to be positioned within tight ranges (< 1.0 units).
 *   **Versatility**: The targeting system is universal and guarantees the same precision toward ships of any faction (Quarzite, Korthian, Swarm), starbases, or galactic anomalies.
 
 #### 💣 2. Multi-Tube Torpedo System (4-Tube Rotary System)
@@ -1791,7 +1814,16 @@ Interaction with the `spacegl_3dview` is handled via the following direct inputs
 *   **Arrow Keys**: Rotate camera (Pitch / Yaw).
 *   **W / S Keys**: Precise Zoom In / Zoom Out.
 *   **H Key**: Toggle HUD (Hide/Show tactical overlay).
+*   **F7 Key**: Cycle **Anisotropic Filtering** levels (1x - 16x) for texture sharpness.
+*   **F8 Key**: Adjust **Starfield Density** (1000 - 8000 stars) to balance aesthetics and performance.
 *   **ESC Key**: Safely close the 3D Viewer.
+
+### 🖥️ Visual Performance & Rendering (2026.02 Revision)
+The 3D engine has been optimized for modern displays:
+*   **Native Resolution**: Full HD (**1920x1080**) support via `TACTICAL_CUBE_W/H` macros.
+*   **Multi-Tube HUD**: Real-time status for the 4 launch tubes (`[R]` Ready, `[L]` Loading, `[F]` Firing).
+*   **GFX Status**: A dedicated telemetry line shows current filtering and star density parameters.
+*   **Shared Fire Exchange**: Both torpedoes and Ion Beam (phaser) discharges are now synchronized physical objects; every energy flash in the quadrant is visible to all players, enabling the observation of remote battles.
 
 ### 🚢 Visual ship class aesthetics
 Each vessel class features unique 3D design elements:

@@ -238,7 +238,8 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     /* 1. Determine what changed */
     if (p->last_sent_state.q1 != upd->q1 || p->last_sent_state.q2 != upd->q2 || p->last_sent_state.q3 != upd->q3 ||
         p->last_sent_state.s1 != upd->s1 || p->last_sent_state.s2 != upd->s2 || p->last_sent_state.s3 != upd->s3 ||
-        p->last_sent_state.van_h != upd->van_h || p->last_sent_state.van_m != upd->van_m) mask |= UPD_TRANSFORM;
+        p->last_sent_state.van_h != upd->van_h || p->last_sent_state.van_m != upd->van_m ||
+        p->last_sent_state.eta != upd->eta) mask |= UPD_TRANSFORM;
 
     if (p->last_sent_state.energy != upd->energy || p->last_sent_state.torpedoes != upd->torpedoes || 
         p->last_sent_state.hull_integrity != upd->hull_integrity || p->last_sent_state.cargo_energy != upd->cargo_energy ||
@@ -262,7 +263,10 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         p->last_sent_state.map_filter != upd->map_filter) mask |= UPD_FLAGS;
 
     /* Effects, Probes and Beams are transient or frequently updated, usually we send them if not empty */
-    if (upd->boom.active || upd->torp.active || upd->wormhole.active || upd->recovery_fx.active || 
+    bool any_torp = upd->torps[0].active || upd->torps[1].active || upd->torps[2].active || upd->torps[3].active;
+    bool last_any_torp = p->last_sent_state.torps[0].active || p->last_sent_state.torps[1].active || p->last_sent_state.torps[2].active || p->last_sent_state.torps[3].active;
+    
+    if (upd->boom.active || any_torp || (any_torp != last_any_torp) || upd->wormhole.active || upd->recovery_fx.active ||
         upd->dismantle.active || upd->jump_arrival.active || upd->supernova_pos.active) mask |= UPD_EFFECTS;
     if (upd->probes[0].active || upd->probes[1].active || upd->probes[2].active) mask |= UPD_PROBES;
     if (upd->beam_count > 0) mask |= UPD_COMBAT; /* Re-using combat for beams or add UPD_BEAMS if needed */
@@ -298,7 +302,8 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
             upd->s2, 
             upd->s3, 
             upd->van_h, 
-            upd->van_m
+            upd->van_m,
+            upd->eta
         };
         memcpy(ptr, &b, sizeof(b));
         ptr += sizeof(b);
@@ -378,7 +383,7 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         UpdateBlockEffects b = {
             upd->supernova_pos, 
             {upd->supernova_q[0], upd->supernova_q[1], upd->supernova_q[2]}, 
-            upd->torp, 
+            {upd->torps[0], upd->torps[1], upd->torps[2], upd->torps[3]}, 
             upd->boom, 
             upd->wormhole, 
             upd->jump_arrival, 

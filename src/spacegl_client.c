@@ -178,9 +178,9 @@ void init_shm() {
     sem_init(&g_shared_state->data_ready, 1, 0);
     
     /* Initial Sector Position: Center (5,5,5) */
-    g_shared_state->shm_s[0] = 5.0;
-    g_shared_state->shm_s[1] = 5.0;
-    g_shared_state->shm_s[2] = 5.0;
+    g_shared_state->shm_s[0] = 20.0;
+    g_shared_state->shm_s[1] = 20.0;
+    g_shared_state->shm_s[2] = 20.0;
 }
 
 void cleanup() {
@@ -411,6 +411,7 @@ void *network_listener(void *arg) {
                     current_state.q1 = b.q1; current_state.q2 = b.q2; current_state.q3 = b.q3;
                     current_state.s1 = b.s1; current_state.s2 = b.s2; current_state.s3 = b.s3;
                     current_state.van_h = b.van_h; current_state.van_m = b.van_m;
+                    current_state.eta = b.eta;
                     current_pkt_size += sizeof(b);
                 }
                 if (mask & UPD_VITALS) {
@@ -464,7 +465,8 @@ void *network_listener(void *arg) {
                     UpdateBlockEffects b; read_all(sock, &b, sizeof(b));
                     current_state.supernova_pos = b.supernova_pos;
                     memcpy(current_state.supernova_q, b.supernova_q, sizeof(b.supernova_q));
-                    current_state.torp = b.torp; current_state.boom = b.boom;
+                    memcpy(current_state.torps, b.torps, sizeof(b.torps)); 
+                    current_state.boom = b.boom;
                     current_state.wormhole = b.wormhole; current_state.jump_arrival = b.jump_arrival;
                     current_state.dismantle = b.dismantle; current_state.recovery_fx = b.recovery_fx;
                     current_pkt_size += sizeof(b);
@@ -598,6 +600,7 @@ void *network_listener(void *arg) {
                 g_shared_state->shm_s[2] = current_state.s3;
                 g_shared_state->shm_h = current_state.van_h;
                 g_shared_state->shm_m = current_state.van_m;
+                g_shared_state->shm_eta = current_state.eta;
                 sprintf(g_shared_state->quadrant, "Q-%d-%d-%d", current_state.q1, current_state.q2, current_state.q3);
 
                 /* Update dynamic galaxy data (e.g. Ion Storms, Supernovas) */
@@ -651,10 +654,12 @@ void *network_listener(void *arg) {
                 }
                 
                 /* Projectile position */
-                g_shared_state->torp.shm_x = current_state.torp.net_x;
-                g_shared_state->torp.shm_y = current_state.torp.net_y;
-                g_shared_state->torp.shm_z = current_state.torp.net_z;
-                g_shared_state->torp.active = current_state.torp.active;
+                for(int s=0; s<4; s++) {
+                    g_shared_state->torps[s].shm_x = current_state.torps[s].net_x;
+                    g_shared_state->torps[s].shm_y = current_state.torps[s].net_y;
+                    g_shared_state->torps[s].shm_z = current_state.torps[s].net_z;
+                    g_shared_state->torps[s].active = current_state.torps[s].active;
+                }
                 
                 /* Event Latching */
                 if (current_state.boom.active) {

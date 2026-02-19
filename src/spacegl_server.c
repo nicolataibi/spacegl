@@ -374,14 +374,14 @@ int main(int argc, char *argv[]) {
                                     players[slot].state.q1 = rand()%GALAXY_SIZE + 1;
                                     players[slot].state.q2 = rand()%GALAXY_SIZE + 1;
                                     players[slot].state.q3 = rand()%GALAXY_SIZE + 1;
-                                    players[slot].state.s1 = 5.0;
-                                    players[slot].state.s2 = 5.0;
-                                    players[slot].state.s3 = 5.0;
+                                    players[slot].state.s1 = 20.0;
+                                    players[slot].state.s2 = 20.0;
+                                    players[slot].state.s3 = 20.0;
                                                                         
                                                                         /* Initialize Absolute Galactic Coordinates */
-                                                                        players[slot].gx = (players[slot].state.q1 - 1) * 10.0 + players[slot].state.s1;
-                                                                        players[slot].gy = (players[slot].state.q2 - 1) * 10.0 + players[slot].state.s2;
-                                                                        players[slot].gz = (players[slot].state.q3 - 1) * 10.0 + players[slot].state.s3;
+                                                                        players[slot].gx = (players[slot].state.q1 - 1) * QUADRANT_SIZE + players[slot].state.s1;
+                                                                        players[slot].gy = (players[slot].state.q2 - 1) * QUADRANT_SIZE + players[slot].state.s2;
+                                                                        players[slot].gz = (players[slot].state.q3 - 1) * QUADRANT_SIZE + players[slot].state.s3;
                                                                         
                                                                                                                 players[slot].state.inventory[1] = 10; /* Initial Aetherium for jumps */
                                                                         
@@ -402,7 +402,7 @@ int main(int argc, char *argv[]) {
                                 /* SESSION INITIALIZATION: Reset transient event flags and force full sync */
                                 players[slot].renegade_timer = 0;
                                 players[slot].state.boom.active = 0;
-                                players[slot].state.torp.active = 0;
+                                for(int s=0; s<4; s++) players[slot].state.torps[s].active = 0;
                                 players[slot].state.dismantle.active = 0;
                                 players[slot].state.beam_count = 0;
                                 players[slot].torp_active = false;
@@ -413,9 +413,9 @@ int main(int argc, char *argv[]) {
                                 players[slot].state.q1 = get_q_from_g(players[slot].gx);
                                 players[slot].state.q2 = get_q_from_g(players[slot].gy);
                                 players[slot].state.q3 = get_q_from_g(players[slot].gz);
-                                players[slot].state.s1 = players[slot].gx - (players[slot].state.q1 - 1) * 10.0;
-                                players[slot].state.s2 = players[slot].gy - (players[slot].state.q2 - 1) * 10.0;
-                                players[slot].state.s3 = players[slot].gz - (players[slot].state.q3 - 1) * 10.0;
+                                players[slot].state.s1 = players[slot].gx - (players[slot].state.q1 - 1) * QUADRANT_SIZE;
+                                players[slot].state.s2 = players[slot].gy - (players[slot].state.q2 - 1) * QUADRANT_SIZE;
+                                players[slot].state.s3 = players[slot].gz - (players[slot].state.q3 - 1) * QUADRANT_SIZE;
 
                                 pthread_mutex_unlock(&game_mutex);
 
@@ -461,9 +461,9 @@ int main(int argc, char *argv[]) {
                                         players[slot].state.q1 = rq1;
                                         players[slot].state.q2 = rq2;
                                         players[slot].state.q3 = rq3;
-                                        players[slot].state.s1 = 5.0;
-                                        players[slot].state.s2 = 5.0;
-                                        players[slot].state.s3 = 5.0;
+                                        players[slot].state.s1 = 20.0;
+                                        players[slot].state.s2 = 20.0;
+                                        players[slot].state.s3 = 20.0;
                                         players[slot].state.energy = MAX_ENERGY_CAPACITY;
                                         players[slot].state.torpedoes = 1000;
                                         if (players[slot].state.crew_count <= 0) {
@@ -473,9 +473,9 @@ int main(int argc, char *argv[]) {
                                         for (int s = 0; s < 10; s++) {
                                             players[slot].state.system_health[s] = 80.0f;
                                         }
-                                        players[slot].gx = (players[slot].state.q1 - 1) * 10.0 + 5.0;
-                                        players[slot].gy = (players[slot].state.q2 - 1) * 10.0 + 5.0;
-                                        players[slot].gz = (players[slot].state.q3 - 1) * 10.0 + 5.0;
+                                        players[slot].gx = (players[slot].state.q1 - 1) * QUADRANT_SIZE + 20.0;
+                                        players[slot].gy = (players[slot].state.q2 - 1) * QUADRANT_SIZE + 20.0;
+                                        players[slot].gz = (players[slot].state.q3 - 1) * QUADRANT_SIZE + 20.0;
                                         players[slot].nav_state = NAV_STATE_IDLE;
                                         players[slot].hyper_speed = 0;
                                         players[slot].dx = 0;

@@ -138,7 +138,7 @@ typedef struct {
     NetObject objects[MAX_NET_OBJECTS];
     int32_t beam_count;
     NetBeam beams[MAX_NET_BEAMS];
-    NetPoint torp;
+    NetPoint torps[4];
     NetPoint boom;
     NetPoint wormhole;
     NetPoint jump_arrival;
