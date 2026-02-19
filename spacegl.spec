@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 15
+%global rel 16
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -102,14 +102,20 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/readme_assets/
 
 %changelog
-* Wed Feb 18 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
-- Enemy players’ torpedoes have no effect on the ship’s shields; they only cause damage to the hull.
-- The lock must disengage if the object leaves the quadrant, is destroyed, or if the ship changes quadrant.
-- When the hull reaches 0%, all commands except xxx are disabled.
-- The “apr now” command is applicable to all objects present in the current quadrant.
-- Reorganization of galactic object IDs.
-- The ship is never destroyed but recovered.
-- Deletion of the captain and data from galaxy.dat.
-- Quadrant sensor: asteroids now display their composition.
-- Redefinition of the energy data type to 64-bit, set to 999,999,999,999.
-- When the client restarts, a full update of all status flags [UPD_FLAGS] is forced.
+* Fri Feb 20 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
+- F7 - Anisotropic Filtering: Improves the sharpness of slanted surfaces (cycles through 1x, 2x, 4x, 8x, 16x).
+- F8 - Starfield Density: Changes the number of background stars (from 1,000 to 8,000). Useful for making space feel denser or reducing the load on the GPU.
+- Multi-Tube Independent Logic: The system now supports firing up to four torpedoes in rapid succession.
+- Cyclic Reload HUD: The [L] (Loading) status is now correctly displayed for each individual tube.
+- Boundary Enforcement: Torpedoes now explode immediately upon reaching quadrant boundaries.
+- Universal Visibility: Torpedoes from all players are now rendered in everyone's 3D view (Object Type 28).
+- Optimized HUD: Personal HUD indicators accurately track your own torpedoes, while the 3D view displays all tactical ordnance without cluttering the screen with unnecessary labels.
+- Quadrants: $40 \times 40 \times 40$ (64,000 quadrants).Sectors (Units): $40 \times 40 \times 40$ per quadrant.Absolute Coordinate System: Migrated from $0 - 400$ to $0.0 - 1600.0$.
+- Vastness: The galaxy is now 64 times larger in terms of absolute unit volume, ensuring superior fluidity during high-speed movement.
+- All navigation commands (nav, imp, apr) and calculators (cal, ical) now operate with hundredth-degree precision (%.2f).
+- Short-Range Sensors (srs) and status reports (sta) now display coordinates and distances with two decimal places.
+- Hyperdrive Recalibration: Warp Factor 9.9 traverses the galaxy's diagonal ($\approx 2771$ units) in 40 real-world seconds.
+- HUD ETA: Added a yellow field in the 3D viewer that displays the Estimated Time of Arrival in seconds; this is only visible when a destination is set.
+- Tactical Cube: The quadrant frame has been scaled to $40 \times 40 \times 40$.Tactical Grid: Now covers the entire sector volume with reference lines every 10 units.
+- Precision has been increased to "millimeter" level, with a stopping tolerance of 0.01 units (ten times more precise). This is critical for docking and boarding maneuvers.
+- Full HD (**1920x1080**) support via `TACTICAL_CUBE_W/H` macros.
