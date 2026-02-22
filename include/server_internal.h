@@ -51,6 +51,7 @@ typedef struct {
     int active;
     int crypto_algo; /* 0:None, 1-11:Legacy, 12:PQC (Quantum Secure) */
     uint8_t session_key[32]; /* Derived via ECDH/ML-KEM */
+    uint8_t algo_keys[13][32]; /* Personal Frequency Set */
     
     /* Navigation & Physics State */
     double gx, gy, gz;      /* Absolute Galactic Coordinates */
@@ -61,6 +62,7 @@ typedef struct {
     int nav_state;
     int nav_timer;
     double hyper_speed;
+    double eta;
     double approach_dist;
     int apr_target;
     
@@ -98,7 +100,9 @@ typedef struct {
     uint64_t full_update_timer;
 
     SpaceGLGame state;
-} ConnectedPlayer;
+} __attribute__((aligned(64))) ConnectedPlayer;
+
+#pragma pack(push, 1)
 
 typedef enum {
     AI_STATE_PATROL = 0,
@@ -107,6 +111,30 @@ typedef enum {
     AI_STATE_ATTACK_RUN,
     AI_STATE_ATTACK_POSITION
 } AIState;
+
+/* ThreadPool System */
+typedef void (*thread_task_fn)(void *arg);
+
+typedef struct thread_task {
+    thread_task_fn function;
+    void *arg;
+    struct thread_task *next;
+} thread_task_t;
+
+typedef struct {
+    pthread_mutex_t lock;
+    pthread_cond_t notify;
+    pthread_t *threads;
+    thread_task_t *queue_head;
+    int thread_count;
+    int queue_size;
+    bool shutdown;
+} threadpool_t;
+
+/* ThreadPool Prototypes */
+threadpool_t *threadpool_create(int thread_count);
+int threadpool_add_task(threadpool_t *pool, thread_task_fn function, void *arg);
+void threadpool_destroy(threadpool_t *pool);
 
 /* --- Celestial and Tactical Entities --- */
 
@@ -156,6 +184,18 @@ typedef struct {
     int type;
     int active; 
 } NPCPulsar;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int type; /* 0:Radio-loud, 1:Radio-quiet, 2:BAL, 3:Type 2, 4:Red, 5:OVV, 6:Weak emission */
+    int active; 
+} NPCQuasar;
 
 typedef struct { 
     int id;
@@ -242,6 +282,8 @@ typedef struct {
     uint64_t energy;
     int active; 
     int fire_cooldown; 
+    int beam_count;
+    NetBeam beams[4];
 } NPCPlatform;
 
 typedef struct { 
@@ -268,6 +310,8 @@ typedef struct {
     uint64_t energy;
     int active; 
     int behavior_timer; 
+    int beam_count;
+    NetBeam beams[4];
 } NPCMonster;
 
 typedef struct { 
@@ -303,7 +347,9 @@ typedef struct {
     int ship_class;
     int death_timer;
     char name[64];
-} NPCShip;
+    int beam_count;
+    NetBeam beams[4];
+} __attribute__((aligned(64))) NPCShip;
 
 typedef struct { 
     int id;
@@ -331,6 +377,23 @@ typedef struct {
     int active; 
 } NPCBase;
 
+typedef struct {
+    int id;
+    int owner_idx;
+    int faction;
+    int q1, q2, q3;
+    double x, y, z;      /* Local coordinates */
+    double gx, gy, gz;    /* Absolute coordinates */
+    double dx, dy, dz;    /* Direction vector */
+    int target_id;
+    int timeout;
+    bool active;
+} __attribute__((aligned(64))) PlayerTorpedo;
+
+#define MAX_GLOBAL_TORPEDOES (MAX_CLIENTS * 4)
+
+#pragma pack(pop)
+
 /* --- Limits --- */
 
 #define MAX_NPC 2500
@@ -340,6 +403,7 @@ typedef struct {
 #define MAX_BH 200
 #define MAX_NEBULAS 500
 #define MAX_PULSARS 200
+#define MAX_QUASARS 200
 #define MAX_COMETS 300
 #define MAX_ASTEROIDS 2000
 #define MAX_DERELICTS 2500
@@ -357,6 +421,7 @@ typedef struct {
 #define MAX_Q_BH 8
 #define MAX_Q_NEBULAS 16
 #define MAX_Q_PULSARS 8
+#define MAX_Q_QUASARS 8
 #define MAX_Q_COMETS 8
 #define MAX_Q_ASTEROIDS 40
 #define MAX_Q_DERELICTS 8
@@ -366,12 +431,14 @@ typedef struct {
 #define MAX_Q_RIFTS 4
 #define MAX_Q_MONSTERS 4
 #define MAX_Q_PLAYERS 32
+#define MAX_Q_TORPEDOES 32
 
 /* Global Data accessed by modules */
 extern NPCStar stars_data[MAX_STARS];
 extern NPCBlackHole black_holes[MAX_BH];
 extern NPCNebula nebulas[MAX_NEBULAS];
 extern NPCPulsar pulsars[MAX_PULSARS];
+extern NPCQuasar quasars[MAX_QUASARS];
 extern NPCComet comets[MAX_COMETS];
 extern NPCAsteroid asteroids[MAX_ASTEROIDS];
 extern NPCDerelict derelicts[MAX_DERELICTS];
@@ -383,12 +450,14 @@ extern NPCMonster monsters[MAX_MONSTERS];
 extern NPCPlanet planets[MAX_PLANETS];
 extern NPCBase bases[MAX_BASES];
 extern NPCShip npcs[MAX_NPC];
+extern PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 extern ConnectedPlayer players[MAX_CLIENTS];
 extern SpaceGLGame spacegl_master;
 extern pthread_mutex_t game_mutex;
 extern int g_debug;
 extern int global_tick;
 extern uint8_t MASTER_SESSION_KEY[32];
+extern uint8_t ALGO_KEYS[13][32]; /* Keys for algorithms 1-12 */
 extern uint8_t SERVER_PUBKEY[32];
 extern uint8_t SERVER_PRIVKEY[64];
 
@@ -402,7 +471,7 @@ extern SupernovaState supernova_event;
 
 #define LOG_DEBUG(...) do { if (g_debug) { printf("DEBUG: " __VA_ARGS__); fflush(stdout); } } while (0)
 
-#define GALAXY_VERSION 20260218
+#define GALAXY_VERSION 20260221
 
 /* Spatial Partitioning Index */
 typedef struct {
@@ -426,6 +495,9 @@ typedef struct {
     NPCPulsar *pulsars[MAX_Q_PULSARS];
     int pulsar_count;
     int static_pulsar_count; 
+    NPCQuasar *quasars[MAX_Q_QUASARS];
+    int quasar_count;
+    int static_quasar_count; 
     NPCComet *comets[MAX_Q_COMETS];
     int comet_count;
     NPCAsteroid *asteroids[MAX_Q_ASTEROIDS];
@@ -444,7 +516,9 @@ typedef struct {
     int monster_count;
     ConnectedPlayer *players[MAX_Q_PLAYERS];
     int player_count;
-} QuadrantIndex;
+    PlayerTorpedo *torpedoes[MAX_Q_TORPEDOES];
+    int torpedo_count;
+} __attribute__((aligned(64))) QuadrantIndex;
 
 extern QuadrantIndex (*spatial_index)[41][41];
 void rebuild_spatial_index();
@@ -473,9 +547,11 @@ const char* get_species_name(int s);
 
 void broadcast_message(PacketMessage *msg);
 void send_server_msg(int p_idx, const char *from, const char *text);
+void broadcast_server_event(int q1, int q2, int q3, int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra);
 
 bool process_command(int p_idx, const char *cmd);
 void update_game_logic();
+void push_server_event(int p_idx, int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra);
 bool is_player_in_nebula(int p_idx);
 void apply_hull_damage(int p_idx, double amount);
 void send_optimized_update(int p_idx, PacketUpdate *upd);

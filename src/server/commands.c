@@ -18,6 +18,7 @@
  */
 
 #include <stdio.h>
+#include <time.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -25,6 +26,7 @@
 #include <sys/socket.h>
 #include "server_internal.h"
 #include "game_config.h"
+#include "shared_state.h"
 #include "ui.h"
 
 /* Helper macro to safely append to a buffer with length check (used in handle_srs) */
@@ -117,66 +119,79 @@ void normalize_upright(double *h, double *m) {
 /* --- Command Handlers --- */
 
 void handle_enc(int i, const char *params, bool *should_disconnect) {
-    if (players[i].state.system_health[6] < 10.0) {
+    if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "CRYPTOGRAPHIC FAILURE: Logic core damaged. Encryption systems offline.");
         return;
     }
 
-    int cost = 50;
+    int cost = COST_ENCRYPTION_SHIFT;
     bool is_pqc = strstr(params, "pqc") || strstr(params, "kyber");
     if (is_pqc) {
-        cost = 250;
-        if (players[i].state.system_health[6] < 50.0) {
+        cost = COST_PQC_INIT;
+        if (players[i].state.system_health[6] < THRESHOLD_SYS_DEGRADED) {
             send_server_msg(i, "SCIENCE", "Quantum Tunnel initialization failed. Computer integrity must be above 50% for PQC.");
             return;
         }
     }
 
-    if (players[i].state.energy < cost) {
+    if (players[i].state.energy < (uint64_t)cost) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for cryptographic frequency shift.");
         return;
     }
 
     bool valid = true;
     if (strstr(params, "aes")) {
-        players[i].crypto_algo = CRYPTO_AES;
+        players[i].state.shm_crypto_algo = CRYPTO_AES;
+        players[i].state.encryption_flags |= 0x01; /* Signature active */
         send_server_msg(i, "COMPUTER", "Deep Space encryption: AES-256-GCM ACTIVE.");
     } else if (strstr(params, "chacha")) {
-        players[i].crypto_algo = CRYPTO_CHACHA;
+        players[i].state.shm_crypto_algo = CRYPTO_CHACHA;
+        players[i].state.encryption_flags |= 0x01;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: CHACHA20-POLY1305 ACTIVE.");
     } else if (strstr(params, "aria")) {
-        players[i].crypto_algo = CRYPTO_ARIA;
+        players[i].state.shm_crypto_algo = CRYPTO_ARIA;
+        players[i].state.encryption_flags |= 0x01;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: ARIA-256-GCM ACTIVE.");
     } else if (strstr(params, "camellia")) {
-        players[i].crypto_algo = CRYPTO_CAMELLIA;
+        players[i].state.shm_crypto_algo = CRYPTO_CAMELLIA;
+        players[i].state.encryption_flags |= 0x01;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: CAMELLIA-256-CTR (Xylari) ACTIVE.");
     } else if (strstr(params, "seed")) {
-        players[i].crypto_algo = CRYPTO_SEED;
+        players[i].state.shm_crypto_algo = CRYPTO_SEED;
+        players[i].state.encryption_flags |= 0x01;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: SEED-CBC (ORION) ACTIVE.");
     } else if (strstr(params, "cast")) {
-        players[i].crypto_algo = CRYPTO_CAST5;
+        players[i].state.shm_crypto_algo = CRYPTO_CAST5;
+        players[i].state.encryption_flags |= 0x01;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: CAST5-CBC (OLD REPUBLIC) ACTIVE.");
     } else if (strstr(params, "idea")) {
-        players[i].crypto_algo = CRYPTO_IDEA;
+        players[i].state.shm_crypto_algo = CRYPTO_IDEA;
+        players[i].state.encryption_flags |= 0x01;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: IDEA-CBC (MAQUIS) ACTIVE.");
     } else if (strstr(params, "3des")) {
-        players[i].crypto_algo = CRYPTO_3DES;
+        players[i].state.shm_crypto_algo = CRYPTO_3DES;
+        players[i].state.encryption_flags |= 0x01;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: DES-EDE3-CBC (ANCIENT) ACTIVE.");
     } else if (strstr(params, "bf") || strstr(params, "blowfish")) {
-        players[i].crypto_algo = CRYPTO_BLOWFISH;
+        players[i].state.shm_crypto_algo = CRYPTO_BLOWFISH;
+        players[i].state.encryption_flags |= 0x01;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: BLOWFISH-CBC (GILDED) ACTIVE.");
     } else if (strstr(params, "rc4")) {
-        players[i].crypto_algo = CRYPTO_RC4;
+        players[i].state.shm_crypto_algo = CRYPTO_RC4;
+        players[i].state.encryption_flags |= 0x01;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: RC4-STREAM (TACTICAL) ACTIVE.");
     } else if (strstr(params, "des") && !strstr(params, "3des")) {
-        players[i].crypto_algo = CRYPTO_DES;
+        players[i].state.shm_crypto_algo = CRYPTO_DES;
+        players[i].state.encryption_flags |= 0x01;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: DES-CBC (PRE-HYPERDRIVE) ACTIVE.");
     } else if (is_pqc) {
-        players[i].crypto_algo = CRYPTO_PQC;
+        players[i].state.shm_crypto_algo = CRYPTO_PQC;
+        players[i].state.encryption_flags |= 0x01;
         send_server_msg(i, "COMPUTER", "Deep Space encryption: ML-KEM-1024 (POST-QUANTUM) ACTIVE.");
         send_server_msg(i, "SCIENCE", "Quantum Tunnel established. Signal is now immune to Shor's algorithm.");
     } else if (strstr(params, "off")) {
-        players[i].crypto_algo = CRYPTO_NONE;
+        players[i].state.shm_crypto_algo = CRYPTO_NONE;
+        players[i].state.encryption_flags &= ~0x01; /* Disable signature when off */
         send_server_msg(i, "COMPUTER", "WARNING: Encryption DISABLED. Signal is now RAW.");
         cost = 0;
     } else {
@@ -184,24 +199,50 @@ void handle_enc(int i, const char *params, bool *should_disconnect) {
         valid = false;
     }
     
-    if (valid) players[i].state.energy -= cost;
+    if (valid) {
+        players[i].state.energy -= cost;
+        
+        /* Server-side logging of frequency shift */
+        time_t now_enc = time(NULL);
+        struct tm *t_enc = localtime(&now_enc);
+        char time_enc[64];
+        strftime(time_enc, sizeof(time_enc), "%Y-%m-%d %H:%M:%S", t_enc);
+        
+        const char *algo_name = "NONE";
+        switch(players[i].state.shm_crypto_algo) {
+            case CRYPTO_AES: algo_name = "AES"; break;
+            case CRYPTO_CHACHA: algo_name = "CHACHA"; break;
+            case CRYPTO_ARIA: algo_name = "ARIA"; break;
+            case CRYPTO_CAMELLIA: algo_name = "CAMELLIA"; break;
+            case CRYPTO_SEED: algo_name = "SEED"; break;
+            case CRYPTO_CAST5: algo_name = "CAST"; break;
+            case CRYPTO_IDEA: algo_name = "IDEA"; break;
+            case CRYPTO_3DES: algo_name = "3DES"; break;
+            case CRYPTO_BLOWFISH: algo_name = "BLOWFISH"; break;
+            case CRYPTO_RC4: algo_name = "RC4"; break;
+            case CRYPTO_DES: algo_name = "DES"; break;
+            case CRYPTO_PQC: algo_name = "PQC"; break;
+        }
+        printf("\033[1;34m[ENCRYPTION]\033[0m Captain \033[1;37m%-15s\033[0m tuned frequency to \033[1;36m%-8s\033[0m [\033[1;33m%s\033[0m]\n", 
+               players[i].name, algo_name, time_enc);
+    }
 }
 
 void handle_pow(int i, const char *params, bool *should_disconnect) {
     double e, s, w;
     if (sscanf(params, "%lf %lf %lf", &e, &s, &w) == 3) {
-        if (players[i].state.system_health[6] < 10.0) {
+        if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
             send_server_msg(i, "ENGINEERING", "Power routing core FAILURE. Reallocation impossible.");
             return;
         }
-                if (players[i].state.energy < 50) {
+                if (players[i].state.energy < COST_ACTION_MED) {
                     send_server_msg(i, "COMPUTER", "Insufficient energy for reactor bus reconfiguration.");
                     return;
                 }
         
                 /* 3. Reliability logic (Computer 10-50% health) */
-                if (players[i].state.system_health[6] < 50.0 && (rand() % 100 < 30)) {
-                    players[i].state.energy -= 25; /* Partial energy loss even on failure */
+                if (players[i].state.system_health[6] < THRESHOLD_SYS_DEGRADED && (rand() % 100 < PROB_MISFIRE_DEGRADED)) {
+                    players[i].state.energy -= (COST_ACTION_MED / (uint64_t)RATIO_ENERGY_REDUCTION); /* Partial energy loss even on failure */
                     send_server_msg(i, "ENGINEERING", "RECONFIGURATION FAILED: Logic core bus error. Data parity mismatch.");
                     return;
                 }
@@ -214,10 +255,10 @@ void handle_pow(int i, const char *params, bool *should_disconnect) {
             players[i].state.power_dist[0] = e / total;
             players[i].state.power_dist[1] = s / total;
             players[i].state.power_dist[2] = w / total;
-            players[i].state.energy -= 50;
+            players[i].state.energy -= COST_ACTION_MED;
             char msg[128];
             sprintf(msg, "Power distribution stabilized: E:%.0f%% S:%.0f%% W:%.0f%%.", 
-                    players[i].state.power_dist[0]*100, players[i].state.power_dist[1]*100, players[i].state.power_dist[2]*100);
+                    players[i].state.power_dist[0]*(double)YIELD_HARVEST_MAX, players[i].state.power_dist[1]*(double)YIELD_HARVEST_MAX, players[i].state.power_dist[2]*(double)YIELD_HARVEST_MAX);
             send_server_msg(i, "ENGINEERING", msg);
         } else send_server_msg(i, "COMPUTER", "Invalid power distribution ratio.");
     } else send_server_msg(i, "COMPUTER", "Usage: pow <Engines> <Shields> <Weapons>");
@@ -227,25 +268,26 @@ void handle_pow(int i, const char *params, bool *should_disconnect) {
    traversing the galaxy diagonal (1600*sqrt(3) units) in 40 seconds. 
    Constant speed independent of power/health. */
 static double calculate_hyperdrive_speed(double factor) {
-    /* Scaling: Factor 9.9 / 4.2868 = 2.3094 units/tick.
-       2.3094 * 1200 ticks (40s) = 2771.28 units (Galaxy Diagonal). */
-    return factor / 4.2868;
+    /* Calculated using COEFF_HYPER_DIVISOR defined in game_config.h */
+    return factor / COEFF_HYPER_DIVISOR;
 }
 
 void handle_nav(int i, const char *params, bool *should_disconnect) {
     double h, m, w, factor = 6.0;
     int args = sscanf(params, "%lf %lf %lf %lf", &h, &m, &w, &factor);
     if (args >= 3) {
-        if (players[i].state.system_health[0] < 50.0 || players[i].state.system_health[2] < 50.0) {
+        if (players[i].state.system_health[0] < THRESHOLD_SYS_DEGRADED || players[i].state.system_health[2] < THRESHOLD_SYS_DEGRADED) {
             send_server_msg(i, "ENGINEERING", "CRITICAL: Hyperdrive and Sensors must be above 50% integrity.");
             return;
         }
-        if (players[i].state.energy < 5000 || players[i].state.inventory[1] < 1) {
-            send_server_msg(i, "COMPUTER", "Insufficient resources for Hyperdrive (Req: 5000 Energy, 1 Aetherium).");
+        if (players[i].state.energy < COST_HYPERDRIVE_INIT || players[i].state.inventory[1] < 1) {
+            char err_msg[128];
+            sprintf(err_msg, "Insufficient resources for Hyperdrive (Req: %d Energy, 1 Aetherium).", COST_HYPERDRIVE_INIT);
+            send_server_msg(i, "COMPUTER", err_msg);
             return;
         }
-        if (factor < 0.1) factor = 0.1; 
-        if (factor > 9.9) factor = 9.9;
+        if (factor < (float)DIST_BOUNDARY_MARGIN) factor = (float)DIST_BOUNDARY_MARGIN; 
+        if (factor > (float)SPEED_HYPER_MAX) factor = (float)SPEED_HYPER_MAX;
         normalize_upright(&h, &m);
         players[i].target_h = h; 
         players[i].target_m = m;
@@ -263,12 +305,12 @@ void handle_nav(int i, const char *params, bool *should_disconnect) {
         players[i].hyper_speed = calculate_hyperdrive_speed(factor); 
         players[i].nav_state = NAV_STATE_ALIGN; 
         players[i].is_docked = 0;
-        players[i].state.energy -= 5000;
+        players[i].state.energy -= COST_HYPERDRIVE_INIT;
         players[i].state.inventory[1] -= 1;
         double dh = players[i].target_h - players[i].state.van_h;
         while(dh>180) dh-=360; 
         while(dh<-180) dh+=360;
-        players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0) ? 10 : 60;
+        players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0) ? (GAME_TICK_RATE / 6) : (int)GAME_TICK_RATE;
         players[i].pending_bor_type = players[i].nav_timer;
         char msg[128]; sprintf(msg, "Course plotted. Aligning for Hyperdrive %.1f.", factor);
         send_server_msg(i, "HELMSMAN", msg);
@@ -278,20 +320,21 @@ void handle_nav(int i, const char *params, bool *should_disconnect) {
 void handle_imp(int i, const char *params, bool *should_disconnect) {
     double h, m, s, dist = -1.0;
     int args = sscanf(params, "%lf %lf %lf %lf", &h, &m, &s, &dist);
-    if (players[i].state.system_health[1] < 10.0) {
+    if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "Impulse drive system is CRITICAL.");
         return;
     }
-    if (players[i].state.system_health[1] < 40.0 && (rand() % 100 > (int)players[i].state.system_health[1])) {
+    if (players[i].state.system_health[1] < (THRESHOLD_SYS_DAMAGED + 15.0) && (rand() % 100 > (int)players[i].state.system_health[1])) {
         send_server_msg(i, "ENGINEERING", "Impulse manifold pressure unstable. Engines failed to engage!");
         return;
     }
-    if (players[i].state.energy < 100) {
+    if (players[i].state.energy < COST_ACTION_HIGH) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for impulse.");
         return;
     }
     if (args == 1) {
-        players[i].hyper_speed = h / 50.0; if (players[i].hyper_speed > 0.2) players[i].hyper_speed = 0.2;
+        players[i].hyper_speed = h / COEFF_IMPULSE_DIVISOR; 
+        if (players[i].hyper_speed > SPEED_IMPULSE_TICK_MAX) players[i].hyper_speed = SPEED_IMPULSE_TICK_MAX;
         players[i].target_gx = -1.0; /* Reset target on manual speed change */
         if (players[i].hyper_speed <= 0) {
             players[i].nav_state = NAV_STATE_IDLE;
@@ -305,10 +348,10 @@ void handle_imp(int i, const char *params, bool *should_disconnect) {
             players[i].dy = cos(rad_m) * -cos(rad_h); 
             players[i].dz = sin(rad_m);
             
-            char msg[64]; sprintf(msg, "Impulse adjusted to %.0f%%.", players[i].hyper_speed * 50.0);
+            char msg[64]; sprintf(msg, "Impulse adjusted to %.0f%%.", players[i].hyper_speed * COEFF_IMPULSE_DIVISOR);
             send_server_msg(i, "HELMSMAN", msg); players[i].nav_state = NAV_STATE_IMPULSE;
         }
-        players[i].state.energy -= 50;
+        players[i].state.energy -= (COST_ACTION_HIGH / (uint64_t)RATIO_ENERGY_REDUCTION);
     } else if (args >= 3) {
         normalize_upright(&h, &m);
         players[i].target_h = h; 
@@ -322,8 +365,8 @@ void handle_imp(int i, const char *params, bool *should_disconnect) {
         players[i].dy = cos(rad_m) * -cos(rad_h); 
         players[i].dz = sin(rad_m);
         
-        players[i].hyper_speed = s / 50.0; 
-        if (players[i].hyper_speed > 0.2) players[i].hyper_speed = 0.2;
+        players[i].hyper_speed = s / COEFF_IMPULSE_DIVISOR; 
+        if (players[i].hyper_speed > SPEED_IMPULSE_TICK_MAX) players[i].hyper_speed = SPEED_IMPULSE_TICK_MAX;
         
         if (args == 4) {
             players[i].target_gx = players[i].gx + players[i].dx * dist;
@@ -344,12 +387,12 @@ void handle_imp(int i, const char *params, bool *should_disconnect) {
             else sprintf(msg, "Course plotted. Aligning for Impulse drive.");
             send_server_msg(i, "HELMSMAN", msg);
         }
-        players[i].state.energy -= 100;
+        players[i].state.energy -= COST_ACTION_HIGH;
         players[i].is_docked = 0;
         double dh = players[i].target_h - players[i].state.van_h;
         while(dh>180) dh-=360; 
         while(dh<-180) dh+=360;
-        players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0) ? 10 : 60;
+        players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0) ? (GAME_TICK_RATE / 6) : (int)GAME_TICK_RATE;
         players[i].pending_bor_type = players[i].nav_timer;
     } else send_server_msg(i, "COMPUTER", "Usage: imp <H> <M> <S> [Dist] or imp <S>");
 }
@@ -357,22 +400,22 @@ void handle_imp(int i, const char *params, bool *should_disconnect) {
 void handle_pos(int i, const char *params, bool *should_disconnect) {
     double h, m;
     if (sscanf(params, "%lf %lf", &h, &m) == 2) {
-        if (players[i].state.system_health[1] < 10.0) {
+        if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
             send_server_msg(i, "ENGINEERING", "Attitude thrusters OFFLINE.");
             return;
         }
-        if (players[i].state.energy < 20) {
+        if (players[i].state.energy < COST_MANEUVER_ADJUST) {
             send_server_msg(i, "COMPUTER", "Insufficient energy for adjustment.");
             return;
         }
         normalize_upright(&h, &m);
         players[i].target_h = h; players[i].target_m = m;
         players[i].start_h = players[i].state.van_h; players[i].start_m = players[i].state.van_m;
-        players[i].nav_state = NAV_STATE_ALIGN_ONLY; players[i].state.energy -= 20;
+        players[i].nav_state = NAV_STATE_ALIGN_ONLY; players[i].state.energy -= COST_MANEUVER_ADJUST;
         double dh = players[i].target_h - players[i].state.van_h;
         while(dh>180) dh-=360; 
         while(dh<-180) dh+=360;
-        players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0) ? 10 : 60;
+        players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0) ? (GAME_TICK_RATE / 6) : (int)GAME_TICK_RATE;
         players[i].pending_bor_type = players[i].nav_timer;
         send_server_msg(i, "HELMSMAN", "Ship re-orienting.");
     } else send_server_msg(i, "COMPUTER", "Usage: pos <H> <M>");
@@ -382,8 +425,8 @@ void handle_apr(int i, const char *params, bool *should_disconnect) {
     int tid = 0; double tdist = 2.0;
     int args = sscanf(params, " %d %lf", &tid, &tdist);
     
-    /* 1. Integrity Check: Impulse (ID 1) and Computer (ID 6) >= 10% */
-    if (players[i].state.system_health[1] < 10.0 || players[i].state.system_health[6] < 10.0) {
+    /* 1. Integrity Check: Impulse (ID 1) and Computer (ID 6) */
+    if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL || players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "AUTOPILOT FAILURE: Impulse thrusters or navigation core offline.");
         return;
     }
@@ -646,7 +689,7 @@ void handle_apr(int i, const char *params, bool *should_disconnect) {
             double cx = players[i].gx, cy = players[i].gy, cz = players[i].gz;
             double dx = tx - cx, dy = ty - cy, dz = tz - cz; double d = sqrt(dx*dx + dy*dy + dz*dz);
             if (d > (tdist + 0.01)) {
-                players[i].state.energy -= 100;
+                players[i].state.energy -= COST_ACTION_HIGH;
                 double h = atan2(dx, -dy) * 180.0 / M_PI; if(h < 0) h += 360; 
                 double m = asin(dz/d) * 180.0 / M_PI;
                 players[i].target_h = h; players[i].target_m = m;
@@ -656,8 +699,8 @@ void handle_apr(int i, const char *params, bool *should_disconnect) {
                 players[i].target_gz = cz + players[i].dz * (d - tdist);
                 players[i].approach_dist = tdist;
                 players[i].apr_target = tid;
-                players[i].nav_state = NAV_STATE_ALIGN; players[i].nav_timer = 60; 
-                players[i].pending_bor_type = 60; /* Store initial timer for smooth LERP */
+                players[i].nav_state = NAV_STATE_ALIGN; players[i].nav_timer = (int)GAME_TICK_RATE; 
+                players[i].pending_bor_type = (int)GAME_TICK_RATE; /* Store initial timer for smooth LERP */
                 players[i].start_h = players[i].state.van_h; players[i].start_m = players[i].state.van_m;
                 
                 /* 4. Improved Feedback */
@@ -675,7 +718,7 @@ void handle_zztop(int i, const char *params, bool *should_disconnect) {
     
     /* TRANSFER HULL TO DERELICTS */
     spawn_derelict(players[i].state.q1, players[i].state.q2, players[i].state.q3, players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].faction, players[i].ship_class, players[i].name);
-    players[i].state.boom = (NetPoint){players[i].state.s1, players[i].state.s2, players[i].state.s3, 1};
+    push_server_event(i, IPC_EV_BOOM, players[i].state.s1, players[i].state.s2, players[i].state.s3, 0, 0, 0, 1);
 
     /* CLEAR DATA FROM MEMORY */
     memset(players[i].name, 0, 64);
@@ -701,7 +744,7 @@ void handle_xxx(int i, const char *params, bool *should_disconnect) {
 
     /* TRANSFER HULL TO DERELICTS */
     spawn_derelict(players[i].state.q1, players[i].state.q2, players[i].state.q3, players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].faction, players[i].ship_class, players[i].name);
-    players[i].state.boom = (NetPoint){players[i].state.s1, players[i].state.s2, players[i].state.s3, 1};
+    push_server_event(i, IPC_EV_BOOM, players[i].state.s1, players[i].state.s2, players[i].state.s3, 0, 0, 0, 1);
 
     /* EMERGENCY REENTRY PROTOCOL */
     int rq1, rq2, rq3;
@@ -717,19 +760,19 @@ void handle_xxx(int i, const char *params, bool *should_disconnect) {
     players[i].state.q1 = rq1;
     players[i].state.q2 = rq2;
     players[i].state.q3 = rq3;
-    players[i].state.s1 = 5.0;
-    players[i].state.s2 = 5.0;
-    players[i].state.s3 = 5.0;
+    players[i].state.s1 = (QUADRANT_SIZE / 8.0);
+    players[i].state.s2 = (QUADRANT_SIZE / 8.0);
+    players[i].state.s3 = (QUADRANT_SIZE / 8.0);
     players[i].state.energy = MAX_ENERGY_CAPACITY;
-    players[i].state.torpedoes = 100;
-    players[i].state.crew_count = 100;
-    players[i].state.hull_integrity = 80.0f;
+    players[i].state.torpedoes = (MAX_TORPEDO_CAPACITY / 10);
+    players[i].state.crew_count = (MAX_CREW_EXPLORER / 10);
+    players[i].state.hull_integrity = (float)THRESHOLD_SYS_STABLE + 5.0f;
     for (int s = 0; s < 10; s++) {
-        players[i].state.system_health[s] = 80.0f;
+        players[i].state.system_health[s] = (float)THRESHOLD_SYS_STABLE + 5.0f;
     }
-    players[i].gx = (players[i].state.q1 - 1) * QUADRANT_SIZE + 5.0;
-    players[i].gy = (players[i].state.q2 - 1) * QUADRANT_SIZE + 5.0;
-    players[i].gz = (players[i].state.q3 - 1) * QUADRANT_SIZE + 5.0;
+    players[i].gx = (players[i].state.q1 - 1) * QUADRANT_SIZE + (QUADRANT_SIZE / 8.0);
+    players[i].gy = (players[i].state.q2 - 1) * QUADRANT_SIZE + (QUADRANT_SIZE / 8.0);
+    players[i].gz = (players[i].state.q3 - 1) * QUADRANT_SIZE + (QUADRANT_SIZE / 8.0);
     players[i].nav_state = NAV_STATE_IDLE;
     players[i].hyper_speed = 0;
     players[i].dx = 0;
@@ -748,11 +791,11 @@ void handle_xxx(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_cha(int i, const char *params, bool *should_disconnect) {
-    if (players[i].state.system_health[1] < 10.0 || players[i].state.system_health[6] < 10.0) { send_server_msg(i, "COMPUTER", "CHASE FAILURE."); return; }
-    if (players[i].state.energy < 150) { send_server_msg(i, "COMPUTER", "Insufficient energy."); return; }
+    if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL || players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) { send_server_msg(i, "COMPUTER", "CHASE FAILURE."); return; }
+    if (players[i].state.energy < (uint64_t)(COST_ACTION_HIGH + COST_ACTION_MED)) { send_server_msg(i, "COMPUTER", "Insufficient energy."); return; }
     int tid = players[i].state.lock_target;
     if (tid > 0) {
-        players[i].state.energy -= 150; 
+        players[i].state.energy -= (uint64_t)(COST_ACTION_HIGH + COST_ACTION_MED); 
         players[i].nav_state = NAV_STATE_CHASE;
         players[i].hyper_speed = 0; /* Reset speed to prevent initial overshoot */
         char msg[64];
@@ -765,10 +808,10 @@ void handle_cha(int i, const char *params, bool *should_disconnect) {
 static double get_sensor_error(int p_idx) {
     if (is_near_buoy(p_idx)) return 0.0; /* Buoy provides perfect sensor calibration */
     double health = players[p_idx].state.system_health[2];
-    if (health >= 100.0) return 0.0;
+    if (health >= (double)YIELD_HARVEST_MAX) return 0.0;
     /* Noise increases exponentially as health drops */
-    double noise_factor = pow(1.0 - (health / 100.0), 2.0);
-    return ((rand() % 2000 - 1000) / 1000.0) * noise_factor * 2.5;
+    double noise_factor = pow(1.0 - (health / (double)YIELD_HARVEST_MAX), RATIO_ENERGY_REDUCTION);
+    return ((rand() % 2000 - 1000) / 1000.0) * noise_factor * RATIO_SENSOR_ERROR;
 }
 
 const char* get_ship_class_name(int ship_class) {
@@ -792,15 +835,15 @@ const char* get_ship_class_name(int ship_class) {
 }
 
 void handle_srs(int i, const char *params, bool *should_disconnect) {
-    if (players[i].state.system_health[2] < 5.0) {
+    if (players[i].state.system_health[2] < (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION)) {
         send_server_msg(i, "COMPUTER", "SENSOR FAILURE: Primary arrays are non-functional.");
         return;
     }
-    if (players[i].state.energy < 10) {
+    if (players[i].state.energy < COST_ACTION_LOW) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for short-range pulse.");
         return;
     }
-    players[i].state.energy -= 10;
+    players[i].state.energy -= COST_ACTION_LOW;
 
     char *b = calloc(LARGE_DATA_BUFFER, sizeof(char));
     if (!b) return;
@@ -834,7 +877,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         if (p == &players[i] || p->state.is_cloaked) {
             continue;
         }
-        if (sensor_h < 30.0 && (rand() % 100 > sensor_h + 50)) {
+        if (sensor_h < (THRESHOLD_SYS_DAMAGED + 5.0) && (rand() % 100 > sensor_h + 50)) {
             continue;
         }
 
@@ -861,7 +904,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
     /* 2. NPC Ships */
     for (int n = 0; n < local_q->npc_count; n++) {
         NPCShip *npc = local_q->npcs[n];
-        if (sensor_h < 30.0 && (rand() % 100 > sensor_h + 50)) {
+        if (sensor_h < (THRESHOLD_SYS_DAMAGED + 5.0) && (rand() % 100 > sensor_h + 50)) {
             continue;
         }
 
@@ -1021,22 +1064,22 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_lrs(int i, const char *params, bool *should_disconnect) {
-    if (players[i].state.system_health[2] < 15.0) {
+    if (players[i].state.system_health[2] < (THRESHOLD_SYS_DAMAGED - 10.0)) {
         send_server_msg(i, "COMPUTER", "LONG RANGE SENSOR FAILURE: Sub-space arrays offline.");
         return;
     }
-    if (players[i].state.energy < 25) {
+    if (players[i].state.energy < (uint64_t)(COST_ACTION_MED / (uint64_t)RATIO_ENERGY_REDUCTION)) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for long-range sweep.");
         return;
     }
-    players[i].state.energy -= 25;
+    players[i].state.energy -= (uint64_t)(COST_ACTION_MED / (uint64_t)RATIO_ENERGY_REDUCTION);
 
     char *b = calloc(LARGE_DATA_BUFFER, sizeof(char));
     if (!b) return;
 
     int q1=players[i].state.q1, q2=players[i].state.q2, q3=players[i].state.q3;
     snprintf(b, LARGE_DATA_BUFFER, B_CYAN "\n.--- LCARS LONG RANGE TACTICAL SENSORS --------------------------------------.\n" RESET);
-    if (players[i].state.system_health[2] < 50.0) {
+    if (players[i].state.system_health[2] < THRESHOLD_SYS_DEGRADED) {
         strcat(b, YELLOW " WARNING: Sensor integrity degraded. Deep space telemetry unstable.\n" RESET);
     }
     char status[256];
@@ -1044,7 +1087,7 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
             q1, q2, q3, players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].state.van_h, players[i].state.van_m);
     strcat(b, status);
     strcat(b, B_CYAN "'------------------------------------------------------------------------------'\n" RESET);
-    strcat(b, " DATA: [ H:B-Hole P:Planet N:NPC B:Base S:Star ] Symbols: ~:*+#!M>\n\n");
+    strcat(b, " DATA: [ H:B-Hole P:Planet N:NPC B:Base S:Star ] Symbols: ~:*+#!M>Q\n\n");
 
     bool sensor_boost = is_near_buoy(i);
     int scan_range = sensor_boost ? 2 : 1;
@@ -1053,7 +1096,8 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
             int nq3 = q3 + dq3;
             if (nq3 < 1 || nq3 > GALAXY_SIZE) continue;
         char header[128];
-        sprintf(header, B_YELLOW "[ DEPTH ZONE Z:%d ]" RESET "\n  QUADRANT      NAV (H/M/W)    OBJECTS [H P N B S]  ANOMALIES\n", nq3);
+            const char* zone_col = (dq3 == 0) ? B_YELLOW : ((dq3 > 0) ? B_GREEN : B_RED);
+            sprintf(header, "%s[ DEPTH ZONE Z:%d ]" RESET "\n  QUADRANT      NAV (H/M/W)    OBJECTS [H P N B S]  ANOMALIES\n", zone_col, nq3);
         strcat(b, header);
 
         for (int dq2 = -scan_range; dq2 <= scan_range; dq2++) {
@@ -1075,6 +1119,7 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
                     int com = (v / 100000000) % 10;
                     int ast = (v / 1000000000) % 10;
                     int mon = (v / 10000000000000000LL) % 10;
+                    int qsr = (v / 100000000000000000LL) % 10;
                     int u = (v / 1000000000000000LL) % 10;
                     int rift = (v / 100000000000000LL) % 10;
                     int vessels = k + u;
@@ -1133,6 +1178,9 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
                     if (rift > 0) {
                         strcat(an_info, ">");
                     }
+                    if (qsr > 0) {
+                        strcat(an_info, "Q");
+                    }
 
                     char row[256];
                     sprintf(row, "  %s  %-18s  %-4s\n", nav_info, obj_info, an_info);
@@ -1164,26 +1212,26 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
     }
 
     /* 1. Minimum Integrity Check (ID 4) */
-    if (players[i].state.system_health[4] < 10.0) {
+    if (players[i].state.system_health[4] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "TACTICAL", "Ion Beam banks OFFLINE. Repair required.");
         return;
     }
 
-    if (players[i].state.energy < e) { send_server_msg(i, "COMPUTER", "Insufficient energy."); return; }
-    if (players[i].state.ion_beam_charge < 10.0) { send_server_msg(i, "TACTICAL", "Banks recharging."); return; }
+    if (players[i].state.energy < (uint64_t)e) { send_server_msg(i, "COMPUTER", "Insufficient energy."); return; }
+    if (players[i].state.ion_beam_charge < THRESHOLD_SYS_CRITICAL) { send_server_msg(i, "TACTICAL", "Banks recharging."); return; }
     if (players[i].state.is_cloaked) { send_server_msg(i, "TACTICAL", "Cannot fire while cloaked."); return; }
 
     /* 2. Miss Probability based on Sensor health (ID 2) */
     double sensor_h = players[i].state.system_health[2];
-    if (sensor_h < 50.0 && (rand() % 100 > (int)(sensor_h + 25))) {
-        players[i].state.energy -= (e / 2);
-        players[i].state.ion_beam_charge -= 10.0;
+    if (sensor_h < THRESHOLD_SYS_DEGRADED && (rand() % 100 > (int)(sensor_h + (float)THRESHOLD_SYS_DAMAGED))) {
+        players[i].state.energy -= (e / (uint64_t)RATIO_ENERGY_REDUCTION);
+        players[i].state.ion_beam_charge -= THRESHOLD_SYS_CRITICAL;
         send_server_msg(i, "TACTICAL", "Target lock failed due to sensor noise. Shot missed!");
         return;
     }
 
     /* 3. Overheating Risk */
-    if (e > 10000 && (rand() % 100 < 5)) {
+    if (e > SHIELD_MAX_STRENGTH && (rand() % 100 < (int)(THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION))) {
         players[i].state.system_health[4] -= 2.5;
         send_server_msg(i, "ENGINEERING", "Ion Beam banks overheating! Minor hardware damage.");
     }
@@ -1220,22 +1268,34 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
         double dy = ty - players[i].state.s2;
         double dz = tz - players[i].state.s3; 
         double dist = sqrt(dx * dx + dy * dy + dz * dz);
-        if (dist < 0.1) {
-            dist = 0.1;
+        if (dist < (double)DIST_EPSILON) {
+            dist = (double)DIST_EPSILON;
         }
-        double weapon_mult = 0.5 + (players[i].state.power_dist[2] * 2.5);
-        int hit = (int)((e / dist) * (players[i].state.system_health[4] / 100.0) * weapon_mult);
+        double weapon_mult = RATIO_BASE_POWER + (players[i].state.power_dist[2] * RATIO_WEAPON_POWER);
+        int hit = (int)((e / dist) * (players[i].state.system_health[4] / (double)YIELD_HARVEST_MAX) * weapon_mult);
         
-        players[i].state.beam_count = 1; 
-        players[i].state.beams[0] = (NetBeam){
-            players[i].state.s1, 
-            players[i].state.s2, 
-            players[i].state.s3, 
-            tx, 
-            ty, 
-            tz, 
-            1
-        };
+        if (players[i].state.beam_count < MAX_NET_BEAMS - 1) {
+            /* Beam 1: Top Emitter */
+            players[i].state.beams[players[i].state.beam_count++] = (NetBeam){
+                players[i].state.s1, 
+                players[i].state.s2 + (double)DIST_EPSILON, 
+                players[i].state.s3, 
+                tx, 
+                ty, 
+                tz, 
+                1
+            };
+            /* Beam 2: Bottom Emitter */
+            players[i].state.beams[players[i].state.beam_count++] = (NetBeam){
+                players[i].state.s1, 
+                players[i].state.s2 - (double)DIST_EPSILON, 
+                players[i].state.s3, 
+                tx, 
+                ty, 
+                tz, 
+                1
+            };
+        }
         
         if (tid <= 32) {
             ConnectedPlayer *target = &players[tid - 1];
@@ -1275,16 +1335,16 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
             }
             
             if (dmg_rem > 0) {
-                apply_hull_damage(tid - 1, (dmg_rem / 100.0));
-                target->state.energy -= dmg_rem / 2;
+                apply_hull_damage(tid - 1, (dmg_rem / (double)YIELD_HARVEST_MAX));
+                target->state.energy -= dmg_rem / (uint64_t)RATIO_ENERGY_REDUCTION;
             }
             if (target->faction == players[i].faction) {
-                players[i].renegade_timer = 18000;
+                players[i].renegade_timer = (300 * GAME_TICK_RATE);
                 send_server_msg(i, "CRITICAL", "FRIENDLY FIRE! YOU ARE NOW A RENEGADE!");
             }
             if (target->state.hull_integrity <= 0 || target->state.energy <= 0) {
-                target->death_timer = 30;
-                target->state.boom = (NetPoint){target->state.s1, target->state.s2, target->state.s3, 1};
+                target->death_timer = (GAME_TICK_RATE / (int)RATIO_ENERGY_REDUCTION);
+                push_server_event(tid - 1, IPC_EV_BOOM, target->state.s1, target->state.s2, target->state.s3, 0, 0, 0, 1);
             }
             send_server_msg(tid - 1, "WARNING", "UNDER Ion Beam ATTACK!");
         } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) {
@@ -1299,10 +1359,10 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
             }
             
             if (dmg_rem > 0) {
-                target->health -= (dmg_rem / 10);
+                target->health -= (dmg_rem / (int)THRESHOLD_SYS_CRITICAL);
                 /* Chance to damage internal systems (Engines) */
-                if (rand() % 100 < 15) {
-                    double sys_dmg = 5.0 + (rand() % 15);
+                if (rand() % 100 < PROB_NPC_ESCAPE) {
+                    double sys_dmg = 5.0 + (rand() % (int)PROB_NPC_ESCAPE);
                     target->engine_health -= sys_dmg;
                     if (target->engine_health < 0) {
                         target->engine_health = 0;
@@ -1311,8 +1371,8 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
                 }
             }
             if (target->health <= 0 || target->energy <= 0) {
-                target->death_timer = 30;
-                players[i].state.boom = (NetPoint){target->x, target->y, target->z, 1};
+                target->death_timer = (GAME_TICK_RATE / (int)RATIO_ENERGY_REDUCTION);
+                push_server_event(i, IPC_EV_BOOM, target->x, target->y, target->z, 0, 0, 0, 1);
                 send_server_msg(i, "TACTICAL", "Target vessel neutralized.");
             }
         } else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM) {
@@ -1327,19 +1387,19 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
             }
             
             if (dmg_rem > 0) {
-                target->health -= (dmg_rem / 10);
+                target->health -= (dmg_rem / (int)THRESHOLD_SYS_CRITICAL);
             }
             if (target->health <= 0) {
                 target->active = 0;
-                players[i].state.boom = (NetPoint){target->x, target->y, target->z, 1};
+                push_server_event(i, IPC_EV_BOOM, target->x, target->y, target->z, 0, 0, 0, 1);
                 send_server_msg(i, "TACTICAL", "Defense platform neutralized.");
             }
         } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER) {
             NPCMonster *target = &monsters[tid - GALAXY_OBJECT_MIN_MONSTER];
-            target->health -= (hit / 10);
+            target->health -= (hit / (int)THRESHOLD_SYS_CRITICAL);
             if (target->health <= 0) {
                 target->active = 0;
-                players[i].state.boom = (NetPoint){target->x, target->y, target->z, 1};
+                push_server_event(i, IPC_EV_BOOM, target->x, target->y, target->z, 0, 0, 0, 1);
                 send_server_msg(i, "TACTICAL", "Anomaly neutralized.");
             }
         } else if (tid >= GALAXY_OBJECT_MIN_PROBE && tid <= GALAXY_OBJECT_MAX_PROBE) {
@@ -1347,7 +1407,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
             int pr_idx = (tid - GALAXY_OBJECT_MIN_PROBE) % 3;
             if (p_idx < MAX_CLIENTS && players[p_idx].state.probes[pr_idx].active) {
                 players[p_idx].state.probes[pr_idx].active = 0;
-                players[i].state.boom = (NetPoint){players[p_idx].state.probes[pr_idx].s1, players[p_idx].state.probes[pr_idx].s2, players[p_idx].state.probes[pr_idx].s3, 1};
+                push_server_event(i, IPC_EV_BOOM, players[p_idx].state.probes[pr_idx].s1, players[p_idx].state.probes[pr_idx].s2, players[p_idx].state.probes[pr_idx].s3, 0, 0, 0, 1);
                 send_server_msg(i, "TACTICAL", "Probe neutralized.");
                 if (p_idx != i) {
                     send_server_msg(p_idx, "WARNING", "Telemetry lost: Probe destroyed by external fire.");
@@ -1389,17 +1449,17 @@ void handle_tor(int i, const char *params, bool *should_disconnect) {
         send_server_msg(i, "TACTICAL", "Cannot fire while cloaked.");
         return;
     }
-    if (players[i].state.energy < 250) {
+    if (players[i].state.energy < COST_ACTION_VERY_HIGH) {
         send_server_msg(i, "COMPUTER", "Insufficient energy.");
         return;
     }
 
     if (players[i].state.torpedoes > 0) {
         /* Misfire risk (Integrity 50-75%) */
-        if (players[i].state.system_health[5] < 75.0 && (rand() % 100 > (int)players[i].state.system_health[5])) {
+        if (players[i].state.system_health[5] < THRESHOLD_SYS_STABLE && (rand() % 100 > (int)players[i].state.system_health[5])) {
             players[i].state.torpedoes--;
-            players[i].state.energy -= 100;
-            players[i].tube_load_timers[tube] = 90; /* 3 seconds at 30fps */
+            players[i].state.energy -= COST_ACTION_HIGH;
+            players[i].tube_load_timers[tube] = TIMER_TORP_LOAD;
             players[i].current_tube = (tube + 1) % 4;
             send_server_msg(i, "TACTICAL", "CRITICAL: Torpedo misfire! Warhead ejected.");
             return;
@@ -1416,30 +1476,50 @@ void handle_tor(int i, const char *params, bool *should_disconnect) {
             m = players[i].state.van_m;
         }
 
-        players[i].state.energy -= 250;
+        players[i].state.energy -= COST_ACTION_VERY_HIGH;
         players[i].state.torpedoes--;
         
-        /* Initialize the specific torpedo slot for this tube */
-        players[i].torp_slots[tube].active = true;
-        players[i].torp_slots[tube].timeout = 300;
-        players[i].torp_slots[tube].target = manual ? 0 : players[i].state.lock_target;
-        
-        double rad_h = h * M_PI / 180.0;
-        double rad_m = m * M_PI / 180.0;
-        players[i].torp_slots[tube].tx = players[i].gx;
-        players[i].torp_slots[tube].ty = players[i].gy;
-        players[i].torp_slots[tube].tz = players[i].gz;
-        players[i].torp_slots[tube].tdx = cos(rad_m) * sin(rad_h);
-        players[i].torp_slots[tube].tdy = cos(rad_m) * -cos(rad_h);
-        players[i].torp_slots[tube].tdz = sin(rad_m);
+        /* Initialize the specific torpedo in the global array */
+        int g_torp_idx = -1;
+        for (int t_idx = 0; t_idx < MAX_GLOBAL_TORPEDOES; t_idx++) {
+            if (!players_torpedoes[t_idx].active) {
+                g_torp_idx = t_idx;
+                break;
+            }
+        }
+
+        if (g_torp_idx != -1) {
+            PlayerTorpedo *pt = &players_torpedoes[g_torp_idx];
+            pt->id = g_torp_idx + 30000;
+            pt->owner_idx = i;
+            pt->faction = players[i].faction;
+            pt->active = true;
+            pt->timeout = TIMER_TORP_TIMEOUT;
+            pt->target_id = manual ? 0 : players[i].state.lock_target;
+            
+            double rad_h = h * M_PI / 180.0;
+            double rad_m = m * M_PI / 180.0;
+            pt->gx = players[i].gx;
+            pt->gy = players[i].gy;
+            pt->gz = players[i].gz;
+            pt->dx = cos(rad_m) * sin(rad_h);
+            pt->dy = cos(rad_m) * -cos(rad_h);
+            pt->dz = sin(rad_m);
+            pt->q1 = get_q_from_g(pt->gx);
+            pt->q2 = get_q_from_g(pt->gy);
+            pt->q3 = get_q_from_g(pt->gz);
+            pt->x = pt->gx - (pt->q1 - 1) * QUADRANT_SIZE;
+            pt->y = pt->gy - (pt->q2 - 1) * QUADRANT_SIZE;
+            pt->z = pt->gz - (pt->q3 - 1) * QUADRANT_SIZE;
+        }
 
         /* Set global flags for HUD/State backward compatibility */
         players[i].torp_active = true; 
 
-        players[i].tube_load_timers[tube] = 90; /* 3 seconds reload for this tube */
+        players[i].tube_load_timers[tube] = TIMER_TORP_LOAD; 
         players[i].current_tube = (tube + 1) % 4; /* Rotate to next tube */
 
-        send_server_msg(i, "TACTICAL", manual ? "Torpedo away (Manual)." : (players[i].torp_slots[tube].target > 0 ? "Torpedo away (Locked)." : "Torpedo away (Boresight)."));
+        send_server_msg(i, "TACTICAL", manual ? "Torpedo away (Manual)." : (players[i].state.lock_target > 0 ? "Torpedo away (Locked)." : "Torpedo away (Boresight)."));
     } else {
         send_server_msg(i, "TACTICAL", "Insufficient torpedoes.");
     }
@@ -1449,13 +1529,13 @@ void handle_she(int i, const char *params, bool *should_disconnect) {
     int f, r, t, b, l, ri;
     if (sscanf(params, "%d %d %d %d %d %d", &f, &r, &t, &b, &l, &ri) == 6) {
         /* 1. Integrity Check (Shield System ID 8) */
-        if (players[i].state.system_health[8] < 10.0) {
+        if (players[i].state.system_health[8] < THRESHOLD_SYS_CRITICAL) {
             send_server_msg(i, "ENGINEERING", "Shield generator OFFLINE. Grid reconfiguration impossible.");
             return;
         }
 
         /* 2. Basic cost and input cleaning */
-        if (players[i].state.energy < 50) {
+        if (players[i].state.energy < COST_ACTION_MED) {
             send_server_msg(i, "COMPUTER", "Insufficient energy for grid reconfiguration pulse.");
             return;
         }
@@ -1467,13 +1547,13 @@ void handle_she(int i, const char *params, bool *should_disconnect) {
         if (l < 0) l = 0; 
         if (ri < 0) ri = 0;
 
-        /* 3. Cap values at 10,000 */
-        if (f > 10000) f = 10000; 
-        if (r > 10000) r = 10000; 
-        if (t > 10000) t = 10000;
-        if (b > 10000) b = 10000; 
-        if (l > 10000) l = 10000; 
-        if (ri > 10000) ri = 10000;
+        /* 3. Cap values at SHIELD_MAX_STRENGTH */
+        if (f > SHIELD_MAX_STRENGTH) f = SHIELD_MAX_STRENGTH; 
+        if (r > SHIELD_MAX_STRENGTH) r = SHIELD_MAX_STRENGTH; 
+        if (t > SHIELD_MAX_STRENGTH) t = SHIELD_MAX_STRENGTH;
+        if (b > SHIELD_MAX_STRENGTH) b = SHIELD_MAX_STRENGTH; 
+        if (l > SHIELD_MAX_STRENGTH) l = SHIELD_MAX_STRENGTH; 
+        if (ri > SHIELD_MAX_STRENGTH) ri = SHIELD_MAX_STRENGTH;
 
         /* 4. Reactor Consumption/Balance */
         int requested_total = f + r + t + b + l + ri;
@@ -1483,22 +1563,32 @@ void handle_she(int i, const char *params, bool *should_disconnect) {
         int diff = requested_total - current_total;
         if (diff > 0) {
             /* Adding energy to shields */
-            if (players[i].state.energy < (diff + 50)) {
+            if (players[i].state.energy < (uint64_t)(diff + COST_ACTION_MED)) {
                 send_server_msg(i, "COMPUTER", "Insufficient reactor energy to charge grids to requested levels.");
                 return;
             }
-            players[i].state.energy -= (diff + 50);
+            players[i].state.energy -= (diff + COST_ACTION_MED);
         } else {
             /* Removing energy from shields: return 80% to reactor, 20% lost in flux */
-            players[i].state.energy -= 50;
-            players[i].state.energy += (int)(abs(diff) * 0.8);
+            players[i].state.energy -= COST_ACTION_MED;
+            players[i].state.energy += (uint64_t)(abs(diff) * RATIO_MINING_EFF_MIN);
             if (players[i].state.energy > MAX_ENERGY_CAPACITY) players[i].state.energy = MAX_ENERGY_CAPACITY;
         }
 
-        players[i].state.shields[0] = f; players[i].state.shields[1] = r; players[i].state.shields[2] = t;
-        players[i].state.shields[3] = b; players[i].state.shields[4] = l; players[i].state.shields[5] = ri;
+        // Store target shield values
+        players[i].state.target_shields[0] = f;
+        players[i].state.target_shields[1] = r;
+        players[i].state.target_shields[2] = t;
+        players[i].state.target_shields[3] = b;
+        players[i].state.target_shields[4] = l;
+        players[i].state.target_shields[5] = ri;
+
+        // Set the timer for progressive shield change
+        // For simplicity, a fixed duration for any change.
+        players[i].state.shield_change_timer = TIMER_SHIELD_CHANGE_TICKS;
+        players[i].state.shield_change_rate = (float)SHIELD_MAX_STRENGTH / TIMER_SHIELD_CHANGE_TICKS;
         
-        send_server_msg(i, "ENGINEERING", "Shield grids reconfigured and stabilized.");
+        send_server_msg(i, "ENGINEERING", "Shield grids reconfiguring progressively.");
     } else {
         send_server_msg(i, "COMPUTER", "Usage: she <F> <R> <T> <B> <L> <RI>");
     }
@@ -1508,13 +1598,13 @@ void handle_lock(int i, const char *params, bool *should_disconnect) {
     int tid;
     if (sscanf(params, " %d", &tid) == 1 && tid > 0) {
         /* 1. Integrity Check (Sensors ID 2) */
-        if (players[i].state.system_health[2] < 10.0) {
+        if (players[i].state.system_health[2] < THRESHOLD_SYS_CRITICAL) {
             send_server_msg(i, "TACTICAL", "Targeting arrays OFFLINE (Sensor damage).");
             return;
         }
 
         /* 2. Energy Cost */
-        if (players[i].state.energy < 5) {
+        if (players[i].state.energy < (uint64_t)(COST_ACTION_LOW / (uint64_t)RATIO_ENERGY_REDUCTION)) {
             send_server_msg(i, "COMPUTER", "Insufficient energy for active tracking.");
             return;
         }
@@ -1627,7 +1717,7 @@ void handle_lock(int i, const char *params, bool *should_disconnect) {
 
         if (found) {
             players[i].state.lock_target = tid;
-            players[i].state.energy -= 5;
+            players[i].state.energy -= (COST_ACTION_LOW / (uint64_t)RATIO_ENERGY_REDUCTION);
             send_server_msg(i, "TACTICAL", "Target locked and tracking.");
         } else {
             send_server_msg(i, "TACTICAL", "Unable to acquire lock. Target not detected.");
@@ -1649,15 +1739,15 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
     }
 
     if (tid > 0) {
-        if (players[i].state.system_health[2] < 20.0) {
+        if (players[i].state.system_health[2] < (float)COST_MANEUVER_ADJUST) {
             send_server_msg(i, "COMPUTER", "DEEP SCAN FAILURE: Sensor resolution insufficient (< 20%).");
             return;
         }
-        if (players[i].state.energy < 20) {
+        if (players[i].state.energy < (uint64_t)COST_MANEUVER_ADJUST) {
             send_server_msg(i, "COMPUTER", "Insufficient energy for high-resolution scan.");
             return;
         }
-        players[i].state.energy -= 20;
+        players[i].state.energy -= (uint64_t)COST_MANEUVER_ADJUST;
 
         char rep[4096]; memset(rep, 0, 4096);
         bool found = false;
@@ -1711,7 +1801,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                 for (int h = 0; h < lq->bh_count; h++) {
                     if (lq->black_holes[h]->id + GALAXY_OBJECT_MIN_BLACKHOLE == tid) {
                         found = true;
-                        sprintf(rep, MAGENTA "\n--- SINGULARITY ANALYSIS ---" RESET "\nTYPE: Schwarzschild Black Hole\nADVISORY: Gravity well detected (< 3.0 units). Escape velocity required.\n");
+                        sprintf(rep, MAGENTA "\n--- SINGULARITY ANALYSIS ---" RESET "\nTYPE: Schwarzschild Black Hole\nADVISORY: Gravity well detected (< %.1f units). Escape velocity required.\n", DIST_GRAVITY_WELL);
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_NEBULA && tid <= GALAXY_OBJECT_MAX_NEBULA) {
@@ -1781,8 +1871,18 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                         found = true;
                         const char *p_classes[] = {"Rotation-Powered", "Accretion-Powered", "Magnetar"};
                         int p_type = lq->pulsars[p]->type;
-                        sprintf(rep, YELLOW "\n--- NEUTRON STAR (PULSAR) ANALYSIS ---" RESET "\nCLASS: %s\nADVISORY: Lethal radiation beams. Maintain distance > 2.5 units.\n", 
-                            (p_type >= 0 && p_type < 3) ? p_classes[p_type] : "Unknown");
+                        sprintf(rep, YELLOW "\n--- NEUTRON STAR (PULSAR) ANALYSIS ---" RESET "\nCLASS: %s\nADVISORY: Lethal radiation beams. Maintain distance > %.1f units.\n", 
+                            (p_type >= 0 && p_type < 3) ? p_classes[p_type] : "Unknown", DIST_PULSAR_BEAM);
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_QUASAR && tid <= GALAXY_OBJECT_MAX_QUASAR) {
+                for (int q = 0; q < lq->quasar_count; q++) {
+                    if (lq->quasars[q]->id + GALAXY_OBJECT_MIN_QUASAR == tid) {
+                        found = true;
+                        const char *q_classes[] = {"Radio-loud", "Radio-quiet", "Broad absorption-line", "Type 2", "Red", "Optically violent variable", "Weak emission line"};
+                        int q_type = lq->quasars[q]->type;
+                        sprintf(rep, YELLOW "\n--- EXTRAGALACTIC SOURCE (QUASAR) ANALYSIS ---" RESET "\nCLASS: %s\nADVISORY: Extreme energetic output. High gravimetric flux detected.\n", 
+                            (q_type >= 0 && q_type < 7) ? q_classes[q_type] : "Unknown");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER) {
@@ -1823,25 +1923,25 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
 void handle_clo(int i, const char *params, bool *should_disconnect) {
     if (!players[i].state.is_cloaked) {
         /* 1. Integrity check for engagement (Auxiliary ID 9) */
-        if (players[i].state.system_health[9] < 15.0) {
+        if (players[i].state.system_health[9] < (THRESHOLD_SYS_CRITICAL + (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION))) {
             send_server_msg(i, "ENGINEERING", "CLOAKING FAILURE: Gravimetric stabilizers damaged.");
             return;
         }
 
-        /* 2. Activation Cost: 500 units */
-        if (players[i].state.energy < 500) {
+        /* 2. Activation Cost */
+        if (players[i].state.energy < COST_CLOAK_INIT) {
             send_server_msg(i, "COMPUTER", "Insufficient energy to initialize cloaking field.");
             return;
         }
         
         /* 3. Reliability logic (15-50% health) */
-        if (players[i].state.system_health[9] < 50.0 && (rand() % 100 > (int)players[i].state.system_health[9])) {
-            players[i].state.energy -= 100; /* Partial loss */
+        if (players[i].state.system_health[9] < THRESHOLD_SYS_DEGRADED && (rand() % 100 > (int)players[i].state.system_health[9])) {
+            players[i].state.energy -= (COST_CLOAK_INIT / 5); /* Partial loss */
             send_server_msg(i, "ENGINEERING", "Cloaking field collapsed during synchronization!");
             return;
         }
 
-        players[i].state.energy -= 500;
+        players[i].state.energy -= COST_CLOAK_INIT;
         players[i].state.is_cloaked = 1;
         send_server_msg(i, "HELMSMAN", "Cloaking device engaged. Sensors limited.");
     } else {
@@ -1862,14 +1962,16 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
 
     if (tid > 0) {
         /* 1. Hardware Requirement: Transporters (ID 3) >= 20% */
-        if (players[i].state.system_health[3] < 20.0) {
+        if (players[i].state.system_health[3] < (THRESHOLD_SYS_CRITICAL + 10.0)) {
             send_server_msg(i, "ENGINEERING", "BOARDING ABORTED: Transporter buffers unstable. Repair required.");
             return;
         }
 
         /* 2. Energy Cost Check: 5000 units */
-        if (players[i].state.energy < 5000) { 
-            send_server_msg(i, "COMPUTER", "Insufficient energy for massive matter transport (Req: 5000)."); 
+        if (players[i].state.energy < COST_BOARDING_INIT) { 
+            char err_msg[128];
+            sprintf(err_msg, "Insufficient energy for massive matter transport (Req: %d).", COST_BOARDING_INIT);
+            send_server_msg(i, "COMPUTER", err_msg); 
             return; 
         }
         
@@ -1902,11 +2004,11 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
             double dy = ty - players[i].gy;
             double dz = tz - players[i].gz; 
             double dist = sqrt(dx * dx + dy * dy + dz * dz);
-            if (dist < 1.1) {
-                players[i].state.energy -= 5000;
+            if (dist <= (DIST_BOARDING_MAX + (float)DIST_APPROACH_MARGIN)) {
+                players[i].state.energy -= COST_BOARDING_INIT;
 
                 /* 3. Success probability base (halved failure chance: 60% to 80% success) */
-                int success_chance = 60 + (int)(players[i].state.system_health[3] * 0.2);
+                int success_chance = PROB_BOARD_SUCCESS_BASE + (int)(players[i].state.system_health[3] * RATIO_BOARD_H_BONUS);
 
                 /* Handle Player Boarding via Interactive Menu */
                 if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER) {
@@ -1916,10 +2018,10 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
                     if (target->faction == players[i].faction) {
                         players[i].pending_bor_type = 1; /* Ally */
                         sprintf(menu, CYAN "\n--- BOARDING MENU: ALLIED VESSEL (%s) ---\n" RESET 
-                               "1: Transfer Energy (50,000 units)\n"
+                               "1: Transfer Energy (%d units)\n"
                                "2: Technical Support (Repair random system)\n"
                                "3: Reinforce Crew (Transfer 20 personnel)\n"
-                               YELLOW "Type the number to confirm choice." RESET, target->name);
+                               YELLOW "Type the number to confirm choice." RESET, target->name, DMG_TORPEDO_PLATFORM);
                     } else {
                         players[i].pending_bor_type = 2; /* Enemy */
                         sprintf(menu, RED "\n--- BOARDING MENU: HOSTILE VESSEL (%s) ---\n" RESET 
@@ -1968,7 +2070,7 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
                     } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) {
                         NPCShip *target_npc = &npcs[tid - GALAXY_OBJECT_MIN_NPC];
                         /* Requirement: Target must be disabled (Engines < 50% OR Hull < 50%) */
-                        if (target_npc->engine_health >= 50.0 && target_npc->health >= 500) {
+                        if (target_npc->engine_health >= THRESHOLD_SYS_DEGRADED && target_npc->health >= (YIELD_MINE_MAX)) {
                             send_server_msg(i, "SECURITY", "BOARDING DENIED: Target vessel is still fully operational. Disable engines or damage hull first!");
                             return;
                         }
@@ -2025,21 +2127,23 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
 
     if (tid > 0) {
         /* 1. Hardware Requirement: Transporters (ID 3) >= 15% */
-        if (players[i].state.system_health[3] < 15.0) {
+        if (players[i].state.system_health[3] < (THRESHOLD_SYS_CRITICAL + (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION))) {
             send_server_msg(i, "ENGINEERING", "DISMANTLING FAILURE: Transporter arrays damaged. Cannot stabilize debris beams.");
             return;
         }
 
         /* 2. Energy Cost Check */
-        if (players[i].state.energy < 500) {
-            send_server_msg(i, "COMPUTER", "Insufficient energy for structural dismantling operation (Req: 500).");
+        if (players[i].state.energy < COST_ACTION_EXTREME) {
+            char err_msg[128];
+            sprintf(err_msg, "Insufficient energy for structural dismantling operation (Req: %d).", COST_ACTION_EXTREME);
+            send_server_msg(i, "COMPUTER", err_msg);
             return;
         }
 
         bool done = false;
         
         /* 4. Yield scaling based on Transporter integrity (0.7 to 1.0 multiplier) */
-        double transporter_mult = 0.7 + (players[i].state.system_health[3] / 100.0) * 0.3;
+        double transporter_mult = RATIO_CONVERSION_EFF_MIN + (players[i].state.system_health[3] / (double)YIELD_HARVEST_MAX) * (1.0 - RATIO_CONVERSION_EFF_MIN);
 
         /* Case: NPC Ship Wreck (ID 1000-3999) */
         if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) {
@@ -2053,11 +2157,12 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                 double dz = tz - players[i].gz; 
                 
                 if (sqrt(dx * dx + dy * dy + dz * dz) < DIST_DISMANTLE_MAX) {
-                    players[i].state.energy -= 500;
-                    int yield = (int)((npcs[n_idx].energy / 100) * transporter_mult); 
-                    if (yield < 10) {
-                        yield = 10;
-                    }
+                    players[i].state.energy -= COST_ACTION_EXTREME;
+                                        int yield = (int)((npcs[n_idx].energy / YIELD_BOARD_ENERGY_DIV) * transporter_mult);
+                                        if (yield < (int)THRESHOLD_SYS_CRITICAL) {
+                                            yield = (int)THRESHOLD_SYS_CRITICAL;
+                                        }
+                    
                     players[i].state.inventory[2] += yield; /* Neo-Titanium */
                     players[i].state.inventory[5] += yield / 5; /* Synaptics */
                     npcs[n_idx].active = 0;
@@ -2066,7 +2171,7 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                     double rs1 = (tx - (players[i].state.q1 - 1) * QUADRANT_SIZE);
                     double rs2 = (ty - (players[i].state.q2 - 1) * QUADRANT_SIZE);
                     double rs3 = (tz - (players[i].state.q3 - 1) * QUADRANT_SIZE);
-                    players[i].state.dismantle = (NetDismantle){rs1, rs2, rs3, npcs[n_idx].faction, 1};
+                    broadcast_server_event(players[i].state.q1, players[i].state.q2, players[i].state.q3, IPC_EV_DISMANTLE, rs1, rs2, rs3, 0, 0, 0, npcs[n_idx].faction);
                     
                     char msg[128];
                     sprintf(msg, "Vessel dismantled. Recovered %d Neo-Titanium and %d Synaptics.", yield, yield / 5);
@@ -2076,7 +2181,9 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                     }
                     done = true;
                 } else {
-                    send_server_msg(i, "COMPUTER", "Not in range for dismantling (Dist > 1.5).");
+                    char err_msg[128];
+                    sprintf(err_msg, "Not in range for dismantling (Dist > %.1f).", DIST_DISMANTLE_MAX);
+                    send_server_msg(i, "COMPUTER", err_msg);
                     return;
                 }
             }
@@ -2093,8 +2200,9 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                 double dz = tz - players[i].gz; 
                 
                 if (sqrt(dx * dx + dy * dy + dz * dz) < DIST_DISMANTLE_MAX) {
-                    players[i].state.energy -= 500;
-                    int yield = (int)((50 + rand() % 150) * transporter_mult); 
+                    players[i].state.energy -= COST_ACTION_EXTREME;
+                                        int yield = (int)((YIELD_BOARD_NPC_MIN + rand() % YIELD_BOARD_NPC_RANGE) * transporter_mult);
+                     
                     players[i].state.inventory[2] += yield; 
                     players[i].state.inventory[5] += yield / 4; 
                     derelicts[d_idx].active = 0;
@@ -2103,7 +2211,7 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                     double rs1 = (tx - (players[i].state.q1 - 1) * QUADRANT_SIZE);
                     double rs2 = (ty - (players[i].state.q2 - 1) * QUADRANT_SIZE);
                     double rs3 = (tz - (players[i].state.q3 - 1) * QUADRANT_SIZE);
-                    players[i].state.dismantle = (NetDismantle){rs1, rs2, rs3, derelicts[d_idx].faction, 1};
+                    broadcast_server_event(players[i].state.q1, players[i].state.q2, players[i].state.q3, IPC_EV_DISMANTLE, rs1, rs2, rs3, 0, 0, 0, derelicts[d_idx].faction);
                     
                     char msg[128];
                     sprintf(msg, "Ancient wreck dismantled. Recovered %d Neo-Titanium and %d Synaptics.", yield, yield / 4);
@@ -2113,7 +2221,9 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                     }
                     done = true;
                 } else {
-                    send_server_msg(i, "COMPUTER", "Not in range for dismantling (Dist > 1.5).");
+                    char err_msg[128];
+                    sprintf(err_msg, "Not in range for dismantling (Dist > %.1f).", DIST_DISMANTLE_MAX);
+                    send_server_msg(i, "COMPUTER", err_msg);
                     return;
                 }
             }
@@ -2127,13 +2237,13 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
 
 void handle_min(int i, const char *params, bool *should_disconnect) {
     /* 1. Hardware Requirement: Transporters (ID 3) >= 15% */
-    if (players[i].state.system_health[3] < 15.0) {
+    if (players[i].state.system_health[3] < (THRESHOLD_SYS_CRITICAL + (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION))) {
         send_server_msg(i, "ENGINEERING", "MINING FAILURE: Extraction beams offline (Transporter damage).");
         return;
     }
 
     /* 2. Energy Cost: 250 units */
-    if (players[i].state.energy < 250) {
+    if (players[i].state.energy < COST_ACTION_VERY_HIGH) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for planetary extraction pulse.");
         return;
     }
@@ -2141,7 +2251,7 @@ void handle_min(int i, const char *params, bool *should_disconnect) {
     int locked_id = players[i].state.lock_target;
     int target_idx = -1;
     int target_type = -1; /* 0: Asteroid, 1: Planet */
-    double min_dist = 3.1; /* Interaction range */
+    double min_dist = DIST_INTERACTION_MAX; /* Interaction range */
 
     /* Search for mineable target (locked or closest) */
     int q1 = players[i].state.q1, q2 = players[i].state.q2, q3 = players[i].state.q3;
@@ -2183,20 +2293,20 @@ void handle_min(int i, const char *params, bool *should_disconnect) {
     }
 
     if (target_idx != -1) {
-        players[i].state.energy -= 250;
+        players[i].state.energy -= COST_ACTION_VERY_HIGH;
         /* 3. Yield scaling based on Transporter integrity (0.8 to 1.0 multiplier) */
-        double yield_mult = 0.8 + (players[i].state.system_health[3] / 100.0) * 0.2;
+        double yield_mult = RATIO_MINING_EFF_MIN + (players[i].state.system_health[3] / (double)YIELD_HARVEST_MAX) * (1.0 - RATIO_MINING_EFF_MIN);
         const char* res_names[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
 
         int r_type, raw_amount;
         if (target_type == 0) {
             r_type = asteroids[target_idx].resource_type;
-            raw_amount = (asteroids[target_idx].amount > 50) ? 50 : asteroids[target_idx].amount;
+            raw_amount = (asteroids[target_idx].amount > (YIELD_MINE_MAX / 2)) ? (YIELD_MINE_MAX / 2) : asteroids[target_idx].amount;
             asteroids[target_idx].amount -= raw_amount;
             if (asteroids[target_idx].amount <= 0) asteroids[target_idx].active = 0;
         } else {
             r_type = planets[target_idx].resource_type;
-            raw_amount = (planets[target_idx].amount > 100) ? 100 : planets[target_idx].amount;
+            raw_amount = (planets[target_idx].amount > YIELD_MINE_MAX) ? YIELD_MINE_MAX : planets[target_idx].amount;
             planets[target_idx].amount -= raw_amount;
         }
 
@@ -2208,7 +2318,9 @@ void handle_min(int i, const char *params, bool *should_disconnect) {
         sprintf(msg, "[RADIO] MINING: Collected %d units of %s. Extraction efficiency: %.0f%%.", final_yield, res_names[r_type], yield_mult * 100);
         send_server_msg(i, "GEOLOGY", msg);
     } else {
-        send_server_msg(i, "COMPUTER", "No planet or asteroid in range for mining (< 3.1 units).");
+        char err_msg[128];
+        sprintf(err_msg, "No planet or asteroid in range for mining (< %.1f units).", DIST_INTERACTION_MAX);
+        send_server_msg(i, "COMPUTER", err_msg);
     }
 }
 
@@ -2219,8 +2331,8 @@ void handle_sco(int i, const char *params, bool *should_disconnect) {
         return;
     }
 
-    /* 2. Operational Cost: 100 units */
-    if (players[i].state.energy < 100) {
+    /* 2. Operational Cost */
+    if (players[i].state.energy < COST_ACTION_HIGH) {
         send_server_msg(i, "COMPUTER", "Insufficient energy to initialize magnetic collection field.");
         return;
     }
@@ -2230,49 +2342,53 @@ void handle_sco(int i, const char *params, bool *should_disconnect) {
     for(int s=0; s<MAX_STARS; s++) {
         if(stars_data[s].active && stars_data[s].q1==pq1 && stars_data[s].q2==pq2 && stars_data[s].q3==pq3) {
             double d=sqrt(pow(stars_data[s].x-players[i].state.s1,2)+pow(stars_data[s].y-players[i].state.s2,2)+pow(stars_data[s].z-players[i].state.s3,2)); 
-            if(d < 1.5) { near=true; break; }
+            if(d < DIST_SCOOPING_MAX) { near=true; break; }
         }
     }
 
     if(near) { 
-        players[i].state.energy -= 100;
+        players[i].state.energy -= COST_ACTION_HIGH;
         
         /* 3. Variable Yield based on Auxiliary health (0.8 to 1.0 multiplier) */
         double aux_h = players[i].state.system_health[9];
-        int gain = (int)(5000 * (0.8 + (aux_h / 100.0) * 0.2));
+        int gain = (int)(COST_HYPERDRIVE_INIT * (RATIO_MINING_EFF_MIN + (aux_h / (double)YIELD_HARVEST_MAX) * (1.0 - RATIO_MINING_EFF_MIN)));
         
         players[i].state.cargo_energy += gain; 
         if(players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY; 
         
         /* 4. Shield and Structural Damage */
         int s_idx = rand()%6; 
-        if (players[i].state.shields[s_idx] >= 500) {
-            players[i].state.shields[s_idx] -= 500;
+        if (players[i].state.shields[s_idx] >= COST_ACTION_EXTREME) {
+            players[i].state.shields[s_idx] -= COST_ACTION_EXTREME;
         } else {
             /* Heat bypasses shields */
             players[i].state.shields[s_idx] = 0;
-            double hull_dmg = 2.0 + (rand() % 300) / 100.0;
+            double hull_dmg = 2.0 + (rand() % 300) / (double)YIELD_HARVEST_MAX;
             apply_hull_damage(i, hull_dmg);
-            players[i].state.system_health[7] -= 5.0; /* Life Support damage (ID 7) */
+            players[i].state.system_health[7] -= (THRESHOLD_SYS_CRITICAL / 2.0); /* Life Support damage (ID 7) */
             send_server_msg(i, "CRITICAL", "WARNING: Solar heat bypassing shields! Hull and Life Support damaged!");
         }
         
         char msg[128];
-        sprintf(msg, "Solar energy harvested: %" PRIu64 " units stored in Cargo Bay. Collectors efficiency: %.0f%%.", (uint64_t)gain, (aux_h/100.0)*100);
+        sprintf(msg, "Solar energy harvested: %" PRIu64 " units stored in Cargo Bay. Collectors efficiency: %.0f%%.", (uint64_t)gain, (aux_h/(double)YIELD_HARVEST_MAX)*100);
         send_server_msg(i, "ENGINEERING", msg); 
     } 
-    else send_server_msg(i, "COMPUTER", "No star in proximity range (< 1.5 units).");
+    else {
+        char err_msg[128];
+        sprintf(err_msg, "No star in proximity range (< %.1f units).", DIST_SCOOPING_MAX);
+        send_server_msg(i, "COMPUTER", err_msg);
+    }
 }
 
 void handle_har(int i, const char *params, bool *should_disconnect) {
     /* 1. Hardware Requirement: Auxiliary (ID 9) >= 25% (Higher than sco) */
-    if (players[i].state.system_health[9] < 25.0) {
+    if (players[i].state.system_health[9] < THRESHOLD_SYS_DAMAGED) {
         send_server_msg(i, "ENGINEERING", "HARVESTING FAILURE: Antimatter containment field unstable. Repairs required.");
         return;
     }
 
-    /* 2. Operational Cost: 500 units */
-    if (players[i].state.energy < 500) {
+    /* 2. Operational Cost */
+    if (players[i].state.energy < COST_ACTION_EXTREME) {
         send_server_msg(i, "COMPUTER", "Insufficient energy to initialize Hawking radiation shielding.");
         return;
     }
@@ -2282,19 +2398,19 @@ void handle_har(int i, const char *params, bool *should_disconnect) {
     for(int h=0; h<MAX_BH; h++) {
         if(black_holes[h].active && black_holes[h].q1==pq1 && black_holes[h].q2==pq2 && black_holes[h].q3==pq3) {
             double d=sqrt(pow(black_holes[h].x-players[i].state.s1,2)+pow(black_holes[h].y-players[i].state.s2,2)+pow(black_holes[h].z-players[i].state.s3,2)); 
-            if(d <= 3.1) { near=true; break; }
+            if(d <= DIST_INTERACTION_MAX) { near=true; break; }
         }
     }
 
     if(near) { 
-        players[i].state.energy -= 500;
+        players[i].state.energy -= COST_ACTION_EXTREME;
         
         /* 3. Variable Yield based on Auxiliary health (0.6 to 1.0 multiplier) */
         double aux_h = players[i].state.system_health[9];
-        double efficiency = 0.6 + (aux_h / 100.0) * 0.4;
+        double efficiency = RATIO_HARVEST_EFF_MIN + (aux_h / (double)YIELD_HARVEST_MAX) * (1.0 - RATIO_HARVEST_EFF_MIN);
         
-        uint64_t energy_gain = (uint64_t)(10000 * efficiency);
-        int crystal_gain = (int)(100 * efficiency);
+        uint64_t energy_gain = (uint64_t)(SHIELD_MAX_STRENGTH * efficiency);
+        int crystal_gain = (int)(YIELD_HARVEST_MAX * efficiency);
         
         players[i].state.cargo_energy += energy_gain; 
         if(players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY; 
@@ -2302,18 +2418,18 @@ void handle_har(int i, const char *params, bool *should_disconnect) {
         
         /* 4. Shield, Hull and System Damage (Radiation and Gravity) */
         int s_idx = rand()%6; 
-        if (players[i].state.shields[s_idx] >= 1000) {
-            players[i].state.shields[s_idx] -= 1000;
+        if (players[i].state.shields[s_idx] >= (COST_ACTION_EXTREME * 2)) {
+            players[i].state.shields[s_idx] -= (COST_ACTION_EXTREME * 2);
         } else {
             /* Event horizon shear bypasses weak shields */
             players[i].state.shields[s_idx] = 0;
-            double hull_dmg = 5.0 + (rand() % 500) / 100.0;
+            double hull_dmg = (THRESHOLD_SYS_CRITICAL / 2.0) + (rand() % (int)COST_ACTION_EXTREME) / (double)YIELD_HARVEST_MAX;
             apply_hull_damage(i, hull_dmg);
             
             /* Heavy damage to critical systems: Sensors(2), Computer(6), Life Support(7) */
-            players[i].state.system_health[2] -= (5.0 + (rand() % 10));
-            players[i].state.system_health[6] -= (5.0 + (rand() % 10));
-            players[i].state.system_health[7] -= (5.0 + (rand() % 10));
+            players[i].state.system_health[2] -= ((THRESHOLD_SYS_CRITICAL / 2.0) + (rand() % (int)THRESHOLD_SYS_CRITICAL));
+            players[i].state.system_health[6] -= ((THRESHOLD_SYS_CRITICAL / 2.0) + (rand() % (int)THRESHOLD_SYS_CRITICAL));
+            players[i].state.system_health[7] -= ((THRESHOLD_SYS_CRITICAL / 2.0) + (rand() % (int)THRESHOLD_SYS_CRITICAL));
             
             send_server_msg(i, "CRITICAL", "EVENT HORIZON SHEAR! Shields buckled! Hull and internal systems damaged!");
         }
@@ -2322,7 +2438,11 @@ void handle_har(int i, const char *params, bool *should_disconnect) {
         sprintf(msg, "Antimatter harvested: %" PRIu64 " units. Aetherium crystals: +%d. Containment efficiency: %.0f%%.", energy_gain, crystal_gain, efficiency * 100);
         send_server_msg(i, "ENGINEERING", msg); 
     } 
-    else send_server_msg(i, "COMPUTER", "No black hole in proximity range (< 3.1 units).");
+    else {
+        char err_msg[128];
+        sprintf(err_msg, "No black hole in proximity range (< %.1f units).", DIST_INTERACTION_MAX);
+        send_server_msg(i, "COMPUTER", err_msg);
+    }
 }
 
 void handle_doc(int i, const char *params, bool *should_disconnect) {
@@ -2330,7 +2450,7 @@ void handle_doc(int i, const char *params, bool *should_disconnect) {
     for(int b=0; b<MAX_BASES; b++) {
         if(bases[b].active && bases[b].q1==players[i].state.q1 && bases[b].q2==players[i].state.q2 && bases[b].q3==players[i].state.q3) {
             double d=sqrt(pow(bases[b].x-players[i].state.s1,2)+pow(bases[b].y-players[i].state.s2,2)+pow(bases[b].z-players[i].state.s3,2)); 
-            if(d <= (DIST_DOCKING_MAX + 0.05)) { base_idx = b; break; } 
+            if(d <= (DIST_DOCKING_MAX + (double)DIST_EPSILON)) { base_idx = b; break; } 
         }
     }
 
@@ -2341,20 +2461,20 @@ void handle_doc(int i, const char *params, bool *should_disconnect) {
         }
 
         /* Integrity Checks: Impulse (ID 1) and Auxiliary (ID 9) */
-        if (players[i].state.system_health[1] < 10.0 || players[i].state.system_health[9] < 10.0) {
+        if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL || players[i].state.system_health[9] < THRESHOLD_SYS_CRITICAL) {
             send_server_msg(i, "ENGINEERING", "DOCKING FAILURE: Maneuvering thrusters or docking clamps offline.");
             return;
         }
 
-        if (players[i].state.energy < 100) {
+        if (players[i].state.energy < COST_ACTION_HIGH) {
             send_server_msg(i, "COMPUTER", "Insufficient energy for magnetic docking sequence.");
             return;
         }
 
-        /* Start Docking Sequence (10 seconds at 30Hz = 300 ticks) */
-        players[i].state.energy -= 100;
+        /* Start Docking Sequence (10 seconds) */
+        players[i].state.energy -= COST_ACTION_HIGH;
         players[i].nav_state = NAV_STATE_DOCKING;
-        players[i].nav_timer = 300;
+        players[i].nav_timer = (int)TIMER_DOCKING_SEQ;
         players[i].hyper_speed = 0; /* Stop ship movement */
         
         /* Repurpose pending_bor_target to store base index during docking */
@@ -2372,15 +2492,19 @@ void handle_con(int i, const char *params, bool *should_disconnect) {
         return;
     }
 
-    /* 1. Hardware Requirement: Auxiliary (ID 9) >= 15% */
-    if (players[i].state.system_health[9] < 15.0) {
-        send_server_msg(i, "ENGINEERING", "CONVERTER FAILURE: Auxiliary systems integrity too low (< 15%).");
+    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+    if (players[i].state.system_health[9] < (THRESHOLD_SYS_CRITICAL + (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION))) {
+        char err_msg[128];
+        sprintf(err_msg, "CONVERTER FAILURE: Auxiliary systems integrity too low (< %.0f%%).", (THRESHOLD_SYS_CRITICAL + (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION)));
+        send_server_msg(i, "ENGINEERING", err_msg);
         return;
     }
 
     /* 2. Energy Cost: 100 units */
-    if (players[i].state.energy < 100) {
-        send_server_msg(i, "COMPUTER", "Insufficient energy for conversion cycle (Req: 100).");
+    if (players[i].state.energy < COST_ACTION_HIGH) {
+        char err_msg[128];
+        sprintf(err_msg, "Insufficient energy for conversion cycle (Req: %d).", COST_ACTION_HIGH);
+        send_server_msg(i, "COMPUTER", err_msg);
         return;
     }
 
@@ -2391,13 +2515,13 @@ void handle_con(int i, const char *params, bool *should_disconnect) {
     }
 
     /* 3. Efficiency based on Auxiliary health (70% - 100%) */
-    double efficiency = 0.7 + (players[i].state.system_health[9] / 100.0) * 0.3;
-    players[i].state.energy -= 100;
+    double efficiency = RATIO_CONVERSION_EFF_MIN + (players[i].state.system_health[9] / (double)YIELD_HARVEST_MAX) * (1.0 - RATIO_CONVERSION_EFF_MIN);
+    players[i].state.energy -= COST_ACTION_HIGH;
     players[i].state.inventory[type] -= amount;
 
     char msg[128];
     if (type == 1) { /* Aetherium -> Energy x10 */
-        uint64_t gain = (uint64_t)(amount * 10 * efficiency);
+        uint64_t gain = (uint64_t)(amount * YIELD_CONVERSION_AE * efficiency);
         players[i].state.cargo_energy += gain;
         if (players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY;
         sprintf(msg, "Converted %d Aetherium into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
@@ -2407,28 +2531,28 @@ void handle_con(int i, const char *params, bool *should_disconnect) {
         if (players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY;
         sprintf(msg, "Converted %d Neo-Titanium into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
     } else if (type == 3) { /* Void-Essence -> Torpedoes (1/20) */
-        int gain = (int)((amount / 20.0) * efficiency);
+        int gain = (int)((amount / YIELD_CONVERSION_TORP) * efficiency);
         players[i].state.cargo_torpedoes += gain;
-        if (players[i].state.cargo_torpedoes > 1000) players[i].state.cargo_torpedoes = 1000;
+        if (players[i].state.cargo_torpedoes > MAX_TORPEDO_CAPACITY) players[i].state.cargo_torpedoes = MAX_TORPEDO_CAPACITY;
         sprintf(msg, "Converted %d Void-Essence into %d Torpedoes. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
     } else if (type == 6) { /* Gas -> Energy x5 */
-        uint64_t gain = (uint64_t)(amount * 5 * efficiency);
+        uint64_t gain = (uint64_t)(amount * YIELD_CONVERSION_GAS * efficiency);
         players[i].state.cargo_energy += gain;
         if (players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY;
         sprintf(msg, "Converted %d Nebular Gas into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
     } else if (type == 7) { /* Composite -> Energy x4 */
-        uint64_t gain = (uint64_t)(amount * 4 * efficiency);
+        uint64_t gain = (uint64_t)(amount * YIELD_CONVERSION_COMP * efficiency);
         players[i].state.cargo_energy += gain;
         if (players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY;
         sprintf(msg, "Converted %d Composite into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
     } else if (type == 8) { /* Dark-Matter -> Energy x25 */
-        uint64_t gain = (uint64_t)(amount * 25 * efficiency);
+        uint64_t gain = (uint64_t)(amount * YIELD_CONVERSION_DM * efficiency);
         players[i].state.cargo_energy += gain;
         if (players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY;
         sprintf(msg, "Converted %d Dark-Matter into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
     } else {
         send_server_msg(i, "COMPUTER", "Resource type not suitable for atomic conversion.");
-        players[i].state.energy += 100; /* Refund */
+        players[i].state.energy += COST_ACTION_HIGH; /* Refund */
         players[i].state.inventory[type] += amount;
         return;
     }
@@ -2437,8 +2561,8 @@ void handle_con(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_load(int i, const char *params, bool *should_disconnect) {
-    /* 1. Hardware Requirement: Auxiliary (ID 9) >= 10% */
-    if (players[i].state.system_health[9] < 10.0) {
+    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+    if (players[i].state.system_health[9] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "TRANSFER FAILURE: Internal power bus non-functional.");
         return;
     }
@@ -2446,11 +2570,11 @@ void handle_load(int i, const char *params, bool *should_disconnect) {
     int type, amount; 
     if (sscanf(params, "%d %d", &type, &amount) == 2) {
         /* 2. Energy Cost: 25 units */
-        if (players[i].state.energy < 25) {
+        if (players[i].state.energy < (uint64_t)(COST_ACTION_LOW * RATIO_WEAPON_POWER)) {
             send_server_msg(i, "COMPUTER", "Insufficient energy for internal transfer systems.");
             return;
         }
-        players[i].state.energy -= 25;
+        players[i].state.energy -= (uint64_t)(COST_ACTION_LOW * RATIO_WEAPON_POWER);
 
         if (type == 1) { /* Load Energy */
             uint64_t load_amount = (uint64_t)amount;
@@ -2467,7 +2591,7 @@ void handle_load(int i, const char *params, bool *should_disconnect) {
         }
         else if (type == 2) { /* Load Torpedoes */
             if (amount > players[i].state.cargo_torpedoes) amount = players[i].state.cargo_torpedoes; 
-            int space = 1000 - players[i].state.torpedoes;
+            int space = MAX_TORPEDO_CAPACITY - players[i].state.torpedoes;
             if (amount > space) amount = space;
             
             players[i].state.cargo_torpedoes -= amount; 
@@ -2489,31 +2613,33 @@ void handle_rep(int i, const char *params, bool *should_disconnect) {
     int sid; 
     if(sscanf(params, " %d", &sid) == 1) {
         if (sid >= 0 && sid < 10) {
-            /* 1. Support System Check: Req Computer (ID 6) OR Auxiliary (ID 9) >= 10% */
-            if (players[i].state.system_health[6] < 10.0 && players[i].state.system_health[9] < 10.0 && sid != 6 && sid != 9) {
+            /* 1. Support System Check: Req Computer (ID 6) OR Auxiliary (ID 9) */
+            if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL && players[i].state.system_health[9] < THRESHOLD_SYS_CRITICAL && sid != 6 && sid != 9) {
                 send_server_msg(i, "ENGINEERING", "REPAIR FAILURE: Both Computer and Auxiliary systems are offline. Manual coordination impossible.");
                 return;
             }
 
-            /* 2. Energy Cost Check: 500 units */
-            if (players[i].state.energy < 500) {
+            /* 2. Energy Cost Check */
+            if (players[i].state.energy < COST_ACTION_EXTREME) {
                 send_server_msg(i, "COMPUTER", "Insufficient energy to power automated repair drones.");
                 return;
             }
 
             /* 3. Resource Check: 50 Neo-Ti, 10 Synaptics */
-            if(players[i].state.inventory[2] >= 50 && players[i].state.inventory[5] >= 10) {
-                players[i].state.inventory[2] -= 50; 
-                players[i].state.inventory[5] -= 10;
-                players[i].state.energy -= 500;
-                players[i].state.system_health[sid] = 100.0; 
+            if(players[i].state.inventory[2] >= COST_ACTION_MED && players[i].state.inventory[5] >= COST_ACTION_LOW) {
+                players[i].state.inventory[2] -= COST_ACTION_MED; 
+                players[i].state.inventory[5] -= COST_ACTION_LOW;
+                players[i].state.energy -= COST_ACTION_EXTREME;
+                players[i].state.system_health[sid] = (double)YIELD_HARVEST_MAX; 
                 
                 /* 4. Improved Feedback */
                 char msg[128];
-                sprintf(msg, "System %s restored to 100%% integrity. [Neo-Ti -50, Synaptics -10]", sys_names[sid]);
+                sprintf(msg, "System %s restored to 100%% integrity. [Neo-Ti -%d, Synaptics -%d]", sys_names[sid], COST_ACTION_MED, COST_ACTION_LOW);
                 send_server_msg(i, "ENGINEERING", msg);
             } else {
-                send_server_msg(i, "ENGINEERING", "Insufficient materials (Req: 50 Neo-Titanium, 10 Synaptics Chips).");
+                char err_msg[128];
+                sprintf(err_msg, "Insufficient materials (Req: %d Neo-Titanium, %d Synaptics Chips).", COST_ACTION_MED, COST_ACTION_LOW);
+                send_server_msg(i, "ENGINEERING", err_msg);
             }
         } else {
             send_server_msg(i, "COMPUTER", "Invalid system ID. Use 'rep' to list systems.");
@@ -2525,18 +2651,20 @@ void handle_rep(int i, const char *params, bool *should_disconnect) {
         for(int s=0; s<10; s++) {
             char line[128];
             double hp = players[i].state.system_health[s];
-            const char* col = (hp > 75) ? GREEN : (hp > 25) ? YELLOW : RED;
+            const char* col = (hp > THRESHOLD_SYS_STABLE) ? GREEN : (hp > THRESHOLD_SYS_DAMAGED) ? YELLOW : RED;
             sprintf(line, WHITE "%d" RESET ": %-15s | STATUS: %s%.1f%%" RESET "\n", s, sys_names[s], col, hp);
             strcat(list, line);
         }
-        strcat(list, YELLOW "\nUsage: rep <ID> (Costs: 500 Energy, 50 Neo-Titanium, 10 Synaptics)\n" RESET);
+        char usage[128];
+        sprintf(usage, YELLOW "\nUsage: rep <ID> (Costs: %d Energy, %d Neo-Titanium, %d Synaptics)\n" RESET, COST_ACTION_EXTREME, COST_ACTION_MED, COST_ACTION_LOW);
+        strcat(list, usage);
         send_server_msg(i, "COMPUTER", list);
     }
 }
 
 void handle_fix(int i, const char *params, bool *should_disconnect) {
-    /* 1. Hardware Requirement: Auxiliary (ID 9) >= 10% */
-    if (players[i].state.system_health[9] < 10.0) {
+    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+    if (players[i].state.system_health[9] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "FIELD REPAIR FAILURE: Welding arrays offline (Auxiliary damage).");
         return;
     }
@@ -2548,52 +2676,56 @@ void handle_fix(int i, const char *params, bool *should_disconnect) {
     }
 
     /* Check Resources: 50 Graphene (inv[4]), 20 Neo-Titanium (inv[2]) */
-    if (players[i].state.inventory[4] < 50 || players[i].state.inventory[2] < 20) {
-        send_server_msg(i, "COMPUTER", "Insufficient materials for hull repair (Req: 50 Graphene, 20 Neo-Titanium).");
+    if (players[i].state.inventory[4] < (uint32_t)COST_ACTION_MED || players[i].state.inventory[2] < (uint32_t)COST_MANEUVER_ADJUST) {
+        char err_msg[128];
+        sprintf(err_msg, "Insufficient materials for hull repair (Req: %d Graphene, %d Neo-Titanium).", COST_ACTION_MED, COST_MANEUVER_ADJUST);
+        send_server_msg(i, "COMPUTER", err_msg);
         return;
     }
 
-    /* 2. Energy Cost: 500 units */
-    if (players[i].state.energy < 500) {
-        send_server_msg(i, "COMPUTER", "Insufficient energy for structural welding pulse (Req: 500).");
+    /* 2. Energy Cost Check */
+    if (players[i].state.energy < COST_ACTION_EXTREME) {
+        char err_msg[128];
+        sprintf(err_msg, "Insufficient energy for structural welding pulse (Req: %d).", COST_ACTION_EXTREME);
+        send_server_msg(i, "COMPUTER", err_msg);
         return;
     }
 
-    players[i].state.energy -= 500;
-    players[i].state.inventory[4] -= 50;
-    players[i].state.inventory[2] -= 20;
+    players[i].state.energy -= COST_ACTION_EXTREME;
+    players[i].state.inventory[4] -= COST_ACTION_MED;
+    players[i].state.inventory[2] -= COST_MANEUVER_ADJUST;
 
     /* 3. Efficiency scaling based on Auxiliary health: base 10% + up to 10% bonus */
-    double efficiency = 10.0 + (players[i].state.system_health[9] / 100.0) * QUADRANT_SIZE;
+    double efficiency = THRESHOLD_SYS_CRITICAL + (players[i].state.system_health[9] / (double)YIELD_HARVEST_MAX) * (double)QUADRANT_SIZE / 4.0;
     players[i].state.hull_integrity += efficiency;
-    if (players[i].state.hull_integrity > 80.0) players[i].state.hull_integrity = 80.0;
+    if (players[i].state.hull_integrity > (float)THRESHOLD_SYS_STABLE + 5.0f) players[i].state.hull_integrity = (float)THRESHOLD_SYS_STABLE + 5.0f;
     
     /* 4. Improved Feedback */
     char msg[128];
-    sprintf(msg, "Field repairs complete. Hull integrity restored by %.1f%% to %.1f%%. [Graphene -50, Neo-Ti -20]", efficiency, players[i].state.hull_integrity);
+    sprintf(msg, "Field repairs complete. Hull integrity restored by %.1f%% to %.1f%%. [Graphene -%d, Neo-Ti -%d]", efficiency, players[i].state.hull_integrity, COST_ACTION_MED, COST_MANEUVER_ADJUST);
     send_server_msg(i, "ENGINEERING", msg);
 }
 
 void handle_sta(int i, const char *params, bool *should_disconnect) {
-    /* 1. Hardware Requirement: Computer (ID 6) >= 5% */
-    if (players[i].state.system_health[6] < 5.0) {
+    /* 1. Hardware Requirement: Computer (ID 6) */
+    if (players[i].state.system_health[6] < (THRESHOLD_SYS_CRITICAL / 2.0)) {
         send_server_msg(i, "COMPUTER", "DIAGNOSTICS FAILURE: Mainframe logic core non-responsive.");
         return;
     }
 
-    /* 2. Energy Cost: 10 units */
-    if (players[i].state.energy < 10) {
+    /* 2. Energy Cost Check */
+    if (players[i].state.energy < COST_ACTION_LOW) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for full systems diagnostic.");
         return;
     }
-    players[i].state.energy -= 10;
+    players[i].state.energy -= COST_ACTION_LOW;
 
     char *b = calloc(4096, sizeof(char));
     if (!b) return;
     
     double comp_h = players[i].state.system_health[6];
     /* 3. Data Scrambling Logic (< 30%) */
-    bool scrambled = (comp_h < 30.0 && (rand() % 100 > (int)comp_h));
+    bool scrambled = (comp_h < (double)PROB_MISFIRE_DEGRADED && (rand() % 100 > (int)comp_h));
 
     const char* c_names[] = {"Legacy Class", "Scout Class", "Heavy Cruiser", "Multi-Engine Cruiser", "Escort Class", "Explorer Class", "Flagship Class", "Science Vessel", "Carrier Class", "Tactical Cruiser", "Diplomatic Cruiser", "Research Vessel", "Frigate Class", "Vessel"};
     const char* class_name = (players[i].ship_class >= 0 && players[i].ship_class <= 13) ? c_names[players[i].ship_class] : "Unknown";
@@ -2615,7 +2747,7 @@ void handle_sta(int i, const char *params, bool *should_disconnect) {
     sprintf(b+strlen(b), " HEADING:  %03.0ff        MARK:   %+03.0f\n", players[i].state.van_h, players[i].state.van_m);
 
     strcat(b, BLUE "\n[ POWER AND REACTOR STATUS ]\n" RESET);
-    double en_pct = (players[i].state.energy / (double)MAX_ENERGY_CAPACITY) * 100.0;
+    double en_pct = (players[i].state.energy / (double)MAX_ENERGY_CAPACITY) * (double)YIELD_HARVEST_MAX;
     sprintf(b+strlen(b), " MAIN REACTOR: %" PRIu64 " / %" PRIu64 " (%.1f%%)\n ALLOCATION:   ENGINES: %.0f%%  SHIELDS: %.0f%%  WEAPONS: %.0f%%\n", players[i].state.energy, (uint64_t)MAX_ENERGY_CAPACITY, en_pct, players[i].state.power_dist[0]*100, players[i].state.power_dist[1]*100, players[i].state.power_dist[2]*100);
 
     strcat(b, BLUE "\n[ DEFENSIVE GRID AND ARMAMENTS ]\n" RESET);
@@ -2641,24 +2773,24 @@ void handle_sta(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_inv(int i, const char *params, bool *should_disconnect) {
-    /* 1. Hardware Requirement: Computer (ID 6) >= 5% */
-    if (players[i].state.system_health[6] < 5.0) {
+    /* 1. Hardware Requirement: Computer (ID 6) */
+    if (players[i].state.system_health[6] < (THRESHOLD_SYS_CRITICAL / 2.0)) {
         send_server_msg(i, "COMPUTER", "INVENTORY FAILURE: Cargo database inaccessible. Repair computer core.");
         return;
     }
 
-    /* 2. Energy Cost: 5 units */
-    if (players[i].state.energy < 5) {
+    /* 2. Energy Cost Check */
+    if (players[i].state.energy < (uint64_t)(COST_ACTION_LOW / 2)) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for manifest scan.");
         return;
     }
-    players[i].state.energy -= 5;
+    players[i].state.energy -= (uint64_t)(COST_ACTION_LOW / 2);
 
     char b[1024]; 
     sprintf(b, YELLOW "\n--- CARGO BAY MANIFEST (GDIS LOGISTICS) ---" RESET "\n");
     
     double comp_h = players[i].state.system_health[6];
-    bool scrambled = (comp_h < 30.0 && (rand() % 100 > (int)comp_h));
+    bool scrambled = (comp_h < (double)PROB_MISFIRE_DEGRADED && (rand() % 100 > (int)comp_h));
 
     if (scrambled) {
         strcat(b, RED " WARNING: LOGISTICS CORE CORRUPTED. DATA UNRELIABLE.\n" RESET);
@@ -2689,31 +2821,31 @@ void handle_inv(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_dam(int i, const char *params, bool *should_disconnect) {
-    /* 1. Hardware Requirement: Computer (ID 6) >= 5% */
-    if (players[i].state.system_health[6] < 5.0) {
+    /* 1. Hardware Requirement: Computer (ID 6) */
+    if (players[i].state.system_health[6] < (THRESHOLD_SYS_CRITICAL / 2.0)) {
         send_server_msg(i, "COMPUTER", "DIAGNOSTICS FAILURE: Damage analysis core non-functional.");
         return;
     }
 
-    /* 2. Energy Cost: 5 units */
-    if (players[i].state.energy < 5) {
+    /* 2. Energy Cost Check */
+    if (players[i].state.energy < (uint64_t)(COST_ACTION_LOW / 2)) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for damage report scan.");
         return;
     }
-    players[i].state.energy -= 5;
+    players[i].state.energy -= (uint64_t)(COST_ACTION_LOW / 2);
 
     char b[1024]; 
     sprintf(b, RED "\n--- GDIS DAMAGE CONTROL: SHIP INTEGRITY REPORT ---" RESET "\n");
     
     double comp_h = players[i].state.system_health[6];
-    bool scrambled = (comp_h < 30.0 && (rand() % 100 > (int)comp_h));
+    bool scrambled = (comp_h < THRESHOLD_SYS_DAMAGED && (rand() % 100 > (int)comp_h));
 
     if (scrambled) {
         strcat(b, YELLOW " WARNING: SENSOR LINK UNSTABLE. DATA PARITY ERROR.\n" RESET);
     }
 
     double h_int = players[i].state.hull_integrity;
-    const char* h_col = (h_int > 75) ? GREEN : (h_int > 25) ? YELLOW : RED;
+    const char* h_col = (h_int > THRESHOLD_SYS_STABLE) ? GREEN : (h_int > THRESHOLD_SYS_DAMAGED) ? YELLOW : RED;
     if (scrambled) {
         strcat(b, " PHYSICAL HULL: [ERROR]%\n");
     } else {
@@ -2726,7 +2858,7 @@ void handle_dam(int i, const char *params, bool *should_disconnect) {
     for (int s = 0; s < 10; s++) {
         char sbuf[128];
         double hp = players[i].state.system_health[s];
-        const char* col = (hp > 75) ? GREEN : (hp > 25) ? YELLOW : RED;
+        const char* col = (hp > THRESHOLD_SYS_STABLE) ? GREEN : (hp > THRESHOLD_SYS_DAMAGED) ? YELLOW : RED;
         
         if (scrambled && (rand() % 100 > 60)) {
             sprintf(sbuf, "  %-15s: [??.?%%]\n", sys[s]);
@@ -2741,17 +2873,17 @@ void handle_dam(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_cal(int i, const char *params, bool *should_disconnect) {
-    if (players[i].state.system_health[6] < 10.0) {
+    if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "CALCULATION FAILURE: Navigation core non-functional.");
         return;
     }
-    if (players[i].state.energy < 25) {
+    if (players[i].state.energy < (uint64_t)COST_ACTION_MED / 2) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for navigational computation.");
         return;
     }
 
     int qx, qy, qz; 
-    double sx = 5.0, sy = 5.0, sz = 5.0;
+    double sx = (double)QUADRANT_SIZE / 8.0, sy = (double)QUADRANT_SIZE / 8.0, sz = (double)QUADRANT_SIZE / 8.0;
     int args = sscanf(params, "%d %d %d %lf %lf %lf", &qx, &qy, &qz, &sx, &sy, &sz);
     
     if (args >= 3) {
@@ -2760,9 +2892,9 @@ void handle_cal(int i, const char *params, bool *should_disconnect) {
             return;
         }
 
-        players[i].state.energy -= 25;
+        players[i].state.energy -= (uint64_t)COST_ACTION_MED / 2;
         double comp_h = players[i].state.system_health[6];
-        bool scrambled = (comp_h < 50.0 && (rand() % 100 > (int)comp_h));
+        bool scrambled = (comp_h < THRESHOLD_SYS_DEGRADED && (rand() % 100 > (int)comp_h));
 
         double target_gx = (qx - 1) * QUADRANT_SIZE + sx;
         double target_gy = (qy - 1) * QUADRANT_SIZE + sy;
@@ -2804,11 +2936,11 @@ void handle_cal(int i, const char *params, bool *should_disconnect) {
             for (double f = 0.1; f <= 10.0; ) {
                 double cf = (f > 9.9) ? 9.9 : f;
                 
-                /* Real Time Calculation: 
-                   Distance (40) / Speed (cf / 4.2868) = Ticks per Quad
-                   Ticks / 30 = Seconds per Quad */
-                double t_1q = (QUADRANT_SIZE * 4.2868 / cf) / 30.0;
-                double t_total = (d * 4.2868 / cf) / 30.0;
+                /* Real Time Calculation (60Hz Synchronized): 
+                   Distance / Speed (cf / COEFF_HYPER_DIVISOR) = Ticks per Quad
+                   Ticks / GAME_TICK_RATE = Seconds per Quad */
+                double t_1q = (QUADRANT_SIZE * COEFF_HYPER_DIVISOR / cf) / (double)GAME_TICK_RATE;
+                double t_total = (d * COEFF_HYPER_DIVISOR / cf) / (double)GAME_TICK_RATE;
                 
                 const char* note = "";
                 if (cf < 0.2) note = "Minimum Jump";
@@ -2837,14 +2969,14 @@ void handle_cal(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_ical(int i, const char *params, bool *should_disconnect) {
-    /* 1. Hardware Requirement: Computer (ID 6) >= 10% */
-    if (players[i].state.system_health[6] < 10.0) {
+    /* 1. Hardware Requirement: Computer (ID 6) */
+    if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "CALCULATION FAILURE: Navigation core offline.");
         return;
     }
 
-    /* 2. Energy Cost: 10 units */
-    if (players[i].state.energy < 10) {
+    /* 2. Energy Cost */
+    if (players[i].state.energy < COST_ACTION_LOW) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for impulse computation.");
         return;
     }
@@ -2852,13 +2984,15 @@ void handle_ical(int i, const char *params, bool *should_disconnect) {
     double tx, ty, tz;
     if (sscanf(params, "%lf %lf %lf", &tx, &ty, &tz) == 3) {
         if (tx < 0 || tx > QUADRANT_SIZE || ty < 0 || ty > QUADRANT_SIZE || tz < 0 || tz > QUADRANT_SIZE) {
-            send_server_msg(i, "COMPUTER", "Coordinates out of sector range (0.0-40.0).");
+            char err_msg[128];
+            sprintf(err_msg, "Coordinates out of sector range (0.0-%.1f).", QUADRANT_SIZE);
+            send_server_msg(i, "COMPUTER", err_msg);
             return;
         }
-        players[i].state.energy -= 10;
+        players[i].state.energy -= COST_ACTION_LOW;
         double comp_h = players[i].state.system_health[6];
         /* 3. Data Reliability logic: Scrambling if integrity < 50% */
-        bool scrambled = (comp_h < 50.0 && (rand() % 100 > (int)comp_h));
+        bool scrambled = (comp_h < THRESHOLD_SYS_DEGRADED && (rand() % 100 > (int)comp_h));
 
         double s1 = players[i].state.s1;
         double s2 = players[i].state.s2;
@@ -2878,16 +3012,13 @@ void handle_ical(int i, const char *params, bool *should_disconnect) {
         double m = asin(dz / d) * 180.0 / M_PI;
 
         /* 4. ETA Calculation based on ACTUAL logic in src/server/logic.c */
-        /* NAV_STATE_IMPULSE use hyper_speed (max 0.2) * engine_mult (0.5 to 1.5) * integrity */
         double imp_h = players[i].state.system_health[1];
         if (imp_h < 1.0) imp_h = 1.0;
         
-        double engine_mult = 0.5 + (players[i].state.power_dist[0] * 1.0);
-        double max_impulse_speed = 0.2; /* Capped in handle_imp */
-        double speed_per_tick = max_impulse_speed * engine_mult * (imp_h / 100.0);
-        
-        /* eta = distance / (speed_per_second) -> speed_per_second = speed_per_tick * 30 */
-        double eta_sec = d / (speed_per_tick * 30.0);
+        double engine_mult = RATIO_BASE_POWER + (players[i].state.power_dist[0] * RATIO_ENGINE_POWER);
+        double speed_per_tick = SPEED_IMPULSE_TICK_MAX * engine_mult * (imp_h / (double)YIELD_HARVEST_MAX);
+        /* eta = distance / (speed_per_second) -> speed_per_second = speed_per_tick * GAME_TICK_RATE */
+        double eta_sec = d / (speed_per_tick * (double)GAME_TICK_RATE);
 
         char buf[512];
         if (scrambled) {
@@ -2903,8 +3034,8 @@ void handle_ical(int i, const char *params, bool *should_disconnect) {
                          " BEARING:     %06.2f / %+06.2f\n"
                          " DISTANCE:    %.2f units\n"
                          " ETA:         %.1f sec (at Full Impulse)\n"
-                         " COMMAND:     " WHITE "imp %.2f %.2f 10.0 %.2f" RESET "\n",
-                         tx, ty, tz, h, m, d, eta_sec, h, m, d);
+                         " COMMAND:     " WHITE "imp %.2f %.2f %.1f %.2f" RESET "\n",
+                         tx, ty, tz, h, m, d, eta_sec, h, m, 100.0, d);
         }
         send_server_msg(i, "COMPUTER", buf);
     } else {
@@ -2913,18 +3044,18 @@ void handle_ical(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_who(int i, const char *params, bool *should_disconnect) {
-    /* 1. Hardware Requirement: Computer (ID 6) >= 5% */
-    if (players[i].state.system_health[6] < 5.0) {
+    /* 1. Hardware Requirement: Computer (ID 6) */
+    if (players[i].state.system_health[6] < (THRESHOLD_SYS_CRITICAL / 2.0)) {
         send_server_msg(i, "COMPUTER", "REGISTRY FAILURE: Deep space link offline. Repair computer core.");
         return;
     }
 
-    /* 2. Energy Cost: 10 units */
-    if (players[i].state.energy < 10) {
+    /* 2. Energy Cost Check */
+    if (players[i].state.energy < COST_ACTION_LOW) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for registry synchronization.");
         return;
     }
-    players[i].state.energy -= 10;
+    players[i].state.energy -= COST_ACTION_LOW;
 
     char b[2048]; 
     sprintf(b, WHITE "\n--- ACTIVE CAPTAINS REGISTRY (GDIS CENTRAL) ---" RESET "\n"
@@ -2965,42 +3096,49 @@ void handle_jum(int i, const char *params, bool *should_disconnect) {
         }
 
         /* 1. Integrity requirements (Hyperdrive ID 0, Sensors ID 2) */
-        if (players[i].state.system_health[0] < 50.0 || players[i].state.system_health[2] < 50.0) {
+        if (players[i].state.system_health[0] < THRESHOLD_SYS_DEGRADED || players[i].state.system_health[2] < THRESHOLD_SYS_DEGRADED) {
             send_server_msg(i, "SCIENCE", "UNABLE TO STABILIZE WORMHOLE: Hyperdrive and Sensors must be above 50% integrity.");
             return;
         }
 
         /* 2. Malfunction risk (Hyperdrive 50-75% health) */
-        if (players[i].state.system_health[0] < 75.0 && (rand() % 100 > (int)players[i].state.system_health[0])) {
+        if (players[i].state.system_health[0] < THRESHOLD_SYS_STABLE && (rand() % 100 > (int)players[i].state.system_health[0])) {
             send_server_msg(i, "ENGINEERING", "Wormhole collapse during initialization! Resources consumed.");
-            players[i].state.energy -= 2500;
+            players[i].state.energy -= (COST_WORMHOLE_INIT / 2);
             return;
         }
 
-        if (players[i].state.energy < 5000 || players[i].state.inventory[1] < 1) {
-             send_server_msg(i, "ENGINEERING", "Insufficient resources for Jump (Req: 5000 Energy, 1 Aetherium).");
+        if (players[i].state.energy < COST_WORMHOLE_INIT || players[i].state.inventory[1] < 1) {
+             char err_msg[128];
+             sprintf(err_msg, "Insufficient resources for Jump (Req: %d Energy, 1 Aetherium).", COST_WORMHOLE_INIT);
+             send_server_msg(i, "ENGINEERING", err_msg);
              return;
         }
 
-        players[i].state.energy -= 5000;
+        players[i].state.energy -= COST_WORMHOLE_INIT;
         players[i].state.inventory[1] -= 1;
 
         /* 3. Stress damage (1-3% hull) */
-        double stress = 1.0 + (rand() % 200) / 100.0;
+        double stress = 1.0 + (rand() % 200) / (double)YIELD_HARVEST_MAX;
         apply_hull_damage(i, stress);
 
         /* 4. Positional Uncertainty based on sensor damage */
         double off_x = 0, off_y = 0, off_z = 0;
-        if (players[i].state.system_health[2] < 100.0) {
-            double noise = (100.0 - players[i].state.system_health[2]) / 20.0; /* Up to 2.5 units off */
+        if (players[i].state.system_health[2] < (double)YIELD_HARVEST_MAX) {
+            double noise = ((double)YIELD_HARVEST_MAX - players[i].state.system_health[2]) / 20.0; /* Up to 2.5 units off */
             off_x = ((rand() % 2000 - 1000) / 1000.0) * noise;
             off_y = ((rand() % 2000 - 1000) / 1000.0) * noise;
             off_z = ((rand() % 2000 - 1000) / 1000.0) * noise;
         }
 
-        players[i].target_gx = (qx - 1) * QUADRANT_SIZE + 5.5 + off_x;
-        players[i].target_gy = (qy - 1) * QUADRANT_SIZE + 5.5 + off_y;
-        players[i].target_gz = (qz - 1) * QUADRANT_SIZE + 5.5 + off_z;
+        /* Random arrival point within the destination quadrant (40x40x40) */
+        double rx = (rand() % (int)(QUADRANT_SIZE * (double)YIELD_HARVEST_MAX)) / (double)YIELD_HARVEST_MAX;
+        double ry = (rand() % (int)(QUADRANT_SIZE * (double)YIELD_HARVEST_MAX)) / (double)YIELD_HARVEST_MAX;
+        double rz = (rand() % (int)(QUADRANT_SIZE * (double)YIELD_HARVEST_MAX)) / (double)YIELD_HARVEST_MAX;
+
+        players[i].target_gx = (qx - 1) * QUADRANT_SIZE + rx + off_x;
+        players[i].target_gy = (qy - 1) * QUADRANT_SIZE + ry + off_y;
+        players[i].target_gz = (qz - 1) * QUADRANT_SIZE + rz + off_z;
         
         /* Calculate entry wormhole position: 4 units in front of ship (Galactic Absolute) */
         double r_h = players[i].state.van_h * M_PI / 180.0;
@@ -3013,7 +3151,16 @@ void handle_jum(int i, const char *params, bool *should_disconnect) {
         players[i].wz = players[i].gz + 4.0 * f_dz;
 
         players[i].nav_state = NAV_STATE_WORMHOLE;
-        players[i].nav_timer = 450; 
+        players[i].nav_timer = TIMER_WORMHOLE_SEQ; 
+        
+        /* Server-side logging of the jump initiation */
+        time_t now_jum = time(NULL);
+        struct tm *t_jum = localtime(&now_jum);
+        char time_jum[64];
+        strftime(time_jum, sizeof(time_jum), "%Y-%m-%d %H:%M:%S", t_jum);
+        printf("\033[1;36m[WORMHOLE]\033[0m   Captain \033[1;37m%-15s\033[0m initiating jump to Q%d-%d-%d.   [\033[1;33m%s\033[0m]\n", 
+               players[i].name, qx, qy, qz, time_jum);
+
         send_server_msg(i, "HELMSMAN", "Initiating trans-quadrant jump. Structural stress detected.");
     } else send_server_msg(i, "COMPUTER", "Usage: jum <Q1> <Q2> <Q3>");
 }
@@ -3045,11 +3192,11 @@ void handle_psy(int i, const char *params, bool *should_disconnect) {
     if (!IS_Q_VALID(q1, q2, q3)) return;
     QuadrantIndex *lq = &spatial_index[q1][q2][q3];
 
-    if (rand() % 100 < 60) {
+    if (rand() % 100 < PROB_BOARD_SUCCESS_BASE) {
         /* 3. Success: NPCs flee */
         for (int n = 0; n < lq->npc_count; n++) {
             lq->npcs[n]->ai_state = AI_STATE_FLEE;
-            lq->npcs[n]->energy += 5000; /* Panic boost */
+            lq->npcs[n]->energy += (uint64_t)COST_HYPERDRIVE_INIT; /* Panic boost */
         }
         send_server_msg(i, "SCIENCE", "Bluff successful! Hostile vessels are breaking formation and retreating.");
     } else {
@@ -3062,34 +3209,40 @@ void handle_psy(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_hull(int i, const char *params, bool *should_disconnect) {
-    /* 1. Hardware Requirement: Auxiliary (ID 9) >= 10% */
-    if (players[i].state.system_health[9] < 10.0) {
+    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+    if (players[i].state.system_health[9] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "PLATING FAILURE: Hull integration systems offline.");
         return;
     }
 
     /* 3. Plating Limit: 5000 units */
-    if (players[i].state.composite_plating >= 5000) {
-        send_server_msg(i, "ENGINEERING", "Hull plating is already at maximum structural capacity (5000).");
+    if (players[i].state.composite_plating >= COST_BOARDING_INIT) {
+        char err_msg[128];
+        sprintf(err_msg, "Hull plating is already at maximum structural capacity (%d).", COST_BOARDING_INIT);
+        send_server_msg(i, "ENGINEERING", err_msg);
         return;
     }
 
     /* Check Resources: 100 Composite (inventory[7]) */
-    if (players[i].state.inventory[7] < 100) {
-        send_server_msg(i, "COMPUTER", "Insufficient Composite materials for reinforcement (Req: 100).");
+    if (players[i].state.inventory[7] < (uint32_t)COST_ACTION_HIGH) {
+        char err_msg[128];
+        sprintf(err_msg, "Insufficient Composite materials for reinforcement (Req: %d).", COST_ACTION_HIGH);
+        send_server_msg(i, "COMPUTER", err_msg);
         return;
     }
 
-    /* 2. Energy Cost: 1000 units */
-    if (players[i].state.energy < 1000) {
-        send_server_msg(i, "COMPUTER", "Insufficient energy for hull reinforcement process (Req: 1000).");
+    /* 2. Energy Cost Check: 1000 units */
+    if (players[i].state.energy < COST_PROBE_LAUNCH) {
+        char err_msg[128];
+        sprintf(err_msg, "Insufficient energy for hull reinforcement process (Req: %d).", COST_PROBE_LAUNCH);
+        send_server_msg(i, "COMPUTER", err_msg);
         return;
     }
 
-    players[i].state.energy -= 1000;
-    players[i].state.inventory[7] -= 100;
-    players[i].state.composite_plating += 500;
-    if (players[i].state.composite_plating > 5000) players[i].state.composite_plating = 5000;
+    players[i].state.energy -= COST_PROBE_LAUNCH;
+    players[i].state.inventory[7] -= COST_ACTION_HIGH;
+    players[i].state.composite_plating += COST_ACTION_EXTREME;
+    if (players[i].state.composite_plating > COST_BOARDING_INIT) players[i].state.composite_plating = COST_BOARDING_INIT;
     
     /* 4. Improved Feedback */
     char msg[128];
@@ -3102,39 +3255,39 @@ void handle_supernova(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_axs(int i, const char *params, bool *should_disconnect) {
-    if (players[i].state.system_health[6] < 10.0) {
+    if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "HUD FAILURE: Augmented Reality core offline.");
         return;
     }
-    if (players[i].state.energy < 10) {
+    if (players[i].state.energy < COST_ACTION_LOW) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for AR HUD toggle.");
         return;
     }
-    players[i].state.energy -= 10;
+    players[i].state.energy -= COST_ACTION_LOW;
     players[i].state.show_axes = !players[i].state.show_axes;
     send_server_msg(i, "COMPUTER", players[i].state.show_axes ? "AR Tactical Compass ENABLED." : "AR Tactical Compass DISABLED.");
 }
 
 void handle_grd(int i, const char *params, bool *should_disconnect) {
-    if (players[i].state.system_health[6] < 10.0) {
+    if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "HUD FAILURE: Grid projection systems non-functional.");
         return;
     }
-    if (players[i].state.energy < 10) {
+    if (players[i].state.energy < COST_ACTION_LOW) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for Tactical Grid toggle.");
         return;
     }
-    players[i].state.energy -= 10;
+    players[i].state.energy -= COST_ACTION_LOW;
     players[i].state.show_grid = !players[i].state.show_grid;
     send_server_msg(i, "COMPUTER", players[i].state.show_grid ? "Tactical Grid ENABLED." : "Tactical Grid DISABLED.");
 }
 
 void handle_bridge(int i, const char *params, bool *should_disconnect) {
-    if (players[i].state.system_health[6] < 10.0) {
+    if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "VISUAL FAILURE: Bridge camera link corrupted.");
         return;
     }
-    if (players[i].state.energy < 10) {
+    if (players[i].state.energy < COST_ACTION_LOW) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for bridge camera realignment.");
         return;
     }
@@ -3177,17 +3330,17 @@ void handle_bridge(int i, const char *params, bool *should_disconnect) {
     }
 
     if (new_val != current) {
-        players[i].state.energy -= 10;
+        players[i].state.energy -= COST_ACTION_LOW;
         players[i].state.show_bridge = new_val;
     }
 }
 
 void handle_map(int i, const char *params, bool *should_disconnect) {
-    if (players[i].state.system_health[6] < 15.0) {
+    if (players[i].state.system_health[6] < (THRESHOLD_SYS_CRITICAL + 5.0)) {
         send_server_msg(i, "COMPUTER", "CARTOGRAPHY FAILURE: Spatial projection mainframe damaged.");
         return;
     }
-    if (players[i].state.energy < 50) {
+    if (players[i].state.energy < COST_ACTION_MED) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for real-time map rendering.");
         return;
     }
@@ -3199,7 +3352,7 @@ void handle_map(int i, const char *params, bool *should_disconnect) {
         /* Generic Toggle */
         players[i].state.show_map = !players[i].state.show_map;
         players[i].state.map_filter = 0;
-        players[i].state.energy -= 50;
+        players[i].state.energy -= COST_ACTION_MED;
         send_server_msg(i, "COMPUTER", players[i].state.show_map ? "Galaxy Map: ENABLED (Full Scan)." : "Galaxy Map: DISABLED.");
     } else {
         /* Filtered Display - use strncmp for robustness against trailing spaces */
@@ -3220,17 +3373,18 @@ void handle_map(int i, const char *params, bool *should_disconnect) {
         else if (strncmp(p, "pf", 2) == 0) filter = 14;
         else if (strncmp(p, "ri", 2) == 0) filter = 15;
         else if (strncmp(p, "mo", 2) == 0) filter = 16;
+        else if (strncmp(p, "qu", 2) == 0) filter = 17;
 
         if (filter > 0) {
             players[i].state.show_map = 1;
             players[i].state.map_filter = filter;
-            players[i].state.energy -= 50;
+            players[i].state.energy -= COST_ACTION_MED;
             char msg[128];
             char filter_name[3]; strncpy(filter_name, p, 2); filter_name[2] = '\0';
             sprintf(msg, "Galaxy Map Filter: %s ACTIVE.", filter_name);
             send_server_msg(i, "COMPUTER", msg);
         } else {
-            send_server_msg(i, "COMPUTER", "Invalid map filter. Use: st,pl,bs,en,bh,ne,pu,is,co,as,de,mi,bu,pf,ri,mo");
+            send_server_msg(i, "COMPUTER", "Invalid map filter. Use: st,pl,bs,en,bh,ne,pu,is,co,as,de,mi,bu,pf,ri,mo,qu");
         }
     }
 }
@@ -3241,19 +3395,19 @@ void handle_und(int i, const char *params, bool *should_disconnect) {
         return;
     }
 
-    /* 1. Hardware Requirement: Auxiliary (ID 9) >= 10% */
-    if (players[i].state.system_health[9] < 10.0) {
+    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+    if (players[i].state.system_health[9] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "UNDOCKING FAILURE: Docking clamp release mechanism non-functional.");
         return;
     }
 
-    /* 2. Energy Cost: 50 units */
-    if (players[i].state.energy < 50) {
+    /* 2. Energy Cost Check */
+    if (players[i].state.energy < COST_ACTION_MED) {
         send_server_msg(i, "COMPUTER", "Insufficient energy for clamp retraction pulse.");
         return;
     }
 
-    players[i].state.energy -= 50;
+    players[i].state.energy -= COST_ACTION_MED;
     players[i].is_docked = 0;
     send_server_msg(i, "STARBASE", "Docking clamps retracted. Vessel is clear. Engines online.");
 }
@@ -3262,15 +3416,15 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
     const char *p_ptr = params;
     while(*p_ptr && (*p_ptr == ' ' || *p_ptr == '\t')) p_ptr++;
     
-    /* 1. Hardware Requirement: Auxiliary (ID 9) >= 10% */
-    if (players[i].state.system_health[9] < 10.0) {
+    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+    if (players[i].state.system_health[9] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "AUXILIARY FAILURE: Backup systems non-functional.");
         return;
     }
 
     if(*p_ptr == '\0' || strncmp(p_ptr, "status", 6) == 0) {
-        if (players[i].state.energy < 10) { send_server_msg(i, "COMPUTER", "Insufficient energy for status diagnostic."); return; }
-        players[i].state.energy -= 10;
+        if (players[i].state.energy < COST_ACTION_LOW) { send_server_msg(i, "COMPUTER", "Insufficient energy for status diagnostic."); return; }
+        players[i].state.energy -= COST_ACTION_LOW;
         char buf[1024];
         sprintf(buf, "\n" CYAN ".--- AUXILIARY SYSTEMS: SENSOR PROBE NETWORK ---." RESET "\n"
                      " SLOT  STATUS       LOCATION        ETA/UPTIME\n"
@@ -3293,14 +3447,16 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
         send_server_msg(i, "SCIENCE", buf);
     } else if(strncmp(p_ptr, "jettison", 8) == 0) {
         /* 2. Jettison Energy Cost */
-        if (players[i].state.energy < 1000) {
-            send_server_msg(i, "ENGINEERING", "Insufficient energy for controlled core ejection (Req: 1000).");
+        if (players[i].state.energy < COST_PROBE_LAUNCH) {
+            char err_msg[128];
+            sprintf(err_msg, "Insufficient energy for controlled core ejection (Req: %d).", COST_PROBE_LAUNCH);
+            send_server_msg(i, "ENGINEERING", err_msg);
             return;
         }
         send_server_msg(i, "CRITICAL", "EMERGENCY JETTISON INITIATED! HYPERDRIVE CORE EJECTED!");
         send_server_msg(i, "ENGINEERING", "Hyperdrive system is OFFLINE. Massive feedback damage detected.");
         
-        players[i].state.energy -= 1000;
+        players[i].state.energy -= COST_PROBE_LAUNCH;
         players[i].state.system_health[0] = 0.0; /* Hyperdrive destroyed */
         players[i].nav_state = NAV_STATE_DRIFT;
         
@@ -3308,19 +3464,23 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
         apply_hull_damage(i, 40.0); /* 40% hull damage + random system damage */
         
         /* Visual FX */
-        players[i].state.boom = (NetPoint){players[i].state.s1, players[i].state.s2, players[i].state.s3, 1};
+        push_server_event(i, IPC_EV_BOOM, players[i].state.s1, players[i].state.s2, players[i].state.s3, 0, 0, 0, 1);
     } else if(strncmp(p_ptr, "probe", 5) == 0) {
         /* Skip 'probe' word and spaces */
         const char *coords = p_ptr + 5;
         while(*coords && (*coords == ' ' || *coords == '\t')) coords++;
 
-        /* 3. Probe Hardware Requirements (Sensors ID 2, Computer ID 6 >= 25%) */
-        if (players[i].state.system_health[2] < 25.0 || players[i].state.system_health[6] < 25.0) {
-            send_server_msg(i, "SCIENCE", "PROBE LAUNCH FAILURE: Sensors and Computer must be above 25% integrity.");
+        /* 3. Probe Hardware Requirements (Sensors ID 2, Computer ID 6) */
+        if (players[i].state.system_health[2] < THRESHOLD_SYS_DAMAGED || players[i].state.system_health[6] < THRESHOLD_SYS_DAMAGED) {
+            char err_msg[128];
+            sprintf(err_msg, "PROBE LAUNCH FAILURE: Sensors and Computer must be above %.0f%% integrity.", THRESHOLD_SYS_DAMAGED);
+            send_server_msg(i, "SCIENCE", err_msg);
             return;
         }
-        if (players[i].state.energy < 1000) {
-            send_server_msg(i, "COMPUTER", "Insufficient energy for probe launch (Req: 1000).");
+        if (players[i].state.energy < COST_PROBE_LAUNCH) {
+            char err_msg[128];
+            sprintf(err_msg, "Insufficient energy for probe launch (Req: %d).", COST_PROBE_LAUNCH);
+            send_server_msg(i, "COMPUTER", err_msg);
             return;
         }
 
@@ -3331,7 +3491,7 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
             for(int p=0; p<3; p++) if(!players[i].state.probes[p].active) { p_idx = p; break; }
             if(p_idx == -1) { send_server_msg(i, "COMPUTER", "All probe slots active."); return; }
             
-            players[i].state.energy -= 1000;
+            players[i].state.energy -= COST_PROBE_LAUNCH;
             players[i].state.probes[p_idx].active = 1;
             players[i].state.probes[p_idx].q1 = qx;
             players[i].state.probes[p_idx].q2 = qy;
@@ -3347,11 +3507,11 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
             double dy = target_gy - players[i].state.probes[p_idx].gy;
             double dz = target_gz - players[i].state.probes[p_idx].gz;
             double dist = sqrtf(dx*dx + dy*dy + dz*dz);
-            double time = dist / 3.33; if (time < 1.0) time = 1.0;
+            double time = dist / (QUADRANT_SIZE / 12.0); if (time < 1.0) time = 1.0;
             
-            players[i].state.probes[p_idx].vx = dx / (time * 30.0);
-            players[i].state.probes[p_idx].vy = dy / (time * 30.0);
-            players[i].state.probes[p_idx].vz = dz / (time * 30.0);
+            players[i].state.probes[p_idx].vx = dx / (time * (double)GAME_TICK_RATE);
+            players[i].state.probes[p_idx].vy = dy / (time * (double)GAME_TICK_RATE);
+            players[i].state.probes[p_idx].vz = dz / (time * (double)GAME_TICK_RATE);
             players[i].state.probes[p_idx].eta = time;
             players[i].state.probes[p_idx].status = 0;
             
@@ -3359,14 +3519,19 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
             send_server_msg(i, "SCIENCE", msg);
         } else send_server_msg(i, "COMPUTER", "Usage: aux probe <QX> <QY> <QZ>");
     } else if(strncmp(p_ptr, "report", 6) == 0) {
-        if (players[i].state.energy < 50) { send_server_msg(i, "COMPUTER", "Insufficient energy for telemetry (Req: 50)."); return; }
+        if (players[i].state.energy < COST_ACTION_MED) { 
+            char err_msg[128];
+            sprintf(err_msg, "Insufficient energy for telemetry (Req: %d).", COST_ACTION_MED);
+            send_server_msg(i, "COMPUTER", err_msg); 
+            return; 
+        }
         int p_idx;
         if (sscanf(p_ptr + 6, "%d", &p_idx) == 1) {
             p_idx--;
             if (p_idx < 0 || p_idx >= 3 || !players[i].state.probes[p_idx].active) { send_server_msg(i, "COMPUTER", "Probe not active."); return; }
             if (players[i].state.probes[p_idx].status == 0) { send_server_msg(i, "SCIENCE", "Probe still en route."); return; }
             
-            players[i].state.energy -= 50;
+            players[i].state.energy -= COST_ACTION_MED;
             int pq1 = players[i].state.probes[p_idx].q1, pq2 = players[i].state.probes[p_idx].q2, pq3 = players[i].state.probes[p_idx].q3;
             QuadrantIndex *lq = &spatial_index[pq1][pq2][pq3];
 
@@ -3436,7 +3601,7 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
                 return;
             }
 
-            players[i].state.recovery_fx = (NetPoint){players[i].state.probes[p_idx].s1, players[i].state.probes[p_idx].s2, players[i].state.probes[p_idx].s3, 10};
+            push_server_event(i, IPC_EV_RECOVERY, players[i].state.probes[p_idx].s1, players[i].state.probes[p_idx].s2, players[i].state.probes[p_idx].s3, 0, 0, 0, 10);
             players[i].state.probes[p_idx].active = 0; players[i].state.energy += 500;
             if (players[i].state.energy > MAX_ENERGY_CAPACITY) players[i].state.energy = MAX_ENERGY_CAPACITY;
             send_server_msg(i, "ENGINEERING", "Probe recovered. 500 Energy salvaged.");
@@ -3480,6 +3645,8 @@ static const CommandDef command_registry[] = {
     {"cal", handle_cal, "Hyperdrive Calc (Pinpoint Precision Route & ETA)"},
     {"ical", handle_ical, "Impulse Calculator (Sector ETA at current power)"},
     {"who",  handle_who, "List active captains in galaxy"},
+    {"rad",  NULL,       "Radio Subspace (rad <msg>, rad @Faction <msg>, rad #ID <msg>)"},
+    {"enc",  handle_enc,  "Encryption Toggle (aes, chacha, aria, camellia, ..., pqc, off)"},
     {"help", handle_help, "Display LCARS Command Directory"},
     {"aux", handle_aux, "Auxiliary (probe/report/recover/jettison)"},
     {"xxx",  handle_xxx, "Emergency Repositioning (Tactical Warp)"},
@@ -3491,18 +3658,27 @@ static const CommandDef command_registry[] = {
     {"bridge", handle_bridge, "Change Bridge View (top, bottom, up, down, left, right, rear, off)"},
     {"map",    handle_map,    "Toggle Galaxy Map with optional Filter"},
     {"red",    handle_red,    "Toggle Red Alert / Condition Green"},
-    {"orb",    handle_orb,    "Enter planetary orbit (Must be near target planet < 1.0)"},
+    {"orb",    handle_orb,    "Enter orbit around target celestial body (Planet, Star, BH, Pulsar, Quasar) < 1.0"},
     {"und",    handle_und,    "Undock from Starbase"},
     {"undock", handle_und,    "Undock from Starbase (alias)"},
     {NULL, NULL, NULL}
 };
 
 void handle_red(int i, const char *params, bool *should_disconnect) {
-    if (players[i].state.system_health[6] < 10.0) {
+    if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "RED ALERT FAILURE: Tactical coordination core damaged.");
         return;
     }
     players[i].state.red_alert = !players[i].state.red_alert;
+    
+    /* Server-side logging of tactical status */
+    time_t now_red = time(NULL);
+    struct tm *t_red = localtime(&now_red);
+    char time_red[64];
+    strftime(time_red, sizeof(time_red), "%Y-%m-%d %H:%M:%S", t_red);
+    printf("\033[1;33m[TACTICAL]\033[0m   Captain \033[1;37m%-15s\033[0m set alert to \033[1;%sm%-15s\033[0m [\033[1;33m%s\033[0m]\n", 
+           players[i].name, players[i].state.red_alert ? "31" : "32", players[i].state.red_alert ? "RED ALERT" : "CONDITION GREEN", time_red);
+
     if (players[i].state.red_alert) {
         send_server_msg(i, "COMMAND", "RED ALERT! Shields energized. Weapons to standby.");
     } else {
@@ -3511,35 +3687,93 @@ void handle_red(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_orb(int i, const char *params, bool *should_disconnect) {
-    if (players[i].state.system_health[1] < 10.0) {
+    if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "ORBITAL ENTRY FAILURE: Maneuvering thrusters offline.");
         return;
     }
     int tid = players[i].state.lock_target;
+    double target_x = -1, target_y = -1, target_z = -1;
+    const char *target_type = "object";
+    bool valid_target = false;
+
     if (tid >= GALAXY_OBJECT_MIN_PLANET && tid <= GALAXY_OBJECT_MAX_PLANET) {
         int p = tid - GALAXY_OBJECT_MIN_PLANET;
         if (p >= 0 && p < MAX_PLANETS && planets[p].active) {
-            double dx = planets[p].x - players[i].state.s1;
-            double dy = planets[p].y - players[i].state.s2;
-            double dz = planets[p].z - players[i].state.s3;
-            double d = sqrt(dx*dx + dy*dy + dz*dz);
-            if (d < 1.0) {
-                players[i].nav_state = NAV_STATE_ORBIT;
-                send_server_msg(i, "HELMSMAN", "Establishing stable orbit around target planet.");
-            } else send_server_msg(i, "COMPUTER", "Target planet too distant for orbital capture (< 1.0 required).");
-        } else send_server_msg(i, "COMPUTER", "Target planet not active.");
-    } else send_server_msg(i, "COMPUTER", "No planet locked for orbital entry.");
+            target_x = planets[p].x;
+            target_y = planets[p].y;
+            target_z = planets[p].z;
+            target_type = "planet";
+            valid_target = true;
+        }
+    } else if (tid >= GALAXY_OBJECT_MIN_STAR && tid <= GALAXY_OBJECT_MAX_STAR) {
+        int s = tid - GALAXY_OBJECT_MIN_STAR;
+        if (s >= 0 && s < MAX_STARS && stars_data[s].active) {
+            target_x = stars_data[s].x;
+            target_y = stars_data[s].y;
+            target_z = stars_data[s].z;
+            target_type = "star";
+            valid_target = true;
+        }
+    } else if (tid >= GALAXY_OBJECT_MIN_BLACKHOLE && tid <= GALAXY_OBJECT_MAX_BLACKHOLE) {
+        int b = tid - GALAXY_OBJECT_MIN_BLACKHOLE;
+        if (b >= 0 && b < MAX_BH && black_holes[b].active) {
+            target_x = black_holes[b].x;
+            target_y = black_holes[b].y;
+            target_z = black_holes[b].z;
+            target_type = "black hole";
+            valid_target = true;
+        }
+    } else if (tid >= GALAXY_OBJECT_MIN_PULSAR && tid <= GALAXY_OBJECT_MAX_PULSAR) {
+        int p = tid - GALAXY_OBJECT_MIN_PULSAR;
+        if (p >= 0 && p < MAX_PULSARS && pulsars[p].active) {
+            target_x = pulsars[p].x;
+            target_y = pulsars[p].y;
+            target_z = pulsars[p].z;
+            target_type = "pulsar";
+            valid_target = true;
+        }
+    } else if (tid >= GALAXY_OBJECT_MIN_QUASAR && tid <= GALAXY_OBJECT_MAX_QUASAR) {
+        int q = tid - GALAXY_OBJECT_MIN_QUASAR;
+        if (q >= 0 && q < MAX_QUASARS && quasars[q].active) {
+            target_x = quasars[q].x;
+            target_y = quasars[q].y;
+            target_z = quasars[q].z;
+            target_type = "quasar";
+            valid_target = true;
+        }
+    }
+
+    if (valid_target) {
+        double dx = target_x - players[i].state.s1;
+        double dy_val = target_y - players[i].state.s2;
+        double dz = target_z - players[i].state.s3;
+        double d = sqrt(dx*dx + dy_val*dy_val + dz*dz);
+        if (d < DIST_BOARDING_MAX) {
+            players[i].nav_state = NAV_STATE_ORBIT;
+            char msg[128];
+            sprintf(msg, "Establishing stable orbit around target %s.", target_type);
+            send_server_msg(i, "HELMSMAN", msg);
+        } else {
+            char err_msg[128];
+            sprintf(err_msg, "Target %s too distant for orbital capture (< %.1f required).", target_type, DIST_BOARDING_MAX);
+            send_server_msg(i, "COMPUTER", err_msg);
+        }
+    } else {
+        send_server_msg(i, "COMPUTER", "No valid celestial object locked for orbital entry.");
+    }
 }
 
 void handle_help(int i, const char *params, bool *should_disconnect) {
-    char b[8192] = CYAN "\n--- LCARS COMMAND DIRECTORY ---" RESET "\n";
+    send_server_msg(i, "COMPUTER", CYAN "\n--- LCARS COMMAND DIRECTORY ---" RESET);
+    
     for (int c = 0; command_registry[c].name != NULL; c++) {
-        char line[256]; sprintf(line, WHITE "%-10s" RESET " : %s\n", command_registry[c].name, command_registry[c].description);
-        if (strlen(b) + strlen(line) < sizeof(b) - 1) {
-            strcat(b, line);
-        }
+        char line[512];
+        snprintf(line, sizeof(line), WHITE "%-10s" RESET " : %s", 
+                 command_registry[c].name, command_registry[c].description);
+        send_server_msg(i, "COMPUTER", line);
     }
-    send_server_msg(i, "COMPUTER", b);
+    
+    send_server_msg(i, "COMPUTER", CYAN "--- END OF DIRECTORY ---" RESET);
 }
 
 bool process_command(int i, const char *cmd) {
@@ -3568,27 +3802,27 @@ bool process_command(int i, const char *cmd) {
             } else {
                 if (players[i].pending_bor_type == 1) { /* ALLY PLAYER */
                     if (choice == 1) { 
-                        if (players[i].state.energy >= 50000) {
-                            players[i].state.energy -= 50000; 
-                            target_p->state.energy += 50000;
+                        if (players[i].state.energy >= (uint64_t)DMG_TORPEDO_PLATFORM) {
+                            players[i].state.energy -= (uint64_t)DMG_TORPEDO_PLATFORM; 
+                            target_p->state.energy += (uint64_t)DMG_TORPEDO_PLATFORM;
                             if (target_p->state.energy > MAX_ENERGY_CAPACITY) target_p->state.energy = MAX_ENERGY_CAPACITY;
                             send_server_msg(i, "ENGINEERING", "Energy transferred.");
                         } else {
                             send_server_msg(i, "COMPUTER", "Insufficient energy reserves for transfer.");
                         }
                     }
-                    else if (choice == 2) { int s = rand()%10; target_p->state.system_health[s] = 100.0; send_server_msg(i, "ENGINEERING", "Repairs complete."); }
+                    else if (choice == 2) { int s = rand()%MAX_SYSTEMS; target_p->state.system_health[s] = (double)YIELD_HARVEST_MAX; send_server_msg(i, "ENGINEERING", "Repairs complete."); }
                     else { 
-                        int t_crew = (players[i].state.crew_count >= 20) ? 20 : players[i].state.crew_count;
+                        int t_crew = (players[i].state.crew_count >= (int)COST_MANEUVER_ADJUST) ? (int)COST_MANEUVER_ADJUST : players[i].state.crew_count;
                         players[i].state.crew_count -= t_crew; target_p->state.crew_count += t_crew; 
                         send_server_msg(i, "SECURITY", "Crew transferred."); 
                     }
                 } else if (players[i].pending_bor_type == 2) { /* ENEMY PLAYER / NPC */
                     if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER) {
-                        if (choice == 1) { int s = rand()%10; target_p->state.system_health[s] = 0.0; send_server_msg(i, "BOARDING", "Sabotage successful."); }
-                        else if (choice == 2) { int r = 1 + rand()%8; int a = target_p->state.inventory[r]/2; target_p->state.inventory[r] -= a; players[i].state.inventory[r] += a; send_server_msg(i, "BOARDING", "Resources seized."); }
+                        if (choice == 1) { int s = rand()%MAX_SYSTEMS; target_p->state.system_health[s] = 0.0; send_server_msg(i, "BOARDING", "Sabotage successful."); }
+                        else if (choice == 2) { int r = 1 + rand()%MAX_RESOURCE_TYPES; int a = target_p->state.inventory[r]/(int)RATIO_ENERGY_REDUCTION; target_p->state.inventory[r] -= a; players[i].state.inventory[r] += a; send_server_msg(i, "BOARDING", "Resources seized."); }
                         else { 
-                            int p = 5 + rand()%15; 
+                            int p = YIELD_BOARD_CREW_MIN + rand()%YIELD_BOARD_CREW_RANGE; 
                             if (target_p->state.crew_count < p) p = target_p->state.crew_count;
                             target_p->state.crew_count -= p; players[i].state.prison_unit += p; 
                             send_server_msg(i, "SECURITY", "Hostages taken."); 
@@ -3598,12 +3832,12 @@ bool process_command(int i, const char *cmd) {
                         NPCShip *target_npc = &npcs[tid-GALAXY_OBJECT_MIN_NPC];
                         if (choice == 1) { 
                             target_npc->engine_health = 0.0; 
-                            if (target_npc->energy > 10000) target_npc->energy -= 10000; else target_npc->energy = 0;
+                            if (target_npc->energy > SHIELD_MAX_STRENGTH) target_npc->energy -= SHIELD_MAX_STRENGTH; else target_npc->energy = 0;
                             send_server_msg(i, "BOARDING", "NPC propulsion core sabotaged. Vessell is drifting."); 
                         }
-                        else if (choice == 2) { players[i].state.inventory[1 + rand()%7] += 50; send_server_msg(i, "BOARDING", "Raid successful. Secured NPC cargo."); }
+                        else if (choice == 2) { players[i].state.inventory[1 + rand()%(MAX_RESOURCE_TYPES - 1)] += COST_ACTION_MED; send_server_msg(i, "BOARDING", "Raid successful. Secured NPC cargo."); }
                         else { 
-                            int p = 10 + rand()%30; 
+                            int p = YIELD_BOARD_NPC_MIN + rand()%YIELD_BOARD_NPC_RANGE; 
                             if (target_npc->health < p) p = target_npc->health; /* Per NPC usiamo health come approssimazione crew */
                             target_npc->health -= p;
                             players[i].state.prison_unit += p; 
@@ -3613,13 +3847,13 @@ bool process_command(int i, const char *cmd) {
                 } else if (players[i].pending_bor_type == 3) { /* PLATFORM */
                     int pt_idx = tid - GALAXY_OBJECT_MIN_PLATFORM;
                     if (choice == 1) { platforms[pt_idx].faction = players[i].faction; send_server_msg(i, "BOARDING", "Platform captured."); }
-                    else if (choice == 2) { platforms[pt_idx].active = 0; players[i].state.boom = (NetPoint){platforms[pt_idx].x, platforms[pt_idx].y, platforms[pt_idx].z, 1}; send_server_msg(i, "BOARDING", "Platform destroyed."); }
-                    else { players[i].state.inventory[5] += 250; send_server_msg(i, "BOARDING", "Tech salvaged."); }
+                    else if (choice == 2) { platforms[pt_idx].active = 0; push_server_event(i, IPC_EV_BOOM, platforms[pt_idx].x, platforms[pt_idx].y, platforms[pt_idx].z, 0, 0, 0, 1); send_server_msg(i, "BOARDING", "Platform destroyed."); }
+                    else { players[i].state.inventory[5] += COST_PQC_INIT; send_server_msg(i, "BOARDING", "Tech salvaged."); }
                 } else if (players[i].pending_bor_type == 4) { /* DERELICT WRECK */
                     
                     /* 1. Choice Specific Reward */
                     if (choice == 1) { /* Salvage extra resources */
-                        int r = 1 + rand()%8; players[i].state.inventory[r] += 150; 
+                        int r = 1 + rand()%MAX_RESOURCE_TYPES; players[i].state.inventory[r] += (COST_ACTION_HIGH + COST_ACTION_MED); 
                         send_server_msg(i, "BOARDING", "Cargo hold breached. Significant resources recovered."); 
                     }
                     else if (choice == 2) { /* Recover Map Data */
@@ -3627,12 +3861,12 @@ bool process_command(int i, const char *cmd) {
                         send_server_msg(i, "BOARDING", "Navigational logs decrypted. Star-charts updated with new quadrants."); 
                     }
                     else if (choice == 3) { /* Emergency Field Repairs */
-                        int s = rand()%10; players[i].state.system_health[s] = 100.0;
+                        int s = rand()%MAX_SYSTEMS; players[i].state.system_health[s] = (double)YIELD_HARVEST_MAX;
                         send_server_msg(i, "BOARDING", "Engineers recovered compatible spare parts. System fully restored."); 
                     }
                     else if (choice == 4) { /* Crew Rescue (Survivors) / Take Prisoners */
                         int d_idx = tid - GALAXY_OBJECT_MIN_DERELICT;
-                        int found_people = 10 + rand()%21;
+                        int found_people = YIELD_BOARD_NPC_MIN + rand()%YIELD_BOARD_CREW_RANGE;
                         if (derelicts[d_idx].faction == players[i].faction) {
                             players[i].state.crew_count += found_people;
                             char msg[128]; sprintf(msg, "Search teams found %d survivors in stasis. They have been integrated into the crew.", found_people);

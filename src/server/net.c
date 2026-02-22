@@ -31,75 +31,58 @@
 uint8_t MASTER_SESSION_KEY[32];
 
 /* Advanced Deep Space Encryption Engine */
-void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *key) {
+void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *key, int64_t frame_id) {
     int plaintext_len = strlen(plaintext);
     if (plaintext_len > 65535) plaintext_len = 65535;
 
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    RAND_bytes(msg->iv, 12); 
+    RAND_bytes(msg->iv, 16); 
     
     const EVP_CIPHER *cipher;
     int is_gcm = 0;
 
-    if (msg->crypto_algo == CRYPTO_CHACHA) {
-        cipher = EVP_chacha20_poly1305();
-        is_gcm = 1;
-    } else if (msg->crypto_algo == CRYPTO_ARIA) {
-        cipher = EVP_aria_256_gcm();
-        is_gcm = 1;
-    } else if (msg->crypto_algo == CRYPTO_CAMELLIA) {
-        cipher = EVP_camellia_256_ctr();
-        is_gcm = 0;
-    } else if (msg->crypto_algo == CRYPTO_SEED) {
-        cipher = EVP_seed_cbc();
-        is_gcm = 0;
-    } else if (msg->crypto_algo == CRYPTO_CAST5) {
-        cipher = EVP_cast5_cbc();
-        is_gcm = 0;
-    } else if (msg->crypto_algo == CRYPTO_IDEA) {
-        cipher = EVP_idea_cbc();
-        is_gcm = 0;
-    } else if (msg->crypto_algo == CRYPTO_3DES) {
-        cipher = EVP_des_ede3_cbc();
-        is_gcm = 0;
-    } else if (msg->crypto_algo == CRYPTO_BLOWFISH) {
-        cipher = EVP_bf_cbc();
-        is_gcm = 0;
-    } else if (msg->crypto_algo == CRYPTO_RC4) {
-        cipher = EVP_rc4();
-        is_gcm = 0;
-    } else if (msg->crypto_algo == CRYPTO_DES) {
-        cipher = EVP_des_cbc();
-        is_gcm = 0;
-    } else if (msg->crypto_algo == CRYPTO_PQC) {
-        cipher = EVP_aes_256_gcm();
-        is_gcm = 1;
-    } else {
-        cipher = EVP_aes_256_gcm();
-        is_gcm = 1;
+    if (msg->crypto_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    
+    /* Strict OpenSSL GCM sequence for 16-byte IV */
+    EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL);
+    if (is_gcm) {
+        EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
     }
     
-    /* We use the random IV for encryption. 
-       THEN we will XOR the IV in the packet for transmission. */
-    EVP_EncryptInit_ex(ctx, cipher, NULL, key, msg->iv);
+    if (EVP_EncryptInit_ex(ctx, NULL, NULL, key, msg->iv) <= 0) {
+        msg->is_encrypted = 0;
+        strncpy(msg->text, plaintext, 65535);
+        msg->length = strlen(msg->text);
+        EVP_CIPHER_CTX_free(ctx);
+        return;
+    }
     
     int outlen;
     EVP_EncryptUpdate(ctx, (uint8_t*)msg->text, &outlen, (const uint8_t*)plaintext, plaintext_len);
     int final_len;
-    EVP_EncryptFinal_ex(ctx, (uint8_t*)msg->text + outlen, &final_len);
-    
-    /* Get Auth Tag if GCM */
-    if (is_gcm) {
-        EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, msg->tag);
-    } else {
-        memset(msg->tag, 0, 16);
+    if (EVP_EncryptFinal_ex(ctx, (uint8_t*)msg->text + outlen, &final_len) <= 0) {
+        msg->is_encrypted = 0;
+        strncpy(msg->text, plaintext, 65535);
+        msg->length = strlen(msg->text);
+        EVP_CIPHER_CTX_free(ctx);
+        return;
     }
     
-    /* Rotating Frequency Integration: XOR the packet's IV field with frame_id for transmission.
-       The client MUST reverse this BEFORE calling DecryptInit using the embedded origin_frame. */
-    msg->origin_frame = spacegl_master.frame_id;
-    for(int i=0; i<8; i++) msg->iv[i] ^= ((msg->origin_frame >> (i*8)) & 0xFF);
-
+    if (is_gcm) EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, msg->tag);
+    else memset(msg->tag, 0, 16);
+    
+    msg->origin_frame = frame_id;
     msg->length = outlen + final_len;
     EVP_CIPHER_CTX_free(ctx);
 }
@@ -127,11 +110,17 @@ int write_all(int fd, const void *buf, size_t len) {
     return (int)total;
 }
 
+void broadcast_task(void *arg) {
+    PacketMessage *msg = (PacketMessage *)arg;
+    if (msg) {
+        broadcast_message(msg);
+        free(msg);
+    }
+}
+
 void broadcast_message(PacketMessage *msg) {
     char plaintext[65536];
-    size_t plen = (msg->length < 65536) ? msg->length : 65535;
-    memcpy(plaintext, msg->text, plen);
-    plaintext[plen] = '\0';
+    memset(plaintext, 0, sizeof(plaintext));
 
     pthread_mutex_lock(&game_mutex);
     
@@ -143,10 +132,64 @@ void broadcast_message(PacketMessage *msg) {
         }
     }
 
+    /* 1. SERVER-SIDE DECRYPTION: The server must read the sender's message first */
+    if (msg->is_encrypted && sender_idx != -1) {
+        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+        const EVP_CIPHER *cipher;
+        int is_gcm = 0;
+        int algo = msg->crypto_algo;
+
+        if (algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
+        else if (algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
+        else if (algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
+        else if (algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
+        else if (algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
+        else if (algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
+        else if (algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
+        else if (algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
+        else if (algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
+        else if (algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
+        else if (algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+        else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+
+        uint8_t *k = (algo >= 1 && algo <= 12) ? players[sender_idx].algo_keys[algo] : players[sender_idx].session_key;
+        
+        EVP_DecryptInit_ex(ctx, cipher, NULL, NULL, NULL);
+        if (is_gcm) {
+            EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
+            EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, msg->tag);
+        }
+        
+        if (EVP_DecryptInit_ex(ctx, NULL, NULL, k, msg->iv) <= 0) {
+            send_server_msg(sender_idx, "COMPUTER", "CRITICAL ERROR: Decryption Initialization failure. Check key sync.");
+            pthread_mutex_unlock(&game_mutex);
+            EVP_CIPHER_CTX_free(ctx);
+            return;
+        }
+
+        int outlen;
+        EVP_DecryptUpdate(ctx, (uint8_t*)plaintext, &outlen, (const uint8_t*)msg->text, msg->length);
+        int final_len;
+        if (EVP_DecryptFinal_ex(ctx, (uint8_t*)plaintext + outlen, &final_len) > 0) {
+            plaintext[outlen + final_len] = '\0';
+        } else {
+            /* Decryption failed at server level */
+            send_server_msg(sender_idx, "COMPUTER", "TRANSMISSION BLOCKED: Cryptographic parity mismatch at server level.");
+            pthread_mutex_unlock(&game_mutex);
+            EVP_CIPHER_CTX_free(ctx);
+            return;
+        }
+        EVP_CIPHER_CTX_free(ctx);
+    } else {
+        /* Message was already in cleartext */
+        size_t plen = (msg->length < 65536) ? msg->length : 65535;
+        memcpy(plaintext, msg->text, plen);
+        plaintext[plen] = '\0';
+    }
+
     /* Integrity and Energy Checks for the Sender */
     if (sender_idx != -1) {
         if (players[sender_idx].state.system_health[9] < 5.0f) {
-            /* Unlock before sending server msg to avoid deadlock if send_server_msg locks */
             pthread_mutex_unlock(&game_mutex); 
             send_server_msg(sender_idx, "COMPUTER", "COMMUNICATIONS FAILURE: Subspace array damaged.");
             return;
@@ -159,43 +202,20 @@ void broadcast_message(PacketMessage *msg) {
         players[sender_idx].state.energy -= 5;
     }
 
-    int sender_algo = (sender_idx != -1) ? players[sender_idx].crypto_algo : CRYPTO_NONE;
-
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (players[i].active && players[i].socket != 0) {
             if (msg->scope == SCOPE_FACTION && players[i].faction != msg->faction) continue;
             if (msg->scope == SCOPE_PRIVATE) {
                 bool is_target = ((i + 1) == msg->target_id);
-                bool is_sender = (strcmp(players[i].name, msg->from) == 0);
+                bool is_sender = (sender_idx == i);
                 if (!is_target && !is_sender) continue;
             }
             
-            PacketMessage individual_msg = *msg;
-            if (sender_algo != CRYPTO_NONE) { 
-                individual_msg.is_encrypted = 1;
-                individual_msg.crypto_algo = sender_algo;
-                const uint8_t *k = players[i].session_key;
-                bool all_zero = true;
-                for (int z = 0; z < 32; z++) {
-                    if (k[z] != 0) {
-                        all_zero = false;
-                    }
-                }
-                encrypt_payload(&individual_msg, plaintext, all_zero ? MASTER_SESSION_KEY : k);
-            } else {
-                individual_msg.is_encrypted = 0;
-                size_t tlen = strlen(plaintext);
-                if (tlen > 65535) {
-                    tlen = 65535;
-                }
-                memcpy(individual_msg.text, plaintext, tlen);
-                individual_msg.text[tlen] = '\0';
-                individual_msg.length = tlen;
-            }
-            
-            size_t pkt_size = offsetof(PacketMessage, text) + individual_msg.length;
+            /* RELAY PROTOCOL: Send the original packet as-is. 
+               Recipients tuned to a different frequency will see noise. */
+            size_t pkt_size = offsetof(PacketMessage, text) + msg->length;
             pthread_mutex_lock(&players[i].socket_mutex);
-            write_all(players[i].socket, &individual_msg, pkt_size);
+            write_all(players[i].socket, msg, pkt_size);
             pthread_mutex_unlock(&players[i].socket_mutex);
         }
     }
@@ -208,17 +228,13 @@ void send_server_msg(int p_idx, const char *from, const char *text) {
     msg.type = PKT_MESSAGE;
     strncpy(msg.from, from, 63);
     
-    if (players[p_idx].crypto_algo != CRYPTO_NONE) {
+    if (players[p_idx].state.shm_crypto_algo != CRYPTO_NONE) {
         msg.is_encrypted = 1;
-        msg.crypto_algo = players[p_idx].crypto_algo;
-        const uint8_t *k = players[p_idx].session_key;
-        bool all_zero = true;
-        for (int z = 0; z < 32; z++) {
-            if (k[z] != 0) {
-                all_zero = false;
-            }
-        }
-        encrypt_payload(&msg, text, all_zero ? MASTER_SESSION_KEY : k);
+        msg.crypto_algo = players[p_idx].state.shm_crypto_algo;
+        
+        uint8_t *k = (msg.crypto_algo >= 1 && msg.crypto_algo <= 12) ? players[p_idx].algo_keys[msg.crypto_algo] : players[p_idx].session_key;
+        
+        encrypt_payload(&msg, text, k, spacegl_master.frame_id);
     } else {
         msg.is_encrypted = 0;
         strncpy(msg.text, text, 65535);
@@ -260,21 +276,22 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         p->last_sent_state.red_alert != upd->red_alert || p->last_sent_state.nav_state != upd->nav_state ||
         p->last_sent_state.show_axes != upd->show_axes || p->last_sent_state.show_grid != upd->show_grid ||
         p->last_sent_state.show_bridge != upd->show_bridge || p->last_sent_state.show_map != upd->show_map ||
-        p->last_sent_state.map_filter != upd->map_filter) mask |= UPD_FLAGS;
+        p->last_sent_state.map_filter != upd->map_filter || 
+        p->last_sent_state.shm_crypto_algo != upd->shm_crypto_algo || 
+        p->last_sent_state.encryption_flags != upd->encryption_flags) mask |= UPD_FLAGS;
 
     /* Effects, Probes and Beams are transient or frequently updated, usually we send them if not empty */
     bool any_torp = upd->torps[0].active || upd->torps[1].active || upd->torps[2].active || upd->torps[3].active;
     bool last_any_torp = p->last_sent_state.torps[0].active || p->last_sent_state.torps[1].active || p->last_sent_state.torps[2].active || p->last_sent_state.torps[3].active;
     
-    if (upd->boom.active || any_torp || (any_torp != last_any_torp) || upd->wormhole.active || upd->recovery_fx.active ||
-        upd->dismantle.active || upd->jump_arrival.active || upd->supernova_pos.active) mask |= UPD_EFFECTS;
+    if (upd->event_count > 0 || upd->torpedo_count > 0 || any_torp || (any_torp != last_any_torp) || upd->wormhole.active || upd->supernova_pos.active) mask |= UPD_EFFECTS;
     if (upd->probes[0].active || upd->probes[1].active || upd->probes[2].active) mask |= UPD_PROBES;
-    if (upd->beam_count > 0) mask |= UPD_COMBAT; /* Re-using combat for beams or add UPD_BEAMS if needed */
-
+    if (upd->beam_count > 0 || p->last_sent_state.beam_count > 0) mask |= UPD_COMBAT; 
+    
     /* Interest Management: Only send objects if quadrant changed or enough time passed or object count changed significantly */
     bool quadrant_changed = (p->last_q1 != upd->q1 || p->last_q2 != upd->q2 || p->last_q3 != upd->q3);
     p->full_update_timer++;
-    if (quadrant_changed || p->full_update_timer > 300) {
+    if (quadrant_changed || p->full_update_timer > (5 * GAME_TICK_RATE)) {
         mask |= UPD_OBJECTS | UPD_MAP | UPD_FULL;
         p->full_update_timer = 0;
         p->last_q1 = upd->q1; p->last_q2 = upd->q2; p->last_q3 = upd->q3;
@@ -284,8 +301,8 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
 
     if (mask == 0) return; /* Nothing to send */
 
-    /* 2. Serialize Packet */
-    uint8_t buffer[sizeof(PacketUpdate) + 256]; /* Extra safety buffer */
+    /* 2. Serialize Packet - Need enough space for 64 beams and 256 objects */
+    uint8_t buffer[65536]; 
     PacketUpdateDelta *delta = (PacketUpdateDelta *)buffer;
     delta->type = PKT_UPDATE_DELTA;
     delta->frame_id = upd->frame_id;
@@ -374,22 +391,26 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
             upd->show_grid, 
             upd->show_bridge, 
             upd->show_map, 
-            upd->map_filter
+            upd->map_filter,
+            upd->shm_crypto_algo,
+            upd->encryption_flags
         };
         memcpy(ptr, &b, sizeof(b));
         ptr += sizeof(b);
     }
     if (mask & UPD_EFFECTS) {
-        UpdateBlockEffects b = {
-            upd->supernova_pos, 
-            {upd->supernova_q[0], upd->supernova_q[1], upd->supernova_q[2]}, 
-            {upd->torps[0], upd->torps[1], upd->torps[2], upd->torps[3]}, 
-            upd->boom, 
-            upd->wormhole, 
-            upd->jump_arrival, 
-            upd->dismantle, 
-            upd->recovery_fx
-        };
+        UpdateBlockEffects b;
+        memset(&b, 0, sizeof(b));
+        b.supernova_pos = upd->supernova_pos;
+        memcpy(b.supernova_q, upd->supernova_q, sizeof(upd->supernova_q));
+        memcpy(b.torps, upd->torps, sizeof(upd->torps));
+        b.wormhole = upd->wormhole;
+        b.event_count = upd->event_count;
+        if (b.event_count > MAX_NET_EVENTS) b.event_count = MAX_NET_EVENTS;
+        memcpy(b.events, upd->events, b.event_count * sizeof(NetEvent));
+        b.torpedo_count = upd->torpedo_count;
+        if (b.torpedo_count > MAX_VISIBLE_TORPEDOES) b.torpedo_count = MAX_VISIBLE_TORPEDOES;
+        memcpy(b.visible_torpedoes, upd->visible_torpedoes, b.torpedo_count * sizeof(NetVisibleTorpedo));
         memcpy(ptr, &b, sizeof(b));
         ptr += sizeof(b);
     }

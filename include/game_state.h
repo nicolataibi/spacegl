@@ -26,13 +26,13 @@
 #pragma pack(push, 1)
 
 #define MAX_NET_OBJECTS 256
-#define MAX_NET_BEAMS 8
+#define MAX_NET_BEAMS 64
 
 typedef struct {
     double net_sx, net_sy, net_sz; /* Source coordinates */
     double net_tx, net_ty, net_tz; /* Target coordinates */
     int32_t active;
-} NetBeam;
+} __attribute__((aligned(64))) NetBeam;
 
 typedef struct {
     double net_x, net_y, net_z;
@@ -48,7 +48,7 @@ typedef struct {
     int32_t id;         /* Universal Target ID */
     uint8_t is_cloaked; /* Whether the ship is cloaked */
     char name[64];  /* Captain name or ship name */
-} NetObject;
+} __attribute__((aligned(64))) NetObject;
 
 typedef struct {
     double net_x, net_y, net_z;
@@ -70,6 +70,23 @@ typedef struct {
     double gx, gy, gz; /* Galactic Absolute Position */
     double vx, vy, vz; /* Galactic Velocity Vector */
 } NetProbe;
+
+typedef struct {
+    int32_t type;
+    double x1, y1, z1;
+    double x2, y2, z2;
+    int32_t extra;
+} NetEvent;
+
+#define MAX_NET_EVENTS 16
+
+typedef struct {
+    double x, y, z;
+    int32_t faction;
+    int32_t id;
+} NetVisibleTorpedo;
+
+#define MAX_VISIBLE_TORPEDOES 256
 
 typedef struct {
     /* Galaxy Data - Moved to TOP for reliable alignment and sync */
@@ -96,12 +113,16 @@ typedef struct {
     int32_t inventory[10];
     int32_t species_counts[11];
     int32_t shields[6];
+    int32_t target_shields[6];
+    int32_t shield_change_timer;
+    float shield_change_rate;
     
     /* Current Quadrant counts */
     int32_t k3, b3, st3, p3, bh3;
     
     /* Ship Systems */
     double van_h, van_m;
+    double eta;
     int32_t lock_target;
     int32_t tube_state; /* 0:READY, 1:FIRING, 2:LOADING, 3:OFFLINE */
     double ion_beam_charge;
@@ -139,13 +160,13 @@ typedef struct {
     int32_t beam_count;
     NetBeam beams[MAX_NET_BEAMS];
     NetPoint torps[4];
-    NetPoint boom;
     NetPoint wormhole;
-    NetPoint jump_arrival;
-    NetDismantle dismantle;
-    NetPoint recovery_fx;
+    int32_t event_count;
+    NetEvent events[MAX_NET_EVENTS];
+    int32_t torpedo_count;
+    NetVisibleTorpedo visible_torpedoes[MAX_VISIBLE_TORPEDOES];
     NetProbe probes[3];
-} SpaceGLGame;
+} __attribute__((aligned(64))) SpaceGLGame;
 
 #pragma pack(pop)
 

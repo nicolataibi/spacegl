@@ -34,6 +34,7 @@ NPCStar stars_data[MAX_STARS];
 NPCBlackHole black_holes[MAX_BH];
 NPCNebula nebulas[MAX_NEBULAS];
 NPCPulsar pulsars[MAX_PULSARS];
+NPCQuasar quasars[MAX_QUASARS];
 NPCComet comets[MAX_COMETS];
 NPCAsteroid asteroids[MAX_ASTEROIDS];
 NPCDerelict derelicts[MAX_DERELICTS];
@@ -86,9 +87,20 @@ const char* get_nebula_name(int type) {
 
 const char* get_crypto_name(int algo) {
     switch(algo) {
-        case 0: return "NONE";
-        case 12: return "PQC (Quantum Secure)";
-        default: return "Legacy (HMAC/AES)";
+        case 0: return "OFF (Cleartext)";
+        case 1: return "AES-256-GCM (Fleet Standard)";
+        case 2: return "CHACHA20-POLY1305 (High Speed)";
+        case 3: return "ARIA-256-GCM (Coalition)";
+        case 4: return "CAMELLIA-256-CTR (Xylari)";
+        case 5: return "SEED-CBC (Orion)";
+        case 6: return "CAST5-CBC (Old Republic)";
+        case 7: return "IDEA-CBC (Maquis)";
+        case 8: return "3DES-EDE3-CBC (Ancient)";
+        case 9: return "BLOWFISH-CBC (Gilded)";
+        case 10: return "RC4-STREAM (Tactical)";
+        case 11: return "DES-CBC (Pre-Hyperdrive)";
+        case 12: return "ML-KEM-1024 (Post-Quantum)";
+        default: return "Unknown Frequency";
     }
 }
 
@@ -110,6 +122,12 @@ const char* get_ship_class_name(int ship_class) {
         case SHIP_CLASS_GENERIC_ALIEN: return "Vessel";
         default: return "Unknown";
     }
+}
+
+const char* get_quasar_class_name(int type) {
+    const char* q_cls[] = {"Radio-loud", "Radio-quiet", "Broad Abs-Line", "Type 2", "Red Quasar", "Optically Violent", "Weak Emission"};
+    if (type >= 0 && type <= 6) return q_cls[type];
+    return "Unknown Quasar";
 }
 
 void print_help() {
@@ -146,26 +164,30 @@ int main(int argc, char *argv[]) {
     fseek(f, 0, SEEK_END);
     long actual_size = ftell(f);
     fseek(f, sizeof(int), SEEK_SET); /* Reset after version */
+    
+    /* Structure sizes may change due to __attribute__((aligned(64))) in Rel 16 */
     long expected_data = sizeof(SpaceGLGame) + 
-                         sizeof(NPCShip) * MAX_NPC + 
-                         sizeof(NPCStar) * MAX_STARS + 
-                         sizeof(NPCBlackHole) * MAX_BH + 
-                         sizeof(NPCPlanet) * MAX_PLANETS + 
-                         sizeof(NPCBase) * MAX_BASES + 
-                         sizeof(NPCNebula) * MAX_NEBULAS + 
-                         sizeof(NPCPulsar) * MAX_PULSARS + 
-                         sizeof(NPCComet) * MAX_COMETS + 
-                         sizeof(NPCAsteroid) * MAX_ASTEROIDS + 
-                         sizeof(NPCDerelict) * MAX_DERELICTS + 
-                         sizeof(NPCMine) * MAX_MINES + 
-                         sizeof(NPCBuoy) * MAX_BUOYS + 
-                         sizeof(NPCPlatform) * MAX_PLATFORMS + 
-                         sizeof(NPCRift) * MAX_RIFTS + 
-                         sizeof(NPCMonster) * MAX_MONSTERS + 
-                         sizeof(ConnectedPlayer) * MAX_CLIENTS;
+                         (long)sizeof(NPCShip) * MAX_NPC + 
+                         (long)sizeof(NPCStar) * MAX_STARS + 
+                         (long)sizeof(NPCBlackHole) * MAX_BH + 
+                         (long)sizeof(NPCPlanet) * MAX_PLANETS + 
+                         (long)sizeof(NPCBase) * MAX_BASES + 
+                         (long)sizeof(NPCNebula) * MAX_NEBULAS + 
+                         (long)sizeof(NPCPulsar) * MAX_PULSARS + 
+                         (long)sizeof(NPCQuasar) * MAX_QUASARS +
+                         (long)sizeof(NPCComet) * MAX_COMETS + 
+                         (long)sizeof(NPCAsteroid) * MAX_ASTEROIDS + 
+                         (long)sizeof(NPCDerelict) * MAX_DERELICTS + 
+                         (long)sizeof(NPCMine) * MAX_MINES + 
+                         (long)sizeof(NPCBuoy) * MAX_BUOYS + 
+                         (long)sizeof(NPCPlatform) * MAX_PLATFORMS + 
+                         (long)sizeof(NPCRift) * MAX_RIFTS + 
+                         (long)sizeof(NPCMonster) * MAX_MONSTERS + 
+                         (long)sizeof(ConnectedPlayer) * MAX_CLIENTS;
     
     if (actual_size < expected_data + (long)sizeof(int)) {
-        printf("CRITICAL: galaxy.dat is smaller than expected (%ld < %ld). Data corruption likely.\n", actual_size, expected_data + (long)sizeof(int));
+        printf("CRITICAL: galaxy.dat is smaller than expected (%ld < %ld).\n", actual_size, expected_data + (long)sizeof(int));
+        printf("HINT: This is likely due to the new 64-byte alignment in Rel 16. Delete galaxy.dat and restart server.\n");
     }
 
 #define CHECK_READ(ptr, size, count, stream) \
@@ -182,6 +204,7 @@ int main(int argc, char *argv[]) {
     CHECK_READ(bases, sizeof(NPCBase), MAX_BASES, f);
     CHECK_READ(nebulas, sizeof(NPCNebula), MAX_NEBULAS, f);
     CHECK_READ(pulsars, sizeof(NPCPulsar), MAX_PULSARS, f);
+    CHECK_READ(quasars, sizeof(NPCQuasar), MAX_QUASARS, f);
     CHECK_READ(comets, sizeof(NPCComet), MAX_COMETS, f);
     CHECK_READ(asteroids, sizeof(NPCAsteroid), MAX_ASTEROIDS, f);
     CHECK_READ(derelicts, sizeof(NPCDerelict), MAX_DERELICTS, f);
@@ -206,6 +229,7 @@ int main(int argc, char *argv[]) {
         int bh_active = 0;
         int neb_active = 0;
         int pul_active = 0;
+        int q_active = 0;
         int com_active = 0;
         int ast_active = 0;
         int der_active = 0;
@@ -247,6 +271,11 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < MAX_PULSARS; i++) {
             if (pulsars[i].active) {
                 pul_active++;
+            }
+        }
+        for (int i = 0; i < MAX_QUASARS; i++) {
+            if (quasars[i].active) {
+                q_active++;
             }
         }
         for (int i = 0; i < MAX_COMETS; i++) {
@@ -292,14 +321,16 @@ int main(int argc, char *argv[]) {
 
         printf("--- Galaxy Statistics ---\n");
         printf("Version: %d\n", version);
-        printf("Security Status:\n");
+        printf("Security & Cryptographic Telemetry:\n");
         if (spacegl_master.encryption_flags & 0x01) {
-            printf("  Signature: VERIFIED (HMAC-SHA256)\n");
-            printf("  Encryption: ENABLED (Flags: 0x%08X)\n", spacegl_master.encryption_flags);
-            printf("  Crypto Algorithm: %s\n", get_crypto_name(spacegl_master.shm_crypto_algo));
+            printf("  [INTEGRITY]  Signature: VERIFIED (HMAC-SHA256)\n");
+            printf("  [SECURITY]   Encryption: ACTIVE (Status: 0x%02X)\n", spacegl_master.encryption_flags);
+            printf("  [ALGORITHM]  Frequency:  %s\n", get_crypto_name(spacegl_master.shm_crypto_algo));
+            if (spacegl_master.encryption_flags & 0x02) printf("  [QUANTUM]    Quantum-Resistant Layer: ENGAGED\n");
+            if (spacegl_master.encryption_flags & 0x04) printf("  [MILITARY]   AES-256-GCM Hardware Acceleration: ACTIVE\n");
         } else {
-            printf("  Signature: NOT PRESENT / UNVERIFIED\n");
-            printf("  Encryption: DISABLED\n");
+            printf("  [WARNING]    Signature: NOT PRESENT / UNVERIFIED\n");
+            printf("  [DANGER]     Encryption: DISABLED (RAW SIGNAL)\n");
         }
         
         printf("\nObject Totals:\n");
@@ -310,6 +341,7 @@ int main(int argc, char *argv[]) {
         printf("  Black Holes:       %d\n", bh_active);
         printf("  Nebulas:           %d\n", neb_active);
         printf("  Pulsars:           %d\n", pul_active);
+        printf("  Quasars:           %d\n", q_active);
         printf("  Comets:            %d\n", com_active);
         printf("  Asteroids:         %d\n", ast_active);
         printf("  Derelicts:         %d\n", der_active);
@@ -426,6 +458,11 @@ int main(int argc, char *argv[]) {
             counts[7]++;
         }
 
+        for(int i=0; i<MAX_QUASARS; i++) if(quasars[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "QUASAR", quasars[i].id+GALAXY_OBJECT_MIN_QUASAR, quasars[i].q1, quasars[i].q2, quasars[i].q3, "None", get_quasar_class_name(quasars[i].type));
+            counts[16]++;
+        }
+
         for(int i=0; i<MAX_COMETS; i++) if(comets[i].active) {
             printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "COMET", comets[i].id+GALAXY_OBJECT_MIN_COMET, comets[i].q1, comets[i].q2, comets[i].q3, "None", "Comet");
             counts[8]++;
@@ -468,7 +505,7 @@ int main(int argc, char *argv[]) {
         
         printf("\n--- Summary ---\n");
         printf("Players: %d, NPCs: %d, Bases: %d, Planets: %d, Stars: %d\n", counts[0], counts[1], counts[2], counts[3], counts[4]);
-        printf("BlackHoles: %d, Nebulas: %d, Pulsars: %d, Comets: %d, Asteroids: %d\n", counts[5], counts[6], counts[7], counts[8], counts[9]);
+        printf("BlackHoles: %d, Nebulas: %d, Pulsars: %d, Quasars: %d, Comets: %d, Asteroids: %d\n", counts[5], counts[6], counts[7], counts[16], counts[8], counts[9]);
         printf("Derelicts: %d, Mines: %d, Buoys: %d, Platforms: %d, Rifts: %d, Monsters: %d\n", counts[10], counts[11], counts[12], counts[13], counts[14], counts[15]);
     }
     else if (strcmp(argv[1], "map") == 0 && argc == 3) {
@@ -487,6 +524,7 @@ int main(int argc, char *argv[]) {
             printf("%2d ", j);
             for (int i = 1; i <= GALAXY_SIZE; i++) {
                 long long bpnbs = spacegl_master.g[i][j][q3];
+                int quasar = (bpnbs / 100000000000000000LL) % 10;
                 int mon = (bpnbs / 10000000000000000LL) % 10;
                 int user = (bpnbs / 1000000000000000LL) % 10;
                 int rift = (bpnbs / 100000000000000LL) % 10;
@@ -505,7 +543,9 @@ int main(int argc, char *argv[]) {
                 int b = (bpnbs / 10LL) % 10;
                 int s = bpnbs % 10;
                 
-                if (stm > 0) {
+                if (quasar > 0) {
+                    printf(" Q "); /* Quasar */
+                } else if (stm > 0) {
                     printf(" ! "); /* Ion Storm */
                 } else if (mon > 0) {
                     printf(" M "); /* Monster */
@@ -584,6 +624,9 @@ int main(int argc, char *argv[]) {
 
         for(int i=0; i<MAX_PULSARS; i++) if(pulsars[i].active && pulsars[i].q1 == q1 && pulsars[i].q2 == q2 && pulsars[i].q3 == q3)
             printf("[PULSAR] ID:%d Coord:%.1f,%.1f,%.1f\n", pulsars[i].id+GALAXY_OBJECT_MIN_PULSAR, pulsars[i].x, pulsars[i].y, pulsars[i].z);
+
+        for(int i=0; i<MAX_QUASARS; i++) if(quasars[i].active && quasars[i].q1 == q1 && quasars[i].q2 == q2 && quasars[i].q3 == q3)
+            printf("[QUASAR] ID:%d Class:%s Coord:%.1f,%.1f,%.1f\n", quasars[i].id+GALAXY_OBJECT_MIN_QUASAR, get_quasar_class_name(quasars[i].type), quasars[i].x, quasars[i].y, quasars[i].z);
 
         for(int i=0; i<MAX_COMETS; i++) if(comets[i].active && comets[i].q1 == q1 && comets[i].q2 == q2 && comets[i].q3 == q3)
             printf("[COMET] ID:%d Coord:%.1f,%.1f,%.1f Angle:%.3f Speed:%.3f\n", comets[i].id+GALAXY_OBJECT_MIN_COMET, comets[i].x, comets[i].y, comets[i].z, comets[i].angle, comets[i].speed);

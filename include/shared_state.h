@@ -23,16 +23,18 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdint.h>
+#include <stdatomic.h>
+#include "game_state.h"
 
 #pragma pack(push, 1)
 
 #define MAX_OBJECTS 256
-#define MAX_BEAMS 10
+#define MAX_BEAMS 64
 #define SHM_NAME "/spacegl_shm"
+#define CMD_QUEUE_SIZE 32
 
 /* 
  * Shared State Structure
- * Replaces the textual format of /tmp/ultra_map.dat
  */
 
 typedef struct {
@@ -52,8 +54,8 @@ typedef struct {
 } SharedObject;
 
 typedef struct {
-    double shm_sx, shm_sy, shm_sz; /* Source coordinates */
-    double shm_tx, shm_ty, shm_tz; /* Target coordinates */
+    double shm_sx, shm_sy, shm_sz; 
+    double shm_tx, shm_ty, shm_tz; 
     int active;
 } SharedBeam;
 
@@ -78,11 +80,8 @@ typedef struct {
     double vx, vy, vz;
 } SharedProbe;
 
+/* Single Game Frame data */
 typedef struct {
-    pthread_mutex_t mutex;
-    sem_t data_ready;
-    
-    /* UI Info */
     uint64_t shm_energy;
     int shm_crew;
     int shm_prison_unit;
@@ -112,7 +111,7 @@ typedef struct {
     int shm_red_alert;
     int shm_is_jammed;
     int shm_nav_state;
-    int shm_map_filter; /* 0=All, 1=Star, 2=Planet, 3=Base, 4=Hostile, 5=BH, 6=Nebula, 7=Pulsar, 8=Storm, 9=Comet, 10=Asteroid, 11=Derelict, 12=Mine, 13=Buoy, 14=Platform, 15=Rift, 16=Monster */
+    int shm_map_filter;
     int is_cloaked;
     int shm_crypto_algo;
     uint32_t shm_encryption_flags;
@@ -125,7 +124,6 @@ typedef struct {
     double shm_eta;
     int64_t shm_galaxy[41][41][41];
     
-    /* Deep Space Telemetry Metrics */
     double net_kbps;
     double net_efficiency;
     double net_jitter;
@@ -138,11 +136,11 @@ typedef struct {
     int object_count;
     SharedObject objects[MAX_OBJECTS];
 
-    /* FX */
     int beam_count;
     SharedBeam beams[MAX_BEAMS];
     
-    SharedPoint torps[4];
+    int torpedo_count;
+    SharedPoint torps[MAX_VISIBLE_TORPEDOES];
     SharedPoint boom;
     SharedPoint wormhole;
     SharedPoint jump_arrival;
@@ -152,9 +150,52 @@ typedef struct {
     SharedPoint recovery_fx;
     SharedProbe probes[3];
     
-    /* Synchronization counter */
     long long frame_id;
-} GameState;
+} __attribute__((aligned(64))) GameState;
+
+typedef struct {
+    char cmd[128];
+} IPCCommand;
+
+#define IPC_EVENT_QUEUE_SIZE 1024
+#define IPC_EV_BEAM      1
+#define IPC_EV_BOOM      2
+#define IPC_EV_DISMANTLE 3
+#define IPC_EV_RECOVERY  4
+#define IPC_EV_JUMP      5
+#define IPC_EV_TORPEDO   6
+
+typedef struct {
+    int type;
+    double x1, y1, z1;
+    double x2, y2, z2;
+    int extra;
+    int padding[2];
+} __attribute__((aligned(64))) IPCEvent;
+
+/* 
+ * Shared IPC Structure (Mapped in /dev/shm)
+ */
+typedef struct {
+    atomic_int read_index;  /* Buffer index for Viewer (0 or 1) */
+    atomic_int write_index; /* Buffer index for Client (1 or 0) */
+    
+    atomic_int event_head;
+    atomic_int event_tail;
+    IPCEvent event_queue[IPC_EVENT_QUEUE_SIZE];
+
+    /* Double Buffers */
+    GameState buffers[2];
+    
+    /* Lock-Free Command Queue (Viewer -> Client) */
+    atomic_int cmd_head;
+    atomic_int cmd_tail;
+    IPCCommand cmd_queue[CMD_QUEUE_SIZE];
+
+    /* Legacy Mutex (Optional, for full segment protection if needed) */
+    pthread_mutex_t mutex;
+    sem_t data_ready;
+} __attribute__((aligned(64))) SharedIPC;
 
 #pragma pack(pop)
 

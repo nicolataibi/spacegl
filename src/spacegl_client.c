@@ -35,12 +35,65 @@
 #include <math.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
+#include <openssl/err.h>
+#include <openssl/rand.h>
+#include <openssl/hmac.h>
+#include <openssl/provider.h>
+#include <netdb.h>
 #include "network.h"
 
 /* Pre-Shared DeepSpace Encryption Key (Loaded from ENV) */
 uint8_t deep_space_key[32];
+uint8_t master_root_key[32];
+uint8_t ALGO_KEYS[13][32];
 #include "shared_state.h"
 #include "ui.h"
+
+void derive_algo_keys(uint8_t *master_key, const char *name) {
+    /* Create captain-specific directory for key persistence */
+    char dir_path[128];
+    sprintf(dir_path, "captains/%s", name ? name : "DEFAULT");
+    mkdir("captains", 0700);
+    mkdir(dir_path, 0700);
+
+    for (int k = 1; k <= 12; k++) {
+        char key_path[256];
+        sprintf(key_path, "%s/algo_%d.key", dir_path, k);
+        
+        FILE *fk_read = fopen(key_path, "r");
+        bool loaded = false;
+        if (fk_read) {
+            char hex[128];
+            if (fgets(hex, sizeof(hex), fk_read)) {
+                /* Parse hex string to bytes */
+                for (int b = 0; b < 32; b++) {
+                    unsigned int val;
+                    if (sscanf(hex + (b * 2), "%02x", &val) == 1) {
+                        ALGO_KEYS[k][b] = (uint8_t)val;
+                    }
+                }
+                loaded = true;
+            }
+            fclose(fk_read);
+        }
+
+        if (!loaded) {
+            char salt[128];
+            sprintf(salt, "SPACEGL-ALGO-FREQUENCY-GALAXY-WORMHOLE-SIG-%d", k);
+            unsigned int len = 32;
+            HMAC(EVP_sha256(), master_key, 32, (uint8_t*)salt, strlen(salt), ALGO_KEYS[k], &len);
+
+            /* Save key to file for auditing/differentiation */
+            FILE *fk = fopen(key_path, "w");
+            if (fk) {
+                for (int b = 0; b < 32; b++) fprintf(fk, "%02x", ALGO_KEYS[k][b]);
+                fprintf(fk, "\n");
+                fclose(fk);
+            }
+        }
+    }
+    printf(B_BLUE "Personal Cryptographic Frequencies synchronized via %s/\n" RESET, dir_path);
+}
 
 EVP_PKEY *my_ed25519_key = NULL;
 uint8_t my_pubkey_bytes[32];
@@ -85,6 +138,61 @@ void sign_packet_message(PacketMessage *msg) {
     memcpy(msg->sender_pubkey, my_pubkey_bytes, 32);
 }
 
+void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *key, int64_t frame_id) {
+    int plaintext_len = strlen(plaintext);
+    if (plaintext_len > 65535) plaintext_len = 65535;
+
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    RAND_bytes(msg->iv, 16); 
+    
+    const EVP_CIPHER *cipher;
+    int is_gcm = 0;
+
+    if (msg->crypto_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    
+    EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL);
+    if (is_gcm) {
+        EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
+    }
+    
+    if (EVP_EncryptInit_ex(ctx, NULL, NULL, key, msg->iv) <= 0) {
+        msg->is_encrypted = 0;
+        strncpy(msg->text, plaintext, 65535);
+        msg->length = strlen(msg->text);
+        EVP_CIPHER_CTX_free(ctx);
+        return;
+    }
+    
+    int outlen;
+    EVP_EncryptUpdate(ctx, (uint8_t*)msg->text, &outlen, (const uint8_t*)plaintext, plaintext_len);
+    int final_len;
+    if (EVP_EncryptFinal_ex(ctx, (uint8_t*)msg->text + outlen, &final_len) <= 0) {
+        msg->is_encrypted = 0;
+        strncpy(msg->text, plaintext, 65535);
+        msg->length = strlen(msg->text);
+        EVP_CIPHER_CTX_free(ctx);
+        return;
+    }
+    
+    if (is_gcm) EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, msg->tag);
+    else memset(msg->tag, 0, 16);
+    
+    msg->origin_frame = frame_id;
+    msg->length = outlen + final_len;
+    EVP_CIPHER_CTX_free(ctx);
+}
+
 /* Colori per l'interfaccia CLI */
 #define RESET   "\033[0m"
 #define B_RED     "\033[1;31m"
@@ -105,7 +213,8 @@ int g_debug = 0;
 #define LOG_DEBUG(...) do { if (g_debug) { printf("DEBUG: " __VA_ARGS__); fflush(stdout); } } while (0)
 
 pid_t visualizer_pid = 0;
-GameState *g_shared_state = NULL;
+SharedIPC *g_shm = NULL;
+GameState *g_shared_state = NULL; /* Current write buffer */
 int shm_fd = -1;
 char shm_path[64];
 volatile sig_atomic_t g_visualizer_ready = 0;
@@ -159,33 +268,98 @@ void init_shm() {
         exit(1);
     }
     
-    if (ftruncate(shm_fd, sizeof(GameState)) == -1) {
+    if (ftruncate(shm_fd, sizeof(SharedIPC)) == -1) {
         perror("ftruncate failed");
         exit(1);
     }
     
-    g_shared_state = mmap(NULL, sizeof(GameState), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    if (g_shared_state == MAP_FAILED) {
+    g_shm = mmap(NULL, sizeof(SharedIPC), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (g_shm == MAP_FAILED) {
         perror("mmap failed");
         exit(1);
     }
-    
+
+    /* Initialize Atomic Indices for Double Buffering */
+    atomic_init(&g_shm->read_index, 0);
+    atomic_init(&g_shm->write_index, 1);
+    g_shared_state = &g_shm->buffers[1]; /* Initial write buffer */
+
+    /* Initialize Command Queue indices */
+    atomic_init(&g_shm->cmd_head, 0);
+    atomic_init(&g_shm->cmd_tail, 0);
+
+    /* Initialize Event Queue indices */
+    atomic_init(&g_shm->event_head, 0);
+    atomic_init(&g_shm->event_tail, 0);
+
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
-    pthread_mutex_init(&g_shared_state->mutex, &attr);
+    pthread_mutex_init(&g_shm->mutex, &attr);
     
-    sem_init(&g_shared_state->data_ready, 1, 0);
+    sem_init(&g_shm->data_ready, 1, 0);
     
-    /* Initial Sector Position: Center (5,5,5) */
-    g_shared_state->shm_s[0] = 20.0;
-    g_shared_state->shm_s[1] = 20.0;
-    g_shared_state->shm_s[2] = 20.0;
+    /* Initial state for BOTH buffers to avoid glitches on first swap */
+    for(int b=0; b<2; b++) {
+        g_shm->buffers[b].shm_s[0] = 20.0;
+        g_shm->buffers[b].shm_s[1] = 20.0;
+        g_shm->buffers[b].shm_s[2] = 20.0;
+        g_shm->buffers[b].shm_hull_integrity = 100.0;
+        g_shm->buffers[b].shm_energy = 10000;
+        g_shm->buffers[b].shm_life_support = 100.0;
+    }
+}
+
+void swap_buffers() {
+    int old_write = atomic_load(&g_shm->write_index);
+    int old_read = atomic_load(&g_shm->read_index);
+    
+    /* Swap Indices */
+    atomic_store(&g_shm->read_index, old_write);
+    atomic_store(&g_shm->write_index, old_read);
+    
+    /* Update local write pointer for the NEXT frame.
+       We COPY the current buffer to the next one to maintain continuity of static data (map, etc) */
+    memcpy(&g_shm->buffers[old_read], &g_shm->buffers[old_write], sizeof(GameState));
+    g_shared_state = &g_shm->buffers[old_read];
+}
+
+void push_ipc_event(int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra) {
+    if (!g_shm) return;
+    int tail = atomic_load_explicit(&g_shm->event_tail, memory_order_relaxed);
+    int head = atomic_load_explicit(&g_shm->event_head, memory_order_acquire);
+    int next = (tail + 1) % IPC_EVENT_QUEUE_SIZE;
+    
+    if (next != head) {
+        IPCEvent *ev = &g_shm->event_queue[tail];
+        ev->type = type;
+        ev->x1 = x1; ev->y1 = y1; ev->z1 = z1;
+        ev->x2 = x2; ev->y2 = y2; ev->z2 = z2;
+        ev->extra = extra;
+        atomic_store_explicit(&g_shm->event_tail, next, memory_order_release);
+    }
+}
+
+void process_ipc_commands(int server_sock) {
+    int head = atomic_load_explicit(&g_shm->cmd_head, memory_order_acquire);
+    int tail = atomic_load_explicit(&g_shm->cmd_tail, memory_order_relaxed);
+    
+    while (head != tail) {
+        IPCCommand *cmd = &g_shm->cmd_queue[head];
+        PacketCommand pkt;
+        pkt.type = PKT_COMMAND;
+        memset(pkt.cmd, 0, sizeof(pkt.cmd));
+        strncpy(pkt.cmd, cmd->cmd, sizeof(pkt.cmd) - 1);
+        send(server_sock, &pkt, sizeof(PacketCommand), 0);
+        
+        head = (head + 1) % CMD_QUEUE_SIZE;
+        atomic_store_explicit(&g_shm->cmd_head, head, memory_order_release);
+    }
 }
 
 void cleanup() {
     if (visualizer_pid > 0) kill(visualizer_pid, SIGTERM);
-    if (g_shared_state) munmap(g_shared_state, sizeof(GameState));
+    if (g_shm) munmap(g_shm, sizeof(SharedIPC));
     if (shm_fd != -1) {
         close(shm_fd);
         shm_unlink(shm_path);
@@ -250,100 +424,92 @@ void *network_listener(void *arg) {
                     free(msg); g_running = 0; break;
                 }
                 
+                /* Receiver Auto-Tuning: Attempt decryption if the packet is marked encrypted.
+                   The integrity check (GCM tag) will determine if the frequency/key is correct. */
                 if (msg->is_encrypted) {
-                    if (g_shared_state && g_shared_state->shm_crypto_algo == msg->crypto_algo) {
-                        /* 1. Reverse Rotating Frequency offuscation on IV using packet's embedded frame */
-                        for(int i=0; i<8; i++) msg->iv[i] ^= ((msg->origin_frame >> (i*8)) & 0xFF);
+                    char decrypted[65536];
+                    int success = 0;
+                    
+                    /* Identify if the message is from a ship system or the server */
+                    bool is_system_msg = (strcmp(msg->from, "SERVER") == 0 || strcmp(msg->from, "COMPUTER") == 0 || 
+                                          strcmp(msg->from, "SCIENCE") == 0 || strcmp(msg->from, "TACTICAL") == 0 ||
+                                          strcmp(msg->from, "ENGINEERING") == 0 || strcmp(msg->from, "HELMSMAN") == 0 ||
+                                          strcmp(msg->from, "WARNING") == 0 || strcmp(msg->from, "DAMAGE CONTROL") == 0 ||
+                                          strcmp(msg->from, "STARBASE") == 0 || strcmp(msg->from, "Alliance Command") == 0);
 
-                        /* 2. Decrypt the payload */
-                        char decrypted[65536];
+                    /* 
+                       STRATEGY: 
+                       1. For system messages, trust the packet's crypto_algo (Auto-tuning).
+                          This prevents "FREQUENCY MISMATCH" noise during the exact moment a captain switches enc.
+                       2. For captain-to-captain messages, strictly use OUR active_algo.
+                          This ensures noise when frequencies differ between captains.
+                    */
+                    int active_algo = (g_shared_state) ? g_shared_state->shm_crypto_algo : CRYPTO_NONE;
+                    int decryption_algo = is_system_msg ? msg->crypto_algo : active_algo;
+                    
+                    if (decryption_algo != CRYPTO_NONE) {
+                        uint8_t *k = (decryption_algo >= 1 && decryption_algo <= 12) ? ALGO_KEYS[decryption_algo] : deep_space_key;
+
                         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-                        
                         const EVP_CIPHER *cipher;
                         int is_gcm = 0;
-                        if (msg->crypto_algo == CRYPTO_CHACHA) {
-                            cipher = EVP_chacha20_poly1305();
-                            is_gcm = 1;
-                        } else if (msg->crypto_algo == CRYPTO_ARIA) {
-                            cipher = EVP_aria_256_gcm();
-                            is_gcm = 1;
-                        } else if (msg->crypto_algo == CRYPTO_CAMELLIA) {
-                            cipher = EVP_camellia_256_ctr();
-                            is_gcm = 0;
-                        } else if (msg->crypto_algo == CRYPTO_SEED) {
-                            cipher = EVP_seed_cbc();
-                            is_gcm = 0;
-                        } else if (msg->crypto_algo == CRYPTO_CAST5) {
-                            cipher = EVP_cast5_cbc();
-                            is_gcm = 0;
-                        } else if (msg->crypto_algo == CRYPTO_IDEA) {
-                            cipher = EVP_idea_cbc();
-                            is_gcm = 0;
-                        } else if (msg->crypto_algo == CRYPTO_3DES) {
-                            cipher = EVP_des_ede3_cbc();
-                            is_gcm = 0;
-                        } else if (msg->crypto_algo == CRYPTO_BLOWFISH) {
-                            cipher = EVP_bf_cbc();
-                            is_gcm = 0;
-                        } else if (msg->crypto_algo == CRYPTO_RC4) {
-                            cipher = EVP_rc4();
-                            is_gcm = 0;
-                        } else if (msg->crypto_algo == CRYPTO_DES) {
-                            cipher = EVP_des_cbc();
-                            is_gcm = 0;
-                        } else if (msg->crypto_algo == CRYPTO_PQC) {
-                            cipher = EVP_aes_256_gcm();
-                            is_gcm = 1;
-                        } else {
-                            cipher = EVP_aes_256_gcm();
-                            is_gcm = 1;
-                        }
-                        
-                        const uint8_t *k = deep_space_key; /* Client currently uses Master Key */
-                        
-                        EVP_DecryptInit_ex(ctx, cipher, NULL, k, msg->iv);
-                        
-                        int outlen;
-                        EVP_DecryptUpdate(ctx, (uint8_t*)decrypted, &outlen, (const uint8_t*)msg->text, msg->length);
-                        
+
+                        if (decryption_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
+                        else if (decryption_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
+                        else if (decryption_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
+                        else if (decryption_algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
+                        else if (decryption_algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
+                        else if (decryption_algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
+                        else if (decryption_algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
+                        else if (decryption_algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
+                        else if (decryption_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
+                        else if (decryption_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
+                        else if (decryption_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+                        else { cipher = EVP_aes_256_gcm(); is_gcm = 1; } 
+
+                        EVP_DecryptInit_ex(ctx, cipher, NULL, NULL, NULL);
                         if (is_gcm) {
+                            EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
                             EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, msg->tag);
                         }
-                        
-                        int final_len;
-                        if (EVP_DecryptFinal_ex(ctx, (uint8_t*)decrypted + outlen, &final_len) > 0) {
-                            int total_len = outlen + final_len;
-                            if (total_len > 65535) total_len = 65535;
-                            memcpy(msg->text, decrypted, total_len);
-                            msg->text[total_len] = '\0';
-                            msg->length = total_len;
-                        } else {
-                            strcpy(msg->text, B_RED "<< ERROR: DeepSpace DECRYPTION FAILED - FREQUENCY MISMATCH OR INVALID KEY >>" RESET);
+
+                        if (EVP_DecryptInit_ex(ctx, NULL, NULL, k, msg->iv) > 0) {
+                            int outlen;
+                            EVP_DecryptUpdate(ctx, (uint8_t*)decrypted, &outlen, (const uint8_t*)msg->text, msg->length);
+                            int final_len;
+                            if (EVP_DecryptFinal_ex(ctx, (uint8_t*)decrypted + outlen, &final_len) > 0) {
+                                int total_len = outlen + final_len;
+                                memcpy(msg->text, decrypted, total_len);
+                                msg->text[total_len] = '\0';
+                                msg->length = total_len;
+                                success = 1;
+                            }
                         }
                         EVP_CIPHER_CTX_free(ctx);
-                    } else if (g_shared_state && g_shared_state->shm_crypto_algo != CRYPTO_NONE) {
-                        /* Encryption protocol mismatch (e.g. Captain listening on AES but incoming is ChaCha) */
-                        char noise[128];
-                        int noise_len = (msg->length > 64) ? 64 : msg->length;
-                        for(int n=0; n<noise_len; n++) {
-                            unsigned char c_raw = (unsigned char)msg->text[n];
-                            noise[n] = (c_raw % 94) + 33; 
-                        }
-                        noise[noise_len] = '\0';
-                        snprintf(msg->text, 65535, B_RED "<< SIGNAL DISTURBED: FREQUENCY MISMATCH >>" RESET "\n [HINT]: Try 'enc aes', 'enc chacha' or 'enc aria' to match the incoming frequency.\n [RAW_DATA]: %s...", noise);
-                    } else {
-                        /* Encryption protocol mismatch - Show simulated binary noise */
-                        char noise[128];
-                        int noise_len = (msg->length > 64) ? 64 : msg->length;
-                        for(int n=0; n<noise_len; n++) {
-                            unsigned char c_raw = (unsigned char)msg->text[n];
-                            noise[n] = (c_raw % 94) + 33; 
-                        }
-                        noise[noise_len] = '\0';
-                        snprintf(msg->text, 65535, B_RED "<< SIGNAL GARBLED: ENCRYPTION PROTOCOL MISMATCH >>" RESET "\n [HINT]: Try 'enc aes', 'enc chacha' or 'enc aria' to match the incoming frequency.\n [RAW_DATA]: %s...", noise);
                     }
+
+                    if (!success) {
+                        /* Decryption failed (likely due to algorithm mismatch or key synchronization during transition) */
+                        char noise[128];
+                        int noise_len = (msg->length > 64) ? 64 : msg->length;
+                        for(int n=0; n<noise_len; n++) {
+                            unsigned char c_raw = (unsigned char)msg->text[n];
+                            noise[n] = (c_raw % 94) + 33; 
+                        }
+                        noise[noise_len] = '\0';
+                        snprintf(msg->text, 65535, B_RED "<< SIGNAL DISTURBED: FREQUENCY MISMATCH >>" RESET "\n [HINT]: Tuning mismatch during transition. Raw data stream: %s...", noise);
+                    }
+                } else if (msg->is_encrypted) {
+                    /* Frequency Mismatch: Show simulated binary noise */
+                    char noise[128];
+                    int noise_len = (msg->length > 64) ? 64 : msg->length;
+                    for(int n=0; n<noise_len; n++) {
+                        unsigned char c_raw = (unsigned char)msg->text[n];
+                        noise[n] = (c_raw % 94) + 33; 
+                    }
+                    noise[noise_len] = '\0';
+                    snprintf(msg->text, 65535, B_RED "<< SIGNAL DISTURBED: FREQUENCY MISMATCH >>" RESET "\n [HINT]: Tuning mismatch. Signal is encrypted on a different frequency.\n [RAW_DATA]: %s...", noise);
                 } else {
-                    /* Plaintext message, just null terminate */
                     if (msg->length < 65536) msg->text[msg->length] = '\0';
                 }
             } else msg->text[0] = '\0';
@@ -459,6 +625,8 @@ void *network_listener(void *arg) {
                     current_state.nav_state = b.nav_state; current_state.show_axes = b.show_axes;
                     current_state.show_grid = b.show_grid; current_state.show_bridge = b.show_bridge;
                     current_state.show_map = b.show_map; current_state.map_filter = b.map_filter;
+                    current_state.shm_crypto_algo = b.encryption_algo;
+                    current_state.encryption_flags = b.encryption_flags;
                     current_pkt_size += sizeof(b);
                 }
                 if (mask & UPD_EFFECTS) {
@@ -466,9 +634,13 @@ void *network_listener(void *arg) {
                     current_state.supernova_pos = b.supernova_pos;
                     memcpy(current_state.supernova_q, b.supernova_q, sizeof(b.supernova_q));
                     memcpy(current_state.torps, b.torps, sizeof(b.torps)); 
-                    current_state.boom = b.boom;
-                    current_state.wormhole = b.wormhole; current_state.jump_arrival = b.jump_arrival;
-                    current_state.dismantle = b.dismantle; current_state.recovery_fx = b.recovery_fx;
+                    current_state.wormhole = b.wormhole;
+                    current_state.event_count = b.event_count;
+                    if (current_state.event_count > MAX_NET_EVENTS) current_state.event_count = MAX_NET_EVENTS;
+                    memcpy(current_state.events, b.events, current_state.event_count * sizeof(NetEvent));
+                    current_state.torpedo_count = b.torpedo_count;
+                    if (current_state.torpedo_count > MAX_VISIBLE_TORPEDOES) current_state.torpedo_count = MAX_VISIBLE_TORPEDOES;
+                    memcpy(current_state.visible_torpedoes, b.visible_torpedoes, current_state.torpedo_count * sizeof(NetVisibleTorpedo));
                     current_pkt_size += sizeof(b);
                 }
                 if (mask & UPD_PROBES) {
@@ -509,7 +681,7 @@ void *network_listener(void *arg) {
             double now_secs = now_ts.tv_sec + now_ts.tv_nsec / 1e9;
             if (last_packet_arrival > 0) {
                 double delta = (now_secs - last_packet_arrival) * 1000.0; /* ms */
-                double expected = 1000.0 / 30.0; /* 33.3ms for 30Hz */
+                double expected = 1000.0 / (double)GAME_TICK_RATE; /* ms per tick */
                 jitter_sum += fabs(delta - expected);
             }
             last_packet_arrival = now_secs;
@@ -521,34 +693,38 @@ void *network_listener(void *arg) {
 
             if (elapsed >= 1.0) {
                 if (g_shared_state) {
-                    pthread_mutex_lock(&g_shared_state->mutex);
                     g_shared_state->net_kbps = (bytes_this_sec / 1024.0 / elapsed);
                     g_shared_state->net_packet_count = (int)(packets_this_sec / elapsed);
                     g_shared_state->net_avg_packet_size = (packets_this_sec > 0) ? (int)(bytes_this_sec / packets_this_sec) : 0;
                     g_shared_state->net_jitter = (packets_this_sec > 0) ? (jitter_sum / packets_this_sec) : 0;
                     g_shared_state->net_uptime = now_ts.tv_sec - link_start_ts.tv_sec;
-                    /* Integrity: Based on jitter (lower jitter = higher integrity) */
-                    double integrity = 100.0 - (g_shared_state->net_jitter * 2.0);
+                    
+                    /* Advanced Signal Processing: Noise Floor & Damping */
+                    double raw_jitter = (packets_this_sec > 0) ? (jitter_sum / packets_this_sec) : 0;
+                    g_shared_state->net_jitter = raw_jitter;
+                    
+                    /* Ignore jitter below 0.5ms (Quantum Background Noise) */
+                    double effective_jitter = raw_jitter - 0.5;
+                    if (effective_jitter < 0) effective_jitter = 0;
+                    
+                    /* Integrity: More robust formula with lower penalty for minor fluctuations */
+                    double integrity = 100.0 - (effective_jitter * 1.2); 
                     if (integrity < 0) integrity = 0;
                     if (integrity > 100) integrity = 100;
                     g_shared_state->net_integrity = integrity;
                     
                     /* Efficiency: How much we send vs the maximum possible packet size */
                     g_shared_state->net_efficiency = 100.0 * (1.0 - (double)current_pkt_size / sizeof(PacketUpdate));
-                    pthread_mutex_unlock(&g_shared_state->mutex);
                 }
                 bytes_this_sec = 0; packets_this_sec = 0; jitter_sum = 0; last_ts = now_ts;
             }
             if (g_shared_state) {
-                pthread_mutex_lock(&g_shared_state->mutex);
                 g_shared_state->net_last_packet_size = current_pkt_size;
-                pthread_mutex_unlock(&g_shared_state->mutex);
             }
             
             if (g_shared_state) {
                 if (current_state.object_count > MAX_OBJECTS) current_state.object_count = MAX_OBJECTS;
 
-                pthread_mutex_lock(&g_shared_state->mutex);
                 /* Sincronizziamo lo stato locale con i dati ottimizzati dal server */
                 g_shared_state->shm_energy = current_state.energy;
                 g_shared_state->shm_composite_plating = current_state.composite_plating;
@@ -592,6 +768,8 @@ void *network_listener(void *arg) {
                 g_shared_state->shm_show_bridge = current_state.show_bridge;
                 g_shared_state->shm_show_map = current_state.show_map;
                 g_shared_state->shm_map_filter = current_state.map_filter;
+                g_shared_state->shm_crypto_algo = current_state.shm_crypto_algo;
+                g_shared_state->shm_encryption_flags = current_state.encryption_flags;
                 g_shared_state->shm_q[0] = current_state.q1;
                 g_shared_state->shm_q[1] = current_state.q2;
                 g_shared_state->shm_q[2] = current_state.q3;
@@ -635,76 +813,46 @@ void *network_listener(void *arg) {
                     g_shared_state->objects[o].active = 1;
                 }
                 
-                /* Append beams to shared state (Queue logic) */
+                /* Handle beams from update - Queue them for reliable rendering */
                 if (current_state.beam_count > 0) {
                     for (int b=0; b < current_state.beam_count; b++) {
-                        if (g_shared_state->beam_count < MAX_BEAMS) {
-                            int idx = g_shared_state->beam_count;
-                            g_shared_state->beams[idx].shm_sx = current_state.beams[b].net_sx;
-                            g_shared_state->beams[idx].shm_sy = current_state.beams[b].net_sy;
-                            g_shared_state->beams[idx].shm_sz = current_state.beams[b].net_sz;
-                            g_shared_state->beams[idx].shm_tx = current_state.beams[b].net_tx;
-                            g_shared_state->beams[idx].shm_ty = current_state.beams[b].net_ty;
-                            g_shared_state->beams[idx].shm_tz = current_state.beams[b].net_tz;
-                            g_shared_state->beams[idx].active = current_state.beams[b].active;
-                            g_shared_state->beam_count++;
-                        }
+                        push_ipc_event(IPC_EV_BEAM, 
+                                       current_state.beams[b].net_sx, current_state.beams[b].net_sy, current_state.beams[b].net_sz,
+                                       current_state.beams[b].net_tx, current_state.beams[b].net_ty, current_state.beams[b].net_tz,
+                                       current_state.beams[b].active);
                     }
+                    /* Reset local beam count after pushing to IPC queue */
                     current_state.beam_count = 0;
                 }
                 
-                /* Projectile position */
-                for(int s=0; s<4; s++) {
-                    g_shared_state->torps[s].shm_x = current_state.torps[s].net_x;
-                    g_shared_state->torps[s].shm_y = current_state.torps[s].net_y;
-                    g_shared_state->torps[s].shm_z = current_state.torps[s].net_z;
-                    g_shared_state->torps[s].active = current_state.torps[s].active;
+                /* Projectile position (Dedicated Stream, Zero-Lag) */
+                g_shared_state->torpedo_count = current_state.torpedo_count;
+                for(int s=0; s < current_state.torpedo_count && s < MAX_VISIBLE_TORPEDOES; s++) {
+                    g_shared_state->torps[s].shm_x = current_state.visible_torpedoes[s].x;
+                    g_shared_state->torps[s].shm_y = current_state.visible_torpedoes[s].y;
+                    g_shared_state->torps[s].shm_z = current_state.visible_torpedoes[s].z;
+                    g_shared_state->torps[s].active = 1;
+                }
+                /* Clear remaining slots to avoid ghost torpedoes */
+                for(int s = current_state.torpedo_count; s < MAX_VISIBLE_TORPEDOES; s++) {
+                    g_shared_state->torps[s].active = 0;
                 }
                 
-                /* Event Latching */
-                if (current_state.boom.active) {
-                    g_shared_state->boom.shm_x = current_state.boom.net_x;
-                    g_shared_state->boom.shm_y = current_state.boom.net_y;
-                    g_shared_state->boom.shm_z = current_state.boom.net_z;
-                    g_shared_state->boom.active = 1;
-                    current_state.boom.active = 0;
+                /* NetEvent Queue Processing (Zero-Loss Architecture) */
+                if (current_state.event_count > 0) {
+                    for (int e = 0; e < current_state.event_count; e++) {
+                        NetEvent *ev = &current_state.events[e];
+                        push_ipc_event(ev->type, ev->x1, ev->y1, ev->z1, ev->x2, ev->y2, ev->z2, ev->extra);
+                    }
+                    current_state.event_count = 0;
                 }
                 
-                if (current_state.dismantle.active) {
-                    g_shared_state->dismantle.shm_x = current_state.dismantle.net_x;
-                    g_shared_state->dismantle.shm_y = current_state.dismantle.net_y;
-                    g_shared_state->dismantle.shm_z = current_state.dismantle.net_z;
-                    g_shared_state->dismantle.species = current_state.dismantle.species;
-                    g_shared_state->dismantle.active = 1;
-                    current_state.dismantle.active = 0;
-                }
-                
-                /* Wormhole Event */
+                /* Wormhole Event (State-based) */
                 g_shared_state->wormhole.shm_x = current_state.wormhole.net_x;
                 g_shared_state->wormhole.shm_y = current_state.wormhole.net_y;
                 g_shared_state->wormhole.shm_z = current_state.wormhole.net_z;
                 g_shared_state->wormhole.active = current_state.wormhole.active;
 
-                /* Recovery FX */
-                if (current_state.recovery_fx.active) {
-                    g_shared_state->recovery_fx.shm_x = current_state.recovery_fx.net_x;
-                    g_shared_state->recovery_fx.shm_y = current_state.recovery_fx.net_y;
-                    g_shared_state->recovery_fx.shm_z = current_state.recovery_fx.net_z;
-                    g_shared_state->recovery_fx.active = current_state.recovery_fx.active;
-                    current_state.recovery_fx.active = 0;
-                }
-
-                /* Jump Arrival Event */
-                if (current_state.jump_arrival.active) {
-                    g_shared_state->jump_arrival.shm_x = current_state.jump_arrival.net_x;
-                    g_shared_state->jump_arrival.shm_y = current_state.jump_arrival.net_y;
-                    g_shared_state->jump_arrival.shm_z = current_state.jump_arrival.net_z;
-                    g_shared_state->jump_arrival.active = 1;
-                    /* Reset local copy to prevent repeated triggering */
-                    current_state.jump_arrival.active = 0;
-                }
-
-                /* Supernova Event */
                 g_shared_state->supernova_pos.shm_x = current_state.supernova_pos.net_x;
                 g_shared_state->supernova_pos.shm_y = current_state.supernova_pos.net_y;
                 g_shared_state->supernova_pos.shm_z = current_state.supernova_pos.net_z;
@@ -714,8 +862,8 @@ void *network_listener(void *arg) {
                 g_shared_state->shm_sn_q[2] = current_state.supernova_q[2];
                 
                 g_shared_state->frame_id++; 
-                pthread_mutex_unlock(&g_shared_state->mutex);
-                sem_post(&g_shared_state->data_ready);
+                swap_buffers();
+                sem_post(&g_shm->data_ready);
             }
         }
     }
@@ -727,7 +875,6 @@ void handle_sigint(int sig) {
 }
 
 int main(int argc, char *argv[]) {
-    struct sockaddr_in serv_addr;
     char server_ip[64];
     int my_ship_class = SHIP_CLASS_GENERIC_ALIEN;
     
@@ -741,6 +888,7 @@ int main(int argc, char *argv[]) {
     memset(deep_space_key, 0, 32);
     size_t env_len = strlen(env_key);
     memcpy(deep_space_key, env_key, (env_len > 32) ? 32 : env_len);
+    memcpy(master_root_key, deep_space_key, 32);
     
     generate_keys();
     
@@ -772,7 +920,6 @@ int main(int argc, char *argv[]) {
     atexit(cleanup);
 
     /* Schermata di Benvenuto */
-    printf("\033[2J\033[H"); /* Clear screen and home cursor */
     printf(B_CYAN "  ____________________________________________________________________________\n" RESET);
     printf(B_CYAN " /                                                                            \\\n" RESET);
     printf(B_CYAN " | " B_WHITE "   ███████╗██████╗  █████╗  ██████╗███████╗     ██████╗ ██╗              " B_CYAN "  |\n" RESET);
@@ -793,25 +940,49 @@ int main(int argc, char *argv[]) {
 
     LOG_DEBUG("sizeof(SpaceGLGame) = %zu\n", sizeof(SpaceGLGame));
     LOG_DEBUG("sizeof(PacketUpdate) = %zu\n", sizeof(PacketUpdate));
-    printf("Server IP: "); 
-    if (scanf("%63s", server_ip) != 1) { /* handled later by inet_pton */ }
+
+    /* OpenSSL Initialization for all algorithms (including legacy ones like SEED, CAST5, etc) */
+    OSSL_PROVIDER_load(NULL, "legacy");
+    OSSL_PROVIDER_load(NULL, "default");
+    OpenSSL_add_all_algorithms();
+    OpenSSL_add_all_ciphers();
+    OpenSSL_add_all_digests();
+
+    printf("Server IP/Hostname: "); 
+    fflush(stdout);
+    if (scanf("%63s", server_ip) != 1) { strcpy(server_ip, "127.0.0.1"); }
     clear_stdin();
 
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        printf("\n Socket creation error \n");
+    struct addrinfo hints, *res, *rp;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    char port_str[16];
+    sprintf(port_str, "%d", DEFAULT_PORT);
+
+    if (getaddrinfo(server_ip, port_str, &hints, &res) != 0) {
+        fprintf(stderr, B_RED "ERROR: Could not resolve hostname '%s'\n" RESET, server_ip);
         return -1;
     }
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(DEFAULT_PORT);
+    sock = -1;
+    for (rp = res; rp != NULL; rp = rp->ai_next) {
+        sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (sock == -1) continue;
 
-    if (inet_pton(AF_INET, server_ip, &serv_addr.sin_addr) <= 0) {
-        printf("\nInvalid address/ Address not supported \n");
-        return -1;
+        printf("Connecting to %s:%d...\n", server_ip, DEFAULT_PORT);
+        fflush(stdout);
+        if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1)
+            break; /* Success */
+
+        close(sock);
+        sock = -1;
     }
+    freeaddrinfo(res);
 
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        printf("\nConnection Failed \n");
+    if (sock == -1) {
+        fprintf(stderr, B_RED "ERROR: Connection to '%s' failed.\n" RESET, server_ip);
         return -1;
     }
 
@@ -856,8 +1027,12 @@ int main(int argc, char *argv[]) {
 
     /* Identification happens ONLY after secure link is established */
     printf("Commander Name: "); 
+    fflush(stdout);
     if (scanf("%63s", captain_name) != 1) { strcpy(captain_name, "Captain"); }
     clear_stdin();
+
+    /* Personalize Frequencies based on Captain Name */
+    derive_algo_keys(master_root_key, captain_name);
 
     /* Identity Check */
     PacketLogin qpkt;
@@ -873,6 +1048,7 @@ int main(int argc, char *argv[]) {
         printf("\n" B_WHITE "--- NEW RECRUIT IDENTIFIED ---" RESET "\n");
         printf("--- SELECT YOUR FACTION ---\n");
         printf(" 0: Alliance\n 1: Korthian\n 2: Xylari\n 3: Swarm\n 4: Vesperian\n 5: Ascendant\n 6: Quarzite\n 7: Saurian\n 8: Gilded\n 9: Fluidic Void\n 10: Cryos\n 11: Apex\nSelection: ");
+        fflush(stdout);
         int selection;
         if (scanf("%d", &selection) != 1) { selection = 0; }
         switch(selection) {
@@ -894,6 +1070,7 @@ int main(int argc, char *argv[]) {
         if (my_faction == FACTION_ALLIANCE) {
             printf("\n" B_WHITE "--- SELECT YOUR CLASS ---" RESET "\n");
             printf(" 0: Legacy Class\n 1: Scout Class\n 2: Heavy Cruiser\n 3: Multi-Engine Cruiser\n 4: Escort Class\n 5: Explorer Class\n 6: Flagship Class\n 7: Science Vessel\n 8: Carrier Class\n 9: Tactical Cruiser\n 10: Diplomatic Cruiser\n 11: Research Vessel\n 12: Frigate Class\nSelection: ");
+            fflush(stdout);
             if (scanf("%d", &my_ship_class) != 1) { my_ship_class = 0; }
         } else {
             my_ship_class = SHIP_CLASS_GENERIC_ALIEN;
@@ -921,7 +1098,8 @@ int main(int argc, char *argv[]) {
     LOG_DEBUG("Client SpaceGLGame size: %zu bytes\n", sizeof(SpaceGLGame));
     LOG_DEBUG("Client PacketUpdate size: %zu bytes\n", sizeof(PacketUpdate));
     LOG_DEBUG("Waiting for Galaxy Master...\n");
-    if (read_all(sock, &master_sync, sizeof(SpaceGLGame)) == sizeof(SpaceGLGame)) {
+    int master_read = read_all(sock, &master_sync, sizeof(SpaceGLGame));
+    if (master_read == sizeof(SpaceGLGame)) {
         printf(B_GREEN "Galaxy Map synchronized.\n" RESET);
         LOG_DEBUG("Received Encryption Flags: 0x%08X\n", master_sync.encryption_flags);
         if (master_sync.encryption_flags & 0x01) {
@@ -932,20 +1110,22 @@ int main(int argc, char *argv[]) {
             printf(B_CYAN "[SECURE] Encryption Layer:   " B_GREEN "AES-GCM + PQC (Quantum Ready)\n" RESET);
         }
     } else {
-        printf(B_RED "ERROR: Failed to synchronize Galaxy Map.\n" RESET);
+        printf(B_RED "ERROR: Failed to synchronize Galaxy Map (Expected %zu, got %d).\n" RESET, sizeof(SpaceGLGame), master_read);
+        close(sock);
+        exit(1);
     }
 
     init_shm();
     
     /* Copy Galaxy Master to SHM for 3D Map View */
     if (g_shared_state) {
-        pthread_mutex_lock(&g_shared_state->mutex);
+        
         memcpy(g_shared_state->shm_galaxy, master_sync.g, sizeof(master_sync.g));
         g_shared_state->shm_crypto_algo = CRYPTO_NONE;
         g_shared_state->shm_encryption_flags = master_sync.encryption_flags;
         memcpy(g_shared_state->shm_server_signature, master_sync.server_signature, 64);
         memcpy(g_shared_state->shm_server_pubkey, master_sync.server_pubkey, 32);
-        pthread_mutex_unlock(&g_shared_state->mutex);
+        
     }
     
     if (getenv("DISPLAY") == NULL) {
@@ -1002,7 +1182,7 @@ int main(int argc, char *argv[]) {
                     
                     if (strcmp(g_input_buf, "xxx") == 0) {
                         PacketCommand cpkt = {PKT_COMMAND, "xxx"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
+                        send(sock, &cpkt, sizeof(cpkt), 0); swap_buffers();
                         g_running = 0;
                         disable_raw_mode();
                         exit(0);
@@ -1019,111 +1199,25 @@ int main(int argc, char *argv[]) {
                         memcpy(cpkt.cmd, g_input_buf, clen);
                         cpkt.cmd[clen] = '\0';
                         send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc aes") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_AES;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
+                    } else if (strncmp(g_input_buf, "enc ", 4) == 0) {
+                        /* The client will now wait for the server's update packet 
+                           to officially switch frequencies, preventing transition noise. */
+                        PacketCommand cpkt; 
+                        cpkt.type = PKT_COMMAND;
+                        snprintf(cpkt.cmd, sizeof(cpkt.cmd), "%s", g_input_buf);
+                        send(sock, &cpkt, sizeof(cpkt), 0); 
+                        swap_buffers();
+                    } else if (strncmp(g_input_buf, "rad ", 4) == 0 || strcmp(g_input_buf, "rad") == 0) {
+                        char *msg_start = (strlen(g_input_buf) > 4) ? g_input_buf + 4 : NULL;
+                        
+                        if (!msg_start || strlen(msg_start) == 0) {
+                            printf(B_YELLOW "Usage: rad <MSG>, rad @Faction <MSG>, rad #ID <MSG>\n" RESET);
+                            g_input_ptr = 0;
+                            g_input_buf[0] = 0;
+                            reprint_prompt();
+                            continue;
                         }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc aes"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc chacha") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_CHACHA;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc chacha"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc aria") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_ARIA;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc aria"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc camellia") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_CAMELLIA;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc camellia"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc seed") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_SEED;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc seed"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc cast") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_CAST5;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc cast"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc idea") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_IDEA;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc idea"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc 3des") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_3DES;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc 3des"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc bf") == 0 || strcmp(g_input_buf, "enc blowfish") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_BLOWFISH;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc bf"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc rc4") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_RC4;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc rc4"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc des") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_DES;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc des"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc pqc") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_PQC;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc pqc"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strcmp(g_input_buf, "enc off") == 0) {
-                        if (g_shared_state) {
-                            pthread_mutex_lock(&g_shared_state->mutex);
-                            g_shared_state->shm_crypto_algo = CRYPTO_NONE;
-                            pthread_mutex_unlock(&g_shared_state->mutex);
-                        }
-                        PacketCommand cpkt = {PKT_COMMAND, "enc off"};
-                        send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strncmp(g_input_buf, "rad ", 4) == 0) {
+
                         PacketMessage mpkt;
                         memset(&mpkt, 0, sizeof(PacketMessage));
                         mpkt.type = PKT_MESSAGE;
@@ -1131,7 +1225,9 @@ int main(int argc, char *argv[]) {
                         mpkt.faction = my_faction;
                         mpkt.scope = SCOPE_GLOBAL;
                         
-                        char *msg_start = g_input_buf + 4;
+                        char plaintext[4096];
+                        memset(plaintext, 0, sizeof(plaintext));
+
                         if (msg_start[0] == '@') {
                             char target_name[64];
                             int offset = 0;
@@ -1153,30 +1249,56 @@ int main(int argc, char *argv[]) {
                                 else {
                                     mpkt.scope = SCOPE_GLOBAL; /* Fallback */
                                 }
-                                if (strlen(msg_start) > (1 + offset + 1))
-                                    strncpy(mpkt.text, msg_start + 1 + offset + 1, 4095);
-                                else 
-                                    mpkt.text[0] = '\0';
-                            } else strncpy(mpkt.text, msg_start, 4095);
+                                
+                                /* Skip the @faction and potentially the space after it */
+                                char *actual_msg = msg_start + 1 + offset;
+                                if (actual_msg[0] == ' ') actual_msg++;
+                                strncpy(plaintext, actual_msg, 4095);
+                            } else strncpy(plaintext, msg_start, 4095);
                         } else if (msg_start[0] == '#') {
                             int tid;
                             int offset = 0;
                             if (sscanf(msg_start + 1, "%d%n", &tid, &offset) == 1) {
                                 mpkt.scope = SCOPE_PRIVATE;
                                 mpkt.target_id = tid;
-                                if (strlen(msg_start) > (1 + offset + 1))
-                                    strncpy(mpkt.text, msg_start + 1 + offset + 1, 4095);
-                                else 
-                                    mpkt.text[0] = '\0';
-                            } else strncpy(mpkt.text, msg_start, 4095);
+                                
+                                /* Skip the #id and potentially the space after it */
+                                char *actual_msg = msg_start + 1 + offset;
+                                if (actual_msg[0] == ' ') actual_msg++;
+                                strncpy(plaintext, actual_msg, 4095);
+                            } else strncpy(plaintext, msg_start, 4095);
                         } else {
-                            strncpy(mpkt.text, msg_start, 4095);
+                            strncpy(plaintext, msg_start, 4095);
                         }
                         
-                        mpkt.length = strlen(mpkt.text);
-                        sign_packet_message(&mpkt);
+                        /* Apply current encryption settings */
+                        int current_algo = CRYPTO_NONE;
+                        if (g_shared_state) current_algo = g_shared_state->shm_crypto_algo;
                         
-                        size_t pkt_size = offsetof(PacketMessage, text) + mpkt.length + 1;
+                        if (current_algo != CRYPTO_NONE) {
+                            mpkt.is_encrypted = 1;
+                            mpkt.crypto_algo = current_algo;
+                            
+                            /* 1. Sign the PLAINTEXT before encryption */
+                            strncpy(mpkt.text, plaintext, 65535);
+                            mpkt.length = strlen(mpkt.text);
+                            sign_packet_message(&mpkt);
+                            
+                            /* 2. Now Encrypt the payload */
+                            int64_t fid = (g_shared_state) ? g_shared_state->frame_id : 0;
+                            uint8_t *k = (current_algo >= 1 && current_algo <= 12) ? ALGO_KEYS[current_algo] : deep_space_key;
+                            encrypt_payload(&mpkt, plaintext, k, fid);
+                        } else {
+                            mpkt.is_encrypted = 0;
+                            mpkt.crypto_algo = CRYPTO_NONE;
+                            strncpy(mpkt.text, plaintext, 65535);
+                            mpkt.length = strlen(mpkt.text);
+                            
+                            /* Sign the cleartext */
+                            sign_packet_message(&mpkt);
+                        }
+
+                        size_t pkt_size = offsetof(PacketMessage, text) + mpkt.length;
                         if (pkt_size > sizeof(PacketMessage)) pkt_size = sizeof(PacketMessage);
                         
                         size_t svan_msg = 0;
@@ -1192,7 +1314,7 @@ int main(int argc, char *argv[]) {
                         if (clen > 255) clen = 255;
                         memcpy(cpkt.cmd, g_input_buf, clen);
                         cpkt.cmd[clen] = '\0';
-                        send(sock, &cpkt, sizeof(cpkt), 0);
+                        send(sock, &cpkt, sizeof(cpkt), 0); swap_buffers();
                     }
                     
                     g_input_ptr = 0;

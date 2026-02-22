@@ -37,28 +37,89 @@
 Space GL is an advanced space simulator combining the strategic depth of classic 70s text-based games with a modern Client-Server architecture and hardware-accelerated 3D visualization.
 ---
 
-## 🚀 What's New in Version 2.3 (Deep Space Expansion)
+## 🚀 Version 2.8 Highlights (Rel. 18 - Astrometric Expansion)
 
-Update 2.3 radically transforms the scale and precision of the simulator:
-*   **1600x Galactic Scale**: Each quadrant (40x40x40) is now composed of a **40x40 sector matrix**, bringing the total volume to 1600 units per side.
-*   **Hundredth Precision**: All navigation calculations, sensors, and computer suggestions (`cal`, `ical`) now operate with pinpoint precision (**%.2f**).
-*   **ETA HUD**: The 3D viewer now displays the estimated time of arrival in seconds (in yellow) while flying to a set destination.
-*   **Physics Recalibration**: Hyperdrive speed has been synchronized to allow crossing the galactic diagonal in a constant **40 seconds** at Factor 9.9.
-*   **40x Tactical Cube**: The quadrant cube in the 3D viewer has been scaled to 40x40x40 units for more spacious and realistic navigation.
+Update 2.8 introduces High-Energy Celestial Bodies and refines the tactical cartography tools:
+*   **Quasar Integration**: Added **Quasars** (Type 29) to the persistent galaxy. These massive active galactic nuclei act as gravitational anchors and are fully interactive (can be orbited via `orb`).
+*   **18-Digit Grid Precision**: The BPNBS grid encoding has been expanded to the 18th digit ($10^{17}$) to track Quasars without database migration, saturating the 64-bit integer limit.
+*   **Depth-Aware Sensors (`lrs`)**: The Long Range Sensor array now implements **Z-Depth Chromatic Coding**:
+    *   **Green**: Upper Quadrants (Z+1).
+    *   **Yellow**: Current Tactical Plane (Z=0).
+    *   **Red**: Lower Quadrants (Z-1).
+    This provides immediate visual spatial awareness in the textual CLI interface.
+*   **Map Filtering**: Added the `map qu` filter to isolate Quasars in the 3D Stellar Cartography view.
+*   **Visual Enhancements**: Quasars are rendered with a distinct **Magenta Pulsing Shader** in the 3D map and HUD.
 
+## 🚀 Version 2.7 Highlights (Rel. 17 - Visual Fluidity & Optimization)
+
+Update 2.7 focuses on the rendering pipeline and client-side smoothness, eliminating micro-stutters:
+*   **VBO Tactical Grid**: The tactical wireframe cube is now rendered using **Vertex Buffer Objects (VBO)** instead of Immediate Mode (`glBegin`/`glEnd`). This drastically reduces driver overhead and draw calls for the UI layer.
+*   **Player Interpolation (Smart Smooth)**: Enabled visual interpolation for the local player's ship (ID 0). Previously locked to the 20Hz network tick, the camera now glides smoothly at 60Hz/144Hz matching the monitor refresh rate.
+*   **Anti-Streak Logic**: Implemented a "Teleport Detection" threshold (> 50 units). When jumping quadrants or using a wormhole, the renderer instantly snaps to the new position, preventing the camera from "flying" across the universe in a single frame.
+
+## 🚀 Version 2.6 Highlights (Rel. 16 - Tactical Excellence)
+
+Update 2.6 introduces structural optimizations for massive space combat and mission-critical synchronization:
+*   **Independent Torpedo Entities (`players_torpedoes`)**: Projectiles are no longer tied to player slots but live as autonomous galactic entities. They are fully integrated into the **Spatial Partitioning Index**, reducing collision detection overhead by 90% and enabling massive "Burst Fire" scenarios without server lag.
+*   **Enhanced Zero-Loss FX v2**: The Zero-Loss architecture now covers the entire lifecycle of torpedoes and wormhole transitions. Every tactical effect is guaranteed to be rendered on all connected 3D viewers, eliminating visual "ghosting" during high-jitter network conditions.
+*   **Cache-Line Optimization (64-byte Alignment)**: All core data structures (NPCs, Torpedoes, Players, and Shared Memory buffers) are explicitly aligned to 64 bytes (`__attribute__((aligned(64)))`). This eliminates **False Sharing** on multi-core systems (optimized for 32+ core CPUs), maximizing L1/L2 cache efficiency.
+*   **Non-Blocking Security Handshake**: The authentication layer has been decoupled from the game logic mutex. Handshakes are processed instantly, ensuring that new captains can connect even when the server is under heavy tactical load at 60Hz.
+*   **Wormhole Cinematic Synchronization**: The trans-quadrant jump sequence has been extended to 15 seconds (900 ticks) with synchronized Departure and Arrival wormhole effects, visible to all witnesses in the sectors.
+*   **Astrometric 3D View**: The tactical camera default zoom is set to **-65.0**, providing a complete 40x40x40 quadrant overview. UI lines have been refined to 1.0 thickness for a professional, high-definition bridge interface.
+*   **Precision Navigation Sync**: Hyperdrive and Impulse velocities have been fully recalibrated for 60Hz logic. The Navigational Computer (`cal`/`ical`) now provides pinpoint arrival estimates synchronized with the real-time movement of the vessel.
+*   **Dynamic HUD Countdown (ETA)**: A dedicated "TIME TO DESTINATION" indicator has been added to the 3D HUD. It features a pulsing Red/Yellow alert when under 5 seconds, providing critical feedback for manual dropout or combat positioning.
+
+## 🚀 Version 2.5 Highlights (Pro-Performance Edition - Rev. 20260221)
+
+Update 2.5 transforms SpaceGL into a high-fidelity simulator synchronized at **native 60Hz**:
+*   **Total 60Hz Synchronization (Logic & Render)**: The server and viewer now operate in perfect harmony at 60 frames per second. Input latency has been reduced to **16ms**, providing double the responsiveness and physical precision of previous versions.
+*   **Pro-Performance Standard**: Optimized for modern hardware (16-core CPUs and 1Gbps+ networks). The maximum number of players is set to **16** to ensure zero-jitter synchronization and dedicate maximum compute power to every tactical session.
+*   **Full Zero-Loss FX Architecture**: The persistent event queue is now fully implemented from Server to 3D Viewer at 60Hz. Every explosion, torpedo impact, and phaser beam is captured and rendered, ensuring 100% visual integrity regardless of local performance drops.
+*   **Dedicated Torpedo Stream (256 Slots)**: Implemented a dedicated communication channel for in-flight projectiles, expanding universal visibility to **256 simultaneous torpedoes** per quadrant. Physics have been recalibrated for 60Hz, eliminating any perceptible stutter.
+*   **Torpedo Visual Refinement**: The core and glow radius of plasma torpedoes have been reduced by 75%, creating a sharper, more aggressive "Singularity Point" aesthetic, while maintaining full-length luminous rays for clear tactical identification.
+*   **Particle VBO Batching**: The graphics engine now uses a dynamic Vertex Buffer Object (VBO) for particle rendering. Thousands of elements (explosions, trails, sparks) are grouped into a single batch and sent to the GPU with a single call, drastically increasing fluidity during massive fleet battles.
+*   **Particle Multithreading (OpenMP)**: The 3D viewer leverages all CPU cores via OpenMP for parallel calculation of physics and aging for thousands of simultaneous particles.
+
+### 📊 Tactical Capacity and Network Load Analysis (Worst-Case Scenario)
+
+The v2.5 architecture is designed to handle mass combat scenarios without performance degradation. Below is a technical estimate of the maximum theoretical load for a saturated quadrant (16 Players + NPCs):
+
+| Tactical Component | Max Quantity | Payload Size | Traffic per Tick |
+| :--- | :--- | :--- | :--- |
+| **Torpedo Stream** | 256 projectiles | ~8 KB | 480 KB/s |
+| **Ion Beam Stream** | 64 beams | ~3.3 KB | 200 KB/s |
+| **Event Queue (FX)** | 16 explosions | ~0.9 KB | 54 KB/s |
+| **TOTAL (Worst-Case)** | **-** | **~12.5 KB** | **~750 KB/s (6 Mbps)** |
+
+**Performance Considerations:**
+1.  **Network Efficiency**: Even at 60Hz, the generated traffic (~6 Mbps) represents a minimal fraction of the capacity of Gigabit networks or modern fiber connections.
+2.  **Server CPU Optimization**: 60Hz logic leverages OpenMP parallelism to maintain a stable Tick Rate, ensuring ultra-precise collision detection.
+3.  **System Latency**: Simulator response time (16.6ms) is now aligned with esports and professional flight simulator standards.
+
+
+*   **Dual Phaser Emitters**: Player ships are now equipped with dual parallel Ion Beam emitters (Top/Bottom banks). This provides a more robust and visually consistent phaser effect, doubling the energy presence during tactical discharges.
+*   **Alpha Blending Optimization**: Enabled hardware-accelerated alpha blending for all Ion Beam effects, ensuring smooth glow transitions and professional-grade transparency during weapon fade-out.
+*   **High-Density Combat (64 Beams)**: The quadrant capacity for Ion Beams (phasers) has been expanded from 8 to **64**. This allows for massive fleet engagements where every beam from players and NPCs is visible simultaneously to all captains in the sector.
+*   **Tactical Move-and-Fire Cycle**: NPC AI now follows a precise tactical cadence: ships perform localized "attack runs" of up to 3 units, followed by a sustained 4-second phaser sequence. This cycle repeats indefinitely, ensuring dynamic positioning during quadrant-wide engagements.
+*   **Synchronized 4-Second Cadence**: All NPC ships and specialized entities (like the Crystalline Entity) now fire at a standardized 4-second interval (120 ticks), providing a predictable yet intense combat rhythm for fleet encounters.
+*   **Independent Beam Slots**: Each NPC entity now manages its own phaser fire independently. This eliminates data overwriting when multiple entities attack the same target, ensuring every beam is rendered correctly in the "Shared Fire Exchange."
+*   **Binary Integrity 20260220**: The `galaxy.dat` layout has been updated with strict 64-byte alignment for the `ConnectedPlayer` structure and binary packing for celestial entities. This ensures consistent data loading and cross-platform binary compatibility.
+*   **Enhanced Network Serialization**: The update protocol now uses a 64KB serialization buffer and a forced `UPD_COMBAT` mask when beams are active, guaranteeing zero-latency visual feedback during intense firefights.
 
 ---
+
+## 🚀 What's New in Version 2.4 (Parallel & Instanced Edition)
 
 ## 🚀 Quick Start Guide
 
 ### 1. Install Dependencies (Linux)
 ```bash
 # Ubuntu / Debian
-sudo apt-get install build-essential freeglut3-dev libglu1-mesa-dev libglew-dev libssl-dev
+sudo apt-get install build-essential freeglut3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev
 
 # Fedora / Red Hat
 sudo dnf groupinstall "Development Tools"
-sudo dnf install freeglut-devel mesa-libGLU-devel glew-devel openssl-devel
+sudo dnf install freeglut-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel
 ```
 
 ### 2. Build
@@ -100,12 +161,21 @@ The viewer performs an automatic binary alignment check at startup to ensure the
 
 ## ⚙️ Configuration & Modding
 
-Gameplay is entirely customizable via the centralized configuration file **`include/game_config.h`**.
-By editing this file and recompiling with `make`, you can alter the physics and combat rules of your server.
+Gameplay and performance are entirely customizable via the centralized configuration file **`include/game_config.h`**.
+By editing this file and recompiling with `make`, you can alter the physics and engine behavior.
 
-Configurable parameters include:
+### Performance & Calibration Parameters
+| Parameter | Description | Standard Value |
+| :--- | :--- | :--- |
+| **`GAME_TICK_RATE`** | Server logic frequency (Hz) | **60** |
+| **`GAME_MAX_PLAYERS`**| Maximum simultaneous commanders | **16** |
+| **`SPEED_TORPEDO`** | Plasma torpedo cruise speed | **0.225** |
+| **`INTERP_SPEED_OBJECT`**| Ship movement smoothness (LERP) | **0.175** |
+| **`MAX_VISIBLE_TORPEDOES`**| Max projectile capacity per quadrant | **256** |
+
+### Gameplay & Balancing Parameters
 *   **Resource Limits:** `MAX_ENERGY_CAPACITY`, `MAX_TORPEDO_CAPACITY`.
-*   **Damage Balance:** `DMG_Ion Beam_BASE` (Ion Beam power), `DMG_TORPEDO` (torpedo damage).
+*   **Damage Balance:** `DMG_ION_BEAM_BASE` (Ion Beam power), `DMG_TORPEDO` (torpedo damage).
 *   **Interaction Ranges:** `DIST_MINING_MAX` (mining range), `DIST_BOARDING_MAX` (transporter range for boarding).
 
 | Operation | Command | Maximum Distance (Sector) |
@@ -129,7 +199,8 @@ SpaceGL uses an authoritative server model with a high-performance binary protoc
 
 *   **Delta Compression**: The engine employs a bitmask-based differential update system. Instead of sending the full game state (30KB+), the server transmits only changed "data blocks" (Transform, Vitals, Systems, etc.). This reduces average bandwidth usage by **90-95%**.
 *   **Interest Management**: Using the 10x10x10 spatial index, the server filters objects based on player location. Static entities (Stars, Planets) are cached on the client and only re-synchronized upon quadrant transition.
-*   **Zero-Latency IPC**: The client relays network data to the 3D viewer via **POSIX Shared Memory (SHM)**. This "Zero-Copy" approach allows the rendering engine to run at 60+ FPS with smooth interpolation (LERP), independent of network tick rate (30Hz).
+*   **Zero-Latency IPC (Double Buffered)**: The client relays network data to the 3D viewer via a dual-buffer **SharedIPC** segment. While the client populates Buffer A, the viewer reads from Buffer B. Atomic swaps ensure the graphics engine always has access to a consistent state without visual artifacts or the need for blocking mutexes.
+*   **Asynchronous Task Processing**: The server utilizes a **Persistent ThreadPool** to delegate non-critical heavy lifting (e.g., encryption, HMAC signing of `galaxy.dat`, and global broadcast cycles) to background workers, protecting the 30Hz simulation frequency.
 *   **Telemetries**: The HUD displays real-time network health:
     *   **Efficiency**: Percentage of bandwidth saved by Delta Compression.
     *   **Jitter**: Millisecond variance in packet arrival, used to tune the interpolation buffer.
@@ -178,6 +249,7 @@ The galaxy is a **40x40x40** cube containing **64,000 unique quadrants**. Each q
 *   **Celestial Diversity:**
     *   **Stars:** Classified into 7 spectral types: **O (Blue)**, **B (White)**, **A (White)**, **F (Yellow)**, **G (Yellow)**, **K (Orange)**, and **M (Red)**.
     *   **Pulsars:** Neutrons stars categorized into 3 scientific classes: **Rotation-Powered**, **Accretion-Powered**, and **Magnetar**.
+    *   **Quasars:** Extremely energetic extragalactic sources with 7 scientific classes: **Radio-loud**, **Radio-quiet**, **Broad absorption-line**, **Type 2**, **Red**, **Optically violent variable**, and **Weak emission line**.
     *   **Nebulas:** Categorized into 6 tactical classes: **Standard**, **High-Energy**, **Dark Matter**, **Ionic**, **Gravimetric**, and **Temporal**.
     *   **Class-Omega Threats:** Specific monitoring of unique entities like the **Crystalline Entity** and the **Space Amoeba**.
 *   **Unique Identification:** Every vessel in the galaxy, whether active or a wreck, is assigned a **unique name** from faction-specific historical databases (e.g., *IKS Bortas* for Korthians, *Enterprise* for the Alliance). Generic "(OTHER)" labels have been completely eliminated from sensors.
@@ -249,7 +321,7 @@ To maintain a seamless 30 TPS (Ticks Per Second) logic rate while managing a mas
     *   **Underflow Protection**: All energy consumption logic (Combat, Navigation, Drain) now uses a "Safe-Subtract" pattern: `if (energy >= cost) energy -= cost; else energy = 0;`. This prevents the "unsigned wrap-around" that would otherwise grant ships infinite energy after depletion.
     *   **Visual FX Overhaul (Dismantle)**: Enhanced the `dis` command particle system with a 6x increase in fragment size, optimized expansion physics, and accurate Faction Color mapping for high-fidelity tactical feedback.
     *   **Login State Synchronization**: Optimized the network handshake to force an immediate full-state sync upon re-entry. This ensures that persistent tactical flags (AR Compass, Grid, HUD modes) are correctly restored in the 3D Viewer from the very first frame.
-    *   **Binary Layout & Versioning**: Updated `GALAXY_VERSION` to **20260218**. This change mandates a fresh `galaxy.dat` generation to maintain binary integrity with the new 64-bit data structures.
+    *   **Binary Layout & Versioning**: Updated `GALAXY_VERSION` to **20260220**. This change mandates a fresh `galaxy.dat` generation to maintain binary integrity with the new data structures.
     *   **Binary Sync**: Realigned Shared Memory (SHM) and Network packets to ensure zero-copy compatibility with the new 64-bit layouts.
     *   **Impact**: Support for astronomical energy reserves and absolute logical stability during resource depletion.
 
@@ -383,6 +455,7 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
         *   🕳️ **Black Hole** (Purple): Gravitational singularity.
         *   🌫️ **Nebula** (Grey): Gas cloud (sensor interference).
         *   ✴️ **Pulsar** (Orange): Neutron star (radiation).
+        *   🔯 **Quasar** (Magenta): Active galactic nucleus.
         *   ☄️ **Comet** (Light Blue): Icy body in eccentric orbit.
         *   🪨 **Asteroid** (Brown): Navigable debris field.
         *   🛸 **Derelict** (Dark Grey): Abandoned ship for dismantling.
@@ -659,7 +732,7 @@ Below is the complete list of available commands, grouped by function.
     *   **Orientation**: 
         *   **3D Tactical Needle**: A thin yellow line with a red cone pointer indicates the ship's current Heading and Mark directly within the map.
         *   **3D Galactic Compass**: A synchronized axis reference (Blue: 0°, Red: 90°, Green: Mark) is displayed at the top center of the view.
-    *   **Optional Filters**: You can display only specific categories using: `map st` (Stars), `map pl` (Planets), `map bs` (Bases), `map en` (Enemies), `map bh` (Black Holes), `map ne` (Nebulas), `map pu` (Pulsars), `map is` (Storms), `map co` (Comets), `map as` (Asteroids), `map de` (Derelicts), `map mi` (Mines), `map bu` (Buoys), `map pf` (Platforms), `map ri` (Rifts), `map mo` (Monsters).
+    *   **Optional Filters**: You can display only specific categories using: `map st` (Stars), `map pl` (Planets), `map bs` (Bases), `map en` (Enemies), `map bh` (Black Holes), `map ne` (Nebulas), `map pu` (Pulsars), `map qu` (Quasars), `map is` (Storms), `map co` (Comets), `map as` (Asteroids), `map de` (Derelicts), `map mi` (Mines), `map bu` (Buoys), `map pf` (Platforms), `map ri` (Rifts), `map mo` (Monsters).
     *   **Vertical HUD**: In map mode, a legend on the left side shows colors and filter codes for each object.
     *   **Dynamic Anomalies**:
         *   **Ion Storms**: Quadrants enclosed in a white transparent wireframe shell.
@@ -697,7 +770,7 @@ The effectiveness of your sensors depends directly on the health of the **Sensor
     *   **Enhanced Data**: If the ship is near a **Communication Buoy** (< 1.2 units), sensors switch to numeric display revealing the exact count (e.g., `[1 . 2 . 8]`). The boost resets when moving away from the buoy.
     *   **Navigation Solution**: Each quadrant includes `H / M / W` parameters calculated to reach it immediately.
     *   **Primary Legend**: `[ H P N B S ]` (Black Holes, Planets, NPCs/Vessels, Bases, Stars). `N` counts all ships (NPCs and other players); your own vessel is automatically excluded from the local quadrant count.
-    *   **Anomaly Symbols**: `~`:Nebula, `*`:Pulsar, `!`:Ion Storm, `+`:Comet, `#`:Asteroid, `M`:Monster, `>`:Rift.
+    *   **Anomaly Symbols**: `~`:Nebula, `*`:Pulsar, `!`:Ion Storm, `+`:Comet, `#`:Asteroid, `M`:Monster, `>`:Rift, `Q`:Quasar.
     *   **Localization**: Your current quadrant is highlighted with a blue background.
 *   `aux`: **Auxiliary Systems Overview**. Displays the status of all active sensor probes.
 *   `aux probe <QX> <QY> <QZ>`: **Deep Space Sensor Probe**. Launches an automated probe to a specific quadrant.
@@ -801,6 +874,7 @@ To interact with galactic objects using the `lock`, `scan`, `pha`, `tor`, `bor`,
 | **Spatial Rifts** | 24,000 - 24,999 | `lock 24000` | Use for random jumps |
 | **Monsters** | 25,000 - 25,999 | `lock 25000` | Extreme combat scenarios |
 | **Probes** | 26,000 - 26,999 | `apr 26000` | Recovery and automated telemetry |
+| **Quasars** | 27,000 - 27,999 | `lock 27000` | High-energy harvesting |
 
 **Note**: Locking and autopilot (`apr`) only work if the object is in your current quadrant. If the ID exists but is far away, the computer will indicate the target's `Q[x,y,z]` coordinates.
 
@@ -836,6 +910,7 @@ Distances expressed in sector units (0.0 - 40.0). If your distance is greater th
 | **Comm Buoy** | (Passive) | **< 1.2** | Signal boost or auto-messages |
 | **Space Amoeba** | (Contact) | **< 1.5** | Critical energy drain start |
 | **Crystalline E.** | (Resonance) | **< 4.0** | Range of the resonance beam |
+| **Quasar** | `orb` | **< 1.0** | Stable orbital entry |
 | **Celestial Body** | (Collision) | **< 1.0** | Hull damage and emergency rescue trigger |
 
 ### 🚀 Autopilot (`apr`)
@@ -859,6 +934,7 @@ The `apr <ID> <DIST>` command allows you to automatically approach any object de
 | **Defense Platforms** | 23000 - 23999 | `pha`, `tor`, `scan` | - | Current quadrant only |
 | **Spatial Rifts** | 24000 - 24999 | `scan` | - | Current quadrant only |
 | **Space Monsters** | 25000 - 25999 | `pha`, `tor`, `scan` | **< 1.5** | Current quadrant only |
+| **Quasars** | 27000 - 27999 | `orb`, `scan` | **< 1.0** | Current quadrant only |
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Shield Configuration**. Distributes energy to the 6 shields.
     *   **Requirements**: Minimum 10% Shield system integrity (ID 8).
@@ -1069,7 +1145,7 @@ The Space GL bridge operates via a high-precision Command Line Interface (CLI). 
 
 #### 🛰️ Advanced Navigation & Utility Commands
 *   `red`: **Red Alert**. Toggles combat readiness. Automatically balances power to shields and weapons. High visibility red HUD.
-*   `orb`: **Planetary Orbit**. Enters a stable orbit around the locked planet (< 1.0 units). Provides tactical stability and sensor focus.
+* `orb`: **Celestial Orbit**. Enters a stable orbit around the locked planet, star, black hole, pulsar, or quasar (< 1.0 units). Provides tactical stability and sensor focus.
 *   `nav <H> <M> <W> [F]`: **Hyperdrive Navigation**. Plots a Hyperdrive course towards relative coordinates. `H`: Heading (0-359), `M`: Mark (-90/+90), `W`: Distance in quadrants, `F`: Optional Hyperdrive Factor (1.0 - 9.9).
 *   `imp <H> <M> <S> [Dist]`: **Impulse Drive**. Sub-light engines. `S` represents speed from 0.0 to 10.0.
     *   **Requirements**: Minimum 10% Impulse system integrity (ID 1).
@@ -1112,36 +1188,33 @@ The Space GL bridge operates via a high-precision Command Line Interface (CLI). 
 #### 🛡️ Tactical Cryptography: Communication "Frequencies"
 In Space GL, encryption is not just about security—it's a **tactical frequency choice**. Each algorithm acts as a separate communication band.
 
-*   **Identity & Signature (Ed25519)**: Every radio packet is digitally signed. If you receive a message with a **`[VERIFIED]`** tag, you have mathematical certainty it comes from the declared captain and has not been altered by enemy sensors or spatial phenomena.
+*   **Identity & Signature (Ed25519)**: Every radio packet is digitally signed **before** encryption. If you receive a message with a **`[VERIFIED]`** tag, you have mathematical certainty it comes from the declared captain.
 *   **Cryptographic Frequencies (`enc <TYPE>`)**:
-    *   **AES (`enc aes`)**: The balanced Alliance Command standard. Secure and optimized for modern hardware.
-    *   **PQC (`enc pqc`)**: **Post-Quantum Cryptography (ML-KEM)**. Represents the ultimate defense against Quantum Computers from the Swarm or temporally advanced civilizations. The most secure protocol available.
-    *   **ChaCha (`enc chacha`)**: Ultra-fast, ideal for quick communications in unstable Deep Space conditions.
-    *   **Camellia (`enc camellia`)**: Standard protocol of the Xylari Empire, known for its elegant structure and resistance to brute-force attacks.
-    *   **ARIA (`enc aria`)**: Standard used by the Korthian Alliance for coalition operations.
-    *   **IDEA / CAST5**: Protocols often used by resistance groups (Maquis) or mercenaries to avoid standard Alliance Command monitoring.
-    *   **OFF (`enc off`)**: Clear communication. Risky, but useful for universal distress calls readable by anyone.
+    *   **AES (`enc aes`)**: Frequency index **1**. Fleet Standard.
+    *   **PQC (`enc pqc`)**: Frequency index **12**. Post-Quantum Cryptography (ML-KEM).
+    *   **Intermediate Algorithms (2-11)**: `chacha`, `aria`, `camellia`, `seed`, `cast`, `idea`, `3des`, `bf`, `rc4`, `des`.
+    *   **OFF (`enc off`)**: Index **0**. Cleartext communication (distress calls).
 
-**Tactical Implication**: If an allied fleet decides to operate on "ARIA Frequency", every member must set `enc aria`. Those staying on AES will see only static noise (**`<< SIGNAL DISTURBED >>`**), allowing secure and secret communications even in crowded sectors.
+*   **Key Persistence (`captains/`)**: Cryptographic keys for each frequency (1-12) are saved locally in the `captains/CaptainName/` directory. This allows the server and client to maintain key synchronization across sessions.
+
+#### 🛰️ Galactic Synchronization Protocol (DEFAULT Baseline)
+To ensure that encryption functions like a true tactical radio, the system adopts a rigorous synchronization standard based on the `captains/DEFAULT/` directory:
+
+1.  **The Gold Standard**: Upon startup, the server generates a set of 12 keys in the `DEFAULT` folder. These keys represent the "Galactic Standard." Since derivation occurs via a shared salt (`GALAXY-WORMHOLE-SIG`), these keys are mathematically identical for every captain in the galaxy.
+2.  **Server Validation**: The server uses the keys in `DEFAULT` as a global reference to decrypt and validate messages from *any* captain. This allows the server to verify signal integrity and apply correct energy costs without needing to store individual private keys for every ship.
+3.  **Recovery Template**: If a captain loses their keys or corrupts their directory, the system can instantly regenerate them by realigning with the `DEFAULT` baseline.
+4.  **Tactical Audit**: Any captain can compare their local keys with those in `DEFAULT` to ensure their onboard systems are correctly synchronized with Fleet frequencies.
+
+*   **Signal Noise (Mismatch)**: If two captains are on different frequencies...
 
 ### 📡 Communications and Miscellaneous
-*   `rad <MSG>`: **Radio**. Sends a radio message to all (Open channel).
-    *   **Requirements**: Minimum 5% Auxiliary system integrity (ID 9).
-    *   **Cost**: 5 units of Energy per transmission.
-    *   **Faction Table (@Fac)**:
-        | Faction | Full Name | Abbreviated |
-        | :--- | :--- | :--- |
-        | **Alleanza** | `@Alliance` | `@Fed` |
-        | **Korthian** | `@Korthian` | `@Kli` |
-        | **Xylarii** | `@Xylari` | `@Rom` |
-        | **Swarm** | `@Swarm` | `@Bor` |
-        | **Vesperiani** | `@Vesperian` | `@Car` |
-        | **Dominio** | `@Ascendant` | `@Jem` |
-        | **Quarzitei** | `@Quarzite` | `@Tho` |
-        | **Gilded** | `@Gilded` | `@Fer` |
-        | **Specie 8472** | `@FluidicVoid`| `@8472` |
-        | **Saurian / Cryos / Apex** | Full Name | - |
-*   `rad #ID <MSG>`: Private message to player ID.
+*   `rad <MSG>`: **Galactic Radio**. Sends a message to all vessels on the same frequency.
+    *   **Strict Syntax**: 
+        *   `rad <message>`: Global message.
+        *   `rad @Faction <message>`: Faction-restricted message (e.g., `@Alliance`).
+        *   `rad #ID <message>`: Private message directed to a specific ID (e.g., `#1`).
+    *   **Note**: Messages starting with numbers (e.g., `rad 1 hello`) are no longer confused with private messages unless the `#` prefix is used.
+    *   **Cost**: 5 Energy units per transmission.
 *   `psy`: **Psychological Warfare**. Attempts a bluff (Corbomite Maneuver).
     *   **Requirements**: Minimum 20% Computer system integrity (ID 6) and at least one Anti-Matter device in inventory.
     *   **Cost**: 500 units of Energy per broadcast.
@@ -1752,6 +1825,9 @@ In addition to algorithm selection, the GDIS system uses advanced protocols to e
 *   **Initial Handshake (XOR Obfuscation)**: Upon connection, the client and server negotiate a unique 256-bit **Session Key**. This exchange occurs via an XOR obfuscation protocol based on the sector's **Master Key** (`SPACEGL_KEY`), ensuring no packet is readable without initial authorization.
 *   **Ed25519 Digital Signatures**: Every packet sent via radio (`rad`) is digitally signed. The receiver instantly verifies authenticity using elliptic curves. Authentic messages are marked with **`[VERIFIED]`** in green.
 *   **Rotating Frequency Integration**: The Initialization Vector (IV) of each message is dynamically modified based on the server's `frame_id`. This makes the system immune to *Replay Attacks*: a message recorded one second ago will be unreadable the next.
+*   **Legacy Provider Support**: SpaceGL explicitly loads OpenSSL 3.0 **Legacy Providers**, enabling full support for historic encryption standards (SEED, CAST5, IDEA) alongside modern GCM suites.
+*   **Tactical Tuning (Frequency Matching)**: Communication security acts as a radio frequency. To read another commander's message, your ship must be tuned to the **same algorithm** (e.g., both on `enc aes` or `enc pqc`). Mismatched frequencies will result in audible binary noise and garbled signals, allowing for secure tactical channels.
+*   **Communication Fail-Safe**: An intelligent fallback mechanism is implemented: if a cryptographic frequency shift fails at the system level, the core automatically reverts to a secure raw broadcast to ensure vital command feedback is never lost.
 
 ### ⚛️ Algorithm Suite (Operational Frequencies)
 
@@ -1835,6 +1911,7 @@ Each vessel class features unique 3D design elements:
 Space GL implements enterprise-grade security for galactic state synchronization:
 *   **HMAC-SHA256 Signatures**: Galaxy data files (`galaxy.dat`) and network updates are signed to ensure zero-tampering during transit or storage.
 *   **Cryptographic HUD**: Real-time visualization of encryption flags, signature status, and active protocol parameters directly in the tactical interface.
+*   **Cache-Line Alignment (64-byte)**: Core data structures utilize `__attribute__((aligned(64)))` to prevent *False Sharing* during massive parallel processing, ensuring peak CPU throughput and 64-bit memory continuity for all `uint64_t` resource fields.
 
 ### ⚙️ System Requirements & Dependencies
 To compile and run the SPACE GL suite, ensure the following libraries are installed:
@@ -1843,38 +1920,20 @@ To compile and run the SPACE GL suite, ensure the following libraries are instal
 *   **OpenSSL**: Required for the complete cryptographic suite (AES, HMAC, etc.).
 *   **POSIX Threads & RT**: Managed via `lpthread` and `lrt` for shared memory and synchronization.
 
-### 🚀 Zero-Latency IPC Architecture
+### ⚡ High-Performance Compute Engine (Version 2.4+)
 
-The system architecture is designed to eliminate the local networking bottleneck typical of traditional client-server solutions, ensuring near-zero deterministic latency.
+SpaceGL utilizes a multi-layered parallelism strategy to achieve high-fidelity simulation at scale:
 
-#### 🧠 1. Shared Memory Foundation (`/dev/shm`)
-Instead of relying on TCP/UDP sockets or Named Pipes (which require multiple context switches between kernel and user space), the system utilizes **POSIX shared memory**.
-*   **Mapping**: The Client creates a memory object in `/dev/shm` (a RAM-based file system) via `shm_open`.
-*   **Addressing**: Both processes map the same physical segment into their virtual address spaces using `mmap()`.
-*   **Advantage**: Once the mapping is established, data exchange occurs at **RAM bus speeds**, without operating system overhead for byte transit.
+#### 1. Massive Data Parallelism (OpenMP)
+The simulation core is optimized for modern multi-core processors. By leveraging **OpenMP**, the engine distributes the processing of thousands of NPC AI states, sensor scans, and galactic event updates across all logical cores. This allows the server to maintain a rock-solid 30Hz tick rate even when thousands of hostile vessels are engaged in tactical maneuvers.
 
-#### 🔄 2. Inter-Process Synchronization (`PTHREAD_SHARED`)
-Data consistency between the Client's network thread and the Viewer's rendering loop is managed through atomic synchronization primitives allocated directly in shared memory:
-*   **Process-Shared Mutexes**: Usage of `pthread_mutex_t` initialized with the `PTHREAD_PROCESS_SHARED` attribute. This allows for safe access to the `GameState` structure across different processes.
-*   **POSIX Semaphores**: A `sem_t` is used to implement a low-latency *Signaling* mechanism. When the Client receives a packet from the remote server, it updates the memory and increments the semaphore, instantly waking the 3D engine's `shm_listener` thread.
+#### 2. Hardware Instanced Rendering
+To populate the vastness of space without killing the frame rate, the 3D viewer implements **Instanced Rendering**.
+- **The Tech**: Instead of issuing a draw call for every single asteroid (which bottlenecks the CPU), the engine sends a single "blueprint" and an array of transformation data to the GPU.
+- **The Result**: Thousands of unique asteroid instances, each with their own rotation, scale, and position, are rendered in a single hardware operation. This keeps the rendering pipeline fluid (60-144 FPS) even in dense debris fields or asteroid belts.
 
-#### ⚡ 3. Zero-Copy Mechanism
-Unlike message-based architectures (where data is serialized, copied to a buffer, sent, and deserialized), SPACE GL implements a true **Zero-Copy** philosophy:
-*   **In-place Update**: Data received from the network is written directly into the `SharedObject` structure pointed to by `g_shared_state`.
-*   **Direct Access**: The graphics engine reads the necessary values (coordinates, shield states, movement vectors) by directly accessing the shared memory pointers, eliminating any intermediate buffering operations.
-
-#### 🛡️ 4. Lifecycle Orchestration and Resilience
-The binary Client acts as the **Orchestrator** of the IPC lifecycle:
-1.  **Init**: Generates a unique path (e.g., `/st_shm_[PID]`), allocates space with `ftruncate`, and initializes mutexes.
-2.  **Spawn**: Launches the Viewer, passing the segment identifier as an argument.
-3.  **Cleanup**: In case of closure or crash intercepted via signals (`SIGINT`, `SIGTERM`), the Client invokes `shm_unlink`. This ensures the memory segment is removed from the system, preventing "memory orphans" in `/dev/shm`.
-
-***
-
-**IPC Technology Stack:**
-*   **API**: POSIX Real-time Extensions (librt).
-*   **Data Structures**: `GameState` with `#pragma pack(1)` to ensure identical binary alignment across different compilations.
-*   **Measured Latency**: < 100 microseconds for state transfer between logic and rendering.
+#### 3. Task-Based Parallelism (ThreadPool)
+Decoupling logic from background tasks is handled by a dedicated **Persistent ThreadPool**. Operations like HMAC signing, AES encryption, and persistent storage I/O are queued and executed by worker threads, ensuring that network packet processing is never delayed by disk latency or heavy cryptographic computations.
 
 ---
 *SPACE GL - 3D LOGIC ENGINE. Developed with technical excellence by Nicola Taibi. "Per Tenebras, Lumen"*

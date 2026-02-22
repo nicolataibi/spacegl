@@ -8,17 +8,17 @@
 # (at your option) any later version.
 
 CC = gcc
-OPT_CFLAGS := -g -O2 -fPIE
+OPT_CFLAGS := -g -O2 -fPIE -fopenmp
 CFLAGS += -Wall -Iinclude -std=c2x -D_XOPEN_SOURCE=700 $(OPT_CFLAGS)
 GL_LIBS = -lglut -lGLU -lGL -lGLEW
-SHM_LIBS = -lrt -lpthread -lcrypto -lm -pie
+SHM_LIBS = -lrt -lpthread -lcrypto -lm -pie -lgomp
 LDFLAGS += 
 
 .PHONY: all check clean
 
 all: spacegl_server spacegl_client spacegl_3dview spacegl_viewer
 
-SERVER_SRCS = src/spacegl_server.c src/server/galaxy.c src/server/net.c src/server/commands.c src/server/logic.c
+SERVER_SRCS = src/spacegl_server.c src/server/galaxy.c src/server/net.c src/server/commands.c src/server/logic.c src/server/threadpool.c
 
 spacegl_server: $(SERVER_SRCS)
 	$(CC) $(SERVER_SRCS) -o spacegl_server $(CFLAGS) $(LDFLAGS) $(SHM_LIBS)

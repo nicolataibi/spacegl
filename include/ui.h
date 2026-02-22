@@ -59,7 +59,7 @@
 #define ICON_EMPTY  "   "
 
 /* Utility Macros */
-#define CLS         printf("\033[H\033[J")
+#define CLS         /* (Screen clearing disabled) */
 #define COLOR_PRINT(c, s) printf("%s%s%s", c, s, RESET)
 
 #endif

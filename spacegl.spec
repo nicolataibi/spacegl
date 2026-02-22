@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 16
+%global rel 17
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -102,20 +102,50 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/readme_assets/
 
 %changelog
-* Fri Feb 20 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
-- F7 - Anisotropic Filtering: Improves the sharpness of slanted surfaces (cycles through 1x, 2x, 4x, 8x, 16x).
-- F8 - Starfield Density: Changes the number of background stars (from 1,000 to 8,000). Useful for making space feel denser or reducing the load on the GPU.
-- Multi-Tube Independent Logic: The system now supports firing up to four torpedoes in rapid succession.
-- Cyclic Reload HUD: The [L] (Loading) status is now correctly displayed for each individual tube.
-- Boundary Enforcement: Torpedoes now explode immediately upon reaching quadrant boundaries.
-- Universal Visibility: Torpedoes from all players are now rendered in everyone's 3D view (Object Type 28).
-- Optimized HUD: Personal HUD indicators accurately track your own torpedoes, while the 3D view displays all tactical ordnance without cluttering the screen with unnecessary labels.
-- Quadrants: $40 \times 40 \times 40$ (64,000 quadrants).Sectors (Units): $40 \times 40 \times 40$ per quadrant.Absolute Coordinate System: Migrated from $0 - 400$ to $0.0 - 1600.0$.
-- Vastness: The galaxy is now 64 times larger in terms of absolute unit volume, ensuring superior fluidity during high-speed movement.
-- All navigation commands (nav, imp, apr) and calculators (cal, ical) now operate with hundredth-degree precision (%.2f).
-- Short-Range Sensors (srs) and status reports (sta) now display coordinates and distances with two decimal places.
-- Hyperdrive Recalibration: Warp Factor 9.9 traverses the galaxy's diagonal ($\approx 2771$ units) in 40 real-world seconds.
-- HUD ETA: Added a yellow field in the 3D viewer that displays the Estimated Time of Arrival in seconds; this is only visible when a destination is set.
-- Tactical Cube: The quadrant frame has been scaled to $40 \times 40 \times 40$.Tactical Grid: Now covers the entire sector volume with reference lines every 10 units.
-- Precision has been increased to "millimeter" level, with a stopping tolerance of 0.01 units (ten times more precise). This is critical for docking and boarding maneuvers.
-- Full HD (**1920x1080**) support via `TACTICAL_CUBE_W/H` macros.
+* Sun Feb 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
+The conceptual differences between README.md (the current v2.8 version) and README-old.md (referring to previous versions, approx. v2.3/v2.4) reflect the project's evolution from a
+  basic space simulator to a high-performance, high-fidelity tactical engine.
+
+  Here are the primary conceptual differences:
+
+
+  1. Astrometric Scale and Resolution
+   * README-old.md: Focuses on the introduction of the 1600x galactic scale and hundredth-unit precision. The 40x40x40 quadrant system was presented as a new feature.
+   * README.md: The 40x40x40 scale is now the established standard. It introduces 64-bit grid saturation, utilizing an 18-digit encoding (BPNBS) to map complex objects like Quasars
+     without increasing network traffic overhead.
+
+
+  2. Complexity of Celestial Entities
+   * README-old.md: Manages standard entities (Stars, Planets, Black Holes, Pulsars).
+   * README.md: Introduces Quasars (Type 29) as physically interactive and orbitable objects with 7 distinct scientific classifications. It also adds 3D spatial awareness to the text
+     interface through chromatic depth coding (Green/Yellow/Red) in the lrs command.
+
+
+  3. Performance Architecture (SDB Model)
+   * README-old.md: Describes a basic Client-Server architecture using Shared Memory to reduce local latency.
+   * README.md: Evolves into the Deep Space-Direct Bridge (SDB) model with "Pro-Performance" optimizations:
+       * 64-byte Cache-Line Alignment: Maximizes throughput on multi-core CPUs and eliminates False Sharing.
+       * Zero-Loss FX v2: Guarantees that every tactical effect (explosions, impacts) is rendered synchronously across all clients.
+       * Independent Torpedo Entities: Projectiles are now autonomous galactic entities integrated into spatial partitioning, enabling large-scale battles without server-side lag.
+
+
+  4. Visualization and Rendering
+   * README-old.md: Utilizes immediate mode rendering techniques.
+   * README.md: Implements Vertex Buffer Objects (VBO) for the tactical grid and starfield, drastically reducing CPU draw calls. It introduces advanced programmable shaders (e.g.,
+     Magenta Pulsing for Quasars, Dead Hull shader for wrecks).
+
+
+  5. Security and Data Integrity
+   * README-old.md: Features a security handshake based on XOR obfuscation and session keys.
+   * README.md: Implements a full military-grade cryptographic suite, including HMAC-SHA256 Signatures for every packet and support for Post-Quantum Cryptography (ML-KEM). The "Tactical
+     Frequency" system (different algorithms creating isolated channels) is much more detailed.
+
+
+  6. Survival and RPG Mechanics
+   * README-old.md: Basic management of energy and shields.
+   * README.md: Introduces a critical Life Support system linked to crew count, the Renegade protocol for friendly fire, and advanced cargo management with specific resources (Graphene,
+     Synaptics, Composite) required for field repairs and structural reinforcement.
+
+
+  In summary, while the "old" README documents the foundations of navigation and networking, the "new" README documents a mature system optimized for 60z mass combat and ultra-dense
+  astrometric simulation.

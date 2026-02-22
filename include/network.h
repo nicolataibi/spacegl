@@ -26,7 +26,7 @@
 #pragma pack(push, 1)
 
 #define DEFAULT_PORT 5000
-#define MAX_CLIENTS 32
+#define MAX_CLIENTS GAME_MAX_PLAYERS
 #define PKT_LOGIN 1
 #define PKT_COMMAND 2
 #define PKT_UPDATE 3
@@ -102,17 +102,19 @@ typedef struct {
     uint8_t show_bridge;
     uint8_t show_map;
     uint8_t map_filter;
+    uint8_t encryption_algo;
+    uint32_t encryption_flags;
 } UpdateBlockFlags;
 
 typedef struct {
     NetPoint supernova_pos; 
     int32_t supernova_q[3];
     NetPoint torps[4];
-    NetPoint boom;
     NetPoint wormhole;
-    NetPoint jump_arrival;
-    NetDismantle dismantle;
-    NetPoint recovery_fx;
+    int32_t event_count;
+    NetEvent events[MAX_NET_EVENTS];
+    int32_t torpedo_count;
+    NetVisibleTorpedo visible_torpedoes[MAX_VISIBLE_TORPEDOES];
 } UpdateBlockEffects;
 
 typedef struct {
@@ -224,7 +226,7 @@ typedef struct {
     int64_t origin_frame; /* Server frame used for frequency scrambling */
     uint8_t is_encrypted;
     uint8_t crypto_algo; /* 1:AES... 11:DES, 12:PQC (ML-KEM/Kyber) */
-    uint8_t iv[12];      /* GCM/Poly/CTR/CBC IV */
+    uint8_t iv[16];      /* Full 128-bit IV for CBC/CTR/GCM */
     uint8_t tag[16];     /* Auth Tag */
     uint8_t has_signature;
     uint8_t signature[64]; /* Ed25519 Signature */
@@ -266,7 +268,8 @@ typedef struct {
     uint8_t show_bridge;
     uint8_t show_map;
     uint8_t map_filter;
-    uint8_t encryption_enabled;
+    uint8_t shm_crypto_algo;
+    uint32_t encryption_flags;
     uint8_t red_alert;
     uint8_t is_jammed;
     uint8_t nav_state;
@@ -277,11 +280,11 @@ typedef struct {
     int64_t map_update_val2;
     int32_t map_update_q2[3];
     NetPoint torps[4];
-    NetPoint boom;
     NetPoint wormhole;
-    NetPoint jump_arrival;
-    NetDismantle dismantle;
-    NetPoint recovery_fx;
+    int32_t event_count;
+    NetEvent events[MAX_NET_EVENTS];
+    int32_t torpedo_count;
+    NetVisibleTorpedo visible_torpedoes[MAX_VISIBLE_TORPEDOES];
     NetProbe probes[3];
     int32_t beam_count;
     NetBeam beams[MAX_NET_BEAMS];
