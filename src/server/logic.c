@@ -1194,12 +1194,13 @@ void update_game_logic() {
                 players[i].gz += players[i].dz * imp_step;
             }
 
-            players[i].state.q1 = get_q_from_g(players[i].gx); 
-            players[i].state.q2 = get_q_from_g(players[i].gy); 
-            players[i].state.q3 = get_q_from_g(players[i].gz);
-            players[i].state.s1 = (players[i].gx - (players[i].state.q1 - 1) * QUADRANT_SIZE); 
-            players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * QUADRANT_SIZE); 
-            players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * QUADRANT_SIZE);
+            /* Derive Quadrant and Sector from High-Precision Global Coordinates */
+            players[i].state.q1 = (int)(players[i].gx / QUADRANT_SIZE) + 1;
+            players[i].state.q2 = (int)(players[i].gy / QUADRANT_SIZE) + 1;
+            players[i].state.q3 = (int)(players[i].gz / QUADRANT_SIZE) + 1;
+            players[i].state.s1 = players[i].gx - (players[i].state.q1 - 1) * QUADRANT_SIZE;
+            players[i].state.s2 = players[i].gy - (players[i].state.q2 - 1) * QUADRANT_SIZE;
+            players[i].state.s3 = players[i].gz - (players[i].state.q3 - 1) * QUADRANT_SIZE;
 
             /* Galactic Boundary Enforcement: Stop and Invert on edge contact */
             bool oob = false;
@@ -1929,7 +1930,7 @@ void update_game_logic() {
         for(int h=0; h<lq->bh_count && o_idx < MAX_NET_OBJECTS; h++) { NPCBlackHole *bh = lq->black_holes[h]; if(!bh->active) continue; upd.objects[o_idx++] = (NetObject){bh->x, bh->y, bh->z, 0, 0, 6, 0, 1, 100, 0, 0, 100, 6, bh->id + GALAXY_OBJECT_MIN_BLACKHOLE, 0, "Black Hole"}; }
         for(int n=0; n<lq->nebula_count && o_idx < MAX_NET_OBJECTS; n++) { NPCNebula *nb = lq->nebulas[n]; if(!nb->active) continue; upd.objects[o_idx++] = (NetObject){nb->x, nb->y, nb->z, 0, 0, 7, nb->type, 1, 100, 0, 0, 100, 7, nb->id + GALAXY_OBJECT_MIN_NEBULA, 0, "Nebula"}; }
         for(int p=0; p<lq->pulsar_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPulsar *pu = lq->pulsars[p]; if(!pu->active) continue; upd.objects[o_idx++] = (NetObject){pu->x, pu->y, pu->z, 0, 0, 8, 0, 1, 100, 0, 0, 100, 8, pu->id + GALAXY_OBJECT_MIN_PULSAR, 0, "Pulsar"}; }
-        for(int qsr=0; qsr<lq->quasar_count && o_idx < MAX_NET_OBJECTS; qsr++) { NPCQuasar *qs = lq->quasars[qsr]; if(!qs->active) continue; upd.objects[o_idx++] = (NetObject){qs->x, qs->y, qs->z, 0, 0, 29, qs->type, 1, 100, 0, 0, 100, 12, qs->id + GALAXY_OBJECT_MIN_QUASAR, 0, "Quasar"}; }
+        for(int qsr=0; qsr<lq->quasar_count && o_idx < MAX_NET_OBJECTS; qsr++) { NPCQuasar *qs = lq->quasars[qsr]; if(!qs->active) continue; upd.objects[o_idx++] = (NetObject){qs->x, qs->y, qs->z, 0, 0, 29, qs->type, 1, 100, 0, 0, 100, 0, qs->id + GALAXY_OBJECT_MIN_QUASAR, 0, "Quasar"}; }
         for(int c=0; c<lq->comet_count && o_idx < MAX_NET_OBJECTS; c++) { NPCComet *co = lq->comets[c]; if(!co->active) continue; upd.objects[o_idx++] = (NetObject){co->x, co->y, co->z, 0, 0, 9, 0, 1, 100, 0, 0, 100, 9, co->id + GALAXY_OBJECT_MIN_COMET, 0, "Comet"}; }
         for(int d=0; d<lq->derelict_count && o_idx < MAX_NET_OBJECTS; d++) { NPCDerelict *de = lq->derelicts[d]; if(!de->active) continue; upd.objects[o_idx] = (NetObject){de->x, de->y, de->z, 0, 0, 22, de->ship_class, 1, 100, 0, 0, 100, de->faction, de->id + GALAXY_OBJECT_MIN_DERELICT, 0, ""}; snprintf(upd.objects[o_idx].name, 64, "%s", de->name); o_idx++; }
         for(int a=0; a<lq->asteroid_count && o_idx < MAX_NET_OBJECTS; a++) { NPCAsteroid *as = lq->asteroids[a]; if(!as->active) continue; upd.objects[o_idx++] = (NetObject){as->x, as->y, as->z, 0, 0, 21, as->resource_type, 1, 100, as->amount, (int)(as->size * 100), 100, 21, as->id + GALAXY_OBJECT_MIN_ASTEROID, 0, "Asteroid"}; }

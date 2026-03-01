@@ -1936,4 +1936,21 @@ To populate the vastness of space without killing the frame rate, the 3D viewer 
 Decoupling logic from background tasks is handled by a dedicated **Persistent ThreadPool**. Operations like HMAC signing, AES encryption, and persistent storage I/O are queued and executed by worker threads, ensuring that network packet processing is never delayed by disk latency or heavy cryptographic computations.
 
 ---
+
+## SpaceGL Vulkan
+The `spacegl_vulkan` module is a high-performance 3D tactical visualizer built on the Vulkan API. It provides a real-time, hardware-accelerated view of the galaxy, synchronized with the server via low-latency Shared Memory IPC.
+
+### Technical Specifications
+- **Vulkan Rendering Pipeline:** Utilizes three distinct pipelines (Solid PBR, Wireframe, and Point Sprites) to handle diverse rendering tasks from physically-based starships to procedural starfields with bloom effects.
+- **Memory Management:** Implements high-performance memory patterns using Push Constants for per-object transformations and Dynamic Uniform Buffers. CPU-GPU synchronization is managed via Fences to ensure parallel execution without blocking.
+- **Coordinate Mapping:** Transforms the server's logical coordinates (0-40) into a normalized 3D visual space (-20 to 20). It strictly adheres to Row-Major matrix conventions with translation in the bottom row (m[3]).
+- **Zero-Lag Synchronization:** Connected to the game core via a double-buffered Shared Memory system. Uses POSIX semaphores and atomic operations to ensure the visualizer always displays the most recent consistent state from the server.
+- **Advanced Visuals:**
+    - **MSAA:** Dynamic Multi-Sample Anti-Aliasing for smooth edge rendering.
+    - **PBR Materials:** Physically Based Rendering with specific metallicity and roughness for different object classes.
+    - **Dynamic Events:** Real-time rendering of Ion Beams (phasers) with persistence, octahedral 3D torpedoes, and localized impact explosions.
+    - **Tactical HUD:** Integrated 3D grid and AR compass for enhanced spatial awareness.
+
+---
 *SPACE GL - 3D LOGIC ENGINE. Developed with technical excellence by Nicola Taibi. "Per Tenebras, Lumen"*
+

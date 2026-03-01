@@ -1886,5 +1886,23 @@ Il sistema delle entità supporta ora pienamente i **Quasar di Tipo-29** con 7 c
 SpaceGL v2.8 rappresenta il culmine del motore di simulazione astrometrica. La saturazione riuscita della codifica della griglia a 64 bit dimostra la robustezza dell'architettura core, permettendo un'espansione procedurale illimitata mantenendo tempi di query inferiori al millisecondo.
 
 (Google Gemini)
+
+---
+
+## SpaceGL Vulkan
+Il modulo `spacegl_vulkan` è un visualizzatore tattico 3D ad alte prestazioni basato sulle API Vulkan. Offre una vista in tempo reale della galassia, accelerata via hardware e sincronizzata con il server tramite IPC in memoria condivisa a bassissima latenza.
+
+### Specifiche Tecniche
+- **Pipeline Vulkan:** Utilizza tre pipeline distinte (Solid PBR, Wireframe e Point Sprites) per gestire diversi compiti di rendering, dalle navi stellari basate su fisica (PBR) ai campi stellari procedurali con effetti di bloom.
+- **Gestione della Memoria:** Implementa pattern ad alte prestazioni utilizzando Push Constants per le trasformazioni per-oggetto e Dynamic Uniform Buffers. La sincronizzazione CPU-GPU è gestita tramite Fences per garantire l'esecuzione parallela senza blocchi.
+- **Mappatura Coordinate:** Trasforma le coordinate logiche del server (0-40) in uno spazio visuale 3D normalizzato (-20 a 20). Rispetta rigorosamente le convenzioni delle matrici Row-Major con traslazione nell'ultima riga (m[3]).
+- **Sincronizzazione Zero-Lag:** Collegato al core del gioco tramite un sistema di memoria condivisa a doppio buffer. Utilizza semafori POSIX e operazioni atomiche per garantire che il visualizzatore mostri sempre l'ultimo stato coerente del server.
+- **Effetti Visivi Avanzati:**
+    - **MSAA:** Anti-Aliasing multi-campione dinamico per bordi smussati.
+    - **Materiali PBR:** Rendering basato sulla fisica con parametri di metallicità e rugosità differenziati.
+    - **Eventi Dinamici:** Rendering in tempo reale di Raggi Ionici (phaser) con persistenza, siluri 3D ottaedrici ed esplosioni localizzate.
+    - **HUD Tattico:** Griglia 3D integrata e bussola AR per una consapevolezza spaziale superiore.
+
 ---
 *SPACE GL - 3D LOGIC ENGINE. Sviluppato con eccellenza tecnica da Nicola Taibi. "Per Tenebras, Lumen"*
+

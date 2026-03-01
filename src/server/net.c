@@ -288,6 +288,8 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     if (upd->probes[0].active || upd->probes[1].active || upd->probes[2].active) mask |= UPD_PROBES;
     if (upd->beam_count > 0 || p->last_sent_state.beam_count > 0) mask |= UPD_COMBAT; 
     
+    /* Force update if beams are present, to ensure they are rendered */
+    if (upd->beam_count > 0) mask |= UPD_COMBAT;
     /* Interest Management: Only send objects if quadrant changed or enough time passed or object count changed significantly */
     bool quadrant_changed = (p->last_q1 != upd->q1 || p->last_q2 != upd->q2 || p->last_q3 != upd->q3);
     p->full_update_timer++;

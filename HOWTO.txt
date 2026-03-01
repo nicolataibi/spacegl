@@ -15,4 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 SPACEGL_KEY="thisisasecretkeyforencryption" ./run_server.sh
-SPACEGL_KEY="thisisasecretkeyforencryption" ./run_client.sh
+
+# Freeglut
+SPACEGL_KEY="thisisasecretkeyforencryption" ./run_client.sh gl
+
+# Vulkan
+SPACEGL_KEY="thisisasecretkeyforencryption" ./run_client.sh vk

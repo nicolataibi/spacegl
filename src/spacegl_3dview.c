@@ -3822,6 +3822,25 @@ void display() {
             glRotatef(objects[0].h, 0, 1, 0);
             drawMarkArc();
             glPopMatrix();
+
+            /* 4. DIRECTIONAL VECTOR (Green Arrow - Ship Orientation) */
+            glPushMatrix();
+            glRotatef(objects[0].h - 90.0f, 0, 1, 0);
+            glRotatef(objects[0].m, 0, 0, 1);
+            glDisable(GL_LIGHTING);
+            glLineWidth(2.0);
+            glBegin(GL_LINES);
+            glColor3f(0.0, 1.0, 0.0); /* Bright Green */
+            glVertex3f(0.2, 0, 0); glVertex3f(1.8, 0, 0); /* Arrow shaft */
+            /* Small arrow head */
+            glVertex3f(1.8, 0, 0); glVertex3f(1.5, 0.1, 0.1);
+            glVertex3f(1.8, 0, 0); glVertex3f(1.5, -0.1, 0.1);
+            glVertex3f(1.8, 0, 0); glVertex3f(1.5, -0.1, -0.1);
+            glVertex3f(1.8, 0, 0); glVertex3f(1.5, 0.1, -0.1);
+            glEnd();
+            glLineWidth(1.0);
+            glEnable(GL_LIGHTING);
+            glPopMatrix();
             
             glPopMatrix();
         }

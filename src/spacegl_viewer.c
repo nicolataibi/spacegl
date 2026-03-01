@@ -52,15 +52,8 @@ const char* get_faction_name(int faction) {
         case FACTION_ALLIANCE: return "Alliance";
         case FACTION_KORTHIAN:    return "Korthian";
         case FACTION_XYLARI:    return "Xylari";
-        case FACTION_SWARM:       return "Swarm";
-        case FACTION_VESPERIAN: return "Vesperian";
-        case FACTION_JEM_HADAR:  return "Ascendant";
-        case FACTION_THOLIAN:    return "Quarzite";
-        case FACTION_GORN:       return "Saurian";
-        case FACTION_GILDED:    return "Gilded";
-        case FACTION_SPECIES_8472: return "Fluidic Void";
-        case FACTION_BREEN:      return "Cryos";
         case FACTION_HIROGEN:    return "Apex";
+        case FACTION_SWARM:      return "Swarm";
         case 21: return "Asteroid";
         case 22: return "Derelict";
         case 23: return "Mine";

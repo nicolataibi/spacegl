@@ -299,7 +299,7 @@ void init_shm() {
     
     sem_init(&g_shm->data_ready, 1, 0);
     
-    /* Initial state for BOTH buffers to avoid glitches on first swap */
+    /* Initial state for BOTH buffers: set objects as INACTIVE */
     for(int b=0; b<2; b++) {
         g_shm->buffers[b].shm_s[0] = 20.0;
         g_shm->buffers[b].shm_s[1] = 20.0;
@@ -307,6 +307,10 @@ void init_shm() {
         g_shm->buffers[b].shm_hull_integrity = 100.0;
         g_shm->buffers[b].shm_energy = 10000;
         g_shm->buffers[b].shm_life_support = 100.0;
+        g_shm->buffers[b].object_count = 0;
+        for(int o=0; o<MAX_OBJECTS; o++) {
+            g_shm->buffers[b].objects[o].active = 0;
+        }
     }
 }
 
@@ -877,6 +881,13 @@ void handle_sigint(int sig) {
 int main(int argc, char *argv[]) {
     char server_ip[64];
     int my_ship_class = SHIP_CLASS_GENERIC_ALIEN;
+    char visualizer_type[4] = "gl";
+
+    /* Parse visualizer selection from arguments */
+    if (argc > 1) {
+        if (strcmp(argv[1], "vk") == 0) strcpy(visualizer_type, "vk");
+        else if (strcmp(argv[1], "gl") == 0) strcpy(visualizer_type, "gl");
+    }
     
     /* Security Initialization */
     char *env_key = getenv("SPACEGL_KEY");
@@ -1139,9 +1150,21 @@ int main(int argc, char *argv[]) {
     }
     if (visualizer_pid == 0) {
         /* Child process */
-        if (execl("./spacegl_3dview", "spacegl_3dview", shm_path, NULL) == -1) {
-            perror("execl failed to start ./spacegl_3dview");
-            _exit(1);
+        if (strcmp(visualizer_type, "vk") == 0) {
+            /* Start Vulkan Viewer */
+            if (fork() == 0) {
+                execl("./spacegl_vulkan", "spacegl_vulkan", shm_path, NULL);
+                perror("execl failed spacegl_vulkan"); _exit(1);
+            }
+            /* Start HUD in xterm */
+            execlp("xterm", "xterm", "-T", "SPACE GL - HUD", "-geometry", "140x40", "-e", "./spacegl_hud", shm_path, NULL);
+            perror("execlp failed xterm/hud"); _exit(1);
+        } else {
+            /* Default: OpenGL Viewer */
+            if (execl("./spacegl_3dview", "spacegl_3dview", shm_path, NULL) == -1) {
+                perror("execl failed to start ./spacegl_3dview");
+                _exit(1);
+            }
         }
     }
 

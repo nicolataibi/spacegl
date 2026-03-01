@@ -1246,6 +1246,11 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
     else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC && npcs[tid-GALAXY_OBJECT_MIN_NPC].active && npcs[tid-GALAXY_OBJECT_MIN_NPC].q1 == pq1 && npcs[tid-GALAXY_OBJECT_MIN_NPC].q2 == pq2 && npcs[tid-GALAXY_OBJECT_MIN_NPC].q3 == pq3) { tx=npcs[tid-GALAXY_OBJECT_MIN_NPC].x; ty=npcs[tid-GALAXY_OBJECT_MIN_NPC].y; tz=npcs[tid-GALAXY_OBJECT_MIN_NPC].z; found=true; }
     else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM && platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].active && platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q1 == pq1 && platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q2 == pq2 && platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q3 == pq3) { tx=platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].x; ty=platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].y; tz=platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].z; found=true; }
     else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER && monsters[tid-GALAXY_OBJECT_MIN_MONSTER].active && monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q1 == pq1 && monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q2 == pq2 && monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q3 == pq3) { tx=monsters[tid-GALAXY_OBJECT_MIN_MONSTER].x; ty=monsters[tid-GALAXY_OBJECT_MIN_MONSTER].y; tz=monsters[tid-GALAXY_OBJECT_MIN_MONSTER].z; found=true; }
+    else if (tid >= GALAXY_OBJECT_MIN_STARBASE && tid <= GALAXY_OBJECT_MAX_STARBASE && bases[tid-GALAXY_OBJECT_MIN_STARBASE].active && bases[tid-GALAXY_OBJECT_MIN_STARBASE].q1 == pq1 && bases[tid-GALAXY_OBJECT_MIN_STARBASE].q2 == pq2 && bases[tid-GALAXY_OBJECT_MIN_STARBASE].q3 == pq3) { tx=bases[tid-GALAXY_OBJECT_MIN_STARBASE].x; ty=bases[tid-GALAXY_OBJECT_MIN_STARBASE].y; tz=bases[tid-GALAXY_OBJECT_MIN_STARBASE].z; found=true; }
+    else if (tid >= GALAXY_OBJECT_MIN_PLANET && tid <= GALAXY_OBJECT_MAX_PLANET && planets[tid-GALAXY_OBJECT_MIN_PLANET].active && planets[tid-GALAXY_OBJECT_MIN_PLANET].q1 == pq1 && planets[tid-GALAXY_OBJECT_MIN_PLANET].q2 == pq2 && planets[tid-GALAXY_OBJECT_MIN_PLANET].q3 == pq3) { tx=planets[tid-GALAXY_OBJECT_MIN_PLANET].x; ty=planets[tid-GALAXY_OBJECT_MIN_PLANET].y; tz=planets[tid-GALAXY_OBJECT_MIN_PLANET].z; found=true; }
+    else if (tid >= GALAXY_OBJECT_MIN_STAR && tid <= GALAXY_OBJECT_MAX_STAR && stars_data[tid-GALAXY_OBJECT_MIN_STAR].active && stars_data[tid-GALAXY_OBJECT_MIN_STAR].q1 == pq1 && stars_data[tid-GALAXY_OBJECT_MIN_STAR].q2 == pq2 && stars_data[tid-GALAXY_OBJECT_MIN_STAR].q3 == pq3) { tx=stars_data[tid-GALAXY_OBJECT_MIN_STAR].x; ty=stars_data[tid-GALAXY_OBJECT_MIN_STAR].y; tz=stars_data[tid-GALAXY_OBJECT_MIN_STAR].z; found=true; }
+    else if (tid >= GALAXY_OBJECT_MIN_ASTEROID && tid <= GALAXY_OBJECT_MAX_ASTEROID && asteroids[tid-GALAXY_OBJECT_MIN_ASTEROID].active && asteroids[tid-GALAXY_OBJECT_MIN_ASTEROID].q1 == pq1 && asteroids[tid-GALAXY_OBJECT_MIN_ASTEROID].q2 == pq2 && asteroids[tid-GALAXY_OBJECT_MIN_ASTEROID].q3 == pq3) { tx=asteroids[tid-GALAXY_OBJECT_MIN_ASTEROID].x; ty=asteroids[tid-GALAXY_OBJECT_MIN_ASTEROID].y; tz=asteroids[tid-GALAXY_OBJECT_MIN_ASTEROID].z; found=true; }
+    else if (tid >= GALAXY_OBJECT_MIN_QUASAR && tid <= GALAXY_OBJECT_MAX_QUASAR && quasars[tid-GALAXY_OBJECT_MIN_QUASAR].active && quasars[tid-GALAXY_OBJECT_MIN_QUASAR].q1 == pq1 && quasars[tid-GALAXY_OBJECT_MIN_QUASAR].q2 == pq2 && quasars[tid-GALAXY_OBJECT_MIN_QUASAR].q3 == pq3) { tx=quasars[tid-GALAXY_OBJECT_MIN_QUASAR].x; ty=quasars[tid-GALAXY_OBJECT_MIN_QUASAR].y; tz=quasars[tid-GALAXY_OBJECT_MIN_QUASAR].z; found=true; }
     else if (tid >= GALAXY_OBJECT_MIN_PROBE && tid <= GALAXY_OBJECT_MAX_PROBE) {
         int p_idx = (tid - GALAXY_OBJECT_MIN_PROBE) / 3;
         int pr_idx = (tid - GALAXY_OBJECT_MIN_PROBE) % 3;
@@ -1274,6 +1279,15 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
         double weapon_mult = RATIO_BASE_POWER + (players[i].state.power_dist[2] * RATIO_WEAPON_POWER);
         int hit = (int)((e / dist) * (players[i].state.system_health[4] / (double)YIELD_HARVEST_MAX) * weapon_mult);
         
+        /* VISUAL FX: Trigger reliable IPC beam event (Owner ID is player index+1, Extra is target ID) */
+        push_server_event(i, IPC_EV_BEAM, players[i].state.s1, players[i].state.s2, players[i].state.s3, tx, ty, tz, (int)tid);
+        /* We also need to store the owner_id somewhere. Let's hijack the beam event struct if needed, 
+           or just ensure the visualizer knows who 'i' is.
+           In this architecture, 'i' is the sender. But push_server_event doesn't send the sender index to the queue?
+           Wait, push_server_event(i, ...) pushes to player i's queue.
+           The visualizer reads the queue. It knows it's the player's ship (Object 0).
+        */
+
         if (players[i].state.beam_count < MAX_NET_BEAMS - 1) {
             /* Beam 1: Top Emitter */
             players[i].state.beams[players[i].state.beam_count++] = (NetBeam){
@@ -3656,7 +3670,7 @@ static const CommandDef command_registry[] = {
     {"axs",  handle_axs,  "Toggle AR Compass"},
     {"grd",  handle_grd,  "Toggle Tactical Grid"},
     {"bridge", handle_bridge, "Change Bridge View (top, bottom, up, down, left, right, rear, off)"},
-    {"map",    handle_map,    "Toggle Galaxy Map with optional Filter"},
+    {"map",    handle_map,    "Toggle Galaxy Map. Filters: st,pl,bs,en,bh,ne,pu,is,co,as,de,mi,bu,pf,ri,mo,qu"},
     {"red",    handle_red,    "Toggle Red Alert / Condition Green"},
     {"orb",    handle_orb,    "Enter orbit around target celestial body (Planet, Star, BH, Pulsar, Quasar) < 1.0"},
     {"und",    handle_und,    "Undock from Starbase"},
