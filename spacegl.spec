@@ -19,7 +19,8 @@ BuildRequires:  desktop-file-utils
 BuildRequires:  ncurses-devel
 BuildRequires:  glfw-devel
 BuildRequires:  vulkan-loader-devel
-BuildRequires:  shaderc
+BuildRequires:  glslc
+BuildRequires:  libshaderc-devel
 
 Requires:       freeglut
 Requires:       mesa-libGLU
