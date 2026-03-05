@@ -119,6 +119,7 @@ void normalize_upright(double *h, double *m) {
 /* --- Command Handlers --- */
 
 void handle_enc(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "CRYPTOGRAPHIC FAILURE: Logic core damaged. Encryption systems offline.");
         return;
@@ -229,6 +230,7 @@ void handle_enc(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_pow(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     double e, s, w;
     if (sscanf(params, "%lf %lf %lf", &e, &s, &w) == 3) {
         if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
@@ -273,6 +275,7 @@ static double calculate_hyperdrive_speed(double factor) {
 }
 
 void handle_nav(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     double h, m, w, factor = 6.0;
     int args = sscanf(params, "%lf %lf %lf %lf", &h, &m, &w, &factor);
     if (args >= 3) {
@@ -318,6 +321,7 @@ void handle_nav(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_imp(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     double h, m, s, dist = -1.0;
     int args = sscanf(params, "%lf %lf %lf %lf", &h, &m, &s, &dist);
     if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
@@ -398,6 +402,7 @@ void handle_imp(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_pos(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     double h, m;
     if (sscanf(params, "%lf %lf", &h, &m) == 2) {
         if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
@@ -422,6 +427,7 @@ void handle_pos(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_apr(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     int tid = 0; double tdist = 2.0;
     int args = sscanf(params, " %d %lf", &tid, &tdist);
     
@@ -713,6 +719,7 @@ void handle_apr(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_zztop(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* permanent deletion of commander profile */
     send_server_msg(i, "COMPUTER", "TOTAL SYSTEM WIPE INITIATED. YOUR PROFILE IS BEING DELETED.");
     
@@ -737,6 +744,7 @@ void handle_zztop(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_xxx(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* Formal greeting to the captain */
     char greeting[128];
     snprintf(greeting, sizeof(greeting), "Saluti, Capitano %s. Protocollo di riposizionamento tattico d'emergenza inizializzato.", players[i].name);
@@ -791,6 +799,7 @@ void handle_xxx(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_cha(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL || players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) { send_server_msg(i, "COMPUTER", "CHASE FAILURE."); return; }
     if (players[i].state.energy < (uint64_t)(COST_ACTION_HIGH + COST_ACTION_MED)) { send_server_msg(i, "COMPUTER", "Insufficient energy."); return; }
     int tid = players[i].state.lock_target;
@@ -835,6 +844,7 @@ const char* get_ship_class_name(int ship_class) {
 }
 
 void handle_srs(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[2] < (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION)) {
         send_server_msg(i, "COMPUTER", "SENSOR FAILURE: Primary arrays are non-functional.");
         return;
@@ -1064,6 +1074,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_lrs(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[2] < (THRESHOLD_SYS_DAMAGED - 10.0)) {
         send_server_msg(i, "COMPUTER", "LONG RANGE SENSOR FAILURE: Sub-space arrays offline.");
         return;
@@ -1196,6 +1207,7 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_pha(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     int e, tid; 
     int args = sscanf(params, " %d %d", &tid, &e);
     
@@ -1313,31 +1325,10 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
         
         if (tid <= 32) {
             ConnectedPlayer *target = &players[tid - 1];
-            /* Directional Shield Logic */
-            double rel_dx = players[i].state.s1 - target->state.s1;
-            double rel_dy = players[i].state.s2 - target->state.s2;
-            double angle = atan2(rel_dx, -rel_dy) * 180.0 / M_PI;
-            if (angle < 0) {
-                angle += 360;
-            }
-            double rel_angle = angle - target->state.van_h;
-            while (rel_angle < 0) {
-                rel_angle += 360; 
-            }
-            while (rel_angle >= 360) {
-                rel_angle -= 360;
-            }
-
-            int s_idx = 0;
-            if (rel_angle > 315 || rel_angle <= 45) {
-                s_idx = 0;      /* Front */
-            } else if (rel_angle > 45 && rel_angle <= 135) {
-                s_idx = 5; /* Right */
-            } else if (rel_angle > 135 && rel_angle <= 225) {
-                s_idx = 1;/* Rear */
-            } else {
-                s_idx = 4;                                        /* Left */
-            }
+            
+            int s_idx = calculate_shield_index(players[i].gx, players[i].gy, players[i].gz,
+                                               target->gx, target->gy, target->gz,
+                                               target->state.van_h, target->state.van_m);
 
             int dmg_rem = hit;
             if (target->state.shields[s_idx] >= dmg_rem) {
@@ -1392,8 +1383,8 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
         } else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM) {
             NPCPlatform *target = &platforms[tid - GALAXY_OBJECT_MIN_PLATFORM];
             int dmg_rem = hit;
-            if (target->energy >= dmg_rem) {
-                target->energy -= dmg_rem;
+            if (target->energy >= (uint64_t)dmg_rem) {
+                target->energy -= (uint64_t)dmg_rem;
                 dmg_rem = 0;
             } else {
                 dmg_rem -= target->energy;
@@ -1437,6 +1428,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_tor(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[5] < 50.0) {
         send_server_msg(i, "TACTICAL", "Torpedo tubes OFFLINE.");
         return;
@@ -1540,6 +1532,7 @@ void handle_tor(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_she(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     int f, r, t, b, l, ri;
     if (sscanf(params, "%d %d %d %d %d %d", &f, &r, &t, &b, &l, &ri) == 6) {
         /* 1. Integrity Check (Shield System ID 8) */
@@ -1594,8 +1587,8 @@ void handle_she(int i, const char *params, bool *should_disconnect) {
         players[i].state.target_shields[1] = r;
         players[i].state.target_shields[2] = t;
         players[i].state.target_shields[3] = b;
-        players[i].state.target_shields[4] = l;
-        players[i].state.target_shields[5] = ri;
+        players[i].state.target_shields[4] = l;  /* Now index 4 is Left */
+        players[i].state.target_shields[5] = ri; /* Now index 5 is Right */
 
         // Set the timer for progressive shield change
         // For simplicity, a fixed duration for any change.
@@ -1609,6 +1602,7 @@ void handle_she(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_lock(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     int tid;
     if (sscanf(params, " %d", &tid) == 1 && tid > 0) {
         /* 1. Integrity Check (Sensors ID 2) */
@@ -1743,6 +1737,7 @@ void handle_lock(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_scan(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     int tid = 0;
     if (sscanf(params, " %d", &tid) != 1) {
         tid = players[i].state.lock_target;
@@ -1935,6 +1930,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_clo(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (!players[i].state.is_cloaked) {
         /* 1. Integrity check for engagement (Auxiliary ID 9) */
         if (players[i].state.system_health[9] < (THRESHOLD_SYS_CRITICAL + (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION))) {
@@ -1965,6 +1961,7 @@ void handle_clo(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_bor(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     int tid = 0;
     if(sscanf(params, " %d", &tid) != 1) {
         tid = players[i].state.lock_target;
@@ -2130,6 +2127,7 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_dis(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     int tid = 0; 
     if(sscanf(params, " %d", &tid) != 1) {
         tid = players[i].state.lock_target;
@@ -2250,6 +2248,7 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_min(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Transporters (ID 3) >= 15% */
     if (players[i].state.system_health[3] < (THRESHOLD_SYS_CRITICAL + (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION))) {
         send_server_msg(i, "ENGINEERING", "MINING FAILURE: Extraction beams offline (Transporter damage).");
@@ -2339,6 +2338,7 @@ void handle_min(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_sco(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Auxiliary (ID 9) >= 15% */
     if (players[i].state.system_health[9] < 15.0) {
         send_server_msg(i, "ENGINEERING", "SCOOPING FAILURE: Solar collectors damaged. Repair Auxiliary systems.");
@@ -2395,6 +2395,7 @@ void handle_sco(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_har(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Auxiliary (ID 9) >= 25% (Higher than sco) */
     if (players[i].state.system_health[9] < THRESHOLD_SYS_DAMAGED) {
         send_server_msg(i, "ENGINEERING", "HARVESTING FAILURE: Antimatter containment field unstable. Repairs required.");
@@ -2460,6 +2461,7 @@ void handle_har(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_doc(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     int base_idx = -1;
     for(int b=0; b<MAX_BASES; b++) {
         if(bases[b].active && bases[b].q1==players[i].state.q1 && bases[b].q2==players[i].state.q2 && bases[b].q3==players[i].state.q3) {
@@ -2500,6 +2502,7 @@ void handle_doc(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_con(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     int type, amount;
     if (sscanf(params, "%d %d", &type, &amount) != 2) {
         send_server_msg(i, "COMPUTER", "Usage: con <Type> <Amount>");
@@ -2575,6 +2578,7 @@ void handle_con(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_load(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Auxiliary (ID 9) */
     if (players[i].state.system_health[9] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "TRANSFER FAILURE: Internal power bus non-functional.");
@@ -2623,6 +2627,7 @@ void handle_load(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_rep(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     const char* sys_names[] = {"Hyperdrive", "Impulse", "Sensors", "Transp", "Ion Beams", "Torps", "Computer", "Life Support", "Shields", "Auxiliary"};
     int sid; 
     if(sscanf(params, " %d", &sid) == 1) {
@@ -2677,6 +2682,7 @@ void handle_rep(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_fix(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Auxiliary (ID 9) */
     if (players[i].state.system_health[9] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "FIELD REPAIR FAILURE: Welding arrays offline (Auxiliary damage).");
@@ -2690,7 +2696,7 @@ void handle_fix(int i, const char *params, bool *should_disconnect) {
     }
 
     /* Check Resources: 50 Graphene (inv[4]), 20 Neo-Titanium (inv[2]) */
-    if (players[i].state.inventory[4] < (uint32_t)COST_ACTION_MED || players[i].state.inventory[2] < (uint32_t)COST_MANEUVER_ADJUST) {
+    if ((uint32_t)players[i].state.inventory[4] < (uint32_t)COST_ACTION_MED || (uint32_t)players[i].state.inventory[2] < (uint32_t)COST_MANEUVER_ADJUST) {
         char err_msg[128];
         sprintf(err_msg, "Insufficient materials for hull repair (Req: %d Graphene, %d Neo-Titanium).", COST_ACTION_MED, COST_MANEUVER_ADJUST);
         send_server_msg(i, "COMPUTER", err_msg);
@@ -2721,6 +2727,7 @@ void handle_fix(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_sta(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Computer (ID 6) */
     if (players[i].state.system_health[6] < (THRESHOLD_SYS_CRITICAL / 2.0)) {
         send_server_msg(i, "COMPUTER", "DIAGNOSTICS FAILURE: Mainframe logic core non-responsive.");
@@ -2765,7 +2772,7 @@ void handle_sta(int i, const char *params, bool *should_disconnect) {
     sprintf(b+strlen(b), " MAIN REACTOR: %" PRIu64 " / %" PRIu64 " (%.1f%%)\n ALLOCATION:   ENGINES: %.0f%%  SHIELDS: %.0f%%  WEAPONS: %.0f%%\n", players[i].state.energy, (uint64_t)MAX_ENERGY_CAPACITY, en_pct, players[i].state.power_dist[0]*100, players[i].state.power_dist[1]*100, players[i].state.power_dist[2]*100);
 
     strcat(b, BLUE "\n[ DEFENSIVE GRID AND ARMAMENTS ]\n" RESET);
-    sprintf(b+strlen(b), " SHIELDS: F:%-4d R:%-4d T:%-4d B:%-4d L:%-4d RI:%-4d\n Torpedoes: %-2d  ION BEAM CHARGE: %.1f%%  LOCK: %d\n", players[i].state.shields[0], players[i].state.shields[1], players[i].state.shields[2], players[i].state.shields[3], players[i].state.shields[4], players[i].state.shields[5], players[i].state.torpedoes, players[i].state.ion_beam_charge, players[i].state.lock_target);
+    sprintf(b+strlen(b), " SHIELDS: F:%-4d R:%-4d T:%-4d B:%-4d L:%-4d R:%-4d\n Torpedoes: %-2d  ION BEAM CHARGE: %.1f%%  LOCK: %d\n", players[i].state.shields[0], players[i].state.shields[1], players[i].state.shields[2], players[i].state.shields[3], players[i].state.shields[4], players[i].state.shields[5], players[i].state.torpedoes, players[i].state.ion_beam_charge, players[i].state.lock_target);
 
     strcat(b, BLUE "\n[ SYSTEMS INTEGRITY ]\n" RESET);
     double h_int = players[i].state.hull_integrity;
@@ -2787,6 +2794,7 @@ void handle_sta(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_inv(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Computer (ID 6) */
     if (players[i].state.system_health[6] < (THRESHOLD_SYS_CRITICAL / 2.0)) {
         send_server_msg(i, "COMPUTER", "INVENTORY FAILURE: Cargo database inaccessible. Repair computer core.");
@@ -2835,6 +2843,7 @@ void handle_inv(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_dam(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Computer (ID 6) */
     if (players[i].state.system_health[6] < (THRESHOLD_SYS_CRITICAL / 2.0)) {
         send_server_msg(i, "COMPUTER", "DIAGNOSTICS FAILURE: Damage analysis core non-functional.");
@@ -2887,6 +2896,7 @@ void handle_dam(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_cal(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "CALCULATION FAILURE: Navigation core non-functional.");
         return;
@@ -2983,6 +2993,7 @@ void handle_cal(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_ical(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Computer (ID 6) */
     if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "CALCULATION FAILURE: Navigation core offline.");
@@ -3058,6 +3069,7 @@ void handle_ical(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_who(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Computer (ID 6) */
     if (players[i].state.system_health[6] < (THRESHOLD_SYS_CRITICAL / 2.0)) {
         send_server_msg(i, "COMPUTER", "REGISTRY FAILURE: Deep space link offline. Repair computer core.");
@@ -3102,6 +3114,7 @@ void handle_who(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_jum(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     int qx, qy, qz;
     if (sscanf(params, "%d %d %d", &qx, &qy, &qz) == 3) {
         if (!IS_Q_VALID(qx, qy, qz)) {
@@ -3180,6 +3193,7 @@ void handle_jum(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_psy(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Computer (ID 6) >= 20% */
     if (players[i].state.system_health[6] < 20.0) {
         send_server_msg(i, "COMPUTER", "PSY-OPS FAILURE: Logic core damaged. Cannot synthesize credible threat.");
@@ -3223,6 +3237,7 @@ void handle_psy(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_hull(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     /* 1. Hardware Requirement: Auxiliary (ID 9) */
     if (players[i].state.system_health[9] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "PLATING FAILURE: Hull integration systems offline.");
@@ -3238,7 +3253,7 @@ void handle_hull(int i, const char *params, bool *should_disconnect) {
     }
 
     /* Check Resources: 100 Composite (inventory[7]) */
-    if (players[i].state.inventory[7] < (uint32_t)COST_ACTION_HIGH) {
+    if ((uint32_t)players[i].state.inventory[7] < (uint32_t)COST_ACTION_HIGH) {
         char err_msg[128];
         sprintf(err_msg, "Insufficient Composite materials for reinforcement (Req: %d).", COST_ACTION_HIGH);
         send_server_msg(i, "COMPUTER", err_msg);
@@ -3265,10 +3280,12 @@ void handle_hull(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_supernova(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     send_server_msg(i, "ADMIN", "SUPERNOVA INITIATED.");
 }
 
 void handle_axs(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "HUD FAILURE: Augmented Reality core offline.");
         return;
@@ -3283,6 +3300,7 @@ void handle_axs(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_grd(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "HUD FAILURE: Grid projection systems non-functional.");
         return;
@@ -3297,6 +3315,7 @@ void handle_grd(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_bridge(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "VISUAL FAILURE: Bridge camera link corrupted.");
         return;
@@ -3350,6 +3369,7 @@ void handle_bridge(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_map(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[6] < (THRESHOLD_SYS_CRITICAL + 5.0)) {
         send_server_msg(i, "COMPUTER", "CARTOGRAPHY FAILURE: Spatial projection mainframe damaged.");
         return;
@@ -3404,6 +3424,7 @@ void handle_map(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_und(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (!players[i].is_docked) {
         send_server_msg(i, "COMPUTER", "Vessel is already in open space.");
         return;
@@ -3427,6 +3448,7 @@ void handle_und(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_aux(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     const char *p_ptr = params;
     while(*p_ptr && (*p_ptr == ' ' || *p_ptr == '\t')) p_ptr++;
     
@@ -3679,6 +3701,7 @@ static const CommandDef command_registry[] = {
 };
 
 void handle_red(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "RED ALERT FAILURE: Tactical coordination core damaged.");
         return;
@@ -3701,6 +3724,7 @@ void handle_red(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_orb(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "ORBITAL ENTRY FAILURE: Maneuvering thrusters offline.");
         return;
@@ -3778,6 +3802,7 @@ void handle_orb(int i, const char *params, bool *should_disconnect) {
 }
 
 void handle_help(int i, const char *params, bool *should_disconnect) {
+    (void)params; (void)should_disconnect;
     send_server_msg(i, "COMPUTER", CYAN "\n--- LCARS COMMAND DIRECTORY ---" RESET);
     
     for (int c = 0; command_registry[c].name != NULL; c++) {

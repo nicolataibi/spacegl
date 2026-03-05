@@ -212,38 +212,10 @@ void update_npc_ai(int n) {
             }
             int dmg = (int)(base_dmg * dist_factor);
             
-            double rel_dx = npcs[n].x - target->state.s1;
-            double rel_dy = npcs[n].y - target->state.s2;
-            double rel_dz = npcs[n].z - target->state.s3;
-            double angle = atan2(rel_dx, -rel_dy) * 180.0 / M_PI;
-            if (angle < 0) {
-                angle += 360;
-            }
-            double rel_angle = angle - target->state.van_h;
-            while (rel_angle < 0) {
-                rel_angle += 360;
-            }
-            while (rel_angle >= 360) {
-                rel_angle -= 360;
-            }
-            double dist_2d = sqrt(rel_dx * rel_dx + rel_dy * rel_dy);
-            double vertical_angle = atan2(rel_dz, dist_2d) * 180.0 / M_PI;
-            int s_idx = 0;
-            if (vertical_angle > 45) {
-                s_idx = 2;
-            } else if (vertical_angle < -45) {
-                s_idx = 3;
-            } else {
-                if (rel_angle > 315 || rel_angle <= 45) {
-                    s_idx = 0;
-                } else if (rel_angle > 45 && rel_angle <= 135) {
-                    s_idx = 5;
-                } else if (rel_angle > 135 && rel_angle <= 225) {
-                    s_idx = 1;
-                } else {
-                    s_idx = 4;
-                }
-            }
+            int s_idx = calculate_shield_index(npcs[n].gx, npcs[n].gy, npcs[n].gz,
+                                               target->gx, target->gy, target->gz,
+                                               target->state.van_h, target->state.van_m);
+            
             int dmg_rem = dmg;
             if (target->state.shields[s_idx] > 0) {
                 if (target->state.shields[s_idx] >= dmg_rem) {
@@ -742,9 +714,9 @@ void update_game_logic() {
         if (players[i].state.red_alert) base_drain += (GAME_TICK_RATE / 60); /* Effectively 1.5 per tick, 1.5*GAME_TICK_RATE per sec */
         if (players[i].is_docked) base_drain = 0; 
         
-                    if (players[i].state.energy >= base_drain) {
+                    if (players[i].state.energy >= (uint64_t)base_drain) {
                         #pragma omp atomic
-                        players[i].state.energy -= base_drain;
+                        players[i].state.energy -= (uint64_t)base_drain;
                         /* Gradually recover life support if energy is present (RATE_LS_REGEN per tick) */
                         if (players[i].state.life_support < (double)YIELD_HARVEST_MAX) players[i].state.life_support += RATE_LS_REGEN;
                     } else {
@@ -1139,8 +1111,8 @@ void update_game_logic() {
             double current_f = players[i].hyper_speed * (double)GAME_TICK_RATE;
             int drain = (int)(((double)COST_ACTION_MED + (current_f * (double)COST_ACTION_MED)) * (100.0 / hyper_h));
             
-            if (players[i].state.energy > drain) {
-                players[i].state.energy -= drain;
+            if (players[i].state.energy > (uint64_t)drain) {
+                players[i].state.energy -= (uint64_t)drain;
             } else {
                 players[i].state.energy = 0;
                 players[i].nav_state = NAV_STATE_DRIFT;
@@ -1233,8 +1205,8 @@ void update_game_logic() {
             /* Realistic Impulse consumption: Linear with speed, Inverse with integrity */
             int imp_drain = (int)((QUADRANT_SIZE + (players[i].hyper_speed * (double)MAX_TORPEDO_CAPACITY)) * (100.0 / impulse_h));
             
-            if (players[i].state.energy > imp_drain) {
-                players[i].state.energy -= imp_drain;
+            if (players[i].state.energy > (uint64_t)imp_drain) {
+                players[i].state.energy -= (uint64_t)imp_drain;
             } else {
                 players[i].state.energy = 0;
                 players[i].nav_state = NAV_STATE_DRIFT;
@@ -1788,38 +1760,10 @@ void update_game_logic() {
             {
                 if (hit_target >= GALAXY_OBJECT_MIN_PLAYER && hit_target <= GALAXY_OBJECT_MAX_PLAYER) {
                     ConnectedPlayer *p = &players[hit_target - 1];
-                    // Calculate relative position of torpedo to player
-                    double rel_dx = pt->gx - p->gx;
-                    double rel_dy = pt->gy - p->gy;
-                    double rel_dz = pt->gz - p->gz;
 
-                    double angle = atan2(rel_dx, -rel_dy) * 180.0 / M_PI; // Horizontal angle of impact
-                    while (angle < 0) angle += 360;
-                    while (angle >= 360) angle -= 360;
-
-                    double rel_angle = angle - p->state.van_h; // Relative horizontal angle to player's facing
-                    while (rel_angle < 0) rel_angle += 360;
-                    while (rel_angle >= 360) rel_angle -= 360;
-
-                    double dist_2d = sqrt(rel_dx * rel_dx + rel_dy * rel_dy);
-                    double vertical_angle = atan2(rel_dz, dist_2d) * 180.0 / M_PI;
-
-                    int s_idx = 0; // Shield index
-                    if (vertical_angle > 45) {
-                        s_idx = 2; // Top shield
-                    } else if (vertical_angle < -45) {
-                        s_idx = 3; // Bottom shield
-                    } else {
-                        if (rel_angle > 315 || rel_angle <= 45) {
-                            s_idx = 0; // Front shield
-                        } else if (rel_angle > 45 && rel_angle <= 135) {
-                            s_idx = 5; // Right shield
-                        } else if (rel_angle > 135 && rel_angle <= 225) {
-                            s_idx = 1; // Rear shield
-                        } else {
-                            s_idx = 4; // Left shield
-                        }
-                    }
+                    int s_idx = calculate_shield_index(pt->gx, pt->gy, pt->gz,
+                                                       p->gx, p->gy, p->gz,
+                                                       p->state.van_h, p->state.van_m);
 
                     int total_torpedo_damage = DMG_TORPEDO; // Use the full DMG_TORPEDO
                     int dmg_rem = total_torpedo_damage;
@@ -2024,3 +1968,52 @@ void apply_hull_damage(int i, double amount) {
     sprintf(msg, "Hull impact! System %s damaged by %.1f%%.", sys_names[sys], sys_dmg);
     send_server_msg(i, "DAMAGE", msg);
 }
+
+int calculate_shield_index(double shooter_x, double shooter_y, double shooter_z, 
+                           double target_x, double target_y, double target_z,
+                           double target_h, double target_m) {
+    double rel_dx = shooter_x - target_x;
+    double rel_dy = shooter_y - target_y;
+    double rel_dz = shooter_z - target_z;
+    
+    double rad_h = target_h * M_PI / 180.0;
+    double rad_m = target_m * M_PI / 180.0;
+
+    /* Local basis vectors of the target ship */
+    /* Forward (F) */
+    double fx = cos(rad_m) * sin(rad_h);
+    double fy = cos(rad_m) * -cos(rad_h);
+    double fz = sin(rad_m);
+    
+    /* Right (R) */
+    double rx = cos(rad_h);
+    double ry = sin(rad_h);
+    double rz = 0;
+    
+    /* Up (U) = F x R */
+    double ux = fy * rz - fz * ry;
+    double uy = fz * rx - fx * rz;
+    double uz = fx * ry - fy * rx;
+
+    /* Project relative vector onto local basis */
+    double v_f = rel_dx * fx + rel_dy * fy + rel_dz * fz;
+    double v_r = rel_dx * rx + rel_dy * ry + rel_dz * rz;
+    double v_u = rel_dx * ux + rel_dy * uy + rel_dz * uz;
+
+    double dist = sqrt(rel_dx * rel_dx + rel_dy * rel_dy + rel_dz * rel_dz);
+    if (dist < 1e-6) return 0; 
+
+    /* Vertical angle in local space */
+    double local_vertical_angle = asin(v_u / dist) * 180.0 / M_PI;
+
+    if (local_vertical_angle > 45.0) return 2; 
+    if (local_vertical_angle < -45.0) return 3; 
+
+    /* Horizontal angle in local space (F is forward, R is right) */
+    double local_horizontal_angle = atan2(v_r, v_f) * 180.0 / M_PI;
+
+    if (local_horizontal_angle > -45.0 && local_horizontal_angle <= 45.0) return 0;  
+    if (local_horizontal_angle > 45.0 && local_horizontal_angle <= 135.0) return 5; /* Right */
+    if (local_horizontal_angle > 135.0 || local_horizontal_angle <= -135.0) return 1; 
+    return 4; /* Left */
+    }

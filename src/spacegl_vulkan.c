@@ -363,6 +363,10 @@ typedef struct {
     int mapFilter;
     float bridgeAnim;
     int showBridge;
+    /* Shield Hit Visuals */
+    int shieldHitTimers[6];
+    int lastShieldsValHit[6];
+    bool shieldsInitialized;
 } VulkanApp;
 
 uint32_t findMemoryType(VkPhysicalDevice pDevice, uint32_t typeFilter, VkMemoryPropertyFlags props) {
@@ -970,6 +974,105 @@ void createGraphicsPipeline(VulkanApp* app) {
     vkDestroyShaderModule(app->device, fM, NULL); vkDestroyShaderModule(app->device, vM, NULL);
 }
 
+void drawShieldGlow(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float radius, float r, float g, float b, float alpha, float pulse) {
+    VkDeviceSize off = 0;
+    /* Increased layers and radius for far-distance visibility */
+    for (int i = 1; i <= 4; i++) {
+        float s = radius * (1.2f + i * 0.4f);
+        PushConstants pc = {0};
+        mat4 S; mat4_scale(S, (vec3){s, s, s});
+        mat4_multiply(S, modelBase, pc.model);
+        pc.color[0] = r; pc.color[1] = g; pc.color[2] = b; pc.color[3] = alpha / (i * 1.2f);
+        pc.usePushColor = 7; pc.time = pulse;
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    }
+}
+
+void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tactScale) {
+    bool any_hit = false;
+    for (int s = 0; s < 6; s++) if (app->shieldHitTimers[s] > 0) any_hit = true;
+    if (!any_hit) return;
+
+    /* Player position smoothed */
+    float ox = app->smoothObjs[0].x;
+    float oy = app->smoothObjs[0].y;
+    float oz = app->smoothObjs[0].z;
+    float oh = app->smoothObjs[0].h;
+    float om = app->smoothObjs[0].m;
+
+    /* Mapping: vX=X-20, vY=Z-20, vZ=20-Y */
+    vec3 p = {(ox - 20.0f) * tactScale, (oz - 20.0f) * tactScale, (20.0f - oy) * tactScale};
+    mat4 T_ship; mat4_translate(T_ship, p);
+
+    /* Rotate shield system to match ship heading/mark */
+    mat4 R_ship; mat4_identity(R_ship);
+    mat4_rotate(R_ship, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+    mat4_rotate(R_ship, -oh * M_PI / 180.0f, (vec3){0, 1, 0});
+    float h_rad = oh * M_PI / 180.0f;
+    mat4_rotate(R_ship, om * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
+
+    struct { float rx, ry; } shield_rot[] = {
+        {0, 0},           /* 0: Front (+X) */
+        {0, M_PI},        /* 1: Rear (-X) */
+        {-M_PI/2.0f, 0},  /* 2: Top (+Y) */
+        {M_PI/2.0f, 0},   /* 3: Bottom (-Y) */
+        {0, M_PI/2.0f},   /* 4: Left (+Z world axis) */
+        {0, -M_PI/2.0f}   /* 5: Right (-Z world axis) */
+    };
+
+    for (int s = 0; s < 6; s++) {
+        if (app->shieldHitTimers[s] <= 0) continue;
+
+        float t = app->shieldHitTimers[s] / 80.0f;
+        float alpha = (t > 0.5f) ? 1.0f : t * 2.0f;
+        /* Larger scale for visibility */
+        float scale = (1.2f + (1.0f - t) * 0.3f) * tactScale;
+
+        mat4 R_sec, T_sec, S_sec, M_sec;
+        mat4_identity(R_sec);
+        mat4_rotate(R_sec, shield_rot[s].ry, (vec3){0, 1, 0});
+        mat4_rotate(R_sec, shield_rot[s].rx, (vec3){0, 0, 1}); 
+        
+        /* CORRECT ORDER for Row-Major: S * T_sec * R_sec * R_ship * T_ship
+           This moves the vertex along X, THEN rotates it to the correct sector. */
+        float thk = (s == 2 || s == 3) ? 1.2f : 0.3f;
+        mat4_scale(S_sec, (vec3){thk * scale, 1.8f * scale, 1.8f * scale});
+        mat4_translate(T_sec, (vec3){1.45f * scale, 0, 0});
+
+        mat4_multiply(S_sec, T_sec, M_sec);
+        mat4_multiply(M_sec, R_sec, M_sec);
+        mat4_multiply(M_sec, R_ship, M_sec);
+        mat4_multiply(M_sec, T_ship, M_sec);
+
+        /* 1. Shield Energy Grid (Wireframe layer to match 3DView look) */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+        PushConstants wpc = {0};
+        memcpy(wpc.model, M_sec, sizeof(mat4));
+        wpc.color[0] = 0.0f; wpc.color[1] = 0.9f; wpc.color[2] = 1.0f; wpc.color[3] = alpha;
+        wpc.usePushColor = 1; 
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(wpc), &wpc);
+        VkDeviceSize off = 0;
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+
+        /* 2. Shield Surface Glow (Solid but transparent) */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
+        PushConstants pc = {0};
+        memcpy(pc.model, M_sec, sizeof(mat4));
+        pc.color[0] = 0.0f; pc.color[1] = 0.6f; pc.color[2] = 1.0f; pc.color[3] = alpha * 0.3f;
+        pc.usePushColor = 7; pc.time = pulse;
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+
+        /* 3. Outer Volumetric Glow Effect */
+        drawShieldGlow(cb, app, M_sec, 0.6f * scale, 0.0f, 0.5f, 1.0f, alpha * 0.7f, pulse);
+    }
+}
+
 void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,NULL,0,NULL}; vkBeginCommandBuffer(cb, &bi);
     VkClearValue cl[2] = {0}; cl[0].color = (VkClearColorValue){{0,0,0,1}}; cl[1].depthStencil = (VkClearDepthStencilValue){1,0};
@@ -1380,15 +1483,15 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     float s;
                     if (j == 0) { /* Initial Flash (Mode 7) - Very bright and fast */
                         if (life < 0.7f) continue;
-                        s = (1.0f - life) * 20.0f * tactScale;
+                        s = (1.0f - life) * 3.0f * tactScale;
                         dpc.color[0]=1; dpc.color[1]=1; dpc.color[2]=1; dpc.color[3]= (life-0.7f)/0.3f;
                         dpc.usePushColor = 7; 
                     } else if (j == 1) { /* Core: Shrinking intense white (Mode 6) */
-                        s = life * 5.0f * tactScale;
+                        s = life * 1.5f * tactScale;
                         dpc.color[0]=1; dpc.color[1]=1; dpc.color[2]=1; dpc.color[3]=life;
                         dpc.usePushColor = 6; 
                     } else { /* Aura: Expanding cyan shockwave (Mode 7) */
-                        s = (1.0f + (1.0f - life) * 3.0f) * 10.0f * tactScale;
+                        s = (1.0f + (1.0f - life) * 2.0f) * 2.5f * tactScale;
                         dpc.color[0]=0; dpc.color[1]=1; dpc.color[2]=1; dpc.color[3]=life * 0.7f;
                         dpc.usePushColor = 7; 
                     }
@@ -1440,7 +1543,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 
                 vec3 V = { vtx - vsx, vty - vsy, vtz - vsz };
                 float dist = sqrtf(V[0]*V[0] + V[1]*V[1] + V[2]*V[2]);
-                if (dist < 0.05f) continue;
+                if (dist < 0.1f) continue; /* Increased threshold for stability */
                 V[0] /= dist; V[1] /= dist; V[2] /= dist;
 
                 PushConstants bpc = {0}; mat4 T, S, R, M;
@@ -1448,14 +1551,19 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 /* DIRECT BASIS CONSTRUCTION: Align model +X axis with normalized direction vector V */
                 mat4_identity(R);
                 vec3 right, up_ref = {0, 1, 0};
-                if (fabsf(V[1]) > 0.9f) up_ref[0] = 1; /* Handle vertical shots */
+                if (fabsf(V[1]) > 0.95f) { up_ref[0] = 1; up_ref[1] = 0; } /* Stricter vertical check */
                 
                 /* right = cross(up_ref, V) */
                 right[0] = up_ref[1]*V[2] - up_ref[2]*V[1];
                 right[1] = up_ref[2]*V[0] - up_ref[0]*V[2];
                 right[2] = up_ref[0]*V[1] - up_ref[1]*V[0];
                 float rlen = sqrtf(right[0]*right[0] + right[1]*right[1] + right[2]*right[2]);
-                right[0] /= rlen; right[1] /= rlen; right[2] /= rlen;
+                
+                if (rlen < 0.001f) { /* Absolute safety against NaN */
+                    right[0] = 0; right[1] = 0; right[2] = 1;
+                } else {
+                    right[0] /= rlen; right[1] /= rlen; right[2] /= rlen;
+                }
                 
                 /* actual_up = cross(V, right) */
                 vec3 a_up;
@@ -1535,6 +1643,10 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
             }
         }
+        
+        /* Draw Shield Hits */
+        drawShieldEffect(cb, app, pulse, tactScale);
+
         } /* End of Tactical View Render (mapAnim < 0.99) */
     }
     vkCmdEndRenderPass(cb); vkEndCommandBuffer(cb);
@@ -1595,22 +1707,22 @@ void drawFrame(VulkanApp* app) {
 
         /* Rotazione basata sulla Modalità (Look around) - Relativa alla Prua */
         int mode = app->showBridge % 10;
-        if (mode == 2) mat4_rotate(R_base, -M_PI/2.0f, (vec3){0, 1, 0});      /* LEFT: -90 deg from forward */
-        else if (mode == 3) mat4_rotate(R_base, M_PI/2.0f, (vec3){0, 1, 0});   /* RIGHT: +90 deg from forward */
+        if (mode == 2) mat4_rotate(R_base, M_PI/2.0f, (vec3){0, 1, 0});       /* LEFT: +90 deg from forward */
+        else if (mode == 3) mat4_rotate(R_base, -M_PI/2.0f, (vec3){0, 1, 0});  /* RIGHT: -90 deg from forward */
         else if (mode == 4) mat4_rotate(R_base, M_PI/4.0f, (vec3){0, 0, 1});   /* UP: +45 deg around local Z */
         else if (mode == 5) mat4_rotate(R_base, -M_PI/4.0f, (vec3){0, 0, 1});  /* DOWN: -45 deg around local Z */
         else if (mode == 6) mat4_rotate(R_base, M_PI, (vec3){0, 1, 0});        /* REAR: 180 deg from forward */
 
         mat4_multiply(R_base, R_ship, R_cam_world);
 
-        /* Matrice di Vista = inv(R_cam_world) * inv(T_world) */
+        /* Matrice di Vista = inv(T_world) * inv(R_cam_world) 
+           In Row-Major: v * T_inv * R_inv = (v - pos) * R_inv */
         mat4 R_inv; mat4_identity(R_inv);
         for(int i=0; i<3; i++) for(int j=0; j<3; j++) R_inv[i][j] = R_cam_world[j][i];
-        
-        mat4 T_inv; mat4_translate(T_inv, (vec3){-wx, -wy, -wz});
-        mat4_multiply(R_inv, T_inv, m_brg);
-    }
 
+        mat4 T_inv; mat4_translate(T_inv, (vec3){-wx, -wy, -wz});
+        mat4_multiply(T_inv, R_inv, m_brg);
+        }
     /* 3. Interpolazione Finale della Vista */
     if (app->bridgeAnim <= 0.001f) {
         memcpy(view, m_std, sizeof(mat4));
@@ -1637,9 +1749,14 @@ void drawFrame(VulkanApp* app) {
     vkQueueSubmit(app->graphicsQueue, 1, &si, app->inFlightFences[app->currentFrame]);
     VkSwapchainKHR sw = app->swapChain; VkPresentInfoKHR pi = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, NULL, 1, &app->renderFinishedSemaphores[app->currentFrame], 1, &sw, &imgIdx, NULL};
     vkQueuePresentKHR(app->graphicsQueue, &pi); app->currentFrame = (app->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+    /* Decrement Shield Hit Timers */
+    for (int s = 0; s < 6; s++) if (app->shieldHitTimers[s] > 0) app->shieldHitTimers[s]--;
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    (void)scancode;
+    (void)mods;
     VulkanApp* app = (VulkanApp*)glfwGetWindowUserPointer(window);
     if (action != GLFW_PRESS && action != GLFW_REPEAT) {
         return;
@@ -1831,8 +1948,17 @@ void mainLoop(VulkanApp* app) {
                         app->activeDismantles[i].scale = 1.0f; /* Base scale of object being dismantled */
                         break;
                     }
-                }
- else if (ev->type == IPC_EV_JUMP) {
+                } else if (ev->type == IPC_EV_RECOVERY) {
+                    /* Recovery Beam Visual (Reuse dismantle logic for now) */
+                    for(int i=0; i<MAX_ACTIVE_DISMANTLES; i++) if(app->activeDismantles[i].life <= 0){
+                        app->activeDismantles[i].x = (float)ev->x1 - 20.0f;
+                        app->activeDismantles[i].y = (float)ev->z1 - 20.0f;
+                        app->activeDismantles[i].z = 20.0f - (float)ev->y1;
+                        app->activeDismantles[i].life = 1.0f;
+                        app->activeDismantles[i].scale = 0.5f; /* Smaller for recovery */
+                        break;
+                    }
+                } else if (ev->type == IPC_EV_JUMP) {
                     /* Use smoothed coordinates if available for perfect alignment, otherwise raw event coords */
                     app->jumpArrival.x = app->smoothObjs[0].first ? ((float)ev->x1 - 20.0f) : (app->smoothObjs[0].x - 20.0f);
                     app->jumpArrival.y = app->smoothObjs[0].first ? ((float)ev->z1 - 20.0f) : (app->smoothObjs[0].z - 20.0f);
@@ -1854,6 +1980,24 @@ void mainLoop(VulkanApp* app) {
 
             /* Sync Map State */
             app->mapFilter = st->shm_map_filter;
+            
+            /* --- SHIELD HIT DETECTION --- */
+            if (st->object_count > 0 && st->objects[0].active) {
+                if (!app->shieldsInitialized) {
+                    for (int s = 0; s < 6; s++) app->lastShieldsValHit[s] = st->shm_shields[s];
+                    app->shieldsInitialized = true;
+                } else {
+                    for (int s = 0; s < 6; s++) {
+                        if (st->shm_shields[s] < app->lastShieldsValHit[s]) {
+                            app->shieldHitTimers[s] = 80; /* Duration in frames (~1.3s at 60fps) */
+                        }
+                        app->lastShieldsValHit[s] = st->shm_shields[s];
+                    }
+                }
+            } else {
+                app->shieldsInitialized = false;
+            }
+
             if (st->shm_show_map) {
                 if (app->mapAnim < 1.0f) app->mapAnim += 0.04f;
                 if (app->mapAnim > 1.0f) app->mapAnim = 1.0f;
@@ -2188,7 +2332,7 @@ void initVulkan(VulkanApp* app) {
     VkDescriptorSetAllocateInfo ai = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,NULL,app->descriptorPool,MAX_FRAMES_IN_FLIGHT,lys}; vkAllocateDescriptorSets(app->device, &ai, app->descriptorSets);
     for(int i=0; i<MAX_FRAMES_IN_FLIGHT; i++){ VkDescriptorBufferInfo bi = {app->uniformBuffers[i],0,sizeof(UniformBufferObject)}; VkWriteDescriptorSet w = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,NULL,app->descriptorSets[i],0,0,1,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,NULL,&bi,NULL}; vkUpdateDescriptorSets(app->device, 1, &w, 0, NULL); }
     VkCommandBufferAllocateInfo ca = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,NULL,app->commandPool,VK_COMMAND_BUFFER_LEVEL_PRIMARY,MAX_FRAMES_IN_FLIGHT}; vkAllocateCommandBuffers(app->device, &ca, app->commandBuffers);
-    VkSemaphoreCreateInfo si = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO}; VkFenceCreateInfo fi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,NULL,VK_FENCE_CREATE_SIGNALED_BIT};
+    VkSemaphoreCreateInfo si = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, NULL, 0}; VkFenceCreateInfo fi = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,NULL,VK_FENCE_CREATE_SIGNALED_BIT};
     for(int i=0; i<MAX_FRAMES_IN_FLIGHT; i++){ vkCreateSemaphore(app->device, &si, NULL, &app->imageAvailableSemaphores[i]); vkCreateSemaphore(app->device, &si, NULL, &app->renderFinishedSemaphores[i]); vkCreateFence(app->device, &fi, NULL, &app->inFlightFences[i]); }
 }
 

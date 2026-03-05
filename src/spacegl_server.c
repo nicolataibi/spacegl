@@ -189,6 +189,7 @@ void sync_client_task(void *arg) {
 }
 
 void *game_loop_thread(void *arg) {
+    (void)arg;
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     while (1) {

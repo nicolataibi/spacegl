@@ -16,8 +16,8 @@
 
 SPACEGL_KEY="thisisasecretkeyforencryption" ./run_server.sh
 
-# Freeglut
+#With Freeglut 3d
 SPACEGL_KEY="thisisasecretkeyforencryption" ./run_client.sh gl
 
-# Vulkan
+#With Vulkan 3d
 SPACEGL_KEY="thisisasecretkeyforencryption" ./run_client.sh vk

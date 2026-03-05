@@ -556,6 +556,10 @@ bool is_player_in_nebula(int p_idx);
 void apply_hull_damage(int p_idx, double amount);
 void send_optimized_update(int p_idx, PacketUpdate *upd);
 
+int calculate_shield_index(double shooter_x, double shooter_y, double shooter_z, 
+                           double target_x, double target_y, double target_z,
+                           double target_h, double target_m);
+
 int read_all(int fd, void *buf, size_t len);
 int write_all(int fd, const void *buf, size_t len);
 

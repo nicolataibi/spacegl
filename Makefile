@@ -1,62 +1,106 @@
-# SPACE GL - 3D LOGIC ENGINE 
+# SPACE GL - 3D LOGIC ENGINE
 # Authors: Nicola Taibi, Supported by Google Gemini
 # Copyright (C) 2026 Nicola Taibi
 # Licensed under GPL-3.0-or-later
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
 
-CC = gcc
-OPT_CFLAGS := -g -O2 -fPIE -fopenmp
-CFLAGS += -Wall -Iinclude -std=c2x -D_XOPEN_SOURCE=700 $(OPT_CFLAGS)
-GL_LIBS = -lglut -lGLU -lGL -lGLEW
-VK_LIBS = -lglfw -lvulkan
-SHM_LIBS = -lrt -lpthread -lcrypto -lm -pie -lgomp
-LDFLAGS += 
+# --- Configurazione Compilatore ---
+CC       := gcc
+GLSLC    := glslc
+BIN_DIR  := .
+SRC_DIR  := src
+INC_DIR  := include
+OBJ_DIR  := build/obj
+SHD_DIR  := build/shaders
 
-.PHONY: all check clean shaders
+# --- Flag di Compilazione ---
+# -MMD -MP generano automaticamente le dipendenze degli header
+CFLAGS   := -std=c2x -Wall -Wextra -Wpedantic -I$(INC_DIR) -D_XOPEN_SOURCE=700 -g -O3 -fopenmp
+CFLAGS   += -fPIE -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security
+DEPFLAGS := -MMD -MP
 
-all: spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_hud spacegl_vulkan shaders
+# --- Librerie ---
+GL_LIBS  := -lglut -lGLU -lGL -lGLEW
+VK_LIBS  := -lglfw -lvulkan
+SHM_LIBS := -lrt -lpthread -lcrypto -lm -lgomp
+HUD_LIBS := -lncurses
+LDFLAGS  := -pie -Wl,-z,relro,-z,now
 
-SERVER_SRCS = src/spacegl_server.c src/server/galaxy.c src/server/net.c src/server/commands.c src/server/logic.c src/server/threadpool.c
+# --- Target e Sorgenti ---
+TARGETS := spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_hud spacegl_vulkan
 
-spacegl_server: $(SERVER_SRCS)
-	$(CC) $(SERVER_SRCS) -o spacegl_server $(CFLAGS) $(LDFLAGS) $(SHM_LIBS)
+# Server: include i moduli della sottodirectory src/server/
+SERVER_SRCS := $(SRC_DIR)/spacegl_server.c \
+               $(wildcard $(SRC_DIR)/server/*.c)
 
-spacegl_viewer: src/spacegl_viewer.c
-	$(CC) src/spacegl_viewer.c -o spacegl_viewer $(CFLAGS) $(LDFLAGS) $(SHM_LIBS)
+# Shaders Vulkan
+SHADERS_SRC := $(wildcard assets/shaders/*.vert assets/shaders/*.frag)
+SHADERS_SPV := $(patsubst assets/shaders/%, $(SHD_DIR)/%.spv, $(SHADERS_SRC))
 
-spacegl_client: src/spacegl_client.c
-	$(CC) src/spacegl_client.c -o spacegl_client $(CFLAGS) $(LDFLAGS) $(SHM_LIBS)
+# Mappatura oggetti
+SERVER_OBJS := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SERVER_SRCS))
 
-spacegl_3dview: src/spacegl_3dview.c
-	$(CC) src/spacegl_3dview.c -o spacegl_3dview $(CFLAGS) $(LDFLAGS) $(GL_LIBS) $(SHM_LIBS)
+# --- Regole ---
+.PHONY: all clean help shaders check
 
-spacegl_hud: src/spacegl_hud.c
-	$(CC) src/spacegl_hud.c -o spacegl_hud $(CFLAGS) -lncurses $(SHM_LIBS)
+all: $(TARGETS) shaders
 
-spacegl_vulkan: src/spacegl_vulkan.c shaders
-	$(CC) src/spacegl_vulkan.c -o spacegl_vulkan $(CFLAGS) $(VK_LIBS) $(SHM_LIBS)
+# Binari Principali
+spacegl_server: $(SERVER_OBJS)
+	@echo "Linking $@"
+	@$(CC) $(CFLAGS) $^ -o $(BIN_DIR)/$@ $(LDFLAGS) $(SHM_LIBS)
 
-shaders: build/shaders/shader.vert.spv build/shaders/shader.frag.spv
+spacegl_client: $(OBJ_DIR)/spacegl_client.o
+	@echo "Linking $@"
+	@$(CC) $(CFLAGS) $^ -o $(BIN_DIR)/$@ $(LDFLAGS) $(SHM_LIBS)
 
-build/shaders/shader.vert.spv: assets/shaders/shader.vert
-	@mkdir -p build/shaders
-	glslc assets/shaders/shader.vert -o build/shaders/shader.vert.spv
+spacegl_viewer: $(OBJ_DIR)/spacegl_viewer.o
+	@echo "Linking $@"
+	@$(CC) $(CFLAGS) $^ -o $(BIN_DIR)/$@ $(LDFLAGS) $(SHM_LIBS)
 
-build/shaders/shader.frag.spv: assets/shaders/shader.frag
-	@mkdir -p build/shaders
-	glslc assets/shaders/shader.frag -o build/shaders/shader.frag.spv
+spacegl_3dview: $(OBJ_DIR)/spacegl_3dview.o
+	@echo "Linking $@"
+	@$(CC) $(CFLAGS) $^ -o $(BIN_DIR)/$@ $(LDFLAGS) $(GL_LIBS) $(SHM_LIBS)
+
+spacegl_hud: $(OBJ_DIR)/spacegl_hud.o
+	@echo "Linking $@"
+	@$(CC) $(CFLAGS) $^ -o $(BIN_DIR)/$@ $(LDFLAGS) $(HUD_LIBS) $(SHM_LIBS)
+
+spacegl_vulkan: $(OBJ_DIR)/spacegl_vulkan.o $(SHADERS_SPV)
+	@echo "Linking $@"
+	@$(CC) $(CFLAGS) $< -o $(BIN_DIR)/$@ $(LDFLAGS) $(VK_LIBS) $(SHM_LIBS)
+
+# Regola generica per i file oggetto
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $@)
+	@echo "Compiling $<"
+	@$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# Compilazione Shader
+shaders: $(SHADERS_SPV)
+
+$(SHD_DIR)/%.spv: assets/shaders/%
+	@mkdir -p $(dir $@)
+	@echo "Compiling shader $<"
+	@$(GLSLC) $< -o $@
+
+# Inclusione automatica delle dipendenze (.d)
+-include $(shell find $(OBJ_DIR) -name "*.d" 2>/dev/null)
 
 check: all
-	test -x spacegl_server
-	test -x spacegl_client
-	test -x spacegl_3dview
-	test -x spacegl_viewer
-	test -x spacegl_hud
-	test -x spacegl_vulkan
+	@echo "Running verification..."
+	@for t in $(TARGETS); do test -x $$t || (echo "Error: $$t missing"; exit 1); done
+	@echo "All components ready."
 
 clean:
-	rm -f spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_hud spacegl_vulkan
-	rm -rf build/shaders
+	@echo "Cleaning artifacts..."
+	@rm -rf build/
+	@rm -f $(TARGETS)
+
+help:
+	@echo "SpaceGL Professional Makefile"
+	@echo "Usage:"
+	@echo "  make            Build everything"
+	@echo "  make -j\$(nproc)  Build faster (parallel)"
+	@echo "  make clean      Remove all build files"
+	@echo "  make shaders    Recompile only Vulkan shaders"
+	@echo "  make check      Verify binaries"

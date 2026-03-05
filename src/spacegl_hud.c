@@ -290,8 +290,8 @@ int main(int argc, char** argv) {
         mvprintw(3, 37, "F: %-5d", st->shm_shields[0]); draw_bar(3, 45, 10, st->shm_shields[0], 10000.0, 2);
         mvprintw(3, 56, "B: %-5d", st->shm_shields[1]); draw_bar(3, 64, 10, st->shm_shields[1], 10000.0, 2);
         
-        mvprintw(4, 37, "L: %-5d", st->shm_shields[4]); draw_bar(4, 45, 10, st->shm_shields[4], 10000.0, 2);
-        mvprintw(4, 56, "R: %-5d", st->shm_shields[5]); draw_bar(4, 64, 10, st->shm_shields[5], 10000.0, 2);
+        mvprintw(4, 37, "L: %-5d", st->shm_shields[5]); draw_bar(4, 45, 10, st->shm_shields[5], 10000.0, 2);
+        mvprintw(4, 56, "R: %-5d", st->shm_shields[4]); draw_bar(4, 56 + 8, 10, st->shm_shields[4], 10000.0, 2);
         
         mvprintw(5, 37, "UP:%-5d", st->shm_shields[2]); draw_bar(5, 45, 10, st->shm_shields[2], 10000.0, 2);
         mvprintw(5, 56, "DW:%-5d", st->shm_shields[3]); draw_bar(5, 64, 10, st->shm_shields[3], 10000.0, 2);

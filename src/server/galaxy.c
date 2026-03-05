@@ -46,7 +46,7 @@ NPCShip npcs[MAX_NPC];
 PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 ConnectedPlayer players[MAX_CLIENTS];
 SpaceGLGame spacegl_master;
-SupernovaState supernova_event = {0,0,0,0};
+SupernovaState supernova_event = {0};
 
 static atomic_bool g_is_saving = false;
 

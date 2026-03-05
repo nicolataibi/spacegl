@@ -523,6 +523,7 @@ void send_ipc_command(const char* cmd_str) {
 }
 
 void *shm_listener_thread(void *arg) {
+    (void)arg;
     while(1) {
         if (g_shm) {
             sem_wait(&g_shm->data_ready);
@@ -638,8 +639,8 @@ typedef struct {
 GameObject objects[256];
 int objectCount = 0;
 ViewProbe g_local_probes[3];
-ArrivalEffect g_arrival_fx = {0, 0, 0, 0};
-RecoveryFX g_recovery_fx = {0, 0, 0, 0};
+ArrivalEffect g_arrival_fx = {0};
+RecoveryFX g_recovery_fx = {0};
 
 /* Rimosse variabili globali scia singola per scia universale */
 typedef struct { float sx, sy, sz, tx, ty, tz, alpha; } IonBeam;
@@ -651,9 +652,9 @@ ViewPoint g_torps[MAX_VISIBLE_TORPEDOES];
 int g_torpedo_count = 0;
 ViewPoint g_booms[10];
 int boom_idx = 0;
-ViewPoint g_wormhole = {0,0,0,0,0};
-ViewPoint g_jump_arrival = {0,0,0,0,0};
-ViewPoint g_sn_pos = {0,0,0,0,0};
+ViewPoint g_wormhole = {0};
+ViewPoint g_jump_arrival = {0};
+ViewPoint g_sn_pos = {0};
 int g_sn_q[3] = {0,0,0};
 
 float PlayerX = 0, PlayerY = 0, PlayerZ = 0;
@@ -1206,7 +1207,7 @@ void loadGameState() {
 
 void drawText3D(float x, float y, float z, const char* text) {
     glRasterPos3f(x, y, z);
-    for(int i=0; i<strlen(text); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, text[i]);
+    for(size_t i=0; i<strlen(text); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, text[i]);
 }
 
 void getFactionColor(int f, float* r, float* g, float* b) {
@@ -1387,7 +1388,7 @@ void drawHUD(int obj_idx) {
         }
         
         glRasterPos2f(winX - (strlen(buf)*4), winY + 25);
-        for(int i=0; i<strlen(buf); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, buf[i]);
+        for(size_t i=0; i<strlen(buf); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, buf[i]);
 
         /* Draw Health Bar (Ships, Bases, Platforms, Monsters) */
         if (type == 1 || type == 3 || (type >= 10 && type <= 20) || type == 22 || type == 25 || type >= 30) {
@@ -1425,7 +1426,7 @@ void drawHUD(int obj_idx) {
             else if (obj->hull_integrity > 25) glColor3f(1, 1, 0);
             else glColor3f(1, 0, 0);
             glRasterPos2f(winX + w/2 + 5, winY);
-            for(int i=0; i<strlen(hbuf); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, hbuf[i]);
+            for(size_t i=0; i<strlen(hbuf); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, hbuf[i]);
 
             /* Plating indicator if present */
             if (obj->plating > 0) {
@@ -1433,7 +1434,7 @@ void drawHUD(int obj_idx) {
                 sprintf(pbuf, "HULL: +%d", obj->plating);
                 glColor3f(1.0, 0.8, 0.0); /* Yellow for Composite */
                 glRasterPos2f(winX - (strlen(pbuf)*4), winY + 35);
-                for(int i=0; i<strlen(pbuf); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, pbuf[i]);
+                for(size_t i=0; i<strlen(pbuf); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, pbuf[i]);
             }
         }
 
@@ -1919,7 +1920,7 @@ void drawAllianceShip(int class, double h, double m) {
     glUseProgram(0);
 }
 
-void drawKorthian(double x, double y, double z) {
+void drawKorthian(double x, double y, double z) { (void)x; (void)y; (void)z;
     if (g_is_derelict_rendering) glColor3f(0.25, 0.25, 0.27); else glColor3f(0.6, 0.1, 0.0);
     glPushMatrix(); glScalef(1.0, 0.3, 1.5); glutSolidSphere(0.3, 16, 16); glPopMatrix();
     glPushMatrix(); glTranslatef(0.4, 0, 0); glScalef(2.0, 0.2, 0.2); glutSolidSphere(0.15, 8, 8); glPopMatrix();
@@ -1927,7 +1928,7 @@ void drawKorthian(double x, double y, double z) {
     glPushMatrix(); glTranslatef(0.7, 0, 0); glScalef(1.0, 0.5, 1.2); glutSolidSphere(0.15, 12, 12); glPopMatrix();
 }
 
-void drawXylari(double x, double y, double z) {
+void drawXylari(double x, double y, double z) { (void)x; (void)y; (void)z;
     if (g_is_derelict_rendering) glColor3f(0.2, 0.25, 0.2); else glColor3f(0.0, 0.5, 0.0);
     glPushMatrix(); glScalef(1.5, 0.2, 1.0); glutSolidSphere(0.4, 16, 16); glPopMatrix();
     glPushMatrix(); glTranslatef(0, 0.25, 0); glScalef(1.5, 0.2, 0.8); glutSolidSphere(0.35, 16, 16); glPopMatrix();
@@ -1936,7 +1937,7 @@ void drawXylari(double x, double y, double z) {
     glPushMatrix(); glTranslatef(0.7, 0.1, 0); glutSolidCone(0.1, 0.3, 8, 8); glPopMatrix();
 }
 
-void drawSwarm(double x, double y, double z) {
+void drawSwarm(double x, double y, double z) { (void)x; (void)y; (void)z;
     glRotatef(pulse*5, 1, 1, 1); glColor3f(0.15, 0.15, 0.15); glutWireCube(0.85);
     glColor3f(0.05, 0.05, 0.05); glutSolidCube(0.75); glDisable(GL_LIGHTING);
     double p = (sin(pulse)+1.0)*0.5; glColor4f(0.0, 0.8 * p, 0.0, 0.6); glutWireCube(0.8);
@@ -1947,48 +1948,48 @@ void drawSwarm(double x, double y, double z) {
     glEnable(GL_LIGHTING);
 }
 
-void drawVesperian(double x, double y, double z) {
+void drawVesperian(double x, double y, double z) { (void)x; (void)y; (void)z;
     glColor3f(0.6, 0.5, 0.3); glPushMatrix(); glScalef(2.0, 0.2, 1.2); glutSolidSphere(0.4, 16, 16); glPopMatrix();
     glColor3f(0.8, 0.7, 0.2); glPushMatrix(); glTranslatef(0.5, 0, 0); glScalef(1.0, 0.4, 0.4); glutSolidSphere(0.2, 12, 12); glPopMatrix();
 }
 
-void drawAscendant(double x, double y, double z) {
+void drawAscendant(double x, double y, double z) { (void)x; (void)y; (void)z;
     glColor3f(0.4, 0.4, 0.6); glPushMatrix(); glScalef(1.2, 0.5, 1.0); glutSolidSphere(0.35, 12, 12); glPopMatrix();
     glPushMatrix(); glTranslatef(0.4, 0, 0.15); glutSolidCone(0.05, 0.3, 8, 8); glPopMatrix();
     glPushMatrix(); glTranslatef(0.4, 0, -0.15); glutSolidCone(0.05, 0.3, 8, 8); glPopMatrix();
 }
 
-void drawQuarzite(double x, double y, double z) {
+void drawQuarzite(double x, double y, double z) { (void)x; (void)y; (void)z;
     glRotatef(pulse*15, 0, 1, 0); glColor4f(1.0, 0.5, 0.0, 0.6); glDisable(GL_LIGHTING); glutWireOctahedron();
     glColor4f(1.0, 0.2, 0.0, 0.4); glutSolidOctahedron(); glEnable(GL_LIGHTING);
 }
 
-void drawSaurian(double x, double y, double z) {
+void drawSaurian(double x, double y, double z) { (void)x; (void)y; (void)z;
     glColor3f(0.3, 0.4, 0.1); glPushMatrix(); glScalef(1.5, 0.6, 0.6); glutSolidCube(0.4); glPopMatrix();
     glPushMatrix(); glTranslatef(-0.3, 0, 0); glScalef(0.5, 1.2, 1.5); glutSolidCube(0.3); glPopMatrix();
 }
 
-void drawGilded(double x, double y, double z) {
+void drawGilded(double x, double y, double z) { (void)x; (void)y; (void)z;
     glColor3f(0.7, 0.3, 0.1); glPushMatrix(); glScalef(1.0, 0.2, 2.0); glutSolidSphere(0.4, 16, 16); glPopMatrix();
     glPushMatrix(); glTranslatef(0.3, 0, 0); glScalef(1.2, 0.4, 0.6); glutSolidSphere(0.3, 12, 12); glPopMatrix();
 }
 
-void drawFluidicVoid(double x, double y, double z) {
+void drawFluidicVoid(double x, double y, double z) { (void)x; (void)y; (void)z;
     glRotatef(pulse*10, 1, 0, 1); glColor3f(0.8, 0.8, 0.2); for(int i=0; i<3; i++) { glPushMatrix(); glRotatef(i*120, 0, 1, 0); glTranslatef(0.3, 0, 0); glScalef(2.0, 0.3, 0.3); glutSolidSphere(0.15, 12, 12); glPopMatrix(); }
     glutSolidSphere(0.2, 12, 12);
 }
 
-void drawCryos(double x, double y, double z) {
+void drawCryos(double x, double y, double z) { (void)x; (void)y; (void)z;
     glColor3f(0.4, 0.5, 0.4); glPushMatrix(); glScalef(1.8, 0.2, 0.8); glutSolidCube(0.4); glPopMatrix();
     glPushMatrix(); glTranslatef(0.2, 0.1, 0.2); glScalef(0.5, 0.5, 1.2); glutSolidSphere(0.2, 8, 8); glPopMatrix();
 }
 
-void drawApex(double x, double y, double z) {
+void drawApex(double x, double y, double z) { (void)x; (void)y; (void)z;
     glColor3f(0.5, 0.5, 0.5); glPushMatrix(); glScalef(2.5, 0.15, 0.4); glutSolidSphere(0.35, 12, 12); glPopMatrix();
     glPushMatrix(); glTranslatef(-0.4, 0, 0); glScalef(0.5, 0.8, 1.5); glutSolidCube(0.2); glPopMatrix();
 }
 
-void drawStarbase(double x, double y, double z) {
+void drawStarbase(double x, double y, double z) { (void)x; (void)y; (void)z;
     glRotatef(pulse*10, 0, 1, 0); glColor3f(0.9, 0.9, 0.1); glutWireSphere(0.4, 12, 12);
     glColor3f(0.5, 0.5, 0.5); glPushMatrix(); glScalef(1.5, 0.1, 1.5); glutSolidCube(0.6); glPopMatrix();
 }
@@ -2056,7 +2057,7 @@ void drawStar(double x, double y, double z, int id) {
     glPopAttrib();
 }
 
-void drawPlanet(double x, double y, double z) {
+void drawPlanet(double x, double y, double z) { (void)x; (void)y; (void)z;
     GLfloat spec[] = {0.3, 0.3, 0.3, 1.0};
     glMaterialfv(GL_FRONT, GL_SPECULAR, spec);
     glMateriali(GL_FRONT, GL_SHININESS, 50);
@@ -2220,7 +2221,7 @@ void drawBlackHole(double x, double y, double z) {
     glPopAttrib();
 }
 
-void drawStellarNebula(double x, double y, double z, int type) {
+void drawStellarNebula(double x, double y, double z, int type) { (void)x; (void)y; (void)z;
     glDisable(GL_LIGHTING);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -2328,7 +2329,7 @@ void drawProbe(int p_idx, double x, double y, double z) {
     glPopMatrix();
 }
 
-void drawPulsar(double x, double y, double z) {
+void drawPulsar(double x, double y, double z) { (void)x; (void)y; (void)z;
     glDisable(GL_LIGHTING);
     /* Core */
     glColor3f(1.0, 1.0, 1.0);
@@ -2352,7 +2353,7 @@ void drawPulsar(double x, double y, double z) {
     glEnable(GL_LIGHTING);
 }
 
-void drawComet(double x, double y, double z) {
+void drawComet(double x, double y, double z) { (void)x; (void)y; (void)z;
     glDisable(GL_LIGHTING);
     glPushMatrix();
     
@@ -2391,7 +2392,7 @@ void drawComet(double x, double y, double z) {
     glEnable(GL_LIGHTING);
 }
 
-void drawAsteroid(double x, double y, double z, double size) {
+void drawAsteroid(double x, double y, double z, double size) { (void)x; (void)y; (void)z;
     glUseProgram(hullShaderProgram);
     glPushMatrix();
     glColor3f(0.5, 0.35, 0.25); /* Brownish */
@@ -2474,7 +2475,7 @@ void drawDerelict(int ship_class, int faction) {
     glPopMatrix();
 }
 
-void drawMine(double x, double y, double z) {
+void drawMine(double x, double y, double z) { (void)x; (void)y; (void)z;
     glPushMatrix();
     glRotatef(pulse * 50.0, 1, 0, 1);
     
@@ -2514,7 +2515,7 @@ void drawMine(double x, double y, double z) {
     glPopMatrix();
 }
 
-void drawBuoy(double x, double y, double z) {
+void drawBuoy(double x, double y, double z) { (void)x; (void)y; (void)z;
     glPushMatrix();
     /* Main body */
     glColor3f(0.6, 0.6, 0.7);
@@ -2552,7 +2553,7 @@ void drawBuoy(double x, double y, double z) {
     glPopMatrix();
 }
 
-void drawPlatform(double x, double y, double z) {
+void drawPlatform(double x, double y, double z) { (void)x; (void)y; (void)z;
     glPushMatrix();
     glRotatef(pulse * 5.0, 0, 1, 0);
     
@@ -2580,7 +2581,7 @@ void drawPlatform(double x, double y, double z) {
     glPopMatrix();
 }
 
-void drawRift(double x, double y, double z) {
+void drawRift(double x, double y, double z) { (void)x; (void)y; (void)z;
     glDisable(GL_LIGHTING);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE); /* Additive blending */
@@ -2605,7 +2606,7 @@ void drawRift(double x, double y, double z) {
     glEnable(GL_LIGHTING);
 }
 
-void drawMonster(int type, double x, double y, double z) {
+void drawMonster(int type, double x, double y, double z) { (void)x; (void)y; (void)z;
     if (type == 30) { /* Crystalline Entity */
         glDisable(GL_LIGHTING);
         glPushMatrix();
@@ -3397,7 +3398,7 @@ void drawFaceLabels() {
             
             glColor3f(0.0, 0.8, 0.8); /* Cyan-ish LCARS */
             glRasterPos2f(winX - 25, winY);
-            for(int k=0; k<strlen(buf); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, buf[k]);
+            for(size_t k=0; k<strlen(buf); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, buf[k]);
             
             glEnable(GL_DEPTH_TEST); glEnable(GL_LIGHTING);
             glMatrixMode(GL_PROJECTION); glPopMatrix();
@@ -3591,17 +3592,17 @@ void drawShieldEffect() {
     glPushMatrix();
     glTranslatef(PlayerX, PlayerY, PlayerZ);
     /* Rotate shield system to match ship heading/mark */
-    glRotatef(objects[0].h - 90.0, 0, 1, 0);
+    glRotatef(objects[0].h, 0, 1, 0);
     glRotatef(objects[0].m, 0, 0, 1);
 
-    /* Shield sectors mapping: 0:F, 1:R, 2:T, 3:B, 4:L, 5:RI */
+    /* Shield sectors mapping: 0:F, 1:R, 2:T, 3:B, 4:L, 5:R */
     struct { double rx, ry, rz; } shield_rot[] = {
-        {0, 90, 0},   /* Front: point to X+ */
-        {0, -90, 0},  /* Rear: point to X- */
-        {-90, 0, 0},  /* Top: point to Y+ */
-        {90, 0, 0},   /* Bottom: point to Y- */
-        {0, 0, 0},    /* Left: point to Z- (default for torus if aligned) */
-        {0, 180, 0}   /* Right: point to Z+ */
+        {0, 0, 0},    /* 0: Front (+X) */
+        {0, 180, 0},  /* 1: Rear (-X) */
+        {-90, 0, 0},  /* 2: Top (+Y) */
+        {90, 0, 0},   /* 3: Bottom (-Y) */
+        {0, -90, 0},  /* 4: Left (-Z local / +X world if h=0) */
+        {0, 90, 0}    /* 5: Right (+Z local / -X world if h=0) */
     };
 
     for(int s=0; s<6; s++) {
@@ -4352,19 +4353,19 @@ void display() {
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
 
         glColor3f(1.0, 1.0, 1.0);
-        sprintf(buf, "CREW: %-4d | PRISON UNIT: %-4d | SHIELDS AVG: %-3d%%", g_crew, g_prison_unit, g_shields);
+        sprintf(buf, "CREW: %-4d | PRISON UNIT: %-4d | SHIELDS AVG: %-3d%%", g_crew, g_prison_unit, (g_shields/100));
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
         
         /* 2.1 Individual Shields */
         glColor3f(0.0, 0.7, 1.0);
-        const char* sh_names[] = {"F:", "R:", "T:", "B:", "RI:", "L:"};
-        /* Show F and R (optional, but keep for completeness) */
+        const char* sh_names[] = {"F:", "RE:", "T:", "B:", "L:", "RI:"};
+        /* Show F and RE */
         sprintf(buf, "%s %-4d  %s %-4d", sh_names[0], g_shields_val[0], sh_names[1], g_shields_val[1]);
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 15;
         /* T and B on one line */
         sprintf(buf, "%s %-4d  %s %-4d", sh_names[2], g_shields_val[2], sh_names[3], g_shields_val[3]);
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 15;
-        /* L and RI on the next line */
+        /* L and RI spatially: index 4 is L, index 5 is RI */
         sprintf(buf, "%s %-4d  %s %-4d", sh_names[4], g_shields_val[4], sh_names[5], g_shields_val[5]);
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 25;
 
@@ -4809,7 +4810,7 @@ void display() {
     glutSwapBuffers();
 }
 
-void timer(int v) { 
+void timer(int v) { (void)v; 
     static int global_trail_tick = 0;
     updateParticles();
     if (autoRotate > 5.0) autoRotate = 0.5; /* Cap speed */
@@ -4940,14 +4941,14 @@ void timer(int v) {
 
     glutPostRedisplay(); glutTimerFunc(16, timer, 0); 
 }
-void keyboard(unsigned char k, int x, int y) { 
+void keyboard(unsigned char k, int x, int y) { (void)k; (void)x; (void)y; 
     if(k==27) exit(0); 
     if(k==' ') autoRotate=(autoRotate==0)?0.15:0; 
     if(k=='w' || k=='W') zoom += 0.5;
     if(k=='s' || k=='S') zoom -= 0.5;
     if(k=='h' || k=='H') g_show_hud = !g_show_hud;
 }
-void special(int k, int x, int y) { 
+void special(int k, int x, int y) { (void)k; (void)x; (void)y; 
     if(k==GLUT_KEY_F7) {
         g_aniso_level *= 2; if (g_aniso_level > 16) g_aniso_level = 1;
         printf("[GFX] Anisotropic Filtering set to %dx\n", g_aniso_level);

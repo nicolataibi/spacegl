@@ -248,10 +248,12 @@ void reprint_prompt() {
 }
 
 void handle_ack(int sig) {
+    (void)sig;
     g_visualizer_ready = 1;
 }
 
 void handle_sigchld(int sig) {
+    (void)sig;
     int status;
     while (waitpid(-1, &status, WNOHANG) > 0);
 }
@@ -403,6 +405,7 @@ int write_all(int fd, const void *buf, size_t len) {
 }
 
 void *network_listener(void *arg) {
+    (void)arg;
     while (g_running) {
         int type;
         int r = read_all(sock, &type, sizeof(int));
@@ -875,6 +878,7 @@ void *network_listener(void *arg) {
 }
 
 void handle_sigint(int sig) {
+    (void)sig;
     exit(0);
 }
 
