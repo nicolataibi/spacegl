@@ -3591,18 +3591,19 @@ void drawShieldEffect() {
     
     glPushMatrix();
     glTranslatef(PlayerX, PlayerY, PlayerZ);
-    /* Rotate shield system to match ship heading/mark */
-    glRotatef(objects[0].h, 0, 1, 0);
+    /* Rotate shield system to match ship heading/mark exactly as drawn in display() */
+    glRotatef(objects[0].h - 90.0f, 0, 1, 0);
     glRotatef(objects[0].m, 0, 0, 1);
 
-    /* Shield sectors mapping: 0:F, 1:R, 2:T, 3:B, 4:L, 5:R */
-    struct { double rx, ry, rz; } shield_rot[] = {
-        {0, 0, 0},    /* 0: Front (+X) */
-        {0, 180, 0},  /* 1: Rear (-X) */
-        {-90, 0, 0},  /* 2: Top (+Y) */
-        {90, 0, 0},   /* 3: Bottom (-Y) */
-        {0, -90, 0},  /* 4: Left (-Z local / +X world if h=0) */
-        {0, 90, 0}    /* 5: Right (+Z local / -X world if h=0) */
+    /* Shield sectors mapping: 0:F, 1:R, 2:T, 3:B, 4:L, 5:R
+       Since ship points to +X in local model space, we rotate the Z-axis (0,0,1.2) to each face. */
+    struct { double rx, ry; } shield_rot[] = {
+        {0, 90},    /* 0: Front (+X) */
+        {0, -90},   /* 1: Rear (-X) */
+        {-90, 0},   /* 2: Top (+Y) */
+        {90, 0},    /* 3: Bottom (-Y) */
+        {0, 0},     /* 4: Left (+Z) */
+        {0, 180}    /* 5: Right (-Z) */
     };
 
     for(int s=0; s<6; s++) {
@@ -3617,7 +3618,7 @@ void drawShieldEffect() {
         glRotatef(shield_rot[s].ry, 0, 1, 0);
         glRotatef(shield_rot[s].rx, 1, 0, 0);
         
-        /* Position arc slightly outside hull */
+        /* Position arc slightly outside hull (along Z axis in sector local space) */
         glTranslatef(0, 0, 1.2);
         glScalef(scale * 1.5, scale * 1.2, scale * 0.5);
         
@@ -4365,8 +4366,8 @@ void display() {
         /* T and B on one line */
         sprintf(buf, "%s %-4d  %s %-4d", sh_names[2], g_shields_val[2], sh_names[3], g_shields_val[3]);
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 15;
-        /* L and RI spatially: index 4 is L, index 5 is RI */
-        sprintf(buf, "%s %-4d  %s %-4d", sh_names[4], g_shields_val[4], sh_names[5], g_shields_val[5]);
+        /* L and RI spatially: index 5 is L, index 4 is RI */
+        sprintf(buf, "%s %-4d  %s %-4d", sh_names[4], g_shields_val[5], sh_names[5], g_shields_val[4]);
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 25;
 
         /* 3. System Health (1 column) */

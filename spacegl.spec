@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 19
+%global rel 20
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -121,20 +121,12 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 
 %changelog
 * Thu Mar 5 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
-   1. Shield Visual Alignment (spacegl_3dview):
-      Corrected the horizontal rotation of the shield effect. The previous 90-degree offset was removed, ensuring the shield sectors now align perfectly with the ship's heading.
+1. HUD Data Correction (spacegl_3dview)
+  We identified and resolved a data swap in the textual HUD. Previously, the values for the Left (L) and Right (RI) shields were inverted. I swapped the internal indices so that Index 5 now correctly represents the Left sector and Index 4 represents the Right sector, ensuring the telemetry matches the ship's physical state.
 
-   2. HUD Refinement (spacegl_3dview):
-      Updated the shield HUD labels to eliminate ambiguity (using F, RE, T, B, L, RI). We also corrected the SHIELDS AVG calculation by dividing the total value by 100 to display an accurate percentage.
 
-   3. HUD Logic Fix (spacegl_hud):
-      Resolved a data swap in the ncurses HUD where the Left and Right shield values were inverted.
-
-   4. Dismantle Effect Repair (spacegl_vulkan):
-      Fixed the dis (dismantle) command visual effect. The previous scale was too large, causing the camera to be "inside" the effect and triggering back-face culling. We reduced the scale to a realistic range (1x-3x) and stabilized the event loop logic, also adding support for the resource recovery effect (IPC_EV_RECOVERY).
-
-   5. Ionic Beam Stability (spacegl_vulkan):
-      Fixed the intermittent disappearance of the ion beams. We added safety checks for vector normalization to prevent NaN (Not-a-Number) results, which previously caused the beam to vanish during vertical shots or when firing at very close targets.
-
-   6. Build System Optimization (Makefile):
-      Optimized the build process by fixing the spacegl_vulkan target. It no longer relinks unnecessarily on every make execution, as it now correctly depends on the physical shader files instead of a virtual .PHONY target.
+2. Shield Pitch Alignment (The "Mark" Issue)
+   We fixed the visual positioning of the shield sectors during vertical maneuvers:
+   * The Problem: While the ship tilted up or down (Mark/Pitch), the shield sectors remained static or rotated on the wrong       axis, causing a visual detachment from the hull.
+   * The Solution: I updated the transformation logic in drawShieldEffect to calculate a dynamic pitch axis based on the ship's current heading. 
+   * Final Refinement: To ensure perfect accuracy in spacegl_3dview, I synchronized its rotation sequence with the ship's actual 3D model transformation (Heading - 90° followed by Mark).
