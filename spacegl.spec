@@ -16,6 +16,8 @@ BuildRequires:  mesa-libGL-devel
 BuildRequires:  glew-devel
 BuildRequires:  openssl-devel
 BuildRequires:  desktop-file-utils
+BuildRequires:  ncurses-devel
+
 
 Requires:       freeglut
 Requires:       mesa-libGLU
