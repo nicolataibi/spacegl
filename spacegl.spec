@@ -9,6 +9,7 @@ URL:            https://github.com/nicolataibi/spacegl
 Source0:        https://github.com/nicolataibi/spacegl/archive/refs/tags/%{version}-%{rel}.tar.gz
 
 BuildRequires:  gcc
+BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  freeglut-devel
 BuildRequires:  mesa-libGLU-devel
@@ -17,13 +18,17 @@ BuildRequires:  glew-devel
 BuildRequires:  openssl-devel
 BuildRequires:  desktop-file-utils
 BuildRequires:  ncurses-devel
-
+BuildRequires:  glfw-devel
+BuildRequires:  vulkan-loader-devel
+BuildRequires:  shaderc
 
 Requires:       freeglut
 Requires:       mesa-libGLU
 Requires:       mesa-libGL
 Requires:       glew
 Requires:       openssl
+Requires:       glfw
+Requires:       vulkan-loader
 Requires:       %{name}-data = %{version}-%{release}
 
 %description
@@ -35,11 +40,10 @@ and a technical 3D visualizer based on OpenGL and FreeGLUT.
 %package data
 Summary: Data files for %{name}
 BuildArch: noarch
-# 2. Aggiungi questa riga mancante:
 Requires: %{name} = %{version}-%{release}
 
 %description data
-Data files (graphics, sounds, and images) for Space GL.
+Data files (graphics, sounds, shaders, and images) for Space GL.
 
 %prep
 %setup -q -n %{name}-%{version}-%{rel}
@@ -57,16 +61,25 @@ Data files (graphics, sounds, and images) for Space GL.
 
 %install
 mkdir -p %{buildroot}%{_bindir}
-mkdir -p %{buildroot}%{_datadir}/%{name}
 mkdir -p %{buildroot}%{_datadir}/%{name}/readme_assets
+mkdir -p %{buildroot}%{_datadir}/%{name}/shaders
+
+# Install compiled shaders
+install -p -m 0644 build/shaders/*.spv %{buildroot}%{_datadir}/%{name}/shaders/
+
+# Install assets
 cp -p readme_assets/*.jpg %{buildroot}%{_datadir}/%{name}/readme_assets/
 cp -p readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_assets/
+
 
 # Install binaries
 install -p -m 0755 spacegl_server %{buildroot}%{_bindir}/
 install -p -m 0755 spacegl_client %{buildroot}%{_bindir}/
 install -p -m 0755 spacegl_3dview %{buildroot}%{_bindir}/
 install -p -m 0755 spacegl_viewer %{buildroot}%{_bindir}/
+install -p -m 0755 spacegl_vulkan %{buildroot}%{_bindir}/
+install -p -m 0755 spacegl_hud %{buildroot}%{_bindir}/
+
 
 # Install helper scripts as user commands
 install -p -m 0755 run_server.sh %{buildroot}%{_bindir}/%{name}-server
@@ -95,6 +108,8 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_bindir}/spacegl_client
 %{_bindir}/spacegl_3dview
 %{_bindir}/spacegl_viewer
+%{_bindir}/spacegl_vulkan
+%{_bindir}/spacegl_hud
 %{_bindir}/%{name}-server
 %{_bindir}/%{name}-client
 %{_datadir}/applications/%{name}.desktop
@@ -102,6 +117,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %files data
 %dir %{_datadir}/%{name}/
 %{_datadir}/%{name}/readme_assets/
+%{_datadir}/%{name}/shaders/
 
 %changelog
 * Thu Mar 5 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
