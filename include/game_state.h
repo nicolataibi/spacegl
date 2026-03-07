@@ -36,7 +36,7 @@ typedef struct {
 
 typedef struct {
     double net_x, net_y, net_z;
-    double h, m;
+    double h, m, r;
     int32_t type;       /* 1=Player, 3=Base, 4=Star, 5=Planet, etc */
     int32_t ship_class; /* Specifica il modello 3D (es. Galaxy, Constitution) */
     int32_t active;
@@ -121,7 +121,7 @@ typedef struct {
     int32_t k3, b3, st3, p3, bh3;
     
     /* Ship Systems */
-    double van_h, van_m;
+    double van_h, van_m, van_r;
     double eta;
     int32_t lock_target;
     int32_t tube_state; /* 0:READY, 1:FIRING, 2:LOADING, 3:OFFLINE */

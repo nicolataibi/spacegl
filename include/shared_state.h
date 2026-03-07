@@ -39,7 +39,7 @@
 
 typedef struct {
     double shm_x, shm_y, shm_z;
-    double h, m;
+    double h, m, r;
     int type; /* 1=Player, 3=Base, 4=Star, 5=Planet, 6=BH, 10+=Enemies */
     int ship_class;
     int active;
@@ -121,6 +121,7 @@ typedef struct {
     double shm_s[3];
     double shm_h;
     double shm_m;
+    double shm_r;
     double shm_eta;
     int64_t shm_galaxy[41][41][41];
     

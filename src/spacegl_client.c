@@ -583,7 +583,7 @@ void *network_listener(void *arg) {
                     UpdateBlockTransform b; read_all(sock, &b, sizeof(b));
                     current_state.q1 = b.q1; current_state.q2 = b.q2; current_state.q3 = b.q3;
                     current_state.s1 = b.s1; current_state.s2 = b.s2; current_state.s3 = b.s3;
-                    current_state.van_h = b.van_h; current_state.van_m = b.van_m;
+                    current_state.van_h = b.van_h; current_state.van_m = b.van_m; current_state.van_r = b.van_r;
                     current_state.eta = b.eta;
                     current_pkt_size += sizeof(b);
                 }
@@ -785,6 +785,7 @@ void *network_listener(void *arg) {
                 g_shared_state->shm_s[2] = current_state.s3;
                 g_shared_state->shm_h = current_state.van_h;
                 g_shared_state->shm_m = current_state.van_m;
+                g_shared_state->shm_r = current_state.van_r;
                 g_shared_state->shm_eta = current_state.eta;
                 sprintf(g_shared_state->quadrant, "Q-%d-%d-%d", current_state.q1, current_state.q2, current_state.q3);
 
@@ -807,6 +808,7 @@ void *network_listener(void *arg) {
                     g_shared_state->objects[o].shm_z = current_state.objects[o].net_z;
                     g_shared_state->objects[o].h = current_state.objects[o].h;
                     g_shared_state->objects[o].m = current_state.objects[o].m;
+                    g_shared_state->objects[o].r = current_state.objects[o].r;
                     g_shared_state->objects[o].type = current_state.objects[o].type;
                     g_shared_state->objects[o].ship_class = current_state.objects[o].ship_class;
                     g_shared_state->objects[o].health_pct = current_state.objects[o].health_pct;

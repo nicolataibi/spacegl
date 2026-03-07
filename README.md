@@ -37,6 +37,17 @@
 Space GL is an advanced space simulator combining the strategic depth of classic 70s text-based games with a modern Client-Server architecture and hardware-accelerated 3D visualization.
 ---
 
+## 🚀 Version 2.9 Highlights (Rel. 19 - Full 3-DOF & Tactical Navigation)
+
+Update 2.9 transforms roll from a simple aesthetic effect into a core component of navigation and combat:
+*   **Longitudinal Roll Support**: Ships now support complete 3-DOF orientation. **Roll** enables cinematic maneuvers and unprecedented tactical positioning.
+*   **Solid AR Compass Suite**: The `axs` holographic compass has been fully redesigned to be solid with the ship:
+    *   **"Top" Vector (Blue)**: A new vertical indicator pointing to the ship's roof, allowing for instant perception of bank angle.
+    *   **Solid Roll Ring**: The yellow transversal circle now rotates in perfect synchronization with the ship's heading, mark, and roll.
+    *   **Mark Realignment**: The Mark arc is now correctly aligned with the ship's front, providing an intuitive elevation reference.
+*   **Tactical Shield Logic (Roll-Aware)**: Roll is now a critical defensive element. The server calculates impacts on the 6 shield sectors based on the ship's actual tilt. By rotating on their axis, pilots can expose fresh sectors to protect damaged ones.
+*   **Smoothing & HUD**: Both Vulkan and OpenGL implement 60Hz LERP interpolation for roll. The roll value is now monitorable in real-time across all tactical HUDs.
+
 ## 🚀 Version 2.8 Highlights (Rel. 18 - Astrometric Expansion)
 
 Update 2.8 introduces High-Energy Celestial Bodies and refines the tactical cartography tools:
@@ -115,11 +126,13 @@ The v2.5 architecture is designed to handle mass combat scenarios without perfor
 ### 1. Install Dependencies (Linux)
 ```bash
 # Ubuntu / Debian
-sudo apt-get install build-essential freeglut3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev
+sudo apt-get install build-essential freeglut3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
+                     libvulkan-dev vulkan-tools glslc libncurses5-dev libncursesw5-dev
 
 # Fedora / Red Hat
 sudo dnf groupinstall "Development Tools"
-sudo dnf install freeglut-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel
+sudo dnf install freeglut-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel \
+                 vulkan-loader-devel vulkan-validation-layers-devel glslc ncurses-devel
 ```
 
 ### 2. Build
@@ -137,7 +150,7 @@ Launch the secure startup script. You will be asked to set a **Master Key** (sec
 ### 4. Start Client
 In another terminal, launch the client:
 ```bash
-./run_client.sh
+./run_client.sh gl|vk
 ```
 **Login Flow:**
 1.  **Server IP:** Enter the server address.
@@ -1934,6 +1947,38 @@ To populate the vastness of space without killing the frame rate, the 3D viewer 
 
 #### 3. Task-Based Parallelism (ThreadPool)
 Decoupling logic from background tasks is handled by a dedicated **Persistent ThreadPool**. Operations like HMAC signing, AES encryption, and persistent storage I/O are queued and executed by worker threads, ensuring that network packet processing is never delayed by disk latency or heavy cryptographic computations.
+
+#### 4. Modello delle librerie Vulkan
+Questa sezione descrive l'integrazione delle librerie grafiche di nuova generazione e degli strumenti di diagnostica avanzata per il monitoraggio del ponte.
+
+*   **Architettura di Rendering Vulkan (`spacegl_vulkan`)**:
+    *   **Gestione Matrici Row-Major**: Il motore utilizza matrici in formato Row-Major (traslazione in `m[3]`). La pipeline esegue la moltiplicazione inversa (`S * R * T`) per allinearsi al layout Column-Major (`T * R * S`) degli shader GLSL.
+    *   **Pipeline Specializzate**: Implementazione di pipeline multiple (`graphics`, `wireframe`, `point`, `glow`) per ottimizzare il throughput di diversi tipi di geometrie ed effetti.
+    *   **PBR & Glow**: Supporto per materiali PBR e blending additivo per effetti volumetrici come scudi settoriali, wormhole e accrezione di buchi neri.
+    *   **Sincronizzazione SHM**: I dati sono mappati direttamente dalla Shared Memory IPC ai buffer uniformi della GPU, permettendo un'interpolazione fluida (LERP) a 60/144 FPS.
+
+### 🛡️ Shield Synchronization & Tactical Mapping
+To ensure perfect coordination between combat logic, HUD telemetry, and 3D visual effects, the Vulkan and ncurses (GDIS) interfaces follow a standardized "Ground Truth" mapping from the server:
+
+| Shield Index | HUD Sector | 3D Position (Local) | Vulkan Rotation (`rx, ry`) |
+| :--- | :--- | :--- | :--- |
+| **0** | **F** (Front) | Forward (+X) | `{0, 0}` |
+| **1** | **B** (Back) | Rear (-X) | `{0, PI}` |
+| **2** | **DW** (Down) | Top (+Y) | `{PI/2, 0}` |
+| **3** | **UP** (Up) | Bottom (-Y) | `{-PI/2, 0}` |
+| **4** | **R** (Right) | Left (-Z) | `{0, PI/2}` |
+| **5** | **L** (Left) | Right (+Z) | `{0, -PI/2}` |
+
+**Technical Implementation Details:**
+*   **Coordinate Alignment**: Vulkan uses a right-handed system where the ship nose points to **+X**. The vertical axis is **Y** and the lateral axis is **Z**.
+*   **Visual Feedback**: Shield hit effects in `spacegl_vulkan` are rotated using the above angles to match the physical impact point.
+*   **HUD Synchronization**: The ncurses HUD (`spacegl_hud`) labels are mapped to these indices to match the visual response in the Vulkan viewer as verified.
+*   **Coordinate Space**: Impacts are projected onto the ship's local 3-DOF rotated basis, accounting for Heading, Mark, and Roll.
+
+*   **HUD Tattico e Diagnostica SHM (`spacegl_hud`)**:
+    *   **Shared Memory Inspector**: Strumento di diagnostica integrato (tasto `m`) con 6 pagine di telemetria: *Core Systems*, *Navigation*, *Network & Crypto*, *Combat & Cargo*, *Object List* e *Event Queue*.
+    *   **Monitoraggio Real-Time**: Visualizzazione millimetrica della latenza di rete (Jitter), bitrate (KBPS) e stato della cifratura HMAC-SHA256 direttamente sul ponte di comando.
+    *   **Feedback Tattico**: Gestione dinamica dei temi di colore e allarmi visivi per la navigazione e il combattimento.
 
 ---
 *SPACE GL - 3D LOGIC ENGINE. Developed with technical excellence by Nicola Taibi. "Per Tenebras, Lumen"*

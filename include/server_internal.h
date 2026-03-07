@@ -57,8 +57,8 @@ typedef struct {
     double gx, gy, gz;      /* Absolute Galactic Coordinates */
     double target_gx, target_gy, target_gz;
     double dx, dy, dz;      /* Movement Vector */
-    double target_h, target_m;
-    double start_h, start_m;
+    double target_h, target_m, target_r;
+    double start_h, start_m, start_r;
     int nav_state;
     int nav_timer;
     double hyper_speed;
@@ -558,7 +558,7 @@ void send_optimized_update(int p_idx, PacketUpdate *upd);
 
 int calculate_shield_index(double shooter_x, double shooter_y, double shooter_z, 
                            double target_x, double target_y, double target_z,
-                           double target_h, double target_m);
+                           double target_h, double target_m, double target_r);
 
 int read_all(int fd, void *buf, size_t len);
 int write_all(int fd, const void *buf, size_t len);

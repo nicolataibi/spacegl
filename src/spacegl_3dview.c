@@ -591,8 +591,8 @@ int g_player_class = 0;
 typedef struct {
     float x, y, z;
     float tx, ty, tz; /* Interpolation targets */
-    float h, m;
-    float th, tm;     /* Target heading and mark */
+    float h, m, r;
+    float th, tm, tr;     /* Target heading, mark and roll */
     int type;
     int ship_class;
     int health_pct;   /* HUD */
@@ -918,6 +918,7 @@ void loadGameState() {
             obj->z = obj->tz = next_z;
             obj->h = obj->th = state->objects[0].h;
             obj->m = obj->tm = state->objects[0].m;
+            obj->r = obj->tr = state->objects[0].r;
             obj->trail_count = 0;
             obj->trail_ptr = 0;
         } else {
@@ -927,6 +928,7 @@ void loadGameState() {
         }
         obj->th = state->objects[0].h;
         obj->tm = state->objects[0].m;
+        obj->tr = state->objects[0].r;
         obj->last_update_time = glutGet(GLUT_ELAPSED_TIME);
         obj->type = state->objects[0].type;
         obj->ship_class = state->objects[0].ship_class;
@@ -986,6 +988,7 @@ void loadGameState() {
                 obj->z = obj->tz = next_z;
                 obj->h = obj->th = state->objects[i].h;
                 obj->m = obj->tm = state->objects[i].m;
+                obj->r = obj->tr = state->objects[i].r;
                 obj->trail_count = 0;
                 obj->trail_ptr = 0;
             } else {
@@ -996,6 +999,7 @@ void loadGameState() {
 
             obj->th = state->objects[i].h;
             obj->tm = state->objects[i].m;
+            obj->tr = state->objects[i].r;
             obj->last_update_time = glutGet(GLUT_ELAPSED_TIME);
             obj->type = state->objects[i].type;
             obj->ship_class = state->objects[i].ship_class;
@@ -1497,10 +1501,34 @@ void drawFixedCompass() {
 }
 
 void drawMarkArc() {
-    /* 3. Mark Arc (Frontal Vertical plane -90 to +90) */
+    /* 3. Mark Arc (Longitudinal Vertical plane - Aligned with ship nose) */
     glColor4f(1.0, 1.0, 0.0, 0.2);
     glBegin(GL_LINE_STRIP);
     for(int i=-90; i<=90; i+=5) {
+        double rad = i * M_PI / 180.0;
+        double vx = cos(rad) * 2.5;
+        double vy = sin(rad) * 2.5;
+        glVertex3f(vx, vy, 0);
+    }
+    glEnd();
+
+    /* 4. Mark Labels */
+    glColor3f(0.8, 0.8, 0.0);
+    int marks[] = {-90, -45, 0, 45, 90};
+    for(int i=0; i<5; i++) {
+        double rad = marks[i] * M_PI / 180.0;
+        double lx = cos(rad) * 2.8;
+        double ly = sin(rad) * 2.8;
+        char buf[16]; sprintf(buf, "M:%+d", marks[i]);
+        drawText3D(lx, ly, 0, buf);
+    }
+}
+
+void drawRollCircle() {
+    /* 5. Roll Circle (Transversal Vertical plane - Perpendicular to nose) */
+    glColor4f(1.0, 1.0, 0.0, 0.2);
+    glBegin(GL_LINE_LOOP);
+    for(int i=0; i<360; i+=5) {
         double rad = i * M_PI / 180.0;
         double vy = sin(rad) * 2.5;
         double vz = cos(rad) * 2.5;
@@ -1508,14 +1536,14 @@ void drawMarkArc() {
     }
     glEnd();
 
-    /* 4. Mark Labels (Only valid tactical range) */
+    /* 6. Roll Labels */
     glColor3f(0.8, 0.8, 0.0);
-    int marks[] = {-90, -45, 0, 45, 90};
+    int rolls[] = {-90, -45, 0, 45, 90};
     for(int i=0; i<5; i++) {
-        double rad = marks[i] * M_PI / 180.0;
+        double rad = rolls[i] * M_PI / 180.0;
         double ly = sin(rad) * 2.8;
         double lz = cos(rad) * 2.8;
-        char buf[16]; sprintf(buf, "M:%+d", marks[i]);
+        char buf[16]; sprintf(buf, "R:%+d", rolls[i]);
         drawText3D(0, ly, lz, buf);
     }
 }
@@ -1525,7 +1553,9 @@ void drawCompass() {
     drawHeadingRing();
     glPushMatrix();
     glRotatef(objects[0].h, 0, 1, 0);
+    glRotatef(-objects[0].m, 0, 0, 1); /* Pitch rotation (elevation) */
     drawMarkArc();
+    drawRollCircle();
     glPopMatrix();
     glEnable(GL_LIGHTING);
 }
@@ -1897,10 +1927,11 @@ void drawFrigate() {
     }
 }
 
-void drawAllianceShip(int class, double h, double m) {
+void drawAllianceShip(int class, double h, double m, double r) {
     if (!g_is_cloaked_rendering) glUseProgram(hullShaderProgram);
     glRotatef(h - 90.0, 0, 1, 0);
     glRotatef(m, 0, 0, 1);
+    glRotatef(r, 1, 0, 0); /* Longitudinal Roll */
     switch(class) {
         case SHIP_CLASS_LEGACY: drawLegacy(); break;
         case SHIP_CLASS_SCOUT:      drawScout(); break;
@@ -2429,7 +2460,7 @@ void drawDerelict(int ship_class, int faction) {
     glColor3f(0.3, 0.3, 0.32);
     
     if (faction == 0) { // FACTION_ALLIANCE
-        drawAllianceShip(ship_class, 0, 0);
+        drawAllianceShip(ship_class, 0, 0, 0);
     } else {
         /* Use Faction model for alien derelicts */
         switch (faction) {
@@ -2467,7 +2498,7 @@ void drawDerelict(int ship_class, int faction) {
                 drawApex(0, 0, 0); 
                 break;
             default: 
-                drawAllianceShip(ship_class, 0, 0); 
+                drawAllianceShip(ship_class, 0, 0, 0); 
                 break;
         }
     }
@@ -3591,9 +3622,10 @@ void drawShieldEffect() {
     
     glPushMatrix();
     glTranslatef(PlayerX, PlayerY, PlayerZ);
-    /* Rotate shield system to match ship heading/mark exactly as drawn in display() */
+    /* Rotate shield system to match ship heading/mark/roll exactly as drawn in display() */
     glRotatef(objects[0].h - 90.0f, 0, 1, 0);
     glRotatef(objects[0].m, 0, 0, 1);
+    glRotatef(objects[0].r, 1, 0, 0);
 
     /* Shield sectors mapping: 0:F, 1:R, 2:T, 3:B, 4:L, 5:R
        Since ship points to +X in local model space, we rotate the Z-axis (0,0,1.2) to each face. */
@@ -3821,7 +3853,7 @@ void display() {
 
             /* 3. MARK ARC (Stays Vertical, only follows Heading) */
             glPushMatrix();
-            glRotatef(objects[0].h, 0, 1, 0);
+            glRotatef(objects[0].h - 90.0f, 0, 1, 0);
             drawMarkArc();
             glPopMatrix();
 
@@ -3829,6 +3861,9 @@ void display() {
             glPushMatrix();
             glRotatef(objects[0].h - 90.0f, 0, 1, 0);
             glRotatef(objects[0].m, 0, 0, 1);
+            glRotatef(objects[0].r, 1, 0, 0);
+            
+            /* 4.1 NOSE VECTOR (Green) */
             glDisable(GL_LIGHTING);
             glLineWidth(2.0);
             glBegin(GL_LINES);
@@ -3840,6 +3875,21 @@ void display() {
             glVertex3f(1.8, 0, 0); glVertex3f(1.5, -0.1, -0.1);
             glVertex3f(1.8, 0, 0); glVertex3f(1.5, 0.1, -0.1);
             glEnd();
+
+            /* 4.2 TOP VECTOR (Blue - Half length) */
+            glBegin(GL_LINES);
+            glColor3f(0.0, 0.5, 1.0); /* Bright Blue */
+            glVertex3f(0.0, 0.1, 0); glVertex3f(0.0, 0.9, 0); /* Arrow shaft (Local +Y) */
+            /* Small arrow head pointing UP */
+            glVertex3f(0.0, 0.9, 0); glVertex3f(0.1, 0.7, 0.1);
+            glVertex3f(0.0, 0.9, 0); glVertex3f(-0.1, 0.7, 0.1);
+            glVertex3f(0.0, 0.9, 0); glVertex3f(-0.1, 0.7, -0.1);
+            glVertex3f(0.0, 0.9, 0); glVertex3f(0.1, 0.7, -0.1);
+            glEnd();
+
+            /* 4.3 SOLID ROLL RING */
+            drawRollCircle();
+
             glLineWidth(1.0);
             glEnable(GL_LIGHTING);
             glPopMatrix();
@@ -3910,12 +3960,14 @@ void display() {
                     } else {
                         if (!g_is_cloaked_rendering) glUseProgram(hullShaderProgram);
                     }
-                    drawAllianceShip(objects[i].ship_class, objects[i].h, objects[i].m);
+                    drawAllianceShip(objects[i].ship_class, objects[i].h, objects[i].m, objects[i].r);
                     glUseProgram(0);
                     if (is_emerging) glDisable(GL_BLEND);
                 } else {
                     /* Non-Alliance Player: Use Faction model */
-                    glRotatef(objects[i].h - 90.0, 0, 1, 0); glRotatef(objects[i].m, 0, 0, 1);
+                    glRotatef(objects[i].h - 90.0, 0, 1, 0); 
+                    glRotatef(objects[i].m, 0, 0, 1);
+                    glRotatef(objects[i].r, 1, 0, 0);
                     if (is_emerging) {
                         glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE);
                         double progress = 1.0 - (g_jump_arrival.timer - 180) / 120.0;
@@ -3936,13 +3988,15 @@ void display() {
                         case 18: drawFluidicVoid(0,0,0); break;
                         case 19: drawCryos(0,0,0); break;
                         case 20: drawApex(0,0,0); break;
-                        default: drawAllianceShip(0, 0, 0); break;
+                        default: drawAllianceShip(0, 0, 0, 0); break;
                     }
                     glUseProgram(0);
                     if (is_emerging) glDisable(GL_BLEND);
                 }
             } else {
-                glRotatef(objects[i].h - 90.0, 0, 1, 0); glRotatef(objects[i].m, 0, 0, 1);
+                glRotatef(objects[i].h - 90.0, 0, 1, 0); 
+                glRotatef(objects[i].m, 0, 0, 1);
+                glRotatef(objects[i].r, 1, 0, 0);
                 bool use_hull = false;
                 int t = objects[i].type;
                 if (t == 3 || t == 10 || t == 21 || t == 22 || t == 23 || t == 24 || t == 25 || (t >= 11 && t <= 20)) use_hull = true;
@@ -4310,7 +4364,7 @@ void display() {
         sprintf(buf, "QUADRANT: %s  |  SECTOR: [%.2f, %.2f, %.2f]", g_quadrant, disp_s1, disp_s2, disp_s3); 
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
 
-        sprintf(buf, "HEADING: %05.1f\302\260  |  MARK: %+05.1f\302\260", g_shared_state->shm_h, g_shared_state->shm_m);
+        sprintf(buf, "HEADING: %05.1f\302\260  |  MARK: %+05.1f\302\260  |  ROLL: %+05.1f\302\260", g_shared_state->shm_h, g_shared_state->shm_m, g_shared_state->shm_r);
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
         
         if (g_shared_state->shm_eta > 1.0) {
@@ -4900,6 +4954,7 @@ void timer(int v) { (void)v;
         if (objects[i].h < 0.0) objects[i].h += 360.0;
 
         objects[i].m += (objects[i].tm - objects[i].m) * INTERP_SPEED_ROT;
+        objects[i].r += (objects[i].tr - objects[i].r) * INTERP_SPEED_ROT;
         
         if (objects[i].type == 1 || objects[i].type >= 10) {
             /* Check for jump only if we have a history */

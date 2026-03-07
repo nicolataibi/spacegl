@@ -254,7 +254,7 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     /* 1. Determine what changed */
     if (p->last_sent_state.q1 != upd->q1 || p->last_sent_state.q2 != upd->q2 || p->last_sent_state.q3 != upd->q3 ||
         p->last_sent_state.s1 != upd->s1 || p->last_sent_state.s2 != upd->s2 || p->last_sent_state.s3 != upd->s3 ||
-        p->last_sent_state.van_h != upd->van_h || p->last_sent_state.van_m != upd->van_m ||
+        p->last_sent_state.van_h != upd->van_h || p->last_sent_state.van_m != upd->van_m || p->last_sent_state.van_r != upd->van_r ||
         p->last_sent_state.eta != upd->eta) mask |= UPD_TRANSFORM;
 
     if (p->last_sent_state.energy != upd->energy || p->last_sent_state.torpedoes != upd->torpedoes || 
@@ -322,6 +322,7 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
             upd->s3, 
             upd->van_h, 
             upd->van_m,
+            upd->van_r,
             upd->eta
         };
         memcpy(ptr, &b, sizeof(b));

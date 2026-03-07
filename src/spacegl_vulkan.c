@@ -334,6 +334,7 @@ typedef struct {
     VkBuffer beamVertexBuffer; VkDeviceMemory beamVertexBufferMemory; VkBuffer beamIndexBuffer; VkDeviceMemory beamIndexBufferMemory;
     VkBuffer circleVertexBuffer; VkDeviceMemory circleVertexBufferMemory; VkBuffer circleIndexBuffer; VkDeviceMemory circleIndexBufferMemory;
     VkBuffer arcVertexBuffer; VkDeviceMemory arcVertexBufferMemory; VkBuffer arcIndexBuffer; VkDeviceMemory arcIndexBufferMemory;
+    VkBuffer rollCircleVertexBuffer; VkDeviceMemory rollCircleVertexBufferMemory; VkBuffer rollCircleIndexBuffer; VkDeviceMemory rollCircleIndexBufferMemory;
     VkBuffer gridVertexBuffer; VkDeviceMemory gridVertexBufferMemory; VkBuffer gridIndexBuffer; VkDeviceMemory gridIndexBufferMemory;
     VkBuffer vectorVertexBuffer; VkDeviceMemory vectorVertexBufferMemory; VkBuffer vectorIndexBuffer; VkDeviceMemory vectorIndexBufferMemory;
     VkBuffer sphereVertexBuffer; VkDeviceMemory sphereVertexBufferMemory; VkBuffer sphereIndexBuffer; VkDeviceMemory sphereIndexBufferMemory;
@@ -353,12 +354,13 @@ typedef struct {
     /* Smooth State Interpolation */
     long long last_shm_frame_id;
     double last_shm_time;
-    struct { 
-        float x, y, z, h, m; 
-        float prev_x, prev_y, prev_z, prev_h, prev_m;
-        float target_x, target_y, target_z, target_h, target_m;
-        bool first; 
+    struct {
+        float x, y, z, h, m, r;
+        float prev_x, prev_y, prev_z, prev_h, prev_m, prev_r;
+        float target_x, target_y, target_z, target_h, target_m, target_r;
+        bool first;
     } smoothObjs[MAX_NET_OBJECTS];
+
     float mapAnim;
     int mapFilter;
     float bridgeAnim;
@@ -367,6 +369,8 @@ typedef struct {
     int shieldHitTimers[6];
     int lastShieldsValHit[6];
     bool shieldsInitialized;
+    mat4 playerR;
+    mat4 playerT;
 } VulkanApp;
 
 uint32_t findMemoryType(VkPhysicalDevice pDevice, uint32_t typeFilter, VkMemoryPropertyFlags props) {
@@ -991,36 +995,18 @@ void drawShieldGlow(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float ra
     }
 }
 
-void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tactScale) {
+void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tactScale, mat4 R_ship, mat4 T_ship) {
     bool any_hit = false;
     for (int s = 0; s < 6; s++) if (app->shieldHitTimers[s] > 0) any_hit = true;
     if (!any_hit) return;
 
-    /* Player position smoothed */
-    float ox = app->smoothObjs[0].x;
-    float oy = app->smoothObjs[0].y;
-    float oz = app->smoothObjs[0].z;
-    float oh = app->smoothObjs[0].h;
-    float om = app->smoothObjs[0].m;
-
-    /* Mapping: vX=X-20, vY=Z-20, vZ=20-Y */
-    vec3 p = {(ox - 20.0f) * tactScale, (oz - 20.0f) * tactScale, (20.0f - oy) * tactScale};
-    mat4 T_ship; mat4_translate(T_ship, p);
-
-    /* Rotate shield system to match ship heading/mark */
-    mat4 R_ship; mat4_identity(R_ship);
-    mat4_rotate(R_ship, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
-    mat4_rotate(R_ship, -oh * M_PI / 180.0f, (vec3){0, 1, 0});
-    float h_rad = oh * M_PI / 180.0f;
-    mat4_rotate(R_ship, om * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
-
     struct { float rx, ry; } shield_rot[] = {
         {0, 0},           /* 0: Front (+X) */
         {0, M_PI},        /* 1: Rear (-X) */
-        {-M_PI/2.0f, 0},  /* 2: Top (+Y) */
-        {M_PI/2.0f, 0},   /* 3: Bottom (-Y) */
-        {0, M_PI/2.0f},   /* 4: Left (+Z world axis) */
-        {0, -M_PI/2.0f}   /* 5: Right (-Z world axis) */
+        {M_PI/2.0f, 0},   /* 2: Top (+Y) */
+        {-M_PI/2.0f, 0},  /* 3: Bottom (-Y) */
+        {0, M_PI/2.0f},   /* 4: Left (-Z) */
+        {0, -M_PI/2.0f}   /* 5: Right (+Z) */
     };
 
     for (int s = 0; s < 6; s++) {
@@ -1035,7 +1021,7 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
         mat4_identity(R_sec);
         mat4_rotate(R_sec, shield_rot[s].ry, (vec3){0, 1, 0});
         mat4_rotate(R_sec, shield_rot[s].rx, (vec3){0, 0, 1}); 
-        
+
         /* CORRECT ORDER for Row-Major: S * T_sec * R_sec * R_ship * T_ship
            This moves the vertex along X, THEN rotates it to the correct sector. */
         float thk = (s == 2 || s == 3) ? 1.2f : 0.3f;
@@ -1052,7 +1038,7 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
         PushConstants wpc = {0};
         memcpy(wpc.model, M_sec, sizeof(mat4));
         wpc.color[0] = 0.0f; wpc.color[1] = 0.9f; wpc.color[2] = 1.0f; wpc.color[3] = alpha;
-        wpc.usePushColor = 1; 
+        wpc.usePushColor = 1;
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(wpc), &wpc);
         VkDeviceSize off = 0;
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
@@ -1072,7 +1058,6 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
         drawShieldGlow(cb, app, M_sec, 0.6f * scale, 0.0f, 0.5f, 1.0f, alpha * 0.7f, pulse);
     }
 }
-
 void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,NULL,0,NULL}; vkBeginCommandBuffer(cb, &bi);
     VkClearValue cl[2] = {0}; cl[0].color = (VkClearColorValue){{0,0,0,1}}; cl[1].depthStencil = (VkClearDepthStencilValue){1,0};
@@ -1099,6 +1084,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             float tactScale = 1.0f - app->mapAnim;
             /* Ensure we are back in wireframe mode for tactical frame */
             vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+            mat4_identity(app->playerR); mat4_identity(app->playerT);
 
             /* 0. Cubo Tattico (Bounding Box) */
             PushConstants pc = {0}; mat4_identity(pc.model); pc.usePushColor = 4; /* Unlit Vertex Colors */
@@ -1116,6 +1102,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             float oz = app->smoothObjs[0].z;
             float oh = app->smoothObjs[0].h;
             float om = app->smoothObjs[0].m;
+            float oro = app->smoothObjs[0].r;
 
             /* Correct Mapping: X_v = X_s - 20, Y_v = oz - 20, Z_v = 20 - oy */
             vec3 p = {(ox - 20.0f) * tactScale, (oz - 20.0f) * tactScale, (20.0f - oy) * tactScale};
@@ -1158,16 +1145,42 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
 
             /* 4. Mark Arc (Yellow Vertical Arc - Aligned with Ship Heading) */
             PushConstants mpc = {0}; mat4_identity(mpc.model);
-            mat4 R_head_m, S_mark; mat4_identity(R_head_m); mat4_scale(S_mark, (vec3){2.8f * tactScale, 2.8f * tactScale, 2.8f * tactScale});
-            /* Heading around vertical Y to orient the arc in the correct longitudinal direction */
-            mat4_rotate(R_head_m, -oh * M_PI / 180.0f, (vec3){0, 1, 0});
+            mat4 R_head_m, S_mark; 
+            mat4_identity(R_head_m);
+            mat4_scale(S_mark, (vec3){2.8f * tactScale, 2.8f * tactScale, 2.8f * tactScale});
+            
+            /* 1. Base alignment (+90) then Heading (-oh) around vertical Y */
+            mat4_rotate(R_head_m, (90.0f - oh) * M_PI / 180.0f, (vec3){0, 1, 0});
+            
+            /* Combine: Scale * Rotation * Translation */
             mat4_multiply(S_mark, R_head_m, mpc.model);
             mat4_multiply(mpc.model, T_axes, mpc.model);
+            
             mpc.color[0]=1.0f; mpc.color[1]=1.0f; mpc.color[2]=0.0f; mpc.color[3]=1.0f; mpc.usePushColor=1;
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(mpc), &mpc);
             vkCmdBindVertexBuffers(cb, 0, 1, &app->arcVertexBuffer, &off);
             vkCmdBindIndexBuffer(cb, app->arcIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdDrawIndexed(cb, (ARC_SEGMENTS-1) * 2, 1, 0, 0, 0);
+
+            /* 4.1 Roll Circle (Yellow Transversal Circle - Perpendicular to nose) */
+            PushConstants rpc = {0}; mat4_identity(rpc.model);
+            mat4 R_roll_c, S_roll; mat4_identity(R_roll_c);
+            mat4_scale(S_roll, (vec3){2.8f * tactScale, 2.8f * tactScale, 2.8f * tactScale});
+
+            /* 1. Base alignment (+90) then Heading (-oh) around vertical Y */
+            mat4_rotate(R_roll_c, (90.0f - oh) * M_PI / 180.0f, (vec3){0, 1, 0});
+            /* 2. Pitch around dynamic transverse axis (to stay perpendicular to the vector) */
+            double h_rad_r = oh * M_PI / 180.0;
+            mat4_rotate(R_roll_c, om * M_PI / 180.0f, (vec3){cosf(h_rad_r), 0, -sinf(h_rad_r)});
+
+            mat4_multiply(S_roll, R_roll_c, rpc.model);
+            mat4_multiply(rpc.model, T_axes, rpc.model);
+
+            rpc.color[0]=1.0f; rpc.color[1]=1.0f; rpc.color[2]=0.0f; rpc.color[3]=1.0f; rpc.usePushColor=1;
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(rpc), &rpc);
+            vkCmdBindVertexBuffers(cb, 0, 1, &app->rollCircleVertexBuffer, &off);
+            vkCmdBindIndexBuffer(cb, app->rollCircleIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(cb, CIRCLE_SEGMENTS * 2, 1, 0, 0, 0);
 
             /* 5. Directional Vector (Green Arrow - Ship Orientation) - Hidden during Jump */
             if (!app->jumpArrival.active) {
@@ -1188,6 +1201,36 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vpc), &vpc);
                 vkCmdBindVertexBuffers(cb, 0, 1, &app->vectorVertexBuffer, &off);
                 vkCmdBindIndexBuffer(cb, app->vectorIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdDrawIndexed(cb, 18, 1, 0, 0, 0);
+
+                /* 5.1 Top Vector (Blue Arrow - Ship Top orientation) */
+                PushConstants upc = {0}; mat4_identity(upc.model);
+                mat4 R_u, S_u; mat4_identity(R_u); 
+                /* Scale is half of the Heading vector (0.5 * tactScale) */
+                mat4_scale(S_u, (vec3){0.5f * tactScale, 0.5f * tactScale, 0.5f * tactScale});
+                
+                /* 1. FIRST: Rotate model (+X) to point Up (+Y local) */
+                /* Using -90 to point towards the roof in the Vulkan coordinate mapping */
+                mat4_rotate(R_u, -90.0f * M_PI / 180.0f, (vec3){0, 0, 1});
+
+                /* 2. Apply exactly the same rotations as the ship to stay synced */
+                /* Base alignment (+90 North) then Heading (-oh) around vertical Y */
+                mat4_rotate(R_u, (90.0f - oh) * M_PI / 180.0f, (vec3){0, 1, 0});
+                
+                /* Pitch around dynamic transverse axis */
+                double h_rad_u = oh * M_PI / 180.0;
+                mat4_rotate(R_u, om * M_PI / 180.0f, (vec3){cosf(h_rad_u), 0, -sinf(h_rad_u)});
+                
+                /* Roll around dynamic longitudinal axis (Nose direction) */
+                float pitch_rad_u = om * M_PI / 180.0f;
+                vec3 nose_u = {sinf(h_rad_u)*cosf(pitch_rad_u), sinf(pitch_rad_u), cosf(h_rad_u)*cosf(pitch_rad_u)};
+                mat4_rotate(R_u, oro * M_PI / 180.0f, nose_u);
+
+                mat4_multiply(S_u, R_u, upc.model);
+                mat4_multiply(upc.model, T_axes, upc.model);
+                
+                upc.color[0]=0.0f; upc.color[1]=0.5f; upc.color[2]=1.0f; upc.color[3]=1.0f; upc.usePushColor=1;
+                vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(upc), &upc);
                 vkCmdDrawIndexed(cb, 18, 1, 0, 0, 0);
             }
         }
@@ -1262,10 +1305,14 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             float oz = app->smoothObjs[o].z;
             float oh = app->smoothObjs[o].h;
             float om = app->smoothObjs[o].m;
+            float or = app->smoothObjs[o].r;
 
             /* Centered mapping: 0..40 maps to -20..20, using (X, Z, -Y) system (Consistent with Axes) */
             vec3 p = {(ox - 20.0f) * tactScale, (oz - 20.0f) * tactScale, (20.0f - oy) * tactScale};
             mat4 T, R, S; mat4_translate(T, p); mat4_identity(R);
+
+            if (o == 0) memcpy(app->playerT, T, sizeof(mat4));
+
             float s = (obj->type==3?SCALE_BASE: (obj->type==4?SCALE_STAR: (obj->type==5?SCALE_PLANET: (obj->type==6?SCALE_BLACKHOLE: (obj->type==29?SCALE_QUASAR: (obj->type==21?SCALE_ASTEROID: SCALE_SHIP))))));
             /* Scale the object itself by tactScale */
             s *= tactScale;
@@ -1278,6 +1325,13 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 /* Apply Smoothed Pitch around dynamic horizontal axis */
                 float obj_h_rad = oh * M_PI / 180.0f;
                 mat4_rotate(R, om * M_PI / 180.0f, (vec3){cosf(obj_h_rad), 0, -sinf(obj_h_rad)});
+                /* Apply Smoothed Roll around local longitudinal axis (+X after North alignment) */
+                /* Model orientation: X is forward, Y is up, Z is right. 
+                   After North alignment (+X to +Z), the forward axis is +Z in world space.
+                   But we rotate around local axes. Pitch is local Z (horizontal). Roll is local X (longitudinal). */
+                float pitch_rad = om * M_PI / 180.0f;
+                mat4_rotate(R, or * M_PI / 180.0f, (vec3){sinf(obj_h_rad)*cosf(pitch_rad), sinf(pitch_rad), cosf(obj_h_rad)*cosf(pitch_rad)});
+                if (o == 0) memcpy(app->playerR, R, sizeof(mat4));
             }
             /* Correct Order: Scale -> Rotate -> Translate (in C Row-Major: S * R * T) */
             mat4_multiply(S, R, opc.model); 
@@ -1645,7 +1699,8 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         }
         
         /* Draw Shield Hits */
-        drawShieldEffect(cb, app, pulse, tactScale);
+        drawShieldEffect(cb, app, pulse, tactScale, app->playerR, app->playerT);
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 
         } /* End of Tactical View Render (mapAnim < 0.99) */
     }
@@ -1834,9 +1889,15 @@ void mainLoop(VulkanApp* app) {
                 while (dh > 180.0f) { dh -= 360.0f; }
                 while (dh < -180.0f) { dh += 360.0f; }
                 app->smoothObjs[o].h = app->smoothObjs[o].prev_h + dh * interpAlpha;
-                
+
                 app->smoothObjs[o].m = app->smoothObjs[o].prev_m + (app->smoothObjs[o].target_m - app->smoothObjs[o].prev_m) * interpAlpha;
-            }
+
+                float dr = app->smoothObjs[o].target_r - app->smoothObjs[o].prev_r;
+                while (dr > 180.0f) { dr -= 360.0f; }
+                while (dr < -180.0f) { dr += 360.0f; }
+                app->smoothObjs[o].r = app->smoothObjs[o].prev_r + dr * interpAlpha;
+                }
+
         }
 
         if (app->shm) {
@@ -1858,6 +1919,7 @@ void mainLoop(VulkanApp* app) {
                         app->smoothObjs[o].prev_z = app->smoothObjs[o].target_z = app->smoothObjs[o].z = (float)obj->shm_z;
                         app->smoothObjs[o].prev_h = app->smoothObjs[o].target_h = app->smoothObjs[o].h = (float)obj->h;
                         app->smoothObjs[o].prev_m = app->smoothObjs[o].target_m = app->smoothObjs[o].m = (float)obj->m;
+                        app->smoothObjs[o].prev_r = app->smoothObjs[o].target_r = app->smoothObjs[o].r = (float)obj->r;
                         app->smoothObjs[o].first = false;
                     } else {
                         /* Shift current smoothed state to previous, and load new target */
@@ -1866,12 +1928,14 @@ void mainLoop(VulkanApp* app) {
                         app->smoothObjs[o].prev_z = app->smoothObjs[o].z;
                         app->smoothObjs[o].prev_h = app->smoothObjs[o].h;
                         app->smoothObjs[o].prev_m = app->smoothObjs[o].m;
+                        app->smoothObjs[o].prev_r = app->smoothObjs[o].r;
 
                         app->smoothObjs[o].target_x = (float)obj->shm_x;
                         app->smoothObjs[o].target_y = (float)obj->shm_y;
                         app->smoothObjs[o].target_z = (float)obj->shm_z;
                         app->smoothObjs[o].target_h = (float)obj->h;
                         app->smoothObjs[o].target_m = (float)obj->m;
+                        app->smoothObjs[o].target_r = (float)obj->r;
                     }
                 }
             }
@@ -2227,11 +2291,22 @@ void initVulkan(VulkanApp* app) {
     Vertex aVerts[ARC_SEGMENTS]; uint32_t aInds[(ARC_SEGMENTS-1) * 2];
     for(int i=0; i<ARC_SEGMENTS; i++) {
         float rad = ((i * 5.0f) - 90.0f) * M_PI / 180.0f;
-        aVerts[i] = (Vertex){{0, sinf(rad), cosf(rad)}, {1,1,0}, {1,0,0}};
+        /* Longitudinal Plane (XY) */
+        aVerts[i] = (Vertex){{cosf(rad), sinf(rad), 0}, {1,1,0}, {0,0,1}};
         if (i < ARC_SEGMENTS - 1) { aInds[i*2] = i; aInds[i*2+1] = i+1; }
     }
     createBuffer(app, sizeof(aVerts), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->arcVertexBuffer, &app->arcVertexBufferMemory); vkMapMemory(app->device, app->arcVertexBufferMemory, 0, sizeof(aVerts), 0, &d); memcpy(d, aVerts, sizeof(aVerts)); vkUnmapMemory(app->device, app->arcVertexBufferMemory);
     createBuffer(app, sizeof(aInds), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->arcIndexBuffer, &app->arcIndexBufferMemory); vkMapMemory(app->device, app->arcIndexBufferMemory, 0, sizeof(aInds), 0, &d); memcpy(d, aInds, sizeof(aInds)); vkUnmapMemory(app->device, app->arcIndexBufferMemory);
+
+    Vertex rVerts[CIRCLE_SEGMENTS]; uint32_t rInds[CIRCLE_SEGMENTS * 2];
+    for(int i=0; i<CIRCLE_SEGMENTS; i++) {
+        float rad = (i * 5.0f) * M_PI / 180.0f;
+        /* Transversal Plane (YZ) */
+        rVerts[i] = (Vertex){{0, sinf(rad), cosf(rad)}, {1,1,0}, {1,0,0}};
+        rInds[i*2] = i; rInds[i*2+1] = (i+1)%CIRCLE_SEGMENTS;
+    }
+    createBuffer(app, sizeof(rVerts), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->rollCircleVertexBuffer, &app->rollCircleVertexBufferMemory); vkMapMemory(app->device, app->rollCircleVertexBufferMemory, 0, sizeof(rVerts), 0, &d); memcpy(d, rVerts, sizeof(rVerts)); vkUnmapMemory(app->device, app->rollCircleVertexBufferMemory);
+    createBuffer(app, sizeof(rInds), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->rollCircleIndexBuffer, &app->rollCircleIndexBufferMemory); vkMapMemory(app->device, app->rollCircleIndexBufferMemory, 0, sizeof(rInds), 0, &d); memcpy(d, rInds, sizeof(rInds)); vkUnmapMemory(app->device, app->rollCircleIndexBufferMemory);
 
     /* Tactical Grid (Full 3D Quadrant Cube) - Increased density */
     int steps = (int)QUADRANT_SIZE / 2;
@@ -2361,6 +2436,8 @@ void cleanup(VulkanApp* app) {
     vkDestroyBuffer(app->device, app->gridVertexBuffer, NULL); vkFreeMemory(app->device, app->gridVertexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->arcIndexBuffer, NULL); vkFreeMemory(app->device, app->arcIndexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->arcVertexBuffer, NULL); vkFreeMemory(app->device, app->arcVertexBufferMemory, NULL);
+    vkDestroyBuffer(app->device, app->rollCircleIndexBuffer, NULL); vkFreeMemory(app->device, app->rollCircleIndexBufferMemory, NULL);
+    vkDestroyBuffer(app->device, app->rollCircleVertexBuffer, NULL); vkFreeMemory(app->device, app->rollCircleVertexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->circleIndexBuffer, NULL); vkFreeMemory(app->device, app->circleIndexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->circleVertexBuffer, NULL); vkFreeMemory(app->device, app->circleVertexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->axesIndexBuffer, NULL); vkFreeMemory(app->device, app->axesIndexBufferMemory, NULL);

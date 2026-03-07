@@ -124,6 +124,7 @@ void draw_shm_inspector(SharedIPC *shm_ptr, GameState *st, int page) {
             mvprintw(y++, 2, "Sector (shm_s): %.4f, %.4f, %.4f", st->shm_s[0], st->shm_s[1], st->shm_s[2]);
             mvprintw(y++, 2, "Heading (shm_h): %.2f", st->shm_h);
             mvprintw(y++, 2, "Mark (shm_m): %.2f", st->shm_m);
+            mvprintw(y++, 2, "Roll (shm_r): %.2f", st->shm_r);
             mvprintw(y++, 2, "Nav State: %d (%s)", st->shm_nav_state, get_nav_state_name(st->shm_nav_state));
             mvprintw(y++, 2, "ETA: %.2f s (Time to Destination)", st->shm_eta);
             mvprintw(y++, 2, "Flags: Docked=%d, Jammed=%d, Cloaked=%d", st->shm_is_docked, st->shm_is_jammed, st->is_cloaked);
@@ -257,16 +258,17 @@ int main(int argc, char** argv) {
         mvprintw(4, 2, "SECTOR  : [%.2f, %.2f, %.2f]", st->shm_s[0], st->shm_s[1], st->shm_s[2]);
         mvprintw(5, 2, "HEADING : %6.1f deg", st->shm_h);
         mvprintw(6, 2, "MARK    : %6.1f deg", st->shm_m);
+        mvprintw(7, 2, "ROLL    : %6.1f deg", st->shm_r);
         
         if (st->shm_eta > 0.1) {
             int eta_col = (st->shm_eta < 5.0 && (st->frame_id % 10 < 5)) ? 7 : 6;
             attron(COLOR_PAIR(eta_col) | A_BOLD);
-            mvprintw(7, 2, "ETA     : %6.1f s (TO DEST)", st->shm_eta);
+            mvprintw(8, 2, "ETA     : %6.1f s (TO DEST)", st->shm_eta);
             attroff(A_BOLD);
         } else {
-            mvprintw(7, 2, "ETA     : ---");
+            mvprintw(8, 2, "ETA     : ---");
         }
-        mvprintw(8, 2, "STATE   : %s", get_nav_state_name(st->shm_nav_state));
+        mvprintw(9, 2, "STATE   : %s", get_nav_state_name(st->shm_nav_state));
         
         attron(COLOR_PAIR(6) | A_BOLD); mvprintw(10, 2, "[ SHIP VITALS ]"); attroff(A_BOLD);
         mvprintw(11, 2, "NRG: %-15" PRIu64, st->shm_energy);
@@ -292,10 +294,9 @@ int main(int argc, char** argv) {
         
         mvprintw(4, 37, "L: %-5d", st->shm_shields[5]); draw_bar(4, 45, 10, st->shm_shields[5], 10000.0, 2);
         mvprintw(4, 56, "R: %-5d", st->shm_shields[4]); draw_bar(4, 56 + 8, 10, st->shm_shields[4], 10000.0, 2);
-        
-        mvprintw(5, 37, "UP:%-5d", st->shm_shields[2]); draw_bar(5, 45, 10, st->shm_shields[2], 10000.0, 2);
-        mvprintw(5, 56, "DW:%-5d", st->shm_shields[3]); draw_bar(5, 64, 10, st->shm_shields[3], 10000.0, 2);
-        
+
+        mvprintw(5, 37, "UP:%-5d", st->shm_shields[3]); draw_bar(5, 45, 10, st->shm_shields[3], 10000.0, 2);
+        mvprintw(5, 56, "DW:%-5d", st->shm_shields[2]); draw_bar(5, 64, 10, st->shm_shields[2], 10000.0, 2);        
         mvprintw(8, 37, "PWR - ENG:"); draw_bar(8, 48, 15, st->shm_power_dist[0]*100, 100.0, 1);
         mvprintw(9, 37, "PWR - SHL:"); draw_bar(9, 48, 15, st->shm_power_dist[1]*100, 100.0, 2);
         mvprintw(10, 37, "PWR - WPN:"); draw_bar(10, 48, 15, st->shm_power_dist[2]*100, 100.0, 4);

@@ -403,8 +403,9 @@ void handle_imp(int i, const char *params, bool *should_disconnect) {
 
 void handle_pos(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
-    double h, m;
-    if (sscanf(params, "%lf %lf", &h, &m) == 2) {
+    double h, m, r = 0.0;
+    int parsed = sscanf(params, "%lf %lf %lf", &h, &m, &r);
+    if (parsed >= 2) {
         if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
             send_server_msg(i, "ENGINEERING", "Attitude thrusters OFFLINE.");
             return;
@@ -415,15 +416,17 @@ void handle_pos(int i, const char *params, bool *should_disconnect) {
         }
         normalize_upright(&h, &m);
         players[i].target_h = h; players[i].target_m = m;
+        players[i].target_r = r;
         players[i].start_h = players[i].state.van_h; players[i].start_m = players[i].state.van_m;
+        players[i].start_r = players[i].state.van_r;
         players[i].nav_state = NAV_STATE_ALIGN_ONLY; players[i].state.energy -= COST_MANEUVER_ADJUST;
         double dh = players[i].target_h - players[i].state.van_h;
         while(dh>180) dh-=360; 
         while(dh<-180) dh+=360;
-        players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0) ? (GAME_TICK_RATE / 6) : (int)GAME_TICK_RATE;
+        players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0 && fabs(players[i].target_r - players[i].state.van_r)<1.0) ? (GAME_TICK_RATE / 6) : (int)GAME_TICK_RATE;
         players[i].pending_bor_type = players[i].nav_timer;
         send_server_msg(i, "HELMSMAN", "Ship re-orienting.");
-    } else send_server_msg(i, "COMPUTER", "Usage: pos <H> <M>");
+    } else send_server_msg(i, "COMPUTER", "Usage: pos <H> <M> [R]");
 }
 
 void handle_apr(int i, const char *params, bool *should_disconnect) {
@@ -1328,7 +1331,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
             
             int s_idx = calculate_shield_index(players[i].gx, players[i].gy, players[i].gz,
                                                target->gx, target->gy, target->gz,
-                                               target->state.van_h, target->state.van_m);
+                                               target->state.van_h, target->state.van_m, target->state.van_r);
 
             int dmg_rem = hit;
             if (target->state.shields[s_idx] >= dmg_rem) {

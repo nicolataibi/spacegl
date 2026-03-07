@@ -53,7 +53,7 @@
 typedef struct {
     int32_t q1, q2, q3;
     double s1, s2, s3;
-    double van_h, van_m;
+    double van_h, van_m, van_r;
     double eta;
 } UpdateBlockTransform;
 
@@ -240,7 +240,7 @@ typedef struct {
     int64_t frame_id;
     int32_t q1, q2, q3;
     double s1, s2, s3;
-    double van_h, van_m;
+    double van_h, van_m, van_r;
     double eta;
     uint64_t energy;
     int32_t torpedoes;

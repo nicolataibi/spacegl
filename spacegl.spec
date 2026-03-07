@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 20
+%global rel 21
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -120,13 +120,5 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/shaders/
 
 %changelog
-* Thu Mar 5 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
-1. HUD Data Correction (spacegl_3dview)
-  We identified and resolved a data swap in the textual HUD. Previously, the values for the Left (L) and Right (RI) shields were inverted. I swapped the internal indices so that Index 5 now correctly represents the Left sector and Index 4 represents the Right sector, ensuring the telemetry matches the ship's physical state.
-
-
-2. Shield Pitch Alignment (The "Mark" Issue)
-   We fixed the visual positioning of the shield sectors during vertical maneuvers:
-   * The Problem: While the ship tilted up or down (Mark/Pitch), the shield sectors remained static or rotated on the wrong       axis, causing a visual detachment from the hull.
-   * The Solution: I updated the transformation logic in drawShieldEffect to calculate a dynamic pitch axis based on the ship's current heading. 
-   * Final Refinement: To ensure perfect accuracy in spacegl_3dview, I synchronized its rotation sequence with the ship's actual 3D model transformation (Heading - 90° followed by Mark).
+* Sat Mar 7 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
+Roll added to the ships.

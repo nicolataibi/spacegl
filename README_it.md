@@ -37,6 +37,17 @@
 Space GL è un simulatore spaziale avanzato che unisce la profondità strategica dei classici giochi testuali anni '70 con un'architettura moderna Client-Server e una visualizzazione 3D accelerata hardware.
 ---
 
+## 🚀 Novità Versione 2.9 (Rel. 19 - Full 3-DOF & Tactical Navigation)
+
+L'aggiornamento 2.9 trasforma il rollio da semplice effetto estetico a componente fondamentale della navigazione e del combattimento:
+*   **Supporto Rollio Longitudinale**: Le navi ora supportano l'orientamento completo a 3-DOF. Il **Rollio (Roll)** permette manovre cinematiche e un posizionamento tattico senza precedenti.
+*   **Suite AR Compass Solidale**: La bussola olografica `axs` è stata completamente riprogettata per essere solidale alla nave:
+    *   **Vettore "Top" (Blu)**: Un nuovo indicatore verticale che punta al soffitto della nave, permettendo di percepire istantaneamente l'inclinazione laterale.
+    *   **Anello del Rollio Solidale**: Il cerchio trasversale giallo ruota ora in perfetta sincronia con heading, mark e rollio della nave.
+    *   **Riallineamento Mark**: Il semianello del Mark è ora correttamente frontale alla prua, fornendo un riferimento di elevazione intuitivo.
+*   **Logica Scudi Tattica (Roll-Aware)**: Il rollio è ora un elemento difensivo critico. Il server calcola gli impatti sui 6 settori di scudo considerando l'inclinazione effettiva della nave. Ruotando sul proprio asse, il pilota può esporre settori integri per proteggere quelli danneggiati.
+*   **Smoothing & HUD**: Sia Vulkan che OpenGL implementano l'interpolazione LERP del rollio a 60Hz. Il valore del rollio è ora monitorabile in tempo reale su tutti gli HUD tattici.
+
 ## 🚀 Novità Versione 2.8 (Rel. 18 - Espansione Astrometrica)
 
 L'aggiornamento 2.8 introduce Corpi Celesti ad Alta Energia e raffina gli strumenti di cartografia tattica:
@@ -114,10 +125,36 @@ L'aggiornamento 2.4 introduce ottimizzazioni di nuova generazione e una robustez
 *   **True 40x40x40 Tactical Navigation**: Le rotte degli NPC e il comando `jum` sono stati ricalibrati per l'intera scala galattica, con arrivi casuali nel quadrante di destinazione.
 *   **Nucleo Energetico a 64-bit**: Tutti i campi delle risorse sono stati rifattorizzati in `uint64_t`, supportando fino a 999.999.999.999 unità di energia con precisione millimetrica.
 
+## 🚀 Guida Rapida
+
+### 1. Installazione delle Dipendenze (Linux)
+```bash
+# Ubuntu / Debian
+sudo apt-get install build-essential freeglut3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
+                     libvulkan-dev vulkan-tools glslc libncurses5-dev libncursesw5-dev
+
+# Fedora / Red Hat
+sudo dnf groupinstall "Development Tools"
+sudo dnf install freeglut-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel \
+                 vulkan-loader-devel vulkan-validation-layers-devel glslc ncurses-devel
+```
+
+### 2. Compilazione
+Compila il progetto per generare gli eseguibili aggiornati:
+```bash
+make
+```
+
+### 3. Avvio del Server
+Lancia lo script di avvio sicuro. Ti verrà chiesto di impostare una **Master Key** (password segreta per il server):
+```bash
+./run_server.sh
+```
+
 ### 4. Avvio del Client
 In un altro terminale, lancia il client:
 ```bash
-./run_client.sh
+./run_client.sh gl|vk
 ```
 **Flusso di accesso:**
 1.  **Server IP:** Inserisci l'indirizzo del server.
@@ -1815,76 +1852,37 @@ Space GL implementa la sicurezza di livello enterprise per la sincronizzazione d
 *   **Firme HMAC-SHA256**: I file dei dati della galassia (`galaxy.dat`) e gli aggiornamenti di rete sono firmati per garantire zero manomissioni durante il transito o l'archiviazione.
 *   **HUD Crittografico**: Visualizzazione in tempo reale dei flag di crittografia, dello stato della firma e dei parametri del protocollo attivo direttamente nell'interfaccia tattica.
 
-### ⚙️ Requisiti di Sistema e Dipendenze
-Per compilare ed eseguire la suite SPACE GL, assicurati che siano installate le seguenti librerie:
-*   **FreeGLUT / OpenGL**: Motore di rendering principale e gestione delle finestre.
-*   **GLEW**: OpenGL Extension Wrangler per il supporto avanzato agli shader.
-*   **OpenSSL**: Richiesto per la suite crittografica completa (AES, HMAC, ecc.).
-*   **POSIX Threads & RT**: Gestiti tramite `lpthread` e `lrt` per la memoria condivisa e la sincronizzazione.
+#### 4. Modello delle librerie Vulkan
+Questa sezione descrive l'integrazione delle librerie grafiche di nuova generazione e degli strumenti di diagnostica avanzata per il monitoraggio del ponte.
 
-### 🚀 Zero-Latency IPC Architecture
+*   **Architettura di Rendering Vulkan (`spacegl_vulkan`)**:
+    *   **Gestione Matrici Row-Major**: Il motore utilizza matrici in formato Row-Major (traslazione in `m[3]`). La pipeline esegue la moltiplicazione inversa (`S * R * T`) per allinearsi al layout Column-Major (`T * R * S`) degli shader GLSL.
+    *   **Pipeline Specializzate**: Implementazione di pipeline multiple (`graphics`, `wireframe`, `point`, `glow`) per ottimizzare il throughput di diversi tipi di geometrie ed effetti.
+    *   **PBR & Glow**: Supporto per materiali PBR e blending additivo per effetti volumetrici come scudi settoriali, wormhole e accrezione di buchi neri.
+    *   **Sincronizzazione SHM**: I dati sono mappati direttamente dalla Shared Memory IPC ai buffer uniformi della GPU, permettendo un'interpolazione fluida (LERP) a 60/144 FPS.
 
-L'architettura di sistema è progettata per eliminare il collo di bottiglia del networking locale, tipico delle soluzioni client-server tradizionali, garantendo una latenza deterministica prossima allo zero.
+### 🛡️ Sincronizzazione Scudi e Mappatura Tattica
+Per garantire una coordinazione perfetta tra logica di combattimento, telemetria HUD ed effetti visivi 3D, le interfacce Vulkan e ncurses (GDIS) seguono una mappatura standardizzata:
 
-#### 🧠 1. Shared Memory Foundation (`/dev/shm`)
-Invece di affidarsi a socket TCP/UDP o Named Pipes (che richiedono molteplici context switch tra kernel e user space), il sistema utilizza la **memoria condivisa POSIX**.
-*   **Mappatura**: Il Client crea un oggetto di memoria in `/dev/shm` (un file system in RAM) tramite `shm_open`.
-*   **Indirizzamento**: Entrambi i processi mappano lo stesso segmento fisico nei propri spazi di indirizzamento virtuali tramite `mmap()`. 
-*   **Vantaggio**: Una volta stabilita la mappatura, lo scambio di dati avviene a **velocità di bus della RAM**, senza overhead di sistema operativo per il transito dei byte.
+| Indice Scudo | Settore HUD | Posizione 3D (Locale) | Rotazione Vulkan (`rx, ry`) |
+| :--- | :--- | :--- | :--- |
+| **0** | **F** (Front) | Prua (+X) | `{0, 0}` |
+| **1** | **B** (Back) | Poppa (-X) | `{0, PI}` |
+| **2** | **DW** (Sotto) | Sopra (+Y) | `{PI/2, 0}` |
+| **3** | **UP** (Sopra) | Sotto (-Y) | `{-PI/2, 0}` |
+| **4** | **R** (Destra) | Sinistra (-Z) | `{0, PI/2}` |
+| **5** | **L** (Sinistra) | Destra (+Z) | `{0, -PI/2}` |
 
-#### 🔄 2. Sincronizzazione Inter-Processo (`PTHREAD_SHARED`)
-La coerenza dei dati tra il thread di rete del Client e il loop di rendering del Visualizzatore è gestita tramite primitive di sincronizzazione atomiche allocate direttamente nella memoria condivisa:
-*   **Mutex Process-Shared**: Utilizzo di `pthread_mutex_t` inizializzati con l'attributo `PTHREAD_PROCESS_SHARED`. Questo permette di bloccare l'accesso alla struttura `GameState` in modo sicuro tra processi diversi.
-*   **Semafori POSIX**: Un `sem_t` viene utilizzato per implementare un meccanismo di *Signaling* a bassa latenza. Quando il Client riceve un pacchetto dal server remoto, aggiorna la memoria e incrementa il semaforo, svegliando istantaneamente il thread `shm_listener` del motore 3D.
+**Dettagli Tecnici di Implementazione:**
+*   **Allineamento Coordinate**: Vulkan utilizza un sistema destrorso dove la prua della nave punta verso **+X**. L'asse verticale è **Y** e quello laterale è **Z**.
+*   **Feedback Visivo**: Gli effetti di impatto degli scudi in `spacegl_vulkan` sono ruotati utilizzando gli angoli sopra indicati per corrispondere al punto di impatto fisico.
+*   **Sincronizzazione HUD**: Le etichette dell'HUD ncurses (`spacegl_hud`) sono mappate su questi indici per corrispondere alla risposta visiva nel visore Vulkan come verificato.
+*   **Spazio delle Coordinate**: Gli impatti sono proiettati sulla base locale ruotata 3-DOF della nave, tenendo conto di Heading, Mark e Rollio.
 
-#### ⚡ 3. Meccanismo Zero-Copy
-A differenza delle architetture basate su messaggi (dove i dati vengono serializzati, copiati in un buffer, inviati e deserializzati), SPACE GL implementa una vera filosofia **Zero-Copy**:
-*   **Aggiornamento sul posto**: I dati ricevuti dal network vengono scritti direttamente nella struttura `SharedObject` puntata da `g_shared_state`.
-*   **Accesso Diretto**: Il motore grafico legge i valori necessari (coordinate, stati degli scudi, vettori di movimento) accedendo direttamente ai puntatori della memoria condivisa, eliminando qualsiasi operazione di bufferizzazione intermedia.
+*   **HUD Tattico e Diagnostica SHM (`spacegl_hud`)**:
+    *   **Shared Memory Inspector**: Strumento di diagnostica integrato (tasto `m`) con 6 pagine di telemetria: *Core Systems*, *Navigation*, *Network & Crypto*, *Combat & Cargo*, *Object List* e *Event Queue*.
+    *   **Monitoraggio Real-Time**: Visualizzazione millimetrica della latenza di rete (Jitter), bitrate (KBPS) e stato della cifratura HMAC-SHA256 direttamente sul ponte di comando.
+    *   **Feedback Tattico**: Gestione dinamica dei temi di colore e allarmi visivi per la navigazione e il combattimento.
 
-#### 🛡️ 4. Orchestrazione e Resilienza del Ciclo di Vita
-Il Client binario agisce come **Supervisore (Orchestrator)** del ciclo di vita IPC:
-1.  **Init**: Genera un path univoco (es. `/st_shm_[PID]`), alloca lo spazio con `ftruncate` e inizializza i mutex.
-2.  **Spawn**: Lancia il Visualizzatore passandogli l'identificativo del segmento come argomento.
-3.  **Cleanup**: In caso di chiusura o crash intercettato tramite segnali (`SIGINT`, `SIGTERM`), il Client invoca `shm_unlink`. Questo assicura che il segmento di memoria venga rimosso dal sistema, evitando "memory orphans" in `/dev/shm`.
-
-***
-
-**Stack Tecnologico IPC:**
-*   **API**: POSIX Real-time Extensions (librt).
-*   **Strutture Dati**: `GameState` con `#pragma pack(1)` per garantire il binary alignment identico tra compilazioni diverse.
-*   **Latenza Misurata**: < 100 microsecondi per il passaggio di stato tra logica e rendering.
-
----
-
-## 🛰️ Revisione Tecnica Finale (v2.8 - Release 18)
-
-### 🚀 SpaceGL v2.8 - Revisione Tecnica del Sistema
-
-Il motore di simulazione ha raggiunto un nuovo livello di densità astrometrica con l'integrazione completa dei **Corpi Celesti ad Alta Energia** e il raffinamento del sistema di **Cartografia Tattica**.
-
-#### 1. ⚙️ Codifica Griglia BPNBS a 18 Cifre (Saturazione 64-bit)
-La logica della griglia spaziale (`spatial_index`) è stata ottimizzata per utilizzare la piena precisione dell'architettura `int64_t`.
-*   **Iniezione Quasar**: I conteggi dei Quasar sono ora codificati alla **posizione $10^{17}$** della matrice BPNBS (Binary Packed Number System). Questo permette il tracciamento di 17 tipi di oggetti distinti per quadrante all'interno di un singolo intero a 64 bit, massimizzando il throughput della memoria senza migrazione dello schema del database.
-*   **Limiti**: Il sistema utilizza ora circa il 90% dello spazio di precisione di `INT64_MAX`, garantendo una serializzazione a zero-overhead per i Sensori a Lungo Raggio (`lrs`).
-
-#### 2. 🎨 Sensori Tattici a Profondità Cromatica (`lrs`)
-L'array dei Sensori a Lungo Raggio implementa ora la **Codifica Cromatica Z-Depth**:
-*   **Verde**: Quadranti Superiori (Z+1).
-*   **Giallo**: Piano Tattico Attuale (Z=0).
-*   **Rosso**: Quadranti Inferiori (Z-1).
-Questo fornisce un'immediata consapevolezza spaziale visiva nell'interfaccia testuale CLI, colmando il divario tra la modalità testo e la visualizzazione 3D.
-
-#### 3. 🔯 Implementazione Classe Quasar
-Il sistema delle entità supporta ora pienamente i **Quasar di Tipo-29** con 7 classificazioni spettrali (da Radio-loud a Weak Emission).
-*   **Simulazione**: I Quasar sono fisicamente interattivi, supportando l'**Ingresso Orbitale (`orb`)** e agendo come massicce ancore gravitazionali.
-*   **Visualizzazione**: Il motore di rendering introduce uno specifico **Shader Pulsante Magenta** nella mappa 3D e nell'HUD per distinguerli dai Buchi Neri e dalle Pulsar standard.
-
----
-
-### 🏆 Verdetto
-SpaceGL v2.8 rappresenta il culmine del motore di simulazione astrometrica. La saturazione riuscita della codifica della griglia a 64 bit dimostra la robustezza dell'architettura core, permettendo un'espansione procedurale illimitata mantenendo tempi di query inferiori al millisecondo.
-
-(Google Gemini)
 ---
 *SPACE GL - 3D LOGIC ENGINE. Sviluppato con eccellenza tecnica da Nicola Taibi. "Per Tenebras, Lumen"*
