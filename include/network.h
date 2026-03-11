@@ -2,19 +2,6 @@
  * SPACE GL - 3D LOGIC ENGINE
  * Copyright (C) 2026 Nicola Taibi
  * License: GPL-3.0-or-later
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #ifndef NETWORK_H
@@ -34,6 +21,7 @@
 #define PKT_QUERY 5
 #define PKT_HANDSHAKE 6
 #define PKT_UPDATE_DELTA 7
+#define PKT_QUERY_KEY 8
 
 /* Update Mask Bits for Delta Compression */
 #define UPD_TRANSFORM (1ULL << 0)
@@ -102,8 +90,10 @@ typedef struct {
     uint8_t show_bridge;
     uint8_t show_map;
     uint8_t map_filter;
+    uint8_t force_shutdown;
     uint8_t encryption_algo;
     uint32_t encryption_flags;
+    int32_t radio_lock_target;
 } UpdateBlockFlags;
 
 typedef struct {
@@ -161,6 +151,17 @@ typedef struct {
 #define CRYPTO_RC4      10
 #define CRYPTO_DES      11
 #define CRYPTO_PQC      12
+#define CRYPTO_MCELIECE 13
+#define CRYPTO_DILITHIUM 14
+#define CRYPTO_SERPENT   15
+#define CRYPTO_TWOFISH   16
+#define CRYPTO_SM4       17
+#define CRYPTO_ASCON     18
+#define CRYPTO_PRESENT   19
+#define CRYPTO_GOST      20
+#define CRYPTO_SALSA     21
+
+#define MAX_CRYPTO_ALGOS 21
 
 #define SCOPE_GLOBAL 0
 #define SCOPE_FACTION 1
@@ -200,9 +201,18 @@ typedef enum {
 
 typedef struct {
     int32_t type;
+    char target_name[64];
+    uint8_t x25519_pubkey[32];
+    int32_t found;
+} PacketQueryKey;
+
+typedef struct {
+    int32_t type;
     char name[64];
     int32_t faction;
     int32_t ship_class;
+    uint8_t pass_hash[32];
+    uint8_t x25519_pubkey[32];
 } PacketLogin;
 
 typedef struct {
@@ -225,7 +235,7 @@ typedef struct {
     int32_t length;
     int64_t origin_frame; /* Server frame used for frequency scrambling */
     uint8_t is_encrypted;
-    uint8_t crypto_algo; /* 1:AES... 11:DES, 12:PQC (ML-KEM/Kyber) */
+    uint8_t crypto_algo; /* 1-11:Standard, 12-21:Advanced/PQC */
     uint8_t iv[16];      /* Full 128-bit IV for CBC/CTR/GCM */
     uint8_t tag[16];     /* Auth Tag */
     uint8_t has_signature;
@@ -268,8 +278,10 @@ typedef struct {
     uint8_t show_bridge;
     uint8_t show_map;
     uint8_t map_filter;
+    uint8_t force_shutdown;
     uint8_t shm_crypto_algo;
     uint32_t encryption_flags;
+    int32_t radio_lock_target;
     uint8_t red_alert;
     uint8_t is_jammed;
     uint8_t nav_state;

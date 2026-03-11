@@ -344,15 +344,6 @@ Per garantire che la sicurezza sia attiva, utilizzare sempre gli script bash for
 # Il sistema confermerà: "Secure Link Established. Unique Frequency active."
 ```
 
-#### 3. Comandi di Crittografia in Gioco
-Una volta connessi, la sicurezza è attiva ma trasparente. I capitani possono scegliere l'algoritmo di cifratura tattica (il "sapore" della crittografia) usando il comando `enc`:
-
-*   `enc aes`: Attiva AES-256-GCM (Standard della Flotta).
-*   `enc chacha`: Attiva ChaCha20-Poly1305 (Alta velocità).
-*   `enc off`: Disattiva la cifratura (Traffico in chiaro, sconsigliato).
-
-*Nota: Se due giocatori usano algoritmi diversi (es. uno AES e l'altro ChaCha), non potranno leggere i messaggi radio l'uno dell'altro, vedendo solo "rumore statico". Questo obbliga le squadre a coordinare le frequenze di comunicazione.*
-
 ---
 
 ## 🛠️ Architettura del Sistema e Dettagli Costruttivi
@@ -821,6 +812,27 @@ L'efficacia dei tuoi sensori dipende direttamente dallo stato di salute del **si
     *   **Rilascio Automatico**: Il lock si disinserisce istantaneamente se il bersaglio viene distrutto, esce dal settore o se la nave del giocatore cambia quadrante.
     *   Essenziale per la guida automatizzata di Ion Beam e siluri.
 
+### 🤖 NPC AI e Logica Tattica
+Le navi NPC operano con una Macchina a Stati (FSM) autonoma che ne dettare il comportamento tattico in base alle minacce locali e all'integrità del vascello.
+
+#### Stati Comportamentali
+*   **PATROL**: Stato predefinito. Le navi si muovono casualmente nel loro quadrante a una velocità di crociera di **0.03 unità/tick** (~1.8 unità/sec).
+*   **CHASE**: Attivato quando un vascello ostile non occultato entra nel raggio dei sensori. L'NPC calcola un vettore di intercettazione e accorcia le distanze.
+*   **ATTACK RUN**: Attivo entro **3.0 unità** dal bersaglio. L'NPC esegue manovre per allineare i propri banchi di armi.
+*   **ATTACK POSITION**: L'NPC interrompe il movimento e mantiene l'orientamento verso il bersaglio per massimizzare il fuoco degli Ion Beam.
+*   **FLEE**: Attivato se l'energia scende sotto le **950 unità** o se l'integrità del sistema è compromessa. La velocità aumenta del **180%** (0.054 unità/tick). L'NPC torna in PATROL una volta raggiunta una distanza di sicurezza di **8.5 unità**.
+
+#### Parametri di Combattimento
+*   **Cadenza di Fuoco**: Gli NPC sparano raffiche sincronizzate di Ion Beam ogni **2.0 secondi** (120 tick).
+*   **Disturbo Tattico Scudi**: Ogni colpo andato a segno da parte di un NPC resetta il timer di rigenerazione degli scudi del giocatore a **2.5 secondi** (`SHIELD_REGEN_DELAY`).
+*   **Danno Base per Fazione**:
+    *   **Lo Swarm**: **~8.000 unità** (Massima letalità, risonanza biologica).
+    *   **Impero Xylari**: **~3.500 unità** (Focus tattico avanzato).
+    *   **Collettivo Korthian**: **~2.500 unità** (Output costante).
+    *   **Indipendenti/Altre**: **1.000 unità** (Condensatore standard).
+*   **Attenuazione della Distanza**: Il danno massimo viene inflitto entro **1.0 unità**. Il danno scala linearmente oltre questa portata.
+*   **Disabilitazione Sistemi**: Se l'integrità dello scafo di un NPC scende sotto il **50%**, i motori a impulso si bloccano e il vascello entra in uno stato permanente di **Drift** (Deriva), diventando un bersaglio per lo smantellamento (`dis`) o l'abbordaggio (`bor`).
+
 
 ### 🆔 Schema Identificativi Galattici (Universal ID)
 Per interagire con gli oggetti galattici usando i comandi `lock`, `scan`, `pha`, `tor`, `bor` e `dis`, il sistema utilizza un sistema di ID unico. Usa il comando `srs` per identificare gli ID degli oggetti nel tuo settore.
@@ -923,7 +935,7 @@ Il comando `apr <ID> <DIST>` ti permette di avvicinarti automaticamente a qualsi
     *   **Feedback**: Fornisce una conferma immediata della nuova distribuzione percentuale.
     *   **Impatto Strategico**: Determina le prestazioni dei motori sub-luce, il tasso di ricarica degli scudi e l'intensità dei banchi Ion Beam.
 *   `aux jettison`: **Espulsione Synaptics Hyperdrive**. Espelle il nucleo (Manovra suicida / Ultima risorsa).
-*   `xxx`: **Riposizionamento di Emergenza**. Attiva un **Tactical Warp** immediato verso un settore sicuro, lasciando un relitto dello scafo precedente. Ripristina sistemi ed energia all'80%.
+*   `xxx`: **Riposizionamento di Emergenza**. Attiva un **Tactical Warp** immediato verso un settore sicuro, lasciando un relitto dello scafo precedente. Ripristina sistemi ed energia all'80% ed esegue la chiusura pulita di tutti i processi collegati (Visore 3D, HUD, Vulkan).
 *   `zztop`: **Cancellazione Totale Profilo**. Purga permanentemente il nome del capitano e tutti i dati della carriera dal database della galassia. Questa azione è irreversibile e interrompe la connessione.
 
 ### ⚡ Gestione del Reattore e della Potenza
@@ -1140,21 +1152,39 @@ Il ponte di comando di Space GL opera tramite un'interfaccia a riga di comando (
 *   `hull`: **Rinforzo in Composite**. Se hai **100 unità di Composite** nella stiva, questo comando applica una placcatura rinforzata allo scafo (+500 HP di scudo fisico), visibile come oro nell'HUD.
 
 #### 🛡️ Crittografia Tattica: "Frequenze" di Comunicazione
-In Space GL, la crittografia non riguarda solo la sicurezza: è una **scelta di frequenza tattica**. Ogni algoritmo agisce come una banda di comunicazione separata.
+In Space GL, la crittografia non riguarda solo la sicurezza: è una **scelta di frequenza tattica**. Ogni algoritmo agisce come una banda di comunicazione separata. Se due capitani usano frequenze diverse, riceveranno solo rumore statico/criptato l'uno dall'altro.
 
 *   **Identità e Firma (Ed25519)**: Ogni pacchetto radio è firmato digitalmente **prima** della cifratura. Se ricevi un messaggio con un tag **`[VERIFIED]`**, hai la certezza matematica che provenga dal capitano dichiarato.
 *   **Frequenze Crittografiche (`enc <TYPE>`)**:
-    *   **AES (`enc aes`)**: Indice di frequenza **1**. Lo standard della Flotta.
-    *   **PQC (`enc pqc`)**: Indice di frequenza **12**. Crittografia Post-Quantistica (ML-KEM).
-    *   **Algoritmi Intermedi (2-11)**: `chacha`, `aria`, `camellia`, `seed`, `cast`, `idea`, `3des`, `bf`, `rc4`, `des`.
-    *   **OFF (`enc off`)**: Indice **0**. Comunicazione in chiaro (distress calls).
+    *   **AES (`enc aes`)**: Indice di frequenza **1**. Utilizza **AES-256-GCM**. Lo standard della Flotta per comunicazioni sicure e autenticate.
+    *   **ChaCha20 (`enc chacha`)**: Indice di frequenza **2**. Utilizza **ChaCha20-Poly1305**. Cifratore di flusso tattico ad alta velocità.
+    *   **ARIA (`enc aria`)**: Indice di frequenza **3**. Cifratore standard sudcoreano, robusto e affidabile.
+    *   **Camellia (`enc camellia`)**: Indice di frequenza **4**. Avanzato cifratore a blocchi giapponese (Xylari).
+    *   **SEED (`enc seed`)**: Indice di frequenza **5**. SEED-CBC (Orione).
+    *   **CAST5 (`enc cast`)**: Indice di frequenza **6**. CAST5-CBC (Vecchia Repubblica).
+    *   **IDEA (`enc idea`)**: Indice di frequenza **7**. IDEA-CBC (Maquis).
+    *   **3DES (`enc 3des`)**: Indice di frequenza **8**. DES-EDE3-CBC (Antico).
+    *   **Blowfish (`enc bf`)**: Indice di frequenza **9**. BLOWFISH-CBC (Gilded).
+    *   **RC4 (`enc rc4`)**: Indice di frequenza **10**. RC4-STREAM (Tattico).
+    *   **DES (`enc des`)**: Indice di frequenza **11**. DES-CBC (Pre-Curvatura).
+    *   **PQC (`enc pqc`)**: Indice di frequenza **12**. **Crittografia Post-Quantistica (ML-KEM-1024)**. Resistente agli attacchi dei computer quantistici.
+    *   **McEliece (`enc mceliece`)**: Indice di frequenza **13**. Classic McEliece (PQC code-based).
+    *   **Dilithium (`enc dilithium`)**: Indice di frequenza **14**. Dilithium ML-DSA (Firma Post-Quantistica).
+    *   **Serpent (`enc serpent`)**: Indice di frequenza **15**. SERPENT-256-GCM.
+    *   **Twofish (`enc twofish`)**: Indice di frequenza **16**. TWOFISH-256-CBC.
+    *   **SM4 (`enc sm4`)**: Indice di frequenza **17**. SM4-CBC (Syndicate).
+    *   **Ascon (`enc ascon`)**: Indice di frequenza **18**. ASCON-128 (Lightweight).
+    *   **Present (`enc present`)**: Indice di frequenza **19**. PRESENT (Biometrico).
+    *   **GOST (`enc gost`)**: Indice di frequenza **20**. GOST-Kuznyechik.
+    *   **Salsa20 (`enc salsa`)**: Indice di frequenza **21**. Cifratore di flusso SALSA20.
+    *   **OFF (`enc off`)**: Indice **0**. Comunicazione in chiaro. Usata per chiamate di soccorso d'emergenza o trasmissioni non protette.
 
-*   **Persistenza delle Chiavi (`captains/`)**: Le chiavi crittografiche per ogni frequenza (1-12) sono salvate localmente nella directory `captains/NomeCapitano/`. Questo permette al server e al client di mantenere la sincronizzazione delle chiavi anche tra diverse sessioni.
+*   **Persistenza delle Chiavi (`captains/`)**: Le chiavi crittografiche per ogni frequenza (1-21) sono salvate localmente nella directory `captains/NomeCapitano/`. Questo permette al server e al client di mantenere la sincronizzazione delle chiavi anche tra diverse sessioni. Se cambi computer, devi spostare questa cartella per mantenere l'accesso alle tue frequenze sicure.
 
 #### 🛰️ Protocollo di Sincronizzazione Galattica (Baseline DEFAULT)
 Per garantire che la crittografia funzioni come una vera radio tattica, il sistema adotta uno standard di sincronizzazione rigoroso basato sulla directory `captains/DEFAULT/`:
 
-1.  **Il Metro Campione**: All'avvio, il server genera un set di 12 chiavi nella cartella `DEFAULT`. Queste chiavi rappresentano lo "Standard Galattico". Poiché la derivazione avviene tramite un *salt* condiviso (`GALAXY-WORMHOLE-SIG`), queste chiavi sono matematicamente identiche per ogni capitano della galassia.
+1.  **Il Metro Campione**: All'avvio, il server genera un set di 21 chiavi nella cartella `DEFAULT`. Queste chiavi rappresentano lo "Standard Galattico". Poiché la derivazione avviene tramite un *salt* condiviso (`GALAXY-WORMHOLE-SIG`), queste chiavi sono matematicamente identiche per ogni capitano della galassia.
 2.  **Validazione Server**: Il server utilizza le chiavi in `DEFAULT` come riferimento globale per decriptare e validare i messaggi di *qualsiasi* capitano. Questo permette al server di verificare l'integrità del segnale e applicare i costi energetici corretti senza dover conoscere le chiavi private di ogni singola nave.
 3.  **Template di Ripristino**: Se un capitano perde le proprie chiavi o corrompe la propria directory, il sistema può rigenerarle istantaneamente riallineandosi alla baseline di `DEFAULT`.
 4.  **Audit Tattico**: Qualsiasi capitano può confrontare le proprie chiavi con quelle in `DEFAULT` per assicurarsi che i propri sistemi di bordo siano correttamente sincronizzati con le frequenze della Flotta.
@@ -1501,7 +1531,7 @@ Il database centrale GDIS preserva le gesta dei comandanti che hanno plasmato i 
 ### 🏛️ Panoramica Generale
 L'**Alleanza Stellare** rappresenta il principale baluardo di stabilità e cooperazione tra le potenze del quadrante. Fondata sui principi della **diplomazia proattiva**, dell'**esplorazione scientifica** e della **difesa collettiva**, l'Alleanza funge da entità coordinatrice tra diverse civiltà per contrastare le minacce sistemiche che mettono a rischio lo spazio conosciuto.
 
-### 🛡️ Pilastri Strategici
+### 👑 Pilastri Strategici
 
 * **Dottrina Strategica** A differenza delle potenze espansioniste o collettiviste, l'Alleanza predilige un approccio basato sul **multilateralismo**. La sua forza risiede nella capacità di integrare tattiche e tecnologie eterogenee provenienti da culture diverse sotto un comando unico e coordinato.
 
@@ -1524,7 +1554,7 @@ L'**Alleanza Stellare** rappresenta il principale baluardo di stabilità e coope
   </tr>
 </table>
 
-*   🛡️ **Alto Ammiraglio Hyperion Niklaus**: Noto come "Il Muro di Orione", guidò la difesa dell'Aegis durante la prima grande invasione Swarm.
+*   🔱 **Alto Ammiraglio Hyperion Niklaus**: Noto come "Il Muro di Orione", guidò la difesa dell'Aegis durante la prima grande invasione Swarm.
     > **"Per Tenebras, Lumen"**
     > *(Attraverso le tenebre, la luce)*
     >
@@ -1766,7 +1796,44 @@ Oltre alla scelta dell'algoritmo, il sistema GDIS utilizza protocolli avanzati p
 *   **Integrazione della Frequenza Rotante**: Il Vettore di Inizializzazione (IV) di ogni messaggio viene modificato dinamicamente in base al `frame_id` del server. Questo rende il sistema immune agli *Attacchi di Replay*: un messaggio registrato un secondo fa sarà illeggibile quello successivo.
 *   **Supporto Legacy Provider**: SpaceGL carica esplicitamente i **Legacy Provider** di OpenSSL 3.0, abilitando il supporto completo per standard storici come SEED, CAST5 e IDEA insieme alle moderne suite GCM.
 *   **Sintonizzazione Tattica (Frequenze)**: La sicurezza delle comunicazioni agisce come una vera frequenza radio. Per leggere il messaggio di un altro comandante, la tua nave deve essere sintonizzata sullo **stesso algoritmo** (es. entrambi su `enc aes` o `enc pqc`). Discrepanze di frequenza risulteranno in rumore binario e segnali disturbati, permettendo la creazione di canali tattici privati.
+*   **Tactical Peer Link (X25519)**: Introduce la crittografia **End-to-End** tra due soli capitani tramite lo scambio di chiavi Elliptic Curve Diffie-Hellman (ECDH).
+    *   `link <CaptainName>`: **Tactical Link**. Stabilisce un handshake E2E sicuro con un altro capitano calcolando un segreto condiviso unico che non viaggia mai sulla rete.
+    *   `enc3 <CaptainName> <algo>`: **Peer Mode**. Attiva la cifratura punto-a-punto verso il peer specificato (Livello C).
+    *   `enc4 <CaptainName> <algo>`: **Exclusive Mode**. Attiva un link privato filtrato (Livello D). Una volta stabilito, il server filtrerà ogni altra comunicazione radio in entrata per entrambi i capitani.
+*   **Identity Frequency (Livello B)**: Ogni capitano possiede una frequenza radio personale derivata matematicamente dal proprio nome.
+    *   `enc2 <algo>`: **Identity Mode**. Attiva la trasmissione sulla tua frequenza personale (Livello B). Solo chi si è sintonizzato specificamente su di te potrà leggerti.
+    *   `tune <CaptainName>`: **Identity Tuner**. Sintonizza il ricevitore radio sulla frequenza d'identità di un altro capitano (Livello B). Il sistema implementa l'**Auto-Tuning**, sintonizzandosi automaticamente sull'algoritmo del mittente.
 *   **Fail-Safe delle Comunicazioni**: È implementato un meccanismo di emergenza intelligente: se un cambio di frequenza crittografica fallisce a livello di sistema, il nucleo effettua automaticamente un fallback su una trasmissione sicura in chiaro per garantire che i feedback vitali dei comandi non vadano mai perduti.
+
+#### 📖 Guida Operativa Rapida ai Livelli Tattici
+
+| Livello | Tipo | Comando Esempio | Azione Necessaria al Ricevente |
+| :--- | :--- | :--- | :--- |
+| **A** 📡 | **Flotta** | `enc aes` | Deve avere lo stesso encoder attivo (`enc aes`). |
+| **B** 🆔 | **Identità** | `enc2 pqc` | Deve sintonizzarsi sul mittente: `tune Nick`. |
+| **C** 🔗 | **Peer (P2P)** | `enc3 Nick aes` | Deve aver stabilito il link: `link Nick`. |
+| **D** 🔒 | **Esclusivo** | `enc4 Nick chacha` | Entrambi devono bloccarsi a vicenda. Ogni altro traffico viene filtrato. |
+
+**Esempio di Comunicazione di Flotta (Livello A):**
+1. **Mittente**: `enc aes` (attiva la frequenza flotta AES).
+2. **Ricevente(i)**: `enc aes` (devono essere sulla stessa frequenza).
+3. **Azione**: `rad Salve Flotta!` (tutti coloro su `enc aes` leggono il messaggio).
+
+**Esempio di Frequenza di Identità (Livello B):**
+1. **Mittente (Nick)**: `enc2 pqc` (Nick trasmette sulla sua frequenza quantistica personale).
+2. **Ricevente (Ian)**: `tune Nick` (Ian sintonizza il suo ricevitore sull'identità di Nick).
+3. **Azione**: `rad Messaggio per chi è sintonizzato` (Solo chi ha eseguito `tune Nick` può leggere).
+
+**Esempio di Link Peer-to-Peer (Livello C):**
+1. **Link Reciproco**: Sia Nick che Ian devono eseguire `link Ian` / `link Nick` (scambio di chiavi X25519).
+2. **Mittente**: `enc3 Nick chacha` (attiva la cifratura P2P verso Nick).
+3. **Azione**: `rad Top Secret` (solo Nick può decifrare; il server vede solo rumore binario).
+
+**Esempio di Link Privato Esclusivo (Livello D):**
+1. **Preparazione**: Entrambi i capitani devono eseguire il `link` reciproco (es. `link Ian` e `link Nick`).
+2. **Blocco**: `enc4 Nick aes` (attiva il filtraggio esclusivo).
+3. **Azione**: `rad Canale privato` (il server filtra ogni altro traffico radio in entrata; ascolti solo Nick).
+4. **Rilascio**: `enc off` (ritorna alla ricezione standard di flotta).
 
 ### ⚛️ Suite di Algoritmi (Frequenze Operative)
 
@@ -1819,6 +1886,42 @@ Il comando `enc <ALGO>` permette di sintonizzare i sistemi di bordo su uno dei s
 #### 12. DES-CBC - `enc des`
 *   **Descrizione**: L'originale standard terrestre degli anni '70.
 *   **Uso Tattico**: Mappato sui **segnali pre-Hyperdrive**. Necessario per decrittare le comunicazioni provenienti da antiche sonde dormienti o segnali da civiltà nelle prime fasi tecnologiche.
+
+#### 13. Classic McEliece - `enc mceliece`
+*   **Descrizione**: Crittografia basata sulla teoria dei codici, resistente ai computer quantistici.
+*   **Uso Tattico**: Utilizzato per comunicazioni "Cold Storage" a lunghissimo termine tra i nuclei galattici. Offre la massima longevità dei dati.
+
+#### 14. Dilithium (ML-DSA) - `enc dilithium`
+*   **Descrizione**: Schema di firma digitale Post-Quantum basato su reticoli.
+*   **Uso Tattico**: Lo standard per l'autenticazione dei comandi di lancio delle testate ad antimateria. Garantisce l'integrità del comando anche nell'era quantistica.
+
+#### 15. Serpent-256-GCM - `enc serpent`
+*   **Descrizione**: Block cipher ultra-conservativo ad altissima sicurezza.
+*   **Uso Tattico**: La "Fortezza Digitale". Più lento di AES ma progettato con una struttura ultra-resistente. Usato per i diari di bordo delle Dreadnought.
+
+#### 16. Twofish-256-CBC - `enc twofish`
+*   **Descrizione**: Successore di Blowfish, flessibile e potente.
+*   **Uso Tattico**: Protocollo standard dei mercenari della "Nebulosa Oscura". Estremamente difficile da analizzare anche con attacchi a testo in chiaro scelto.
+
+#### 17. SM4 - `enc sm4`
+*   **Descrizione**: Standard di cifratura a blocchi per reti wireless (WAPI).
+*   **Uso Tattico**: Utilizzato per i collegamenti dati nelle regioni controllate dal **Sindacato Orientale della Fenice**.
+
+#### 18. ASCON-128 - `enc ascon`
+*   **Descrizione**: Algoritmo vincitore NIST per la crittografia leggera (LWC).
+*   **Uso Tattico**: Ottimizzato per micro-sonde spia e mine spaziali. Consumo energetico minimo per missioni stealth.
+
+#### 19. Present - `enc present`
+*   **Descrizione**: Block cipher ultra-compatto per hardware limitato.
+*   **Uso Tattico**: Codifica dei segnali biometrici all'interno delle tute spaziali dei piloti e impianti neurali.
+
+#### 20. GOST R 34.12-2015 (Kuznyechik) - `enc gost`
+*   **Descrizione**: Algoritmo standard della Federazione Russa terrestre.
+*   **Uso Tattico**: Frequenza crittografica dei coloni dei mondi di frontiera che utilizzano hardware derivato da vecchie tecnologie siberiane.
+
+#### 21. Salsa20 - `enc salsa`
+*   **Descrizione**: Stream cipher ad altissima velocità, predecessore di ChaCha.
+*   **Uso Tattico**: Usato dai pirati informatici per trasmissioni video illegali ad alta velocità nelle stazioni orbitanti e mercati neri.
 
 ---
 
@@ -1886,3 +1989,139 @@ Per garantire una coordinazione perfetta tra logica di combattimento, telemetria
 
 ---
 *SPACE GL - 3D LOGIC ENGINE. Sviluppato con eccellenza tecnica da Nicola Taibi. "Per Tenebras, Lumen"*
+
+---
+
+### 📜 Archivio Storico Declassificato: Protocollo GDIS-HIST-2026-N1K
+
+> **STATO SISTEMA**: ACCESSO SETTORE DECLASSIFICATO... **SUCCESSO**.
+> 
+> **PROTOCOLLO**: GDIS-HIST-2026-N1K (Registri di Comando Legacy)
+> **SOGGETTO**: La Difesa dell'Aegis e la Prima Grande Incursione Swarm
+> **FONTE**: Diari Personali di Bordo - Alto Ammiraglio Hyperion Niklaus
+> **CLASSIFICAZIONE**: Riservato ai Livelli di Comando dell'Accademia della Flotta
+>
+> *"La geometria è l'unica verità in un universo silenzioso." — H. Niklaus*
+
+---
+
+## 📜 Ricostruzione Storica: Operazione "Muro di Orione" (GDIS-HIST-2026-N1K)
+
+
+### Capitolo 1: La Geometria del Silenzio
+<table>
+<tr>
+    <td><img src="readme_assets/cap01.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
+L'Aegis non era solo una stazione; era un teorema di Euclide proiettato nel vuoto. Una struttura di acciaio bianco opaco, una sfera perfetta del diametro di quaranta chilometri, sospesa nel punto di Lagrange tra le due lune di Orione Prime. All'interno del ponte di comando della *Deep Space Vanguard*, l'Alto Ammiraglio Hyperion Niklaus osservava la stazione attraverso il vetro temperato. 
+
+Il ponte era un laboratorio di sterile perfezione. L'aria, mantenuta a una temperatura costante di 18 gradi, profumava di ozono e azoto riciclato. Ogni superficie era rifinita in un bianco opaco non riflettente, studiato per far risaltare il bagliore ciano delle griglie olografiche. Il Capitano Niklaus amava la simmetria. Indossava guanti di cotone bianco per evitare di lasciare impronte digitali sui tasti di comando fisici — un rituale di rispetto per la macchina. La sua uniforme era priva di una singola piega; i gradi d'oro riflettevano la luce fredda dei monitor GDIS con una precisione che rasentava l'ossessione. Lo spazio, fuori, era un velluto nero assoluto, punteggiato da stelle che non brillavano, ma restavano fisse come fori di spillo in un fondale infinito.
+
+### Capitolo 2: Il Rituale della Master Key
+<table>
+<tr>
+    <td><img src="readme_assets/cap02.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
+Ogni ciclo iniziava con la sintonizzazione. Niklaus stava di fronte al cronometro centrale, confrontando il movimento meccanico del suo orologio personale con la baseline di `captains/DEFAULT`. Era più di un controllo tecnico; era una meditazione sullo Standard Galattico.
+
+"Ammiraglio, il sensore a lungo raggio rileva un errore di parità nel Quadrante 7." La voce del Primo Ufficiale era piatta, priva di emozione.
+Sul monitor principale — un display monocromatico ad alta risoluzione — un ammasso di puntini ciano iniziò a distorcere la griglia tattica. Non era un ammasso naturale. La forma era frattale, una ripetizione infinita di triangoli neri che assorbivano la luce invece di rifletterla.
+Il Capitano Niklaus non mosse un muscolo. Osservò i caratteri del flusso di crittografia cambiare dal verde fosforico al blu ghiaccio. "Se non è un errore di parità, è il segnale di un'intelligenza che non vuole essere misurata," mormorò. "Tracciare una rotta. Heading 0, Mark 0. Massimo Fattore."
+
+### Capitolo 3: Il Concilio della Luce
+<table>
+<tr>
+    <td><img src="readme_assets/cap03.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
+Nella sala riunioni, il motto *Sidera Jungit Sapientia* era inciso in bronzo sulla parete circolare. L'Alto Ammiraglio sedeva al centro di un tavolo semicircolare, illuminato da un unico cono di luce zenitale che tagliava l'oscurità della stanza come un bisturi chirurgico. 
+I rappresentanti delle fazioni olografiche apparivano come spettri bluastri, le loro forme sfarfallanti riflesse nella superficie lucida del tavolo. "Lo Swarm non sta attaccando," disse il Capitano Niklaus, la sua voce risuonava con una gravità architettonica. "Sta consumando. Sono un motore di entropia. Non cercano la nostra distruzione, cercano la nostra massa atomica per alimentare la loro prossima iterazione." 
+Un ammiraglio Korthian ringhiò qualcosa sull'onore, ma il Capitano lo ignorò. La guerra, per lui, era una questione di angoli di tiro, conservazione dell'energia e fredda integrità del sistema GDIS.
+
+### Capitolo 4: Il Valzer Tattico
+<table>
+<tr>
+    <td><img src="readme_assets/cap04.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
+Le navi dello Swarm arrivarono senza preavviso acustico. Migliaia di droni biomeccanici, simili a scarafaggi di ossidiana lunghi cinquecento metri, iniziarono a tessere una rete di energia viola intorno all'Aegis. Non avevano firma termica; erano ombre che si muovevano in una stanza buia.
+Dalla baia di osservazione, il panorama era sublime. La *Vanguard* non "volava" nel senso tradizionale; eseguiva un valzer tattico. Usando micro-impulsi (`imp`), la nave ruotava sul proprio centro di massa con una grazia coreografica, presentando al nemico i settori degli scudi ancora integri.
+L'Alto Ammiraglio osservava la battaglia come se stesse studiando un'opera d'arte astratta. Il rumore era tutto interno: il battito pesante del suo cuore e il respiro cadenzato nel microfono della console. Fuori, i fasci di Ion Beams tagliavano l'oscurità in linee perfettamente rette — vettori di luce ciano che facevano sublimare istantaneamente gli scafi organici dello Swarm in sfere di gas viola.
+
+### Capitolo 5: La Sublimazione della Materia
+<table>
+<tr>
+    <td><img src="readme_assets/cap05.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
+"Livello A attivo. Frequenza AES-256-GCM sincronizzata." 
+Le navi dell'Alleanza iniziarono a sparare in sequenza, sincronizzate con il `frame_id` del server. Ogni impulso dei banchi ionici (`pha`) era una transazione calcolata di energia. Non c'erano palle di fuoco, né pennacchi di fumo cinematografici. Quando un raggio colpiva il bersaglio, la placcatura di ossidiana dello Swarm smetteva semplicemente di essere solida, diventando una nuvola di particelle che il vuoto spaziale disperdeva con indifferente velocità.
+Il Capitano Niklaus impartiva ordini con una calma che inquietava i suoi subordinati. Ogni comando era una coordinata, ogni manovra una rotazione di una matrice complessa. Non stava combattendo una guerra; stava risolvendo un'equazione.
+
+### Capitolo 6: L'Anatomia dei Danni
+<table>
+<tr>
+    <td><img src="readme_assets/cap06.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
+Lo Swarm sfondò. Una nave-alveare — un monolite di materia oscura lungo cinque chilometri — impattò contro l'anello esterno dell'Aegis. La stazione vibrò, un ronzio a bassa frequenza che si trasmise attraverso lo scafo fin dentro le ossa di ogni ufficiale sul ponte.
+Niklaus aprì il rapporto `dam`. Non vedeva un elenco di guasti; vedeva le ferite di un organismo vivente. "Supporto Vitale al 74%," lesse. Sapeva che in quel momento, migliaia di membri dell'equipaggio stavano soffocando in sezioni isolate della stazione. Poteva quasi sentire il dolore fantasma dei sistemi che venivano strappati via.
+"Mantenete la posizione," disse, la sua voce un'ancora ferma nella marea montante del caos. "Siamo il muro. E un muro non prova paura. Occupa solo lo spazio."
+
+### Capitolo 7: La Privazione del Link D
+<table>
+<tr>
+    <td><img src="readme_assets/cap07.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
+"Attivare Livello D. Link Esclusivo con l'Ammiraglia Xylari. Bersaglio: Malakor." 
+Mentre Niklaus inseriva il comando, il ponte sembrò svanire. Un filtro software spense ogni audio non essenziale. Le luci si abbassarono al minimo, lasciando solo il riflesso nitido del monitor nell'iride del Capitano.
+Si trovava ora in uno stato di privazione sensoriale, isolato dal suo stesso equipaggio. Lui e il Comandante Malakor erano due punti in un vuoto infinito, uniti da un raggio di dati criptati E2E tramite X25519. Non parlavano con le parole. Condividevano telemetria, coordinate di fase dei sensori e la fredda matematica della sopravvivenza. In quella intimità parossistica, due antichi nemici divennero un'unica mente, un doppio processore che calcolava l'istante esatto del contrattacco.
+
+### Capitolo 8: L'Attrito della Ragione
+<table>
+<tr>
+    <td><img src="readme_assets/cap08.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
+La battaglia durava da settantadue ore di assoluto attrito. Il ponte era ora immerso in una penombra fumosa, l'aria pesante per l'odore di elettronica bruciata. L'Ammiraglio non si era seduto una volta. Il suo volto, solitamente liscio come il marmo, mostrava ora i segni del tempo accelerato dall'attrito della guerra: ombre profonde sotto gli occhi e una tensione costante nella mascella.
+Lo Swarm stava imparando. Si adattavano alle frequenze di crittografia, mutavano le loro formazioni frattali per bypassare gli Ion Beams. Ma il Capitano Niklaus era "Il Muro di Orione". Ogni volta che lo Swarm cercava un varco logico, lui era lì, anticipando il caos con una contromanovra che esisteva solo nel regno della geometria pura.
+
+### Capitolo 9: L'Ultimo Bastione
+<table>
+<tr>
+    <td><img src="readme_assets/cap09.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
+Il nucleo dell'Aegis era esposto, brillante come una stella morente. Lo Swarm si lanciò in un attacco finale — una massa nera che oscurava le costellazioni di Orione, una marea di ossidiana venuta a reclamare l'ultima luce. 
+L'Alto Ammiraglio diede l'ordine finale. I suoi occhi erano fissi sul riflesso della singolarità sul suo schermo. "Caricare tutti i tubi. Siluri al plasma, guida manuale basata sulla telemetria del Link D." 
+Non lanciò verso la flotta nemica. Sparò verso un punto apparentemente vuoto dello spazio. "Fuoco." 
+I quattro siluri viaggiarono nel buio, le loro scie blu disegnavano parabole nel vuoto. Seguendo la curvatura gravitazionale di una singolarità nascosta, virarono bruscamente all'ultimo microsecondo, colpendo il cuore del nucleo dell'alveare nel suo unico punto di risonanza strutturale. Un'esplosione di un bianco puro, assoluto, inghiottì l'oscurità.
+
+### Capitolo 10: L'Orizzonte di Orione
+<table>
+<tr>
+    <td><img src="readme_assets/cap10.png" alt="Emblem" width="200"/></td>
+ </tr>
+</table>
+
+La luce svanì, lasciando posto a un silenzio ancora più profondo di quello iniziale. Lo Swarm era in rotta, i frammenti delle loro navi-alveare fluttuavano come cenere in una cattedrale distrutta. 
+Il Capitano Niklaus tornò a guardare fuori dal vetro. L'Aegis era segnata, il suo scafo bianco annerito dalle scariche energetiche, ma restava lì, una sfera — imperfetta, eppure ancora in piedi contro un orizzonte di stelle. 
+"Ammiraglio, abbiamo vinto," sussurrò qualcuno. 
+Il Capitano non rispose subito. Osservò un piccolo detrito — forse un pezzo di una scialuppa di salvataggio — allontanarsi lentamente verso il centro della galassia, un punto solitario in un vuoto magnifico e indifferente. 
+"Abbiamo preservato la geometria," mormorò infine, sistemandosi i guanti bianchi. "Ma la luce che abbiamo portato ha proiettato ombre molto lunghe." 
+Si voltò e lasciò il ponte con lo stesso passo misurato e ritmico con cui vi era entrato. Dietro di lui, l'universo restava muto, vasto e magnificamente indifferente.
+
+---
+*SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.03.11*

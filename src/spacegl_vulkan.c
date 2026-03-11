@@ -1848,6 +1848,17 @@ void mainLoop(VulkanApp* app) {
     srand(time(NULL));
     double lastTime = glfwGetTime();
     while (!glfwWindowShouldClose(app->window)) {
+        if (app->shm) {
+            if (atomic_load(&app->shm->force_shutdown)) {
+                printf("[VULKAN] GLOBAL EMERGENCY SHUTDOWN SIGNAL RECEIVED. CLEAN EXIT.\n");
+                break;
+            }
+            int r_idx = atomic_load(&app->shm->read_index);
+            if (app->shm->buffers[r_idx].shm_force_shutdown) {
+                printf("[VULKAN] EMERGENCY SHUTDOWN SIGNAL RECEIVED (xxx). CLEAN EXIT.\n");
+                break;
+            }
+        }
         glfwPollEvents();
         
         double currentTime = glfwGetTime();

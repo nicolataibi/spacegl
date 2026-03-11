@@ -864,6 +864,27 @@ SpaceGL features a high-fidelity wreckage system designed to enhance immersion a
     *   **Validation**: Target must be present in the current quadrant and not cloaked (unless the target belongs to your own faction).
     *   Essential for automated Ion Beam and torpedo guidance.
 
+### 🤖 NPC AI & Tactical Logic
+NPC ships operate with an autonomous State Machine that dictates their tactical behavior based on local threats and vessel integrity.
+
+#### Behavioral States
+*   **PATROL**: Default state. Ships move randomly within their quadrant at a cruise speed of **0.03 units/tick** (~1.8 units/sec).
+*   **CHASE**: Triggered when a non-cloaked hostile vessel enters sensor range. The NPC calculates an intercept vector and closes the distance.
+*   **ATTACK RUN**: Active within **3.0 units** of the target. The NPC performs maneuvers to align its weapon banks.
+*   **ATTACK POSITION**: The NPC halts movement and maintains orientation towards the target to maximize Ion Beam focus.
+*   **FLEE**: Triggered if energy falls below **950 units** or system integrity is compromised. Speed increases by **180%** (0.054 units/tick). The NPC returns to PATROL once it reaches a safety distance of **8.5 units**.
+
+#### Combat Parameters
+*   **Fire Rate**: NPCs fire synchronized Ion Beam bursts every **2.0 seconds** (120 ticks).
+*   **Tactical Shield Disruption**: Every successful hit from an NPC resets the player's shield regeneration timer to **2.5 seconds** (`SHIELD_REGEN_DELAY`).
+*   **Base Damage by Faction**:
+    *   **The Swarm**: **~8,000 units** (Highest lethality, biological resonance).
+    *   **Xylari Empire**: **~3,500 units** (Advanced tactical focus).
+    *   **Korthian Collective**: **~2,500 units** (Consistent output).
+    *   **Independent/Others**: **1,000 units** (Standard capacitor).
+*   **Distance Attenuation**: Maximum damage is delivered within **1.0 unit**. Damage scales down linearly beyond this range.
+*   **System Disabling**: If an NPC ship's hull integrity drops below **50%**, its impulse engines stall, and the vessel enters a permanent **Drift** state, becoming a target for dismantling (`dis`) or boarding (`bor`).
+
 
 ### 🆔 Galactic Identifier Schema (Universal ID)
 To interact with galactic objects using the `lock`, `scan`, `pha`, `tor`, `bor`, and `dis` commands, the system employs a unique ID system. Use the `srs` command to identify the IDs of objects in your sector.
@@ -966,7 +987,7 @@ The `apr <ID> <DIST>` command allows you to automatically approach any object de
     *   **Feedback**: Provides immediate confirmation of the new percentage distribution.
     *   **Strategic Impact**: Dictates performance of sub-light engines, shield recharge rate, and Ion Beam intensity.
 *   `aux jettison`: **Eject Hyperdrive Synaptics**. Ejects the core (Suicide maneuver / Last resort).
-*   `xxx`: **Emergency Repositioning**. Triggers an immediate **Tactical Warp** to a safe sector, leaving a hull derelict behind. Restore systems and energy to 80%.
+*   `xxx`: **Emergency Repositioning**. Triggers an immediate **Tactical Warp** to a safe sector, leaving a hull derelict behind. Restore systems and energy to 80% and performs a clean shutdown of all connected processes (3D Viewer, HUD, Vulkan).
 *   `zztop`: **Total System Wipe**. Permanently deletes your captain's profile and all career data from the galaxy database. This action is irreversible and drops your connection.
 
 ### ⚡ Reactor and Power Management
@@ -1199,21 +1220,39 @@ The Space GL bridge operates via a high-precision Command Line Interface (CLI). 
 *   `hull`: **Composite Reinforcement**. If you have **100 units of Composite** in cargo, this command applies reinforced plating to the hull (+500 HP physical shield), visible as gold in the HUD.
 
 #### 🛡️ Tactical Cryptography: Communication "Frequencies"
-In Space GL, encryption is not just about security—it's a **tactical frequency choice**. Each algorithm acts as a separate communication band.
+In Space GL, encryption is not just about security—it's a **tactical frequency choice**. Each algorithm acts as a separate communication band. If two captains are on different frequencies, they will only receive static/scrambled noise from each other.
 
 *   **Identity & Signature (Ed25519)**: Every radio packet is digitally signed **before** encryption. If you receive a message with a **`[VERIFIED]`** tag, you have mathematical certainty it comes from the declared captain.
 *   **Cryptographic Frequencies (`enc <TYPE>`)**:
-    *   **AES (`enc aes`)**: Frequency index **1**. Fleet Standard.
-    *   **PQC (`enc pqc`)**: Frequency index **12**. Post-Quantum Cryptography (ML-KEM).
-    *   **Intermediate Algorithms (2-11)**: `chacha`, `aria`, `camellia`, `seed`, `cast`, `idea`, `3des`, `bf`, `rc4`, `des`.
-    *   **OFF (`enc off`)**: Index **0**. Cleartext communication (distress calls).
+    *   **AES (`enc aes`)**: Frequency index **1**. Uses **AES-256-GCM**. Fleet Standard for secure, authenticated communications.
+    *   **ChaCha20 (`enc chacha`)**: Frequency index **2**. Uses **ChaCha20-Poly1305**. High-speed tactical stream cipher.
+    *   **ARIA (`enc aria`)**: Frequency index **3**. South Korean standard cipher, robust and reliable.
+    *   **Camellia (`enc camellia`)**: Frequency index **4**. Advanced Japanese block cipher (Xylari).
+    *   **SEED (`enc seed`)**: Frequency index **5**. SEED-CBC (Orion).
+    *   **CAST5 (`enc cast`)**: Frequency index **6**. CAST5-CBC (Old Republic).
+    *   **IDEA (`enc idea`)**: Frequency index **7**. IDEA-CBC (Maquis).
+    *   **3DES (`enc 3des`)**: Frequency index **8**. DES-EDE3-CBC (Ancient).
+    *   **Blowfish (`enc bf`)**: Frequency index **9**. BLOWFISH-CBC (Gilded).
+    *   **RC4 (`enc rc4`)**: Frequency index **10**. RC4-STREAM (Tactical).
+    *   **DES (`enc des`)**: Frequency index **11**. DES-CBC (Pre-Hyperdrive).
+    *   **PQC (`enc pqc`)**: Frequency index **12**. **Post-Quantum Cryptography (ML-KEM-1024)**. Resistant to quantum computer attacks.
+    *   **McEliece (`enc mceliece`)**: Frequency index **13**. Classic McEliece (PQC code-based).
+    *   **Dilithium (`enc dilithium`)**: Frequency index **14**. Dilithium ML-DSA (Post-Quantum signature).
+    *   **Serpent (`enc serpent`)**: Frequency index **15**. SERPENT-256-GCM.
+    *   **Twofish (`enc twofish`)**: Frequency index **16**. TWOFISH-256-CBC.
+    *   **SM4 (`enc sm4`)**: Frequency index **17**. SM4-CBC (Syndicate).
+    *   **Ascon (`enc ascon`)**: Frequency index **18**. ASCON-128 (Lightweight).
+    *   **Present (`enc present`)**: Frequency index **19**. PRESENT (Biometric).
+    *   **GOST (`enc gost`)**: Frequency index **20**. GOST-Kuznyechik.
+    *   **Salsa20 (`enc salsa`)**: Frequency index **21**. SALSA20 Stream Cipher.
+    *   **OFF (`enc off`)**: Index **0**. Cleartext communication. Used for emergency distress calls or unencrypted broadcast.
 
-*   **Key Persistence (`captains/`)**: Cryptographic keys for each frequency (1-12) are saved locally in the `captains/CaptainName/` directory. This allows the server and client to maintain key synchronization across sessions.
+*   **Key Persistence (`captains/`)**: Cryptographic keys for each frequency (1-21) are saved locally in the `captains/CaptainName/` directory. This allows the server and client to maintain key synchronization across sessions. If you switch computers, you must move this folder to maintain your secure frequencies.
 
 #### 🛰️ Galactic Synchronization Protocol (DEFAULT Baseline)
 To ensure that encryption functions like a true tactical radio, the system adopts a rigorous synchronization standard based on the `captains/DEFAULT/` directory:
 
-1.  **The Gold Standard**: Upon startup, the server generates a set of 12 keys in the `DEFAULT` folder. These keys represent the "Galactic Standard." Since derivation occurs via a shared salt (`GALAXY-WORMHOLE-SIG`), these keys are mathematically identical for every captain in the galaxy.
+1.  **The Gold Standard**: Upon startup, the server generates a set of 21 keys in the `DEFAULT` folder. These keys represent the "Galactic Standard." Since derivation occurs via a shared salt (`GALAXY-WORMHOLE-SIG`), these keys are mathematically identical for every captain in the galaxy.
 2.  **Server Validation**: The server uses the keys in `DEFAULT` as a global reference to decrypt and validate messages from *any* captain. This allows the server to verify signal integrity and apply correct energy costs without needing to store individual private keys for every ship.
 3.  **Recovery Template**: If a captain loses their keys or corrupts their directory, the system can instantly regenerate them by realigning with the `DEFAULT` baseline.
 4.  **Tactical Audit**: Any captain can compare their local keys with those in `DEFAULT` to ensure their onboard systems are correctly synchronized with Fleet frequencies.
@@ -1575,7 +1614,7 @@ The GDIS central database preserves the deeds of commanders who shaped the bound
 ### 🏛️ Overview
 The **Stellar Alliance** stands as the primary bastion of stability and cooperation among the powers of the quadrant. Founded on the principles of **proactive diplomacy**, **scientific exploration**, and **collective defense**, the Alliance serves as the coordinating entity between diverse civilizations to counter systemic threats that endanger known space.
 
-### 🛡️ Strategic Pillars
+### 👑 Strategic Pillars
 
 * **Strategic Doctrine** Unlike expansionist or collectivist powers, the Alliance favors an approach based on **multilateralism**. Its strength lies in its ability to integrate heterogeneous tactics and technologies from various cultures under a unified command.
 
@@ -1596,7 +1635,7 @@ The **Stellar Alliance** stands as the primary bastion of stability and cooperat
   </tr>
 </table>
 
-*   🛡️ **High Admiral Hyperion Niklaus**: Known as "The Wall of Orion," he led the defense of the Aegis during the first great Swarm invasion.
+*   🔱 **High Admiral Hyperion Niklaus**: Known as "The Wall of Orion," he led the defense of the Aegis during the first great Swarm invasion.
     > **"Per Tenebras, Lumen"**
     > *(Through the darkness, the light)*
     >
@@ -1840,7 +1879,44 @@ In addition to algorithm selection, the GDIS system uses advanced protocols to e
 *   **Rotating Frequency Integration**: The Initialization Vector (IV) of each message is dynamically modified based on the server's `frame_id`. This makes the system immune to *Replay Attacks*: a message recorded one second ago will be unreadable the next.
 *   **Legacy Provider Support**: SpaceGL explicitly loads OpenSSL 3.0 **Legacy Providers**, enabling full support for historic encryption standards (SEED, CAST5, IDEA) alongside modern GCM suites.
 *   **Tactical Tuning (Frequency Matching)**: Communication security acts as a radio frequency. To read another commander's message, your ship must be tuned to the **same algorithm** (e.g., both on `enc aes` or `enc pqc`). Mismatched frequencies will result in audible binary noise and garbled signals, allowing for secure tactical channels.
+*   **Identity Frequency (Level B)**: Every captain has a personal radio frequency mathematically derived from their name.
+    *   `enc2 <algo>`: **Identity Mode**. Activates transmission on your personal frequency (Level B). Only those specifically tuned to you will be able to read your messages.
+    *   `tune <CaptainName>`: **Identity Tuner**. Tunes the radio receiver to another captain's identity frequency (Level B). The system features **Auto-Tuning**, matching the sender's algorithm automatically.
+*   **Tactical Peer Link (X25519)**: Implements **End-to-End** encryption between two specific captains using Elliptic Curve Diffie-Hellman (ECDH).
+    *   `link <CaptainName>`: **Tactical Link**. Establishes a secure E2E handshake with another captain by calculating a unique shared secret that is never transmitted over the network.
+    *   `enc3 <CaptainName> <algo>`: **Peer Mode**. Enables secure point-to-point encryption towards the specified peer (Level C).
+    *   `enc4 <CaptainName> <algo>`: **Exclusive Mode**. Enables a filtered private link (Level D). Once established, the server will actively filter out all other incoming radio traffic for both captains.
 *   **Communication Fail-Safe**: An intelligent fallback mechanism is implemented: if a cryptographic frequency shift fails at the system level, the core automatically reverts to a secure raw broadcast to ensure vital command feedback is never lost.
+
+#### 📖 Operational Quick Guide to Tactical Levels
+
+| Level | Type | Example Command | Required Action for Recipient |
+| :--- | :--- | :--- | :--- |
+| **A** 📡 | **Fleet** | `enc aes` | Must have the same encoder active (`enc aes`). |
+| **B** 🆔 | **Identity** | `enc2 pqc` | Must tune into the sender: `tune Nick`. |
+| **C** 🔗 | **Peer (P2P)** | `enc3 Nick aes` | Must have established the link: `link Nick`. |
+| **D** 🔒 | **Exclusive** | `enc4 Nick chacha` | Both must lock to each other. All other traffic is filtered out. |
+
+**Example of Fleet Communication (Level A):**
+1. **Sender**: `enc aes` (activates AES fleet frequency).
+2. **Recipient(s)**: `enc aes` (must be on the same frequency).
+3. **Action**: `rad Hello Fleet!` (everyone on `enc aes` reads the message).
+
+**Example of Identity Frequency (Level B):**
+1. **Sender (Nick)**: `enc2 pqc` (Nick broadcasts on his personal quantum frequency).
+2. **Recipient (Ian)**: `tune Nick` (Ian tunes his receiver to Nick's identity).
+3. **Action**: `rad Message for those tuned in` (Only those who performed `tune Nick` can read it).
+
+**Example of Peer-to-Peer Link (Level C):**
+1. **Mutual Link**: Both Nick and Ian must execute `link Ian` / `link Nick` (exchanges X25519 keys).
+2. **Sender**: `enc3 Nick chacha` (activates P2P encryption towards Nick).
+3. **Action**: `rad Top Secret` (only Nick can decrypt; the server sees only binary noise).
+
+**Example of Exclusive Private Link (Level D):**
+1. **Preparation**: Both captains must perform the reciprocal `link` (e.g., `link Ian` and `link Nick`).
+2. **Locking**: `enc4 Nick aes` (activates exclusive filtering).
+3. **Action**: `rad Private channel` (the server filters out all other incoming radio traffic; you only hear Nick).
+4. **Release**: `enc off` (returns to standard fleet reception).
 
 ### ⚛️ Algorithm Suite (Operational Frequencies)
 
@@ -1893,6 +1969,42 @@ The `enc <ALGO>` command allows tuning onboard systems to one of the following s
 #### 12. DES-CBC - `enc des`
 *   **Description**: The original 1970s Earth standard.
 *   **Tactical Use**: Mapped to **pre-Hyperdrive signals**. Necessary to decrypt communications from ancient sleeper probes or signals from civilizations in early technological stages.
+
+#### 13. Classic McEliece - `enc mceliece`
+*   **Description**: Code-based cryptography, resistant to quantum computers.
+*   **Tactical Use**: Used for long-term "Cold Storage" communications between galactic nuclei. Offers maximum data longevity.
+
+#### 14. Dilithium (ML-DSA) - `enc dilithium`
+*   **Description**: Lattice-based Post-Quantum digital signature scheme.
+*   **Tactical Use**: The standard for authenticating antimatter warhead launch commands. Ensures command integrity even in the quantum era.
+
+#### 15. Serpent-256-GCM - `enc serpent`
+*   **Description**: Ultra-conservative block cipher with extremely high security.
+*   **Tactical Use**: The "Digital Fortress." Slower than AES but designed with an ultra-resistant structure. Used for Dreadnought-class ship logs.
+
+#### 16. Twofish-256-CBC - `enc twofish`
+*   **Description**: Successor to Blowfish, flexible and powerful.
+*   **Tactical Use**: Standard protocol of the "Dark Nebula" mercenaries. Extremely difficult to analyze even with chosen-plaintext attacks.
+
+#### 17. SM4 - `enc sm4`
+*   **Description**: Block encryption standard for wireless networks (WAPI).
+*   **Tactical Use**: Used for data links in regions controlled by the **Eastern Phoenix Syndicate**.
+
+#### 18. ASCON-128 - `enc ascon`
+*   **Description**: NIST winner algorithm for lightweight cryptography (LWC).
+*   **Tactical Use**: Optimized for spy micro-probes and space mines. Minimum energy consumption for stealth missions.
+
+#### 19. Present - `enc present`
+*   **Description**: Ultra-compact block cipher for limited hardware.
+*   **Tactical Use**: Encoding of biometric signals within pilot spacesuits and neural implants.
+
+#### 20. GOST R 34.12-2015 (Kuznyechik) - `enc gost`
+*   **Description**: Standard national algorithm (Kuznyechik).
+*   **Tactical Use**: Cryptographic frequency of frontier world colonists using hardware derived from old Siberian technologies.
+
+#### 21. Salsa20 - `enc salsa`
+*   **Description**: Ultra-high-speed stream cipher, predecessor of ChaCha.
+*   **Tactical Use**: Used by hackers for illegal high-speed video transmissions in orbital stations and black markets.
 
 ---
 
@@ -1948,14 +2060,14 @@ To populate the vastness of space without killing the frame rate, the 3D viewer 
 #### 3. Task-Based Parallelism (ThreadPool)
 Decoupling logic from background tasks is handled by a dedicated **Persistent ThreadPool**. Operations like HMAC signing, AES encryption, and persistent storage I/O are queued and executed by worker threads, ensuring that network packet processing is never delayed by disk latency or heavy cryptographic computations.
 
-#### 4. Modello delle librerie Vulkan
-Questa sezione descrive l'integrazione delle librerie grafiche di nuova generazione e degli strumenti di diagnostica avanzata per il monitoraggio del ponte.
+#### 4. Vulkan Graphics Model
+This section describes the integration of next-generation graphics libraries and advanced diagnostic tools for bridge monitoring.
 
-*   **Architettura di Rendering Vulkan (`spacegl_vulkan`)**:
-    *   **Gestione Matrici Row-Major**: Il motore utilizza matrici in formato Row-Major (traslazione in `m[3]`). La pipeline esegue la moltiplicazione inversa (`S * R * T`) per allinearsi al layout Column-Major (`T * R * S`) degli shader GLSL.
-    *   **Pipeline Specializzate**: Implementazione di pipeline multiple (`graphics`, `wireframe`, `point`, `glow`) per ottimizzare il throughput di diversi tipi di geometrie ed effetti.
-    *   **PBR & Glow**: Supporto per materiali PBR e blending additivo per effetti volumetrici come scudi settoriali, wormhole e accrezione di buchi neri.
-    *   **Sincronizzazione SHM**: I dati sono mappati direttamente dalla Shared Memory IPC ai buffer uniformi della GPU, permettendo un'interpolazione fluida (LERP) a 60/144 FPS.
+*   **Vulkan Rendering Architecture (`spacegl_vulkan`)**:
+    *   **Row-Major Matrix Handling**: The engine uses matrices in Row-Major format (translation in `m[3]`). The pipeline performs reverse multiplication (`S * R * T`) to align with the Column-Major layout (`T * R * S`) of GLSL shaders.
+    *   **Specialized Pipelines**: Implementation of multiple pipelines (`graphics`, `wireframe`, `point`, `glow`) to optimize throughput for different types of geometries and effects.
+    *   **PBR & Glow**: Support for PBR materials and additive blending for volumetric effects such as sectoral shields, wormholes, and black hole accretion.
+    *   **SHM Synchronization**: Data is mapped directly from the Shared Memory IPC to the GPU uniform buffers, allowing for fluid interpolation (LERP) at 60/144 FPS.
 
 ### 🛡️ Shield Synchronization & Tactical Mapping
 To ensure perfect coordination between combat logic, HUD telemetry, and 3D visual effects, the Vulkan and ncurses (GDIS) interfaces follow a standardized "Ground Truth" mapping from the server:
@@ -1975,10 +2087,147 @@ To ensure perfect coordination between combat logic, HUD telemetry, and 3D visua
 *   **HUD Synchronization**: The ncurses HUD (`spacegl_hud`) labels are mapped to these indices to match the visual response in the Vulkan viewer as verified.
 *   **Coordinate Space**: Impacts are projected onto the ship's local 3-DOF rotated basis, accounting for Heading, Mark, and Roll.
 
-*   **HUD Tattico e Diagnostica SHM (`spacegl_hud`)**:
-    *   **Shared Memory Inspector**: Strumento di diagnostica integrato (tasto `m`) con 6 pagine di telemetria: *Core Systems*, *Navigation*, *Network & Crypto*, *Combat & Cargo*, *Object List* e *Event Queue*.
-    *   **Monitoraggio Real-Time**: Visualizzazione millimetrica della latenza di rete (Jitter), bitrate (KBPS) e stato della cifratura HMAC-SHA256 direttamente sul ponte di comando.
-    *   **Feedback Tattico**: Gestione dinamica dei temi di colore e allarmi visivi per la navigazione e il combattimento.
+*   **Tactical HUD & SHM Diagnostics (`spacegl_hud`)**:
+    *   **Shared Memory Inspector**: Integrated diagnostic tool (`m` key) with 6 telemetry pages: *Core Systems*, *Navigation*, *Network & Crypto*, *Combat & Cargo*, *Object List*, and *Event Queue*.
+    *   **Real-Time Monitoring**: Precise display of network latency (Jitter), bitrate (KBPS), and HMAC-SHA256 encryption status directly on the bridge.
+    *   **Tactical Feedback**: Dynamic management of color themes and visual alerts for navigation and combat.
 
 ---
 *SPACE GL - 3D LOGIC ENGINE. Developed with technical excellence by Nicola Taibi. "Per Tenebras, Lumen"*
+
+---
+
+---
+
+### 📜 Declassified Historical Archive: Protocol GDIS-HIST-2026-N1K
+
+> **SYSTEM STATUS**: ACCESSING DECLASSIFIED SECTOR... **SUCCESS**.
+> 
+> **PROTOCOL**: GDIS-HIST-2026-N1K (Legacy Command Records)
+> **SUBJECT**: The Defense of the Aegis & The First Great Swarm Incursion
+> **SOURCE**: Personal Bridge Logs - High Admiral Hyperion Niklaus
+> **CLASSIFICATION**: Restricted to Fleet Academy Command Level
+>
+> *"Geometry is the only truth in a silent universe." — H. Niklaus*
+
+---
+
+## 📜 Historical Reconstruction: Operation "Wall of Orion" (GDIS-HIST-2026-N1K)
+
+### Chapter 1: The Geometry of Silence
+<table>
+<tr>
+    <td><img src="readme_assets/cap01.png" alt="Chapter 1" width="200"/></td>
+ </tr>
+</table>
+
+The Aegis was not just a station; it was a theorem of Euclid projected into the vacuum. A structure of opaque white steel, a perfect sphere forty kilometers in diameter, suspended at the Lagrange point between the two moons of Orion Prime. Inside the command bridge of the *Deep Space Vanguard*, High Admiral Hyperion Niklaus observed the station through the tempered glass.
+
+The bridge was a laboratory of sterile perfection. The air, kept at a constant 18 degrees Celsius, smelled of ozone and recycled nitrogen. Every surface was finished in a non-reflective matte white, designed to highlight the cyan glow of the holographic grids. Captain Niklaus loved symmetry. He wore white cotton gloves to avoid leaving fingerprints on the physical override keys—a ritual of respect for the machine. His uniform was devoid of a single crease; his gold ranks reflected the cold light of the GDIS monitors with a precision that bordered on obsession. The space outside was an absolute black velvet, dotted with stars that did not twinkle but remained fixed like pinholes in an infinite backdrop.
+
+### Chapter 2: The Ritual of the Master Key
+<table>
+<tr>
+    <td><img src="readme_assets/cap02.png" alt="Chapter 2" width="200"/></td>
+ </tr>
+</table>
+
+Every cycle began with the synchronization. Niklaus stood before the central chronometer, comparing the mechanical movement of his personal watch with the `captains/DEFAULT` baseline. It was more than a technical check; it was a meditation on the Galactic Standard. 
+
+"Admiral, the long-range sensor detects a parity error in Quadrant 7." The First Officer's voice was flat, devoid of emotion.
+On the main monitor—a monochromatic high-resolution display—a cluster of cyan dots began to distort the tactical grid. It was not a natural cluster. The shape was fractal, an infinite repetition of triangles that absorbed light instead of reflecting it.
+Captain Niklaus did not move a muscle. He observed the characters of the encryption stream changing from phosphoric green to ice blue. "If it is not a parity error, it is the signal of an intelligence that does not want to be measured," he murmured. "Plot a course. Heading 0, Mark 0. Maximum Factor."
+
+### Chapter 3: The Council of Light
+<table>
+<tr>
+    <td><img src="readme_assets/cap03.png" alt="Chapter 3" width="200"/></td>
+ </tr>
+</table>
+
+In the briefing room, the motto *Sidera Jungit Sapientia* was engraved in bronze on the circular wall. The High Admiral sat at the center of a semi-circular table, illuminated by a single overhead cone of light that cut through the darkness of the room like a surgical scalpel.
+The holographic representatives of the factions appeared as bluish ghosts, their flickering forms reflected in the polished surface of the table. "The Swarm is not attacking," Captain Niklaus said, his voice resonating with architectural gravity. "It is consuming. They are an entropy engine. They do not seek our destruction, they seek our atomic mass to fuel their next iteration."
+A Korthian admiral growled something about honor, but the Captain ignored him. War, for him, was a matter of firing angles, energy conservation, and the cold integrity of the GDIS system.
+
+### Chapter 4: The Tactical Waltz
+<table>
+<tr>
+    <td><img src="readme_assets/cap04.png" alt="Chapter 4" width="200"/></td>
+ </tr>
+</table>
+
+The Swarm ships arrived without acoustic warning. Thousands of biomechanical drones, resembling obsidian beetles five hundred meters long, began to weave a web of purple energy around the Aegis. They had no heat signatures; they were shadows moving in a dark room.
+From the observation bay, the panorama was sublime. The *Vanguard* did not "fly" in the traditional sense; it performed a tactical waltz. Using micro-impulses (`imp`), the ship rotated on its own center of mass with a choreographic grace, presenting its intact shield sectors to the enemy.
+The Admiral watched the battle as if he were studying an abstract work of art. The noise was all internal: the heavy thud of his heart and the rhythmic breathing into the console's microphone. Outside, the Ion Beams cut the darkness in perfectly straight lines—vectors of ciano light that caused the Swarm's organic hulls to sublimate instantly into spheres of violet gas.
+
+### Chapter 5: The Sublimation of Matter
+<table>
+<tr>
+    <td><img src="readme_assets/cap05.png" alt="Chapter 5" width="200"/></td>
+ </tr>
+</table>
+
+"Level A active. AES-256-GCM frequency synchronized."
+The Alliance ships began to fire in sequence, synchronized with the server's `frame_id`. Each pulse of the ion beams (`pha`) was a calculated transaction of energy. There were no fireballs, no cinematic plumes of smoke. When a beam hit its target, the obsidian plating of the Swarm simply ceased to be solid, turning into a cloud of particles that the vacuum of space dispersed with indifferent speed.
+Captain Niklaus issued orders with a calm that unsettled his subordinates. Every command was a coordinate, every maneuver a rotation of a complex matrix. He was not fighting a war; he was solving an equation.
+
+### Chapter 6: The Anatomy of Damage
+<table>
+<tr>
+    <td><img src="readme_assets/cap06.png" alt="Chapter 6" width="200"/></td>
+ </tr>
+</table>
+
+The Swarm broke through. A hive-ship—a five-kilometer monolith of dark matter—impacted the outer ring of the Aegis. The station vibrated, a low-frequency hum that transmitted through the hull and into the bones of every officer on the bridge.
+Niklaus opened the `dam` report. He didn't see a list of broken systems; he saw the wounds of a living organism. "Life Support at 74%," he read. He knew that at that moment, thousands of crew members were suffocating in isolated sections of the station. Poteva quasi sentire il dolore fantasma dei sistemi che venivano strappati via.
+"Hold your position," he said, his voice a steady anchor in the rising tide of chaos. "We are the wall. And a wall does not feel fear. It only occupies space."
+
+### Chapter 7: The Deprivation of the Link D
+<table>
+<tr>
+    <td><img src="readme_assets/cap07.png" alt="Chapter 7" width="200"/></td>
+ </tr>
+</table>
+
+"Activate Level D. Exclusive Link with the Xylari Flagship. Target: Malakor."
+As Niklaus entered the command, the bridge seemed to vanish. A software filter silenced all non-essential audio. The lights dimmed to a minimum, leaving only the sharp reflection of the monitor in the Captain's iris. 
+He was now in a state of sensory deprivation, isolated from his own crew. He and Commander Malakor were two points in an infinite void, joined by a beam of E2E encrypted data using X25519. They did not speak in words. They shared telemetry, sensor phase coordinates, and the cold mathematics of survival. In that paroxysmal intimacy, two ancient enemies became a single mind, a dual processor calculating the exact moment of the counter-strike.
+
+### Chapter 8: The Friction of Reason
+<table>
+<tr>
+    <td><img src="readme_assets/cap08.png" alt="Chapter 8" width="200"/></td>
+ </tr>
+</table>
+
+The battle lasted for seventy-two hours of absolute attrition. The bridge was now immersed in a smoky twilight, the air heavy with the smell of scorched electronics. The Admiral had not sat down once. His face, usually as smooth as marble, now showed the signs of time accelerated by the friction of war: deep shadows under his eyes and a slight, constant tension in his jaw.
+The Swarm was learning. They were adapting to the encryption frequencies, mutating their fractal formations to bypass the Ion Beams. But Niklaus was the "Wall of Orion." Every time the Swarm sought a logical gap, he was there, anticipating the chaos with a countermove that existed only in the realm of pure geometry.
+
+### Chapter 9: The Last Bastion
+<table>
+<tr>
+    <td><img src="readme_assets/cap09.png" alt="Chapter 9" width="200"/></td>
+ </tr>
+</table>
+
+The core of the Aegis was exposed, glowing like a dying star. The Swarm launched an final attack—a black mass that obscured the constellations of Orion, a tide of obsidian coming to claim the last of the light.
+The Admiral gave the final order. His eyes were fixed on the reflection of the singularity on his screen. "Load all tubes. Plasma torpedoes. Manual guidance based on Level D telemetry."
+He did not launch toward the enemy fleet. He fired toward an apparently empty point in space. "Fire."
+The four torpedoes traveled through the dark, their blue trails drawing parabolas in the void. Following the gravitational curvature of a hidden singularity, they veered sharply at the last microsecond, hitting the heart of the hive core at its only point of structural resonance. An explosion of pure, absolute white swallowed the darkness.
+
+### Chapter 10: The Horizon of Orion
+<table>
+<tr>
+    <td><img src="readme_assets/cap10.png" alt="Chapter 10" width="200"/></td>
+ </tr>
+</table>
+
+The light faded, giving way to a silence even deeper than the initial one. The Swarm was in retreat, the fragments of their hive-ships floating like ash in a destroyed cathedral. 
+Captain Niklaus returned to looking out the glass. The Aegis was scarred, its white hull blackened by energy discharges, but it remained a sphere—imperfect, yet standing against an horizon of stars.
+"Admiral, we won," someone whispered.
+The Captain did not respond. He watched a small piece of debris—perhaps a section of a lifeboat—drift slowly toward the center of the galaxy, a solitary dot in a magnificent, indifferent void.
+"We preserved the geometry," he finally murmured, adjusting his white gloves. "But the light we brought cast very long shadows."
+He turned and left the bridge with the same measured, rhythmic step with which he had entered. Behind him, the universe remained mute, vast and beautifully terrifying.
+
+---
+*SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.03.11*

@@ -146,6 +146,7 @@ typedef struct {
     uint8_t show_bridge;
     uint8_t show_map;
     uint8_t map_filter;
+    uint8_t force_shutdown;
     uint8_t shm_crypto_algo;
     int32_t composite_plating;
 

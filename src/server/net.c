@@ -52,7 +52,18 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
     else if (msg->crypto_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
     else if (msg->crypto_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
     else if (msg->crypto_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_MCELIECE) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_DILITHIUM) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_SERPENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_TWOFISH) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_SM4) { cipher = EVP_get_cipherbyname("SM4-CBC"); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_ASCON) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_PRESENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_GOST) { cipher = EVP_get_cipherbyname("GOST-KUZNYECHIK"); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_SALSA) { cipher = EVP_get_cipherbyname("chacha20"); is_gcm = 0; }
     else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+
+    if (!cipher) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
     
     /* Strict OpenSSL GCM sequence for 16-byte IV */
     EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL);
@@ -132,91 +143,101 @@ void broadcast_message(PacketMessage *msg) {
         }
     }
 
-    /* 1. SERVER-SIDE DECRYPTION: The server must read the sender's message first */
-    if (msg->is_encrypted && sender_idx != -1) {
-        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-        const EVP_CIPHER *cipher;
-        int is_gcm = 0;
-        int algo = msg->crypto_algo;
+    /* 1. CLASSIFY AND VALIDATE */
+    bool is_encrypted = (msg->is_encrypted != 0);
+    bool is_private = (msg->is_encrypted & 0x02);
+    bool is_peer = (msg->is_encrypted & 0x04);
+    memset(plaintext, 0, 65536);
 
-        if (algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
-        else if (algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
-        else if (algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
-        else if (algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
-        else if (algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
-        else if (algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
-        else if (algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
-        else if (algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
-        else if (algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
-        else if (algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
-        else if (algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-        else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-
-        uint8_t *k = (algo >= 1 && algo <= 12) ? players[sender_idx].algo_keys[algo] : players[sender_idx].session_key;
-        
-        EVP_DecryptInit_ex(ctx, cipher, NULL, NULL, NULL);
-        if (is_gcm) {
-            EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
-            EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, msg->tag);
-        }
-        
-        if (EVP_DecryptInit_ex(ctx, NULL, NULL, k, msg->iv) <= 0) {
-            send_server_msg(sender_idx, "COMPUTER", "CRITICAL ERROR: Decryption Initialization failure. Check key sync.");
-            pthread_mutex_unlock(&game_mutex);
-            EVP_CIPHER_CTX_free(ctx);
-            return;
-        }
-
-        int outlen;
-        EVP_DecryptUpdate(ctx, (uint8_t*)plaintext, &outlen, (const uint8_t*)msg->text, msg->length);
-        int final_len;
-        if (EVP_DecryptFinal_ex(ctx, (uint8_t*)plaintext + outlen, &final_len) > 0) {
-            plaintext[outlen + final_len] = '\0';
+    if (is_encrypted && sender_idx != -1) {
+        if (is_peer || is_private) {
+            /* PRIVACY ENFORCEMENT: We don't touch these. We relay the encrypted blob. */
+            LOG_DEBUG("Encrypted Private/Peer message from %s. Relay mode: TRANSPARENT.\n", msg->from);
         } else {
-            /* Decryption failed at server level */
-            send_server_msg(sender_idx, "COMPUTER", "TRANSMISSION BLOCKED: Cryptographic parity mismatch at server level.");
-            pthread_mutex_unlock(&game_mutex);
+            /* Level A (Fleet): Server must decrypt to allow cross-algorithm talk and cleartext fallback */
+            EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+            const EVP_CIPHER *cipher;
+            int is_gcm = 0;
+            int algo = msg->crypto_algo;
+            
+            extern void ensure_player_algo_key(int p_idx, int k, bool private_mode);
+            ensure_player_algo_key(sender_idx, algo, false);
+
+            if (algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
+            else if (algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
+            else if (algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
+            else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+
+            uint8_t *k = players[sender_idx].algo_keys[algo];
+            EVP_DecryptInit_ex(ctx, cipher, NULL, NULL, NULL);
+            if (is_gcm) EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
+            EVP_DecryptInit_ex(ctx, NULL, NULL, k, msg->iv);
+            int outlen;
+            EVP_DecryptUpdate(ctx, (uint8_t*)plaintext, &outlen, (const uint8_t*)msg->text, msg->length);
+            if (is_gcm) EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, msg->tag);
+            int final_len;
+            if (EVP_DecryptFinal_ex(ctx, (uint8_t*)plaintext + outlen, &final_len) <= 0) {
+                /* Decryption failed */
+                send_server_msg(sender_idx, "COMPUTER", "TRANSMISSION ERROR: Frequency parity failure.");
+                EVP_CIPHER_CTX_free(ctx); pthread_mutex_unlock(&game_mutex); return;
+            }
+            plaintext[outlen + final_len] = '\0';
             EVP_CIPHER_CTX_free(ctx);
-            return;
         }
-        EVP_CIPHER_CTX_free(ctx);
     } else {
-        /* Message was already in cleartext */
-        size_t plen = (msg->length < 65536) ? msg->length : 65535;
-        memcpy(plaintext, msg->text, plen);
-        plaintext[plen] = '\0';
+        /* Cleartext message */
+        strncpy(plaintext, msg->text, 65535);
     }
 
-    /* Integrity and Energy Checks for the Sender */
-    if (sender_idx != -1) {
-        if (players[sender_idx].state.system_health[9] < 5.0f) {
-            pthread_mutex_unlock(&game_mutex); 
-            send_server_msg(sender_idx, "COMPUTER", "COMMUNICATIONS FAILURE: Subspace array damaged.");
-            return;
-        }
-        if (players[sender_idx].state.energy < 5) {
-            pthread_mutex_unlock(&game_mutex);
-            send_server_msg(sender_idx, "COMPUTER", "Insufficient energy for transmission.");
-            return;
-        }
-        players[sender_idx].state.energy -= 5;
-    }
-
+    /* 2. BROADCAST LOOP */
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (players[i].active && players[i].socket != 0) {
+            /* Visibility Filters */
             if (msg->scope == SCOPE_FACTION && players[i].faction != msg->faction) continue;
-            if (msg->scope == SCOPE_PRIVATE) {
-                bool is_target = ((i + 1) == msg->target_id);
-                bool is_sender = (sender_idx == i);
-                if (!is_target && !is_sender) continue;
+            if (msg->scope == SCOPE_PRIVATE && (i + 1) != msg->target_id && i != sender_idx) continue;
+
+            /* Level D: Exclusive Link Filtering */
+            if (players[i].radio_lock_target > 0) {
+                int locked_idx = players[i].radio_lock_target - 1;
+                bool is_system = (strcmp(msg->from, "SERVER") == 0 || strcmp(msg->from, "COMPUTER") == 0 ||
+                                  strcmp(msg->from, "SCIENCE") == 0 || strcmp(msg->from, "TACTICAL") == 0 ||
+                                  strcmp(msg->from, "ENGINEERING") == 0 || strcmp(msg->from, "HELMSMAN") == 0 ||
+                                  strcmp(msg->from, "WARNING") == 0 || strcmp(msg->from, "DAMAGE CONTROL") == 0 ||
+                                  strcmp(msg->from, "STARBASE") == 0 || strcmp(msg->from, "Alliance Command") == 0);
+                
+                if (!is_system && sender_idx != locked_idx && i != sender_idx) {
+                    continue; /* Drop message: recipient is locked to another frequency */
+                }
             }
-            
-            /* RELAY PROTOCOL: Send the original packet as-is. 
-               Recipients tuned to a different frequency will see noise. */
-            size_t pkt_size = offsetof(PacketMessage, text) + msg->length;
-            pthread_mutex_lock(&players[i].socket_mutex);
-            write_all(players[i].socket, msg, pkt_size);
-            pthread_mutex_unlock(&players[i].socket_mutex);
+
+            if (is_peer || is_private) {
+                /* STRICT RELAY: No one gets cleartext if they are not the intended recipient with the key */
+                size_t pkt_size = offsetof(PacketMessage, text) + msg->length;
+                pthread_mutex_lock(&players[i].socket_mutex);
+                write_all(players[i].socket, msg, pkt_size);
+                pthread_mutex_unlock(&players[i].socket_mutex);
+            } else {
+                /* ADAPTIVE RELAY: Translate for recipient or send cleartext */
+                PacketMessage out_pkt;
+                memcpy(&out_pkt, msg, offsetof(PacketMessage, text));
+                int recip_algo = players[i].state.shm_crypto_algo;
+
+                if (recip_algo != CRYPTO_NONE) {
+                    /* Recipient wants encryption: encrypt the validated plaintext */
+                    uint8_t *rk = (recip_algo >= 1 && recip_algo <= MAX_CRYPTO_ALGOS) ? 
+                                   players[i].algo_keys[recip_algo] : players[i].session_key;
+                    encrypt_payload(&out_pkt, plaintext, rk, spacegl_master.frame_id);
+                } else {
+                    /* Recipient wants cleartext */
+                    out_pkt.is_encrypted = 0;
+                    strcpy(out_pkt.text, plaintext);
+                    out_pkt.length = strlen(plaintext);
+                }
+                size_t pkt_size = offsetof(PacketMessage, text) + out_pkt.length;
+                pthread_mutex_lock(&players[i].socket_mutex);
+                write_all(players[i].socket, &out_pkt, pkt_size);
+                pthread_mutex_unlock(&players[i].socket_mutex);
+            }
         }
     }
     pthread_mutex_unlock(&game_mutex);
@@ -232,13 +253,16 @@ void send_server_msg(int p_idx, const char *from, const char *text) {
         msg.is_encrypted = 1;
         msg.crypto_algo = players[p_idx].state.shm_crypto_algo;
         
-        uint8_t *k = (msg.crypto_algo >= 1 && msg.crypto_algo <= 12) ? players[p_idx].algo_keys[msg.crypto_algo] : players[p_idx].session_key;
+        uint8_t *k = (msg.crypto_algo >= 1 && msg.crypto_algo <= MAX_CRYPTO_ALGOS) ? players[p_idx].algo_keys[msg.crypto_algo] : players[p_idx].session_key;
         
         encrypt_payload(&msg, text, k, spacegl_master.frame_id);
     } else {
         msg.is_encrypted = 0;
-        strncpy(msg.text, text, 65535);
-        msg.length = strlen(msg.text);
+        size_t plen = strlen(text);
+        if (plen > 65535) plen = 65535;
+        memcpy(msg.text, text, plen);
+        msg.text[plen] = '\0';
+        msg.length = plen;
     }
     
     size_t pkt_size = offsetof(PacketMessage, text) + msg.length;
@@ -272,14 +296,15 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         p->last_sent_state.current_tube != upd->current_tube || p->last_sent_state.ion_beam_charge != upd->ion_beam_charge ||
         memcmp(p->last_sent_state.tube_load_timers, upd->tube_load_timers, sizeof(upd->tube_load_timers)) != 0) mask |= UPD_COMBAT;
     
-    if (p->last_sent_state.is_cloaked != upd->is_cloaked || p->last_sent_state.is_docked != upd->is_docked || 
+    if (p->last_sent_state.is_cloaked != upd->is_cloaked || p->last_sent_state.is_docked != upd->is_docked ||
         p->last_sent_state.red_alert != upd->red_alert || p->last_sent_state.nav_state != upd->nav_state ||
         p->last_sent_state.show_axes != upd->show_axes || p->last_sent_state.show_grid != upd->show_grid ||
         p->last_sent_state.show_bridge != upd->show_bridge || p->last_sent_state.show_map != upd->show_map ||
-        p->last_sent_state.map_filter != upd->map_filter || 
-        p->last_sent_state.shm_crypto_algo != upd->shm_crypto_algo || 
+        p->last_sent_state.map_filter != upd->map_filter ||
+        p->last_sent_state.force_shutdown != upd->force_shutdown ||
+        p->last_sent_state.shm_crypto_algo != upd->shm_crypto_algo ||
+        p->last_sent_state.radio_lock_target != upd->radio_lock_target ||
         p->last_sent_state.encryption_flags != upd->encryption_flags) mask |= UPD_FLAGS;
-
     /* Effects, Probes and Beams are transient or frequently updated, usually we send them if not empty */
     bool any_torp = upd->torps[0].active || upd->torps[1].active || upd->torps[2].active || upd->torps[3].active;
     bool last_any_torp = p->last_sent_state.torps[0].active || p->last_sent_state.torps[1].active || p->last_sent_state.torps[2].active || p->last_sent_state.torps[3].active;
@@ -395,8 +420,10 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
             upd->show_bridge, 
             upd->show_map, 
             upd->map_filter,
+            upd->force_shutdown,
             upd->shm_crypto_algo,
-            upd->encryption_flags
+            upd->encryption_flags,
+            upd->radio_lock_target
         };
         memcpy(ptr, &b, sizeof(b));
         ptr += sizeof(b);

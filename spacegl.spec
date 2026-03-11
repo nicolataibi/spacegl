@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 21
+%global rel 22
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -120,5 +120,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 %{_datadir}/%{name}/shaders/
 
 %changelog
-* Sat Mar 7 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
-Roll added to the ships.
+* Thu Mar 12 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
+Added Password for Captains.
+Added new encryption levels.
+Added an entry from the Captain's logbook.

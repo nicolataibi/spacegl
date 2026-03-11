@@ -416,6 +416,7 @@ int load_galaxy() {
     for(int i=0; i<MAX_CLIENTS; i++) {
         players[i].active = 0;
         players[i].socket = 0;
+        /* Preserve the name for login recognition, but initialize the mutex */
         pthread_mutex_init(&players[i].socket_mutex, NULL);
     }
     

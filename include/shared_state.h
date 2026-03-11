@@ -111,10 +111,13 @@ typedef struct {
     int shm_red_alert;
     int shm_is_jammed;
     int shm_nav_state;
+    int64_t shm_galaxy[41][41][41];
     int shm_map_filter;
+    int shm_force_shutdown;
     int is_cloaked;
     int shm_crypto_algo;
     uint32_t shm_encryption_flags;
+    int shm_radio_lock_target;
     uint8_t shm_server_signature[64];
     uint8_t shm_server_pubkey[32];
     int shm_q[3];
@@ -123,7 +126,6 @@ typedef struct {
     double shm_m;
     double shm_r;
     double shm_eta;
-    int64_t shm_galaxy[41][41][41];
     
     double net_kbps;
     double net_efficiency;
@@ -196,6 +198,8 @@ typedef struct {
     /* Legacy Mutex (Optional, for full segment protection if needed) */
     pthread_mutex_t mutex;
     sem_t data_ready;
+
+    atomic_int force_shutdown; /* Immediate global exit signal */
 } __attribute__((aligned(64))) SharedIPC;
 
 #pragma pack(pop)

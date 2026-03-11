@@ -1861,6 +1861,7 @@ void update_game_logic() {
         upd.map_filter = players[i].state.map_filter;
         upd.shm_crypto_algo = players[i].state.shm_crypto_algo;
         upd.encryption_flags = players[i].state.encryption_flags;
+        upd.radio_lock_target = players[i].radio_lock_target;
         
         int o_idx = 0;
         upd.objects[o_idx] = (NetObject){players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].state.van_h, players[i].state.van_m, players[i].state.van_r, 1, players[i].ship_class, 1, (int)players[i].state.hull_integrity, players[i].state.energy, 0, (int)players[i].state.hull_integrity, players[i].faction, i+1, players[i].state.is_cloaked, ""};

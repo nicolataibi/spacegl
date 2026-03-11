@@ -45,16 +45,58 @@ pthread_mutex_t game_mutex = PTHREAD_MUTEX_INITIALIZER;
 threadpool_t *g_pool = NULL;
 int g_debug = 0;
 int global_tick = 0;
-uint8_t ALGO_KEYS[13][32]; /* Global Default (Unused but kept for base init) */
+uint8_t ALGO_KEYS[MAX_CRYPTO_ALGOS + 1][32]; /* Global Default */
 
-void derive_algo_keys(uint8_t *master_key, const char *name, uint8_t target_keys[13][32]) {
+void ensure_player_algo_key(int p_idx, int k, bool private_mode) {
+    if (k < 1 || k > MAX_CRYPTO_ALGOS) return;
+    /* We don't use a 'loaded' flag here to keep it simple, we just derive if needed 
+       or check if the buffer is all zeros (unlikely for a valid key) */
+    
+    char dir_path[128];
+    sprintf(dir_path, "captains/%s", players[p_idx].name);
+    char key_path[256];
+    if (private_mode) sprintf(key_path, "%s/algo_%d_private.key", dir_path, k);
+    else sprintf(key_path, "%s/algo_%d.key", dir_path, k);
+
+    /* Try to load from disk first (persistence) */
+    FILE *fk = fopen(key_path, "r");
+    if (fk) {
+        char hex[128];
+        if (fgets(hex, sizeof(hex), fk)) {
+            for (int b = 0; b < 32; b++) {
+                unsigned int val;
+                if (sscanf(hex + (b * 2), "%02x", &val) == 1) players[p_idx].algo_keys[k][b] = (uint8_t)val;
+            }
+        }
+        fclose(fk);
+        return;
+    }
+
+    /* Otherwise derive it exactly like the client does */
+    char salt[256];
+    if (private_mode) sprintf(salt, "SPACEGL-ALGO-PRIVATE-%s-SIG-%d", players[p_idx].name, k);
+    else sprintf(salt, "SPACEGL-ALGO-FREQUENCY-GALAXY-WORMHOLE-SIG-%d", k);
+    
+    unsigned int len = 32;
+    HMAC(EVP_sha256(), MASTER_SESSION_KEY, 32, (uint8_t*)salt, strlen(salt), players[p_idx].algo_keys[k], &len);
+    
+    /* Save for next time */
+    fk = fopen(key_path, "w");
+    if (fk) {
+        for (int b = 0; b < 32; b++) fprintf(fk, "%02x", players[p_idx].algo_keys[k][b]);
+        fprintf(fk, "\n");
+        fclose(fk);
+    }
+}
+
+void derive_algo_keys(uint8_t *master_key, const char *name, uint8_t target_keys[MAX_CRYPTO_ALGOS + 1][32]) {
     char dir_path[128];
     sprintf(dir_path, "captains/%s", name ? name : "DEFAULT");
     /* mkdir(dir_path) is usually handled by the client, but for server safety: */
     mkdir("captains", 0700);
     mkdir(dir_path, 0700);
 
-    for (int k = 1; k <= 12; k++) {
+    for (int k = 1; k <= MAX_CRYPTO_ALGOS; k++) {
         char key_path[256];
         sprintf(key_path, "%s/algo_%d.key", dir_path, k);
         
@@ -461,7 +503,9 @@ int main(int argc, char *argv[]) {
                                players[i].name[0] ? players[i].name : "Unknown", time_disc);
 
                         players[i].socket = 0; 
+                        players[i].radio_lock_target = 0;
                         memset(players[i].session_key, 0, 32);
+                        save_galaxy();
                         break; 
                     }
                     pthread_mutex_unlock(&game_mutex);
@@ -530,17 +574,78 @@ int main(int argc, char *argv[]) {
                     for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd && players[i].active) { p_idx = i; break; }
                     pthread_mutex_unlock(&game_mutex);
 
-                    if (type == PKT_QUERY || type == PKT_LOGIN) {
+                    /* MAIN PACKET DISPATCHER */
+                    if (type == PKT_QUERY_KEY) {
+                        PacketQueryKey qk;
+                        if (read_all(fd, ((char*)&qk) + sizeof(int), sizeof(PacketQueryKey) - sizeof(int)) > 0) {
+                            pthread_mutex_lock(&game_mutex);
+                            qk.found = 0;
+                            qk.type = PKT_QUERY_KEY;
+                            for(int j=0; j<MAX_CLIENTS; j++) {
+                                if (players[j].active && players[j].name[0] != '\0' && strcmp(players[j].name, qk.target_name) == 0) {
+                                    memcpy(qk.x25519_pubkey, players[j].x25519_pubkey, 32);
+                                    qk.found = 1; 
+                                    LOG_DEBUG("Tactical Link: Found %s. Key starts with: %02X%02X%02X%02X\n", 
+                                              qk.target_name, qk.x25519_pubkey[0], qk.x25519_pubkey[1], 
+                                              qk.x25519_pubkey[2], qk.x25519_pubkey[3]);
+                                    break;
+                                }
+                            }
+                            pthread_mutex_unlock(&game_mutex);
+                            write_all(fd, &qk, sizeof(PacketQueryKey));
+                        }
+                    } else if (type == PKT_QUERY || type == PKT_LOGIN) {
+                        /* ... login logic remains here ... */
+
                         PacketLogin pkt;
                         if (read_all(fd, ((char*)&pkt) + sizeof(int), sizeof(PacketLogin) - sizeof(int)) > 0) {
                             if (type == PKT_QUERY) {
                                 pthread_mutex_lock(&game_mutex);
-                                int found = 0;
-                                for(int j=0; j<MAX_CLIENTS; j++) { if (players[j].name[0] != '\0' && strcmp(players[j].name, pkt.name) == 0) { found = 1; break; } }
+                                int status = 1; /* 1:Success (Known), 2:New, 3:WrongPass, 4:Duplicate */
+
+                                /* 1. Check for Duplicate Name (already active session) */
+                                for(int j=0; j<MAX_CLIENTS; j++) {
+                                    if (players[j].active && players[j].name[0] != '\0' && strcmp(players[j].name, pkt.name) == 0) {
+                                        status = 4;
+                                        break;
+                                    }
+                                }
+
+                                if (status != 4) {
+                                    /* 2. Check for existence and password */
+                                    char auth_path[256];
+                                    sprintf(auth_path, "captains/%s/identity.hash", pkt.name);
+                                    FILE *fa = fopen(auth_path, "rb");
+                                    if (fa) {
+                                        uint8_t stored_hash[32];
+                                        if (fread(stored_hash, 1, 32, fa) == 32) {
+                                            if (memcmp(stored_hash, pkt.pass_hash, 32) != 0) {
+                                                status = 3; /* Wrong Password */
+                                            } else {
+                                                status = 1; /* Success (Known) */
+                                            }
+                                        }
+                                        fclose(fa);
+                                    } else {
+                                        /* New Captain: Create directory and save hash */
+                                        char dir_path[128];
+                                        sprintf(dir_path, "captains/%s", pkt.name);
+                                        mkdir("captains", 0700);
+                                        mkdir(dir_path, 0700);
+                                        fa = fopen(auth_path, "wb");
+                                        if (fa) {
+                                            fwrite(pkt.pass_hash, 1, 32, fa);
+                                            fclose(fa);
+                                            status = 2; /* New Captain */
+                                        }
+                                    }
+                                }
+
                                 pthread_mutex_unlock(&game_mutex);
-                                LOG_DEBUG("Identity Check: '%s' -> %s\n", pkt.name, found ? "RECOGNIZED" : "NEW RECRUIT");
-                                write_all(fd, &found, sizeof(int));
+                                LOG_DEBUG("Security Check for '%s': Status %d\n", pkt.name, status);
+                                write_all(fd, &status, sizeof(int));
                             } else {
+                                /* PKT_LOGIN: Re-using the same packet read for login */
                                 pthread_mutex_lock(&game_mutex);
                                 int slot = -1;
                                 /* 1. Try to find a player with the same name (persistence) */
@@ -562,17 +667,33 @@ int main(int argc, char *argv[]) {
                                 }
                                 
                                 if (slot != -1) {
-                                    /* Clean up any other slot that might be holding this socket (from the handshake reserve) */
-                                    for(int j=0; j<MAX_CLIENTS; j++) if (j != slot && players[j].socket == fd) { players[j].socket = 0; }
+                                    /* Handle Session Key transfer from the temporary handshake slot if needed */
+                                    int handshake_slot = -1;
+                                    for(int j=0; j<MAX_CLIENTS; j++) if (players[j].socket == fd) { handshake_slot = j; break; }
+
+                                    if (handshake_slot != -1 && handshake_slot != slot) {
+                                        memcpy(players[slot].session_key, players[handshake_slot].session_key, 32);
+                                        players[handshake_slot].socket = 0; /* Release temporary slot */
+                                    }
 
                                     players[slot].socket = fd;
                                     int is_new = (players[slot].name[0] == '\0');
                                     players[slot].active = 0; /* Block updates during sync */
 
+                                    /* Always update keys and class on login */
+                                    memcpy(players[slot].x25519_pubkey, pkt.x25519_pubkey, 32);
+                                    players[slot].faction = pkt.faction;
+                                    players[slot].ship_class = pkt.ship_class;
+
                                     if (is_new) {
                                         strcpy(players[slot].name, pkt.name);
-                                        players[slot].faction = pkt.faction;
-                                        players[slot].ship_class = pkt.ship_class;
+                                        
+                                        /* Notifica la flotta della nuova chiave pubblica X25519 */
+                                        char key_info[256];
+                                        sprintf(key_info, "[IDENTITY] Public Frequency for Captain %s: ", pkt.name);
+                                        for(int k=0; k<8; k++) sprintf(key_info + strlen(key_info), "%02X", pkt.x25519_pubkey[k]);
+                                        strcat(key_info, "... [UPLINK ACTIVE]");
+                                        send_server_msg(-1, "COMPUTER", key_info);
                                         players[slot].state.energy = MAX_ENERGY_CAPACITY;
                                         players[slot].state.torpedoes = MAX_TORPEDO_CAPACITY;
                                         int crew = (MAX_CREW_EXPLORER / 5);
@@ -614,6 +735,9 @@ int main(int argc, char *argv[]) {
                                         players[slot].state.life_support = (float)YIELD_HARVEST_MAX;
                                         players[slot].state.ion_beam_charge = (float)YIELD_HARVEST_MAX;
                                         memset(players[slot].state.probes, 0, sizeof(players[slot].state.probes));
+                                    } else {
+                                        /* RETURNING CAPTAIN: sync name to the game state for visual consistency */
+                                        strcpy(players[slot].state.captain_name, players[slot].name);
                                     }
                                     
                                     /* WELCOME PACKAGE: Ensure all captains (new or returning) have at least 10 Aetherium for Jumps */
@@ -623,6 +747,7 @@ int main(int argc, char *argv[]) {
 
                                     /* SESSION INITIALIZATION: Reset transient event flags and force full sync */
                                     players[slot].renegade_timer = 0;
+                                    players[slot].radio_lock_target = 0;
                                     
                                     /* Derive Personal Algorithm keys for this Captain */
                                     derive_algo_keys(MASTER_SESSION_KEY, players[slot].name, players[slot].algo_keys);

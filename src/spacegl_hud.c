@@ -35,6 +35,7 @@
 #include <inttypes.h>
 #include "game_config.h"
 #include "shared_state.h"
+#include "../include/network.h"
 
 #define HUD_REFRESH_USEC 50000
 
@@ -76,8 +77,8 @@ const char* get_nav_state_name(int s) {
 }
 
 const char* get_crypto_name(int a) {
-    const char* algos[] = {"NONE", "AES-256", "CHACHA20", "ARIA", "CAMELLIA", "SEED", "CAST5", "IDEA", "3DES", "BLOWFISH", "RC4", "DES", "PQC-KEM"};
-    if (a >= 0 && a <= 12) return algos[a];
+    const char* algos[] = {"NONE", "AES-256", "CHACHA20", "ARIA", "CAMELLIA", "SEED", "CAST5", "IDEA", "3DES", "BLOWFISH", "RC4", "DES", "PQC-KEM", "MCELIECE", "DILITHIUM", "SERPENT", "TWOFISH", "SM4", "ASCON", "PRESENT", "GOST", "SALSA"};
+    if (a >= 0 && a <= MAX_CRYPTO_ALGOS) return algos[a];
     return "UNKNOWN";
 }
 
@@ -222,6 +223,11 @@ int main(int argc, char** argv) {
     int inspector_page = 0;
 
     while ((ch = getch()) != 'q') {
+        if (atomic_load(&shm->force_shutdown)) {
+            endwin();
+            printf("[HUD] GLOBAL EMERGENCY SHUTDOWN SIGNAL RECEIVED. CLEAN EXIT.\n");
+            return 0;
+        }
         if (ch == 'c') {
             current_color_idx = (current_color_idx + 1) % 5;
             cycle_hud_colors();
@@ -237,6 +243,13 @@ int main(int argc, char** argv) {
 
         int r_idx = atomic_load(&shm->read_index);
         GameState *st = &shm->buffers[r_idx];
+
+        if (st->shm_force_shutdown) {
+            endwin();
+            printf("[HUD] EMERGENCY SHUTDOWN SIGNAL RECEIVED (xxx). CLEAN EXIT.\n");
+            return 0;
+        }
+
         erase();
 
         if (show_inspector) {
@@ -295,8 +308,9 @@ int main(int argc, char** argv) {
         mvprintw(4, 37, "L: %-5d", st->shm_shields[5]); draw_bar(4, 45, 10, st->shm_shields[5], 10000.0, 2);
         mvprintw(4, 56, "R: %-5d", st->shm_shields[4]); draw_bar(4, 56 + 8, 10, st->shm_shields[4], 10000.0, 2);
 
-        mvprintw(5, 37, "UP:%-5d", st->shm_shields[3]); draw_bar(5, 45, 10, st->shm_shields[3], 10000.0, 2);
-        mvprintw(5, 56, "DW:%-5d", st->shm_shields[2]); draw_bar(5, 64, 10, st->shm_shields[2], 10000.0, 2);        
+        mvprintw(5, 37, "UP:%-5d", st->shm_shields[2]); draw_bar(5, 45, 10, st->shm_shields[2], 10000.0, 2);
+        mvprintw(5, 56, "DW:%-5d", st->shm_shields[3]); draw_bar(5, 64, 10, st->shm_shields[3], 10000.0, 2);
+        
         mvprintw(8, 37, "PWR - ENG:"); draw_bar(8, 48, 15, st->shm_power_dist[0]*100, 100.0, 1);
         mvprintw(9, 37, "PWR - SHL:"); draw_bar(9, 48, 15, st->shm_power_dist[1]*100, 100.0, 2);
         mvprintw(10, 37, "PWR - WPN:"); draw_bar(10, 48, 15, st->shm_power_dist[2]*100, 100.0, 4);
@@ -328,13 +342,16 @@ int main(int argc, char** argv) {
             if (target) {
                 mvprintw(4, 77, "NAME: %-15s | FRACT: %-10s", target->shm_name[0]?target->shm_name:"UNKNOWN", get_faction_name(target->faction));
                 mvprintw(5, 77, "HULL: [%3d%%] | CLASS: %-15s", target->health_pct, get_ship_class_full(target->ship_class));
+                double d = sqrt(pow(target->shm_x - st->shm_s[0], 2) + pow(target->shm_y - st->shm_s[1], 2) + pow(target->shm_z - st->shm_s[2], 2));
+                mvprintw(6, 77, "DIST: %-6.1f | HEADING: %-6.1f", d, target->h);
+                mvprintw(7, 77, "MARK: %-6.1f | ROLL: %-6.1f", target->m, target->r);
             }
         } else {
             mvprintw(3, 77, "SCANNER MODE: SEARCHING...");
             mvprintw(4, 77, "------------------------------------------");
         }
         
-        attron(COLOR_PAIR(6)); mvprintw(7, 77, "ID     | NAME       | TYPE | FACTION    | DIST | HULL"); attroff(COLOR_PAIR(6));
+        attron(COLOR_PAIR(6)); mvprintw(9, 77, "ID     | NAME       | TYPE | FACTION    | DIST | HULL"); attroff(COLOR_PAIR(6));
         for (int o = 0; o < st->object_count && o < 16; o++) {
             SharedObject *obj = &st->objects[o];
             double d = sqrt(pow(obj->shm_x - st->shm_s[0], 2) + pow(obj->shm_y - st->shm_s[1], 2) + pow(obj->shm_z - st->shm_s[2], 2));
@@ -343,7 +360,7 @@ int main(int argc, char** argv) {
             const char* type_n = (obj->type==1)?"SHIP":(obj->type==3?"BASE":(obj->type==4?"STAR":(obj->type==5?"PLAN":(obj->type==6?"BHOL":(obj->type==21?"ASTE":(obj->type==27?"TORP":"UNKN"))))));
 
             attron(COLOR_PAIR(col));
-            mvprintw(8 + o, 77, "%6d | %-10.10s | %-4.4s | %-10.10s | %4.1f | %3d%%", obj->id, obj->shm_name[0]?obj->shm_name:"Alien", type_n, get_faction_name(obj->faction), d, obj->health_pct);
+            mvprintw(10 + o, 77, "%6d | %-10.10s | %-4.4s | %-10.10s | %4.1f | %3d%%", obj->id, obj->shm_name[0]?obj->shm_name:"Alien", type_n, get_faction_name(obj->faction), d, obj->health_pct);
             attroff(COLOR_PAIR(col));
         }
         // --- BOTTOM DIAGNOSTICS (FOUR BOXES AT TERMINAL BOTTOM) ---
@@ -366,9 +383,15 @@ int main(int argc, char** argv) {
         // 2. QUANTUM & LOGIC ANALYTICS
         attron(COLOR_PAIR(5) | A_BOLD); mvprintw(bot_y + 1, 35, "[ QUANTUM & LOGIC ]"); attroff(A_BOLD);
         mvprintw(bot_y + 2, 35, "FRAME ID : %-10lld", st->frame_id);
+        const char *link_mode = "FLEET (A)";
+        if (st->shm_radio_lock_target > 0) link_mode = "EXCLUSIVE (D)";
+        else if (st->shm_encryption_flags & 0x04) link_mode = "PEER (C)";
+        else if (st->shm_encryption_flags & 0x02) link_mode = "IDENTITY (B)";
+        else if (st->shm_crypto_algo == 0) link_mode = "RAW / OPEN";
+
         mvprintw(bot_y + 3, 35, "ENC ALGO : %-10s", get_crypto_name(st->shm_crypto_algo));
         mvprintw(bot_y + 4, 35, "SIG AUTH : %-10s", (st->shm_encryption_flags & 0x01)?"VERIFIED":"NONE");
-        mvprintw(bot_y + 5, 35, "COMP EFF : %6.1f%%", st->net_efficiency);
+        mvprintw(bot_y + 5, 35, "LINK MODE: %-13s", link_mode);
         mvprintw(bot_y + 6, 35, "INTEGRITY: %6.1f%%", st->net_integrity);
 
         // 3. SPATIAL AWARENESS

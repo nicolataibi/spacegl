@@ -748,8 +748,18 @@ void initVBOs() {
 long long last_frame_id = -1;
 
 void loadGameState() {
+    if (g_shm && atomic_load(&g_shm->force_shutdown)) {
+        printf("[3D VIEW] GLOBAL EMERGENCY SHUTDOWN SIGNAL RECEIVED. CLEAN EXIT.\n");
+        exit(0);
+    }
     GameState *state = g_shared_state;
     if (!state) return;
+    
+    if (state->shm_force_shutdown) {
+        printf("[3D VIEW] EMERGENCY SHUTDOWN SIGNAL RECEIVED (xxx). CLEAN EXIT.\n");
+        exit(0);
+    }
+
     if (state->frame_id == last_frame_id) { return; }
     last_frame_id = state->frame_id;
     g_is_loading = 1;
@@ -4254,12 +4264,9 @@ void display() {
     }
 
     glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity(); gluOrtho2D(0, 1000, 0, 1000); glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
-    glDisable(GL_LIGHTING); glColor3f(0, 1, 1); 
-    if (g_show_map) drawText3D(20, 50, 0, "Arrows: Rotate Map | W/S: Zoom Map | map (in CLI): Exit Map Mode");
-    else drawText3D(20, 50, 0, "Arrows: Rotate | W/S: Zoom | bridge [top/bottom/up/down/left/right/rear/off] | map | H: Toggle HUD | ESC: Exit");
+    glDisable(GL_LIGHTING);
 
-    char buf[256]; 
-    if (g_show_hud && map_anim < 0.5) {
+    char buf[256];    if (g_show_hud && map_anim < 0.5) {
         /* --- TOP LEFT: Comprehensive Ship Status --- */
         int x_off = 20;
         int y_pos = 970;
@@ -4344,11 +4351,11 @@ void display() {
         y_pos -= 10;
 
         /* Power Distribution Status */
-        glColor3f(1.0, 0.8, 0.0);
-        sprintf(buf, "POWER ALLOCATION: ENGINES: %.0f%%| SHIELDS: %.0f%%| WEAPONS: %.0f%%", 
+        glColor3f(1.0, 1.0, 0.0);
+        drawText3D(x_off, y_pos, 0, "--- POWER & NAVIGATION ---"); y_pos -= 18;
+        sprintf(buf, "ENGINES: %.0f%%| SHIELDS: %.0f%%| WEAPONS: %.0f%%",
                 g_power_dist[0] * (double)YIELD_HARVEST_MAX, g_power_dist[1] * (double)YIELD_HARVEST_MAX, g_power_dist[2] * (double)YIELD_HARVEST_MAX);
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
-
         /* Ion Beam Charge Bar */
         if (g_ion_charge > 0) {
             glColor3f(0, 0.8, 1.0);
@@ -4383,6 +4390,8 @@ void display() {
         }
 
         /* 2. Vital Resources */
+        glColor3f(0.0, 1.0, 0.0);
+        drawText3D(x_off, y_pos, 0, "--- ENERGY & SHIP ---"); y_pos -= 18;
         glColor3f(1.0, 1.0, 1.0);
         sprintf(buf, "ENERGY: %-12" PRIu64 " (CARGO ANTIMATTER: %-12" PRIu64 ")", g_energy, g_cargo_energy);
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 18;
@@ -4413,6 +4422,7 @@ void display() {
         
         /* 2.1 Individual Shields */
         glColor3f(0.0, 0.7, 1.0);
+        drawText3D(x_off, y_pos, 0, "--- SHIELDS ---"); y_pos -= 18;
         const char* sh_names[] = {"F:", "RE:", "T:", "B:", "L:", "RI:"};
         /* Show F and RE */
         sprintf(buf, "%s %-4d  %s %-4d", sh_names[0], g_shields_val[0], sh_names[1], g_shields_val[1]);
@@ -4505,6 +4515,12 @@ void display() {
         
         sprintf(buf, "LIFE SUPPORT: %.1f%%", g_shared_state->shm_life_support);
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 25;
+
+        /* Viewer Maneuver Controls */
+        glColor3f(0, 1, 1);
+        if (g_show_map) drawText3D(x_off, y_pos, 0, "Arrows: Rotate Map | W/S: Zoom Map | map (in CLI): Exit Map Mode");
+        else drawText3D(x_off, y_pos, 0, "Arrows: Rotate | W/S: Zoom | bridge [pos] | map | H: Toggle HUD | ESC: Exit");
+        y_pos -= 25;
 
         /* 7. Target Tactical Overlay (Center Screen) */
         if (g_lock_target > 0) {

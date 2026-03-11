@@ -93,6 +93,15 @@ const char* get_crypto_name(int algo) {
         case 10: return "RC4-STREAM (Tactical)";
         case 11: return "DES-CBC (Pre-Hyperdrive)";
         case 12: return "ML-KEM-1024 (Post-Quantum)";
+        case 13: return "MCELIECE (Archival PQC)";
+        case 14: return "DILITHIUM (Signature PQC)";
+        case 15: return "SERPENT (Digital Fortress)";
+        case 16: return "TWOFISH (Mercenary Protocol)";
+        case 17: return "SM4 (Eastern Syndicate)";
+        case 18: return "ASCON (Micro-Probe LWC)";
+        case 19: return "PRESENT (Biometric LWC)";
+        case 20: return "GOST (Frontier Kuznyechik)";
+        case 21: return "SALSA20 (Hacker Stream)";
         default: return "Unknown Frequency";
     }
 }
@@ -647,21 +656,27 @@ int main(int argc, char *argv[]) {
     }
     else if (strcmp(argv[1], "players") == 0) {
         printf("--- Persistent Players ---\n");
-        printf("%-15s %-12s %-15s %-10s %-10s %s\n", "NAME", "FACTION", "SHIP CLASS", "CRYPTO", "POSITION", "STATUS");
+        printf("%-15s %-12s %-15s %-10s %-10s %-10s %s\n", "NAME", "FACTION", "SHIP CLASS", "CRYPTO", "POSITION", "RL-LOCK", "STATUS");
         for(int i=0; i<MAX_CLIENTS; i++) {
             if (players[i].name[0] != '\0') {
                 char pos[32];
+                char lock[16];
                 snprintf(pos, 32, "[%d,%d,%d]", players[i].state.q1, players[i].state.q2, players[i].state.q3);
-                printf("%-15s %-12s %-15s %-10s %-10s %s\n", 
-                       players[i].name, 
+                if (players[i].radio_lock_target > 0) snprintf(lock, 16, "#%d", players[i].radio_lock_target);
+                else strcpy(lock, "NONE");
+
+                printf("%-15s %-12s %-15s %-10s %-10s %-10s %s\n",
+                       players[i].name,
                        get_faction_name(players[i].faction),
                        get_ship_class_name(players[i].ship_class),
                        get_crypto_name(players[i].crypto_algo),
                        pos,
+                       lock,
                        players[i].state.is_cloaked ? "[CLOAKED]" : "[VISIBLE]");
             }
         }
     }
+
     else if (strcmp(argv[1], "search") == 0 && argc == 3) {
         const char *name = argv[2];
         printf("Searching for '%s'..\n", name);

@@ -45,76 +45,129 @@
 /* Pre-Shared DeepSpace Encryption Key (Loaded from ENV) */
 uint8_t deep_space_key[32];
 uint8_t master_root_key[32];
-uint8_t ALGO_KEYS[13][32];
+uint8_t ALGO_KEYS[MAX_CRYPTO_ALGOS + 1][32];
+uint8_t ALGO_KEYS_PRIVATE[MAX_CRYPTO_ALGOS + 1][32];
+
+int sock = 0;
+char captain_name[64];
+int my_faction = 0;
+int g_debug = 0;
+
+char captain_dir[128] = "";
+bool algo_key_loaded[MAX_CRYPTO_ALGOS + 1] = {false};
+bool algo_key_private_loaded[MAX_CRYPTO_ALGOS + 1] = {false};
+bool g_private_mode = false;
+bool g_peer_mode = false;
+bool g_exclusive_mode = false;
+char g_peer_target[64] = "";
+
+char g_tuned_captain[64] = ""; /* For tuning into Level B (enc2) frequencies */
+
 #include "shared_state.h"
 #include "ui.h"
 
-void derive_algo_keys(uint8_t *master_key, const char *name) {
-    /* Create captain-specific directory for key persistence */
-    char dir_path[128];
-    sprintf(dir_path, "captains/%s", name ? name : "DEFAULT");
-    mkdir("captains", 0700);
-    mkdir(dir_path, 0700);
+void ensure_algo_key_for_name(int k, bool private_mode, const char *name, uint8_t *out_key) {
+    if (k < 1 || k > MAX_CRYPTO_ALGOS) return;
 
-    for (int k = 1; k <= 12; k++) {
-        char key_path[256];
-        sprintf(key_path, "%s/algo_%d.key", dir_path, k);
+    /* If it's our own key, we might have it cached in the global arrays */
+    if (strcmp(name, captain_name) == 0) {
+        if (private_mode && algo_key_private_loaded[k]) { memcpy(out_key, ALGO_KEYS_PRIVATE[k], 32); return; }
+        if (!private_mode && algo_key_loaded[k]) { memcpy(out_key, ALGO_KEYS[k], 32); return; }
+    }
+
+    char salt[256];
+    if (private_mode) sprintf(salt, "SPACEGL-ALGO-PRIVATE-%s-SIG-%d", name, k);
+    else sprintf(salt, "SPACEGL-ALGO-FREQUENCY-GALAXY-WORMHOLE-SIG-%d", k);
+    
+    unsigned int len = 32;
+    HMAC(EVP_sha256(), master_root_key, 32, (uint8_t*)salt, strlen(salt), out_key, &len);
+
+    /* If it's ours, update the cache and save to disk */
+    if (strcmp(name, captain_name) == 0) {
+        if (private_mode) { memcpy(ALGO_KEYS_PRIVATE[k], out_key, 32); algo_key_private_loaded[k] = true; }
+        else { memcpy(ALGO_KEYS[k], out_key, 32); algo_key_loaded[k] = true; }
         
-        FILE *fk_read = fopen(key_path, "r");
-        bool loaded = false;
-        if (fk_read) {
-            char hex[128];
-            if (fgets(hex, sizeof(hex), fk_read)) {
-                /* Parse hex string to bytes */
-                for (int b = 0; b < 32; b++) {
-                    unsigned int val;
-                    if (sscanf(hex + (b * 2), "%02x", &val) == 1) {
-                        ALGO_KEYS[k][b] = (uint8_t)val;
-                    }
-                }
-                loaded = true;
-            }
-            fclose(fk_read);
-        }
-
-        if (!loaded) {
-            char salt[128];
-            sprintf(salt, "SPACEGL-ALGO-FREQUENCY-GALAXY-WORMHOLE-SIG-%d", k);
-            unsigned int len = 32;
-            HMAC(EVP_sha256(), master_key, 32, (uint8_t*)salt, strlen(salt), ALGO_KEYS[k], &len);
-
-            /* Save key to file for auditing/differentiation */
-            FILE *fk = fopen(key_path, "w");
-            if (fk) {
-                for (int b = 0; b < 32; b++) fprintf(fk, "%02x", ALGO_KEYS[k][b]);
-                fprintf(fk, "\n");
-                fclose(fk);
-            }
+        char key_path[256];
+        if (private_mode) sprintf(key_path, "%s/algo_%d_private.key", captain_dir, k);
+        else sprintf(key_path, "%s/algo_%d.key", captain_dir, k);
+        FILE *fk = fopen(key_path, "w");
+        if (fk) {
+            for (int b = 0; b < 32; b++) fprintf(fk, "%02x", out_key[b]);
+            fprintf(fk, "\n"); fclose(fk);
         }
     }
-    printf(B_BLUE "Personal Cryptographic Frequencies synchronized via %s/\n" RESET, dir_path);
+}
+
+void ensure_algo_key(int k, bool private_mode) {
+    uint8_t dummy[32];
+    ensure_algo_key_for_name(k, private_mode, captain_name, dummy);
+}
+
+void derive_algo_keys(const char *name) {
+    sprintf(captain_dir, "captains/%s", name ? name : "DEFAULT");
+    mkdir("captains", 0700);
+    mkdir(captain_dir, 0700);
+    for (int k = 0; k <= MAX_CRYPTO_ALGOS; k++) {
+        algo_key_loaded[k] = false;
+        algo_key_private_loaded[k] = false;
+    }
+    printf(B_BLUE "Frequencies Initialized via %s/ (On-Demand Mode Active)\n" RESET, captain_dir);
 }
 
 EVP_PKEY *my_ed25519_key = NULL;
+EVP_PKEY *my_x25519_key = NULL;
 uint8_t my_pubkey_bytes[32];
+uint8_t my_x25519_pubkey_bytes[32];
 
 void generate_keys() {
+    /* Ed25519 for Signatures */
     EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, NULL);
-    if (EVP_PKEY_keygen_init(pctx) <= 0) {
-        perror("EVP_PKEY_keygen_init");
-        return;
-    }
-    if (EVP_PKEY_keygen(pctx, &my_ed25519_key) <= 0) {
-        perror("EVP_PKEY_keygen");
-        return;
-    }
+    EVP_PKEY_keygen_init(pctx);
+    EVP_PKEY_keygen(pctx, &my_ed25519_key);
+    size_t len = 32;
+    EVP_PKEY_get_raw_public_key(my_ed25519_key, my_pubkey_bytes, &len);
     EVP_PKEY_CTX_free(pctx);
 
-    size_t len = 32;
-    if (EVP_PKEY_get_raw_public_key(my_ed25519_key, my_pubkey_bytes, &len) <= 0) {
-        perror("EVP_PKEY_get_raw_public_key");
+    /* X25519 for Tactical Peer Link (ECDH) */
+    pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, NULL);
+    EVP_PKEY_keygen_init(pctx);
+    EVP_PKEY_keygen(pctx, &my_x25519_key);
+    len = 32;
+    EVP_PKEY_get_raw_public_key(my_x25519_key, my_x25519_pubkey_bytes, &len);
+    EVP_PKEY_CTX_free(pctx);
+    
+    printf(B_GREEN "Identity Secured: Ed25519 and X25519 Keypairs Generated.\n" RESET);
+}
+
+/* Peer Public Key Database */
+typedef struct {
+    char name[64];
+    uint8_t x25519_pub[32];
+    uint8_t shared_secret[32];
+    bool linked;
+} TacticalPeer;
+TacticalPeer g_peers[MAX_CLIENTS];
+int g_peer_count = 0;
+
+void derive_peer_secret(const char *peer_name, const uint8_t *peer_pub) {
+    if (!my_x25519_key) return;
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(my_x25519_key, NULL);
+    if (!ctx) return;
+    if (EVP_PKEY_derive_init(ctx) <= 0) { EVP_PKEY_CTX_free(ctx); return; }
+    EVP_PKEY *peer_pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, peer_pub, 32);
+    if (!peer_pkey) { EVP_PKEY_CTX_free(ctx); return; }
+    if (EVP_PKEY_derive_set_peer(ctx, peer_pkey) <= 0) { EVP_PKEY_free(peer_pkey); EVP_PKEY_CTX_free(ctx); return; }
+    size_t secret_len = 32; uint8_t secret[32];
+    if (EVP_PKEY_derive(ctx, secret, &secret_len) <= 0) { EVP_PKEY_free(peer_pkey); EVP_PKEY_CTX_free(ctx); return; }
+    int idx = -1;
+    for(int i=0; i<g_peer_count; i++) if (strcmp(g_peers[i].name, peer_name) == 0) { idx = i; break; }
+    if (idx == -1 && g_peer_count < MAX_CLIENTS) idx = g_peer_count++;
+    if (idx != -1) {
+        strncpy(g_peers[idx].name, peer_name, 63); g_peers[idx].name[63] = '\0';
+        memcpy(g_peers[idx].shared_secret, secret, 32); g_peers[idx].linked = true;
+        printf("\r\033[K" B_YELLOW "[TACTICAL] Peer Link established with %s. Secret derived.\n" RESET, peer_name);
     }
-    printf(B_GREEN "Identity Secured: Ed25519 Keypair Generated.\n" RESET);
+    EVP_PKEY_free(peer_pkey); EVP_PKEY_CTX_free(ctx);
 }
 
 void sign_packet_message(PacketMessage *msg) {
@@ -159,7 +212,18 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
     else if (msg->crypto_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
     else if (msg->crypto_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
     else if (msg->crypto_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_MCELIECE) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_DILITHIUM) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_SERPENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_TWOFISH) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_SM4) { cipher = EVP_get_cipherbyname("SM4-CBC"); is_gcm = 0; }
+    else if (msg->crypto_algo == CRYPTO_ASCON) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_PRESENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_GOST) { cipher = EVP_get_cipherbyname("GOST-KUZNYECHIK"); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_SALSA) { cipher = EVP_get_cipherbyname("chacha20"); is_gcm = 0; }
     else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    
+    if (!cipher) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
     
     EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL);
     if (is_gcm) {
@@ -168,8 +232,11 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
     
     if (EVP_EncryptInit_ex(ctx, NULL, NULL, key, msg->iv) <= 0) {
         msg->is_encrypted = 0;
-        strncpy(msg->text, plaintext, 65535);
-        msg->length = strlen(msg->text);
+        size_t plen = strlen(plaintext);
+        if (plen > 65535) plen = 65535;
+        memcpy(msg->text, plaintext, plen);
+        msg->text[plen] = '\0';
+        msg->length = plen;
         EVP_CIPHER_CTX_free(ctx);
         return;
     }
@@ -179,8 +246,11 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
     int final_len;
     if (EVP_EncryptFinal_ex(ctx, (uint8_t*)msg->text + outlen, &final_len) <= 0) {
         msg->is_encrypted = 0;
-        strncpy(msg->text, plaintext, 65535);
-        msg->length = strlen(msg->text);
+        size_t plen = strlen(plaintext);
+        if (plen > 65535) plen = 65535;
+        memcpy(msg->text, plaintext, plen);
+        msg->text[plen] = '\0';
+        msg->length = plen;
         EVP_CIPHER_CTX_free(ctx);
         return;
     }
@@ -204,11 +274,6 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
 #define B_WHITE   "\033[1;37m"
 
 #include <termios.h>
-
-int sock = 0;
-char captain_name[64];
-int my_faction = 0;
-int g_debug = 0;
 
 #define LOG_DEBUG(...) do { if (g_debug) { printf("DEBUG: " __VA_ARGS__); fflush(stdout); } } while (0)
 
@@ -284,6 +349,7 @@ void init_shm() {
     /* Initialize Atomic Indices for Double Buffering */
     atomic_init(&g_shm->read_index, 0);
     atomic_init(&g_shm->write_index, 1);
+    atomic_init(&g_shm->force_shutdown, 0);
     g_shared_state = &g_shm->buffers[1]; /* Initial write buffer */
 
     /* Initialize Command Queue indices */
@@ -417,7 +483,18 @@ void *network_listener(void *arg) {
             exit(0);
         }
         
-        if (type == PKT_MESSAGE) {
+        if (type == PKT_QUERY_KEY) {
+            PacketQueryKey res;
+            if (read_all(sock, ((char*)&res) + sizeof(int), sizeof(PacketQueryKey) - sizeof(int)) > 0) {
+                if (res.found) {
+                    derive_peer_secret(res.target_name, res.x25519_pubkey);
+                    reprint_prompt();
+                } else {
+                    printf("\r\033[K" B_RED "[ERROR] Captain %s not found in active fleet.\n" RESET, res.target_name);
+                    reprint_prompt();
+                }
+            }
+        } else if (type == PKT_MESSAGE) {
             PacketMessage *msg = malloc(sizeof(PacketMessage));
             if (!msg) { perror("malloc failed"); exit(1); }
             msg->type = type;
@@ -444,45 +521,97 @@ void *network_listener(void *arg) {
                                           strcmp(msg->from, "WARNING") == 0 || strcmp(msg->from, "DAMAGE CONTROL") == 0 ||
                                           strcmp(msg->from, "STARBASE") == 0 || strcmp(msg->from, "Alliance Command") == 0);
 
-                    /* 
+                    /*
                        STRATEGY: 
                        1. For system messages, trust the packet's crypto_algo (Auto-tuning).
-                          This prevents "FREQUENCY MISMATCH" noise during the exact moment a captain switches enc.
-                       2. For captain-to-captain messages, strictly use OUR active_algo.
-                          This ensures noise when frequencies differ between captains.
+                       2. For Private (enc2) or Peer (enc3) messages, trust the packet's crypto_algo IF we are tuned in.
+                       3. For standard (enc) captain messages, strictly use OUR active_algo.
                     */
                     int active_algo = (g_shared_state) ? g_shared_state->shm_crypto_algo : CRYPTO_NONE;
-                    int decryption_algo = is_system_msg ? msg->crypto_algo : active_algo;
-                    
+                    bool is_private = (msg->is_encrypted & 0x02);
+                    bool is_peer = (msg->is_encrypted & 0x04) || (msg->is_encrypted & 0x08);
+
+                    int decryption_algo = active_algo;
+
+                    if (is_system_msg || is_private || is_peer) decryption_algo = msg->crypto_algo;
                     if (decryption_algo != CRYPTO_NONE) {
-                        uint8_t *k = (decryption_algo >= 1 && decryption_algo <= 12) ? ALGO_KEYS[decryption_algo] : deep_space_key;
+                       uint8_t *k = deep_space_key;
+                       uint8_t derived_k[32];
+                       bool peer_found = true;
+                       if (is_peer) {
+                           const char *lookup_name = msg->from;
+                           peer_found = false;
+                           if (strcmp(msg->from, captain_name) == 0 && g_peer_mode) lookup_name = g_peer_target;
+                           for(int i=0; i<g_peer_count; i++) {
+                               if (strcmp(g_peers[i].name, lookup_name) == 0) { 
+                                   k = g_peers[i].shared_secret; 
+                                   peer_found = true;
+                                   break; 
+                               }
+                           }
+                       } else if (is_private) {
+                           /* ... (rest of identity logic) ... */
+                           if (strcmp(msg->from, captain_name) == 0) {
+                               ensure_algo_key_for_name(decryption_algo, true, captain_name, derived_k);
+                               k = derived_k;
+                           } else if (g_tuned_captain[0] != '\0' && strcmp(msg->from, g_tuned_captain) == 0) {
+                               ensure_algo_key_for_name(decryption_algo, true, g_tuned_captain, derived_k);
+                               k = derived_k;
+                           } else {
+                               ensure_algo_key_for_name(decryption_algo, true, captain_name, derived_k);
+                               k = derived_k;
+                           }
+                       } else {
+                           ensure_algo_key_for_name(decryption_algo, false, captain_name, derived_k);
+                           k = derived_k;
+                       }
 
-                        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-                        const EVP_CIPHER *cipher;
-                        int is_gcm = 0;
+                       if (is_peer && !peer_found) {
+                           success = 0;
+                           snprintf(msg->text, 65535, B_RED "<< TACTICAL LINK ERROR >>" RESET "\n [HINT]: End-to-End link with %s not established. Use 'link %s'." , msg->from, msg->from);
+                       } else {
+                           EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 
-                        if (decryption_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
-                        else if (decryption_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
-                        else if (decryption_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
-                        else if (decryption_algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
-                        else if (decryption_algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
-                        else if (decryption_algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
-                        else if (decryption_algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
-                        else if (decryption_algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
-                        else if (decryption_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
-                        else if (decryption_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
-                        else if (decryption_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-                        else { cipher = EVP_aes_256_gcm(); is_gcm = 1; } 
+                       const EVP_CIPHER *cipher;
+                       int is_gcm = 0;
+
+                       if (decryption_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
+                       else if (decryption_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
+                       else if (decryption_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
+                       else if (decryption_algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
+                       else if (decryption_algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
+                       else if (decryption_algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
+                       else if (decryption_algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
+                       else if (decryption_algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
+                       else if (decryption_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
+                       else if (decryption_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
+                       else if (decryption_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+                       else if (decryption_algo == CRYPTO_MCELIECE) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+                       else if (decryption_algo == CRYPTO_DILITHIUM) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+                       else if (decryption_algo == CRYPTO_SERPENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+                       else if (decryption_algo == CRYPTO_TWOFISH) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+                       else if (decryption_algo == CRYPTO_SM4) { cipher = EVP_get_cipherbyname("SM4-CBC"); is_gcm = 0; }
+                       else if (decryption_algo == CRYPTO_ASCON) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+                       else if (decryption_algo == CRYPTO_PRESENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+                       else if (decryption_algo == CRYPTO_GOST) { cipher = EVP_get_cipherbyname("GOST-KUZNYECHIK"); is_gcm = 1; }
+                       else if (decryption_algo == CRYPTO_SALSA) { cipher = EVP_get_cipherbyname("chacha20"); is_gcm = 0; }
+                       else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+
+                       if (!cipher) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
 
                         EVP_DecryptInit_ex(ctx, cipher, NULL, NULL, NULL);
                         if (is_gcm) {
                             EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
-                            EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, msg->tag);
                         }
 
                         if (EVP_DecryptInit_ex(ctx, NULL, NULL, k, msg->iv) > 0) {
                             int outlen;
                             EVP_DecryptUpdate(ctx, (uint8_t*)decrypted, &outlen, (const uint8_t*)msg->text, msg->length);
+                            
+                            if (is_gcm) {
+                                EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, msg->tag);
+                            }
+                            
                             int final_len;
                             if (EVP_DecryptFinal_ex(ctx, (uint8_t*)decrypted + outlen, &final_len) > 0) {
                                 int total_len = outlen + final_len;
@@ -493,6 +622,7 @@ void *network_listener(void *arg) {
                             }
                         }
                         EVP_CIPHER_CTX_free(ctx);
+                       }
                     }
 
                     if (!success) {
@@ -544,7 +674,13 @@ void *network_listener(void *arg) {
                 strcmp(msg->from, "WARNING") == 0 || strcmp(msg->from, "DAMAGE CONTROL") == 0) {
                 printf("%s\n", msg->text);
             } else {
-                printf(B_CYAN "[RADIO] %s%s (%s): %s\n" RESET, 
+                const char *level = "";
+                if (msg->is_encrypted & 0x08) level = " [EXCLUSIVE]";
+                else if (msg->is_encrypted & 0x04) level = " [P2P]";
+                else if (msg->is_encrypted & 0x02) level = " [PRIVATE]";
+
+                printf(B_CYAN "[RADIO]%s %s%s (%s): %s\n" RESET, 
+                       level,
                        verified ? B_GREEN "[VERIFIED] " B_CYAN : (msg->has_signature ? B_RED "[UNVERIFIED] " B_CYAN : ""),
                        msg->from, 
                        (msg->faction == FACTION_ALLIANCE) ? "Alliance Command" : "Alien", msg->text);
@@ -632,8 +768,10 @@ void *network_listener(void *arg) {
                     current_state.nav_state = b.nav_state; current_state.show_axes = b.show_axes;
                     current_state.show_grid = b.show_grid; current_state.show_bridge = b.show_bridge;
                     current_state.show_map = b.show_map; current_state.map_filter = b.map_filter;
+                    current_state.force_shutdown = b.force_shutdown;
                     current_state.shm_crypto_algo = b.encryption_algo;
                     current_state.encryption_flags = b.encryption_flags;
+                    current_state.radio_lock_target = b.radio_lock_target;
                     current_pkt_size += sizeof(b);
                 }
                 if (mask & UPD_EFFECTS) {
@@ -775,8 +913,19 @@ void *network_listener(void *arg) {
                 g_shared_state->shm_show_bridge = current_state.show_bridge;
                 g_shared_state->shm_show_map = current_state.show_map;
                 g_shared_state->shm_map_filter = current_state.map_filter;
+                g_shared_state->shm_force_shutdown = current_state.force_shutdown;
+                
+                if (g_shared_state->shm_force_shutdown) {
+                    if (g_shm) atomic_store(&g_shm->force_shutdown, 1);
+                    printf(B_RED "\n[SYSTEM] EMERGENCY SHUTDOWN SIGNAL RECEIVED. CLOSING ALL SUB-PROCESSES...\n" RESET);
+                    g_running = 0;
+                }
+
                 g_shared_state->shm_crypto_algo = current_state.shm_crypto_algo;
                 g_shared_state->shm_encryption_flags = current_state.encryption_flags;
+                g_shared_state->shm_radio_lock_target = current_state.radio_lock_target;
+                g_shared_state->shm_red_alert = current_state.red_alert;
+
                 g_shared_state->shm_q[0] = current_state.q1;
                 g_shared_state->shm_q[1] = current_state.q2;
                 g_shared_state->shm_q[2] = current_state.q3;
@@ -907,6 +1056,9 @@ int main(int argc, char *argv[]) {
     memcpy(deep_space_key, env_key, (env_len > 32) ? 32 : env_len);
     memcpy(master_root_key, deep_space_key, 32);
     
+    memset(g_peers, 0, sizeof(g_peers));
+    g_peer_count = 0;
+
     generate_keys();
     
     signal(SIGPIPE, SIG_IGN);
@@ -1048,20 +1200,57 @@ int main(int argc, char *argv[]) {
     if (scanf("%63s", captain_name) != 1) { strcpy(captain_name, "Captain"); }
     clear_stdin();
 
+    /* Password Input with Echo Disabled (Mandatory) */
+    char password[64] = "";
+    uint8_t password_hash[32];
+    
+    while (strlen(password) == 0) {
+        printf("Access Code   : ");
+        fflush(stdout);
+        
+        struct termios t_old, t_new;
+        tcgetattr(STDIN_FILENO, &t_old);
+        t_new = t_old;
+        t_new.c_lflag &= ~ECHO;
+        tcsetattr(STDIN_FILENO, TCSANOW, &t_new);
+        if (scanf("%63s", password) != 1) { password[0] = '\0'; }
+        tcsetattr(STDIN_FILENO, TCSANOW, &t_old);
+        printf("\n");
+        clear_stdin();
+        
+        if (strlen(password) == 0) {
+            printf(B_YELLOW "WARNING: Access Code is mandatory for DeepSpace Encryption.\n" RESET);
+        }
+    }
+
+    /* Hash password with Master Key */
+    unsigned int pass_len = 32;
+    HMAC(EVP_sha256(), master_root_key, 32, (uint8_t*)password, strlen(password), password_hash, &pass_len);
+
     /* Personalize Frequencies based on Captain Name */
-    derive_algo_keys(master_root_key, captain_name);
+    derive_algo_keys(captain_name);
 
     /* Identity Check */
     PacketLogin qpkt;
     memset(&qpkt, 0, sizeof(PacketLogin));
     qpkt.type = PKT_QUERY;
     strcpy(qpkt.name, captain_name);
+    memcpy(qpkt.pass_hash, password_hash, 32);
+    memcpy(qpkt.x25519_pubkey, my_x25519_pubkey_bytes, 32);
     write_all(sock, &qpkt, sizeof(PacketLogin));
     
-    int is_known = 0;
-    read_all(sock, &is_known, sizeof(int));
+    int login_status = 0; /* 1:Success, 2:New, 3:WrongPass, 4:Duplicate */
+    read_all(sock, &login_status, sizeof(int));
 
-    if (!is_known) {
+    if (login_status == 3) {
+        printf(B_RED "SECURITY ERROR: INVALID ACCESS CODE.\n" RESET);
+        close(sock); exit(1);
+    } else if (login_status == 4) {
+        printf(B_RED "SECURITY ERROR: COMMANDER NAME ALREADY ACTIVE IN GALAXY.\n" RESET);
+        close(sock); exit(1);
+    }
+
+    if (login_status == 2) {
         printf("\n" B_WHITE "--- NEW RECRUIT IDENTIFIED ---" RESET "\n");
         printf("--- SELECT YOUR FACTION ---\n");
         printf(" 0: Alliance\n 1: Korthian\n 2: Xylari\n 3: Swarm\n 4: Vesperian\n 5: Ascendant\n 6: Quarzite\n 7: Saurian\n 8: Gilded\n 9: Fluidic Void\n 10: Cryos\n 11: Apex\nSelection: ");
@@ -1104,6 +1293,8 @@ int main(int argc, char *argv[]) {
     strcpy(lpkt.name, captain_name);
     lpkt.faction = my_faction;
     lpkt.ship_class = my_ship_class;
+    memcpy(lpkt.pass_hash, password_hash, 32);
+    memcpy(lpkt.x25519_pubkey, my_x25519_pubkey_bytes, 32);
     
     LOG_DEBUG("Sending login packet (%zu bytes)...\n", sizeof(PacketLogin));
     write_all(sock, &lpkt, sizeof(PacketLogin));
@@ -1209,9 +1400,13 @@ int main(int argc, char *argv[]) {
                     printf("\n");
                     g_input_buf[g_input_ptr] = 0;
                     
-                    if (strcmp(g_input_buf, "xxx") == 0) {
-                        PacketCommand cpkt = {PKT_COMMAND, "xxx"};
-                        send(sock, &cpkt, sizeof(cpkt), 0); swap_buffers();
+                    if (strcmp(g_input_buf, "xxx") == 0 || strcmp(g_input_buf, "exit") == 0 || strcmp(g_input_buf, "quit") == 0) {
+                        if (g_shared_state) g_shared_state->shm_force_shutdown = 1;
+                        if (g_shm) atomic_store(&g_shm->force_shutdown, 1);
+                        PacketCommand cpkt = {PKT_COMMAND, ""};
+                        strcpy(cpkt.cmd, g_input_buf);
+                        send(sock, &cpkt, sizeof(cpkt), 0);
+                        usleep(50000); /* Give processes time to see the flag */
                         g_running = 0;
                         disable_raw_mode();
                         exit(0);
@@ -1228,14 +1423,92 @@ int main(int argc, char *argv[]) {
                         memcpy(cpkt.cmd, g_input_buf, clen);
                         cpkt.cmd[clen] = '\0';
                         send(sock, &cpkt, sizeof(cpkt), 0);
-                    } else if (strncmp(g_input_buf, "enc ", 4) == 0) {
-                        /* The client will now wait for the server's update packet 
-                           to officially switch frequencies, preventing transition noise. */
-                        PacketCommand cpkt; 
-                        cpkt.type = PKT_COMMAND;
+                    } else if (strncmp(g_input_buf, "link ", 5) == 0) {
+                        char target[64];
+                        memset(target, 0, 64);
+                        if (sscanf(g_input_buf + 5, "%63s", target) == 1) {
+                            PacketQueryKey qk;
+                            memset(&qk, 0, sizeof(PacketQueryKey));
+                            qk.type = PKT_QUERY_KEY;
+                            strncpy(qk.target_name, target, sizeof(qk.target_name) - 1);
+                            qk.target_name[sizeof(qk.target_name) - 1] = '\0';
+                            write_all(sock, &qk, sizeof(PacketQueryKey));
+                            printf(B_BLUE "[RADIO] Uplink request sent for Captain %s...\n" RESET, target);
+                        }
+                        g_input_ptr = 0; g_input_buf[0] = 0;
+                        reprint_prompt();
+                        continue;
+                    } else if (strncmp(g_input_buf, "tune ", 5) == 0) {
+                        char target[64];
+                        if (sscanf(g_input_buf + 5, "%63s", target) == 1) {
+                            strcpy(g_tuned_captain, target);
+                            printf(B_CYAN "[RADIO] Tuned into Captain %s's identity frequency.\n" RESET, target);
+                        } else {
+                            g_tuned_captain[0] = '\0';
+                            printf(B_YELLOW "[RADIO] Tuner reset to self-frequency.\n" RESET);
+                        }
+                        g_input_ptr = 0; g_input_buf[0] = 0;
+                        reprint_prompt();
+                        continue;
+                    } else if (strncmp(g_input_buf, "enc ", 4) == 0 || strncmp(g_input_buf, "enc2 ", 5) == 0 || strncmp(g_input_buf, "enc3 ", 5) == 0 || strncmp(g_input_buf, "enc4 ", 5) == 0) {
+                        int new_algo = CRYPTO_NONE;
+                        bool is_enc2 = (strncmp(g_input_buf, "enc2 ", 5) == 0);
+                        bool is_enc3 = (strncmp(g_input_buf, "enc3 ", 5) == 0);
+                        bool is_enc4 = (strncmp(g_input_buf, "enc4 ", 5) == 0);
+                        const char *p = is_enc2 ? g_input_buf + 5 : ((is_enc3 || is_enc4) ? g_input_buf + 5 : g_input_buf + 4);
+                        char peer_name[64] = "";
+                        if (is_enc3 || is_enc4) {
+                            char algo_str[64];
+                            if (sscanf(p, "%s %s", peer_name, algo_str) == 2) p = algo_str;
+                            else { printf(B_RED "Usage: %s <Peer> <algo>\n" RESET, is_enc3 ? "enc3" : "enc4"); g_input_ptr = 0; g_input_buf[0] = 0; reprint_prompt(); continue; }
+                        }
+                        if (strstr(p, "aes")) new_algo = CRYPTO_AES;
+                        else if (strstr(p, "chacha")) new_algo = CRYPTO_CHACHA;
+                        else if (strstr(p, "aria")) new_algo = CRYPTO_ARIA;
+                        else if (strstr(p, "camellia")) new_algo = CRYPTO_CAMELLIA;
+                        else if (strstr(p, "seed")) new_algo = CRYPTO_SEED;
+                        else if (strstr(p, "cast")) new_algo = CRYPTO_CAST5;
+                        else if (strstr(p, "idea")) new_algo = CRYPTO_IDEA;
+                        else if (strstr(p, "3des")) new_algo = CRYPTO_3DES;
+                        else if (strstr(p, "bf") || strstr(p, "blowfish")) new_algo = CRYPTO_BLOWFISH;
+                        else if (strstr(p, "rc4")) new_algo = CRYPTO_RC4;
+                        else if (strstr(p, "des")) new_algo = CRYPTO_DES;
+                        else if (strstr(p, "pqc") || strstr(p, "kyber")) new_algo = CRYPTO_PQC;
+                        else if (strstr(p, "mceliece")) new_algo = CRYPTO_MCELIECE;
+                        else if (strstr(p, "dilithium")) new_algo = CRYPTO_DILITHIUM;
+                        else if (strstr(p, "serpent")) new_algo = CRYPTO_SERPENT;
+                        else if (strstr(p, "twofish")) new_algo = CRYPTO_TWOFISH;
+                        else if (strstr(p, "sm4")) new_algo = CRYPTO_SM4;
+                        else if (strstr(p, "ascon")) new_algo = CRYPTO_ASCON;
+                        else if (strstr(p, "present")) new_algo = CRYPTO_PRESENT;
+                        else if (strstr(p, "gost")) new_algo = CRYPTO_GOST;
+                        else if (strstr(p, "salsa")) new_algo = CRYPTO_SALSA;
+                        else if (strstr(p, "off")) new_algo = CRYPTO_NONE;
+
+                        if (g_shared_state) {
+                            g_shared_state->shm_crypto_algo = new_algo;
+                            g_private_mode = is_enc2; 
+                            g_peer_mode = is_enc3 || is_enc4;
+                            g_exclusive_mode = is_enc4;
+
+                            if (new_algo == CRYPTO_NONE) {
+                                g_private_mode = false;
+                                g_peer_mode = false;
+                                g_exclusive_mode = false;
+                            }
+
+                            if (is_enc3 || is_enc4) {
+                                strcpy(g_peer_target, peer_name);
+                                bool linked = false;
+                                for(int i=0; i<g_peer_count; i++) if (strcmp(g_peers[i].name, peer_name) == 0 && g_peers[i].linked) linked = true;
+                                if (!linked) { printf(B_RED "[ERROR] No Link with %s.\n" RESET, peer_name); new_algo = CRYPTO_NONE; g_peer_mode = false; g_exclusive_mode = false; }
+                            }
+                            if (new_algo != CRYPTO_NONE && !is_enc3 && !is_enc4) ensure_algo_key(new_algo, is_enc2);
+                        }
+                        PacketCommand cpkt = {PKT_COMMAND, ""};
                         snprintf(cpkt.cmd, sizeof(cpkt.cmd), "%s", g_input_buf);
-                        send(sock, &cpkt, sizeof(cpkt), 0); 
-                        swap_buffers();
+                        send(sock, &cpkt, sizeof(cpkt), 0);
+                        g_input_ptr = 0; g_input_buf[0] = 0; reprint_prompt(); continue;
                     } else if (strncmp(g_input_buf, "rad ", 4) == 0 || strcmp(g_input_buf, "rad") == 0) {
                         char *msg_start = (strlen(g_input_buf) > 4) ? g_input_buf + 4 : NULL;
                         
@@ -1300,28 +1573,32 @@ int main(int argc, char *argv[]) {
                             strncpy(plaintext, msg_start, 4095);
                         }
                         
-                        /* Apply current encryption settings */
-                        int current_algo = CRYPTO_NONE;
-                        if (g_shared_state) current_algo = g_shared_state->shm_crypto_algo;
-                        
+                        int current_algo = (g_shared_state) ? g_shared_state->shm_crypto_algo : CRYPTO_NONE;
                         if (current_algo != CRYPTO_NONE) {
-                            mpkt.is_encrypted = 1;
+                            mpkt.is_encrypted = 0x01 | (g_private_mode ? 0x02 : 0x00) | (g_peer_mode ? 0x04 : 0x00) | (g_exclusive_mode ? 0x08 : 0x00);
                             mpkt.crypto_algo = current_algo;
-                            
-                            /* 1. Sign the PLAINTEXT before encryption */
-                            strncpy(mpkt.text, plaintext, 65535);
-                            mpkt.length = strlen(mpkt.text);
+                            size_t plen = strlen(plaintext); if (plen > 65535) plen = 65535;
+                            memcpy(mpkt.text, plaintext, plen); mpkt.text[plen] = '\0'; mpkt.length = plen;
                             sign_packet_message(&mpkt);
                             
-                            /* 2. Now Encrypt the payload */
-                            int64_t fid = (g_shared_state) ? g_shared_state->frame_id : 0;
-                            uint8_t *k = (current_algo >= 1 && current_algo <= 12) ? ALGO_KEYS[current_algo] : deep_space_key;
-                            encrypt_payload(&mpkt, plaintext, k, fid);
+                            uint8_t *k = deep_space_key;
+                            if (g_peer_mode) {
+                                for(int i=0; i<g_peer_count; i++) if (strcmp(g_peers[i].name, g_peer_target) == 0) { k = g_peers[i].shared_secret; break; }
+                            } else {
+                                ensure_algo_key(current_algo, g_private_mode);
+                                if (g_private_mode) k = ALGO_KEYS_PRIVATE[current_algo];
+                                else k = ALGO_KEYS[current_algo];
+                            }
+                            
+                            encrypt_payload(&mpkt, plaintext, k, (g_shared_state ? g_shared_state->frame_id : 0));
                         } else {
                             mpkt.is_encrypted = 0;
                             mpkt.crypto_algo = CRYPTO_NONE;
-                            strncpy(mpkt.text, plaintext, 65535);
-                            mpkt.length = strlen(mpkt.text);
+                            size_t plen = strlen(plaintext);
+                            if (plen > 65535) plen = 65535;
+                            memcpy(mpkt.text, plaintext, plen);
+                            mpkt.text[plen] = '\0';
+                            mpkt.length = plen;
                             
                             /* Sign the cleartext */
                             sign_packet_message(&mpkt);

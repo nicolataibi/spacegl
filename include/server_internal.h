@@ -49,9 +49,10 @@ typedef struct {
     int32_t faction;
     int ship_class;
     int active;
-    int crypto_algo; /* 0:None, 1-11:Legacy, 12:PQC (Quantum Secure) */
+    int crypto_algo; /* 0:None, 1-11:Standard, 12-21:Advanced */
     uint8_t session_key[32]; /* Derived via ECDH/ML-KEM */
-    uint8_t algo_keys[13][32]; /* Personal Frequency Set */
+    uint8_t x25519_pubkey[32]; /* Tactical Peer Link Public Key */
+    uint8_t algo_keys[MAX_CRYPTO_ALGOS + 1][32]; /* Personal Frequency Set */
     
     /* Navigation & Physics State */
     double gx, gy, gz;      /* Absolute Galactic Coordinates */
@@ -91,6 +92,8 @@ typedef struct {
     /* Boarding Interaction State */
     int pending_bor_target; /* ID of target player */
     int pending_bor_type;   /* 1: Ally, 2: Enemy */
+
+    int radio_lock_target;  /* ID of locked captain (1-based), 0 if none */
 
     int death_timer;        /* Ticks until final destruction explosion */
     
@@ -457,7 +460,7 @@ extern pthread_mutex_t game_mutex;
 extern int g_debug;
 extern int global_tick;
 extern uint8_t MASTER_SESSION_KEY[32];
-extern uint8_t ALGO_KEYS[13][32]; /* Keys for algorithms 1-12 */
+extern uint8_t ALGO_KEYS[MAX_CRYPTO_ALGOS + 1][32]; /* Keys for algorithms 1-MAX */
 extern uint8_t SERVER_PUBKEY[32];
 extern uint8_t SERVER_PRIVKEY[64];
 
@@ -471,7 +474,7 @@ extern SupernovaState supernova_event;
 
 #define LOG_DEBUG(...) do { if (g_debug) { printf("DEBUG: " __VA_ARGS__); fflush(stdout); } } while (0)
 
-#define GALAXY_VERSION 20260221
+#define GALAXY_VERSION 20260311
 
 /* Spatial Partitioning Index */
 typedef struct {
