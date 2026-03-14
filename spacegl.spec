@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Nicola Taibi
-%global rel 23
+%global rel 24
 Name:           spacegl
 Version:        2026.02.09
 Release:        %{rel}%{?dist}
@@ -121,8 +121,4 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/%{name}.desktop
 
 %changelog
 * Sat Mar 14 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.02.09-%{rel}
-- Fixed ship and faction initialization issues.
-- Resolved random shield inversion bugs (specifically Left/Right orientation) and corrected related HUD telemetry.
-- Restricted ENC4 communications to participants only, eliminating signal noise for non-involved clients.
-- Added Torpedo ETA display to both OpenGL (freeglut) and Vulkan HUDs.
-- Fixed a message duplication bug in the jum (Wormhole Jump) command sequence.
+- Fixed ENC OFF fallback & clear state

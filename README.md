@@ -12,6 +12,10 @@
 **Persistent Galaxy Tactical Navigation & Combat Simulator**
 
 <table>
+<tr>
+    <td><img src="readme_assets/Screenshot_2vk-players-1gl-player.jpg" alt="Stellar Alliance" width="400"/></td>
+    <td><img src="readme_assets/Screenshot_radio-exclusive-link-enc4.jpg" alt="Space GL Startup" width="400"/></td>
+  </tr>
   <tr>
     <td><img src="readme_assets/StellarAlliance-LegacyClass.jpg" alt="Stellar Alliance Legacy Class" width="400"/></td>
     <td><img src="readme_assets/startup.jpg" alt="Space GL Startup" width="400"/></td>

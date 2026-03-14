@@ -196,7 +196,7 @@ void sign_packet_message(PacketMessage *msg) {
     memcpy(msg->sender_pubkey, my_pubkey_bytes, 32);
 }
 
-void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *key, int64_t frame_id) {
+int encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *key, int64_t frame_id) {
     int plaintext_len = strlen(plaintext);
     if (plaintext_len > 65535) plaintext_len = 65535;
 
@@ -236,28 +236,23 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
     }
     
     if (EVP_EncryptInit_ex(ctx, NULL, NULL, key, msg->iv) <= 0) {
-        msg->is_encrypted = 0;
-        size_t plen = strlen(plaintext);
-        if (plen > 65535) plen = 65535;
-        memcpy(msg->text, plaintext, plen);
-        msg->text[plen] = '\0';
-        msg->length = plen;
+        ERR_print_errors_fp(stderr);
         EVP_CIPHER_CTX_free(ctx);
-        return;
+        return 0;
     }
     
     int outlen;
-    EVP_EncryptUpdate(ctx, (uint8_t*)msg->text, &outlen, (const uint8_t*)plaintext, plaintext_len);
+    if (EVP_EncryptUpdate(ctx, (uint8_t*)msg->text, &outlen, (const uint8_t*)plaintext, plaintext_len) <= 0) {
+        ERR_print_errors_fp(stderr);
+        EVP_CIPHER_CTX_free(ctx);
+        return 0;
+    }
+    
     int final_len;
     if (EVP_EncryptFinal_ex(ctx, (uint8_t*)msg->text + outlen, &final_len) <= 0) {
-        msg->is_encrypted = 0;
-        size_t plen = strlen(plaintext);
-        if (plen > 65535) plen = 65535;
-        memcpy(msg->text, plaintext, plen);
-        msg->text[plen] = '\0';
-        msg->length = plen;
+        ERR_print_errors_fp(stderr);
         EVP_CIPHER_CTX_free(ctx);
-        return;
+        return 0;
     }
     
     if (is_gcm) EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, msg->tag);
@@ -266,6 +261,7 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
     msg->origin_frame = frame_id;
     msg->length = outlen + final_len;
     EVP_CIPHER_CTX_free(ctx);
+    return 1;
 }
 
 /* Colori per l'interfaccia CLI */
@@ -1509,6 +1505,7 @@ int main(int argc, char *argv[]) {
                                 g_private_mode = false;
                                 g_peer_mode = false;
                                 g_exclusive_mode = false;
+                                memset(g_peer_target, 0, sizeof(g_peer_target));
                             }
 
                             if (is_enc3 || is_enc4) {
@@ -1609,14 +1606,26 @@ int main(int argc, char *argv[]) {
                             
                             uint8_t *k = deep_space_key;
                             if (g_peer_mode) {
-                                for(int i=0; i<g_peer_count; i++) if (strcmp(g_peers[i].name, g_peer_target) == 0) { k = g_peers[i].shared_secret; break; }
+                                int peer_idx = -1;
+                                for(int i=0; i<g_peer_count; i++) if (strcmp(g_peers[i].name, g_peer_target) == 0) { peer_idx = i; break; }
+                                if (peer_idx != -1) {
+                                    k = g_peers[peer_idx].shared_secret;
+                                } else {
+                                    printf(B_RED "[ERROR] Peer '%s' not found. Cannot encrypt message.\n" RESET, g_peer_target);
+                                    free(mpkt);
+                                    g_input_ptr = 0; g_input_buf[0] = 0; reprint_prompt(); continue;
+                                }
                             } else {
                                 ensure_algo_key(current_algo, g_private_mode);
                                 if (g_private_mode) k = ALGO_KEYS_PRIVATE[current_algo];
                                 else k = ALGO_KEYS[current_algo];
                             }
                             
-                            encrypt_payload(mpkt, plaintext, k, (g_shared_state ? g_shared_state->frame_id : 0));
+                            if (!encrypt_payload(mpkt, plaintext, k, (g_shared_state ? g_shared_state->frame_id : 0))) {
+                                printf(B_RED "[ERROR] Encryption failed. Message NOT sent.\n" RESET);
+                                free(mpkt);
+                                g_input_ptr = 0; g_input_buf[0] = 0; reprint_prompt(); continue;
+                            }
                         } else {
                             mpkt->is_encrypted = 0;
                             mpkt->crypto_algo = CRYPTO_NONE;
