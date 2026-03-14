@@ -1812,7 +1812,7 @@ Oltre alla scelta dell'algoritmo, il sistema GDIS utilizza protocolli avanzati p
 | **A** 📡 | **Flotta** | `enc aes` | Deve avere lo stesso encoder attivo (`enc aes`). |
 | **B** 🆔 | **Identità** | `enc2 pqc` | Deve sintonizzarsi sul mittente: `tune Nick`. |
 | **C** 🔗 | **Peer (P2P)** | `enc3 Nick aes` | Deve aver stabilito il link: `link Nick`. |
-| **D** 🔒 | **Esclusivo** | `enc4 Nick chacha` | Entrambi devono bloccarsi a vicenda. Ogni altro traffico viene filtrato. |
+| **D** 🔒 | **Esclusivo** | `enc4 Nick chacha` | Entrambi devono bloccarsi a vicenda. Il server isola fisicamente il canale (Hard-Lock), eliminando ogni rumore verso terzi. |
 
 **Esempio di Comunicazione di Flotta (Livello A):**
 1. **Mittente**: `enc aes` (attiva la frequenza flotta AES).
@@ -1831,9 +1831,10 @@ Oltre alla scelta dell'algoritmo, il sistema GDIS utilizza protocolli avanzati p
 
 **Esempio di Link Privato Esclusivo (Livello D):**
 1. **Preparazione**: Entrambi i capitani devono eseguire il `link` reciproco (es. `link Ian` e `link Nick`).
-2. **Blocco**: `enc4 Nick aes` (attiva il filtraggio esclusivo).
-3. **Azione**: `rad Canale privato` (il server filtra ogni altro traffico radio in entrata; ascolti solo Nick).
-4. **Rilascio**: `enc off` (ritorna alla ricezione standard di flotta).
+2. **Blocco**: `enc4 Nick aes` (attiva il filtraggio esclusivo bi-direzionale).
+3. **Azione**: `rad Canale privato` (il server isola il traffico: solo il mittente e Nick ricevono i pacchetti; silenzio radio totale per la galassia).
+4. **Risoluzione Dinamica**: Il sistema gestisce automaticamente le transizioni di stato (Race Conditions), garantendo la consegna anche se i lock non sono ancora perfettamente sincronizzati.
+5. **Rilascio**: `enc off` (ritorna alla ricezione standard di flotta).
 
 ### ⚛️ Suite di Algoritmi (Frequenze Operative)
 

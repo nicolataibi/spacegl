@@ -96,6 +96,7 @@ typedef struct {
     double shm_power_dist[3];
     int shm_tube_state;
     int tube_load_timers[4];
+    int tube_torpedo_etas[4];
     int current_tube;
     double shm_ion_beam_charge;
     double shm_life_support;

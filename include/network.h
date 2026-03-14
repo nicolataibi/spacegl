@@ -75,6 +75,7 @@ typedef struct {
     int32_t lock_target;
     int32_t tube_state;
     int32_t tube_load_timers[4];
+    int32_t tube_torpedo_etas[4];
     int32_t current_tube;
     double ion_beam_charge;
 } UpdateBlockCombat;
@@ -269,6 +270,7 @@ typedef struct {
     int32_t lock_target;
     int32_t tube_state;
     int32_t tube_load_timers[4];
+    int32_t tube_torpedo_etas[4];
     int32_t current_tube;
     double ion_beam_charge;
     uint8_t is_cloaked;

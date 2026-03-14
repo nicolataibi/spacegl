@@ -77,6 +77,7 @@ typedef struct {
     } torp_slots[4];
     
     int tube_load_timers[4];
+    int tube_torpedo_etas[4];
     int current_tube;
     
     /* Global/Legacy compatibility (optional, but keep structure clean) */
@@ -390,6 +391,7 @@ typedef struct {
     double dx, dy, dz;    /* Direction vector */
     int target_id;
     int timeout;
+    int origin_tube;
     bool active;
 } __attribute__((aligned(64))) PlayerTorpedo;
 

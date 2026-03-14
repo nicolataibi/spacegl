@@ -54,9 +54,18 @@ void draw_bar(int y, int x, int width, double val, double max, int color_pair) {
 
 const char* get_faction_name(int f) {
     switch(f) {
-        case 0: return "ALLIANCE"; case 10: return "KORTHIAN"; case 11: return "XYLARI";
-        case 12: return "SWARM"; case 13: return "VESPERIAN"; case 14: return "ASCENDANT";
-        case 15: return "QUARZITE"; case 16: return "SAURIAN"; case 17: return "GILDED";
+        case FACTION_ALLIANCE: return "ALLIANCE";
+        case FACTION_KORTHIAN: return "KORTHIAN";
+        case FACTION_XYLARI:   return "XYLARI";
+        case FACTION_SWARM:    return "SWARM";
+        case FACTION_VESPERIAN: return "VESPERIAN";
+        case FACTION_JEM_HADAR: return "ASCENDANT";
+        case FACTION_THOLIAN:   return "QUARZITE";
+        case FACTION_GORN:      return "SAURIAN";
+        case FACTION_GILDED:    return "GILDED";
+        case FACTION_SPECIES_8472: return "FLUIDIC";
+        case FACTION_BREEN:     return "CRYOS";
+        case FACTION_HIROGEN:   return "APEX";
         default: return "RENEGADE";
     }
 }
@@ -215,6 +224,11 @@ int main(int argc, char** argv) {
         hud_colors[2] = COLOR_YELLOW;
     }
 
+    /* Fixed Status Colors (Not affected by Theme) */
+    init_pair(8, COLOR_YELLOW, COLOR_BLACK); /* LOADING */
+    init_pair(9, COLOR_GREEN, COLOR_BLACK);  /* READY */
+    init_pair(10, COLOR_WHITE, COLOR_BLACK); /* OFFLINE */
+
     cycle_hud_colors();
     bkgd(COLOR_PAIR(2));
 
@@ -317,10 +331,27 @@ int main(int argc, char** argv) {
 
         attron(COLOR_PAIR(6) | A_BOLD); mvprintw(12, 37, "[ TORPEDO TUBES ]"); attroff(A_BOLD);
         for(int t=0; t<4; t++) {
-            const char* ts = (st->tube_load_timers[t] > 0)?"LOADING":"READY";
-            if (st->current_tube == t) attron(A_REVERSE);
-            mvprintw(13+t, 37, "TUBE %d: [%-7s] TIMER: %-3d", t+1, ts, st->tube_load_timers[t]);
-            attroff(A_REVERSE);
+            const char* tube_str = "READY";
+            int col = 9; /* Fixed Green */
+            int timer = st->tube_load_timers[t];
+            int eta = st->tube_torpedo_etas[t];
+            bool is_current = (st->current_tube == t);
+
+            if (st->shm_tube_state == 3) { tube_str = "OFFLINE"; col = 10; }
+            else if (timer > 180) { tube_str = "FIRING "; col = 7; }
+            else if (timer > 0) { tube_str = "LOADING"; col = 8; }
+            else if (is_current && st->shm_tube_state == 2) { tube_str = "FIRING "; col = 7; }
+            else { tube_str = "READY  "; col = 9; }
+
+            char timing_buf[32] = " T:--- ";
+            if (timer > 0) sprintf(timing_buf, " T:%4.1fs", (double)timer / 60.0);
+
+            char eta_buf[32] = " ETA:---";
+            if (eta > 0) sprintf(eta_buf, " ETA:%4.1fs", (double)eta / 60.0);
+
+            attron(COLOR_PAIR(col));
+            mvprintw(13+t, 37, "%sTUBE %d:[%-7s]%s%s", is_current ? ">" : " ", t+1, tube_str, timing_buf, eta_buf);
+            attroff(COLOR_PAIR(col));
         }
         mvprintw(17, 37, "READY: %-3d | STIVA: %-3d", st->shm_torpedoes, st->shm_cargo_torpedoes);
 

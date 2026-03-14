@@ -125,6 +125,7 @@ typedef struct {
     double eta;
     int32_t lock_target;
     int32_t tube_state; /* 0:READY, 1:FIRING, 2:LOADING, 3:OFFLINE */
+    int32_t tube_torpedo_etas[4];
     double ion_beam_charge;
     double power_dist[3];
     uint8_t is_playing_dead;

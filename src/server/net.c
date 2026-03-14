@@ -18,91 +18,26 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <stddef.h>
-#include <sys/socket.h>
 #include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <pthread.h>
+#include <stddef.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include "network.h"
 #include "server_internal.h"
-#include "ui.h"
 
-/* Master Key for Deep Space Communications (Loaded from ENV) */
-uint8_t MASTER_SESSION_KEY[32];
-
-/* Advanced Deep Space Encryption Engine */
-void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *key, int64_t frame_id) {
-    int plaintext_len = strlen(plaintext);
-    if (plaintext_len > 65535) plaintext_len = 65535;
-
-    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    RAND_bytes(msg->iv, 16); 
-    
-    const EVP_CIPHER *cipher;
-    int is_gcm = 0;
-
-    if (msg->crypto_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_MCELIECE) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_DILITHIUM) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_SERPENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_TWOFISH) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_SM4) { cipher = EVP_get_cipherbyname("SM4-CBC"); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_ASCON) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_PRESENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_GOST) { cipher = EVP_get_cipherbyname("GOST-KUZNYECHIK"); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_SALSA) { cipher = EVP_get_cipherbyname("chacha20"); is_gcm = 0; }
-    else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-
-    if (!cipher) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    
-    /* Strict OpenSSL GCM sequence for 16-byte IV */
-    EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL);
-    if (is_gcm) {
-        EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
-    }
-    
-    if (EVP_EncryptInit_ex(ctx, NULL, NULL, key, msg->iv) <= 0) {
-        msg->is_encrypted = 0;
-        strncpy(msg->text, plaintext, 65535);
-        msg->length = strlen(msg->text);
-        EVP_CIPHER_CTX_free(ctx);
-        return;
-    }
-    
-    int outlen;
-    EVP_EncryptUpdate(ctx, (uint8_t*)msg->text, &outlen, (const uint8_t*)plaintext, plaintext_len);
-    int final_len;
-    if (EVP_EncryptFinal_ex(ctx, (uint8_t*)msg->text + outlen, &final_len) <= 0) {
-        msg->is_encrypted = 0;
-        strncpy(msg->text, plaintext, 65535);
-        msg->length = strlen(msg->text);
-        EVP_CIPHER_CTX_free(ctx);
-        return;
-    }
-    
-    if (is_gcm) EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, msg->tag);
-    else memset(msg->tag, 0, 16);
-    
-    msg->origin_frame = frame_id;
-    msg->length = outlen + final_len;
-    EVP_CIPHER_CTX_free(ctx);
-}
+extern uint8_t deep_space_key[32];
+extern void ensure_player_algo_key(int p_idx, int k, bool private_mode);
 
 int read_all(int fd, void *buf, size_t len) {
     size_t total = 0;
     char *p = (char *)buf;
     while (total < len) {
-        ssize_t n = read(fd, p + total, len - total);
+        ssize_t n = recv(fd, p + total, len - total, 0);
         if (n == 0) return 0;
         if (n < 0) return -1;
         total += n;
@@ -121,17 +56,71 @@ int write_all(int fd, const void *buf, size_t len) {
     return (int)total;
 }
 
+void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *key, int64_t frame_id) {
+    int plaintext_len = strlen(plaintext);
+    if (plaintext_len > 65535) plaintext_len = 65535;
+
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    RAND_bytes(msg->iv, 16); 
+    
+    const EVP_CIPHER *cipher;
+    int is_gcm = 0;
+
+    if (msg->crypto_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
+    else if (msg->crypto_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
+    else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    
+    if (!cipher) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+    
+    EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL);
+    if (is_gcm) EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
+    
+    if (EVP_EncryptInit_ex(ctx, NULL, NULL, key, msg->iv) <= 0) {
+        msg->is_encrypted = 0;
+        size_t plen = strlen(plaintext);
+        if (plen > 65535) plen = 65535;
+        memcpy(msg->text, plaintext, plen);
+        msg->text[plen] = '\0';
+        msg->length = plen;
+        EVP_CIPHER_CTX_free(ctx);
+        return;
+    }
+    
+    int outlen;
+    EVP_EncryptUpdate(ctx, (uint8_t*)msg->text, &outlen, (const uint8_t*)plaintext, plaintext_len);
+    int final_len;
+    if (EVP_EncryptFinal_ex(ctx, (uint8_t*)msg->text + outlen, &final_len) <= 0) {
+        msg->is_encrypted = 0;
+        size_t plen = strlen(plaintext);
+        if (plen > 65535) plen = 65535;
+        memcpy(msg->text, plaintext, plen);
+        msg->text[plen] = '\0';
+        msg->length = plen;
+        EVP_CIPHER_CTX_free(ctx);
+        return;
+    }
+    
+    if (is_gcm) EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, msg->tag);
+    else memset(msg->tag, 0, 16);
+    
+    msg->origin_frame = frame_id;
+    msg->length = outlen + final_len;
+    EVP_CIPHER_CTX_free(ctx);
+}
+
 void broadcast_task(void *arg) {
-    PacketMessage *msg = (PacketMessage *)arg;
-    if (msg) {
-        broadcast_message(msg);
-        free(msg);
+    PacketMessage *pkt = (PacketMessage *)arg;
+    if (pkt) {
+        broadcast_message(pkt);
+        free(pkt);
     }
 }
 
 void broadcast_message(PacketMessage *msg) {
-    char plaintext[65536];
-    memset(plaintext, 0, sizeof(plaintext));
+    char *plaintext = malloc(65536);
+    if (!plaintext) return;
+    memset(plaintext, 0, 65536);
 
     pthread_mutex_lock(&game_mutex);
     
@@ -147,12 +136,12 @@ void broadcast_message(PacketMessage *msg) {
     bool is_encrypted = (msg->is_encrypted != 0);
     bool is_private = (msg->is_encrypted & 0x02);
     bool is_peer = (msg->is_encrypted & 0x04);
-    memset(plaintext, 0, 65536);
+    bool is_exclusive_msg = (msg->is_encrypted & 0x08);
 
     if (is_encrypted && sender_idx != -1) {
-        if (is_peer || is_private) {
+        if (is_peer || is_private || is_exclusive_msg) {
             /* PRIVACY ENFORCEMENT: We don't touch these. We relay the encrypted blob. */
-            LOG_DEBUG("Encrypted Private/Peer message from %s. Relay mode: TRANSPARENT.\n", msg->from);
+            LOG_DEBUG("Encrypted Private/Peer/Exclusive message from %s. Relay mode: TRANSPARENT.\n", msg->from);
         } else {
             /* Level A (Fleet): Server must decrypt to allow cross-algorithm talk and cleartext fallback */
             EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -160,7 +149,6 @@ void broadcast_message(PacketMessage *msg) {
             int is_gcm = 0;
             int algo = msg->crypto_algo;
             
-            extern void ensure_player_algo_key(int p_idx, int k, bool private_mode);
             ensure_player_algo_key(sender_idx, algo, false);
 
             if (algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
@@ -179,68 +167,110 @@ void broadcast_message(PacketMessage *msg) {
             if (EVP_DecryptFinal_ex(ctx, (uint8_t*)plaintext + outlen, &final_len) <= 0) {
                 /* Decryption failed */
                 send_server_msg(sender_idx, "COMPUTER", "TRANSMISSION ERROR: Frequency parity failure.");
-                EVP_CIPHER_CTX_free(ctx); pthread_mutex_unlock(&game_mutex); return;
+                EVP_CIPHER_CTX_free(ctx); pthread_mutex_unlock(&game_mutex); free(plaintext); return;
             }
             plaintext[outlen + final_len] = '\0';
             EVP_CIPHER_CTX_free(ctx);
         }
     } else {
         /* Cleartext message */
-        strncpy(plaintext, msg->text, 65535);
+        size_t c_len = (msg->length < 65535) ? msg->length : 65535;
+        memcpy(plaintext, msg->text, c_len);
+        plaintext[c_len] = '\0';
     }
 
     /* 2. BROADCAST LOOP */
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (players[i].active && players[i].socket != 0) {
-            /* Visibility Filters */
-            if (msg->scope == SCOPE_FACTION && players[i].faction != msg->faction) continue;
-            if (msg->scope == SCOPE_PRIVATE && (i + 1) != msg->target_id && i != sender_idx) continue;
-
-            /* Level D: Exclusive Link Filtering */
-            if (players[i].radio_lock_target > 0) {
-                int locked_idx = players[i].radio_lock_target - 1;
-                bool is_system = (strcmp(msg->from, "SERVER") == 0 || strcmp(msg->from, "COMPUTER") == 0 ||
-                                  strcmp(msg->from, "SCIENCE") == 0 || strcmp(msg->from, "TACTICAL") == 0 ||
-                                  strcmp(msg->from, "ENGINEERING") == 0 || strcmp(msg->from, "HELMSMAN") == 0 ||
-                                  strcmp(msg->from, "WARNING") == 0 || strcmp(msg->from, "DAMAGE CONTROL") == 0 ||
-                                  strcmp(msg->from, "STARBASE") == 0 || strcmp(msg->from, "Alliance Command") == 0);
+            
+            /* LEVEL D: EXCLUSIVE MODE HARD-LOCK */
+            if (is_exclusive_msg) {
+                /* Resolve destination: Priority 1: Packet target_id, Priority 2: Sender Lock, Priority 3: Reciprocity */
+                int target_idx = -1;
                 
-                if (!is_system && sender_idx != locked_idx && i != sender_idx) {
-                    continue; /* Drop message: recipient is locked to another frequency */
+                if (msg->target_id > 0) {
+                    target_idx = msg->target_id - 1;
+                } else if (sender_idx != -1) {
+                    target_idx = players[sender_idx].radio_lock_target - 1;
+                    if (target_idx < 0) {
+                        for (int j = 0; j < MAX_CLIENTS; j++) {
+                            if (players[j].active && players[j].radio_lock_target == (sender_idx + 1)) {
+                                target_idx = j;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                /* Deliver ONLY to sender (loopback) and resolved target */
+                if (i != sender_idx && i != target_idx) {
+                    continue; 
+                }
+            } else {
+                /* STANDARD FILTERS (only for non-exclusive messages) */
+                if (msg->scope == SCOPE_FACTION && players[i].faction != msg->faction) continue;
+                if (msg->scope == SCOPE_PRIVATE && (i + 1) != msg->target_id && i != sender_idx) continue;
+
+                /* Recipient-side Exclusive Lock: if recipient is in enc4, they only hear their partner */
+                if (players[i].radio_lock_target > 0) {
+                    int locked_partner_idx = players[i].radio_lock_target - 1;
+                    bool is_sys = (strcmp(msg->from, "SERVER") == 0 || strcmp(msg->from, "COMPUTER") == 0 ||
+                                   strcmp(msg->from, "SCIENCE") == 0 || strcmp(msg->from, "TACTICAL") == 0 ||
+                                   strcmp(msg->from, "ENGINEERING") == 0 || strcmp(msg->from, "HELMSMAN") == 0 ||
+                                   strcmp(msg->from, "WARNING") == 0 || strcmp(msg->from, "DAMAGE CONTROL") == 0 ||
+                                   strcmp(msg->from, "STARBASE") == 0 || strcmp(msg->from, "Alliance Command") == 0);
+                    
+                    if (!is_sys && sender_idx != locked_partner_idx && i != sender_idx) {
+                        continue;
+                    }
                 }
             }
 
-            if (is_peer || is_private) {
-                /* STRICT RELAY: No one gets cleartext if they are not the intended recipient with the key */
+            /* RELAY EXECUTION */
+            if (is_peer || is_private || is_exclusive_msg) {
+                /* STRICT RELAY: No one gets cleartext if they are not the intended recipient with the key.
+                   This includes Exclusive Mode (0x08) to prevent noise on other frequencies. */
                 size_t pkt_size = offsetof(PacketMessage, text) + msg->length;
                 pthread_mutex_lock(&players[i].socket_mutex);
-                write_all(players[i].socket, msg, pkt_size);
+                if (players[i].socket != 0) write_all(players[i].socket, msg, pkt_size);
                 pthread_mutex_unlock(&players[i].socket_mutex);
             } else {
                 /* ADAPTIVE RELAY: Translate for recipient or send cleartext */
-                PacketMessage out_pkt;
-                memcpy(&out_pkt, msg, offsetof(PacketMessage, text));
+                PacketMessage *out_pkt = malloc(sizeof(PacketMessage));
+                if (!out_pkt) continue;
+                memcpy(out_pkt, msg, offsetof(PacketMessage, text));
                 int recip_algo = players[i].state.shm_crypto_algo;
 
                 if (recip_algo != CRYPTO_NONE) {
                     /* Recipient wants encryption: encrypt the validated plaintext */
+                    /* Fallback to player's key if it exists */
                     uint8_t *rk = (recip_algo >= 1 && recip_algo <= MAX_CRYPTO_ALGOS) ? 
                                    players[i].algo_keys[recip_algo] : players[i].session_key;
-                    encrypt_payload(&out_pkt, plaintext, rk, spacegl_master.frame_id);
+                    
+                    out_pkt->crypto_algo = recip_algo;
+                    out_pkt->is_encrypted = 0x01;
+                    encrypt_payload(out_pkt, plaintext, rk, spacegl_master.frame_id);
                 } else {
                     /* Recipient wants cleartext */
-                    out_pkt.is_encrypted = 0;
-                    strcpy(out_pkt.text, plaintext);
-                    out_pkt.length = strlen(plaintext);
+                    out_pkt->is_encrypted = 0;
+                    out_pkt->crypto_algo = CRYPTO_NONE;
+                    size_t plen = strlen(plaintext);
+                    if (plen > 65535) plen = 65535;
+                    memcpy(out_pkt->text, plaintext, plen);
+                    out_pkt->text[plen] = '\0';
+                    out_pkt->length = plen;
                 }
-                size_t pkt_size = offsetof(PacketMessage, text) + out_pkt.length;
+
+                size_t pkt_size = offsetof(PacketMessage, text) + out_pkt->length;
                 pthread_mutex_lock(&players[i].socket_mutex);
-                write_all(players[i].socket, &out_pkt, pkt_size);
+                if (players[i].socket != 0) write_all(players[i].socket, out_pkt, pkt_size);
                 pthread_mutex_unlock(&players[i].socket_mutex);
+                free(out_pkt);
             }
         }
     }
     pthread_mutex_unlock(&game_mutex);
+    free(plaintext);
 }
 
 void send_server_msg(int p_idx, const char *from, const char *text) {
@@ -249,6 +279,16 @@ void send_server_msg(int p_idx, const char *from, const char *text) {
     msg.type = PKT_MESSAGE;
     strncpy(msg.from, from, 63);
     
+    if (p_idx == -1) {
+        /* Broadcast system message to all */
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if (players[i].active && players[i].socket != 0) {
+                send_server_msg(i, from, text);
+            }
+        }
+        return;
+    }
+
     if (players[p_idx].state.shm_crypto_algo != CRYPTO_NONE) {
         msg.is_encrypted = 1;
         msg.crypto_algo = players[p_idx].state.shm_crypto_algo;
@@ -267,7 +307,7 @@ void send_server_msg(int p_idx, const char *from, const char *text) {
     
     size_t pkt_size = offsetof(PacketMessage, text) + msg.length;
     pthread_mutex_lock(&players[p_idx].socket_mutex);
-    write_all(players[p_idx].socket, &msg, pkt_size);
+    if (players[p_idx].socket != 0) write_all(players[p_idx].socket, &msg, pkt_size);
     pthread_mutex_unlock(&players[p_idx].socket_mutex);
 }
 
@@ -294,7 +334,8 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     
     if (p->last_sent_state.lock_target != upd->lock_target || p->last_sent_state.tube_state != upd->tube_state ||
         p->last_sent_state.current_tube != upd->current_tube || p->last_sent_state.ion_beam_charge != upd->ion_beam_charge ||
-        memcmp(p->last_sent_state.tube_load_timers, upd->tube_load_timers, sizeof(upd->tube_load_timers)) != 0) mask |= UPD_COMBAT;
+        memcmp(p->last_sent_state.tube_load_timers, upd->tube_load_timers, sizeof(upd->tube_load_timers)) != 0 ||
+        memcmp(p->last_sent_state.tube_torpedo_etas, upd->tube_torpedo_etas, sizeof(upd->tube_torpedo_etas)) != 0) mask |= UPD_COMBAT;
     
     if (p->last_sent_state.is_cloaked != upd->is_cloaked || p->last_sent_state.is_docked != upd->is_docked ||
         p->last_sent_state.red_alert != upd->red_alert || p->last_sent_state.nav_state != upd->nav_state ||
@@ -305,17 +346,15 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         p->last_sent_state.shm_crypto_algo != upd->shm_crypto_algo ||
         p->last_sent_state.radio_lock_target != upd->radio_lock_target ||
         p->last_sent_state.encryption_flags != upd->encryption_flags) mask |= UPD_FLAGS;
-    /* Effects, Probes and Beams are transient or frequently updated, usually we send them if not empty */
+
     bool any_torp = upd->torps[0].active || upd->torps[1].active || upd->torps[2].active || upd->torps[3].active;
     bool last_any_torp = p->last_sent_state.torps[0].active || p->last_sent_state.torps[1].active || p->last_sent_state.torps[2].active || p->last_sent_state.torps[3].active;
     
     if (upd->event_count > 0 || upd->torpedo_count > 0 || any_torp || (any_torp != last_any_torp) || upd->wormhole.active || upd->supernova_pos.active) mask |= UPD_EFFECTS;
     if (upd->probes[0].active || upd->probes[1].active || upd->probes[2].active) mask |= UPD_PROBES;
+    
     if (upd->beam_count > 0 || p->last_sent_state.beam_count > 0) mask |= UPD_COMBAT; 
     
-    /* Force update if beams are present, to ensure they are rendered */
-    if (upd->beam_count > 0) mask |= UPD_COMBAT;
-    /* Interest Management: Only send objects if quadrant changed or enough time passed or object count changed significantly */
     bool quadrant_changed = (p->last_q1 != upd->q1 || p->last_q2 != upd->q2 || p->last_q3 != upd->q3);
     p->full_update_timer++;
     if (quadrant_changed || p->full_update_timer > (5 * GAME_TICK_RATE)) {
@@ -326,10 +365,10 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         mask |= UPD_OBJECTS;
     }
 
-    if (mask == 0) return; /* Nothing to send */
+    if (mask == 0) return; 
 
-    /* 2. Serialize Packet - Need enough space for 64 beams and 256 objects */
-    uint8_t buffer[65536]; 
+    uint8_t *buffer = malloc(65536);
+    if (!buffer) return;
     PacketUpdateDelta *delta = (PacketUpdateDelta *)buffer;
     delta->type = PKT_UPDATE_DELTA;
     delta->frame_id = upd->frame_id;
@@ -338,143 +377,66 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     uint8_t *ptr = delta->data;
     
     if (mask & UPD_TRANSFORM) {
-        UpdateBlockTransform b = {
-            upd->q1, 
-            upd->q2, 
-            upd->q3, 
-            upd->s1, 
-            upd->s2, 
-            upd->s3, 
-            upd->van_h, 
-            upd->van_m,
-            upd->van_r,
-            upd->eta
-        };
-        memcpy(ptr, &b, sizeof(b));
-        ptr += sizeof(b);
+        UpdateBlockTransform b = {upd->q1, upd->q2, upd->q3, upd->s1, upd->s2, upd->s3, upd->van_h, upd->van_m, upd->van_r, upd->eta};
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_VITALS) {
-        UpdateBlockVitals b = {
-            upd->energy, 
-            upd->torpedoes, 
-            upd->cargo_energy, 
-            upd->cargo_torpedoes, 
-            upd->crew_count, 
-            upd->prison_unit, 
-            upd->composite_plating, 
-            upd->hull_integrity
-        };
-        memcpy(ptr, &b, sizeof(b));
-        ptr += sizeof(b);
+        UpdateBlockVitals b = {upd->energy, upd->torpedoes, upd->cargo_energy, upd->cargo_torpedoes, upd->crew_count, upd->prison_unit, upd->composite_plating, upd->hull_integrity};
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_SHIELDS) {
-        UpdateBlockShields b;
-        memcpy(b.shields, upd->shields, sizeof(upd->shields));
-        memcpy(ptr, &b, sizeof(b));
-        ptr += sizeof(b);
+        UpdateBlockShields b; memcpy(b.shields, upd->shields, sizeof(upd->shields));
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_SYSTEMS) {
-        UpdateBlockSystems b;
-        memcpy(b.system_health, upd->system_health, sizeof(upd->system_health));
-        memcpy(ptr, &b, sizeof(b));
-        ptr += sizeof(b);
+        UpdateBlockSystems b; memcpy(b.system_health, upd->system_health, sizeof(upd->system_health));
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_INTERNAL) {
-        UpdateBlockInternal b;
-        memcpy(b.inventory, upd->inventory, sizeof(upd->inventory));
-        memcpy(b.power_dist, upd->power_dist, sizeof(upd->power_dist));
-        b.life_support = upd->life_support;
-        b.anti_matter_count = upd->anti_matter_count;
-        memcpy(ptr, &b, sizeof(b));
-        ptr += sizeof(b);
+        UpdateBlockInternal b; memcpy(b.inventory, upd->inventory, sizeof(upd->inventory)); memcpy(b.power_dist, upd->power_dist, sizeof(upd->power_dist));
+        b.life_support = upd->life_support; b.anti_matter_count = upd->anti_matter_count;
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_COMBAT) {
-        UpdateBlockCombat b = {
-            upd->lock_target, 
-            upd->tube_state, 
-            {0}, 
-            upd->current_tube, 
-            upd->ion_beam_charge
-        };
-        memcpy(b.tube_load_timers, upd->tube_load_timers, sizeof(upd->tube_load_timers));
-        memcpy(ptr, &b, sizeof(b));
-        ptr += sizeof(b);
-        /* Beams inside combat or separate? Let's add beams if count > 0 */
-        int32_t bc = upd->beam_count;
-        memcpy(ptr, &bc, sizeof(int32_t));
-        ptr += sizeof(int32_t);
-        if (bc > 0) {
-            memcpy(ptr, upd->beams, bc * sizeof(NetBeam));
-            ptr += bc * sizeof(NetBeam);
-        }
+        UpdateBlockCombat b = {upd->lock_target, upd->tube_state, {0}, {0}, upd->current_tube, upd->ion_beam_charge};
+        memcpy(b.tube_load_timers, upd->tube_load_timers, sizeof(b.tube_load_timers));
+        memcpy(b.tube_torpedo_etas, upd->tube_torpedo_etas, sizeof(b.tube_torpedo_etas));
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        /* Append beams if any */
+        int32_t bc = upd->beam_count; memcpy(ptr, &bc, sizeof(int32_t)); ptr += sizeof(int32_t);
+        if (bc > 0) { memcpy(ptr, upd->beams, bc * sizeof(NetBeam)); ptr += bc * sizeof(NetBeam); }
     }
     if (mask & UPD_FLAGS) {
-        UpdateBlockFlags b = {
-            upd->is_cloaked, 
-            upd->is_docked, 
-            upd->red_alert, 
-            upd->is_jammed, 
-            upd->nav_state, 
-            upd->show_axes, 
-            upd->show_grid, 
-            upd->show_bridge, 
-            upd->show_map, 
-            upd->map_filter,
-            upd->force_shutdown,
-            upd->shm_crypto_algo,
-            upd->encryption_flags,
-            upd->radio_lock_target
-        };
-        memcpy(ptr, &b, sizeof(b));
-        ptr += sizeof(b);
+        UpdateBlockFlags b = {upd->is_cloaked, upd->is_docked, upd->red_alert, upd->is_jammed, upd->nav_state, upd->show_axes, upd->show_grid, upd->show_bridge, upd->show_map, upd->map_filter, upd->force_shutdown, upd->shm_crypto_algo, upd->encryption_flags, upd->radio_lock_target};
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_EFFECTS) {
-        UpdateBlockEffects b;
-        memset(&b, 0, sizeof(b));
-        b.supernova_pos = upd->supernova_pos;
-        memcpy(b.supernova_q, upd->supernova_q, sizeof(upd->supernova_q));
-        memcpy(b.torps, upd->torps, sizeof(upd->torps));
-        b.wormhole = upd->wormhole;
-        b.event_count = upd->event_count;
-        if (b.event_count > MAX_NET_EVENTS) b.event_count = MAX_NET_EVENTS;
+        UpdateBlockEffects b; memset(&b, 0, sizeof(b));
+        b.supernova_pos = upd->supernova_pos; memcpy(b.supernova_q, upd->supernova_q, sizeof(upd->supernova_q));
+        memcpy(b.torps, upd->torps, sizeof(upd->torps)); b.wormhole = upd->wormhole;
+        b.event_count = upd->event_count; if (b.event_count > MAX_NET_EVENTS) b.event_count = MAX_NET_EVENTS;
         memcpy(b.events, upd->events, b.event_count * sizeof(NetEvent));
-        b.torpedo_count = upd->torpedo_count;
-        if (b.torpedo_count > MAX_VISIBLE_TORPEDOES) b.torpedo_count = MAX_VISIBLE_TORPEDOES;
+        b.torpedo_count = upd->torpedo_count; if (b.torpedo_count > MAX_VISIBLE_TORPEDOES) b.torpedo_count = MAX_VISIBLE_TORPEDOES;
         memcpy(b.visible_torpedoes, upd->visible_torpedoes, b.torpedo_count * sizeof(NetVisibleTorpedo));
-        memcpy(ptr, &b, sizeof(b));
-        ptr += sizeof(b);
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_PROBES) {
-        UpdateBlockProbes b;
-        memcpy(b.probes, upd->probes, sizeof(upd->probes));
-        memcpy(ptr, &b, sizeof(b));
-        ptr += sizeof(b);
+        UpdateBlockProbes b; memcpy(b.probes, upd->probes, sizeof(upd->probes));
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_OBJECTS) {
-        int32_t oc = upd->object_count;
-        memcpy(ptr, &oc, sizeof(int32_t));
-        ptr += sizeof(int32_t);
-        if (oc > 0) {
-            memcpy(ptr, upd->objects, oc * sizeof(NetObject));
-            ptr += oc * sizeof(NetObject);
-        }
+        int32_t oc = upd->object_count; memcpy(ptr, &oc, sizeof(int32_t)); ptr += sizeof(int32_t);
+        if (oc > 0) { memcpy(ptr, upd->objects, oc * sizeof(NetObject)); ptr += oc * sizeof(NetObject); }
     }
     if (mask & UPD_MAP) {
-        UpdateBlockMap b = {
-            upd->map_update_val, 
-            {upd->map_update_q[0], upd->map_update_q[1], upd->map_update_q[2]}, 
-            upd->map_update_val2, 
-            {upd->map_update_q2[0], upd->map_update_q2[1], upd->map_update_q2[2]}
-        };
-        memcpy(ptr, &b, sizeof(b));
-        ptr += sizeof(b);
+        UpdateBlockMap b = {upd->map_update_val, {upd->map_update_q[0], upd->map_update_q[1], upd->map_update_q[2]}, upd->map_update_val2, {upd->map_update_q2[0], upd->map_update_q2[1], upd->map_update_q2[2]}};
+        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
 
     size_t total_size = ptr - buffer;
     pthread_mutex_lock(&p->socket_mutex);
-    write_all(p->socket, buffer, total_size);
+    if (p->socket != 0) write_all(p->socket, buffer, total_size);
     pthread_mutex_unlock(&p->socket_mutex);
-    
-    /* 3. Store state for next delta */
     memcpy(&p->last_sent_state, upd, sizeof(PacketUpdate));
+    free(buffer);
 }

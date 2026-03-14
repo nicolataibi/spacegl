@@ -50,9 +50,6 @@ SupernovaState supernova_event = {0};
 
 static atomic_bool g_is_saving = false;
 
-uint8_t SERVER_PUBKEY[32];
-uint8_t SERVER_PRIVKEY[64];
-
 QuadrantIndex (*spatial_index)[41][41] = NULL;
 
 /* Optimization: Tracking only quadrants that contain dynamic objects to avoid triple-loop resets */

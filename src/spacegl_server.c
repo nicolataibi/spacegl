@@ -46,6 +46,11 @@ threadpool_t *g_pool = NULL;
 int g_debug = 0;
 int global_tick = 0;
 uint8_t ALGO_KEYS[MAX_CRYPTO_ALGOS + 1][32]; /* Global Default */
+uint8_t MASTER_SESSION_KEY[32];
+uint8_t SERVER_PUBKEY[32];
+uint8_t SERVER_PRIVKEY[64];
+uint8_t deep_space_key[32];
+int server_fd;
 
 void ensure_player_algo_key(int p_idx, int k, bool private_mode) {
     if (k < 1 || k > MAX_CRYPTO_ALGOS) return;
@@ -142,20 +147,36 @@ typedef struct {
 
 void sync_client_task(void *arg) {
     SyncTask *task = (SyncTask *)arg;
+    if (!task) return;
     int slot = task->slot;
     int fd = task->fd;
     bool is_new = task->is_new;
 
+    if (slot < 0 || slot >= MAX_CLIENTS) {
+        LOG_DEBUG("Sync Error: Invalid slot %d\n", slot);
+        free(task);
+        return;
+    }
+
     LOG_DEBUG("Asynchronous Sync: Sending Galaxy Master to FD %d (Slot %d)\n", fd, slot);
     
-    /* 1. Send the giant Galaxy Master object */
-    sign_galaxy_data();
+    /* 1. Send the giant Galaxy Master object. */
     pthread_mutex_lock(&players[slot].socket_mutex);
+    if (players[slot].socket != fd) {
+        pthread_mutex_unlock(&players[slot].socket_mutex);
+        free(task);
+        return;
+    }
     int w_res = write_all(fd, &spacegl_master, sizeof(SpaceGLGame));
     pthread_mutex_unlock(&players[slot].socket_mutex);
 
     if (w_res == sizeof(SpaceGLGame)) {
         pthread_mutex_lock(&game_mutex);
+        if (players[slot].socket != fd) {
+            pthread_mutex_unlock(&game_mutex);
+            free(task);
+            return;
+        }
         
         /* 2. Finalize player activation */
         bool needs_rescue = false;
@@ -165,10 +186,12 @@ void sync_client_task(void *arg) {
         if (IS_Q_VALID(pq1, pq2, pq3)) {
             QuadrantIndex *qi = &spatial_index[pq1][pq2][pq3];
             for (int s=0; s<qi->star_count; s++) {
+                if (!qi->stars[s]) continue;
                 double d = sqrt(pow(players[slot].state.s1 - qi->stars[s]->x, 2) + pow(players[slot].state.s2 - qi->stars[s]->y, 2) + pow(players[slot].state.s3 - qi->stars[s]->z, 2));
                 if (d < 1.0) needs_rescue = true;
             }
             for (int p=0; p<qi->planet_count; p++) {
+                if (!qi->planets[p]) continue;
                 double d = sqrt(pow(players[slot].state.s1 - qi->planets[p]->x, 2) + pow(players[slot].state.s2 - qi->planets[p]->y, 2) + pow(players[slot].state.s3 - qi->planets[p]->z, 2));
                 if (d < 1.0) needs_rescue = true;
             }
@@ -502,9 +525,9 @@ int main(int argc, char *argv[]) {
                         printf("\033[1;35m[DISCONNECT]\033[0m Captain \033[1;37m%-15s\033[0m has left the galaxy.    [\033[1;33m%s\033[0m]\n", 
                                players[i].name[0] ? players[i].name : "Unknown", time_disc);
 
-                        players[i].socket = 0; 
-                        players[i].radio_lock_target = 0;
-                        memset(players[i].session_key, 0, 32);
+                        players[i].socket = 0;
+                        players[i].active = 0;
+                        players[i].radio_lock_target = 0;                        memset(players[i].session_key, 0, 32);
                         save_galaxy();
                         break; 
                     }
@@ -622,7 +645,16 @@ int main(int argc, char *argv[]) {
                                             if (memcmp(stored_hash, pkt.pass_hash, 32) != 0) {
                                                 status = 3; /* Wrong Password */
                                             } else {
-                                                status = 1; /* Success (Known) */
+                                                /* Password correct, but check if the commander is in the current galaxy persistent state */
+                                                bool found_in_galaxy = false;
+                                                for(int j=0; j<MAX_CLIENTS; j++) {
+                                                    if (players[j].name[0] != '\0' && strcmp(players[j].name, pkt.name) == 0) {
+                                                        found_in_galaxy = true;
+                                                        break;
+                                                    }
+                                                }
+                                                if (found_in_galaxy) status = 1; /* Success (Known) */
+                                                else status = 2; /* New Recruit (Identity exists, but Galaxy was reset) */
                                             }
                                         }
                                         fclose(fa);
@@ -728,6 +760,13 @@ int main(int argc, char *argv[]) {
                                         
                                         players[slot].state.inventory[1] = COST_ACTION_LOW; /* Initial Aetherium for jumps */
                                                                             
+                                        for (int s = 0; s < 6; s++) {
+                                            players[slot].state.shields[s] = SHIELD_MAX_STRENGTH;
+                                            players[slot].state.target_shields[s] = SHIELD_MAX_STRENGTH;
+                                        }
+                                        players[slot].state.shield_change_timer = 0;
+                                        players[slot].state.shield_change_rate = 0.0f;
+
                                         players[slot].state.hull_integrity = (float)YIELD_HARVEST_MAX;
                                         for (int s = 0; s < MAX_SYSTEMS; s++) {
                                             players[slot].state.system_health[s] = (float)YIELD_HARVEST_MAX;

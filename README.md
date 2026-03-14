@@ -1895,7 +1895,7 @@ In addition to algorithm selection, the GDIS system uses advanced protocols to e
 | **A** 📡 | **Fleet** | `enc aes` | Must have the same encoder active (`enc aes`). |
 | **B** 🆔 | **Identity** | `enc2 pqc` | Must tune into the sender: `tune Nick`. |
 | **C** 🔗 | **Peer (P2P)** | `enc3 Nick aes` | Must have established the link: `link Nick`. |
-| **D** 🔒 | **Exclusive** | `enc4 Nick chacha` | Both must lock to each other. All other traffic is filtered out. |
+| **D** 🔒 | **Exclusive** | `enc4 Nick chacha` | Both must lock to each other. The server physically isolates the channel (Hard-Lock), eliminating all noise to third parties. |
 
 **Example of Fleet Communication (Level A):**
 1. **Sender**: `enc aes` (activates AES fleet frequency).
@@ -1914,9 +1914,10 @@ In addition to algorithm selection, the GDIS system uses advanced protocols to e
 
 **Example of Exclusive Private Link (Level D):**
 1. **Preparation**: Both captains must perform the reciprocal `link` (e.g., `link Ian` and `link Nick`).
-2. **Locking**: `enc4 Nick aes` (activates exclusive filtering).
-3. **Action**: `rad Private channel` (the server filters out all other incoming radio traffic; you only hear Nick).
-4. **Release**: `enc off` (returns to standard fleet reception).
+2. **Locking**: `enc4 Nick aes` (activates bi-directional exclusive filtering).
+3. **Action**: `rad Private channel` (the server isolates traffic: only the sender and Nick receive packets; total radio silence for the rest of the galaxy).
+4. **Dynamic Resolution**: The system automatically handles state transitions (Race Conditions), ensuring delivery even if locks are not yet perfectly synchronized.
+5. **Release**: `enc off` (returns to standard fleet reception).
 
 ### ⚛️ Algorithm Suite (Operational Frequencies)
 

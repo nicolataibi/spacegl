@@ -988,6 +988,7 @@ void drawShieldGlow(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float ra
         mat4_multiply(S, modelBase, pc.model);
         pc.color[0] = r; pc.color[1] = g; pc.color[2] = b; pc.color[3] = alpha / (i * 1.2f);
         pc.usePushColor = 7; pc.time = pulse;
+        pc.metallic = pulse * 10.0f; /* Stabilize wave for volumetric glow too */
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
@@ -1003,10 +1004,10 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
     struct { float rx, ry; } shield_rot[] = {
         {0, 0},           /* 0: Front (+X) */
         {0, M_PI},        /* 1: Rear (-X) */
-        {M_PI/2.0f, 0},   /* 2: Top (+Y) */
-        {-M_PI/2.0f, 0},  /* 3: Bottom (-Y) */
-        {0, M_PI/2.0f},   /* 4: Left (-Z) */
-        {0, -M_PI/2.0f}   /* 5: Right (+Z) */
+        {-M_PI/2.0f, 0},  /* 2: Top (+Y) */
+        {M_PI/2.0f, 0},   /* 3: Bottom (-Y) */
+        {0, M_PI/2.0f},   /* 4: Left (+Z) */
+        {0, -M_PI/2.0f}   /* 5: Right (-Z) */
     };
 
     for (int s = 0; s < 6; s++) {
@@ -1022,9 +1023,8 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
         mat4_rotate(R_sec, shield_rot[s].ry, (vec3){0, 1, 0});
         mat4_rotate(R_sec, shield_rot[s].rx, (vec3){0, 0, 1}); 
 
-        /* CORRECT ORDER for Row-Major: S * T_sec * R_sec * R_ship * T_ship
-           This moves the vertex along X, THEN rotates it to the correct sector. */
-        float thk = (s == 2 || s == 3) ? 1.2f : 0.3f;
+        /* Standardized thickness for all sectors (0.5f) to match 3DView feel */
+        float thk = 0.5f;
         mat4_scale(S_sec, (vec3){thk * scale, 1.8f * scale, 1.8f * scale});
         mat4_translate(T_sec, (vec3){1.45f * scale, 0, 0});
 
@@ -1051,6 +1051,8 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
         memcpy(pc.model, M_sec, sizeof(mat4));
         pc.color[0] = 0.0f; pc.color[1] = 0.6f; pc.color[2] = 1.0f; pc.color[3] = alpha * 0.3f;
         pc.usePushColor = 7; pc.time = pulse;
+        /* Pass local pulse to stabilize wave regardless of galactic position */
+        pc.metallic = pulse * 10.0f; 
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
 
@@ -2487,37 +2489,43 @@ int main(int argc, char** argv) {
     }
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     
-    VulkanApp app = {0};
-    app.shm_fd = -1;
+    VulkanApp* app = malloc(sizeof(VulkanApp));
+    if (!app) {
+        fprintf(stderr, "Failed to allocate memory for VulkanApp\n");
+        return 1;
+    }
+    memset(app, 0, sizeof(VulkanApp));
+    app->shm_fd = -1;
     
     if (argc > 1) {
-        app.shm_fd = shm_open(argv[1], O_RDWR, 0666);
-        if (app.shm_fd != -1) {
-            app.shm = mmap(NULL, sizeof(SharedIPC), PROT_READ | PROT_WRITE, MAP_SHARED, app.shm_fd, 0);
-            if (app.shm == MAP_FAILED) {
-                app.shm = NULL;
+        app->shm_fd = shm_open(argv[1], O_RDWR, 0666);
+        if (app->shm_fd != -1) {
+            app->shm = mmap(NULL, sizeof(SharedIPC), PROT_READ | PROT_WRITE, MAP_SHARED, app->shm_fd, 0);
+            if (app->shm == MAP_FAILED) {
+                app->shm = NULL;
             }
         }
     }
     
-    app.window = glfwCreateWindow(WIDTH, HEIGHT, "SpaceGL Vulkan", NULL, NULL);
-    if (!app.window) {
+    app->window = glfwCreateWindow(WIDTH, HEIGHT, "SpaceGL Vulkan", NULL, NULL);
+    if (!app->window) {
+        free(app);
         return 1;
     }
     
-    app.angleX = 0.0f;
-    app.angleY = 0.0f;
-    app.cameraDist = 80.0f;
-    app.autoRotate = true;
-    app.bridgeAnim = 0.0f;
-    app.showBridge = 0;
+    app->angleX = 0.0f;
+    app->angleY = 0.0f;
+    app->cameraDist = 80.0f;
+    app->autoRotate = true;
+    app->bridgeAnim = 0.0f;
+    app->showBridge = 0;
     
-    glfwSetWindowUserPointer(app.window, &app);
-    glfwSetKeyCallback(app.window, key_callback);
+    glfwSetWindowUserPointer(app->window, app);
+    glfwSetKeyCallback(app->window, key_callback);
     
-    initVulkan(&app); 
+    initVulkan(app); 
     
-    if (app.shm) {
+    if (app->shm) {
         pid_t tp = getppid();
         if (argc > 1) {
             char *p = strrchr(argv[1], '_');
@@ -2530,7 +2538,8 @@ int main(int argc, char** argv) {
         }
     }
     
-    mainLoop(&app);
-    cleanup(&app);
+    mainLoop(app);
+    cleanup(app);
+    free(app);
     return 0;
 }

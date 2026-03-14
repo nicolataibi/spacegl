@@ -119,8 +119,8 @@ void normalize_upright(double *h, double *m) {
 
 /* --- Command Handlers --- */
 
-void handle_enc(int i, const char *params, bool *should_disconnect) {
-    (void)params; (void)should_disconnect;
+void handle_enc_common(int i, const char *params, int level, bool *should_disconnect) {
+    (void)should_disconnect;
     if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "COMPUTER", "CRYPTOGRAPHIC FAILURE: Logic core damaged. Encryption systems offline.");
         return;
@@ -142,10 +142,11 @@ void handle_enc(int i, const char *params, bool *should_disconnect) {
     }
 
     bool valid = true;
-    if (strstr(params, "enc4")) {
-        char target_name[64];
-        if (sscanf(params, "enc4 %63s", target_name) == 1) {
-            int found_idx = -1;
+    char target_name[64] = "";
+    int found_idx = -1;
+
+    if (level == 4) {
+        if (sscanf(params, " %63s", target_name) == 1) {
             for(int j=0; j<MAX_CLIENTS; j++) {
                 if(players[j].active && strcmp(players[j].name, target_name) == 0) {
                     found_idx = j;
@@ -155,112 +156,96 @@ void handle_enc(int i, const char *params, bool *should_disconnect) {
             if (found_idx != -1) {
                 players[i].radio_lock_target = found_idx + 1;
                 send_server_msg(i, "COMPUTER", "LEVEL D: EXCLUSIVE RADIO LINK LOCKED.");
+            } else {
+                send_server_msg(i, "COMPUTER", "ERROR: Target Captain not found for Exclusive Link.");
+                valid = false;
             }
+        } else {
+            send_server_msg(i, "COMPUTER", "Usage: enc4 <CaptainName> <algo>");
+            valid = false;
         }
+    } else if (level == 3) {
+        if (sscanf(params, " %63s", target_name) == 1) {
+            /* enc3 uses target but doesn't hard-lock radio */
+            players[i].radio_lock_target = 0;
+        } else {
+            send_server_msg(i, "COMPUTER", "Usage: enc3 <CaptainName> <algo>");
+            valid = false;
+        }
+    } else {
+        players[i].radio_lock_target = 0;
     }
 
-    if (strstr(params, "aes")) {
-        players[i].state.shm_crypto_algo = CRYPTO_AES;
-        players[i].state.encryption_flags |= 0x01; /* Signature active */
-        if (strstr(params, "enc4")) send_server_msg(i, "COMPUTER", "EXCLUSIVE LINK ACTIVE: AES-256.");
-        else if (strstr(params, "enc3")) send_server_msg(i, "COMPUTER", "PEER-TO-PEER ENCRYPTION ACTIVE: AES-256.");
-        else if (strstr(params, "enc2")) send_server_msg(i, "COMPUTER", "IDENTITY ENCRYPTION ACTIVE: AES-256.");
-        else send_server_msg(i, "COMPUTER", "Deep Space encryption: AES-256-GCM ACTIVE.");
-    } else if (strstr(params, "chacha")) {
-        players[i].state.shm_crypto_algo = CRYPTO_CHACHA;
-        players[i].state.encryption_flags |= 0x01;
-        if (strstr(params, "enc4")) send_server_msg(i, "COMPUTER", "EXCLUSIVE LINK ACTIVE: CHACHA20.");
-        else if (strstr(params, "enc3")) send_server_msg(i, "COMPUTER", "PEER-TO-PEER ENCRYPTION ACTIVE: CHACHA20.");
-        else if (strstr(params, "enc2")) send_server_msg(i, "COMPUTER", "IDENTITY ENCRYPTION ACTIVE: CHACHA20.");
-        else send_server_msg(i, "COMPUTER", "Deep Space encryption: CHACHA20-POLY1305 ACTIVE.");
-    } else if (strstr(params, "aria")) {
-        players[i].state.shm_crypto_algo = CRYPTO_ARIA;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: ARIA-256-GCM ACTIVE.");
-    } else if (strstr(params, "camellia")) {
-        players[i].state.shm_crypto_algo = CRYPTO_CAMELLIA;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: CAMELLIA-256-CTR (Xylari) ACTIVE.");
-    } else if (strstr(params, "seed")) {
-        players[i].state.shm_crypto_algo = CRYPTO_SEED;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: SEED-CBC (ORION) ACTIVE.");
-    } else if (strstr(params, "cast")) {
-        players[i].state.shm_crypto_algo = CRYPTO_CAST5;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: CAST5-CBC (OLD REPUBLIC) ACTIVE.");
-    } else if (strstr(params, "idea")) {
-        players[i].state.shm_crypto_algo = CRYPTO_IDEA;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: IDEA-CBC (MAQUIS) ACTIVE.");
-    } else if (strstr(params, "3des")) {
-        players[i].state.shm_crypto_algo = CRYPTO_3DES;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: DES-EDE3-CBC (ANCIENT) ACTIVE.");
-    } else if (strstr(params, "bf") || strstr(params, "blowfish")) {
-        players[i].state.shm_crypto_algo = CRYPTO_BLOWFISH;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: BLOWFISH-CBC (GILDED) ACTIVE.");
-    } else if (strstr(params, "rc4")) {
-        players[i].state.shm_crypto_algo = CRYPTO_RC4;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: RC4-STREAM (TACTICAL) ACTIVE.");
-    } else if (strstr(params, "des") && !strstr(params, "3des")) {
-        players[i].state.shm_crypto_algo = CRYPTO_DES;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: DES-CBC (PRE-HYPERDRIVE) ACTIVE.");
-    } else if (strstr(params, "pqc") || strstr(params, "kyber")) {
-        players[i].state.shm_crypto_algo = CRYPTO_PQC;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: ML-KEM-1024 (POST-QUANTUM) ACTIVE.");
-        send_server_msg(i, "SCIENCE", "Quantum Tunnel established. Signal is now immune to Shor's algorithm.");
-    } else if (strstr(params, "mceliece")) {
-        players[i].state.shm_crypto_algo = CRYPTO_MCELIECE;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: CLASSIC MCELIECE (PQC) ACTIVE.");
-        send_server_msg(i, "SCIENCE", "Quantum-resistant code-based channel established.");
-    } else if (strstr(params, "dilithium")) {
-        players[i].state.shm_crypto_algo = CRYPTO_DILITHIUM;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: DILITHIUM-ML-DSA (PQC) ACTIVE.");
-        send_server_msg(i, "SCIENCE", "Post-Quantum signature verification engaged.");
-    } else if (strstr(params, "serpent")) {
-        players[i].state.shm_crypto_algo = CRYPTO_SERPENT;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: SERPENT-256-GCM ACTIVE.");
-    } else if (strstr(params, "twofish")) {
-        players[i].state.shm_crypto_algo = CRYPTO_TWOFISH;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: TWOFISH-256-CBC ACTIVE.");
-    } else if (strstr(params, "sm4")) {
-        players[i].state.shm_crypto_algo = CRYPTO_SM4;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: SM4-CBC (SYNDICATE) ACTIVE.");
-    } else if (strstr(params, "ascon")) {
-        players[i].state.shm_crypto_algo = CRYPTO_ASCON;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: ASCON-128 (LIGHTWEIGHT) ACTIVE.");
-    } else if (strstr(params, "present")) {
-        players[i].state.shm_crypto_algo = CRYPTO_PRESENT;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: PRESENT (BIOMETRIC) ACTIVE.");
-    } else if (strstr(params, "gost")) {
-        players[i].state.shm_crypto_algo = CRYPTO_GOST;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: GOST-KUZNYECHIK ACTIVE.");
-    } else if (strstr(params, "salsa")) {
-        players[i].state.shm_crypto_algo = CRYPTO_SALSA;
-        players[i].state.encryption_flags |= 0x01;
-        send_server_msg(i, "COMPUTER", "Deep Space encryption: SALSA20 ACTIVE.");
-    } else if (strstr(params, "off")) {
-        players[i].state.shm_crypto_algo = CRYPTO_NONE;
-        players[i].state.encryption_flags &= ~0x01; /* Disable signature when off */
-        players[i].radio_lock_target = 0;
-        send_server_msg(i, "COMPUTER", "WARNING: Encryption DISABLED. Signal is now RAW.");
-        cost = 0;
-    } else {
-        send_server_msg(i, "COMPUTER", "Usage: enc aes | chacha | aria | camellia | seed | cast | idea | 3des | bf | rc4 | des | pqc | mceliece | dilithium | serpent | twofish | sm4 | ascon | present | gost | salsa | off");
-        valid = false;
+    if (valid) {
+        /* Clear previous level flags, keep signature 0x01 */
+        players[i].state.encryption_flags &= 0x01; 
+
+        if (strstr(params, "aes")) {
+            players[i].state.shm_crypto_algo = CRYPTO_AES;
+            players[i].state.encryption_flags |= 0x01;
+            if (level == 4) { players[i].state.encryption_flags |= 0x08; send_server_msg(i, "COMPUTER", "EXCLUSIVE LINK ACTIVE: AES-256."); }
+            else if (level == 3) { players[i].state.encryption_flags |= 0x04; send_server_msg(i, "COMPUTER", "PEER-TO-PEER ENCRYPTION ACTIVE: AES-256."); }
+            else if (level == 2) { players[i].state.encryption_flags |= 0x02; send_server_msg(i, "COMPUTER", "IDENTITY ENCRYPTION ACTIVE: AES-256."); }
+            else send_server_msg(i, "COMPUTER", "Deep Space encryption: AES-256-GCM ACTIVE.");
+        } else if (strstr(params, "chacha")) {
+            players[i].state.shm_crypto_algo = CRYPTO_CHACHA;
+            players[i].state.encryption_flags |= 0x01;
+            if (level == 4) { players[i].state.encryption_flags |= 0x08; send_server_msg(i, "COMPUTER", "EXCLUSIVE LINK ACTIVE: CHACHA20."); }
+            else if (level == 3) { players[i].state.encryption_flags |= 0x04; send_server_msg(i, "COMPUTER", "PEER-TO-PEER ENCRYPTION ACTIVE: CHACHA20."); }
+            else if (level == 2) { players[i].state.encryption_flags |= 0x02; send_server_msg(i, "COMPUTER", "IDENTITY ENCRYPTION ACTIVE: CHACHA20."); }
+            else send_server_msg(i, "COMPUTER", "Deep Space encryption: CHACHA20-POLY1305 ACTIVE.");
+        } else if (strstr(params, "aria")) {
+            players[i].state.shm_crypto_algo = CRYPTO_ARIA;
+            players[i].state.encryption_flags |= 0x01;
+            if (level == 4) players[i].state.encryption_flags |= 0x08;
+            else if (level == 3) players[i].state.encryption_flags |= 0x04;
+            else if (level == 2) players[i].state.encryption_flags |= 0x02;
+            send_server_msg(i, "COMPUTER", "Deep Space encryption: ARIA-256-GCM ACTIVE.");
+        } else if (strstr(params, "pqc") || strstr(params, "kyber")) {
+            players[i].state.shm_crypto_algo = CRYPTO_PQC;
+            players[i].state.encryption_flags |= 0x01;
+            if (level == 4) players[i].state.encryption_flags |= 0x08;
+            else if (level == 3) players[i].state.encryption_flags |= 0x04;
+            else if (level == 2) players[i].state.encryption_flags |= 0x02;
+            send_server_msg(i, "COMPUTER", "Deep Space encryption: ML-KEM-1024 (POST-QUANTUM) ACTIVE.");
+            send_server_msg(i, "SCIENCE", "Quantum Tunnel established. Signal is now immune to Shor's algorithm.");
+        } else if (strstr(params, "off")) {
+            players[i].state.shm_crypto_algo = CRYPTO_NONE;
+            players[i].state.encryption_flags = 0;
+            players[i].radio_lock_target = 0;
+            send_server_msg(i, "COMPUTER", "WARNING: Encryption DISABLED. Signal is now RAW.");
+            cost = 0;
+        } else {
+            /* Fallback generic algo detection for others */
+            struct { const char* match; int algo; const char* name; } others[] = {
+                {"camellia", CRYPTO_CAMELLIA, "CAMELLIA-256-CTR"}, {"seed", CRYPTO_SEED, "SEED-CBC"},
+                {"cast", CRYPTO_CAST5, "CAST5-CBC"}, {"idea", CRYPTO_IDEA, "IDEA-CBC"},
+                {"3des", CRYPTO_3DES, "DES-EDE3-CBC"}, {"bf", CRYPTO_BLOWFISH, "BLOWFISH-CBC"},
+                {"blowfish", CRYPTO_BLOWFISH, "BLOWFISH-CBC"}, {"rc4", CRYPTO_RC4, "RC4-STREAM"},
+                {"des", CRYPTO_DES, "DES-CBC"}, {"mceliece", CRYPTO_MCELIECE, "CLASSIC MCELIECE"},
+                {"dilithium", CRYPTO_DILITHIUM, "DILITHIUM-ML-DSA"}, {"serpent", CRYPTO_SERPENT, "SERPENT-256-GCM"},
+                {"twofish", CRYPTO_TWOFISH, "TWOFISH-256-CBC"}, {"sm4", CRYPTO_SM4, "SM4-CBC"},
+                {"ascon", CRYPTO_ASCON, "ASCON-128"}, {"present", CRYPTO_PRESENT, "PRESENT-BIOMETRIC"},
+                {"gost", CRYPTO_GOST, "GOST-KUZNYECHIK"}, {"salsa", CRYPTO_SALSA, "SALSA20"}, {NULL, 0, NULL}
+            };
+            bool found_other = false;
+            for(int o=0; others[o].match; o++) {
+                if (strstr(params, others[o].match)) {
+                    players[i].state.shm_crypto_algo = others[o].algo;
+                    players[i].state.encryption_flags |= 0x01;
+                    if (level == 4) players[i].state.encryption_flags |= 0x08;
+                    else if (level == 3) players[i].state.encryption_flags |= 0x04;
+                    else if (level == 2) players[i].state.encryption_flags |= 0x02;
+                    char msg[128]; sprintf(msg, "Deep Space encryption: %s ACTIVE.", others[o].name);
+                    send_server_msg(i, "COMPUTER", msg);
+                    found_other = true; break;
+                }
+            }
+            if (!found_other) {
+                send_server_msg(i, "COMPUTER", "Usage: enc[2|3|4] <params> <algo>");
+                valid = false;
+            }
+        }
     }
     
     if (valid) {
@@ -300,6 +285,11 @@ void handle_enc(int i, const char *params, bool *should_disconnect) {
                players[i].name, algo_name, time_enc);
     }
 }
+
+void handle_enc(int i, const char *params, bool *sd) { handle_enc_common(i, params, 1, sd); }
+void handle_enc2(int i, const char *params, bool *sd) { handle_enc_common(i, params, 2, sd); }
+void handle_enc3(int i, const char *params, bool *sd) { handle_enc_common(i, params, 3, sd); }
+void handle_enc4(int i, const char *params, bool *sd) { handle_enc_common(i, params, 4, sd); }
 
 void handle_pow(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
@@ -1575,6 +1565,7 @@ void handle_tor(int i, const char *params, bool *should_disconnect) {
             pt->id = g_torp_idx + 30000;
             pt->owner_idx = i;
             pt->faction = players[i].faction;
+            pt->origin_tube = tube;
             pt->active = true;
             pt->timeout = TIMER_TORP_TIMEOUT;
             pt->target_id = manual ? 0 : players[i].state.lock_target;
@@ -1596,11 +1587,12 @@ void handle_tor(int i, const char *params, bool *should_disconnect) {
         }
 
         /* Set global flags for HUD/State backward compatibility */
-        players[i].torp_active = true; 
+        players[i].torp_active = true;
 
-        players[i].tube_load_timers[tube] = TIMER_TORP_LOAD; 
+        /* Reloading starts immediately with a 0.5s (30 ticks) FIRING phase delay */
+        players[i].tube_load_timers[tube] = TIMER_TORP_LOAD + 30;
+        players[i].tube_torpedo_etas[tube] = TIMER_TORP_TIMEOUT; /* Start ETA countdown (10s) */
         players[i].current_tube = (tube + 1) % 4; /* Rotate to next tube */
-
         send_server_msg(i, "TACTICAL", manual ? "Torpedo away (Manual)." : (players[i].state.lock_target > 0 ? "Torpedo away (Locked)." : "Torpedo away (Boresight)."));
     } else {
         send_server_msg(i, "TACTICAL", "Insufficient torpedoes.");
@@ -1658,13 +1650,13 @@ void handle_she(int i, const char *params, bool *should_disconnect) {
             if (players[i].state.energy > MAX_ENERGY_CAPACITY) players[i].state.energy = MAX_ENERGY_CAPACITY;
         }
 
-        // Store target shield values
+        // Store target shield values (0:F, 1:R, 2:T, 3:B, 4:L, 5:RI)
         players[i].state.target_shields[0] = f;
         players[i].state.target_shields[1] = r;
         players[i].state.target_shields[2] = t;
         players[i].state.target_shields[3] = b;
-        players[i].state.target_shields[4] = l;  /* Now index 4 is Left */
-        players[i].state.target_shields[5] = ri; /* Now index 5 is Right */
+        players[i].state.target_shields[4] = l;
+        players[i].state.target_shields[5] = ri;
 
         // Set the timer for progressive shield change
         // For simplicity, a fixed duration for any change.
@@ -3759,9 +3751,9 @@ static const CommandDef command_registry[] = {
     {"rad",  NULL,       "Radio Subspace (rad <msg>, rad @Faction <msg>, rad #ID <msg>)"},
     {"tune", NULL,       "Identity Tuner (tune <CaptainName>): Listen to a Captain's Level B frequency"},
     {"enc",  handle_enc,  "Fleet Encryption (enc <algo>): Standard Fleet-wide frequency (Level A)"},
-    {"enc2", handle_enc,  "Identity Mode (enc2 <algo>): Broadcast on your personal frequency (Level B)"},
-    {"enc3", handle_enc,  "Peer Mode (enc3 <CaptainName> <algo>): Secure P2P communication (Level C)"},
-    {"enc4", handle_enc,  "Exclusive Mode (enc4 <CaptainName> <algo>): Filtered Private Link (Level D)"},
+    {"enc2", handle_enc2, "Identity Mode (enc2 <algo>): Broadcast on your personal frequency (Level B)"},
+    {"enc3", handle_enc3, "Peer Mode (enc3 <CaptainName> <algo>): Secure P2P communication (Level C)"},
+    {"enc4", handle_enc4, "Exclusive Mode (enc4 <CaptainName> <algo>): Filtered Private Link (Level D)"},
     {"link", handle_link, "Tactical Link (link <CaptainName>): Reciprocal X25519 E2E Handshake"},
     {"help", handle_help, "Display LCARS Command Directory"},
     {"exit", NULL,        "Exit game and disconnect from server"},

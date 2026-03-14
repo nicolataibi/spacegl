@@ -4339,12 +4339,23 @@ void display() {
         drawText3D(x_off, y_pos, 0, "--- TORPEDO TUBES ---"); y_pos -= 18;
         for(int t=0; t<4; t++) {
             const char* tube_str = "[READY]"; 
-            if (g_tube_state == 3) { glColor3f(0.5, 0.5, 0.5); tube_str = "[OFFLINE]"; } 
-            else if (g_shared_state->tube_load_timers[t] > 0) { glColor3f(1, 1, 0); tube_str = "[LOADING]"; } 
-            else if (g_shared_state->torps[t].active) { glColor3f(1, 0, 0); tube_str = "[FIRING]"; } 
-            else { glColor3f(0, 1, 1); tube_str = "[READY]"; }
-            
-            sprintf(buf, "TUBE %d: %s", t+1, tube_str);
+            int timer = g_shared_state->tube_load_timers[t];
+            int eta = g_shared_state->tube_torpedo_etas[t];
+            bool is_current = (g_shared_state->current_tube == t);
+
+            if (g_tube_state == 3) { glColor3f(0.5, 0.5, 0.5); tube_str = "[OFFLINE]"; }
+            else if (timer > 180) { glColor3f(1.0, 0.0, 0.0); tube_str = "[FIRING]"; }
+            else if (timer > 0) { glColor3f(1.0, 1.0, 0.0); tube_str = "[LOADING]"; }
+            else if (is_current && g_tube_state == 2) { glColor3f(1.0, 0.0, 0.0); tube_str = "[FIRING]"; }
+            else { glColor3f(0.0, 1.0, 0.0); tube_str = "[READY]"; }
+
+            char timing_buf[32] = " T:--- ";
+            if (timer > 0) sprintf(timing_buf, " T:%4.1fs", (double)timer / 60.0);
+
+            char eta_buf[32] = " ETA:---";
+            if (eta > 0) sprintf(eta_buf, " ETA:%4.1fs", (double)eta / 60.0);
+
+            sprintf(buf, "%sTUBE %d:[%-7s]%s%s", is_current ? ">" : " ", t+1, tube_str, timing_buf, eta_buf);
             drawText3D(x_off, y_pos, 0, buf);
             y_pos -= 15;
         }

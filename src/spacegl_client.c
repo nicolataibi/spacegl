@@ -76,8 +76,13 @@ void ensure_algo_key_for_name(int k, bool private_mode, const char *name, uint8_
     }
 
     char salt[256];
-    if (private_mode) sprintf(salt, "SPACEGL-ALGO-PRIVATE-%s-SIG-%d", name, k);
-    else sprintf(salt, "SPACEGL-ALGO-FREQUENCY-GALAXY-WORMHOLE-SIG-%d", k);
+    if (private_mode) {
+        /* Level B/C/D: Identity-based frequency salt */
+        snprintf(salt, sizeof(salt), "SPACEGL-ALGO-PRIVATE-%s-SIG-%d", name, k);
+    } else {
+        /* Level A: Global Fleet-wide frequency salt */
+        snprintf(salt, sizeof(salt), "SPACEGL-ALGO-FREQUENCY-GALAXY-WORMHOLE-SIG-%d", k);
+    }
     
     unsigned int len = 32;
     HMAC(EVP_sha256(), master_root_key, 32, (uint8_t*)salt, strlen(salt), out_key, &len);
@@ -752,6 +757,7 @@ void *network_listener(void *arg) {
                     UpdateBlockCombat b; read_all(sock, &b, sizeof(b));
                     current_state.lock_target = b.lock_target; current_state.tube_state = b.tube_state;
                     memcpy(current_state.tube_load_timers, b.tube_load_timers, sizeof(b.tube_load_timers));
+                    memcpy(current_state.tube_torpedo_etas, b.tube_torpedo_etas, sizeof(b.tube_torpedo_etas));
                     current_state.current_tube = b.current_tube; current_state.ion_beam_charge = b.ion_beam_charge;
                     current_pkt_size += sizeof(b);
                     int32_t bc; read_all(sock, &bc, sizeof(int32_t)); current_pkt_size += sizeof(int32_t);
@@ -885,7 +891,10 @@ void *network_listener(void *arg) {
                 g_shared_state->shm_life_support = current_state.life_support;
                 g_shared_state->shm_ion_beam_charge = current_state.ion_beam_charge;
                 g_shared_state->shm_tube_state = current_state.tube_state;
-                for(int t=0; t<4; t++) g_shared_state->tube_load_timers[t] = current_state.tube_load_timers[t];
+                for(int t=0; t<4; t++) {
+                    g_shared_state->tube_load_timers[t] = current_state.tube_load_timers[t];
+                    g_shared_state->tube_torpedo_etas[t] = current_state.tube_torpedo_etas[t];
+                }
                 g_shared_state->current_tube = current_state.current_tube;
                 g_shared_state->shm_anti_matter = current_state.anti_matter_count;
                 for(int inv=0; inv<10; inv++) g_shared_state->inventory[inv] = current_state.inventory[inv];
@@ -1300,25 +1309,30 @@ int main(int argc, char *argv[]) {
     write_all(sock, &lpkt, sizeof(PacketLogin));
 
     /* Ricezione Galassia Master (Sincronizzazione iniziale) */
-    SpaceGLGame master_sync;
-    memset(&master_sync, 0, sizeof(SpaceGLGame));
+    SpaceGLGame *master_sync = malloc(sizeof(SpaceGLGame));
+    if (!master_sync) {
+        perror("malloc failed for master_sync");
+        exit(1);
+    }
+    memset(master_sync, 0, sizeof(SpaceGLGame));
     printf("Synchronizing with Galaxy Server...\n");
     LOG_DEBUG("Client SpaceGLGame size: %zu bytes\n", sizeof(SpaceGLGame));
     LOG_DEBUG("Client PacketUpdate size: %zu bytes\n", sizeof(PacketUpdate));
     LOG_DEBUG("Waiting for Galaxy Master...\n");
-    int master_read = read_all(sock, &master_sync, sizeof(SpaceGLGame));
+    int master_read = read_all(sock, master_sync, sizeof(SpaceGLGame));
     if (master_read == sizeof(SpaceGLGame)) {
         printf(B_GREEN "Galaxy Map synchronized.\n" RESET);
-        LOG_DEBUG("Received Encryption Flags: 0x%08X\n", master_sync.encryption_flags);
-        if (master_sync.encryption_flags & 0x01) {
+        LOG_DEBUG("Received Encryption Flags: 0x%08X\n", master_sync->encryption_flags);
+        if (master_sync->encryption_flags & 0x01) {
             printf(B_CYAN "[SECURE] DeepSpace Signature: " B_GREEN "VERIFIED (HMAC-SHA256)\n" RESET);
             printf(B_CYAN "[SECURE] Server Identity:    " B_YELLOW);
-            for(int k=0; k<16; k++) printf("%02X", master_sync.server_pubkey[k]);
+            for(int k=0; k<16; k++) printf("%02X", master_sync->server_pubkey[k]);
             printf("... [ACTIVE]\n" RESET);
             printf(B_CYAN "[SECURE] Encryption Layer:   " B_GREEN "AES-GCM + PQC (Quantum Ready)\n" RESET);
         }
     } else {
         printf(B_RED "ERROR: Failed to synchronize Galaxy Map (Expected %zu, got %d).\n" RESET, sizeof(SpaceGLGame), master_read);
+        free(master_sync);
         close(sock);
         exit(1);
     }
@@ -1328,13 +1342,14 @@ int main(int argc, char *argv[]) {
     /* Copy Galaxy Master to SHM for 3D Map View */
     if (g_shared_state) {
         
-        memcpy(g_shared_state->shm_galaxy, master_sync.g, sizeof(master_sync.g));
+        memcpy(g_shared_state->shm_galaxy, master_sync->g, sizeof(master_sync->g));
         g_shared_state->shm_crypto_algo = CRYPTO_NONE;
-        g_shared_state->shm_encryption_flags = master_sync.encryption_flags;
-        memcpy(g_shared_state->shm_server_signature, master_sync.server_signature, 64);
-        memcpy(g_shared_state->shm_server_pubkey, master_sync.server_pubkey, 32);
+        g_shared_state->shm_encryption_flags = master_sync->encryption_flags;
+        memcpy(g_shared_state->shm_server_signature, master_sync->server_signature, 64);
+        memcpy(g_shared_state->shm_server_pubkey, master_sync->server_pubkey, 32);
         
     }
+    free(master_sync);
     
     if (getenv("DISPLAY") == NULL) {
         printf(B_RED "WARNING: No DISPLAY detected. 3D View might not start.\n" RESET);
@@ -1430,8 +1445,7 @@ int main(int argc, char *argv[]) {
                             PacketQueryKey qk;
                             memset(&qk, 0, sizeof(PacketQueryKey));
                             qk.type = PKT_QUERY_KEY;
-                            strncpy(qk.target_name, target, sizeof(qk.target_name) - 1);
-                            qk.target_name[sizeof(qk.target_name) - 1] = '\0';
+                            snprintf(qk.target_name, sizeof(qk.target_name), "%s", target);
                             write_all(sock, &qk, sizeof(PacketQueryKey));
                             printf(B_BLUE "[RADIO] Uplink request sent for Captain %s...\n" RESET, target);
                         }
@@ -1520,12 +1534,13 @@ int main(int argc, char *argv[]) {
                             continue;
                         }
 
-                        PacketMessage mpkt;
-                        memset(&mpkt, 0, sizeof(PacketMessage));
-                        mpkt.type = PKT_MESSAGE;
-                        strcpy(mpkt.from, captain_name);
-                        mpkt.faction = my_faction;
-                        mpkt.scope = SCOPE_GLOBAL;
+                        PacketMessage *mpkt = malloc(sizeof(PacketMessage));
+                        if (!mpkt) { g_input_ptr = 0; g_input_buf[0] = 0; reprint_prompt(); continue; }
+                        memset(mpkt, 0, sizeof(PacketMessage));
+                        mpkt->type = PKT_MESSAGE;
+                        strcpy(mpkt->from, captain_name);
+                        mpkt->faction = my_faction;
+                        mpkt->scope = SCOPE_GLOBAL;
                         
                         char plaintext[4096];
                         memset(plaintext, 0, sizeof(plaintext));
@@ -1535,21 +1550,21 @@ int main(int argc, char *argv[]) {
                             int offset = 0;
                             sscanf(msg_start + 1, "%s%n", target_name, &offset);
                             if (offset > 0) {
-                                mpkt.scope = SCOPE_FACTION;
-                                if (strcasecmp(target_name, "Alliance")==0 || strcasecmp(target_name, "Fed")==0) mpkt.faction = FACTION_ALLIANCE;
-                                else if (strcasecmp(target_name, "Korthian")==0 || strcasecmp(target_name, "Kli")==0) mpkt.faction = FACTION_KORTHIAN;
-                                else if (strcasecmp(target_name, "Xylari")==0 || strcasecmp(target_name, "Rom")==0) mpkt.faction = FACTION_XYLARI;
-                                else if (strcasecmp(target_name, "Swarm")==0 || strcasecmp(target_name, "Bor")==0) mpkt.faction = FACTION_SWARM;
-                                else if (strcasecmp(target_name, "Vesperian")==0 || strcasecmp(target_name, "Car")==0) mpkt.faction = FACTION_VESPERIAN;
-                                else if (strcasecmp(target_name, "Ascendant")==0 || strcasecmp(target_name, "Jem")==0) mpkt.faction = FACTION_JEM_HADAR;
-                                else if (strcasecmp(target_name, "Quarzite")==0 || strcasecmp(target_name, "Tho")==0) mpkt.faction = FACTION_THOLIAN;
-                                else if (strcasecmp(target_name, "Saurian")==0) mpkt.faction = FACTION_GORN;
-                                else if (strcasecmp(target_name, "Gilded")==0 || strcasecmp(target_name, "Fer")==0) mpkt.faction = FACTION_GILDED;
-                                else if (strcasecmp(target_name, "FluidicVoid")==0 || strcasecmp(target_name, "8472")==0) mpkt.faction = FACTION_SPECIES_8472;
-                                else if (strcasecmp(target_name, "Cryos")==0) mpkt.faction = FACTION_BREEN;
-                                else if (strcasecmp(target_name, "Apex")==0) mpkt.faction = FACTION_HIROGEN;
+                                mpkt->scope = SCOPE_FACTION;
+                                if (strcasecmp(target_name, "Alliance")==0 || strcasecmp(target_name, "Fed")==0) mpkt->faction = FACTION_ALLIANCE;
+                                else if (strcasecmp(target_name, "Korthian")==0 || strcasecmp(target_name, "Kli")==0) mpkt->faction = FACTION_KORTHIAN;
+                                else if (strcasecmp(target_name, "Xylari")==0 || strcasecmp(target_name, "Rom")==0) mpkt->faction = FACTION_XYLARI;
+                                else if (strcasecmp(target_name, "Swarm")==0 || strcasecmp(target_name, "Bor")==0) mpkt->faction = FACTION_SWARM;
+                                else if (strcasecmp(target_name, "Vesperian")==0 || strcasecmp(target_name, "Car")==0) mpkt->faction = FACTION_VESPERIAN;
+                                else if (strcasecmp(target_name, "Ascendant")==0 || strcasecmp(target_name, "Jem")==0) mpkt->faction = FACTION_JEM_HADAR;
+                                else if (strcasecmp(target_name, "Quarzite")==0 || strcasecmp(target_name, "Tho")==0) mpkt->faction = FACTION_THOLIAN;
+                                else if (strcasecmp(target_name, "Saurian")==0) mpkt->faction = FACTION_GORN;
+                                else if (strcasecmp(target_name, "Gilded")==0 || strcasecmp(target_name, "Fer")==0) mpkt->faction = FACTION_GILDED;
+                                else if (strcasecmp(target_name, "FluidicVoid")==0 || strcasecmp(target_name, "8472")==0) mpkt->faction = FACTION_SPECIES_8472;
+                                else if (strcasecmp(target_name, "Cryos")==0) mpkt->faction = FACTION_BREEN;
+                                else if (strcasecmp(target_name, "Apex")==0) mpkt->faction = FACTION_HIROGEN;
                                 else {
-                                    mpkt.scope = SCOPE_GLOBAL; /* Fallback */
+                                    mpkt->scope = SCOPE_GLOBAL; /* Fallback */
                                 }
                                 
                                 /* Skip the @faction and potentially the space after it */
@@ -1561,8 +1576,8 @@ int main(int argc, char *argv[]) {
                             int tid;
                             int offset = 0;
                             if (sscanf(msg_start + 1, "%d%n", &tid, &offset) == 1) {
-                                mpkt.scope = SCOPE_PRIVATE;
-                                mpkt.target_id = tid;
+                                mpkt->scope = SCOPE_PRIVATE;
+                                mpkt->target_id = tid;
                                 
                                 /* Skip the #id and potentially the space after it */
                                 char *actual_msg = msg_start + 1 + offset;
@@ -1575,11 +1590,22 @@ int main(int argc, char *argv[]) {
                         
                         int current_algo = (g_shared_state) ? g_shared_state->shm_crypto_algo : CRYPTO_NONE;
                         if (current_algo != CRYPTO_NONE) {
-                            mpkt.is_encrypted = 0x01 | (g_private_mode ? 0x02 : 0x00) | (g_peer_mode ? 0x04 : 0x00) | (g_exclusive_mode ? 0x08 : 0x00);
-                            mpkt.crypto_algo = current_algo;
+                            mpkt->is_encrypted = 0x01 | (g_private_mode ? 0x02 : 0x00) | (g_peer_mode ? 0x04 : 0x00) | (g_exclusive_mode ? 0x08 : 0x00);
+                            mpkt->crypto_algo = current_algo;
+
+                            /* For Peer/Exclusive Mode, resolve Target ID for server-side routing */
+                            if (g_peer_mode && g_shared_state) {
+                                for (int o = 0; o < g_shared_state->object_count; o++) {
+                                    if (g_shared_state->objects[o].active && strcmp(g_shared_state->objects[o].shm_name, g_peer_target) == 0) {
+                                        mpkt->target_id = g_shared_state->objects[o].id;
+                                        break;
+                                    }
+                                }
+                            }
+
                             size_t plen = strlen(plaintext); if (plen > 65535) plen = 65535;
-                            memcpy(mpkt.text, plaintext, plen); mpkt.text[plen] = '\0'; mpkt.length = plen;
-                            sign_packet_message(&mpkt);
+                            memcpy(mpkt->text, plaintext, plen); mpkt->text[plen] = '\0'; mpkt->length = plen;
+                            sign_packet_message(mpkt);
                             
                             uint8_t *k = deep_space_key;
                             if (g_peer_mode) {
@@ -1590,30 +1616,31 @@ int main(int argc, char *argv[]) {
                                 else k = ALGO_KEYS[current_algo];
                             }
                             
-                            encrypt_payload(&mpkt, plaintext, k, (g_shared_state ? g_shared_state->frame_id : 0));
+                            encrypt_payload(mpkt, plaintext, k, (g_shared_state ? g_shared_state->frame_id : 0));
                         } else {
-                            mpkt.is_encrypted = 0;
-                            mpkt.crypto_algo = CRYPTO_NONE;
+                            mpkt->is_encrypted = 0;
+                            mpkt->crypto_algo = CRYPTO_NONE;
                             size_t plen = strlen(plaintext);
                             if (plen > 65535) plen = 65535;
-                            memcpy(mpkt.text, plaintext, plen);
-                            mpkt.text[plen] = '\0';
-                            mpkt.length = plen;
+                            memcpy(mpkt->text, plaintext, plen);
+                            mpkt->text[plen] = '\0';
+                            mpkt->length = plen;
                             
                             /* Sign the cleartext */
-                            sign_packet_message(&mpkt);
+                            sign_packet_message(mpkt);
                         }
 
-                        size_t pkt_size = offsetof(PacketMessage, text) + mpkt.length;
+                        size_t pkt_size = offsetof(PacketMessage, text) + mpkt->length;
                         if (pkt_size > sizeof(PacketMessage)) pkt_size = sizeof(PacketMessage);
                         
                         size_t svan_msg = 0;
-                        char *p_msg = (char *)&mpkt;
+                        char *p_msg = (char *)mpkt;
                         while (svan_msg < pkt_size) {
                             ssize_t n = send(sock, p_msg + svan_msg, pkt_size - svan_msg, 0);
                             if (n <= 0) break;
                             svan_msg += n;
                         }
+                        free(mpkt);
                     } else {
                         PacketCommand cpkt = {PKT_COMMAND, ""};
                         size_t clen = strlen(g_input_buf);

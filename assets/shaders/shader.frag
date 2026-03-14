@@ -51,8 +51,10 @@ void main() {
 
     /* MODE 7: Shockwave Pulse (Expanding Wave Color) */
     if (usePushColor == 7) {
-        float wave = sin(fragPos.x * 2.0 + fragPos.y * 2.0 + fragPos.z * 2.0 - time * 20.0);
-        vec3 waveColor = mix(pushColor.rgb, vec3(1.0, 1.0, 1.0), max(0.0, wave));
+        /* Use 'metallic' as a local pulse reference to stabilize the effect */
+        float pulse = metallic; 
+        float wave = sin(length(fragPos * 0.1) - pulse);
+        vec3 waveColor = mix(pushColor.rgb, vec3(1.0, 1.0, 1.0), max(0.0, wave * 0.5));
         outColor = vec4(waveColor, pushColor.a);
         return;
     }

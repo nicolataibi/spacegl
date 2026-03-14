@@ -813,6 +813,7 @@ void update_game_logic() {
             else players[i].state.energy = 0;
         }
 
+        /* Sync Torpedo ETA with actual active torpedoes - MOVED BELOW PHYSICAL UPDATES */
         for(int t=0; t<4; t++) {
             if (players[i].tube_load_timers[t] > 0) {
                 players[i].tube_load_timers[t]--;
@@ -1516,13 +1517,7 @@ void update_game_logic() {
                 send_server_msg(i, "HELMSMAN", "Wormhole stabilized in target sector. Maintaining hull integrity.");
             }
 
-            if (players[i].nav_timer <= SHIELD_REGEN_DELAY) { 
-                players[i].nav_state = NAV_STATE_IDLE;
-                players[i].state.wormhole.active = 0;
-                send_server_msg(i, "HELMSMAN", "Wormhole traversal successful. Welcome to destination.");
-            }
-
-            if (players[i].nav_timer <= SHIELD_REGEN_DELAY) { 
+            if (players[i].nav_timer <= SHIELD_REGEN_DELAY) {
                 players[i].nav_state = NAV_STATE_IDLE;
                 players[i].state.wormhole.active = 0;
                 send_server_msg(i, "HELMSMAN", "Wormhole traversal successful. Welcome to destination.");
@@ -1825,79 +1820,132 @@ void update_game_logic() {
         }
     }
 
+    /* Late Sync: Torpedo ETA calculation AFTER physical updates */
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (!players[i].active) continue;
+        for (int t = 0; t < 4; t++) {
+            int found_eta = 0;
+            for (int gt = 0; gt < MAX_GLOBAL_TORPEDOES; gt++) {
+                if (players_torpedoes[gt].active && players_torpedoes[gt].owner_idx == i && players_torpedoes[gt].origin_tube == t) {
+                    found_eta = players_torpedoes[gt].timeout;
+                    int tid = players_torpedoes[gt].target_id;
+                    if (tid > 0) {
+                        double tgx = -1.0, tgy = -1.0, tgz = -1.0;
+                        if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER && players[tid-1].active) { 
+                            tgx = players[tid-1].gx; tgy = players[tid-1].gy; tgz = players[tid-1].gz; 
+                        } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC && npcs[tid-GALAXY_OBJECT_MIN_NPC].active) { 
+                            tgx = npcs[tid-GALAXY_OBJECT_MIN_NPC].gx; tgy = npcs[tid-GALAXY_OBJECT_MIN_NPC].gy; tgz = npcs[tid-GALAXY_OBJECT_MIN_NPC].gz; 
+                        } else if (tid >= GALAXY_OBJECT_MIN_COMET && tid <= GALAXY_OBJECT_MAX_COMET && comets[tid-GALAXY_OBJECT_MIN_COMET].active) { 
+                            tgx = (comets[tid-GALAXY_OBJECT_MIN_COMET].q1-1)*QUADRANT_SIZE + comets[tid-GALAXY_OBJECT_MIN_COMET].x; 
+                            tgy = (comets[tid-GALAXY_OBJECT_MIN_COMET].q2-1)*QUADRANT_SIZE + comets[tid-GALAXY_OBJECT_MIN_COMET].y; 
+                            tgz = (comets[tid-GALAXY_OBJECT_MIN_COMET].q3-1)*QUADRANT_SIZE + comets[tid-GALAXY_OBJECT_MIN_COMET].z; 
+                        } else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM && platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].active) { 
+                            tgx = (platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q1-1)*QUADRANT_SIZE + platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].x; 
+                            tgy = (platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q2-1)*QUADRANT_SIZE + platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].y; 
+                            tgz = (platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q3-1)*QUADRANT_SIZE + platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].z; 
+                        } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER && monsters[tid-GALAXY_OBJECT_MIN_MONSTER].active) { 
+                            tgx = (monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q1-1)*QUADRANT_SIZE + monsters[tid-GALAXY_OBJECT_MIN_MONSTER].x; 
+                            tgy = (monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q2-1)*QUADRANT_SIZE + monsters[tid-GALAXY_OBJECT_MIN_MONSTER].y; 
+                            tgz = (monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q3-1)*QUADRANT_SIZE + monsters[tid-GALAXY_OBJECT_MIN_MONSTER].z; 
+                        } else if (tid >= GALAXY_OBJECT_MIN_STARBASE && tid <= GALAXY_OBJECT_MAX_STARBASE && bases[tid-GALAXY_OBJECT_MIN_STARBASE].active) {
+                            tgx = (bases[tid-GALAXY_OBJECT_MIN_STARBASE].q1-1)*QUADRANT_SIZE + bases[tid-GALAXY_OBJECT_MIN_STARBASE].x; 
+                            tgy = (bases[tid-GALAXY_OBJECT_MIN_STARBASE].q2-1)*QUADRANT_SIZE + bases[tid-GALAXY_OBJECT_MIN_STARBASE].y; 
+                            tgz = (bases[tid-GALAXY_OBJECT_MIN_STARBASE].q3-1)*QUADRANT_SIZE + bases[tid-GALAXY_OBJECT_MIN_STARBASE].z;
+                        }
+
+                        if (tgx != -1.0) {
+                            double dx = tgx - players_torpedoes[gt].gx;
+                            double dy = tgy - players_torpedoes[gt].gy;
+                            double dz = tgz - players_torpedoes[gt].gz;
+                            double dist = sqrt(dx*dx + dy*dy + dz*dz);
+                            if (SPEED_TORPEDO > 0.001) found_eta = (int)(dist / SPEED_TORPEDO);
+                        }
+                    }
+                    break;
+                }
+            }
+            players[i].tube_torpedo_etas[t] = found_eta;
+        }
+    }
+
     pthread_mutex_unlock(&game_mutex);
 
+    /* 3. Send Updates to clients */
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (players[i].socket == 0 || !players[i].active) {
             continue;
         }
-        PacketUpdate upd; 
-        memset(&upd, 0, sizeof(PacketUpdate)); 
-        upd.type = PKT_UPDATE;
-        /* ... existing field assignments ... */
-        upd.q1 = players[i].state.q1; 
-        upd.q2 = players[i].state.q2; 
-        upd.q3 = players[i].state.q3;
-        /* ... (keeping all assignments for consistency) ... */
-        upd.s1 = players[i].state.s1; upd.s2 = players[i].state.s2; upd.s3 = players[i].state.s3;
-        upd.van_h = players[i].state.van_h; upd.van_m = players[i].state.van_m; upd.van_r = players[i].state.van_r;
-        upd.eta = players[i].eta;
-        upd.energy = players[i].state.energy; upd.hull_integrity = players[i].state.hull_integrity;
-        upd.torpedoes = players[i].state.torpedoes; upd.cargo_energy = players[i].state.cargo_energy;
-        upd.cargo_torpedoes = players[i].state.cargo_torpedoes; upd.crew_count = players[i].state.crew_count;
-        upd.prison_unit = players[i].state.prison_unit; upd.composite_plating = players[i].state.composite_plating;
-        for(int s=0; s<6; s++) upd.shields[s] = players[i].state.shields[s];
-        for(int inv=0; inv<10; inv++) upd.inventory[inv] = players[i].state.inventory[inv];
-        for(int sys=0; sys < MAX_SYSTEMS; sys++) upd.system_health[sys] = players[i].state.system_health[sys];
-        for(int p=0; p<3; p++) upd.power_dist[p] = players[i].state.power_dist[p];
-        upd.life_support = players[i].state.life_support; upd.anti_matter_count = players[i].state.anti_matter_count;
-        upd.lock_target = players[i].state.lock_target; upd.tube_state = players[i].state.tube_state;
-        for(int t=0; t<4; t++) upd.tube_load_timers[t] = players[i].tube_load_timers[t];
-        upd.current_tube = players[i].current_tube; upd.ion_beam_charge = players[i].state.ion_beam_charge;
-        upd.is_cloaked = players[i].state.is_cloaked; upd.is_docked = players[i].is_docked;
-        upd.red_alert = players[i].state.red_alert; upd.nav_state = (uint8_t)players[i].nav_state;
-        upd.show_axes = players[i].state.show_axes; upd.show_grid = players[i].state.show_grid;
-        upd.show_bridge = players[i].state.show_bridge; upd.show_map = players[i].state.show_map;
-        upd.map_filter = players[i].state.map_filter;
-        upd.shm_crypto_algo = players[i].state.shm_crypto_algo;
-        upd.encryption_flags = players[i].state.encryption_flags;
-        upd.radio_lock_target = players[i].radio_lock_target;
+        PacketUpdate *upd = malloc(sizeof(PacketUpdate));
+        if (!upd) continue;
+        memset(upd, 0, sizeof(PacketUpdate)); 
+        upd->type = PKT_UPDATE;
+        
+        upd->frame_id = global_tick;
+        upd->q1 = players[i].state.q1; 
+        upd->q2 = players[i].state.q2; 
+        upd->q3 = players[i].state.q3;
+        upd->s1 = players[i].state.s1; upd->s2 = players[i].state.s2; upd->s3 = players[i].state.s3;
+        upd->van_h = players[i].state.van_h; upd->van_m = players[i].state.van_m; upd->van_r = players[i].state.van_r;
+        upd->eta = players[i].eta;
+        upd->energy = players[i].state.energy; upd->hull_integrity = players[i].state.hull_integrity;
+        upd->torpedoes = players[i].state.torpedoes; upd->cargo_energy = players[i].state.cargo_energy;
+        upd->cargo_torpedoes = players[i].state.cargo_torpedoes; upd->crew_count = players[i].state.crew_count;
+        upd->prison_unit = players[i].state.prison_unit; upd->composite_plating = players[i].state.composite_plating;
+        for(int s=0; s<6; s++) upd->shields[s] = players[i].state.shields[s];
+        for(int inv=0; inv<10; inv++) upd->inventory[inv] = players[i].state.inventory[inv];
+        for(int sys=0; sys < MAX_SYSTEMS; sys++) upd->system_health[sys] = players[i].state.system_health[sys];
+        for(int p=0; p<3; p++) upd->power_dist[p] = players[i].state.power_dist[p];
+        upd->life_support = players[i].state.life_support; upd->anti_matter_count = players[i].state.anti_matter_count;
+        upd->lock_target = players[i].state.lock_target; upd->tube_state = players[i].state.tube_state;
+        for(int t=0; t<4; t++) {
+            upd->tube_load_timers[t] = players[i].tube_load_timers[t];
+            upd->tube_torpedo_etas[t] = players[i].tube_torpedo_etas[t];
+        }
+        upd->current_tube = players[i].current_tube; upd->ion_beam_charge = players[i].state.ion_beam_charge;
+        upd->is_cloaked = players[i].state.is_cloaked; upd->is_docked = players[i].is_docked;
+        upd->red_alert = players[i].state.red_alert; upd->nav_state = (uint8_t)players[i].nav_state;
+        upd->show_axes = players[i].state.show_axes; upd->show_grid = players[i].state.show_grid;
+        upd->show_bridge = players[i].state.show_bridge; upd->show_map = players[i].state.show_map;
+        upd->map_filter = players[i].state.map_filter;
+        upd->shm_crypto_algo = players[i].state.shm_crypto_algo;
+        upd->encryption_flags = players[i].state.encryption_flags;
+        upd->radio_lock_target = players[i].radio_lock_target;
         
         int o_idx = 0;
-        upd.objects[o_idx] = (NetObject){players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].state.van_h, players[i].state.van_m, players[i].state.van_r, 1, players[i].ship_class, 1, (int)players[i].state.hull_integrity, players[i].state.energy, 0, (int)players[i].state.hull_integrity, players[i].faction, i+1, players[i].state.is_cloaked, ""};
-        strncpy(upd.objects[o_idx].name, players[i].name, 63); upd.objects[o_idx].name[63] = '\0';
+        upd->objects[o_idx] = (NetObject){players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].state.van_h, players[i].state.van_m, players[i].state.van_r, 1, players[i].ship_class, 1, (int)players[i].state.hull_integrity, players[i].state.energy, 0, (int)players[i].state.hull_integrity, players[i].faction, i+1, players[i].state.is_cloaked, ""};
+        strncpy(upd->objects[o_idx].name, players[i].name, 63); upd->objects[o_idx].name[63] = '\0';
         o_idx++;
 
-        QuadrantIndex *lq = &spatial_index[upd.q1][upd.q2][upd.q3];
+        QuadrantIndex *lq = &spatial_index[upd->q1][upd->q2][upd->q3];
         for(int n=0; n<lq->npc_count && o_idx < MAX_NET_OBJECTS; n++) {
             NPCShip *npc = lq->npcs[n]; if (!npc->active) continue;
-            upd.objects[o_idx] = (NetObject){npc->x, npc->y, npc->z, npc->h, npc->m, 0.0, npc->faction, npc->ship_class, 1, (int)(npc->health / (int)THRESHOLD_SYS_CRITICAL), npc->energy, npc->plating, (int)(npc->health / (int)THRESHOLD_SYS_CRITICAL), npc->faction, npc->id + GALAXY_OBJECT_MIN_NPC, npc->is_cloaked, ""};
-            snprintf(upd.objects[o_idx].name, 64, "%s", npc->name); o_idx++;
+            upd->objects[o_idx] = (NetObject){npc->x, npc->y, npc->z, npc->h, npc->m, 0.0, npc->faction, npc->ship_class, 1, (int)(npc->health / (int)THRESHOLD_SYS_CRITICAL), npc->energy, npc->plating, (int)(npc->health / (int)THRESHOLD_SYS_CRITICAL), npc->faction, npc->id + GALAXY_OBJECT_MIN_NPC, npc->is_cloaked, ""};
+            snprintf(upd->objects[o_idx].name, 64, "%s", npc->name); o_idx++;
         }
         for(int j=0; j<lq->player_count && o_idx < MAX_NET_OBJECTS; j++) {
             ConnectedPlayer *p = lq->players[j]; if (!p->active || p == &players[i]) continue;
-            upd.objects[o_idx] = (NetObject){p->state.s1, p->state.s2, p->state.s3, p->state.van_h, p->state.van_m, p->state.van_r, 1, p->ship_class, 1, (int)p->state.hull_integrity, p->state.energy, 0, (int)p->state.hull_integrity, p->faction, (int)(p - players) + GALAXY_OBJECT_MIN_PLAYER, p->state.is_cloaked, ""};
-            snprintf(upd.objects[o_idx].name, 64, "%s", p->name); o_idx++;
+            upd->objects[o_idx] = (NetObject){p->state.s1, p->state.s2, p->state.s3, p->state.van_h, p->state.van_m, p->state.van_r, 1, p->ship_class, 1, (int)p->state.hull_integrity, p->state.energy, 0, (int)p->state.hull_integrity, p->faction, (int)(p - players) + GALAXY_OBJECT_MIN_PLAYER, p->state.is_cloaked, ""};
+            snprintf(upd->objects[o_idx].name, 64, "%s", p->name); o_idx++;
         }
         /* ... celestial objects ... */
-        for(int s=0; s<lq->star_count && o_idx < MAX_NET_OBJECTS; s++) { NPCStar *st = lq->stars[s]; if(!st->active) continue; upd.objects[o_idx++] = (NetObject){st->x, st->y, st->z, 0, 0, 0, 4, 1, 1, 100, 0, 0, 100, 4, st->id + GALAXY_OBJECT_MIN_STAR, 0, "Star"}; }
-        for(int p=0; p<lq->planet_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlanet *pl = lq->planets[p]; if(!pl->active) continue; upd.objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, 5, pl->resource_type, 1, 100, pl->amount, 0, 100, 5, pl->id + GALAXY_OBJECT_MIN_PLANET, 0, "Planet"}; }
-        for(int b=0; b<lq->base_count && o_idx < MAX_NET_OBJECTS; b++) { NPCBase *ba = lq->bases[b]; if(!ba->active) continue; upd.objects[o_idx++] = (NetObject){ba->x, ba->y, ba->z, 0, 0, 0, 3, 1, 1, (int)(ba->health/(COST_ACTION_MED * 2)), 0, 0, (int)(ba->health/(COST_ACTION_MED * 2)), 0, ba->id + GALAXY_OBJECT_MIN_STARBASE, 0, "Starbase"}; }
-        for(int h=0; h<lq->bh_count && o_idx < MAX_NET_OBJECTS; h++) { NPCBlackHole *bh = lq->black_holes[h]; if(!bh->active) continue; upd.objects[o_idx++] = (NetObject){bh->x, bh->y, bh->z, 0, 0, 0, 6, 0, 1, 100, 0, 0, 100, 6, bh->id + GALAXY_OBJECT_MIN_BLACKHOLE, 0, "Black Hole"}; }
-        for(int n=0; n<lq->nebula_count && o_idx < MAX_NET_OBJECTS; n++) { NPCNebula *nb = lq->nebulas[n]; if(!nb->active) continue; upd.objects[o_idx++] = (NetObject){nb->x, nb->y, nb->z, 0, 0, 0, 7, nb->type, 1, 100, 0, 0, 100, 7, nb->id + GALAXY_OBJECT_MIN_NEBULA, 0, "Nebula"}; }
-        for(int p=0; p<lq->pulsar_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPulsar *pu = lq->pulsars[p]; if(!pu->active) continue; upd.objects[o_idx++] = (NetObject){pu->x, pu->y, pu->z, 0, 0, 0, 8, 0, 1, 100, 0, 0, 100, 8, pu->id + GALAXY_OBJECT_MIN_PULSAR, 0, "Pulsar"}; }
-        for(int qsr=0; qsr<lq->quasar_count && o_idx < MAX_NET_OBJECTS; qsr++) { NPCQuasar *qs = lq->quasars[qsr]; if(!qs->active) continue; upd.objects[o_idx++] = (NetObject){qs->x, qs->y, qs->z, 0, 0, 0, 29, qs->type, 1, 100, 0, 0, 100, 0, qs->id + GALAXY_OBJECT_MIN_QUASAR, 0, "Quasar"}; }
-        for(int c=0; c<lq->comet_count && o_idx < MAX_NET_OBJECTS; c++) { NPCComet *co = lq->comets[c]; if(!co->active) continue; upd.objects[o_idx++] = (NetObject){co->x, co->y, co->z, 0, 0, 0, 9, 0, 1, 100, 0, 0, 100, 9, co->id + GALAXY_OBJECT_MIN_COMET, 0, "Comet"}; }
-        for(int d=0; d<lq->derelict_count && o_idx < MAX_NET_OBJECTS; d++) { NPCDerelict *de = lq->derelicts[d]; if(!de->active) continue; upd.objects[o_idx] = (NetObject){de->x, de->y, de->z, 0, 0, 0, 22, de->ship_class, 1, 100, 0, 0, 100, de->faction, de->id + GALAXY_OBJECT_MIN_DERELICT, 0, ""}; snprintf(upd.objects[o_idx].name, 64, "%s", de->name); o_idx++; }
-        for(int a=0; a<lq->asteroid_count && o_idx < MAX_NET_OBJECTS; a++) { NPCAsteroid *as = lq->asteroids[a]; if(!as->active) continue; upd.objects[o_idx++] = (NetObject){as->x, as->y, as->z, 0, 0, 0, 21, as->resource_type, 1, 100, as->amount, (int)(as->size * 100), 100, 21, as->id + GALAXY_OBJECT_MIN_ASTEROID, 0, "Asteroid"}; }
-        for(int m=0; m<lq->mine_count && o_idx < MAX_NET_OBJECTS; m++) { NPCMine *mi = lq->mines[m]; if(!mi->active) continue; upd.objects[o_idx++] = (NetObject){mi->x, mi->y, mi->z, 0, 0, 0, 23, 0, 1, 100, 0, 0, 100, 23, mi->id + GALAXY_OBJECT_MIN_MINE, 0, "Mine"}; }
-        for(int b=0; b<lq->buoy_count && o_idx < MAX_NET_OBJECTS; b++) { NPCBuoy *bu = lq->buoys[b]; if(!bu->active) continue; upd.objects[o_idx++] = (NetObject){bu->x, bu->y, bu->z, 0, 0, 0, 24, 0, 1, 100, 0, 0, 100, 24, bu->id + GALAXY_OBJECT_MIN_BUOY, 0, "Comm Buoy"}; }
-        for(int p=0; p<lq->platform_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlatform *pl = lq->platforms[p]; if(!pl->active) continue; upd.objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, 25, 0, 1, (int)(pl->health/(COST_ACTION_MED * 2)), 0, 0, (int)(pl->health/(COST_ACTION_MED * 2)), pl->faction, pl->id + GALAXY_OBJECT_MIN_PLATFORM, 0, "Defense Platform"}; }
-        for(int r=0; r<lq->rift_count && o_idx < MAX_NET_OBJECTS; r++) { NPCRift *ri = lq->rifts[r]; if(!ri->active) continue; upd.objects[o_idx++] = (NetObject){ri->x, ri->y, ri->z, 0, 0, 0, 26, 0, 1, 100, 0, 0, 100, 26, ri->id + GALAXY_OBJECT_MIN_RIFT, 0, "Spatial Rift"}; }
-        for(int m=0; m<lq->monster_count && o_idx < MAX_NET_OBJECTS; m++) { NPCMonster *mo = lq->monsters[m]; if(!mo->active) continue; upd.objects[o_idx] = (NetObject){mo->x, mo->y, mo->z, 0, 0, 0, mo->type, 0, 1, (int)(mo->health/MAX_TORPEDO_CAPACITY), 0, 0, (int)(mo->health/MAX_TORPEDO_CAPACITY), 30, mo->id + GALAXY_OBJECT_MIN_MONSTER, 0, ""}; snprintf(upd.objects[o_idx].name, 64, "%s", (mo->type==30)?"Crystalline Entity":"Space Amoeba"); o_idx++; }
+        for(int s=0; s<lq->star_count && o_idx < MAX_NET_OBJECTS; s++) { NPCStar *st = lq->stars[s]; if(!st->active) continue; upd->objects[o_idx++] = (NetObject){st->x, st->y, st->z, 0, 0, 0, 4, 1, 1, 100, 0, 0, 100, 4, st->id + GALAXY_OBJECT_MIN_STAR, 0, "Star"}; }
+        for(int p=0; p<lq->planet_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlanet *pl = lq->planets[p]; if(!pl->active) continue; upd->objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, 5, pl->resource_type, 1, 100, pl->amount, 0, 100, 5, pl->id + GALAXY_OBJECT_MIN_PLANET, 0, "Planet"}; }
+        for(int b=0; b<lq->base_count && o_idx < MAX_NET_OBJECTS; b++) { NPCBase *ba = lq->bases[b]; if(!ba->active) continue; upd->objects[o_idx++] = (NetObject){ba->x, ba->y, ba->z, 0, 0, 0, 3, 1, 1, (int)(ba->health/(COST_ACTION_MED * 2)), 0, 0, (int)(ba->health/(COST_ACTION_MED * 2)), 0, ba->id + GALAXY_OBJECT_MIN_STARBASE, 0, "Starbase"}; }
+        for(int h=0; h<lq->bh_count && o_idx < MAX_NET_OBJECTS; h++) { NPCBlackHole *bh = lq->black_holes[h]; if(!bh->active) continue; upd->objects[o_idx++] = (NetObject){bh->x, bh->y, bh->z, 0, 0, 0, 6, 0, 1, 100, 0, 0, 100, 6, bh->id + GALAXY_OBJECT_MIN_BLACKHOLE, 0, "Black Hole"}; }
+        for(int n=0; n<lq->nebula_count && o_idx < MAX_NET_OBJECTS; n++) { NPCNebula *nb = lq->nebulas[n]; if(!nb->active) continue; upd->objects[o_idx++] = (NetObject){nb->x, nb->y, nb->z, 0, 0, 0, 7, nb->type, 1, 100, 0, 0, 100, 7, nb->id + GALAXY_OBJECT_MIN_NEBULA, 0, "Nebula"}; }
+        for(int p=0; p<lq->pulsar_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPulsar *pu = lq->pulsars[p]; if(!pu->active) continue; upd->objects[o_idx++] = (NetObject){pu->x, pu->y, pu->z, 0, 0, 0, 8, 0, 1, 100, 0, 0, 100, 8, pu->id + GALAXY_OBJECT_MIN_PULSAR, 0, "Pulsar"}; }
+        for(int qsr=0; qsr<lq->quasar_count && o_idx < MAX_NET_OBJECTS; qsr++) { NPCQuasar *qs = lq->quasars[qsr]; if(!qs->active) continue; upd->objects[o_idx++] = (NetObject){qs->x, qs->y, qs->z, 0, 0, 0, 29, qs->type, 1, 100, 0, 0, 100, 0, qs->id + GALAXY_OBJECT_MIN_QUASAR, 0, "Quasar"}; }
+        for(int c=0; c<lq->comet_count && o_idx < MAX_NET_OBJECTS; c++) { NPCComet *co = lq->comets[c]; if(!co->active) continue; upd->objects[o_idx++] = (NetObject){co->x, co->y, co->z, 0, 0, 0, 9, 0, 1, 100, 0, 0, 100, 9, co->id + GALAXY_OBJECT_MIN_COMET, 0, "Comet"}; }
+        for(int d=0; d<lq->derelict_count && o_idx < MAX_NET_OBJECTS; d++) { NPCDerelict *de = lq->derelicts[d]; if(!de->active) continue; upd->objects[o_idx] = (NetObject){de->x, de->y, de->z, 0, 0, 0, 22, de->ship_class, 1, 100, 0, 0, 100, de->faction, de->id + GALAXY_OBJECT_MIN_DERELICT, 0, ""}; snprintf(upd->objects[o_idx].name, 64, "%s", de->name); o_idx++; }
+        for(int a=0; a<lq->asteroid_count && o_idx < MAX_NET_OBJECTS; a++) { NPCAsteroid *as = lq->asteroids[a]; if(!as->active) continue; upd->objects[o_idx++] = (NetObject){as->x, as->y, as->z, 0, 0, 0, 21, as->resource_type, 1, 100, as->amount, (int)(as->size * 100), 100, 21, as->id + GALAXY_OBJECT_MIN_ASTEROID, 0, "Asteroid"}; }
+        for(int m=0; m<lq->mine_count && o_idx < MAX_NET_OBJECTS; m++) { NPCMine *mi = lq->mines[m]; if(!mi->active) continue; upd->objects[o_idx++] = (NetObject){mi->x, mi->y, mi->z, 0, 0, 0, 23, 0, 1, 100, 0, 0, 100, 23, mi->id + GALAXY_OBJECT_MIN_MINE, 0, "Mine"}; }
+        for(int b=0; b<lq->buoy_count && o_idx < MAX_NET_OBJECTS; b++) { NPCBuoy *bu = lq->buoys[b]; if(!bu->active) continue; upd->objects[o_idx++] = (NetObject){bu->x, bu->y, bu->z, 0, 0, 0, 24, 0, 1, 100, 0, 0, 100, 24, bu->id + GALAXY_OBJECT_MIN_BUOY, 0, "Comm Buoy"}; }
+        for(int p=0; p<lq->platform_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlatform *pl = lq->platforms[p]; if(!pl->active) continue; upd->objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, 25, 0, 1, (int)(pl->health/(COST_ACTION_MED * 2)), 0, 0, (int)(pl->health/(COST_ACTION_MED * 2)), pl->faction, pl->id + GALAXY_OBJECT_MIN_PLATFORM, 0, "Defense Platform"}; }
+        for(int r=0; r<lq->rift_count && o_idx < MAX_NET_OBJECTS; r++) { NPCRift *ri = lq->rifts[r]; if(!ri->active) continue; upd->objects[o_idx++] = (NetObject){ri->x, ri->y, ri->z, 0, 0, 0, 26, 0, 1, 100, 0, 0, 100, 26, ri->id + GALAXY_OBJECT_MIN_RIFT, 0, "Spatial Rift"}; }
+        for(int m=0; m<lq->monster_count && o_idx < MAX_NET_OBJECTS; m++) { NPCMonster *mo = lq->monsters[m]; if(!mo->active) continue; upd->objects[o_idx] = (NetObject){mo->x, mo->y, mo->z, 0, 0, 0, mo->type, 0, 1, (int)(mo->health/MAX_TORPEDO_CAPACITY), 0, 0, (int)(mo->health/MAX_TORPEDO_CAPACITY), 30, mo->id + GALAXY_OBJECT_MIN_MONSTER, 0, ""}; snprintf(upd->objects[o_idx].name, 64, "%s", (mo->type==30)?"Crystalline Entity":"Space Amoeba"); o_idx++; }
 
-        upd.object_count = o_idx;
-        for(int s=0; s<4; s++) upd.torps[s] = players[i].state.torps[s];
+        upd->object_count = o_idx;
+        for(int s=0; s<4; s++) upd->torps[s] = players[i].state.torps[s];
         
         /* Torpedo Streaming - Aggregated Zero-Loss FX approach */
         double qbx = (players[i].state.q1 - 1) * QUADRANT_SIZE;
@@ -1913,28 +1961,29 @@ void update_game_logic() {
                 push_server_event(i, IPC_EV_TORPEDO, rtx, rty, rtz, 0, 0, 0, (int)global_vt_list[gt].id);
             }
         }
-        upd.torpedo_count = 0; /* Standard stream disabled, using Zero-Loss queue instead */
+        upd->torpedo_count = 0; /* Standard stream disabled, using Zero-Loss queue instead */
 
-        upd.event_count = players[i].state.event_count;
-        if (upd.event_count > MAX_NET_EVENTS) upd.event_count = MAX_NET_EVENTS;
-        memcpy(upd.events, players[i].state.events, upd.event_count * sizeof(NetEvent));
+        upd->event_count = players[i].state.event_count;
+        if (upd->event_count > MAX_NET_EVENTS) upd->event_count = MAX_NET_EVENTS;
+        memcpy(upd->events, players[i].state.events, upd->event_count * sizeof(NetEvent));
         
-        upd.wormhole = players[i].state.wormhole; 
-        for(int p=0; p<3; p++) upd.probes[p] = players[i].state.probes[p];
+        upd->wormhole = players[i].state.wormhole; 
+        for(int p=0; p<3; p++) upd->probes[p] = players[i].state.probes[p];
         /* ... beam aggregation (already fast but could be pre-aggregated too if needed) ... */
         int b_idx = 0;
-        for (int j = 0; j < lq->player_count; j++) { ConnectedPlayer *p_src = lq->players[j]; if (!p_src->active) continue; for (int b = 0; b < p_src->state.beam_count && b_idx < MAX_NET_BEAMS; b++) upd.beams[b_idx++] = p_src->state.beams[b]; }
-        for (int n = 0; n < lq->npc_count; n++) { NPCShip *ns = lq->npcs[n]; if (!ns->active) continue; for (int b = 0; b < ns->beam_count && b_idx < MAX_NET_BEAMS; b++) upd.beams[b_idx++] = ns->beams[b]; }
-        for (int m = 0; m < lq->monster_count; m++) { NPCMonster *mo = lq->monsters[m]; if (!mo->active) continue; for (int b = 0; b < mo->beam_count && b_idx < MAX_NET_BEAMS; b++) upd.beams[b_idx++] = mo->beams[b]; }
-        for (int p = 0; p < lq->platform_count; p++) { NPCPlatform *pl = lq->platforms[p]; if (!pl->active) continue; for (int b = 0; b < pl->beam_count && b_idx < MAX_NET_BEAMS; b++) upd.beams[b_idx++] = pl->beams[b]; }
-        upd.beam_count = b_idx;
+        for (int j = 0; j < lq->player_count; j++) { ConnectedPlayer *p_src = lq->players[j]; if (!p_src->active) continue; for (int b = 0; b < p_src->state.beam_count && b_idx < MAX_NET_BEAMS; b++) upd->beams[b_idx++] = p_src->state.beams[b]; }
+        for (int n = 0; n < lq->npc_count; n++) { NPCShip *ns = lq->npcs[n]; if (!ns->active) continue; for (int b = 0; b < ns->beam_count && b_idx < MAX_NET_BEAMS; b++) upd->beams[b_idx++] = ns->beams[b]; }
+        for (int m = 0; m < lq->monster_count; m++) { NPCMonster *mo = lq->monsters[m]; if (!mo->active) continue; for (int b = 0; b < mo->beam_count && b_idx < MAX_NET_BEAMS; b++) upd->beams[b_idx++] = mo->beams[b]; }
+        for (int p = 0; p < lq->platform_count; p++) { NPCPlatform *pl = lq->platforms[p]; if (!pl->active) continue; for (int b = 0; b < pl->beam_count && b_idx < MAX_NET_BEAMS; b++) upd->beams[b_idx++] = pl->beams[b]; }
+        upd->beam_count = b_idx;
 
-        if (supernova_event.supernova_timer > 0) { upd.map_update_q[0] = supernova_event.supernova_q1; upd.map_update_q[1] = supernova_event.supernova_q2; upd.map_update_q[2] = supernova_event.supernova_q3; upd.map_update_val = -supernova_event.supernova_timer; }
-        else { upd.map_update_q[0] = upd.q1; upd.map_update_q[1] = upd.q2; upd.map_update_q[2] = upd.q3; upd.map_update_val = spacegl_master.g[upd.q1][upd.q2][upd.q3]; }
+        if (supernova_event.supernova_timer > 0) { upd->map_update_q[0] = supernova_event.supernova_q1; upd->map_update_q[1] = supernova_event.supernova_q2; upd->map_update_q[2] = supernova_event.supernova_q3; upd->map_update_val = -supernova_event.supernova_timer; }
+        else { upd->map_update_q[0] = upd->q1; upd->map_update_q[1] = upd->q2; upd->map_update_q[2] = upd->q3; upd->map_update_val = spacegl_master.g[upd->q1][upd->q2][upd->q3]; }
         int rq1 = rand() % GALAXY_SIZE + 1; int rq2 = rand() % GALAXY_SIZE + 1; int rq3 = rand() % GALAXY_SIZE + 1;
-        upd.map_update_q2[0] = rq1; upd.map_update_q2[1] = rq2; upd.map_update_q2[2] = rq3; upd.map_update_val2 = spacegl_master.g[rq1][rq2][rq3];
+        upd->map_update_q2[0] = rq1; upd->map_update_q2[1] = rq2; upd->map_update_q2[2] = rq3; upd->map_update_val2 = spacegl_master.g[rq1][rq2][rq3];
 
-        send_optimized_update(i, &upd);
+        send_optimized_update(i, upd);
+        free(upd);
     }
 
     rebuild_spatial_index();
@@ -1988,56 +2037,47 @@ int calculate_shield_index(double shooter_x, double shooter_y, double shooter_z,
     double rel_dy = shooter_y - target_y;
     double rel_dz = shooter_z - target_z;
 
-    double rad_h = target_h * M_PI / 180.0;
-    double rad_m = target_m * M_PI / 180.0;
-    double rad_r = target_r * M_PI / 180.0;
+    double h = target_h * M_PI / 180.0;
+    double m = target_m * M_PI / 180.0;
+    double r = target_r * M_PI / 180.0;
 
-    /* Local basis vectors of the target ship (Standard North alignment) */
-    /* Forward (F) - Always longitudinal axis */
-    double fx = cos(rad_m) * sin(rad_h);
-    double fy = cos(rad_m) * -cos(rad_h);
-    double fz = sin(rad_m);
+    /* Build Local Basis Matrix (Ship Orientation) */
+    /* Basis F (Forward): Standard Spherical to Cartesian */
+    double fx = cos(m) * sin(h);
+    double fy = cos(m) * -cos(h);
+    double fz = sin(m);
 
-    /* Original Right (R_orig) - No roll */
-    double rx_orig = cos(rad_h);
-    double ry_orig = sin(rad_h);
-    double rz_orig = 0;
+    /* Initial Right (R0) and Up (U0) without roll */
+    double r0x = cos(h); double r0y = sin(h); double r0z = 0;
+    double u0x = fy * r0z - fz * r0y;
+    double u0y = fz * r0x - fx * r0z;
+    double u0z = fx * r0y - fy * r0x;
 
-    /* Original Up (U_orig) = F x R_orig */
-    double ux_orig = fy * rz_orig - fz * ry_orig;
-    double uy_orig = fz * rx_orig - fx * rz_orig;
-    double uz_orig = fx * ry_orig - fy * rx_orig;
+    /* Apply Roll (r) around Forward (f) axis */
+    double rx = r0x * cos(r) + u0x * sin(r);
+    double ry = r0y * cos(r) + u0y * sin(r);
+    double rz = r0z * cos(r) + u0z * sin(r);
 
-    /* Apply Roll (Rodrigues Rotation Formula around F) */
-    /* R_new = R_orig*cos(r) + (F x R_orig)*sin(r)  [F.R_orig is zero] */
-    double rx = rx_orig * cos(rad_r) + ux_orig * sin(rad_r);
-    double ry = ry_orig * cos(rad_r) + uy_orig * sin(rad_r);
-    double rz = rz_orig * cos(rad_r) + uz_orig * sin(rad_r);
+    double ux = u0x * cos(r) - r0x * sin(r);
+    double uy = u0y * cos(r) - r0y * sin(r);
+    double uz = u0z * cos(r) - r0z * sin(r);
 
-    /* U_new = U_orig*cos(r) + (F x U_orig)*sin(r) 
-       F x U_orig = F x (F x R_orig) = F(F.R_orig) - R_orig(F.F) = -R_orig */
-    double ux = ux_orig * cos(rad_r) - rx_orig * sin(rad_r);
-    double uy = uy_orig * cos(rad_r) - ry_orig * sin(rad_r);
-    double uz = uz_orig * cos(rad_r) - rz_orig * sin(rad_r);
-
-    /* Project relative vector onto local basis */
+    /* Project hit vector into this local orthonormal basis */
     double v_f = rel_dx * fx + rel_dy * fy + rel_dz * fz;
     double v_r = rel_dx * rx + rel_dy * ry + rel_dz * rz;
     double v_u = rel_dx * ux + rel_dy * uy + rel_dz * uz;
 
     double dist = sqrt(rel_dx * rel_dx + rel_dy * rel_dy + rel_dz * rel_dz);
     if (dist < 1e-6) return 0;
-    /* Vertical angle in local space */
-    double local_vertical_angle = asin(v_u / dist) * 180.0 / M_PI;
 
-    if (local_vertical_angle > 45.0) return 2; 
-    if (local_vertical_angle < -45.0) return 3; 
+    /* Sector Mapping (Standard: 0:F, 1:B, 2:T, 3:B, 4:L, 5:R) */
+    double v_ang = asin(v_u / dist) * 180.0 / M_PI;
+    if (v_ang > 45.0) return 2;  /* TOP */
+    if (v_ang < -45.0) return 3; /* BOTTOM */
 
-    /* Horizontal angle in local space (F is forward, R is right) */
-    double local_horizontal_angle = atan2(v_r, v_f) * 180.0 / M_PI;
-
-    if (local_horizontal_angle > -45.0 && local_horizontal_angle <= 45.0) return 0;  
-    if (local_horizontal_angle > 45.0 && local_horizontal_angle <= 135.0) return 5; /* Right */
-    if (local_horizontal_angle > 135.0 || local_horizontal_angle <= -135.0) return 1; 
-    return 4; /* Left */
-    }
+    double h_ang = atan2(v_r, v_f) * 180.0 / M_PI;
+    if (h_ang > -45.0 && h_ang <= 45.0) return 0;   /* FRONT */
+    if (h_ang > 45.0 && h_ang <= 135.0) return 5;   /* RIGHT (Index 5) */
+    if (h_ang > 135.0 || h_ang <= -135.0) return 1;  /* REAR */
+    return 4; /* LEFT (Index 4) */
+}
