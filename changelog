@@ -1,0 +1,4 @@
+- New release, nothing of special to report.
+* Tue Mar 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.03.31.01
+- Space GL updates for smooth movements for ships and torpedoes (Freeglut & Vulkan).
+- General bug fixes.

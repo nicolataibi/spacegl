@@ -1,0 +1,23 @@
+# Binari (eseguibili di progetto)
+spacegl_server
+spacegl_client
+spacegl_3dview
+spacegl_viewer
+spacegl_vulkan
+spacegl_hud
+spacegl_diag
+
+# Directory di build
+build/
+
+# Altri file temporanei
+*.o
+*.d
+*.tar.gz
+*.sha256
+*.spv
+*.key
+identity.hash
+
+# Directory di sistema RPM
+rpmbuild/
