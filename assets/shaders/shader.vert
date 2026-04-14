@@ -5,6 +5,9 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 proj;
 } ubo;
 
+layout(location = 3) in mat4 instanceModel;
+layout(location = 7) in vec4 instanceColor;
+
 layout(push_constant) uniform PushConstants {
     mat4 model;
     vec4 color;
@@ -12,6 +15,7 @@ layout(push_constant) uniform PushConstants {
     int usePushColor;
     float metallic;
     float roughness;
+    int useInstancing;
 } pc;
 
 layout(location = 0) in vec3 inPosition;
@@ -63,7 +67,10 @@ void main() {
         pos.y += 0.05 * sin(pc.time * 15.0 + r * 20.0);
     }
 
-    vec4 worldPos = pc.model * vec4(pos, 1.0);
+    mat4 modelMatrix = (pc.useInstancing != 0) ? instanceModel : pc.model;
+    vec4 finalPushColor = (pc.useInstancing != 0) ? instanceColor : pc.color;
+
+    vec4 worldPos = modelMatrix * vec4(pos, 1.0);
     gl_Position = ubo.proj * ubo.view * worldPos;
     
     if (pc.usePushColor == 3) {
@@ -73,9 +80,9 @@ void main() {
     }
 
     fragPos = worldPos.xyz;
-    fragNormal = mat3(transpose(inverse(pc.model))) * inNormal;
+    fragNormal = mat3(transpose(inverse(modelMatrix))) * inNormal;
     fragColor = inColor;
-    pushColor = pc.color;
+    pushColor = finalPushColor;
     usePushColor = pc.usePushColor;
     metallic = pc.metallic;
     roughness = pc.roughness;

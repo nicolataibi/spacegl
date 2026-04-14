@@ -380,7 +380,26 @@ int main(int argc, char *argv[]) {
     int opt = 1, adlen = sizeof(addr);
     struct epoll_event ev, events[MAX_EVENTS];
 
-    for (int i = 1; i < argc; i++) if (strcmp(argv[i], "-d") == 0) g_debug = 1;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            printf("Usage: %s [OPTIONS]\n", argv[0]);
+            printf("Space GL Galactic Server Core\n\n");
+            printf("Options:\n");
+            printf("  -d             Enable debug mode\n");
+            printf("  --help, -h     Display this help and exit\n");
+            printf("  --version      Display version information and exit\n\n");
+            printf("Environment Variables:\n");
+            printf("  SPACEGL_KEY    Master Key for cryptographic synchronization (required)\n");
+            return 0;
+        }
+        if (strcmp(argv[i], "--version") == 0) {
+            printf("Space GL Server v2026.04.02.01\n");
+            printf("Copyright (C) 2026 Nicola Taibi\n");
+            printf("License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.\n");
+            return 0;
+        }
+        if (strcmp(argv[i], "-d") == 0) g_debug = 1;
+    }
     signal(SIGPIPE, SIG_IGN);
     
     /* Security Initialization */
@@ -403,7 +422,7 @@ int main(int argc, char *argv[]) {
     srand(time(NULL)); 
     for(int i=0; i<MAX_CLIENTS; i++) pthread_mutex_init(&players[i].socket_mutex, NULL);
     
-    /* Schermata di Benvenuto Server */
+    /* Server Welcome Screen */
     
     /* Clear screen */
     /* printf("\033[2J\033[H"); */      
@@ -720,7 +739,7 @@ int main(int argc, char *argv[]) {
                                     if (is_new) {
                                         strcpy(players[slot].name, pkt.name);
                                         
-                                        /* Notifica la flotta della nuova chiave pubblica X25519 */
+                                        /* Notify the fleet of the new X25519 public key */
                                         char key_info[256];
                                         sprintf(key_info, "[IDENTITY] Public Frequency for Captain %s: ", pkt.name);
                                         for(int k=0; k<8; k++) sprintf(key_info + strlen(key_info), "%02X", pkt.x25519_pubkey[k]);

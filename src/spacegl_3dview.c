@@ -883,7 +883,7 @@ void loadGameState() {
     
     /* Global PlayerX/Y/Z are now synchronized smoothly inside the timer loop via objects[0] */
 
-    memcpy(g_galaxy, state->shm_galaxy, sizeof(g_galaxy));
+    memcpy(g_galaxy, g_shm->shm_galaxy, sizeof(g_galaxy));
 
     for(int p=0; p<3; p++) {
         g_local_probes[p].active = state->probes[p].active;
@@ -3773,8 +3773,8 @@ void display() {
     double sn_intensity = 0.0;
     int q1 = g_shared_state->shm_q[0], q2 = g_shared_state->shm_q[1], q3 = g_shared_state->shm_q[2];
     if (q1 >= 0 && q1 <= GALAXY_SIZE && q2 >= 0 && q2 <= GALAXY_SIZE && q3 >= 0 && q3 <= GALAXY_SIZE) {
-        if (g_shared_state->shm_galaxy[q1][q2][q3] < 0) {
-            int timer = -g_shared_state->shm_galaxy[q1][q2][q3];
+        if (g_shm->shm_galaxy[q1][q2][q3] < 0) {
+            int timer = -g_shm->shm_galaxy[q1][q2][q3];
             sn_intensity = 0.3 + sin(pulse*10.0) * 0.2;
             if (timer < 300) sn_intensity += 0.3; 
         }
@@ -4843,7 +4843,7 @@ void display() {
     int mq1 = g_my_q[0], mq2 = g_my_q[1], mq3 = g_my_q[2];
     long long sn_val = 0;
     if (mq1 >= 0 && mq1 <= GALAXY_SIZE && mq2 >= 0 && mq2 <= GALAXY_SIZE && mq3 >= 0 && mq3 <= GALAXY_SIZE) {
-        sn_val = g_shared_state->shm_galaxy[mq1][mq2][mq3];
+        sn_val = g_shm->shm_galaxy[mq1][mq2][mq3];
     }
     if (g_show_hud && (g_sn_pos.active || sn_val < 0)) {
         /* Supernova Overlay - Centered and prominently Red */
@@ -4951,7 +4951,7 @@ void timer(int v) { (void)v;
     }
 
     /* Update Objects with Interpolation (GLIDE EFFECT) - Adjusted for 60Hz/60Hz Sync */
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 256; i++) {
         /* Allow ID 0 (Player) to be interpolated, but handle snap-jumps (Quadrant changes) */
         if (objects[i].id == 0 && objects[i].type == 0) continue; 
         
@@ -4980,7 +4980,7 @@ void timer(int v) { (void)v;
             PlayerZ = objects[0].z;
         }
         
-        /* Snap threshold */
+        /* Snap threshold: more conservative (1.5^2 instead of 2.25) to smooth out errors */
         double dx_err = objects[i].tx - objects[i].x;
         double dy_err = objects[i].ty - objects[i].y;
         double dz_err = objects[i].tz - objects[i].z;
@@ -5073,6 +5073,23 @@ void special(int k, int x, int y) { (void)k; (void)x; (void)y;
 }
 
 int main(int argc, char** argv) {
+    /* Handle --help and --version for help2man */
+    if (argc > 1) {
+        if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+            printf("Usage: spacegl_3dview [SHM_NAME]\n");
+            printf("Space GL OpenGL Tactical Viewer\n\n");
+            printf("Options:\n");
+            printf("  --help, -h     Display this help and exit\n");
+            printf("  --version      Display version information and exit\n\n");
+            printf("Environment Variables:\n");
+            printf("  DISPLAY        X11 Display for OpenGL output\n");
+            return 0;
+        }
+        if (strcmp(argv[1], "--version") == 0) {
+            printf("spacegl_3dview 2026.04.12\n");
+            return 0;
+        }
+    }
 
     setlocale(LC_ALL, "C"); signal(SIGUSR1, handle_signal);
 

@@ -49,6 +49,7 @@
 #define RATIO_SENSOR_ERROR      2.5     /* Moltiplicatore rumore sensori quando l'integrita' e' bassa */
 
 #define DIST_BOUNDARY_MARGIN    0.1f    /* Margine di sicurezza dai bordi del quadrante per collisioni e UI */
+#define DIST_QUADRANT_DIAGONAL_SQ (3.0 * QUADRANT_SIZE * QUADRANT_SIZE) /* Diagonale al quadrato di un cubo 40x40x40 (4800.0) */
 #define DIST_APPROACH_MARGIN    0.1f    /* Tolleranza di arrivo per l'autopilota di avvicinamento (APR) */
 #define DIST_DECEL_START        1.0f    /* Distanza dal target a cui l'autopilota inizia la decelerazione */
 #define RATIO_DECEL_MIN         0.2f    /* Velocita' minima residua durante la fase di frenata automatica */

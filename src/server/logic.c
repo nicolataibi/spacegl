@@ -91,7 +91,7 @@ void update_npc_ai(int n) {
     QuadrantIndex *local_q = &spatial_index[q1][q2][q3];
     
     int closest_p = -1;
-    double min_d2 = QUADRANT_SIZE * QUADRANT_SIZE;
+    double min_d2 = DIST_QUADRANT_DIAGONAL_SQ;
     for (int j = 0; j < local_q->player_count; j++) {
         ConnectedPlayer *p = local_q->players[j];
         if (p->state.is_cloaked) {
@@ -100,7 +100,7 @@ void update_npc_ai(int n) {
         if (p->faction == npcs[n].faction && p->renegade_timer <= 0) {
             continue;
         }
-        double d2 = pow(npcs[n].gx - p->gx, 2) + pow(npcs[n].gy - p->gy, 2) + pow(npcs[n].gz - p->gz, 2);
+        double d2 = pow(npcs[n].x - p->state.s1, 2) + pow(npcs[n].y - p->state.s2, 2) + pow(npcs[n].z - p->state.s3, 2);
         if (d2 < min_d2) {
             min_d2 = d2;
             closest_p = (int)(p - players);
@@ -134,11 +134,14 @@ void update_npc_ai(int n) {
     double d_dy = 0;
     double d_dz = 0;
     double speed = 0.03;
+    double engine_ratio = (npcs[n].engine_health / (double)YIELD_HARVEST_MAX);
     if (npcs[n].engine_health < THRESHOLD_SYS_CRITICAL || npcs[n].health < (YIELD_MINE_MAX)) {
         speed = 0;
     } else {
-        speed *= (npcs[n].engine_health / (double)YIELD_HARVEST_MAX);
+        speed *= engine_ratio;
     }
+    
+    if (npcs[n].ai_state == AI_STATE_FLEE) speed *= 1.8;
 
     if (npcs[n].ai_state == AI_STATE_ATTACK_RUN && closest_p != -1) {
         if (npcs[n].nav_timer <= 0) {
@@ -164,6 +167,12 @@ void update_npc_ai(int n) {
             d_dx = dx / dist;
             d_dy = dy / dist;
             d_dz = dz / dist;
+            
+            /* Save persistent direction for fast physics ticks */
+            npcs[n].dx = d_dx;
+            npcs[n].dy = d_dy;
+            npcs[n].dz = d_dz;
+
             npcs[n].h = atan2(d_dx, -d_dy) * 180.0 / M_PI;
             if(npcs[n].h < 0) {
                 npcs[n].h += 360;
@@ -283,6 +292,10 @@ void update_npc_ai(int n) {
     npcs[n].gy += d_dy * speed;
     npcs[n].gz += d_dz * speed;
     
+    npcs[n].vx = d_dx * speed;
+    npcs[n].vy = d_dy * speed;
+    npcs[n].vz = d_dz * speed;
+
     double gal_limit = GALAXY_SIZE * QUADRANT_SIZE - DIST_EPSILON;
     if (npcs[n].gx < DIST_EPSILON) {
         npcs[n].gx = DIST_EPSILON;
@@ -312,7 +325,9 @@ void update_npc_ai(int n) {
 
 void update_game_logic() {
     /* global_tick is already incremented in the calling thread loop */
-    
+
+    rebuild_spatial_index();
+
     if (global_tick % (10 * GAME_TICK_RATE) == 0) {
         #pragma omp parallel for collapse(3)
         for(int i=1; i<=GALAXY_SIZE; i++) {
@@ -359,7 +374,9 @@ void update_game_logic() {
             } else {
                 /* Fast physics update: bypass complex AI scans, just move along DX/DY/DZ */
                 double speed = 0.03 * (npcs[n].engine_health / (double)YIELD_HARVEST_MAX);
+                if (npcs[n].ai_state == AI_STATE_FLEE) speed *= 1.8;
                 if (npcs[n].engine_health < THRESHOLD_SYS_CRITICAL || npcs[n].health < YIELD_MINE_MAX) speed = 0;
+                
                 if (npcs[n].ai_state != AI_STATE_ATTACK_POSITION) {
                     npcs[n].gx += npcs[n].dx * speed;
                     npcs[n].gy += npcs[n].dy * speed;
@@ -1486,8 +1503,8 @@ void update_game_logic() {
                 players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * QUADRANT_SIZE);
                 players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * QUADRANT_SIZE);
                 
-                /* Register the arrival wormhole at this starting position */
-                push_server_event(i, IPC_EV_JUMP, players[i].state.s1, players[i].state.s2, players[i].state.s3, 0, 0, 0, 1);
+                /* Register the arrival wormhole at this starting position (Pass H/M as x2/y2 for orientation) */
+                push_server_event(i, IPC_EV_JUMP, players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].state.van_h, players[i].state.van_m, 0, 1);
                 players[i].state.wormhole.active = 0;
             }
 
@@ -1673,8 +1690,6 @@ void update_game_logic() {
         players[i].vy = players[i].gy - old_gy;
         players[i].vz = players[i].gz - old_gz;
     }
-
-    rebuild_spatial_index();
 
     /* Global Torpedo System Update Loop - High Performance Spatial Filtering */
     #pragma omp parallel for schedule(dynamic, 10)

@@ -141,8 +141,18 @@ void mat4_perspective(float fovy, float aspect, float nearZ, float farZ, mat4 de
 
 const int WIDTH = VIEW_WINDOW_WIDTH;
 const int HEIGHT = VIEW_WINDOW_HEIGHT;
-const char* VERTEX_SHADER_PATH = "build/shaders/shader.vert.spv";
-const char* FRAGMENT_SHADER_PATH = "build/shaders/shader.frag.spv";
+
+char vertex_shader_path[512] = "build/shaders/shader.vert.spv";
+char fragment_shader_path[512] = "build/shaders/shader.frag.spv";
+
+void resolve_shader_paths() {
+    if (access(vertex_shader_path, F_OK) != 0) {
+        /* Fallback to system-wide installation path */
+        strcpy(vertex_shader_path, "/usr/share/spacegl/shaders/shader.vert.spv");
+        strcpy(fragment_shader_path, "/usr/share/spacegl/shaders/shader.frag.spv");
+    }
+}
+
 const char* GLTF_MODEL_PATH = "spaceships/uss_shenzhou44/scene.gltf";
 
 typedef struct { float pos[3]; float color[3]; float normal[3]; } Vertex;
@@ -166,70 +176,20 @@ const uint32_t indices[] = {
 };
 
 /* Procedural Ship Geometries */
-const Vertex scoutVertices[] = {
-    {{ 0.5, 0, 0}, {1,1,1}, {1,0,0}}, {{-0.3, 0, 0.4}, {1,1,1}, {0,0,1}}, 
-    {{-0.3, 0,-0.4}, {1,1,1}, {0,0,-1}}, {{-0.1, 0.15, 0}, {1,1,1}, {0,1,0}}
-};
-const uint32_t scoutIndices[] = { 0,1,2, 0,2,3, 0,3,1, 1,3,2 };
-
-const Vertex cruiserVertices[] = {
-    {{ 0.7, 0, 0}, {1,1,1}, {1,0,0}}, {{ 0.1, 0.1, 0.25}, {1,1,1}, {0,1,1}}, {{ 0.1, 0.1,-0.25}, {1,1,1}, {0,1,-1}},
-    {{ 0.1,-0.1, 0.25}, {1,1,1}, {0,-1,1}}, {{ 0.1,-0.1,-0.25}, {1,1,1}, {0,-1,-1}}, {{-0.6, 0, 0}, {1,1,1}, {-1,0,0}},
-    {{-0.3, 0, 0.6}, {1,1,1}, {0,0,1}}, {{-0.3, 0,-0.6}, {1,1,1}, {0,0,-1}}
-};
-const uint32_t cruiserIndices[] = {
-    0,1,2, 0,2,4, 0,4,3, 0,3,1, 1,5,2, 2,5,4, 4,5,3, 3,5,1, 6,1,3, 6,3,5, 6,5,1, 7,2,4, 7,4,5, 7,5,2
-};
-
-const Vertex battleshipVertices[] = {
-    {{ 0.8, 0.1, 0}, {1,1,1}, {1,1,0}}, {{ 0.8,-0.1, 0}, {1,1,1}, {1,-1,0}},
-    {{ 0.2, 0.3, 0.4}, {1,1,1}, {0,1,1}}, {{ 0.2, 0.3,-0.4}, {1,1,1}, {0,1,-1}},
-    {{ 0.2,-0.2, 0.4}, {1,1,1}, {0,-1,1}}, {{ 0.2,-0.2,-0.4}, {1,1,1}, {0,-1,-1}},
-    {{-0.8, 0, 0}, {1,1,1}, {-1,0,0}}, {{-0.4, 0.1, 0.8}, {1,1,1}, {0,0,1}}, {{-0.4, 0.1,-0.8}, {1,1,1}, {0,0,-1}}
-};
-const uint32_t battleshipIndices[] = {
-    0,2,3, 1,5,4, 0,1,2, 1,4,2, 0,3,1, 1,3,5, 2,7,6, 2,6,3, 3,6,8, 4,6,7, 4,5,6, 5,8,6
-};
-
-const Vertex carrierVertices[] = {
-    {{ 0.9, 0.05, 0.5}, {1,1,1}, {0,1,0}}, {{ 0.9, 0.05,-0.5}, {1,1,1}, {0,1,0}},
-    {{-0.9, 0.05, 0.5}, {1,1,1}, {0,1,0}}, {{-0.9, 0.05,-0.5}, {1,1,1}, {0,1,0}},
-    {{ 0.9,-0.15, 0.5}, {1,1,1}, {0,-1,0}}, {{ 0.9,-0.15,-0.5}, {1,1,1}, {0,-1,0}},
-    {{-0.9,-0.15, 0.5}, {1,1,1}, {0,-1,0}}, {{-0.9,-0.15,-0.5}, {1,1,1}, {0,-1,0}},
-    {{-0.4, 0.3, 0}, {1,1,1}, {0,1,0}}, {{ 0.2, 0.3, 0}, {1,1,1}, {0,1,0}}
-};
-const uint32_t carrierIndices[] = {
-    0,1,2, 1,3,2, 4,6,5, 5,6,7, 0,2,4, 2,6,4, 1,5,3, 3,5,7, 0,4,1, 1,4,5, 2,3,6, 3,7,6, 8,9,0, 8,0,1
-};
-
 const Vertex shipVertices[] = {
-    /* Saucer / Command Section */
-    {{ 0.85, 0.0,  0.0}, {1,1,1}, { 1, 0, 0}}, /* 0: Nose */
-    {{ 0.2,  0.05, 0.4}, {1,1,1}, { 0, 1, 1}}, /* 1: Saucer L */
-    {{ 0.2,  0.05,-0.4}, {1,1,1}, { 0, 1,-1}}, /* 2: Saucer R */
-    {{ 0.2,  0.15, 0.0}, {1,1,1}, { 0, 1, 0}}, /* 3: Saucer Top */
-    {{ 0.2, -0.1,  0.0}, {1,1,1}, { 0,-1, 0}}, /* 4: Saucer Bottom */
-    
-    /* Engineering Neck / Joint */
-    {{-0.1,  0.0,  0.0}, {1,1,1}, {-1, 0, 0}}, /* 5: Neck Center */
-
-    /* Rear Pylons (Widened, Lowered Top to open the Cradle) */
-    {{-0.9,  0.05, 0.55}, {1,1,1}, { 0, 1, 1}}, /* 6: Pylon Top L (Widened to 0.55, Lowered to 0.05) */
-    {{-0.9,  0.05,-0.55}, {1,1,1}, { 0, 1,-1}}, /* 7: Pylon Top R (Widened to 0.55, Lowered to 0.05) */
-    {{-0.9, -0.15, 0.45}, {1,1,1}, { 0,-1, 1}}, /* 8: Pylon Bottom L (Widened to 0.45) */
-    {{-0.9, -0.15,-0.45}, {1,1,1}, { 0,-1,-1}}  /* 9: Pylon Bottom R (Widened to 0.45) */
+    /* Base (X = -0.7288, YZ plane). Side length b = 1 */
+    {{ -0.7288f,  0.5f,  0.5f}, {1,1,1}, {1, 0, 0}},
+    {{ -0.7288f, -0.5f,  0.5f}, {1,1,1}, {1, 0, 0}},
+    {{ -0.7288f, -0.5f, -0.5f}, {1,1,1}, {1, 0, 0}},
+    {{ -0.7288f,  0.5f, -0.5f}, {1,1,1}, {1, 0, 0}},
+    /* Apex (Nose, X > 0). L = 3. Height = 2.91547f. Apex X = 2.91547 - 0.7288 = 2.1866f */
+    {{ 2.1866f, 0.0f, 0.0f}, {1,1,1}, {1, 0, 0}}
 };
 const uint32_t shipIndices[] = {
-    /* Saucer Hull */
-    0,3,1, 0,1,4, 0,4,2, 0,2,3,
-    1,3,5, 3,2,5, 2,4,5, 4,1,5,
-    /* Left Pylon (Solid) */
-    1,6,8, 1,8,4, 5,6,8, 5,8,4,
-    /* Right Pylon (Solid) */
-    2,7,9, 2,9,4, 5,7,9, 5,9,4,
-    /* Open Cradle: No triangles between 6-7 or 8-9 across the center */
-    6,1,5, 7,2,5, 8,1,5, 9,2,5
+    0, 1, 1, 2, 2, 3, 3, 0, /* Base */
+    0, 4, 1, 4, 2, 4, 3, 4  /* Sides to Apex */
 };
+
 
 const Vertex torpVertices[] = {
     {{ 0.45, 0.0, 0.0}, {1.0, 1.0, 0.0}, { 1.0, 0.0, 0.0}}, /* Nose */
@@ -322,10 +282,6 @@ typedef struct {
     VkImage depthImage; VkDeviceMemory depthImageMemory; VkImageView depthImageView;
     VkBuffer vertexBuffer; VkDeviceMemory vertexBufferMemory; VkBuffer indexBuffer; VkDeviceMemory indexBufferMemory;
     VkBuffer shipVertexBuffer; VkDeviceMemory shipVertexBufferMemory; VkBuffer shipIndexBuffer; VkDeviceMemory shipIndexBufferMemory;
-    VkBuffer scoutVertexBuffer; VkDeviceMemory scoutVertexBufferMemory; VkBuffer scoutIndexBuffer; VkDeviceMemory scoutIndexBufferMemory;
-    VkBuffer cruiserVertexBuffer; VkDeviceMemory cruiserVertexBufferMemory; VkBuffer cruiserIndexBuffer; VkDeviceMemory cruiserIndexBufferMemory;
-    VkBuffer battleshipVertexBuffer; VkDeviceMemory battleshipVertexBufferMemory; VkBuffer battleshipIndexBuffer; VkDeviceMemory battleshipIndexBufferMemory;
-    VkBuffer carrierVertexBuffer; VkDeviceMemory carrierVertexBufferMemory; VkBuffer carrierIndexBuffer; VkDeviceMemory carrierIndexBufferMemory;
     VkBuffer cubeVertexBuffer; VkDeviceMemory cubeVertexBufferMemory; 
     VkBuffer cubeIndexBuffer; VkDeviceMemory cubeIndexBufferMemory;
     VkBuffer cubeSolidIndexBuffer; VkDeviceMemory cubeSolidIndexBufferMemory;
@@ -339,6 +295,7 @@ typedef struct {
     VkBuffer vectorVertexBuffer; VkDeviceMemory vectorVertexBufferMemory; VkBuffer vectorIndexBuffer; VkDeviceMemory vectorIndexBufferMemory;
     VkBuffer sphereVertexBuffer; VkDeviceMemory sphereVertexBufferMemory; VkBuffer sphereIndexBuffer; VkDeviceMemory sphereIndexBufferMemory;
     VkBuffer whVertexBuffer; VkDeviceMemory whVertexBufferMemory; VkBuffer whIndexBuffer; VkDeviceMemory whIndexBufferMemory; uint32_t whIndexCount;
+    VkBuffer coreVB[13]; VkDeviceMemory coreVBM[13]; VkBuffer coreIB[13]; VkDeviceMemory coreIBM[13]; uint32_t coreICount[13];
     VkBuffer starfieldVertexBuffer; VkDeviceMemory starfieldVertexBufferMemory; VkBuffer starfieldIndexBuffer; VkDeviceMemory starfieldIndexBufferMemory;
     uint64_t gridVertexCount; uint64_t starfieldIndexCount;
     VkBuffer uniformBuffers[MAX_FRAMES_IN_FLIGHT]; VkDeviceMemory uniformBuffersMemory[MAX_FRAMES_IN_FLIGHT];
@@ -413,6 +370,25 @@ static char* readShaderFile(const char* filename, size_t* pSize) {
 
 void getObjectColor(int type, int faction, float* r, float* g, float* b) {
     *r = 1.0f; *g = 1.0f; *b = 1.0f;
+    
+    if ((type == 1 || type >= 10) && (faction >= 10 && faction <= 20)) {
+        switch(faction) {
+            case 10: *r = 1.0f; *g = 0.1f; *b = 0.0f; break; /* Korthian */
+            case 11: *r = 0.0f; *g = 1.0f; *b = 0.2f; break; /* Xylari */
+            case 12: *r = 0.1f; *g = 0.1f; *b = 0.1f; break; /* Swarm Dark */
+            case 13: *r = 1.0f; *g = 0.0f; *b = 1.0f; break; /* Vesperian */
+            case 14: *r = 0.5f; *g = 0.0f; *b = 0.8f; break; /* Ascendant */
+            case 15: *r = 1.0f; *g = 0.5f; *b = 0.0f; break; /* Quarzite */
+            case 16: *r = 0.4f; *g = 0.6f; *b = 0.1f; break; /* Saurian */
+            case 17: *r = 0.8f; *g = 0.7f; *b = 0.1f; break; /* Gilded */
+            case 18: *r = 0.7f; *g = 1.0f; *b = 0.0f; break; /* Fluidic Void */
+            case 19: *r = 0.0f; *g = 0.5f; *b = 1.0f; break; /* Cryos */
+            case 20: *r = 0.6f; *g = 0.2f; *b = 0.1f; break; /* Apex */
+            default: *r = 1.0f; *g = 0.5f; *b = 0.5f; break;
+        }
+        return;
+    }
+    
     if (type == 1) { *r = 0.0f; *g = 1.0f; *b = 1.0f; }
     else if (type == 4) { *r = 1.0f; *g = 1.0f; *b = 0.0f; }
     else if (type == 5) { *r = 0.0f; *g = 1.0f; *b = 0.5f; }
@@ -420,26 +396,19 @@ void getObjectColor(int type, int faction, float* r, float* g, float* b) {
     else if (type == 6) { *r = 0.5f; *g = 0.0f; *b = 1.0f; }
     else if (type == 29) { *r = 1.0f; *g = 0.0f; *b = 1.0f; }
     else if (type == 21) { *r = 0.5f; *g = 0.35f; *b = 0.25f; }
-    else if (type >= 10 && type < 21) {
-        switch(faction) {
-            case 10: *r = 1.0f; *g = 0.1f; *b = 0.0f; break;
-            case 11: *r = 0.0f; *g = 1.0f; *b = 0.2f; break;
-            case 12: *r = 0.1f; *g = 0.1f; *b = 0.1f; break; /* Swarm Dark */
-            default: *r = 1.0f; *g = 0.5f; *b = 0.5f; break;
-        }
-    }
 }
 
 void drawWormholeCore(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse, int type) {
     VkDeviceSize off = 0;
     mat4 R_rot; mat4_identity(R_rot);
     mat4_rotate(R_rot, pulse * 5.0f * M_PI / 180.0f, (vec3){1, 1, 1});
-    mat4 M_rot; mat4_multiply(R_rot, modelBase, M_rot);
-
+    
     /* 1. Outer Shell (Dark Grey) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
     PushConstants pc1 = {0}; mat4 S_out; mat4_scale(S_out, (vec3){0.85f, 0.85f, 0.85f});
-    mat4_multiply(S_out, M_rot, pc1.model);
+    /* Order: Scale * Rotate * modelBase (Translation) */
+    mat4 M_sr; mat4_multiply(S_out, R_rot, M_sr);
+    mat4_multiply(M_sr, modelBase, pc1.model);
     pc1.color[0]=0.15f; pc1.color[1]=0.15f; pc1.color[2]=0.15f; pc1.color[3]=1.0f; pc1.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc1), &pc1);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
@@ -449,10 +418,11 @@ void drawWormholeCore(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float 
     /* 2. Central Singularity (Solid Black for Departure, White for Arrival) - Now using Sphere Geometry */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
     PushConstants pc2 = {0}; mat4 S_core; mat4_scale(S_core, (vec3){0.75f, 0.75f, 0.75f});
-    mat4_multiply(S_core, M_rot, pc2.model);
+    mat4_multiply(S_core, R_rot, M_sr);
+    mat4_multiply(M_sr, modelBase, pc2.model);
     if (type == 1) { pc2.color[0]=1.0f; pc2.color[1]=1.0f; pc2.color[2]=1.0f; }
-    else { pc2.color[0]=0.0f; pc2.color[1]=0.0f; pc2.color[2]=0.0f; }
-    pc2.color[3]=1.0f; pc2.usePushColor=1;
+    else { pc2.color[0]=0.01f; pc2.color[1]=0.01f; pc2.color[2]=0.01f; }
+    pc2.color[3]=1.0f; pc2.usePushColor=1; /* Unlit for visibility */
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc2), &pc2);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
@@ -464,16 +434,13 @@ void drawSwarmCube(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pul
     mat4 R_rot; mat4_identity(R_rot);
     mat4_rotate(R_rot, pulse * 5.0f * M_PI / 180.0f, (vec3){1, 1, 1});
     
-    mat4 M_rot; 
-    /* Order: Rotate * modelBase (Translation) */
-    mat4_multiply(R_rot, modelBase, M_rot);
-
     /* 1. Outer Wireframe (Dark Grey) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
     PushConstants pc1 = {0}; 
     mat4 S_out; mat4_scale(S_out, (vec3){0.85f, 0.85f, 0.85f}); 
-    /* Order: Scale * M_rot */
-    mat4_multiply(S_out, M_rot, pc1.model);
+    /* Order: Scale * Rotate * modelBase (Translation from main loop) */
+    mat4 M_sr; mat4_multiply(S_out, R_rot, M_sr);
+    mat4_multiply(M_sr, modelBase, pc1.model);
     pc1.color[0]=0.15f; pc1.color[1]=0.15f; pc1.color[2]=0.15f; pc1.color[3]=1.0f; pc1.usePushColor=1;
     pc1.metallic = 0.9f; pc1.roughness = 0.1f;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc1), &pc1);
@@ -485,7 +452,8 @@ void drawSwarmCube(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pul
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
     PushConstants pc2 = {0}; 
     mat4 S_core; mat4_scale(S_core, (vec3){0.75f, 0.75f, 0.75f}); 
-    mat4_multiply(S_core, M_rot, pc2.model);
+    mat4_multiply(S_core, R_rot, M_sr);
+    mat4_multiply(M_sr, modelBase, pc2.model);
     pc2.color[0]=0.05f; pc2.color[1]=0.05f; pc2.color[2]=0.05f; pc2.color[3]=1.0f; pc2.usePushColor=1;
     pc2.metallic = 1.0f; pc2.roughness = 0.05f;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc2), &pc2);
@@ -715,7 +683,7 @@ void drawGalaxyMap(VkCommandBuffer cb, VulkanApp* app, GameState* st, float puls
     for (int z=1; z<=GALAXY_SIZE; z++) {
         for (int y=1; y<=GALAXY_SIZE; y++) {
             for (int x=1; x<=GALAXY_SIZE; x++) {
-                int64_t val = st->shm_galaxy[x][y][z];
+                int64_t val = app->shm->shm_galaxy[x][y][z];
                 bool is_my_q = (x == st->shm_q[0] && y == st->shm_q[1] && z == st->shm_q[2]);
                 if (val == 0 && !is_my_q) continue;
 
@@ -882,7 +850,7 @@ void pickPhysicalDevice(VulkanApp* app) {
 void createLogicalDevice(VulkanApp* app) {
     float prio = 1.0f; VkDeviceQueueCreateInfo qInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, NULL, 0, 0, 1, &prio};
     const char* ext = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
-    VkPhysicalDeviceFeatures feat = {}; VkDeviceCreateInfo cInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, NULL, 0, 1, &qInfo, 0, NULL, 1, &ext, &feat};
+    VkPhysicalDeviceFeatures feat = {0}; VkDeviceCreateInfo cInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, NULL, 0, 1, &qInfo, 0, NULL, 1, &ext, &feat};
     if (vkCreateDevice(app->physicalDevice, &cInfo, NULL, &app->device) != VK_SUCCESS) exit(1);
     vkGetDeviceQueue(app->device, 0, 0, &app->graphicsQueue);
 }
@@ -927,9 +895,17 @@ VkShaderModule createShaderModule(VkDevice device, const char* code, size_t code
 }
 
 void createGraphicsPipeline(VulkanApp* app) {
-    size_t vSz, fSize; char* vC = readShaderFile(VERTEX_SHADER_PATH, &vSz); char* fC = readShaderFile(FRAGMENT_SHADER_PATH, &fSize);
-    if (!vC || !fC) exit(1);
-    VkShaderModule vM = createShaderModule(app->device, vC, vSz), fM = createShaderModule(app->device, fC, fSize); free(vC); free(fC);
+    resolve_shader_paths();
+    size_t vSz, fSize; 
+    char* vC = readShaderFile(vertex_shader_path, &vSz); 
+    char* fC = readShaderFile(fragment_shader_path, &fSize);
+    
+    if (!vC || !fC) {
+        fprintf(stderr, "[VULKAN] Fatal: Could not load shaders from %s or %s\n", vertex_shader_path, fragment_shader_path);
+        exit(1);
+    }
+    VkShaderModule vM = createShaderModule(app->device, vC, vSz), fM = createShaderModule(app->device, fC, fSize); 
+    free(vC); free(fC);
     VkPipelineShaderStageCreateInfo stages[] = {
         {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, NULL, 0, VK_SHADER_STAGE_VERTEX_BIT, vM, "main", NULL},
         {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, NULL, 0, VK_SHADER_STAGE_FRAGMENT_BIT, fM, "main", NULL}
@@ -961,6 +937,7 @@ void createGraphicsPipeline(VulkanApp* app) {
     cBlAt.blendEnable = VK_TRUE; 
     cBlAt.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA; 
     cBlAt.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    depSt.depthWriteEnable = VK_FALSE; /* Critical for blended wireframe to avoid Z-flickering */
     if (vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &pInfo, NULL, &app->wireframePipeline) != VK_SUCCESS) exit(1);
     
     /* 3. Point Sprite Pipeline (for Bloom Effect) */
@@ -1098,7 +1075,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             vkCmdBindIndexBuffer(cb, app->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdDrawIndexed(cb, sizeof(indices)/4, 1, 0, 0, 0);
 
-            if (st->shm_show_axes && st->object_count > 0 && !app->smoothObjs[0].first && app->cameraDist < 150.0f && !app->jumpArrival.active) {
+            if (st->shm_show_axes && st->object_count > 0 && !app->smoothObjs[0].first && app->cameraDist < 150.0f) {
             /* Zero-Lag AR Compass: Anchored to Smoothed Player Coordinates for fluid motion */
             float ox = app->smoothObjs[0].x;
             float oy = app->smoothObjs[0].y;
@@ -1252,26 +1229,28 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             vkCmdDrawIndexed(cb, (uint32_t)app->gridVertexCount, 1, 0, 0, 0);
         }
 
-        /* Departure/Arrival Wormholes (Internal logic handles pipeline switching) */
-        if (app->departureWormhole.active && app->jumpArrival.timer <= 0) {
-            /* DEPARTURE: Only visible if arrival sequence hasn't started */
-            drawWormhole(cb, app, app->departureWormhole.x * tactScale, app->departureWormhole.y * tactScale, app->departureWormhole.z * tactScale, 
-                         app->departureWormhole.h, app->departureWormhole.m, 0, pulse, tactScale, 1.0f);
-        }
-        if (app->jumpArrival.active && app->jumpArrival.timer > 0) {
-            /* Keep arrival wormhole centered on ship if ship is active */
-            if (st->object_count > 0 && st->objects[0].active) {
-                app->jumpArrival.x = app->smoothObjs[0].x - 20.0f;
-                app->jumpArrival.y = app->smoothObjs[0].z - 20.0f;
-                app->jumpArrival.z = 20.0f - app->smoothObjs[0].y;
-            }
-            float closingScale = (app->jumpArrival.timer < 540) ? ((float)app->jumpArrival.timer / 540.0f) : 1.0f;
-            drawWormhole(cb, app, app->jumpArrival.x * tactScale, app->jumpArrival.y * tactScale, app->jumpArrival.z * tactScale, 
-                         app->jumpArrival.h, app->jumpArrival.m, 1, pulse, tactScale, closingScale);
-        }
+            /* Draw Shield Hits */
+            drawShieldEffect(cb, app, pulse, tactScale, app->playerR, app->playerT);
 
-        /* --- SOLID PASS --- */
-        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+            /* Departure/Arrival Wormholes (Now inside Tactical Block for correct tactScale) */
+            if (app->departureWormhole.active && app->jumpArrival.timer <= 0) {
+                /* DEPARTURE: Only visible if arrival sequence hasn't started */
+                drawWormhole(cb, app, app->departureWormhole.x * tactScale, app->departureWormhole.y * tactScale, app->departureWormhole.z * tactScale, 
+                             app->departureWormhole.h, app->departureWormhole.m, 0, pulse, tactScale, 1.0f);
+            }
+            if (app->jumpArrival.active && app->jumpArrival.timer > 0) {
+                /* Keep arrival wormhole centered on ship if ship is active */
+                if (st->object_count > 0 && st->objects[0].active) {
+                    app->jumpArrival.x = app->smoothObjs[0].x - 20.0f;
+                    app->jumpArrival.y = app->smoothObjs[0].z - 20.0f;
+                    app->jumpArrival.z = 20.0f - app->smoothObjs[0].y;
+                }
+                float closingScale = (app->jumpArrival.timer < 540) ? ((float)app->jumpArrival.timer / 540.0f) : 1.0f;
+                drawWormhole(cb, app, app->jumpArrival.x * tactScale, app->jumpArrival.y * tactScale, app->jumpArrival.z * tactScale, 
+                             app->jumpArrival.h, app->jumpArrival.m, 1, pulse, tactScale, closingScale);
+            }
+
+            vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
         vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->pipelineLayout, 0, 1, &app->descriptorSets[app->currentFrame], 0, NULL);
 
         /* Starfield (Static Background Mesh) */
@@ -1298,8 +1277,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         for (int o=0; o<st->object_count; o++) {
             SharedObject* obj = &st->objects[o]; if (!obj->active) continue;
             
-            /* HIDE ALL OTHER OBJECTS DURING JUMP ARRIVAL to avoid lateral artifacts */
-            if (app->jumpArrival.active && o != 0) continue;
+            /* HIDE ONLY SHIPS DURING ARRIVAL SEQUENCE to avoid lateral artifacts (Only during the first 3s/180 ticks of the 9s sequence) */
+            bool is_ship = (obj->type == 0 || obj->type == 1 || obj->type >= 10);
+            if (app->jumpArrival.active && o != 0 && app->jumpArrival.timer > 360 && is_ship) continue;
 
             PushConstants opc = {0}; mat4_identity(opc.model);
             /* Use Smoothed Coordinates for fluid motion */
@@ -1320,9 +1300,10 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             /* Scale the object itself by tactScale */
             s *= tactScale;
             mat4_scale(S, (vec3){s,s,s});
-            if (obj->type==1 || obj->type>=10) {
+            if (obj->type == 0 || obj->type == 1 || obj->type >= 10) {
                 /* Align model (+X) to North (+Z) */
                 mat4_rotate(R, 90.0f * M_PI / 180.0f, (vec3){0,1,0});
+
                 /* Apply Smoothed Heading (around vertical Y) */
                 mat4_rotate(R, -oh * M_PI / 180.0f, (vec3){0,1,0});
                 /* Apply Smoothed Pitch around dynamic horizontal axis */
@@ -1340,10 +1321,20 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             mat4_multiply(S, R, opc.model); 
             mat4_multiply(opc.model, T, opc.model);
             
-            getObjectColor(obj->type, obj->faction, &opc.color[0], &opc.color[1], &opc.color[2]); opc.color[3]=1.0f; opc.usePushColor=5;
+            getObjectColor(obj->type, obj->faction, &opc.color[0], &opc.color[1], &opc.color[2]); 
+            opc.color[3]=1.0f; opc.usePushColor=5;
+
+            /* CLOAKING EFFECT: Use vibrant blue unlit wireframe for cloaked ships */
+            if (obj->is_cloaked) {
+                opc.color[0] = 0.2f; opc.color[1] = 0.5f; opc.color[2] = 1.0f;
+                opc.usePushColor = 1; 
+            } else if (obj->type == 0 || obj->type == 1 || obj->type >= 10) {
+                /* Regular ships use unlit wireframe to avoid PBR artifacts on single-normal geometry */
+                opc.usePushColor = 1;
+            }
             
             /* PBR Parameters based on object type */
-            if (obj->type == 1 || obj->type >= 10) { // Ships
+            if (obj->type == 0 || obj->type == 1 || obj->type >= 10) { // Ships
                 opc.metallic = 0.9f; opc.roughness = 0.25f;
             } else if (obj->type == 3 || obj->type == 21) { // Bases / Asteroids
                 opc.metallic = 0.1f; opc.roughness = 0.8f;
@@ -1437,33 +1428,68 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 }
             } else {
                 /* Draw Standard Object (Ship, Base, Planet, Star, Asteroid, etc.) */
-                vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(opc), &opc);
-                VkBuffer vb, ib; uint32_t cnt; VkIndexType it = VK_INDEX_TYPE_UINT32;
-                if (obj->type == 27) { vb = app->torpVertexBuffer; ib = app->torpIndexBuffer; cnt = sizeof(torpIndices)/4; }
-                else if (obj->type == 4 || obj->type == 5 || obj->type == 6) { vb = app->sphereVertexBuffer; ib = app->sphereIndexBuffer; cnt = SPHERE_LATS * SPHERE_LONGS * 6; }
-                else if (obj->type == 3 || obj->type == 21) { vb = app->cubeVertexBuffer; ib = app->cubeIndexBuffer; cnt = sizeof(cubeIndices)/4; }
-                else { 
-                    /* Selection by Ship Class */
-                    if (obj->ship_class == 1) { vb = app->scoutVertexBuffer; ib = app->scoutIndexBuffer; cnt = sizeof(scoutIndices)/4; }
-                    else if (obj->ship_class == 2) { vb = app->cruiserVertexBuffer; ib = app->cruiserIndexBuffer; cnt = sizeof(cruiserIndices)/4; }
-                    else if (obj->ship_class == 3) { vb = app->battleshipVertexBuffer; ib = app->battleshipIndexBuffer; cnt = sizeof(battleshipIndices)/4; }
-                    else if (obj->ship_class == 4) { vb = app->carrierVertexBuffer; ib = app->carrierIndexBuffer; cnt = sizeof(carrierIndices)/4; }
-                    else { vb = app->shipVertexBuffer; ib = app->shipIndexBuffer; cnt = sizeof(shipIndices)/4; }
+                PushConstants ship_opc = opc;
+                if (obj->type == 0 || obj->type == 1 || obj->type >= 10) {
+                    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+                    /* Redundant shipScale removed: opc.model already contains SCALE_SHIP * tactScale */
                 }
-                vkCmdBindVertexBuffers(cb, 0, 1, &vb, &off); vkCmdBindIndexBuffer(cb, ib, 0, it); vkCmdDrawIndexed(cb, cnt, 1, 0, 0, 0);
+                vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ship_opc), &ship_opc);
+                VkBuffer vb;
+                VkBuffer ib;
+                uint32_t cnt;
+                VkIndexType it = VK_INDEX_TYPE_UINT32;
+                if (obj->type == 27) {
+                    vb = app->torpVertexBuffer;
+                    ib = app->torpIndexBuffer;
+                    cnt = sizeof(torpIndices)/4;
+                } else if (obj->type == 4 || obj->type == 5 || obj->type == 6) {
+                    vb = app->sphereVertexBuffer;
+                    ib = app->sphereIndexBuffer;
+                    cnt = SPHERE_LATS * SPHERE_LONGS * 6;
+                } else if (obj->type == 3 || obj->type == 21) {
+                    vb = app->cubeVertexBuffer;
+                    ib = app->cubeIndexBuffer;
+                    cnt = sizeof(cubeIndices)/4;
+                } else { 
+                    vb = app->shipVertexBuffer;
+                    ib = app->shipIndexBuffer;
+                    cnt = sizeof(shipIndices)/4;
+                }
+                vkCmdBindVertexBuffers(cb, 0, 1, &vb, &off);
+                vkCmdBindIndexBuffer(cb, ib, 0, it);
+                vkCmdDrawIndexed(cb, cnt, 1, 0, 0, 0);
+                if (obj->type == 0 || obj->type == 1 || obj->type >= 10) {
+                    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+                }
 
                 /* --- QUANTUM CORE (Sphere + 3 Orbiting Rings) --- */
-                /* Visible for Player (o==0) and Alliance NPCs (faction 1) */
-                if ((obj->type == 1 || obj->type >= 10) && (o == 0 || obj->faction == 1)) {
-                    /* Position at the rear tail of the ship model (approx x = -0.8 in local space) */
-                    mat4 T_core_loc, M_core;
-                    mat4_translate(T_core_loc, (vec3){-0.85f * tactScale, 0.0f, 0.0f}); 
-                    mat4_multiply(T_core_loc, opc.model, M_core);
+                /* Solo per le navi dell'Alleanza (faction == 0 o faction == 1) */
+                int is_alliance = 0;
+                if (obj->faction == 0 || obj->faction == 1) is_alliance = 1;
 
-                    /* 1. Central Energy Sphere (PBR Lit with Variable Gradient) */
+                if ((obj->type == 0 || obj->type == 1 || obj->type >= 10) && is_alliance) {
+                    /* La nostra piramide è scalata di 0.55f * tactScale e la sua poppa si trova a X = -0.7288f locali.
+                     * Quindi in spazio opc.model, la coda è a -0.7288f * 0.55f * tactScale = -0.40084f * tactScale.
+                     * Posizioniamo il core quantico esattamente lì */
+                    /* 1. Procedural Wireframe Polyhedron Core */
+                    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
                     PushConstants qpc = {0};
-                    float coreSize = 0.11f * tactScale; 
+                    float coreSize = 0.20f * tactScale; 
                     mat4 S_q; mat4_scale(S_q, (vec3){coreSize, coreSize, coreSize});
+                    
+                    int cl = obj->ship_class;
+                    if (cl < 0 || cl > 12) cl = 12;
+                    
+                    /* Velocità di rotazione basata sulla classe: Legacy (0) ruota più velocemente */
+                    mat4 R_q; mat4_identity(R_q);
+                    float rotSpeed = 1.0f + (12 - cl) * 0.2f; 
+                    mat4_rotate(R_q, pulse * rotSpeed, (vec3){0.0f, 1.0f, 0.0f});
+                    mat4_multiply(S_q, R_q, S_q);
+                    
+                    /* Posizioniamo il core leggermente più indietro (-0.46f) per non affogarlo nella coda */
+                    mat4 T_core_loc, M_core;
+                    mat4_translate(T_core_loc, (vec3){-0.46f * tactScale, 0.0f, 0.0f}); 
+                    mat4_multiply(T_core_loc, opc.model, M_core);
                     mat4_multiply(S_q, M_core, qpc.model);
                     
                     qpc.color[0] = 0.8f + 0.2f * sinf(pulse * 2.0f);
@@ -1471,12 +1497,12 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     qpc.color[2] = 0.2f + 0.2f * sinf(pulse * 3.0f);
                     qpc.color[3] = 1.0f;
                     
-                    qpc.usePushColor = 5; 
-                    qpc.metallic = 1.0f; qpc.roughness = 0.1f;
+                    qpc.usePushColor = 1; 
                     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(qpc), &qpc);
-                    vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
-                    vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-                    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+                    
+                    vkCmdBindVertexBuffers(cb, 0, 1, &app->coreVB[cl], &off);
+                    vkCmdBindIndexBuffer(cb, app->coreIB[cl], 0, VK_INDEX_TYPE_UINT32);
+                    vkCmdDrawIndexed(cb, app->coreICount[cl], 1, 0, 0, 0);
 
                     /* 2. Three Orbiting Rings (Wireframe) */
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -1932,8 +1958,13 @@ void mainLoop(VulkanApp* app) {
                 for (int o=0; o < st->object_count && o < MAX_NET_OBJECTS; o++) {
                     SharedObject* obj = &st->objects[o];
                     if (!obj->active) { app->smoothObjs[o].first = true; continue; }
-                    
+
+                    /* If the ID changed, it's a different object in this slot (e.g. after a jump), reset smoothing */
+                    static int last_ids[MAX_NET_OBJECTS] = {0};
+                    if (obj->id != last_ids[o]) { app->smoothObjs[o].first = true; last_ids[o] = obj->id; }
+
                     if (app->smoothObjs[o].first) {
+
                         app->smoothObjs[o].prev_x = app->smoothObjs[o].target_x = app->smoothObjs[o].x = (float)obj->shm_x;
                         app->smoothObjs[o].prev_y = app->smoothObjs[o].target_y = app->smoothObjs[o].y = (float)obj->shm_y;
                         app->smoothObjs[o].prev_z = app->smoothObjs[o].target_z = app->smoothObjs[o].z = (float)obj->shm_z;
@@ -2056,12 +2087,17 @@ void mainLoop(VulkanApp* app) {
                         break;
                     }
                 } else if (ev->type == IPC_EV_JUMP) {
-                    /* Use smoothed coordinates if available for perfect alignment, otherwise raw event coords */
-                    app->jumpArrival.x = app->smoothObjs[0].first ? ((float)ev->x1 - 20.0f) : (app->smoothObjs[0].x - 20.0f);
-                    app->jumpArrival.y = app->smoothObjs[0].first ? ((float)ev->z1 - 20.0f) : (app->smoothObjs[0].z - 20.0f);
-                    app->jumpArrival.z = app->smoothObjs[0].first ? (20.0f - (float)ev->y1) : (20.0f - app->smoothObjs[0].y);
+                    /* ALWAYS use raw event coordinates for jump arrival to avoid interpolation from previous quadrant */
+                    app->jumpArrival.x = (float)ev->x1 - 20.0f;
+                    app->jumpArrival.y = (float)ev->z1 - 20.0f;
+                    app->jumpArrival.z = 20.0f - (float)ev->y1;
+                    app->jumpArrival.h = ev->x2; /* Heading passed in event */
+                    app->jumpArrival.m = ev->y2; /* Pitch passed in event */
                     app->jumpArrival.active = 1;
                     app->jumpArrival.timer = 540; /* 9 seconds of buffer (Slowed down by 200% from 3s) */
+                    
+                    /* CRITICAL: Reset smoothing for all objects to prevent inter-quadrant interpolation artifacts */
+                    for (int o=0; o<MAX_NET_OBJECTS; o++) app->smoothObjs[o].first = true;
                     
                     /* Initialize Arrival Particles */
                     for (int i = 0; i < MAX_ARRIVAL_PARTICLES; i++) {
@@ -2105,14 +2141,16 @@ void mainLoop(VulkanApp* app) {
 
         /* Arrival Wormhole Persistence Logic */
         if (app->jumpArrival.active) {
-            /* Only decrement timer if ship has stopped moving (IDLE, DOCKING or DRIFT) */
-            if (st->shm_nav_state == 0 || st->shm_nav_state == 9 || st->shm_nav_state == 10) {
-                if (app->jumpArrival.timer > 0) app->jumpArrival.timer--;
-                else app->jumpArrival.active = 0;
-            } else {
-                /* Keep timer alive while ship is still navigating/approaching */
-                if (app->jumpArrival.timer < 180) app->jumpArrival.timer = 180;
-            }        }
+            /* Always decrement timer to zero, even if navigating, to ensure NPCs eventually reappear */
+            if (app->jumpArrival.timer > 0) app->jumpArrival.timer--;
+            else app->jumpArrival.active = 0;
+            
+            /* If we are still in a high-speed navigation state, hold at 1 to prevent premature deletion 
+               of the wormhole sprite, but the ship-hiding logic uses timer > 360 so this won't keep NPCs hidden. */
+            if (app->jumpArrival.active && app->jumpArrival.timer < 1 && st->shm_nav_state != 0) {
+                 app->jumpArrival.timer = 1;
+            }
+        }
 
         /* Update Active Booms (Explosions) and Torpedoes */
         for (int i = 0; i < MAX_ACTIVE_BEAMS; i++) {
@@ -2172,14 +2210,14 @@ void mainLoop(VulkanApp* app) {
         }
 
         app->departureWormhole.active = st->wormhole.active;
-            if (app->departureWormhole.active) {
-                app->departureWormhole.x = (float)st->wormhole.shm_x - 20.0f;
-                app->departureWormhole.y = (float)st->wormhole.shm_z - 20.0f;
-                app->departureWormhole.z = 20.0f - (float)st->wormhole.shm_y;
-                app->departureWormhole.h = st->shm_h;
-                app->departureWormhole.m = st->shm_m;
-            }
-            app->jumpArrival.h = st->shm_h; app->jumpArrival.m = st->shm_m;
+        if (app->departureWormhole.active) {
+            app->departureWormhole.x = (float)st->wormhole.shm_x - 20.0f;
+            app->departureWormhole.y = (float)st->wormhole.shm_z - 20.0f;
+            app->departureWormhole.z = 20.0f - (float)st->wormhole.shm_y;
+            app->departureWormhole.h = st->shm_h;
+            app->departureWormhole.m = st->shm_m;
+        }
+        /* Note: jumpArrival.h/m are set by the IPC_EV_JUMP event and should not be overwritten by player orientation here */
 
             /* Sincronizzazione dello stato della Vista Bridge */
             app->showBridge = st->shm_show_bridge;
@@ -2283,20 +2321,15 @@ void initVulkan(VulkanApp* app) {
     app->swapChainFramebuffers = malloc(sizeof(VkFramebuffer)*app->swapChainImageCount); for(size_t i=0; i<app->swapChainImageCount; i++) { VkImageView at[] = {app->colorImageView, app->depthImageView, app->swapChainImageViews[i]}; VkFramebufferCreateInfo fi = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,NULL,0,app->renderPass,3,at,WIDTH,HEIGHT,1}; vkCreateFramebuffer(app->device, &fi, NULL, &app->swapChainFramebuffers[i]); }
     void* d; createBuffer(app, sizeof(vertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->vertexBuffer, &app->vertexBufferMemory); vkMapMemory(app->device, app->vertexBufferMemory, 0, sizeof(vertices), 0, &d); memcpy(d, vertices, sizeof(vertices)); vkUnmapMemory(app->device, app->vertexBufferMemory);
     createBuffer(app, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->indexBuffer, &app->indexBufferMemory); vkMapMemory(app->device, app->indexBufferMemory, 0, sizeof(indices), 0, &d); memcpy(d, indices, sizeof(indices)); vkUnmapMemory(app->device, app->indexBufferMemory);
-    createBuffer(app, sizeof(shipVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->shipVertexBuffer, &app->shipVertexBufferMemory); vkMapMemory(app->device, app->shipVertexBufferMemory, 0, sizeof(shipVertices), 0, &d); memcpy(d, shipVertices, sizeof(shipVertices)); vkUnmapMemory(app->device, app->shipVertexBufferMemory);
-    createBuffer(app, sizeof(shipIndices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->shipIndexBuffer, &app->shipIndexBufferMemory); vkMapMemory(app->device, app->shipIndexBufferMemory, 0, sizeof(shipIndices), 0, &d); memcpy(d, shipIndices, sizeof(shipIndices)); vkUnmapMemory(app->device, app->shipIndexBufferMemory);
-
-    createBuffer(app, sizeof(scoutVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->scoutVertexBuffer, &app->scoutVertexBufferMemory); vkMapMemory(app->device, app->scoutVertexBufferMemory, 0, sizeof(scoutVertices), 0, &d); memcpy(d, scoutVertices, sizeof(scoutVertices)); vkUnmapMemory(app->device, app->scoutVertexBufferMemory);
-    createBuffer(app, sizeof(scoutIndices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->scoutIndexBuffer, &app->scoutIndexBufferMemory); vkMapMemory(app->device, app->scoutIndexBufferMemory, 0, sizeof(scoutIndices), 0, &d); memcpy(d, scoutIndices, sizeof(scoutIndices)); vkUnmapMemory(app->device, app->scoutIndexBufferMemory);
-
-    createBuffer(app, sizeof(cruiserVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->cruiserVertexBuffer, &app->cruiserVertexBufferMemory); vkMapMemory(app->device, app->cruiserVertexBufferMemory, 0, sizeof(cruiserVertices), 0, &d); memcpy(d, cruiserVertices, sizeof(cruiserVertices)); vkUnmapMemory(app->device, app->cruiserVertexBufferMemory);
-    createBuffer(app, sizeof(cruiserIndices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->cruiserIndexBuffer, &app->cruiserIndexBufferMemory); vkMapMemory(app->device, app->cruiserIndexBufferMemory, 0, sizeof(cruiserIndices), 0, &d); memcpy(d, cruiserIndices, sizeof(cruiserIndices)); vkUnmapMemory(app->device, app->cruiserIndexBufferMemory);
-
-    createBuffer(app, sizeof(battleshipVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->battleshipVertexBuffer, &app->battleshipVertexBufferMemory); vkMapMemory(app->device, app->battleshipVertexBufferMemory, 0, sizeof(battleshipVertices), 0, &d); memcpy(d, battleshipVertices, sizeof(battleshipVertices)); vkUnmapMemory(app->device, app->battleshipVertexBufferMemory);
-    createBuffer(app, sizeof(battleshipIndices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->battleshipIndexBuffer, &app->battleshipIndexBufferMemory); vkMapMemory(app->device, app->battleshipIndexBufferMemory, 0, sizeof(battleshipIndices), 0, &d); memcpy(d, battleshipIndices, sizeof(battleshipIndices)); vkUnmapMemory(app->device, app->battleshipIndexBufferMemory);
-
-    createBuffer(app, sizeof(carrierVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->carrierVertexBuffer, &app->carrierVertexBufferMemory); vkMapMemory(app->device, app->carrierVertexBufferMemory, 0, sizeof(carrierVertices), 0, &d); memcpy(d, carrierVertices, sizeof(carrierVertices)); vkUnmapMemory(app->device, app->carrierVertexBufferMemory);
-    createBuffer(app, sizeof(carrierIndices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->carrierIndexBuffer, &app->carrierIndexBufferMemory); vkMapMemory(app->device, app->carrierIndexBufferMemory, 0, sizeof(carrierIndices), 0, &d); memcpy(d, carrierIndices, sizeof(carrierIndices)); vkUnmapMemory(app->device, app->carrierIndexBufferMemory);
+    createBuffer(app, sizeof(shipVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->shipVertexBuffer, &app->shipVertexBufferMemory);
+    vkMapMemory(app->device, app->shipVertexBufferMemory, 0, sizeof(shipVertices), 0, &d);
+    memcpy(d, shipVertices, sizeof(shipVertices));
+    vkUnmapMemory(app->device, app->shipVertexBufferMemory);
+    
+    createBuffer(app, sizeof(shipIndices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->shipIndexBuffer, &app->shipIndexBufferMemory);
+    vkMapMemory(app->device, app->shipIndexBufferMemory, 0, sizeof(shipIndices), 0, &d);
+    memcpy(d, shipIndices, sizeof(shipIndices));
+    vkUnmapMemory(app->device, app->shipIndexBufferMemory);
     createBuffer(app, sizeof(torpVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->torpVertexBuffer, &app->torpVertexBufferMemory); vkMapMemory(app->device, app->torpVertexBufferMemory, 0, sizeof(torpVertices), 0, &d); memcpy(d, torpVertices, sizeof(torpVertices)); vkUnmapMemory(app->device, app->torpVertexBufferMemory);
     createBuffer(app, sizeof(torpIndices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->torpIndexBuffer, &app->torpIndexBufferMemory); vkMapMemory(app->device, app->torpIndexBufferMemory, 0, sizeof(torpIndices), 0, &d); memcpy(d, torpIndices, sizeof(torpIndices)); vkUnmapMemory(app->device, app->torpIndexBufferMemory);
     createBuffer(app, sizeof(cubeVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->cubeVertexBuffer, &app->cubeVertexBufferMemory); vkMapMemory(app->device, app->cubeVertexBufferMemory, 0, sizeof(cubeVertices), 0, &d); memcpy(d, cubeVertices, sizeof(cubeVertices)); vkUnmapMemory(app->device, app->cubeVertexBufferMemory);
@@ -2433,6 +2466,39 @@ void initVulkan(VulkanApp* app) {
     createBuffer(app, sizeof(whVerts), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->whVertexBuffer, &app->whVertexBufferMemory); vkMapMemory(app->device, app->whVertexBufferMemory, 0, sizeof(whVerts), 0, &d); memcpy(d, whVerts, sizeof(whVerts)); vkUnmapMemory(app->device, app->whVertexBufferMemory);
     createBuffer(app, totalWhInds * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->whIndexBuffer, &app->whIndexBufferMemory); vkMapMemory(app->device, app->whIndexBufferMemory, 0, totalWhInds * sizeof(uint32_t), 0, &d); memcpy(d, whInds, totalWhInds * sizeof(uint32_t)); vkUnmapMemory(app->device, app->whIndexBufferMemory);
     app->whIndexCount = totalWhInds;
+    
+    /* Procedural Quantum Cores for Alliance Classes (0 to 12) */
+    for (int cl = 0; cl <= 12; cl++) {
+        /* Formula aggressiva per differenziare: 0=75 lati (Legacy), 12=3 lati (Frigate) */
+        int eq_sides = 3 + (12 - cl) * 6;
+        int num_vertices = eq_sides + 2;
+        int num_indices = eq_sides * 6;
+        
+        Vertex cVerts[200]; /* Safe max size given max eq_sides is 27 */
+        uint32_t cInds[600];
+        
+        cVerts[0] = (Vertex){{0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
+        cVerts[1] = (Vertex){{0.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, -1.0f, 0.0f}};
+        for (int e = 0; e < eq_sides; e++) {
+            float th = 2.0f * M_PI * e / eq_sides;
+            cVerts[2 + e] = (Vertex){{cosf(th), 0.0f, sinf(th)}, {1.0f, 1.0f, 1.0f}, {cosf(th), 0.0f, sinf(th)}};
+        }
+        int idx = 0;
+        for (int e = 0; e < eq_sides; e++) {
+            int next_e = (e + 1) % eq_sides;
+            /* Top edge */
+            cInds[idx++] = 0; cInds[idx++] = 2 + e;
+            /* Bottom edge */
+            cInds[idx++] = 1; cInds[idx++] = 2 + e;
+            /* Equator edge */
+            cInds[idx++] = 2 + e; cInds[idx++] = 2 + next_e;
+        }
+        app->coreICount[cl] = num_indices;
+        createBuffer(app, num_vertices * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->coreVB[cl], &app->coreVBM[cl]);
+        vkMapMemory(app->device, app->coreVBM[cl], 0, num_vertices * sizeof(Vertex), 0, &d); memcpy(d, cVerts, num_vertices * sizeof(Vertex)); vkUnmapMemory(app->device, app->coreVBM[cl]);
+        createBuffer(app, num_indices * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->coreIB[cl], &app->coreIBM[cl]);
+        vkMapMemory(app->device, app->coreIBM[cl], 0, num_indices * sizeof(uint32_t), 0, &d); memcpy(d, cInds, num_indices * sizeof(uint32_t)); vkUnmapMemory(app->device, app->coreIBM[cl]);
+    }
 
     for(int i=0; i<MAX_FRAMES_IN_FLIGHT; i++) createBuffer(app, sizeof(UniformBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->uniformBuffers[i], &app->uniformBuffersMemory[i]);
     VkDescriptorPoolSize sz = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT}; VkDescriptorPoolCreateInfo dp = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,NULL,0,MAX_FRAMES_IN_FLIGHT,1,&sz}; vkCreateDescriptorPool(app->device, &dp, NULL, &app->descriptorPool);
@@ -2459,6 +2525,10 @@ void cleanup(VulkanApp* app) {
     vkDestroySwapchainKHR(app->device, app->swapChain, NULL);
     vkDestroyBuffer(app->device, app->whIndexBuffer, NULL); vkFreeMemory(app->device, app->whIndexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->whVertexBuffer, NULL); vkFreeMemory(app->device, app->whVertexBufferMemory, NULL);
+    for (int cl = 0; cl <= 12; ++cl) {
+        vkDestroyBuffer(app->device, app->coreIB[cl], NULL); vkFreeMemory(app->device, app->coreIBM[cl], NULL);
+        vkDestroyBuffer(app->device, app->coreVB[cl], NULL); vkFreeMemory(app->device, app->coreVBM[cl], NULL);
+    }
     vkDestroyBuffer(app->device, app->starfieldIndexBuffer, NULL); vkFreeMemory(app->device, app->starfieldIndexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->starfieldVertexBuffer, NULL); vkFreeMemory(app->device, app->starfieldVertexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->sphereIndexBuffer, NULL); vkFreeMemory(app->device, app->sphereIndexBufferMemory, NULL);
@@ -2482,16 +2552,10 @@ void cleanup(VulkanApp* app) {
     vkDestroyBuffer(app->device, app->cubeVertexBuffer, NULL); vkFreeMemory(app->device, app->cubeVertexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->torpIndexBuffer, NULL); vkFreeMemory(app->device, app->torpIndexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->torpVertexBuffer, NULL); vkFreeMemory(app->device, app->torpVertexBufferMemory, NULL);
-    vkDestroyBuffer(app->device, app->shipIndexBuffer, NULL); vkFreeMemory(app->device, app->shipIndexBufferMemory, NULL);
-    vkDestroyBuffer(app->device, app->shipVertexBuffer, NULL); vkFreeMemory(app->device, app->shipVertexBufferMemory, NULL);
-    vkDestroyBuffer(app->device, app->scoutIndexBuffer, NULL); vkFreeMemory(app->device, app->scoutIndexBufferMemory, NULL);
-    vkDestroyBuffer(app->device, app->scoutVertexBuffer, NULL); vkFreeMemory(app->device, app->scoutVertexBufferMemory, NULL);
-    vkDestroyBuffer(app->device, app->cruiserIndexBuffer, NULL); vkFreeMemory(app->device, app->cruiserIndexBufferMemory, NULL);
-    vkDestroyBuffer(app->device, app->cruiserVertexBuffer, NULL); vkFreeMemory(app->device, app->cruiserVertexBufferMemory, NULL);
-    vkDestroyBuffer(app->device, app->battleshipIndexBuffer, NULL); vkFreeMemory(app->device, app->battleshipIndexBufferMemory, NULL);
-    vkDestroyBuffer(app->device, app->battleshipVertexBuffer, NULL); vkFreeMemory(app->device, app->battleshipVertexBufferMemory, NULL);
-    vkDestroyBuffer(app->device, app->carrierIndexBuffer, NULL); vkFreeMemory(app->device, app->carrierIndexBufferMemory, NULL);
-    vkDestroyBuffer(app->device, app->carrierVertexBuffer, NULL); vkFreeMemory(app->device, app->carrierVertexBufferMemory, NULL);
+    vkDestroyBuffer(app->device, app->shipIndexBuffer, NULL);
+    vkFreeMemory(app->device, app->shipIndexBufferMemory, NULL);
+    vkDestroyBuffer(app->device, app->shipVertexBuffer, NULL);
+    vkFreeMemory(app->device, app->shipVertexBufferMemory, NULL);
     
     vkDestroyBuffer(app->device, app->indexBuffer, NULL); vkFreeMemory(app->device, app->indexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->vertexBuffer, NULL); vkFreeMemory(app->device, app->vertexBufferMemory, NULL);
@@ -2504,6 +2568,22 @@ void cleanup(VulkanApp* app) {
 }
 
 int main(int argc, char** argv) {
+    /* Handle --help and --version for help2man */
+    if (argc > 1) {
+        if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+            printf("Usage: spacegl_vulkan [SHM_NAME]\n");
+            printf("Space GL Vulkan Tactical Viewer\n\n");
+            printf("Options:\n");
+            printf("  --help, -h     Display this help and exit\n");
+            printf("  --version      Display version information and exit\n\n");
+            return 0;
+        }
+        if (strcmp(argv[1], "--version") == 0) {
+            printf("spacegl_vulkan 2026.04.12\n");
+            return 0;
+        }
+    }
+
     if (!glfwInit()) {
         return 1;
     }

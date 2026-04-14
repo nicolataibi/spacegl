@@ -131,7 +131,7 @@ The v2.5 architecture is designed to handle mass combat scenarios without perfor
 ```bash
 # Ubuntu / Debian
 sudo apt-get install build-essential freeglut3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
-                     libvulkan-dev vulkan-tools glslc libncurses5-dev libncursesw5-dev
+                     libvulkan-dev vulkan-tools glslc libglfw3-dev libncurses5-dev libncursesw5-dev
 
 # Fedora / Red Hat
 sudo dnf groupinstall "Development Tools"
@@ -187,7 +187,7 @@ By editing this file and recompiling with `make`, you can alter the physics and 
 | **`GAME_TICK_RATE`** | Server logic frequency (Hz) | **60** |
 | **`GAME_MAX_PLAYERS`**| Maximum simultaneous commanders | **16** |
 | **`SPEED_TORPEDO`** | Plasma torpedo cruise speed | **0.225** |
-| **`INTERP_SPEED_OBJECT`**| Ship movement smoothness (LERP) | **0.175** |
+| **`INTERP_SPEED_OBJECT`**| Ship movement smoothness (LERP) | **0.25** |
 | **`MAX_VISIBLE_TORPEDOES`**| Max projectile capacity per quadrant | **256** |
 
 ### Gameplay & Balancing Parameters
@@ -217,7 +217,7 @@ SpaceGL uses an authoritative server model with a high-performance binary protoc
 *   **Delta Compression**: The engine employs a bitmask-based differential update system. Instead of sending the full game state (30KB+), the server transmits only changed "data blocks" (Transform, Vitals, Systems, etc.). This reduces average bandwidth usage by **90-95%**.
 *   **Interest Management**: Using the 10x10x10 spatial index, the server filters objects based on player location. Static entities (Stars, Planets) are cached on the client and only re-synchronized upon quadrant transition.
 *   **Zero-Latency IPC (Double Buffered)**: The client relays network data to the 3D viewer via a dual-buffer **SharedIPC** segment. While the client populates Buffer A, the viewer reads from Buffer B. Atomic swaps ensure the graphics engine always has access to a consistent state without visual artifacts or the need for blocking mutexes.
-*   **Asynchronous Task Processing**: The server utilizes a **Persistent ThreadPool** to delegate non-critical heavy lifting (e.g., encryption, HMAC signing of `galaxy.dat`, and global broadcast cycles) to background workers, protecting the 30Hz simulation frequency.
+*   **Asynchronous Task Processing**: The server utilizes a **Persistent ThreadPool** to delegate non-critical heavy lifting (e.g., encryption, HMAC signing of `galaxy.dat`, and global broadcast cycles) to background workers, protecting the 60Hz simulation frequency.
 *   **Telemetries**: The HUD displays real-time network health:
     *   **Efficiency**: Percentage of bandwidth saved by Delta Compression.
     *   **Jitter**: Millisecond variance in packet arrival, used to tune the interpolation buffer.
@@ -314,12 +314,12 @@ To maintain a seamless 30 TPS (Ticks Per Second) logic rate while managing a mas
     *   The main logic thread performs a near-instant `memcpy` of the core state to a protected buffer.
     *   A secondary thread (`save_thread`) handles the heavy disk I/O independently.
     *   An `atomic_bool` flag prevents concurrent save operations if the disk is slow.
-    *   **Impact**: **Zero-latency saving**. The logic loop continues at a perfect 30Hz regardless of disk performance.
+    *   **Impact**: **Zero-latency saving**. The logic loop continues at a perfect 60Hz regardless of disk performance.
 
 #### 📡 C. LRS Grid Decoupling
-*   **The Problem**: Generating the global BPNBS encoded grid (used for Long Range Sensors) involves a triple-nested loop over 64,000 quadrants. Doing this 30 times per second was redundant.
+*   **The Problem**: Generating the global BPNBS encoded grid (used for Long Range Sensors) involves a triple-nested loop over 64,000 quadrants. Doing this 60 times per second was redundant.
 *   **The Solution**: We decoupled sensor grid generation from the physics tick.
-    *   The strategic grid is now refreshed only **once per second** (every 30 ticks).
+    *   The strategic grid is now refreshed only **once per second** (every 60 ticks).
     *   Since LRS is used for long-range planning, a 1-second update frequency provides perfect tactical awareness without the computational cost.
     *   **Impact**: Eliminated the most expensive computational task from 29 out of every 30 logic frames.
 
@@ -451,7 +451,21 @@ The `spacegl_viewer` is a low-level diagnostic tool designed for administrators 
     *   `players`: Lists all persistent commanders, their current sector, cloaking status, and active cryptographic frequency.
     *   `search <name>`: Performs a recursive search to locate a specific captain or vessel across the entire 1000-quadrant universe.
 
-### 4. The 3D Tactical View (`stellar_3dview`)
+### 4. The Global Scanner (`spacegl_diag`)
+`spacegl_diag` is an advanced diagnostic tool (Tactical Real-Time Scanner) that operates at a low level, directly reading the memory of the `spacegl_server` process using the `process_vm_readv` system calls.
+
+*   **Remote Inspection**: Allows monitoring the status of all active NPCs and players without impacting server performance and without requiring a network connection.
+*   **Multi-Page Navigation**:
+    *   **[N] / [P]**: Allows cycling through different factions (Alliance, Korthian, Xylari, Swarm, etc.).
+    *   **Page 0**: Shows a global view of all factions simultaneously.
+*   **Dynamic Scrolling**:
+    *   **[UP] / [DOWN]**: Line-by-line scrolling.
+    *   **[PAGE UP] / [PAGE DOWN]**: Fast list scrolling.
+*   **Tactical Data**: Provides a unified display of ID, Name, Faction, Coordinates (Quadrant and Sector), Hull Integrity, and Energy.
+
+This tool is indispensable for gameplay balancing and for monitoring the progress of the galactic simulation in real-time.
+
+### 5. The 3D Tactical View (`stellar_3dview`)
 The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, designed to provide an immersive spatial representation of the surrounding tactical area and the entire galaxy.
 
 *   **Widescreen Experience (16:9)**: The display window is optimized for 1280x720 resolution, offering a cinematic field of view.
@@ -534,7 +548,7 @@ This implementation allows the simulator to scale smoothly, keeping command late
 ### IPC (Client ↔ Viewer): The Direct Bridge
 The link between the command bridge and the tactical view is realized via an inter-process communication (IPC) interface based on **POSIX Shared Memory**, designed to eliminate local data exchange latency.
 
-*   **Shared-Memory Architecture**: The `stellar_client` allocates a dedicated memory segment (`/st_shm_PID`) where the `GameState` structure resides. This structure acts as a mirror representation of the local state, accessible in real-time by both the client (writer) and the viewer (reader).
+*   **Shared-Memory Architecture**: The `spacegl_client` allocates a dedicated memory segment (`/spacegl_shm_PID`) where the `GameState` structure resides. This structure acts as a mirror representation of the local state, accessible in real-time by both the client (writer) and the viewer (reader).
 *   **Hybrid Synchronization (Mutex & Semaphores)**:
     *   **PTHREAD_PROCESS_SHARED Mutex**: Data consistency within shared memory is guaranteed by a mutex configured for cross-process use. This prevents the viewer from reading partial data while the client is updating the object matrix.
     *   **POSIX Semaphores**: A semaphore (`sem_t data_ready`) is used to implement a "Producer-Consumer" notification mechanism. Instead of constantly polling memory, the viewer remains in an efficient wait state until the client signals the availability of a new logical frame.
@@ -629,11 +643,18 @@ The Space GL universe is a dynamic ecosystem populated by 17 classes of entities
 *   **Spatial Rifts**: Tears in the spacetime fabric. They act as natural teleporters that project the ship to a random point in the galaxy.
 
 ### 🚩 Factions and Intelligent Ships
-*   **Alliance (Player/Starbase)**: Includes your ship and Starbases, where you can dock (`doc`) for full repairs and resupply.
-*   **Korthian Empire**: Aggressive warriors patrolling quadrants, often protected by defense platforms.
-*   **Xylari Star Empire**: Masters of deception using cloaking devices to launch surprise attacks.
-*   **Swarm Collective**: The greatest threat. Their Cubes have massive firepower and superior regenerative capabilities.
-*   **NPC Factions**: Vesperians, Ascendant, Quarzites, Saurian, Gilded, Fluidic Void, Cryos, and Apex. Each with varying levels of hostility and power.
+*   **Alliance (Player/Starbase)**: Your ship and Starbases (Cyan `r:0, g:1, b:1` for players, Green `r:0, g:1, b:0` for bases). Allows docking (`doc`) for full repairs and resupply.
+*   **Korthian Empire (ID 10)**: Aggressive warriors patrolling quadrants, often protected by defense platforms. Visually identified by a **Bright Red/Orange** wireframe `(1.0, 0.1, 0.0)`.
+*   **Xylari Star Empire (ID 11)**: Masters of deception using cloaking devices to launch surprise attacks. Rendered in **Neon Green** `(0.0, 1.0, 0.2)`.
+*   **Swarm Collective (ID 12)**: The greatest threat. Their ships have massive firepower and superior regenerative capabilities. Extremely difficult to spot with **Dark Grey** hulls `(0.1, 0.1, 0.1)`.
+*   **Vesperian Conclave (ID 13)**: Identified by **Magenta/Fuchsia** signatures `(1.0, 0.0, 1.0)`.
+*   **Ascendant Dominion (ID 14)**: Rendered in **Deep Purple** `(0.5, 0.0, 0.8)`.
+*   **Quarzite Assembly (ID 15)**: Identified by **Bright Orange** emissions `(1.0, 0.5, 0.0)`.
+*   **Saurian Hegemony (ID 16)**: Visualized with **Olive Green** hulls `(0.4, 0.6, 0.1)`.
+*   **Gilded Federation (ID 17)**: Wealthy merchant vessels rendered in **Gold/Copper** `(0.8, 0.7, 0.1)`.
+*   **Fluidic Species 8472 (ID 18)**: Biological entities with **Bio-Green/Yellow** signatures `(0.7, 1.0, 0.0)`.
+*   **Cryos Confederacy (ID 19)**: Cold-environment species identified by **Ice Blue** wireframes `(0.0, 0.5, 1.0)`.
+*   **Apex Hunters (ID 20)**: Relentless pursuers rendered in **Rust Red** `(0.6, 0.2, 0.1)`.
 
 #### ⚖️ Faction System and "Renegade" Protocol
 Space GL implements a dynamic reputation system that manages relationships between the player and the various galactic powers.
@@ -1379,7 +1400,7 @@ The quadrant is scattered with natural phenomena detectable by both sensors and 
 *   **Defense Platforms (ID 16xxx)**: Heavily armed static sentinels protecting strategic zones. They can be locked (`lock`), scanned (`scan`), and destroyed with phasers or torpedoes.
 *   **Spatial Rifts (ID 17xxx)**: Distortions in the fabric of space-time.
 *   **Nebulas (ID 8xxx)**:
-    *   **Classes**: Standard, High-Energy, Dark Matter, Ionic, Gravimetrica, Temporal.
+    *   **Classes**: Standard, High-Energy, Dark Matter, Ionic, Gravimetric, Temporal.
     *   **Effect**: Clouds of gas and particles that interfere with short and long range sensors (telemetry noise and distortion).
     *   **3D View**: Colored gas volumes based on class (Purple/Blue for Standard, Yellow/Orange for High-Energy, Black/Purple for Dark Matter, etc.).
     *   **Hazard**: Remaining inside (Distance < 2.0) causes constant energy drain and inhibits shield regeneration.
@@ -1811,7 +1832,7 @@ The assisted navigation system (`apr`) operates with high precision, ensuring a 
 #### 💣 2. Multi-Tube Torpedo System (4-Tube Rotary System)
 The vessel's tactical architecture now features **4 independent torpedo tubes** with automatic rotation.
 *   **Rate of Fire**: The system allows for launching up to 4 torpedoes in rapid succession before saturating the loading buffers.
-*   **Reload Cycle**: Each tube operates on an independent reload timer of **3 seconds** (90 server ticks).
+*   **Reload Cycle**: Each tube operates on an independent reload timer of **3 seconds** (180 server ticks @ 60Hz).
 *   **HUD Interface**: The status of each individual tube is monitored in real-time on the 3D viewer using the codes: `[R]` (Ready), `[L]` (Loading), `[F]` (Firing).
 
 ---
@@ -2047,6 +2068,8 @@ Space GL implements enterprise-grade security for galactic state synchronization
 To compile and run the SPACE GL suite, ensure the following libraries are installed:
 *   **FreeGLUT / OpenGL**: Core rendering engine and window management.
 *   **GLEW**: OpenGL Extension Wrangler for advanced shader support.
+*   **Vulkan / GLFW**: Next-gen rendering backend (`libvulkan`, `libglfw`, SPIR-V shaders via `glslc`).
+*   **ncurses**: Terminal HUD interface for `spacegl_hud` (`libncurses`).
 *   **OpenSSL**: Required for the complete cryptographic suite (AES, HMAC, etc.).
 *   **POSIX Threads & RT**: Managed via `lpthread` and `lrt` for shared memory and synchronization.
 
@@ -2055,7 +2078,7 @@ To compile and run the SPACE GL suite, ensure the following libraries are instal
 SpaceGL utilizes a multi-layered parallelism strategy to achieve high-fidelity simulation at scale:
 
 #### 1. Massive Data Parallelism (OpenMP)
-The simulation core is optimized for modern multi-core processors. By leveraging **OpenMP**, the engine distributes the processing of thousands of NPC AI states, sensor scans, and galactic event updates across all logical cores. This allows the server to maintain a rock-solid 30Hz tick rate even when thousands of hostile vessels are engaged in tactical maneuvers.
+The simulation core is optimized for modern multi-core processors. By leveraging **OpenMP**, the engine distributes the processing of thousands of NPC AI states, sensor scans, and galactic event updates across all logical cores. This allows the server to maintain a rock-solid 60Hz tick rate even when thousands of hostile vessels are engaged in tactical maneuvers.
 
 #### 2. Hardware Instanced Rendering
 To populate the vastness of space without killing the frame rate, the 3D viewer implements **Instanced Rendering**.

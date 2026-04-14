@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -264,7 +265,7 @@ int encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *ke
     return 1;
 }
 
-/* Colori per l'interfaccia CLI */
+/* CLI Interface Colors */
 #define RESET   "\033[0m"
 #define B_RED     "\033[1;31m"
 #define B_GREEN   "\033[1;32m"
@@ -285,7 +286,7 @@ int shm_fd = -1;
 char shm_path[64];
 volatile sig_atomic_t g_visualizer_ready = 0;
 
-/* Gestione Input Reattivo */
+/* Reactive Input Management */
 char g_input_buf[256] = {0};
 int g_input_ptr = 0;
 struct termios orig_termios;
@@ -325,10 +326,9 @@ void handle_sigchld(int sig) {
 }
 
 void init_shm() {
-    sprintf(shm_path, "/st_shm_%d", getpid());
-    
-    /* Unlink in case it already exists from a previous crash */
-    shm_unlink(shm_path);
+    sprintf(shm_path, "/spacegl_shm_%d", getpid());
+
+    /* Unlink in case it already exists from a previous crash */    shm_unlink(shm_path);
     
     shm_fd = shm_open(shm_path, O_CREAT | O_RDWR | O_EXCL, 0666);
     if (shm_fd == -1) {
@@ -368,6 +368,9 @@ void init_shm() {
     
     sem_init(&g_shm->data_ready, 1, 0);
     
+    /* Initialize persistent galaxy map (Single-buffered) */
+    memset(g_shm->shm_galaxy, 0, sizeof(g_shm->shm_galaxy));
+
     /* Initial state for BOTH buffers: set objects as INACTIVE */
     for(int b=0; b<2; b++) {
         g_shm->buffers[b].shm_s[0] = 20.0;
@@ -392,7 +395,8 @@ void swap_buffers() {
     atomic_store(&g_shm->write_index, old_read);
     
     /* Update local write pointer for the NEXT frame.
-       We COPY the current buffer to the next one to maintain continuity of static data (map, etc) */
+       We COPY the current dynamic buffer to the next one to maintain continuity.
+       Galaxy data is now persistent and doesn't need copying. */
     memcpy(&g_shm->buffers[old_read], &g_shm->buffers[old_write], sizeof(GameState));
     g_shared_state = &g_shm->buffers[old_read];
 }
@@ -946,13 +950,13 @@ void *network_listener(void *arg) {
                 /* Update dynamic galaxy data (e.g. Ion Storms, Supernovas) */
                 int mq1 = current_state.map_update_q[0], mq2 = current_state.map_update_q[1], mq3 = current_state.map_update_q[2];
                 if (mq1 >= 1 && mq1 <= GALAXY_SIZE && mq2 >= 1 && mq2 <= GALAXY_SIZE && mq3 >= 1 && mq3 <= GALAXY_SIZE) {
-                    g_shared_state->shm_galaxy[mq1][mq2][mq3] = current_state.map_update_val;
+                    g_shm->shm_galaxy[mq1][mq2][mq3] = current_state.map_update_val;
                 }
                 
                 /* Handle 2nd quadrant update */
                 int m2q1 = current_state.map_update_q2[0], m2q2 = current_state.map_update_q2[1], m2q3 = current_state.map_update_q2[2];
                 if (m2q1 >= 1 && m2q1 <= GALAXY_SIZE && m2q2 >= 1 && m2q2 <= GALAXY_SIZE && m2q3 >= 1 && m2q3 <= GALAXY_SIZE) {
-                    g_shared_state->shm_galaxy[m2q1][m2q2][m2q3] = current_state.map_update_val2;
+                    g_shm->shm_galaxy[m2q1][m2q2][m2q3] = current_state.map_update_val2;
                 }
 
                 g_shared_state->object_count = current_state.object_count;
@@ -1046,6 +1050,29 @@ int main(int argc, char *argv[]) {
     int my_ship_class = SHIP_CLASS_GENERIC_ALIEN;
     char visualizer_type[4] = "gl";
 
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            printf("Usage: %s [gl|vk] [OPTIONS]\n", argv[0]);
+            printf("Space GL Tactical Bridge Interface (Client)\n\n");
+            printf("Arguments:\n");
+            printf("  gl             Launch with OpenGL visualizer (default)\n");
+            printf("  vk             Launch with Vulkan visualizer\n\n");
+            printf("Options:\n");
+            printf("  -d             Enable debug mode\n");
+            printf("  --help, -h     Display this help and exit\n");
+            printf("  --version      Display version information and exit\n\n");
+            printf("Environment Variables:\n");
+            printf("  SPACEGL_KEY    Master Key for cryptographic synchronization (required)\n");
+            return 0;
+        }
+        if (strcmp(argv[i], "--version") == 0) {
+            printf("Space GL Client v2026.04.02.01\n");
+            printf("Copyright (C) 2026 Nicola Taibi\n");
+            printf("License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.\n");
+            return 0;
+        }
+    }
+
     /* Parse visualizer selection from arguments */
     if (argc > 1) {
         if (strcmp(argv[1], "vk") == 0) strcpy(visualizer_type, "vk");
@@ -1096,7 +1123,7 @@ int main(int argc, char *argv[]) {
 
     atexit(cleanup);
 
-    /* Schermata di Benvenuto */
+    /* Welcome Screen */
     printf(B_CYAN "  ____________________________________________________________________________\n" RESET);
     printf(B_CYAN " /                                                                            \\\n" RESET);
     printf(B_CYAN " | " B_WHITE "   ███████╗██████╗  █████╗  ██████╗███████╗     ██████╗ ██╗              " B_CYAN "  |\n" RESET);
@@ -1307,7 +1334,7 @@ int main(int argc, char *argv[]) {
     LOG_DEBUG("Sending login packet (%zu bytes)...\n", sizeof(PacketLogin));
     write_all(sock, &lpkt, sizeof(PacketLogin));
 
-    /* Ricezione Galassia Master (Sincronizzazione iniziale) */
+    /* Receive Master Galaxy (Initial Synchronization) */
     SpaceGLGame *master_sync = malloc(sizeof(SpaceGLGame));
     if (!master_sync) {
         perror("malloc failed for master_sync");
@@ -1340,8 +1367,7 @@ int main(int argc, char *argv[]) {
     
     /* Copy Galaxy Master to SHM for 3D Map View */
     if (g_shared_state) {
-        
-        memcpy(g_shared_state->shm_galaxy, master_sync->g, sizeof(master_sync->g));
+        memcpy(g_shm->shm_galaxy, master_sync->g, sizeof(master_sync->g));
         g_shared_state->shm_crypto_algo = CRYPTO_NONE;
         g_shared_state->shm_encryption_flags = master_sync->encryption_flags;
         memcpy(g_shared_state->shm_server_signature, master_sync->server_signature, 64);
@@ -1364,18 +1390,27 @@ int main(int argc, char *argv[]) {
         if (strcmp(visualizer_type, "vk") == 0) {
             /* Start Vulkan Viewer */
             if (fork() == 0) {
-                execl("./spacegl_vulkan", "spacegl_vulkan", shm_path, NULL);
-                perror("execl failed spacegl_vulkan"); _exit(1);
+                if (access("./spacegl_vulkan", X_OK) == 0) {
+                    execl("./spacegl_vulkan", "spacegl_vulkan", shm_path, NULL);
+                } else {
+                    execlp("spacegl_vulkan", "spacegl_vulkan", shm_path, NULL);
+                }
+                perror("execl/execlp failed spacegl_vulkan"); _exit(1);
             }
             /* Start HUD in xterm */
-            execlp("xterm", "xterm", "-T", "SPACE GL - HUD", "-geometry", "140x40", "-e", "./spacegl_hud", shm_path, NULL);
+            char hud_bin[256] = "spacegl_hud";
+            if (access("./spacegl_hud", X_OK) == 0) strcpy(hud_bin, "./spacegl_hud");
+            execlp("xterm", "xterm", "-T", "SPACE GL - HUD", "-geometry", "140x40", "-e", hud_bin, shm_path, NULL);
             perror("execlp failed xterm/hud"); _exit(1);
         } else {
             /* Default: OpenGL Viewer */
-            if (execl("./spacegl_3dview", "spacegl_3dview", shm_path, NULL) == -1) {
-                perror("execl failed to start ./spacegl_3dview");
-                _exit(1);
+            if (access("./spacegl_3dview", X_OK) == 0) {
+                execl("./spacegl_3dview", "spacegl_3dview", shm_path, NULL);
+            } else {
+                execlp("spacegl_3dview", "spacegl_3dview", shm_path, NULL);
             }
+            perror("execl/execlp failed spacegl_3dview");
+            _exit(1);
         }
     }
 
@@ -1385,7 +1420,7 @@ int main(int argc, char *argv[]) {
     while(!g_visualizer_ready && timeout-- > 0) {
         /* Check if child is still alive */
         int status;
-        if (waitpid(visualizer_pid, &status, WNOHANG) != 0) {
+        if (waitpid(visualizer_pid, &status, WNOHANG) > 0) {
             printf(B_RED "ERROR: Tactical View process terminated unexpectedly.\n" RESET);
             break;
         }
@@ -1398,7 +1433,7 @@ int main(int argc, char *argv[]) {
         printf(B_RED "WARNING: Tactical View timed out. Proceeding in CLI-only mode.\n" RESET);
     }
 
-    /* Thread per ascoltare il server */
+    /* Thread to listen to the server */
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, network_listener, NULL);
 

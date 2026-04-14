@@ -131,7 +131,7 @@ L'aggiornamento 2.4 introduce ottimizzazioni di nuova generazione e una robustez
 ```bash
 # Ubuntu / Debian
 sudo apt-get install build-essential freeglut3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
-                     libvulkan-dev vulkan-tools glslc libncurses5-dev libncursesw5-dev
+                     libvulkan-dev vulkan-tools glslc libglfw3-dev libncurses5-dev libncursesw5-dev
 
 # Fedora / Red Hat
 sudo dnf groupinstall "Development Tools"
@@ -187,7 +187,7 @@ Modificando questo file e ricompilando con `make`, è possibile alterare le rego
 | **`GAME_TICK_RATE`** | Frequenza della logica del server (Hz) | **60** |
 | **`GAME_MAX_PLAYERS`**| Numero massimo di comandanti simultanei | **16** |
 | **`SPEED_TORPEDO`** | Velocità di crociera dei siluri al plasma | **0.225** |
-| **`INTERP_SPEED_OBJECT`**| Fluidità del movimento navi (LERP) | **0.175** |
+| **`INTERP_SPEED_OBJECT`**| Fluidità del movimento navi (LERP) | **0.25** |
 | **`MAX_VISIBLE_TORPEDOES`**| Capacità massima proiettili nel quadrante | **256** |
 
 ### Parametri di Gameplay e Bilanciamento
@@ -279,12 +279,12 @@ Per mantenere un tasso logico di 30 TPS (Tick Per Secondo) costante gestendo un 
     *   Il thread logico principale esegue un `memcpy` quasi istantaneo dello stato core in un buffer protetto.
     *   Un thread secondario (`save_thread`) gestisce l'I/O su disco pesante in modo indipendente.
     *   Un flag `atomic_bool` impedisce operazioni di salvataggio sovrapposte se il disco è lento.
-    *   **Impatto**: **Latenza di salvataggio zero**. Il loop logico continua a 30Hz perfetti indipendentemente dalle prestazioni del disco.
+    *   **Impatto**: **Latenza di salvataggio zero**. Il loop logico continua a 60Hz perfetti indipendentemente dalle prestazioni del disco.
 
 #### 📡 C. Disaccoppiamento Griglia LRS
-*   **Il Problema**: La generazione della griglia globale codificata BPNBS (usata per i Sensori a Lungo Raggio) comporta un triplo loop annidato su 64.000 quadranti. Farlo 30 volte al secondo era ridondante.
+*   **Il Problema**: La generazione della griglia globale codificata BPNBS (usata per i Sensori a Lungo Raggio) comporta un triplo loop annidato su 64.000 quadranti. Farlo 60 volte al secondo era ridondante.
 *   **La Soluzione**: Abbiamo disaccoppiato la generazione della griglia sensoriale dal tick della fisica.
-    *   La griglia strategica viene ora aggiornata solo **una volta al secondo** (ogni 30 tick).
+    *   La griglia strategica viene ora aggiornata solo **una volta al secondo** (ogni 60 tick).
     *   Poiché l'LRS è usato per la pianificazione a lungo raggio, una frequenza di aggiornamento di 1 secondo fornisce una consapevolezza tattica perfetta senza il costo computazionale inutile.
     *   **Impatto**: Eliminato il compito computazionale più oneroso da 29 su 30 frame logici.
 
@@ -407,7 +407,21 @@ Il `spacegl_viewer` è uno strumento diagnostico a basso livello progettato per 
     *   `players`: Elenca tutti i comandanti persistenti, il loro settore attuale, lo stato di occultamento e la frequenza crittografica attiva.
     *   `search <name>`: Esegue una ricerca ricorsiva per localizzare un capitano o un vascello specifico nell'intero universo di 1000 quadranti.
 
-### 4. La Vista Tattica 3D (`stellar_3dview`)
+### 4. Lo Scanner Globale (`spacegl_diag`)
+Lo `spacegl_diag` è uno strumento di diagnostica avanzata (Tactical Real-Time Scanner) che opera a basso livello, leggendo direttamente la memoria del processo `spacegl_server` tramite le chiamate di sistema `process_vm_readv`.
+
+*   **Ispezione Remota**: Permette di monitorare lo stato di tutti gli NPC e di tutti i giocatori attivi senza gravare sulle prestazioni del server e senza richiedere una connessione di rete.
+*   **Navigazione Multi-Pagina**:
+    *   **[N] / [P]**: Permette di scorrere tra le diverse fazioni (Alliance, Korthian, Xylari, Swarm, etc.).
+    *   **Pagina 0**: Mostra una visione globale di tutte le fazioni contemporaneamente.
+*   **Scrolling Dinamico**:
+    *   **[UP] / [DOWN]**: Scorrimento riga per riga.
+    *   **[PAGE UP] / [PAGE DOWN]**: Scorrimento veloce della lista.
+*   **Dati Tattici**: Fornisce una visualizzazione unificata di ID, Nome, Fazione, Coordinate (Quadrante e Settore), Integrità Scafo ed Energia.
+
+Questo strumento è indispensabile per il bilanciamento del gameplay e per monitorare l'andamento della simulazione galattica in tempo reale.
+
+### 5. La Vista Tattica 3D (`stellar_3dview`)
 Il visualizzatore 3D è un motore di rendering standalone basato su **OpenGL e GLUT**, progettato per fornire una rappresentazione spaziale immersiva dell'area tattica circostante e dell'intera galassia.
 
 *   **Esperienza Widescreen (16:9)**: La finestra di visualizzazione è ottimizzata per il formato 1280x720, offrendo un campo visivo cinematografico.
@@ -490,7 +504,7 @@ Questo implementazione permette al simulatore di scalare fluidamente, mantenendo
 ### IPC (Client ↔ Visualizzatore): Il Direct Bridge
 Il link tra il ponte di comando e la vista tattica è realizzato tramite un'interfaccia di comunicazione inter-processo (IPC) basata su **POSIX Shared Memory**, progettata per eliminare la latenza di scambio dati locale.
 
-*   **Architettura Shared-Memory**: Il `stellar_client` alloca un segmento di memoria dedicato (`/st_shm_PID`) in cui risiede la struttura `GameState`. Questa struttura funge da rappresentazione speculare dello stato locale, accessibile in tempo reale sia dal client (scrittore) che dal visualizzatore (lettore).
+*   **Architettura Shared-Memory**: Il `spacegl_client` alloca un segmento di memoria dedicato (`/spacegl_shm_PID`) in cui risiede la struttura `GameState`. Questa struttura funge da rappresentazione speculare dello stato locale, accessibile in tempo reale sia dal client (scrittore) che dal visualizzatore (lettore).
 *   **Sincronizzazione Ibrida (Mutex & Semaphores)**:
     *   **PTHREAD_PROCESS_SHARED Mutex**: La coerenza dei dati all'interno della memoria condivisa è garantita da un mutex configurato per l'uso tra processi diversi. Questo impedisce al visualizzatore di leggere dati parziali mentre il client sta aggiornando la matrice degli oggetti.
     *   **POSIX Semaphores**: Un semaforo (`sem_t data_ready`) viene utilizzato per implementare un meccanismo di notifica di tipo "Producer-Consumer". Invece di interrogare costantemente la memoria (polling), il visualizzatore rimane in uno stato di attesa efficiente finché il client non segnala la disponibilità di un nuovo frame logico.
@@ -585,11 +599,18 @@ L'universo di Space GL è un ecosistema dinamico popolato da 17 classi di entit�
 *   **Faglie Spaziali (Spatial Rifts)**: Strappi nel tessuto spaziotemporale. Fungono da teletrasporti naturali che proiettano la nave in un punto casuale della galassia.
 
 ### 🚩 Fazioni e Navi Intelligenti
-*   **Alleanza (Player/Starbase)**: Include la tua nave e le Basi Stellari, dove puoi attraccare (`doc`) per riparazioni e rifornimenti completi.
-*   **Impero Korthian**: Guerrieri aggressivi che pattugliano i quadranti, spesso protetti da piattaforme difensive.
-*   **Impero Stellare Xylario**: Maestri dell'inganno che utilizzano l'occultamento per lanciare attacchi a sorpresa.
-*   **Collettivo Swarm**: La minaccia più grande. I loro Cubi hanno una potenza di fuoco massiccia e capacità rigenerative superiori.
-*   **Fazioni NPC**: Vesperiani, Ascendant, Quarzitei, Saurian, Gilded, Fluidic Void, Cryos e Apex. Ognuna con diversi livelli di ostilità e potenza.
+*   **Alleanza (Player/Starbase)**: La tua nave e le Basi Stellari (Ciano `r:0, g:1, b:1` per i giocatori, Verde `r:0, g:1, b:0` per le basi). Permette l'attracco (`doc`) per riparazioni complete e rifornimenti.
+*   **Impero Korthian (ID 10)**: Guerrieri aggressivi che pattugliano i quadranti, spesso protetti da piattaforme difensive. Identificabili visivamente da un wireframe **Rosso/Arancio Brillante** `(1.0, 0.1, 0.0)`.
+*   **Impero Stellare Xylario (ID 11)**: Maestri dell'inganno che utilizzano dispositivi di occultamento per lanciare attacchi a sorpresa. Resi in **Verde Neon** `(0.0, 1.0, 0.2)`.
+*   **Collettivo Swarm (ID 12)**: La minaccia più grande. Le loro navi hanno una potenza di fuoco massiccia e capacità rigenerative superiori. Estremamente difficili da individuare con scafi **Grigio Scuro** `(0.1, 0.1, 0.1)`.
+*   **Conclave Vesperiano (ID 13)**: Identificato da firme **Magenta/Fucsia** `(1.0, 0.0, 1.0)`.
+*   **Dominio Ascendant (ID 14)**: Reso in **Viola Scuro (Deep Purple)** `(0.5, 0.0, 0.8)`.
+*   **Assemblea Quarzite (ID 15)**: Identificata da emissioni **Arancio Brillante** `(1.0, 0.5, 0.0)`.
+*   **Egemonia Sauriana (ID 16)**: Visualizzata con scafi **Verde Oliva** `(0.4, 0.6, 0.1)`.
+*   **Federazione Gilded (ID 17)**: Ricchi mercantili resi in **Oro/Rame** `(0.8, 0.7, 0.1)`.
+*   **Flotta Fluida Specie 8472 (ID 18)**: Entità biologiche con firme **Bio-Verde/Giallo** `(0.7, 1.0, 0.0)`.
+*   **Confederazione Cryos (ID 19)**: Specie di ambienti freddi identificate da wireframe **Blu Ghiaccio** `(0.0, 0.5, 1.0)`.
+*   **Cacciatori Apex (ID 20)**: Inseguitori implacabili resi in **Rosso Ruggine** `(0.6, 0.2, 0.1)`.
 
 #### ⚖️ Sistema di Fazioni e Protocollo "Traditore" (Renegade)
 Space GL implementa un sistema di reputazione dinamico che gestisce le relazioni tra il giocatore e le diverse potenze galattiche.
@@ -1724,7 +1745,7 @@ Il sistema di navigazione assistita (`apr`) opera con alta precisione, garantend
 #### 💣 2. Sistema Torpedini Multi-Tubo (4-Tube Rotary System)
 L'architettura tattica del vascello prevede ora **4 tubi lancia-torpedini indipendenti** a rotazione automatica.
 *   **Cadenza di Fuoco**: Il sistema permette di lanciare fino a 4 siluri in rapida successione prima di saturare i buffer di caricamento.
-*   **Ciclo di Ricarica**: Ogni tubo opera su un timer di ricarica indipendente di **3 secondi** (90 tick del server).
+*   **Ciclo di Ricarica**: Ogni tubo opera su un timer di ricarica indipendente di **3 secondi** (180 tick del server @ 60Hz).
 *   **Interfaccia HUD**: Lo stato di ogni singolo tubo è monitorato in tempo reale sul visore 3D tramite i codici: `[R]` (Pronto), `[L]` (In ricarica), `[F]` (In lancio).
 
 ---
@@ -1955,6 +1976,31 @@ Ogni classe di vascello presenta elementi di design 3D unici:
 Space GL implementa la sicurezza di livello enterprise per la sincronizzazione dello stato galattico:
 *   **Firme HMAC-SHA256**: I file dei dati della galassia (`galaxy.dat`) e gli aggiornamenti di rete sono firmati per garantire zero manomissioni durante il transito o l'archiviazione.
 *   **HUD Crittografico**: Visualizzazione in tempo reale dei flag di crittografia, dello stato della firma e dei parametri del protocollo attivo direttamente nell'interfaccia tattica.
+*   **Allineamento Cache-Line (64-byte)**: Le strutture dati core utilizzano `__attribute__((aligned(64)))` per prevenire il *False Sharing* durante l'elaborazione massiccia in parallelo, garantendo il massimo throughput CPU e la continuità di memoria a 64-bit per tutti i campi `uint64_t`.
+
+### ⚙️ Requisiti di Sistema e Dipendenze
+Per compilare ed eseguire la suite SPACE GL, assicurarsi che le seguenti librerie siano installate:
+*   **FreeGLUT / OpenGL**: Motore di rendering principale e gestione delle finestre.
+*   **GLEW**: OpenGL Extension Wrangler per il supporto avanzato degli shader.
+*   **Vulkan / GLFW**: Backend di rendering di nuova generazione (`libvulkan`, `libglfw`, shader SPIR-V tramite `glslc`).
+*   **ncurses**: Interfaccia HUD testuale per `spacegl_hud` (`libncurses`).
+*   **OpenSSL**: Richiesto per la suite crittografica completa (AES, HMAC, ecc.).
+*   **POSIX Threads & RT**: Gestiti tramite `lpthread` e `lrt` per la memoria condivisa e la sincronizzazione.
+
+### ⚡ Motore di Calcolo ad Alte Prestazioni (Versione 2.4+)
+
+SpaceGL utilizza una strategia di parallelismo a più livelli per ottenere una simulazione ad alta fedeltà su scala:
+
+#### 1. Parallelismo Massivo dei Dati (OpenMP)
+Il nucleo della simulazione è ottimizzato per i moderni processori multi-core. Sfruttando **OpenMP**, il motore distribuisce l'elaborazione di migliaia di stati AI degli NPC, scansioni dei sensori e aggiornamenti degli eventi galattici su tutti i core logici. Questo consente al server di mantenere un tick rate solido a **60Hz** anche quando migliaia di vascelli ostili sono impegnati in manovre tattiche.
+
+#### 2. Rendering Instanziato Hardware
+Per popolare la vastità dello spazio senza penalizzare il frame rate, il visualizzatore 3D implementa il **Rendering Instanziato**.
+- **La Tecnologia**: Invece di emettere una draw call per ogni singolo asteroide (che crea un collo di bottiglia sulla CPU), il motore invia un unico "blueprint" e un array di dati di trasformazione alla GPU.
+- **Il Risultato**: Migliaia di istanze di asteroidi uniche, ciascuna con la propria rotazione, scala e posizione, vengono renderizzate in una singola operazione hardware. Questo mantiene la pipeline di rendering fluida (60-144 FPS) anche nei campi di detriti più densi.
+
+#### 3. Parallelismo Basato su Task (ThreadPool)
+Il disaccoppiamento della logica dai task in background è gestito da un **ThreadPool Persistente** dedicato. Operazioni come la firma HMAC, la cifratura AES e l'I/O di archiviazione persistente vengono messe in coda ed eseguite da thread worker, garantendo che l'elaborazione dei pacchetti di rete non venga mai ritardata dalla latenza del disco o da pesanti calcoli crittografici.
 
 #### 4. Modello delle librerie Vulkan
 Questa sezione descrive l'integrazione delle librerie grafiche di nuova generazione e degli strumenti di diagnostica avanzata per il monitoraggio del ponte.

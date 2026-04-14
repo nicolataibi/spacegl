@@ -1,4 +1,6 @@
-- New release, nothing of special to report.
-* Tue Mar 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.03.31.01
-- Space GL updates for smooth movements for ships and torpedoes (Freeglut & Vulkan).
-- General bug fixes.
+* Tue Apr 14 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.14.05
+- 5: spacegl_diag help section improved.
+- 4: Refactored revision logic to ensure consistent build triggering. 
+- 3: PIE compliance, spacegl_diag tool has been refactored, .sh scripts prioritize the optimized /build environment.
+- 2: Migrated to pure CMake build system, improved packaging standards, and resolved NPC/Wormhole rendering issues.
+- Updated SPEC file to include %autorelease and %autochangelog macros. Migrated SRPM generation workflow to 'rpkg' to ensure macro preservation. Fixed Source RPM structure to comply with Fedora/Sponsor automation standards.

@@ -208,6 +208,20 @@ void draw_shm_inspector(SharedIPC *shm_ptr, GameState *st, int page) {
 }
 
 int main(int argc, char** argv) {
+    if (argc > 1) {
+        if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+            printf("Usage: spacegl_hud [SHM_NAME]\n");
+            printf("Space GL Ncurses HUD\n\n");
+            printf("Options:\n");
+            printf("  --help, -h     Display this help and exit\n");
+            printf("  --version      Display version information and exit\n");
+            return 0;
+        }
+        if (strcmp(argv[1], "--version") == 0) {
+            printf("spacegl_hud 2026.04.12\n");
+            return 0;
+        }
+    }
     if (argc < 2) return 1;
     int fd = shm_open(argv[1], O_RDONLY, 0666);
     if (fd == -1) return 1;
@@ -353,7 +367,7 @@ int main(int argc, char** argv) {
             mvprintw(13+t, 37, "%sTUBE %d:[%-7s]%s%s", is_current ? ">" : " ", t+1, tube_str, timing_buf, eta_buf);
             attroff(COLOR_PAIR(col));
         }
-        mvprintw(17, 37, "READY: %-3d | STIVA: %-3d", st->shm_torpedoes, st->shm_cargo_torpedoes);
+        mvprintw(17, 37, "READY: %-3d | CARGO: %-3d", st->shm_torpedoes, st->shm_cargo_torpedoes);
 
         attron(COLOR_PAIR(6) | A_BOLD); mvprintw(19, 37, "[ CARGO INVENTORY ]"); attroff(A_BOLD);
         const char* res_n[] = {"None", "Aeth", "NeoT", "Void", "Grap", "Synp", "Gas ", "Comp", "Dark"};

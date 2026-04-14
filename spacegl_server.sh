@@ -8,7 +8,7 @@
 # (at your option) any later version.
 # Professional Startup Script
 
-# Colori
+# Colors
 RED='\033[1;31m'
 GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
@@ -27,33 +27,34 @@ echo -e " | ${CYAN}   ███████║██║     ██║  ██║
 echo -e " | ${CYAN}   ╚══════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚══════╝     ╚═════╝ ╚══════╝         ${RED}  |"
 echo -e ' |                                                                            |'
 echo -e " | ${RED}         ---  G A L A C T I C   S E R V E R   C O R E  ---                ${RED} |"
-echo -e " | ${YELLOW}        \"Per Tenebras, Lumen\" (Attraverso le tenebre, la luce)            ${RED} |"
+echo -e " | ${YELLOW}        \"Per Tenebras, Lumen\" (Through darkness, light)                 ${RED} |"
 echo -e ' \____________________________________________________________________________/'"${NC}"
 echo ""
 
-# Verifica eseguibile
-if [ -f "./spacegl_server" ]; then
+# Binary verification
+if [ -f "./build/spacegl_server" ]; then
+    SPACEGL_BIN="./build/spacegl_server"
+elif [ -f "./spacegl_server" ]; then
     SPACEGL_BIN="./spacegl_server"
 elif command -v spacegl_server > /dev/null; then
     SPACEGL_BIN="spacegl_server"
 else
-    echo -e "${RED}[ERROR]${NC} Eseguibile 'spacegl_server' non trovato."
-    echo -e "${YELLOW}[HINT]${NC} Esegui 'make' o installa il pacchetto RPM."
+    echo -e "${RED}[ERROR]${NC} Executable 'spacegl_server' not found."
     exit 1
 fi
 
-# Gestione Sicurezza (Master Key)
+# Security Management (Master Key)
 if [ -z "$SPACEGL_KEY" ]; then
-    echo -e "${YELLOW}[SECURITY]${NC} Inizializzazione protocollo di sicurezza..."
-    echo -e "${CYAN}[AUTH]${NC} Inserisci la Master Key per questo settore:"
+    echo -e "${YELLOW}[SECURITY]${NC} Initializing security protocol..."
+    echo -e "${CYAN}[AUTH]${NC} Enter the Master Key for this sector:"
     read -sp "> " key
     echo ""
     export SPACEGL_KEY="$key"
 fi
 
-echo -e "${GREEN}[SYSTEM]${NC} Master Key validata. Avvio sequenza di boot..."
-echo -e "${BLUE}[INFO]${NC} Server in ascolto sulla porta 5000 (TCP/Binary)"
+echo -e "${GREEN}[SYSTEM]${NC} Master Key validated. Starting boot sequence..."
+echo -e "${BLUE}[INFO]${NC} Server listening on port 5000 (TCP/Binary)"
 echo ""
 
-# Esecuzione del server
+# Server execution
 $SPACEGL_BIN "$@"

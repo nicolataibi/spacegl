@@ -118,7 +118,6 @@ typedef struct {
     int shm_red_alert;
     int shm_is_jammed;
     int shm_nav_state;
-    int64_t shm_galaxy[41][41][41];
     int shm_map_filter;
     int shm_force_shutdown;
     int is_cloaked;
@@ -194,6 +193,9 @@ typedef struct {
     atomic_int event_head;
     atomic_int event_tail;
     IPCEvent event_queue[IPC_EVENT_QUEUE_SIZE];
+
+    /* Global galaxy state, single buffer (Persistent across frames) */
+    int64_t shm_galaxy[41][41][41];
 
     /* Double Buffers */
     GameState buffers[2];

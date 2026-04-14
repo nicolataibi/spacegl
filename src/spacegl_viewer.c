@@ -145,6 +145,28 @@ void print_help() {
 }
 
 int main(int argc, char *argv[]) {
+    if (argc > 1) {
+        if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+            printf("Usage: spacegl_viewer [command]\n");
+            printf("Space GL Galaxy File Inspector\n\n");
+            printf("Commands:\n");
+            printf("  stats             Show global galaxy statistics and security status\n");
+            printf("  master            Show global Master Ship status and resources\n");
+            printf("  map <q3>          Show a 2D map slice for Z quadrant q3 (1-40)\n");
+            printf("  list <q1> <q2> <q3>  List objects in quadrant (1-40)\n");
+            printf("  players           List all persistent players\n");
+            printf("  search <name>     Search for a player or ship by name\n");
+            printf("  report            Generate a full localization report of all active objects\n\n");
+            printf("Options:\n");
+            printf("  --help, -h     Display this help and exit\n");
+            printf("  --version      Display version information and exit\n");
+            return 0;
+        }
+        if (strcmp(argv[1], "--version") == 0) {
+            printf("spacegl_viewer 2026.04.12\n");
+            return 0;
+        }
+    }
     FILE *f = fopen("galaxy.dat", "rb");
     if (!f) {
         perror("Could not open galaxy.dat");
