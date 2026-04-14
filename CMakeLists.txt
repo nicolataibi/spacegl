@@ -114,11 +114,15 @@ add_dependencies(spacegl_vulkan spacegl_shaders)
 add_executable(spacegl_diag src/spacegl_diag.c)
 target_link_libraries(spacegl_diag ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 
+# 8. spacegl_diag_shm
+add_executable(spacegl_diag_shm src/spacegl_diag_shm.c)
+target_link_libraries(spacegl_diag_shm ${COMMON_LIBS} ${NCURSES_LIBRARIES})
+
 # --- Installazione ---
 
 include(GNUInstallDirs)
 
-install(TARGETS spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_hud spacegl_vulkan spacegl_diag
+install(TARGETS spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_hud spacegl_vulkan spacegl_diag spacegl_diag_shm
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 install(PROGRAMS spacegl_server.sh spacegl_client.sh spacegl_diag.sh
