@@ -1,8 +1,14 @@
 # License: GPL-3.0-or-later
 Name:           spacegl
-Version:        2026.04.14.07
+Version:        2026.04.16.02
 Release:        %autorelease
 Summary:        Space GL: A space exploration & combat game, Multi-User Client-Server Edition
+
+# Disable debuginfo package generation and binary stripping
+# This ensures diagnostic tools like spacegl_diag keep their symbols
+%global debug_package %{nil}
+%global __strip /bin/true
+
 License:        GPL-3.0-or-later
 URL:            https://github.com/nicolataibi/spacegl
 Source0:        %{url}/archive/refs/tags/%{version}.tar.gz#/%{name}-%{version}.tar.gz
@@ -87,7 +93,6 @@ cd ..
 %{_bindir}/spacegl_vulkan
 %{_bindir}/spacegl_hud
 %{_bindir}/spacegl_diag
-%{_bindir}/spacegl_diag_shm
 %{_bindir}/spacegl_server.sh
 %{_bindir}/spacegl_client.sh
 %{_bindir}/spacegl_diag.sh
