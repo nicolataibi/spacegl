@@ -37,7 +37,7 @@
 Space GL è un simulatore spaziale avanzato che unisce la profondità strategica dei classici giochi testuali anni '70 con un'architettura moderna Client-Server e una visualizzazione 3D accelerata hardware.
 ---
 
-## 🚀 Novità Versione 2.9 (Rel. 19 - Full 3-DOF & Tactical Navigation)
+## 🚀 Novità Versione 2.9 (Rel. 19 - Full 3-DOF & Tactical Navigation).
 
 L'aggiornamento 2.9 trasforma il rollio da semplice effetto estetico a componente fondamentale della navigazione e del combattimento:
 *   **Supporto Rollio Longitudinale**: Le navi ora supportano l'orientamento completo a 3-DOF. Il **Rollio (Roll)** permette manovre cinematiche e un posizionamento tattico senza precedenti.
