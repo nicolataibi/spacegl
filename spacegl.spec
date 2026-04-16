@@ -68,6 +68,11 @@ cd build
 # Install using CMake
 DESTDIR=%{buildroot} cmake --install build
 
+# Installazione manuale degli asset grafici
+mkdir -p %{buildroot}%{_datadir}/%{name}/readme_assets
+install -p -m 0644 readme_assets/*.jpg %{buildroot}%{_datadir}/%{name}/readme_assets/
+install -p -m 0644 readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_assets/
+
 # Creating directory structure for man pages
 mkdir -p %{buildroot}%{_mandir}/man1/
 
