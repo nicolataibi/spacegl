@@ -1,6 +1,6 @@
 # License: GPL-3.0-or-later
 Name:           spacegl
-Version:        2026.04.16.05
+Version:        2026.04.16.06
 Release:        %autorelease
 
 Summary:        Space GL: A space exploration & combat game, Multi-User Client-Server Edition
@@ -86,7 +86,7 @@ cd ..
 
 %files
 %license LICENSE.txt
-%doc README_it.md README.md HOWTO.txt readme_assets/
+%doc README_it.md README.md HOWTO.txt
 %{_bindir}/spacegl_server
 %{_bindir}/spacegl_client
 %{_bindir}/spacegl_3dview
@@ -106,6 +106,7 @@ cd ..
 %{_mandir}/man1/spacegl_diag.1*
 %files data
 %dir %{_datadir}/%{name}/
+%{_datadir}/%{name}/readme_assets/
 %{_datadir}/%{name}/shaders/
 
 %changelog
