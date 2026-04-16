@@ -52,7 +52,7 @@ Update 2.9 transforms roll from a simple aesthetic effect into a core component 
 *   **Tactical Shield Logic (Roll-Aware)**: Roll is now a critical defensive element. The server calculates impacts on the 6 shield sectors based on the ship's actual tilt. By rotating on their axis, pilots can expose fresh sectors to protect damaged ones.
 *   **Smoothing & HUD**: Both Vulkan and OpenGL implement 60Hz LERP interpolation for roll. The roll value is now monitorable in real-time across all tactical HUDs.
 
-## 🚀 Version 2.8 Highlights (Rel. 18 - Astrometric Expansion)
+## 🚀 Version 2.8 Highlights (Rel. 18 - Astrometric Expansion).
 
 Update 2.8 introduces High-Energy Celestial Bodies and refines the tactical cartography tools:
 *   **Quasar Integration**: Added **Quasars** (Type 29) to the persistent galaxy. These massive active galactic nuclei act as gravitational anchors and are fully interactive (can be orbited via `orb`).
