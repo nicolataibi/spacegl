@@ -83,8 +83,7 @@ pushd "$GIT_ROOT" > /dev/null
     fi
     
     log_info "Building SRPM (Revision increment via rpmautospec)..."
-    git archive --format=tar.gz --prefix="spacegl-${VER}/" "HEAD" -o "spacegl-${VER}.tar.gz"
-    mv "spacegl-${VER}.tar.gz" ~/rpmbuild/SOURCES/
+    spectool -g -R "$SPEC_FILE"
     
     CALC_REL=$(rpmautospec calculate-release "$SPEC_FILE" | grep "Calculated release number" | sed 's/.*: //')
     log_info "Forcing release $CALC_REL for this SRPM build."
@@ -101,7 +100,6 @@ pushd "$GIT_ROOT" > /dev/null
     
     # Ripristino dello SPEC purista con macro intatte per Copr SCM
     mv "${SPEC_FILE}.bak" "$SPEC_FILE"
-    rm -f .tmp_changelog "$HOME/rpmbuild/SOURCES/spacegl-${VER}.tar.gz"
 
     # Pusha le revision soloo se l'SRPM locale è stato validato con successo
     log_info "Syncing remote repository..."

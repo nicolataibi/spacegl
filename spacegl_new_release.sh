@@ -28,7 +28,13 @@ cleanup_and_rollback() {
         rm -f ".tmp_changelog"
         
         # Eliminazione di tag rimasti in attesa di push nel contesto del crash
-        git tag --points-at HEAD | xargs -r git tag -d >/dev/null 2>&1 || true
+        local recent_tag
+        recent_tag=$(git tag --points-at HEAD 2>/dev/null || true)
+        if [ -n "$recent_tag" ]; then
+            git tag -d "$recent_tag" >/dev/null 2>&1 || true
+            log_warn "Rollback del tag su remoto origin..."
+            git push origin --delete "$recent_tag" >/dev/null 2>&1 || true
+        fi
         
         # Esegue reset solo per commit orfani o scollati non inseriti in origin/main
         local unpushed_commits
@@ -83,12 +89,12 @@ pushd "$GIT_ROOT" > /dev/null
     log_info "Committing release updates..."
     git commit -m "[release] $NEW_VERSION: $DESC" >/dev/null
     
-    log_info "Tagging local release $NEW_VERSION..."
+    log_info "Tagging local release $NEW_VERSION and pushing for Github SRPM generation..."
     git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION"
+    git push origin "$NEW_VERSION" --quiet
     
     log_info "Building SRPM per validazione indipendente..."
-    git archive --format=tar.gz --prefix="spacegl-${NEW_VERSION}/" "HEAD" -o "spacegl-${NEW_VERSION}.tar.gz"
-    mv "spacegl-${NEW_VERSION}.tar.gz" ~/rpmbuild/SOURCES/
+    spectool -g -R "$SPEC_FILE" >/dev/null
     
     # Appiattimento del file SPEC limitatamente alla generazione autonoma.
     cp "$SPEC_FILE" "${SPEC_FILE}.bak"
@@ -102,11 +108,10 @@ pushd "$GIT_ROOT" > /dev/null
     
     # Ripristino dello SPEC originale destinato a Copr
     mv "${SPEC_FILE}.bak" "$SPEC_FILE"
-    rm -f .tmp_changelog "$HOME/rpmbuild/SOURCES/spacegl-${NEW_VERSION}.tar.gz"
+    rm -f .tmp_changelog
 
-    log_info "Syncing remote repository..."
-    git push origin main
-    git push origin "$NEW_VERSION"
+    log_info "Syncing remote repository (main branch)..."
+    git push origin main --quiet
 popd > /dev/null
 
 # Disabilita il trap
