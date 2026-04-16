@@ -1,5 +1,13 @@
+* Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.02
+- Finalized spacegl_diag.sh with improved error reporting and xterm persistence.
+- Verified full project recompilation and build system integrity after SHM tool removal.
+- Ensured all binary targets (Vulkan, Server, HUD) are correctly generated in /build.
+
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.01
 - Disabled binary stripping in SPEC file to preserve symbols for spacegl_diag.
+- Fixed release.sh to allow native %autorelease and %dist expansion.
+- Removed obsolete spacegl_diag_shm.c tool from project and build system.
+- Performed comprehensive performance analysis on Vulkan rendering and IPC logic.
 
 * Tue Apr 14 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.14.05
 - 5: spacegl_diag help section improved.
