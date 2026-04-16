@@ -1,3 +1,6 @@
+* Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.04
+- Refactored for new Release/Revision
+
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.03
 - Refactored src/spacegl_client.c to search for visualizers and HUD in the /build directory.
 - Updated README.md and README_it.md to reflect the mandatory CMake build workflow.
