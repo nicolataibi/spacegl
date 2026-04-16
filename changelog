@@ -1,3 +1,9 @@
+* Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.03
+- Updated README.md and README_it.md to reflect the mandatory CMake build workflow.
+- Refactored src/spacegl_client.c to search for visualizers and HUD in the /build directory.
+- Enhanced src/spacegl_vulkan.c with resilient shader path resolution and SHM attachment diagnostics.
+- Implemented a visible debug clear color in Vulkan to distinguish between rendering state and empty scene.
+
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.02
 - Finalized spacegl_diag.sh with improved error reporting and xterm persistence.
 - Verified full project recompilation and build system integrity after SHM tool removal.

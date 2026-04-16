@@ -1390,7 +1390,9 @@ int main(int argc, char *argv[]) {
         if (strcmp(visualizer_type, "vk") == 0) {
             /* Start Vulkan Viewer */
             if (fork() == 0) {
-                if (access("./spacegl_vulkan", X_OK) == 0) {
+                if (access("./build/spacegl_vulkan", X_OK) == 0) {
+                    execl("./build/spacegl_vulkan", "spacegl_vulkan", shm_path, NULL);
+                } else if (access("./spacegl_vulkan", X_OK) == 0) {
                     execl("./spacegl_vulkan", "spacegl_vulkan", shm_path, NULL);
                 } else {
                     execlp("spacegl_vulkan", "spacegl_vulkan", shm_path, NULL);
@@ -1399,12 +1401,15 @@ int main(int argc, char *argv[]) {
             }
             /* Start HUD in xterm */
             char hud_bin[256] = "spacegl_hud";
-            if (access("./spacegl_hud", X_OK) == 0) strcpy(hud_bin, "./spacegl_hud");
+            if (access("./build/spacegl_hud", X_OK) == 0) strcpy(hud_bin, "./build/spacegl_hud");
+            else if (access("./spacegl_hud", X_OK) == 0) strcpy(hud_bin, "./spacegl_hud");
             execlp("xterm", "xterm", "-T", "SPACE GL - HUD", "-geometry", "140x40", "-e", hud_bin, shm_path, NULL);
             perror("execlp failed xterm/hud"); _exit(1);
         } else {
             /* Default: OpenGL Viewer */
-            if (access("./spacegl_3dview", X_OK) == 0) {
+            if (access("./build/spacegl_3dview", X_OK) == 0) {
+                execl("./build/spacegl_3dview", "spacegl_3dview", shm_path, NULL);
+            } else if (access("./spacegl_3dview", X_OK) == 0) {
                 execl("./spacegl_3dview", "spacegl_3dview", shm_path, NULL);
             } else {
                 execlp("spacegl_3dview", "spacegl_3dview", shm_path, NULL);

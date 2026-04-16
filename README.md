@@ -140,19 +140,22 @@ sudo dnf install freeglut-devel mesa-libGLU-devel glew-devel openssl-devel libom
 ```
 
 ### 2. Build
-Compile the project to generate the updated executables:
+Create a build directory and compile the project using CMake to generate the executables:
 ```bash
+mkdir build
+cd build
+cmake ..
 make
 ```
 
 ### 3. Start Server
-Launch the secure startup script. You will be asked to set a **Master Key** (secret password for the server):
+Run the startup script from the project root. You will be asked to set a **Master Key** (secret password for the server):
 ```bash
 ./spacegl_server.sh
 ```
 
 ### 4. Start Client
-In another terminal, launch the client:
+In another terminal, launch the client from the project root:
 ```bash
 ./spacegl_client.sh gl|vk
 ```

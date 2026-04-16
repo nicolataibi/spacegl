@@ -147,6 +147,16 @@ char fragment_shader_path[512] = "build/shaders/shader.frag.spv";
 
 void resolve_shader_paths() {
     if (access(vertex_shader_path, F_OK) != 0) {
+        /* Prova percorso relativo a build/ */
+        strcpy(vertex_shader_path, "shaders/shader.vert.spv");
+        strcpy(fragment_shader_path, "shaders/shader.frag.spv");
+    }
+    if (access(vertex_shader_path, F_OK) != 0) {
+        /* Prova percorso root di progetto */
+        strcpy(vertex_shader_path, "build/shaders/shader.vert.spv");
+        strcpy(fragment_shader_path, "build/shaders/shader.frag.spv");
+    }
+    if (access(vertex_shader_path, F_OK) != 0) {
         /* Fallback to system-wide installation path */
         strcpy(vertex_shader_path, "/usr/share/spacegl/shaders/shader.vert.spv");
         strcpy(fragment_shader_path, "/usr/share/spacegl/shaders/shader.frag.spv");
@@ -1040,7 +1050,9 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
 }
 void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,NULL,0,NULL}; vkBeginCommandBuffer(cb, &bi);
-    VkClearValue cl[2] = {0}; cl[0].color = (VkClearColorValue){{0,0,0,1}}; cl[1].depthStencil = (VkClearDepthStencilValue){1,0};
+    VkClearValue cl[2] = {0}; 
+    cl[0].color = (VkClearColorValue){{0.05f, 0.05f, 0.08f, 1.0f}}; /* Dark greyish blue for debug visibility */
+    cl[1].depthStencil = (VkClearDepthStencilValue){1, 0};
     VkRenderPassBeginInfo ri = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,NULL,app->renderPass,app->swapChainFramebuffers[idx],{{0,0},app->swapChainExtent}, 2, cl};
     vkCmdBeginRenderPass(cb, &ri, VK_SUBPASS_CONTENTS_INLINE);
     
@@ -2598,13 +2610,21 @@ int main(int argc, char** argv) {
     app->shm_fd = -1;
     
     if (argc > 1) {
+        printf("[VULKAN] Attempting to attach to SHM: %s\n", argv[1]);
         app->shm_fd = shm_open(argv[1], O_RDWR, 0666);
         if (app->shm_fd != -1) {
             app->shm = mmap(NULL, sizeof(SharedIPC), PROT_READ | PROT_WRITE, MAP_SHARED, app->shm_fd, 0);
             if (app->shm == MAP_FAILED) {
+                fprintf(stderr, "[VULKAN] Error: mmap failed for SHM\n");
                 app->shm = NULL;
+            } else {
+                printf("[VULKAN] SHM attached successfully\n");
             }
+        } else {
+            fprintf(stderr, "[VULKAN] Error: could not open SHM segment %s\n", argv[1]);
         }
+    } else {
+        printf("[VULKAN] Running in stand-alone mode (no SHM provided)\n");
     }
     
     app->window = glfwCreateWindow(WIDTH, HEIGHT, "SpaceGL Vulkan", NULL, NULL);
