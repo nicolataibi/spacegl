@@ -41,11 +41,11 @@
 Space GL is an advanced space simulator combining the strategic depth of classic 70s text-based games with a modern Client-Server architecture and hardware-accelerated 3D visualization.
 ---
 
-## 🚀 Version 2.9 Highlights (Rel. 19 - Full 3-DOF & Tactical Navigation)
+## 🚀 Version 2.9 Highlights (Rel. 19 - Full 3-DOF & Tactical Navigation).
 
 Update 2.9 transforms roll from a simple aesthetic effect into a core component of navigation and combat:
 *   **Longitudinal Roll Support**: Ships now support complete 3-DOF orientation. **Roll** enables cinematic maneuvers and unprecedented tactical positioning.
-*   **Solid AR Compass Suite**: The `axs` holographic compass has been fully redesigned to be solid with the ship:
+*   **Solid AR Compass Suite**: The `axs` holographic compass has been fully redesigned to be solid with the ship:192.168.71.20
     *   **"Top" Vector (Blue)**: A new vertical indicator pointing to the ship's roof, allowing for instant perception of bank angle.
     *   **Solid Roll Ring**: The yellow transversal circle now rotates in perfect synchronization with the ship's heading, mark, and roll.
     *   **Mark Realignment**: The Mark arc is now correctly aligned with the ship's front, providing an intuitive elevation reference.
