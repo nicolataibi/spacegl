@@ -62,7 +62,10 @@ if(NOT GLSLC_EXECUTABLE)
     message(FATAL_ERROR "glslc compiler not found. Required for Vulkan shaders.")
 endif()
 
-file(GLOB_RECURSE SHADER_SOURCES "assets/shaders/*.vert" "assets/shaders/*.frag" "assets/shaders/*.comp")
+set(SHADER_SOURCES 
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/shader.vert" 
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/shader.frag"
+)
 set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders")
 file(MAKE_DIRECTORY ${SPV_OUTPUT_DIR})
 

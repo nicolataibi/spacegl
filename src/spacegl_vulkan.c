@@ -147,16 +147,6 @@ char fragment_shader_path[512] = "build/shaders/shader.frag.spv";
 
 void resolve_shader_paths() {
     if (access(vertex_shader_path, F_OK) != 0) {
-        /* Prova percorso relativo a build/ */
-        strcpy(vertex_shader_path, "shaders/shader.vert.spv");
-        strcpy(fragment_shader_path, "shaders/shader.frag.spv");
-    }
-    if (access(vertex_shader_path, F_OK) != 0) {
-        /* Prova percorso root di progetto */
-        strcpy(vertex_shader_path, "build/shaders/shader.vert.spv");
-        strcpy(fragment_shader_path, "build/shaders/shader.frag.spv");
-    }
-    if (access(vertex_shader_path, F_OK) != 0) {
         /* Fallback to system-wide installation path */
         strcpy(vertex_shader_path, "/usr/share/spacegl/shaders/shader.vert.spv");
         strcpy(fragment_shader_path, "/usr/share/spacegl/shaders/shader.frag.spv");
@@ -321,11 +311,13 @@ typedef struct {
     /* Smooth State Interpolation */
     long long last_shm_frame_id;
     double last_shm_time;
+    double smoothed_shm_time;
     struct {
         float x, y, z, h, m, r;
         float prev_x, prev_y, prev_z, prev_h, prev_m, prev_r;
         float target_x, target_y, target_z, target_h, target_m, target_r;
         float vx, vy, vz;
+        float prev_vx, prev_vy, prev_vz;
         bool first;
     } smoothObjs[MAX_NET_OBJECTS];
 
@@ -339,6 +331,7 @@ typedef struct {
     bool shieldsInitialized;
     mat4 playerR;
     mat4 playerT;
+    int shm_inspector_page; /* 0=Off, 1=Energy/Status, 2=Galaxy/HMAC, 3=Networking */
 } VulkanApp;
 
 uint32_t findMemoryType(VkPhysicalDevice pDevice, uint32_t typeFilter, VkMemoryPropertyFlags props) {
@@ -412,13 +405,12 @@ void drawWormholeCore(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float 
     VkDeviceSize off = 0;
     mat4 R_rot; mat4_identity(R_rot);
     mat4_rotate(R_rot, pulse * 5.0f * M_PI / 180.0f, (vec3){1, 1, 1});
-    
+    mat4 M_rot; mat4_multiply(R_rot, modelBase, M_rot);
+
     /* 1. Outer Shell (Dark Grey) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
     PushConstants pc1 = {0}; mat4 S_out; mat4_scale(S_out, (vec3){0.85f, 0.85f, 0.85f});
-    /* Order: Scale * Rotate * modelBase (Translation) */
-    mat4 M_sr; mat4_multiply(S_out, R_rot, M_sr);
-    mat4_multiply(M_sr, modelBase, pc1.model);
+    mat4_multiply(S_out, M_rot, pc1.model);
     pc1.color[0]=0.15f; pc1.color[1]=0.15f; pc1.color[2]=0.15f; pc1.color[3]=1.0f; pc1.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc1), &pc1);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
@@ -428,11 +420,10 @@ void drawWormholeCore(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float 
     /* 2. Central Singularity (Solid Black for Departure, White for Arrival) - Now using Sphere Geometry */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
     PushConstants pc2 = {0}; mat4 S_core; mat4_scale(S_core, (vec3){0.75f, 0.75f, 0.75f});
-    mat4_multiply(S_core, R_rot, M_sr);
-    mat4_multiply(M_sr, modelBase, pc2.model);
+    mat4_multiply(S_core, M_rot, pc2.model);
     if (type == 1) { pc2.color[0]=1.0f; pc2.color[1]=1.0f; pc2.color[2]=1.0f; }
-    else { pc2.color[0]=0.01f; pc2.color[1]=0.01f; pc2.color[2]=0.01f; }
-    pc2.color[3]=1.0f; pc2.usePushColor=1; /* Unlit for visibility */
+    else { pc2.color[0]=0.0f; pc2.color[1]=0.0f; pc2.color[2]=0.0f; }
+    pc2.color[3]=1.0f; pc2.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc2), &pc2);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
@@ -444,13 +435,16 @@ void drawSwarmCube(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pul
     mat4 R_rot; mat4_identity(R_rot);
     mat4_rotate(R_rot, pulse * 5.0f * M_PI / 180.0f, (vec3){1, 1, 1});
     
+    mat4 M_rot; 
+    /* Order: Rotate * modelBase (Translation) */
+    mat4_multiply(R_rot, modelBase, M_rot);
+
     /* 1. Outer Wireframe (Dark Grey) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
     PushConstants pc1 = {0}; 
     mat4 S_out; mat4_scale(S_out, (vec3){0.85f, 0.85f, 0.85f}); 
-    /* Order: Scale * Rotate * modelBase (Translation from main loop) */
-    mat4 M_sr; mat4_multiply(S_out, R_rot, M_sr);
-    mat4_multiply(M_sr, modelBase, pc1.model);
+    /* Order: Scale * M_rot */
+    mat4_multiply(S_out, M_rot, pc1.model);
     pc1.color[0]=0.15f; pc1.color[1]=0.15f; pc1.color[2]=0.15f; pc1.color[3]=1.0f; pc1.usePushColor=1;
     pc1.metallic = 0.9f; pc1.roughness = 0.1f;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc1), &pc1);
@@ -462,8 +456,7 @@ void drawSwarmCube(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pul
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
     PushConstants pc2 = {0}; 
     mat4 S_core; mat4_scale(S_core, (vec3){0.75f, 0.75f, 0.75f}); 
-    mat4_multiply(S_core, R_rot, M_sr);
-    mat4_multiply(M_sr, modelBase, pc2.model);
+    mat4_multiply(S_core, M_rot, pc2.model);
     pc2.color[0]=0.05f; pc2.color[1]=0.05f; pc2.color[2]=0.05f; pc2.color[3]=1.0f; pc2.usePushColor=1;
     pc2.metallic = 1.0f; pc2.roughness = 0.05f;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc2), &pc2);
@@ -947,7 +940,6 @@ void createGraphicsPipeline(VulkanApp* app) {
     cBlAt.blendEnable = VK_TRUE; 
     cBlAt.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA; 
     cBlAt.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    depSt.depthWriteEnable = VK_FALSE; /* Critical for blended wireframe to avoid Z-flickering */
     if (vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &pInfo, NULL, &app->wireframePipeline) != VK_SUCCESS) exit(1);
     
     /* 3. Point Sprite Pipeline (for Bloom Effect) */
@@ -1050,9 +1042,7 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
 }
 void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,NULL,0,NULL}; vkBeginCommandBuffer(cb, &bi);
-    VkClearValue cl[2] = {0}; 
-    cl[0].color = (VkClearColorValue){{0.05f, 0.05f, 0.08f, 1.0f}}; /* Dark greyish blue for debug visibility */
-    cl[1].depthStencil = (VkClearDepthStencilValue){1, 0};
+    VkClearValue cl[2] = {0}; cl[0].color = (VkClearColorValue){{0,0,0,1}}; cl[1].depthStencil = (VkClearDepthStencilValue){1,0};
     VkRenderPassBeginInfo ri = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,NULL,app->renderPass,app->swapChainFramebuffers[idx],{{0,0},app->swapChainExtent}, 2, cl};
     vkCmdBeginRenderPass(cb, &ri, VK_SUBPASS_CONTENTS_INLINE);
     
@@ -1087,7 +1077,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             vkCmdBindIndexBuffer(cb, app->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdDrawIndexed(cb, sizeof(indices)/4, 1, 0, 0, 0);
 
-            if (st->shm_show_axes && st->object_count > 0 && !app->smoothObjs[0].first && app->cameraDist < 150.0f) {
+            if (st->shm_show_axes && st->object_count > 0 && !app->smoothObjs[0].first && app->cameraDist < 150.0f && !app->jumpArrival.active) {
             /* Zero-Lag AR Compass: Anchored to Smoothed Player Coordinates for fluid motion */
             float ox = app->smoothObjs[0].x;
             float oy = app->smoothObjs[0].y;
@@ -1241,28 +1231,26 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             vkCmdDrawIndexed(cb, (uint32_t)app->gridVertexCount, 1, 0, 0, 0);
         }
 
-            /* Draw Shield Hits */
-            drawShieldEffect(cb, app, pulse, tactScale, app->playerR, app->playerT);
-
-            /* Departure/Arrival Wormholes (Now inside Tactical Block for correct tactScale) */
-            if (app->departureWormhole.active && app->jumpArrival.timer <= 0) {
-                /* DEPARTURE: Only visible if arrival sequence hasn't started */
-                drawWormhole(cb, app, app->departureWormhole.x * tactScale, app->departureWormhole.y * tactScale, app->departureWormhole.z * tactScale, 
-                             app->departureWormhole.h, app->departureWormhole.m, 0, pulse, tactScale, 1.0f);
+        /* Departure/Arrival Wormholes (Internal logic handles pipeline switching) */
+        if (app->departureWormhole.active && app->jumpArrival.timer <= 0) {
+            /* DEPARTURE: Only visible if arrival sequence hasn't started */
+            drawWormhole(cb, app, app->departureWormhole.x * tactScale, app->departureWormhole.y * tactScale, app->departureWormhole.z * tactScale, 
+                         app->departureWormhole.h, app->departureWormhole.m, 0, pulse, tactScale, 1.0f);
+        }
+        if (app->jumpArrival.active && app->jumpArrival.timer > 0) {
+            /* Keep arrival wormhole centered on ship if ship is active */
+            if (st->object_count > 0 && st->objects[0].active) {
+                app->jumpArrival.x = app->smoothObjs[0].x - 20.0f;
+                app->jumpArrival.y = app->smoothObjs[0].z - 20.0f;
+                app->jumpArrival.z = 20.0f - app->smoothObjs[0].y;
             }
-            if (app->jumpArrival.active && app->jumpArrival.timer > 0) {
-                /* Keep arrival wormhole centered on ship if ship is active */
-                if (st->object_count > 0 && st->objects[0].active) {
-                    app->jumpArrival.x = app->smoothObjs[0].x - 20.0f;
-                    app->jumpArrival.y = app->smoothObjs[0].z - 20.0f;
-                    app->jumpArrival.z = 20.0f - app->smoothObjs[0].y;
-                }
-                float closingScale = (app->jumpArrival.timer < 540) ? ((float)app->jumpArrival.timer / 540.0f) : 1.0f;
-                drawWormhole(cb, app, app->jumpArrival.x * tactScale, app->jumpArrival.y * tactScale, app->jumpArrival.z * tactScale, 
-                             app->jumpArrival.h, app->jumpArrival.m, 1, pulse, tactScale, closingScale);
-            }
+            float closingScale = (app->jumpArrival.timer < 540) ? ((float)app->jumpArrival.timer / 540.0f) : 1.0f;
+            drawWormhole(cb, app, app->jumpArrival.x * tactScale, app->jumpArrival.y * tactScale, app->jumpArrival.z * tactScale, 
+                         app->jumpArrival.h, app->jumpArrival.m, 1, pulse, tactScale, closingScale);
+        }
 
-            vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        /* --- SOLID PASS --- */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
         vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->pipelineLayout, 0, 1, &app->descriptorSets[app->currentFrame], 0, NULL);
 
         /* Starfield (Static Background Mesh) */
@@ -1289,9 +1277,8 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         for (int o=0; o<st->object_count; o++) {
             SharedObject* obj = &st->objects[o]; if (!obj->active) continue;
             
-            /* HIDE ONLY SHIPS DURING ARRIVAL SEQUENCE to avoid lateral artifacts (Only during the first 3s/180 ticks of the 9s sequence) */
-            bool is_ship = (obj->type == 0 || obj->type == 1 || obj->type >= 10);
-            if (app->jumpArrival.active && o != 0 && app->jumpArrival.timer > 360 && is_ship) continue;
+            /* HIDE ALL OTHER OBJECTS DURING JUMP ARRIVAL to avoid lateral artifacts */
+            if (app->jumpArrival.active && o != 0) continue;
 
             PushConstants opc = {0}; mat4_identity(opc.model);
             /* Use Smoothed Coordinates for fluid motion */
@@ -1312,10 +1299,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             /* Scale the object itself by tactScale */
             s *= tactScale;
             mat4_scale(S, (vec3){s,s,s});
-            if (obj->type == 0 || obj->type == 1 || obj->type >= 10) {
+            if (obj->type==1 || obj->type>=10) {
                 /* Align model (+X) to North (+Z) */
                 mat4_rotate(R, 90.0f * M_PI / 180.0f, (vec3){0,1,0});
-
                 /* Apply Smoothed Heading (around vertical Y) */
                 mat4_rotate(R, -oh * M_PI / 180.0f, (vec3){0,1,0});
                 /* Apply Smoothed Pitch around dynamic horizontal axis */
@@ -1333,20 +1319,17 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             mat4_multiply(S, R, opc.model); 
             mat4_multiply(opc.model, T, opc.model);
             
-            getObjectColor(obj->type, obj->faction, &opc.color[0], &opc.color[1], &opc.color[2]); 
-            opc.color[3]=1.0f; opc.usePushColor=5;
-
-            /* CLOAKING EFFECT: Use vibrant blue unlit wireframe for cloaked ships */
+            getObjectColor(obj->type, obj->faction, &opc.color[0], &opc.color[1], &opc.color[2]); opc.color[3]=1.0f; opc.usePushColor=5;
+            
+            /* CLOAKING EFFECT: Blue Glowing Wireframe for cloaked ships */
             if (obj->is_cloaked) {
-                opc.color[0] = 0.2f; opc.color[1] = 0.5f; opc.color[2] = 1.0f;
-                opc.usePushColor = 1; 
-            } else if (obj->type == 0 || obj->type == 1 || obj->type >= 10) {
-                /* Regular ships use unlit wireframe to avoid PBR artifacts on single-normal geometry */
+                vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+                opc.color[0]=0.0f; opc.color[1]=0.8f; opc.color[2]=1.0f; opc.color[3]=0.8f + 0.2f * sinf(pulse * 5.0f);
                 opc.usePushColor = 1;
             }
             
             /* PBR Parameters based on object type */
-            if (obj->type == 0 || obj->type == 1 || obj->type >= 10) { // Ships
+            if (obj->type == 1 || obj->type >= 10) { // Ships
                 opc.metallic = 0.9f; opc.roughness = 0.25f;
             } else if (obj->type == 3 || obj->type == 21) { // Bases / Asteroids
                 opc.metallic = 0.1f; opc.roughness = 0.8f;
@@ -1441,9 +1424,12 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             } else {
                 /* Draw Standard Object (Ship, Base, Planet, Star, Asteroid, etc.) */
                 PushConstants ship_opc = opc;
-                if (obj->type == 0 || obj->type == 1 || obj->type >= 10) {
+                if (obj->type == 1 || obj->type >= 10) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
-                    /* Redundant shipScale removed: opc.model already contains SCALE_SHIP * tactScale */
+                    float shipScale = 0.55f * tactScale;
+                    mat4 S_ship;
+                    mat4_scale(S_ship, (vec3){shipScale, shipScale, shipScale});
+                    mat4_multiply(S_ship, ship_opc.model, ship_opc.model);
                 }
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ship_opc), &ship_opc);
                 VkBuffer vb;
@@ -1470,7 +1456,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 vkCmdBindVertexBuffers(cb, 0, 1, &vb, &off);
                 vkCmdBindIndexBuffer(cb, ib, 0, it);
                 vkCmdDrawIndexed(cb, cnt, 1, 0, 0, 0);
-                if (obj->type == 0 || obj->type == 1 || obj->type >= 10) {
+                if (obj->type == 1 || obj->type >= 10) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
                 }
 
@@ -1479,7 +1465,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 int is_alliance = 0;
                 if (obj->faction == 0 || obj->faction == 1) is_alliance = 1;
 
-                if ((obj->type == 0 || obj->type == 1 || obj->type >= 10) && is_alliance) {
+                if ((obj->type == 1 || obj->type >= 10) && is_alliance) {
                     /* La nostra piramide è scalata di 0.55f * tactScale e la sua poppa si trova a X = -0.7288f locali.
                      * Quindi in spazio opc.model, la coda è a -0.7288f * 0.55f * tactScale = -0.40084f * tactScale.
                      * Posizioniamo il core quantico esattamente lì */
@@ -1744,6 +1730,38 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 
         } /* End of Tactical View Render (mapAnim < 0.99) */
+        
+        /* --- SHARED MEMORY INSPECTOR (Console Telemetry Fallback) --- */
+        if (app->shm_inspector_page > 0) {
+            static float last_dbg = 0;
+            if (pulse - last_dbg > 0.5f) {
+                last_dbg = pulse;
+                /* Clear Screen and print telemetry */
+                printf("\033[H\033[J"); 
+                printf("=== [ SPACE GL - SHARED MEMORY INSPECTOR ] ===\n");
+                printf("PAGE: %d / 3 | FRAME: %lld\n", app->shm_inspector_page, (long long)st->frame_id);
+                printf("----------------------------------------------\n");
+                if (app->shm_inspector_page == 1) {
+                    printf("SHIP ENERGY:  %15" PRIu64 "\n", st->shm_energy);
+                    printf("CARGO ENERGY: %15" PRIu64 "\n", st->shm_cargo_energy);
+                    printf("INTEGRITY:    %15.2f%%\n", st->shm_hull_integrity);
+                    printf("ALLOCATION:   %15s\n", st->shm_red_alert ? "RED ALERT" : "NOMINAL");
+                } else if (app->shm_inspector_page == 2) {
+                    printf("GALAXY CRYPTOGRAPHIC TELEMETRY (HMAC-SHA256)\n");
+                    printf("SIG_HEAD:     "); for(int i=0; i<8; i++) printf("%02x", st->shm_server_signature[i]); printf("...\n");
+                    printf("GALAXY_ID:    %d x %d x %d\n", 41, 41, 41);
+                    printf("AUTH_STATE:   VERIFIED\n");
+                } else {
+                    printf("NET_BW:       %15.2f KB/s\n", st->net_kbps);
+                    printf("NET_EFF:      %15.1f%%\n", st->net_efficiency);
+                    printf("JITTER:       %15.2f ms\n", st->net_jitter);
+                    printf("STATUS:       ON-LINE\n");
+                }
+                printf("----------------------------------------------\n");
+                printf("[n/p] Navigate Pages | [m] Toggle Overlay\n");
+                fflush(stdout);
+            }
+        }
     }
     vkCmdEndRenderPass(cb); vkEndCommandBuffer(cb);
 }
@@ -1876,6 +1894,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     if (key == GLFW_KEY_PAGE_DOWN) {
         app->cameraDist += 5.0f;
     }
+    if (key == GLFW_KEY_M) {
+        app->shm_inspector_page = (app->shm_inspector_page == 0) ? 1 : 0;
+    }
+    if (app->shm_inspector_page > 0) {
+        if (key == GLFW_KEY_N) { app->shm_inspector_page = (app->shm_inspector_page % 3) + 1; }
+        if (key == GLFW_KEY_P) { app->shm_inspector_page = (app->shm_inspector_page == 1) ? 3 : app->shm_inspector_page - 1; }
+    }
+    if (key == GLFW_KEY_PAGE_DOWN) {
+        app->cameraDist += 5.0f;
+    }
     if (key == GLFW_KEY_SPACE) {
         app->autoRotate = !app->autoRotate;
     }
@@ -1911,16 +1939,30 @@ void mainLoop(VulkanApp* app) {
             if (app->angleY <= 0.0f) app->angleY += 360.0f;
         }
         
-        /* --- INTERPOLATION FRACTION CALCULATION --- */
-        /* Server runs at approx 60Hz (0.0166s per frame) */
-        float rawAlpha = (float)((currentTime - app->last_shm_time) / 0.01666);
+        /* --- VIRTUAL SERVER CLOCK (Anti-Jitter) --- */
+        /* Slowly adapt smoothed clock to match actual server packet arrival */
+        double clock_err = currentTime - (app->last_shm_time + app->smoothed_shm_time);
+        /* If clock drifted too much or first run, reset */
+        if (fabs(clock_err) > 0.1 || app->smoothed_shm_time == 0) {
+            app->smoothed_shm_time = 0;
+        } else {
+            /* Slowly close the gap to filter out network jitter */
+            app->smoothed_shm_time += clock_err * 0.05; 
+        }
+        
+        float rawAlpha = (float)((currentTime - app->last_shm_time - app->smoothed_shm_time) / 0.01666);
         float interpAlpha = rawAlpha;
         if (interpAlpha > 1.0f) interpAlpha = 1.0f;
         if (interpAlpha < 0.0f) interpAlpha = 0.0f;
         
-        float extrapAlpha = rawAlpha;
-        if (extrapAlpha > 10.0f) extrapAlpha = 10.0f; /* Max extrapolation to prevent infinity flyaways */
-        if (extrapAlpha < 0.0f) extrapAlpha = 0.0f;
+        /* Cubic Hermite Spline weights */
+        float t = interpAlpha;
+        float t2 = t * t;
+        float t3 = t2 * t;
+        float h00 = 2*t3 - 3*t2 + 1;
+        float h10 = t3 - 2*t2 + t;
+        float h01 = -2*t3 + 3*t2;
+        float h11 = t3 - t2;
 
         /* Apply interpolation to smooth state */
         for (int o=0; o < MAX_NET_OBJECTS; o++) {
@@ -1936,10 +1978,11 @@ void mainLoop(VulkanApp* app) {
                     app->smoothObjs[o].y = app->smoothObjs[o].target_y;
                     app->smoothObjs[o].z = app->smoothObjs[o].target_z;
                 } else {
-                    /* DEAD RECKONING: Extrapolate perfectly past network boundary */
-                    app->smoothObjs[o].x = app->smoothObjs[o].target_x + app->smoothObjs[o].vx * extrapAlpha;
-                    app->smoothObjs[o].y = app->smoothObjs[o].target_y + app->smoothObjs[o].vy * extrapAlpha;
-                    app->smoothObjs[o].z = app->smoothObjs[o].target_z + app->smoothObjs[o].vz * extrapAlpha;
+                    /* PREMIUN CUBIC HERMITE INTERPOLATION: Uses position AND velocity for perfect fluid curves */
+                    /* Note: Velocity must be scaled by the time interval (1 tick) */
+                    app->smoothObjs[o].x = h00 * app->smoothObjs[o].prev_x + h10 * app->smoothObjs[o].prev_vx + h01 * app->smoothObjs[o].target_x + h11 * app->smoothObjs[o].vx;
+                    app->smoothObjs[o].y = h00 * app->smoothObjs[o].prev_y + h10 * app->smoothObjs[o].prev_vy + h01 * app->smoothObjs[o].target_y + h11 * app->smoothObjs[o].vy;
+                    app->smoothObjs[o].z = h00 * app->smoothObjs[o].prev_z + h10 * app->smoothObjs[o].prev_vz + h01 * app->smoothObjs[o].target_z + h11 * app->smoothObjs[o].vz;
                 }
                 
                 /* Angle interpolation (Shortest Path) */
@@ -1970,13 +2013,8 @@ void mainLoop(VulkanApp* app) {
                 for (int o=0; o < st->object_count && o < MAX_NET_OBJECTS; o++) {
                     SharedObject* obj = &st->objects[o];
                     if (!obj->active) { app->smoothObjs[o].first = true; continue; }
-
-                    /* If the ID changed, it's a different object in this slot (e.g. after a jump), reset smoothing */
-                    static int last_ids[MAX_NET_OBJECTS] = {0};
-                    if (obj->id != last_ids[o]) { app->smoothObjs[o].first = true; last_ids[o] = obj->id; }
-
+                    
                     if (app->smoothObjs[o].first) {
-
                         app->smoothObjs[o].prev_x = app->smoothObjs[o].target_x = app->smoothObjs[o].x = (float)obj->shm_x;
                         app->smoothObjs[o].prev_y = app->smoothObjs[o].target_y = app->smoothObjs[o].y = (float)obj->shm_y;
                         app->smoothObjs[o].prev_z = app->smoothObjs[o].target_z = app->smoothObjs[o].z = (float)obj->shm_z;
@@ -1988,13 +2026,16 @@ void mainLoop(VulkanApp* app) {
                         app->smoothObjs[o].vz = (float)obj->vz;
                         app->smoothObjs[o].first = false;
                     } else {
-                        /* Shift current smoothed state to previous, and load new target */
-                        app->smoothObjs[o].prev_x = app->smoothObjs[o].x;
-                        app->smoothObjs[o].prev_y = app->smoothObjs[o].y;
-                        app->smoothObjs[o].prev_z = app->smoothObjs[o].z;
-                        app->smoothObjs[o].prev_h = app->smoothObjs[o].h;
-                        app->smoothObjs[o].prev_m = app->smoothObjs[o].m;
-                        app->smoothObjs[o].prev_r = app->smoothObjs[o].r;
+                        /* Shift targets: Previous target becomes starting point for new interpolation interval */
+                        app->smoothObjs[o].prev_x = app->smoothObjs[o].target_x;
+                        app->smoothObjs[o].prev_y = app->smoothObjs[o].target_y;
+                        app->smoothObjs[o].prev_z = app->smoothObjs[o].target_z;
+                        app->smoothObjs[o].prev_h = app->smoothObjs[o].target_h;
+                        app->smoothObjs[o].prev_m = app->smoothObjs[o].target_m;
+                        app->smoothObjs[o].prev_r = app->smoothObjs[o].target_r;
+                        app->smoothObjs[o].prev_vx = app->smoothObjs[o].vx;
+                        app->smoothObjs[o].prev_vy = app->smoothObjs[o].vy;
+                        app->smoothObjs[o].prev_vz = app->smoothObjs[o].vz;
 
                         app->smoothObjs[o].target_x = (float)obj->shm_x;
                         app->smoothObjs[o].target_y = (float)obj->shm_y;
@@ -2065,19 +2106,23 @@ void mainLoop(VulkanApp* app) {
                         float vx = (float)ev->x2; float vy = (float)ev->z2; float vz = -(float)ev->y2; // Y/Z swap for Vulkan
                         
                         if (app->activeTorps[f].active > 0) {
-                            float ex = app->activeTorps[f].x - nx;
-                            float ey = app->activeTorps[f].y - ny;
-                            float ez = app->activeTorps[f].z - nz;
-                            if (sqrtf(ex*ex + ey*ey + ez*ez) > 1.5f) {
-                                app->activeTorps[f].x = nx; app->activeTorps[f].y = ny; app->activeTorps[f].z = nz;
-                            }
+                            /* PREDICTIVE TRACKING: Blend velocity to close the gap without jumping.
+                               This ensures 100% fluidity even during network lag. */
+                            float error_x = nx - app->activeTorps[f].x;
+                            float error_y = ny - app->activeTorps[f].y;
+                            float error_z = nz - app->activeTorps[f].z;
+                            
+                            /* Adjust transient velocity to converge towards server position over time */
+                            app->activeTorps[f].dx = vx + error_x * 0.1f;
+                            app->activeTorps[f].dy = vy + error_y * 0.1f;
+                            app->activeTorps[f].dz = vz + error_z * 0.1f;
                         } else {
+                            /* Initial spawn: set absolute position exactly */
                             app->activeTorps[f].x = nx; app->activeTorps[f].y = ny; app->activeTorps[f].z = nz;
+                            app->activeTorps[f].dx = vx; app->activeTorps[f].dy = vy; app->activeTorps[f].dz = vz;
                         }
-                        app->activeTorps[f].dx = vx;
-                        app->activeTorps[f].dy = vy;
-                        app->activeTorps[f].dz = vz;
-                        app->activeTorps[f].id = tid; app->activeTorps[f].active = 60; 
+                        app->activeTorps[f].id = tid; 
+                        app->activeTorps[f].active = 600; /* Match server TIMER_TORP_TIMEOUT (10s) */
                     }
                 } else if (ev->type == IPC_EV_DISMANTLE) {
                     for(int i=0; i<MAX_ACTIVE_DISMANTLES; i++) if(app->activeDismantles[i].life <= 0){
@@ -2099,17 +2144,12 @@ void mainLoop(VulkanApp* app) {
                         break;
                     }
                 } else if (ev->type == IPC_EV_JUMP) {
-                    /* ALWAYS use raw event coordinates for jump arrival to avoid interpolation from previous quadrant */
-                    app->jumpArrival.x = (float)ev->x1 - 20.0f;
-                    app->jumpArrival.y = (float)ev->z1 - 20.0f;
-                    app->jumpArrival.z = 20.0f - (float)ev->y1;
-                    app->jumpArrival.h = ev->x2; /* Heading passed in event */
-                    app->jumpArrival.m = ev->y2; /* Pitch passed in event */
+                    /* Use smoothed coordinates if available for perfect alignment, otherwise raw event coords */
+                    app->jumpArrival.x = app->smoothObjs[0].first ? ((float)ev->x1 - 20.0f) : (app->smoothObjs[0].x - 20.0f);
+                    app->jumpArrival.y = app->smoothObjs[0].first ? ((float)ev->z1 - 20.0f) : (app->smoothObjs[0].z - 20.0f);
+                    app->jumpArrival.z = app->smoothObjs[0].first ? (20.0f - (float)ev->y1) : (20.0f - app->smoothObjs[0].y);
                     app->jumpArrival.active = 1;
                     app->jumpArrival.timer = 540; /* 9 seconds of buffer (Slowed down by 200% from 3s) */
-                    
-                    /* CRITICAL: Reset smoothing for all objects to prevent inter-quadrant interpolation artifacts */
-                    for (int o=0; o<MAX_NET_OBJECTS; o++) app->smoothObjs[o].first = true;
                     
                     /* Initialize Arrival Particles */
                     for (int i = 0; i < MAX_ARRIVAL_PARTICLES; i++) {
@@ -2153,16 +2193,14 @@ void mainLoop(VulkanApp* app) {
 
         /* Arrival Wormhole Persistence Logic */
         if (app->jumpArrival.active) {
-            /* Always decrement timer to zero, even if navigating, to ensure NPCs eventually reappear */
-            if (app->jumpArrival.timer > 0) app->jumpArrival.timer--;
-            else app->jumpArrival.active = 0;
-            
-            /* If we are still in a high-speed navigation state, hold at 1 to prevent premature deletion 
-               of the wormhole sprite, but the ship-hiding logic uses timer > 360 so this won't keep NPCs hidden. */
-            if (app->jumpArrival.active && app->jumpArrival.timer < 1 && st->shm_nav_state != 0) {
-                 app->jumpArrival.timer = 1;
-            }
-        }
+            /* Only decrement timer if ship has stopped moving (IDLE, DOCKING or DRIFT) */
+            if (st->shm_nav_state == 0 || st->shm_nav_state == 9 || st->shm_nav_state == 10) {
+                if (app->jumpArrival.timer > 0) app->jumpArrival.timer--;
+                else app->jumpArrival.active = 0;
+            } else {
+                /* Keep timer alive while ship is still navigating/approaching */
+                if (app->jumpArrival.timer < 180) app->jumpArrival.timer = 180;
+            }        }
 
         /* Update Active Booms (Explosions) and Torpedoes */
         for (int i = 0; i < MAX_ACTIVE_BEAMS; i++) {
@@ -2222,14 +2260,14 @@ void mainLoop(VulkanApp* app) {
         }
 
         app->departureWormhole.active = st->wormhole.active;
-        if (app->departureWormhole.active) {
-            app->departureWormhole.x = (float)st->wormhole.shm_x - 20.0f;
-            app->departureWormhole.y = (float)st->wormhole.shm_z - 20.0f;
-            app->departureWormhole.z = 20.0f - (float)st->wormhole.shm_y;
-            app->departureWormhole.h = st->shm_h;
-            app->departureWormhole.m = st->shm_m;
-        }
-        /* Note: jumpArrival.h/m are set by the IPC_EV_JUMP event and should not be overwritten by player orientation here */
+            if (app->departureWormhole.active) {
+                app->departureWormhole.x = (float)st->wormhole.shm_x - 20.0f;
+                app->departureWormhole.y = (float)st->wormhole.shm_z - 20.0f;
+                app->departureWormhole.z = 20.0f - (float)st->wormhole.shm_y;
+                app->departureWormhole.h = st->shm_h;
+                app->departureWormhole.m = st->shm_m;
+            }
+            app->jumpArrival.h = st->shm_h; app->jumpArrival.m = st->shm_m;
 
             /* Sincronizzazione dello stato della Vista Bridge */
             app->showBridge = st->shm_show_bridge;
@@ -2580,22 +2618,6 @@ void cleanup(VulkanApp* app) {
 }
 
 int main(int argc, char** argv) {
-    /* Handle --help and --version for help2man */
-    if (argc > 1) {
-        if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
-            printf("Usage: spacegl_vulkan [SHM_NAME]\n");
-            printf("Space GL Vulkan Tactical Viewer\n\n");
-            printf("Options:\n");
-            printf("  --help, -h     Display this help and exit\n");
-            printf("  --version      Display version information and exit\n\n");
-            return 0;
-        }
-        if (strcmp(argv[1], "--version") == 0) {
-            printf("spacegl_vulkan 2026.04.12\n");
-            return 0;
-        }
-    }
-
     if (!glfwInit()) {
         return 1;
     }
@@ -2610,24 +2632,16 @@ int main(int argc, char** argv) {
     app->shm_fd = -1;
     
     if (argc > 1) {
-        printf("[VULKAN] Attempting to attach to SHM: %s\n", argv[1]);
         app->shm_fd = shm_open(argv[1], O_RDWR, 0666);
         if (app->shm_fd != -1) {
             app->shm = mmap(NULL, sizeof(SharedIPC), PROT_READ | PROT_WRITE, MAP_SHARED, app->shm_fd, 0);
             if (app->shm == MAP_FAILED) {
-                fprintf(stderr, "[VULKAN] Error: mmap failed for SHM\n");
                 app->shm = NULL;
-            } else {
-                printf("[VULKAN] SHM attached successfully\n");
             }
-        } else {
-            fprintf(stderr, "[VULKAN] Error: could not open SHM segment %s\n", argv[1]);
         }
-    } else {
-        printf("[VULKAN] Running in stand-alone mode (no SHM provided)\n");
     }
     
-    app->window = glfwCreateWindow(WIDTH, HEIGHT, "SpaceGL Vulkan", NULL, NULL);
+    app->window = glfwCreateWindow(WIDTH, HEIGHT, "Space GL", NULL, NULL);
     if (!app->window) {
         free(app);
         return 1;

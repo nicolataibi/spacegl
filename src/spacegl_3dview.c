@@ -4980,14 +4980,18 @@ void timer(int v) { (void)v;
             PlayerZ = objects[0].z;
         }
         
-        /* Snap threshold: more conservative (1.5^2 instead of 2.25) to smooth out errors */
         double dx_err = objects[i].tx - objects[i].x;
         double dy_err = objects[i].ty - objects[i].y;
         double dz_err = objects[i].tz - objects[i].z;
-        if (dx_err*dx_err + dy_err*dy_err + dz_err*dz_err > 2.25) {
+        if (dx_err*dx_err + dy_err*dy_err + dz_err*dz_err > 100.0) {
             objects[i].x = objects[i].tx;
             objects[i].y = objects[i].ty;
             objects[i].z = objects[i].tz;
+        } else {
+            /* Convergenza morbida verso il bersaglio per cancellare lo stutter avanti e indietro */
+            objects[i].x += dx_err * 0.15f;
+            objects[i].y += dy_err * 0.15f;
+            objects[i].z += dz_err * 0.15f;
         }
         
         /* Interpolazione fluida per l'orientamento (Heading/Mark/Roll) */
@@ -5039,8 +5043,12 @@ void timer(int v) { (void)v;
             double dx_err = g_torps[s].tx - g_torps[s].x;
             double dy_err = g_torps[s].ty - g_torps[s].y;
             double dz_err = g_torps[s].tz - g_torps[s].z;
-            if (dx_err*dx_err + dy_err*dy_err + dz_err*dz_err > 2.25) {
+            if (dx_err*dx_err + dy_err*dy_err + dz_err*dz_err > 100.0) {
                 g_torps[s].x = g_torps[s].tx; g_torps[s].y = g_torps[s].ty; g_torps[s].z = g_torps[s].tz;
+            } else {
+                g_torps[s].x += dx_err * 0.2f;
+                g_torps[s].y += dy_err * 0.2f;
+                g_torps[s].z += dz_err * 0.2f;
             }
         }
     }

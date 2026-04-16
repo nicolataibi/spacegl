@@ -103,8 +103,7 @@ void main() {
     vec3 diffuse = diff * baseColor;
 
     float spec = pow(max(dot(N, H), 0.0), 32.0 * (1.0 - roughness));
-    /* Scale specular by a high factor to feed the bloom extraction threshold */
-    vec3 specular = vec3(spec) * metallic * 5.0; 
+    vec3 specular = vec3(spec) * metallic;
 
     vec3 ambient = 0.25 * baseColor;
     outColor = vec4(ambient + diffuse + specular, alpha);
