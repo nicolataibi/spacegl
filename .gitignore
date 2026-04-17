@@ -21,3 +21,10 @@ identity.hash
 
 # Directory di sistema RPM
 rpmbuild/
+_srpm_test/
+
+# File specifici da ignorare
+Niklaus.md
+galaxy.dat
+spacegl_new_revision.sh
+spacegl_new_release.sh
