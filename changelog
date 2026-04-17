@@ -1,3 +1,9 @@
+* Fri Apr 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.17.03
+- Package revision: distribution assets cleanup 2nd pass.
+
+* Fri Apr 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.17.02
+- Package revision: distribution assets cleanup.
+
 * Fri Apr 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.17.01
 - Package revision
 - Enhanced NPC and Space Monster aggressiveness: implemented mobile firing during attack runs, significantly reduced weapon cooldowns, and doubled monster movement speed.
