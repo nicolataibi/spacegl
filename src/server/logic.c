@@ -157,16 +157,39 @@ void update_npc_ai(int n) {
             npcs[n].tz = npcs[n].gz + (rz / rl) * DIST_NPC_PATROL_STEP;
             
             /* Keep within quadrant boundaries if possible, or just let it fly */
-            npcs[n].nav_timer = (int)(3.3 * GAME_TICK_RATE); /* Safety timeout for the run */
+            npcs[n].nav_timer = (int)(2.5 * GAME_TICK_RATE); /* Reduced safety timeout */
         }
-        double dx = npcs[n].tx - npcs[n].gx;
-        double dy = npcs[n].ty - npcs[n].gy;
-        double dz = npcs[n].tz - npcs[n].gz;
-        double dist = sqrt(dx * dx + dy * dy + dz * dz);
-        if (dist > (double)DIST_BOUNDARY_MARGIN) {
-            d_dx = dx / dist;
-            d_dy = dy / dist;
-            d_dz = dz / dist;
+
+        ConnectedPlayer *target = &players[closest_p];
+        double dx = target->gx - npcs[n].gx;
+        double dy = target->gy - npcs[n].gy;
+        double dz = target->gz - npcs[n].gz;
+        double dist_to_player = sqrt(dx * dx + dy * dy + dz * dz);
+
+        /* MOBILE FIRE: Attack while running if within range */
+        if (dist_to_player < (DIST_MONSTER_ATTACK * 0.75)) {
+            if (npcs[n].fire_cooldown <= 0) {
+                if (npcs[n].beam_count < 4) {
+                    npcs[n].beams[npcs[n].beam_count++] = (NetBeam){
+                        npcs[n].x, npcs[n].y, npcs[n].z, 
+                        target->state.s1, target->state.s2, target->state.s3, 
+                        n + GALAXY_OBJECT_MIN_NPC, closest_p + 1, 1
+                    };
+                    /* Reduced mobile damage to balance higher frequency */
+                    apply_hull_damage(closest_p, (DMG_ION_BEAM_NPC / 2.5) / (double)MAX_TORPEDO_CAPACITY);
+                }
+                npcs[n].fire_cooldown = (20 + (rand() % 40)); /* Very fast mobile firing */
+            }
+        }
+
+        double t_dx = npcs[n].tx - npcs[n].gx;
+        double t_dy = npcs[n].ty - npcs[n].gy;
+        double t_dz = npcs[n].tz - npcs[n].gz;
+        double t_dist = sqrt(t_dx * t_dx + t_dy * t_dy + t_dz * t_dz);
+        if (t_dist > (double)DIST_BOUNDARY_MARGIN) {
+            d_dx = t_dx / t_dist;
+            d_dy = t_dy / t_dist;
+            d_dz = t_dz / t_dist;
             
             /* Save persistent direction for fast physics ticks */
             npcs[n].dx = d_dx;
@@ -180,7 +203,7 @@ void update_npc_ai(int n) {
             npcs[n].m = asin(d_dz) * 180.0 / M_PI;
         } else {
             npcs[n].ai_state = AI_STATE_ATTACK_POSITION;
-            npcs[n].nav_timer = (2 * GAME_TICK_RATE); /* 2 seconds of firing */
+            npcs[n].nav_timer = (int)(1.5 * GAME_TICK_RATE); /* Shorter stationary phase */
         }
     } else if (npcs[n].ai_state == AI_STATE_ATTACK_POSITION && closest_p != -1) {
         speed = 0.0;
@@ -196,17 +219,19 @@ void update_npc_ai(int n) {
             }
             npcs[n].m = asin(dz / dist_to_player) * 180.0 / M_PI;
         }
+        
         if (npcs[n].fire_cooldown > 0) {
             npcs[n].fire_cooldown--;
         }
-            if (npcs[n].fire_cooldown <= 0) {
-                    if (npcs[n].beam_count < 4) {
-                        npcs[n].beams[npcs[n].beam_count++] = (NetBeam){
-                            npcs[n].x, npcs[n].y, npcs[n].z, 
-                            target->state.s1, target->state.s2, target->state.s3, 
-                            n + GALAXY_OBJECT_MIN_NPC, closest_p + 1, 1
-                        };
-                    }
+
+        if (npcs[n].fire_cooldown <= 0) {
+            if (npcs[n].beam_count < 4) {
+                npcs[n].beams[npcs[n].beam_count++] = (NetBeam){
+                    npcs[n].x, npcs[n].y, npcs[n].z, 
+                    target->state.s1, target->state.s2, target->state.s3, 
+                    n + GALAXY_OBJECT_MIN_NPC, closest_p + 1, 1
+                };
+            }
             double base_dmg = (double)MAX_TORPEDO_CAPACITY;
             if (npcs[n].faction == FACTION_SWARM) {
                 base_dmg = (double)DMG_TORPEDO_MONSTER / 12.5;
@@ -254,7 +279,7 @@ void update_npc_ai(int n) {
                 target->death_timer = (GAME_TICK_RATE / 2);
                 push_server_event(closest_p, IPC_EV_BOOM, target->state.s1, target->state.s2, target->state.s3, 0, 0, 0, 1);
             }
-            npcs[n].fire_cooldown = 2 * GAME_TICK_RATE;
+            npcs[n].fire_cooldown = (40 + (rand() % 40)); /* Faster stationary firing */
         }
         npcs[n].nav_timer--;
         if (npcs[n].nav_timer <= 0) {
@@ -1883,10 +1908,13 @@ void update_game_logic() {
             double dy = target->state.s2 - monsters[mo].y; 
             double dz = target->state.s3 - monsters[mo].z;
             double dist = (min_d > 0.001) ? min_d : 0.001;
-            monsters[mo].x += (dx / dist) * DIST_EPSILON; 
-            monsters[mo].y += (dy / dist) * DIST_EPSILON; 
-            monsters[mo].z += (dz / dist) * DIST_EPSILON;
-            if (min_d < DIST_MONSTER_ATTACK && global_tick % TIMER_MONSTER_PULSE == 0) {
+            /* Doubled monster speed for more pressure */
+            monsters[mo].x += (dx / dist) * DIST_EPSILON * 2.0; 
+            monsters[mo].y += (dy / dist) * DIST_EPSILON * 2.0; 
+            monsters[mo].z += (dz / dist) * DIST_EPSILON * 2.0;
+            
+            /* Increased attack frequency: TIMER_MONSTER_PULSE / 3 (every 40 ticks ~ 0.6s) */
+            if (min_d < DIST_MONSTER_ATTACK && global_tick % (TIMER_MONSTER_PULSE / 3) == 0) {
                 #pragma omp critical
                 {
                     if (monsters[mo].beam_count < 4) {
