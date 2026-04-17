@@ -1,3 +1,6 @@
+* Fri Apr 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.17.01
+- Fixed player faction reset on re-entry and implemented dynamic beam source anchoring to eliminate NPC firing lag and coordinate offsets.
+
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.10
 - Release based on ships & torps fluidity.
 

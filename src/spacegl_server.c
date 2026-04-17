@@ -731,12 +731,11 @@ int main(int argc, char *argv[]) {
                                     int is_new = (players[slot].name[0] == '\0');
                                     players[slot].active = 0; /* Block updates during sync */
 
-                                    /* Always update keys and class on login */
+                                    /* Always update keys on login, but only update faction/class for new players */
                                     memcpy(players[slot].x25519_pubkey, pkt.x25519_pubkey, 32);
-                                    players[slot].faction = pkt.faction;
-                                    players[slot].ship_class = pkt.ship_class;
-
                                     if (is_new) {
+                                        players[slot].faction = pkt.faction;
+                                        players[slot].ship_class = pkt.ship_class;
                                         strcpy(players[slot].name, pkt.name);
                                         
                                         /* Notify the fleet of the new X25519 public key */

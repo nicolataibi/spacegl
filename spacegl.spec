@@ -1,6 +1,6 @@
 # License: GPL-3.0-or-later
 Name:           spacegl
-Version:        2026.04.16.10
+Version:        2026.04.17.01
 Release:        %autorelease
 
 Summary:        Space GL: A space exploration & combat game, Multi-User Client-Server Edition

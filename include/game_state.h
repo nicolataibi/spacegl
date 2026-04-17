@@ -32,6 +32,8 @@
 typedef struct {
     double net_sx, net_sy, net_sz; /* Source coordinates */
     double net_tx, net_ty, net_tz; /* Target coordinates */
+    int32_t owner_id;              /* ID of ship firing the beam */
+    int32_t target_id;             /* ID of ship being targeted */
     int32_t active;
 } NetBeam;
 #pragma pack(pop)

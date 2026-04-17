@@ -1375,6 +1375,8 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
                 tx, 
                 ty, 
                 tz, 
+                i + 1,
+                (int)tid,
                 1
             };
             /* Beam 2: Bottom Emitter */
@@ -1385,6 +1387,8 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
                 tx, 
                 ty, 
                 tz, 
+                i + 1,
+                (int)tid,
                 1
             };
         }

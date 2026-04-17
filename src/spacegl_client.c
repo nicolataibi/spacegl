@@ -989,7 +989,12 @@ void *network_listener(void *arg) {
                         push_ipc_event(IPC_EV_BEAM, 
                                        current_state.beams[b].net_sx, current_state.beams[b].net_sy, current_state.beams[b].net_sz,
                                        current_state.beams[b].net_tx, current_state.beams[b].net_ty, current_state.beams[b].net_tz,
-                                       current_state.beams[b].active);
+                                       current_state.beams[b].target_id);
+                        
+                        /* Pass the owner_id via padding[0] */
+                        int tail = atomic_load_explicit(&g_shm->event_tail, memory_order_acquire);
+                        int prev_tail = (tail - 1 + IPC_EVENT_QUEUE_SIZE) % IPC_EVENT_QUEUE_SIZE;
+                        g_shm->event_queue[prev_tail].padding[0] = current_state.beams[b].owner_id;
                     }
                     /* Reset local beam count after pushing to IPC queue */
                     current_state.beam_count = 0;

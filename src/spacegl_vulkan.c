@@ -1609,12 +1609,15 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 float btx = app->activeBeams[i].tx, bty = app->activeBeams[i].ty, btz = app->activeBeams[i].tz;
 
                 /* Real-time Tracking: Snap beam endpoints to current smoothed model positions */
+                int owner_id = app->activeBeams[i].owner_id;
                 for (int o=0; o < st->object_count; o++) {
-                    if (o == 0) { // Player
-                        bsx = app->smoothObjs[o].x; bsy = app->smoothObjs[o].y; bsz = app->smoothObjs[o].z;
-                    }
-                    if (st->objects[o].id == target_id && st->objects[o].active) {
-                        btx = app->smoothObjs[o].x; bty = app->smoothObjs[o].y; btz = app->smoothObjs[o].z;
+                    if (st->objects[o].active) {
+                        if (st->objects[o].id == owner_id) {
+                            bsx = app->smoothObjs[o].x; bsy = app->smoothObjs[o].y; bsz = app->smoothObjs[o].z;
+                        }
+                        if (st->objects[o].id == target_id) {
+                            btx = app->smoothObjs[o].x; bty = app->smoothObjs[o].y; btz = app->smoothObjs[o].z;
+                        }
                     }
                 }
                 
@@ -2093,7 +2096,7 @@ void mainLoop(VulkanApp* app) {
                         app->activeBeams[i].ty = (float)ev->z2 - 20.0f;
                         app->activeBeams[i].tz = 20.0f - (float)ev->y2;
                         app->activeBeams[i].life = 1.0f;
-                        app->activeBeams[i].owner_id = 0; /* Player index in local objects is always 0 */
+                        app->activeBeams[i].owner_id = ev->padding[0];
                         app->activeBeams[i].extra = ev->extra; /* Target ID */
                         break;
                     }
