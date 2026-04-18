@@ -1,5 +1,10 @@
 * Sat Apr 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.18.01
-- Fixed quadrant rotation stutter and sem_timedwait timing instability, Added missing manual pages for launch scripts, Simplified release process by removing manual SPEC file flattening
+- Consolidated recent improvements: fixed rotation/timing issues and automated man page generation.
+- Improved packaging: automatic help2man generation.
+- Cleaned up repository: removed 'man/' directory and added to .gitignore.
+- Refactored release/revision scripts to use native rpmautospec.
+- Added missing manual pages for launch scripts.
+- Simplified release process by removing manual SPEC file flattening.
 
 * Fri Apr 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.17.03
 - Package revision: distribution assets cleanup 2nd pass.

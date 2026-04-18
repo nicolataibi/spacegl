@@ -10,6 +10,9 @@ spacegl_diag
 # Directory di build
 build/
 
+# Directory di spacegl
+captain
+
 # Altri file temporanei
 *.o
 *.d

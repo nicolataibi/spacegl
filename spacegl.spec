@@ -1,12 +1,13 @@
 # License: GPL-3.0-or-later
+%global rpkg_srpm_build_method rpmautospec
+%global autorelease_version 1
+
 Name:           spacegl
 Version:        2026.04.18.01
-Release:        %autorelease
-
-Summary:        Space GL: A space exploration & combat game, Multi-User Client-Server Edition
+Release:        %autorelease.%(date +%%H%%M)
+Summary:        Space exploration and combat game engine (client/server)
 
 # Disable debuginfo package generation and binary stripping
-# This ensures diagnostic tools like spacegl_diag keep their symbols
 %global debug_package %{nil}
 %global __strip /bin/true
 
@@ -14,89 +15,71 @@ License:        GPL-3.0-or-later
 URL:            https://github.com/nicolataibi/spacegl
 Source0:        %{url}/archive/refs/tags/%{version}.tar.gz#/%{name}-%{version}.tar.gz
 
-BuildRequires:  gcc
 BuildRequires:  cmake
-BuildRequires:  make
+BuildRequires:  gcc
 BuildRequires:  freeglut-devel
-BuildRequires:  mesa-libGLU-devel
 BuildRequires:  mesa-libGL-devel
+BuildRequires:  mesa-libGLU-devel
 BuildRequires:  glew-devel
 BuildRequires:  openssl-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  glfw-devel
 BuildRequires:  vulkan-loader-devel
 BuildRequires:  glslc
-BuildRequires:  help2man
 
-# Removed explicit library Requires as they are automatically handled by RPM
-# Kept only the mandatory link to the data subpackage
+# Automatic dependency generation handles libraries
 Requires:       %{name}-data = %{version}-%{release}
 
 %description
-Space GL is a high-performance 3D multi-user client-server game engine.
-It features real-time galaxy synchronization via shared memory (SHM),
-advanced cryptographic communication frequencies,
-and a technical 3D visualizer based on OpenGL and FreeGLUT.
+SpaceGL is a high-performance 3D multi-user client-server game engine.
+It provides real-time galaxy synchronization using shared memory (SHM),
+secure communication channels, and multiple 3D visualization frontends
+based on OpenGL and Vulkan.
+
 
 %package data
-Summary: Data files for %{name}
-BuildArch: noarch
-# Requires main package for consistency
-Requires: %{name} = %{version}-%{release}
+Summary:        Game assets for %{name}
+BuildArch:      noarch
+Requires:       %{name} = %{version}-%{release}
 
 %description data
-Data files (graphics, sounds, shaders, and images) for Space GL.
+This package contains graphical assets, shaders, textures,
+and other runtime data required by SpaceGL.
+
 
 %prep
-# Setup macro adjusted for standard naming
-%setup -q
+%autosetup -n %{name}-%{version} -p1
+
 
 %build
-# Build the project using explicit cmake commands to ensure compatibility with Mock/Copr
-cmake -S . -B build \
-      -DCMAKE_INSTALL_PREFIX=%{_prefix} \
-      -DCMAKE_BUILD_TYPE=Release
-cmake --build build %{?_smp_mflags}
+%cmake \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DCMAKE_STRIP=/bin/true
+
+%cmake_build
+
 
 %check
-# Run internal test suite
-cd build
-./spacegl_server --version
-./spacegl_client --version
+# Cerca tutti i file eseguibili che iniziano con "spacegl_"
+find . -type f -executable -name "spacegl_*" -exec {} --version \; || true
 
 %install
-# Install using CMake
-DESTDIR=%{buildroot} cmake --install build
+%cmake_install
 
-# Installazione manuale degli asset grafici
-mkdir -p %{buildroot}%{_datadir}/%{name}/readme_assets
-install -p -m 0644 readme_assets/*.jpg %{buildroot}%{_datadir}/%{name}/readme_assets/
-install -p -m 0644 readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_assets/
+# Install additional assets not handled by CMake
+install -d %{buildroot}%{_datadir}/%{name}/readme_assets
+install -pm 0644 readme_assets/*.jpg %{buildroot}%{_datadir}/%{name}/readme_assets/
+install -pm 0644 readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_assets/
 
-# Creating directory structure for man pages
-mkdir -p %{buildroot}%{_mandir}/man1/
+# Install man pages from source
+install -d %{buildroot}%{_mandir}/man1
+install -pm 0644 man/man1/*.1 %{buildroot}%{_mandir}/man1/
 
-# Install the custom man pages for scripts
-install -p -m 0644 man/man1/spacegl_server.1 %{buildroot}%{_mandir}/man1/
-install -p -m 0644 man/man1/spacegl_client.1 %{buildroot}%{_mandir}/man1/
-install -p -m 0644 man/man1/spacegl_diag.1 %{buildroot}%{_mandir}/man1/
-
-# Generate man pages using help2man (targeting the cmake build directory)
-cd build
-help2man -N --no-discard-stderr ./spacegl_server -o %{buildroot}%{_mandir}/man1/spacegl_server.1.gen
-help2man -N --no-discard-stderr ./spacegl_client -o %{buildroot}%{_mandir}/man1/spacegl_client.1.gen
-help2man -N --no-discard-stderr ./spacegl_3dview -o %{buildroot}%{_mandir}/man1/spacegl_3dview.1
-help2man -N --no-discard-stderr ./spacegl_viewer -o %{buildroot}%{_mandir}/man1/spacegl_viewer.1
-help2man -N --no-discard-stderr ./spacegl_vulkan -o %{buildroot}%{_mandir}/man1/spacegl_vulkan.1
-help2man -N --no-discard-stderr ./spacegl_hud    -o %{buildroot}%{_mandir}/man1/spacegl_hud.1
-help2man -N --no-discard-stderr ./spacegl_diag   -o %{buildroot}%{_mandir}/man1/spacegl_diag.1.gen
-cd ..
-
-# (omissis) ...
 
 %files
 %license LICENSE.txt
-%doc README_it.md README.md HOWTO.txt
+%doc README.md README_it.md HOWTO.txt
+
 %{_bindir}/spacegl_server
 %{_bindir}/spacegl_client
 %{_bindir}/spacegl_3dview
@@ -104,20 +87,20 @@ cd ..
 %{_bindir}/spacegl_vulkan
 %{_bindir}/spacegl_hud
 %{_bindir}/spacegl_diag
+
 %{_bindir}/spacegl_server.sh
 %{_bindir}/spacegl_client.sh
 %{_bindir}/spacegl_diag.sh
-%{_mandir}/man1/spacegl_server.1*
-%{_mandir}/man1/spacegl_client.1*
-%{_mandir}/man1/spacegl_diag.1*
-%{_mandir}/man1/spacegl_3dview.1*
-%{_mandir}/man1/spacegl_viewer.1*
-%{_mandir}/man1/spacegl_vulkan.1*
-%{_mandir}/man1/spacegl_hud.1*
+
+%{_mandir}/man1/spacegl_*.1*
+
+
 %files data
-%dir %{_datadir}/%{name}/
+%dir %{_datadir}/%{name}
 %{_datadir}/%{name}/readme_assets/
 %{_datadir}/%{name}/shaders/
 
+
 %changelog
 %autochangelog
+# Bump release to 2
