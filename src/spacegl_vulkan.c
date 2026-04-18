@@ -1938,7 +1938,7 @@ void mainLoop(VulkanApp* app) {
         lastTime = currentTime;
 
         if (app->autoRotate) {
-            app->angleY -= VIEW_ROTATION_SPEED;
+            app->angleY -= (VIEW_ROTATION_SPEED * 60.0f * deltaTime);
             if (app->angleY <= 0.0f) app->angleY += 360.0f;
         }
         
@@ -2053,7 +2053,13 @@ void mainLoop(VulkanApp* app) {
                 }
             }
 
-            struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts); ts.tv_nsec += 1000000;
+            struct timespec ts;
+            clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_nsec += 1000000;
+            if (ts.tv_nsec >= 1000000000L) {
+                ts.tv_sec += 1;
+                ts.tv_nsec -= 1000000000L;
+            }
             /* Wait at most 1ms, but then process EVERYTHING in the queue */
             sem_timedwait(&app->shm->data_ready, &ts);
             

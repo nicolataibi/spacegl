@@ -1,6 +1,13 @@
 #!/usr/bin/bash
 # SpaceGL Diagnostic Launcher
 # Launches the scanner in a dedicated high-resolution terminal
+# Space GL - Copyright (C) 2026 Nicola Taibi
+# License: GPL-3.0-or-later
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# Professional Startup Script
 
 # 1. Find Server PID (exclude script, find binary)
 # Using -x to match the executable name exactly

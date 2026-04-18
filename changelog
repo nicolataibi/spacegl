@@ -1,3 +1,6 @@
+* Sat Apr 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.18.01
+- Fixed quadrant rotation stutter and sem_timedwait timing instability, Added missing manual pages for launch scripts, Simplified release process by removing manual SPEC file flattening
+
 * Fri Apr 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.17.03
 - Package revision: distribution assets cleanup 2nd pass.
 

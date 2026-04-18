@@ -1,6 +1,6 @@
 # License: GPL-3.0-or-later
 Name:           spacegl
-Version:        2026.04.17.03
+Version:        2026.04.18.01
 Release:        %autorelease
 
 Summary:        Space GL: A space exploration & combat game, Multi-User Client-Server Edition
@@ -76,15 +76,20 @@ install -p -m 0644 readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_as
 # Creating directory structure for man pages
 mkdir -p %{buildroot}%{_mandir}/man1/
 
+# Install the custom man pages for scripts
+install -p -m 0644 man/man1/spacegl_server.1 %{buildroot}%{_mandir}/man1/
+install -p -m 0644 man/man1/spacegl_client.1 %{buildroot}%{_mandir}/man1/
+install -p -m 0644 man/man1/spacegl_diag.1 %{buildroot}%{_mandir}/man1/
+
 # Generate man pages using help2man (targeting the cmake build directory)
 cd build
-help2man -N --no-discard-stderr ./spacegl_server -o %{buildroot}%{_mandir}/man1/spacegl_server.1
-help2man -N --no-discard-stderr ./spacegl_client -o %{buildroot}%{_mandir}/man1/spacegl_client.1
+help2man -N --no-discard-stderr ./spacegl_server -o %{buildroot}%{_mandir}/man1/spacegl_server.1.gen
+help2man -N --no-discard-stderr ./spacegl_client -o %{buildroot}%{_mandir}/man1/spacegl_client.1.gen
 help2man -N --no-discard-stderr ./spacegl_3dview -o %{buildroot}%{_mandir}/man1/spacegl_3dview.1
 help2man -N --no-discard-stderr ./spacegl_viewer -o %{buildroot}%{_mandir}/man1/spacegl_viewer.1
 help2man -N --no-discard-stderr ./spacegl_vulkan -o %{buildroot}%{_mandir}/man1/spacegl_vulkan.1
 help2man -N --no-discard-stderr ./spacegl_hud    -o %{buildroot}%{_mandir}/man1/spacegl_hud.1
-help2man -N --no-discard-stderr ./spacegl_diag   -o %{buildroot}%{_mandir}/man1/spacegl_diag.1
+help2man -N --no-discard-stderr ./spacegl_diag   -o %{buildroot}%{_mandir}/man1/spacegl_diag.1.gen
 cd ..
 
 # (omissis) ...
@@ -104,11 +109,11 @@ cd ..
 %{_bindir}/spacegl_diag.sh
 %{_mandir}/man1/spacegl_server.1*
 %{_mandir}/man1/spacegl_client.1*
+%{_mandir}/man1/spacegl_diag.1*
 %{_mandir}/man1/spacegl_3dview.1*
 %{_mandir}/man1/spacegl_viewer.1*
 %{_mandir}/man1/spacegl_vulkan.1*
 %{_mandir}/man1/spacegl_hud.1*
-%{_mandir}/man1/spacegl_diag.1*
 %files data
 %dir %{_datadir}/%{name}/
 %{_datadir}/%{name}/readme_assets/
