@@ -1,3 +1,13 @@
+* Sun Apr 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.19.03
+- Finalized RPM compliance after extensive troubleshooting of build-time constraints.
+- Optimized %check section to perform non-intrusive integrity verification, ensuring compatibility with headless build environments (COPR/Mock).
+- Consolidated all documentation and man page fixes into a stable release candidate.
+
+* Sun Apr 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.19.02
+- Fixed rpmlint spelling error (frontends -> front-ends) in package description.
+- Resolved specfile locale warning by simplifying the Release macro.
+- Added mandatory documentation (%doc) to spacegl-data subpackage.
+
 * Sun Apr 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.19.01
 - Fixed rpmlint packaging errors: added man pages for all binaries and wrapper scripts (man/man1/), resolving bad-manual-page-folder and no-manual-page-for-binary warnings, - Added %license to spacegl-data subpackage to resolve no-documentation warning, Delegated man page installation to CMake (GNUInstallDirs/mandir), removing manual install commands from SPEC.
 

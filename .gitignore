@@ -24,6 +24,7 @@ identity.hash
 
 # Directory di sistema RPM
 rpmbuild/
+_local_build/
 _srpm_test/
 
 # File specifici da ignorare

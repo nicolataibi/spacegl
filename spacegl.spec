@@ -3,8 +3,8 @@
 %global autorelease_version 1
 
 Name:           spacegl
-Version:        2026.04.19
-Release:        %(date +%%H%%M).%autorelease
+Version:        2026.04.19.03
+Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
 # Disable debuginfo package generation and binary stripping
@@ -33,7 +33,7 @@ Requires:       %{name}-data = %{version}-%{release}
 %description
 SpaceGL is a high-performance 3D multi-user client-server game engine.
 It provides real-time galaxy synchronization using shared memory (SHM),
-secure communication channels, and multiple 3D visualization frontends
+secure communication channels, and multiple 3D visualization front-ends
 based on OpenGL and Vulkan.
 
 
@@ -60,8 +60,10 @@ and other runtime data required by SpaceGL.
 
 
 %check
-# Cerca tutti i file eseguibili che iniziano con "spacegl_"
-find . -type f -executable -name "spacegl_*" -exec {} --version \; || true
+# Verifica l'integrità dei binari senza eseguirli (importante per build headless)
+for bin in spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_vulkan spacegl_hud spacegl_diag; do
+    find . -type f -executable -name "$bin" -print | grep -q "." || { echo "Error: $bin not found or not executable"; exit 1; }
+done
 
 %install
 %cmake_install
@@ -93,6 +95,7 @@ install -pm 0644 readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_asse
 
 %files data
 %license LICENSE.txt
+%doc README.md README_it.md
 %dir %{_datadir}/%{name}
 %{_datadir}/%{name}/readme_assets/
 %{_datadir}/%{name}/shaders/
@@ -100,4 +103,4 @@ install -pm 0644 readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_asse
 
 %changelog
 %autochangelog
-# Bump release to 2
+
