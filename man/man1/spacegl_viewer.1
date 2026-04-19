@@ -1,0 +1,30 @@
+.TH SPACEGL_VIEWER 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.SH NAME
+spacegl_viewer \- SpaceGL galaxy state viewer
+.SH SYNOPSIS
+.B spacegl_viewer
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B spacegl_viewer
+is a lightweight viewer for the SpaceGL engine that reads and displays
+galaxy state data from shared memory (SHM) produced by
+.BR spacegl_server (1).
+It provides a terminal-based overview of active ships, entities, and
+network statistics without requiring a full 3D rendering context.
+.SH OPTIONS
+.TP
+.B \-\-version
+Print version information and exit.
+.SH FILES
+.TP
+.I /usr/bin/spacegl_viewer
+Viewer executable.
+.SH SEE ALSO
+.BR spacegl_client (1),
+.BR spacegl_server (1),
+.BR spacegl_hud (1),
+.BR spacegl_diag (1)
+.SH AUTHOR
+Nicola Taibi
+.SH LICENSE
+GPL-3.0-or-later

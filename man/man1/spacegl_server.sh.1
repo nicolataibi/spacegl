@@ -1,0 +1,35 @@
+.TH SPACEGL_SERVER.SH 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.SH NAME
+spacegl_server.sh \- SpaceGL galaxy server launcher script
+.SH SYNOPSIS
+.B spacegl_server.sh
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B spacegl_server.sh
+is a Bash wrapper script that provides an interactive startup interface
+for the SpaceGL galaxy server. It displays the SpaceGL banner, handles
+master key authentication interactively when the
+.B SPACEGL_KEY
+environment variable is not already set, and then delegates execution
+to
+.BR spacegl_server (1).
+.PP
+All arguments passed to this script are forwarded verbatim to the
+underlying
+.B spacegl_server
+binary.
+.SH OPTIONS
+Any option accepted by
+.BR spacegl_server (1)
+is passed through unchanged.
+.SH ENVIRONMENT
+.TP
+.B SPACEGL_KEY
+If set, the master key prompt is skipped and this value is used directly.
+.SH SEE ALSO
+.BR spacegl_server (1),
+.BR spacegl_client.sh (1)
+.SH AUTHOR
+Nicola Taibi
+.SH LICENSE
+GPL-3.0-or-later

@@ -1,0 +1,40 @@
+.TH SPACEGL_DIAG.SH 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.SH NAME
+spacegl_diag.sh \- SpaceGL diagnostic scanner launcher script
+.SH SYNOPSIS
+.B spacegl_diag.sh
+.SH DESCRIPTION
+.B spacegl_diag.sh
+is a Bash launcher script for the SpaceGL real-time diagnostic tool.
+It automatically detects the PID of the running
+.BR spacegl_server (1)
+process using
+.BR pgrep (1)
+and launches
+.BR spacegl_diag (1)
+in a dedicated
+.BR xterm (1)
+window with optimized geometry (160x50), monospace font, and a black
+background with green text appropriate for diagnostic output.
+.PP
+The script aborts with an error message if no running
+.B spacegl_server
+process is found.
+.SH EXIT STATUS
+.TP
+.B 0
+Diagnostic launcher started successfully.
+.TP
+.B 1
+.B spacegl_server
+not running, or
+.B spacegl_diag
+binary not found.
+.SH SEE ALSO
+.BR spacegl_diag (1),
+.BR spacegl_server (1),
+.BR xterm (1)
+.SH AUTHOR
+Nicola Taibi
+.SH LICENSE
+GPL-3.0-or-later

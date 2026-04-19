@@ -129,3 +129,16 @@ install(PROGRAMS spacegl_server.sh spacegl_client.sh spacegl_diag.sh
 
 install(FILES ${SHADER_SPV_FILES}
         DESTINATION ${CMAKE_INSTALL_DATADIR}/spacegl/shaders)
+
+install(FILES
+    man/man1/spacegl_server.1
+    man/man1/spacegl_client.1
+    man/man1/spacegl_3dview.1
+    man/man1/spacegl_viewer.1
+    man/man1/spacegl_vulkan.1
+    man/man1/spacegl_hud.1
+    man/man1/spacegl_diag.1
+    man/man1/spacegl_server.sh.1
+    man/man1/spacegl_client.sh.1
+    man/man1/spacegl_diag.sh.1
+    DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)

@@ -3,8 +3,8 @@
 %global autorelease_version 1
 
 Name:           spacegl
-Version:        2026.04.18.01
-Release:        %autorelease.%(date +%%H%%M)
+Version:        2026.04.19
+Release:        %(date +%%H%%M).%autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
 # Disable debuginfo package generation and binary stripping
@@ -71,10 +71,6 @@ install -d %{buildroot}%{_datadir}/%{name}/readme_assets
 install -pm 0644 readme_assets/*.jpg %{buildroot}%{_datadir}/%{name}/readme_assets/
 install -pm 0644 readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_assets/
 
-# Install man pages from source
-install -d %{buildroot}%{_mandir}/man1
-install -pm 0644 man/man1/*.1 %{buildroot}%{_mandir}/man1/
-
 
 %files
 %license LICENSE.txt
@@ -96,6 +92,7 @@ install -pm 0644 man/man1/*.1 %{buildroot}%{_mandir}/man1/
 
 
 %files data
+%license LICENSE.txt
 %dir %{_datadir}/%{name}
 %{_datadir}/%{name}/readme_assets/
 %{_datadir}/%{name}/shaders/

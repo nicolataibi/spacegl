@@ -1,0 +1,36 @@
+.TH SPACEGL_3DVIEW 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.SH NAME
+spacegl_3dview \- SpaceGL OpenGL 3D rendering frontend
+.SH SYNOPSIS
+.B spacegl_3dview
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B spacegl_3dview
+is the OpenGL/GLUT/GLEW-based 3D rendering frontend for the SpaceGL engine.
+It reads galaxy state from shared memory (SHM) written by
+.BR spacegl_server (1)
+and renders ships, torpedoes, and galactic objects in real time using
+hardware-accelerated OpenGL.
+.PP
+This binary is typically launched automatically by
+.BR spacegl_client (1)
+when the
+.B gl
+argument is specified. It can also be started independently to attach
+to an existing shared memory segment.
+.SH OPTIONS
+.TP
+.B \-\-version
+Print version information and exit.
+.SH FILES
+.TP
+.I /usr/bin/spacegl_3dview
+OpenGL viewer executable.
+.SH SEE ALSO
+.BR spacegl_client (1),
+.BR spacegl_vulkan (1),
+.BR spacegl_server (1)
+.SH AUTHOR
+Nicola Taibi
+.SH LICENSE
+GPL-3.0-or-later

@@ -1,0 +1,42 @@
+.TH SPACEGL_VULKAN 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.SH NAME
+spacegl_vulkan \- SpaceGL Vulkan 3D rendering frontend
+.SH SYNOPSIS
+.B spacegl_vulkan
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B spacegl_vulkan
+is the high-performance Vulkan-based 3D rendering frontend for the
+SpaceGL engine. It uses GLFW for window management and renders all
+galaxy objects (ships, torpedoes, Quantum Cores, particle effects)
+using a custom Vulkan pipeline with SPIR-V compiled shaders.
+.PP
+Features include HDR rendering, multi-pass Bloom with Gaussian blur,
+ACES Filmic Tone Mapping, compute-shader-driven particle systems, and
+wireframe cloaking effects for Romulan vessels.
+.PP
+This binary is typically launched automatically by
+.BR spacegl_client (1)
+when the
+.B vk
+argument is specified. It can also be started independently to attach
+to an existing shared memory segment.
+.SH OPTIONS
+.TP
+.B \-\-version
+Print version information and exit.
+.SH FILES
+.TP
+.I /usr/bin/spacegl_vulkan
+Vulkan renderer executable.
+.TP
+.I /usr/share/spacegl/shaders/
+Compiled SPIR-V shader files.
+.SH SEE ALSO
+.BR spacegl_client (1),
+.BR spacegl_3dview (1),
+.BR spacegl_server (1)
+.SH AUTHOR
+Nicola Taibi
+.SH LICENSE
+GPL-3.0-or-later

@@ -1,9 +1,54 @@
-.TH SPACEGL_CLIENT 1
-.SH NOME
-spacegl_client - script di avvio per il client di Space GL
-
-.SH DESCRIZIONE
-Avvia il client principale di Space GL, inizializzando la connessione alla rete galattica.
-
-.SH VEDI ANCHE
-spacegl_server(1), spacegl_diag(1)
+.TH SPACEGL_CLIENT 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.SH NAME
+spacegl_client \- SpaceGL tactical bridge client
+.SH SYNOPSIS
+.B spacegl_client
+.RI [ OPTIONS ]
+.RI [ gl | vk ]
+.SH DESCRIPTION
+.B spacegl_client
+is the network client for the SpaceGL multi-user 3D space engine.
+It connects to a running
+.BR spacegl_server (1)
+instance, synchronizes galaxy state via shared memory (SHM), and
+launches the appropriate 3D frontend.
+.PP
+Pass
+.B gl
+to launch the OpenGL frontend
+.RB ( spacegl_3dview )
+or
+.B vk
+to launch the Vulkan frontend
+.RB ( spacegl_vulkan ).
+.PP
+Authentication is performed through a master key provided via the
+.B SPACEGL_KEY
+environment variable or interactively at startup.
+.SH OPTIONS
+.TP
+.B gl
+Start with the OpenGL (GLUT/GLEW) 3D view.
+.TP
+.B vk
+Start with the Vulkan 3D view.
+.TP
+.B \-\-version
+Print version information and exit.
+.SH ENVIRONMENT
+.TP
+.B SPACEGL_KEY
+Authentication key used to connect to the server.
+.SH FILES
+.TP
+.I /usr/bin/spacegl_client
+Client executable.
+.SH SEE ALSO
+.BR spacegl_server (1),
+.BR spacegl_client.sh (1),
+.BR spacegl_3dview (1),
+.BR spacegl_vulkan (1)
+.SH AUTHOR
+Nicola Taibi
+.SH LICENSE
+GPL-3.0-or-later

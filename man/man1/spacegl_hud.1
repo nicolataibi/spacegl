@@ -1,0 +1,50 @@
+.TH SPACEGL_HUD 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.SH NAME
+spacegl_hud \- SpaceGL ncurses heads-up display
+.SH SYNOPSIS
+.B spacegl_hud
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B spacegl_hud
+is an ncurses-based heads-up display for the SpaceGL engine.
+It reads galaxy state from shared memory (SHM) and renders real-time
+telemetry including ship position, energy levels, shield status,
+cargo, and galaxy-wide entity counts directly in the terminal.
+.PP
+The HUD supports a paginated Shared Memory Inspector toggled with the
+.B m
+key, navigable with
+.B n
+(next page) and
+.B p
+(previous page). It also displays HMAC-SHA256 cryptographic telemetry
+for galaxy data synchronization.
+.SH OPTIONS
+.TP
+.B \-\-version
+Print version information and exit.
+.SH KEYS
+.TP
+.B m
+Toggle Shared Memory Inspector.
+.TP
+.B n
+Next inspector page.
+.TP
+.B p
+Previous inspector page.
+.TP
+.B q
+Quit.
+.SH FILES
+.TP
+.I /usr/bin/spacegl_hud
+HUD executable.
+.SH SEE ALSO
+.BR spacegl_diag (1),
+.BR spacegl_viewer (1),
+.BR spacegl_server (1)
+.SH AUTHOR
+Nicola Taibi
+.SH LICENSE
+GPL-3.0-or-later

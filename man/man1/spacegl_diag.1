@@ -1,6 +1,38 @@
-.TH SPACEGL_DIAG 1
-.SH NOME
-spacegl_diag - utility di diagnostica per Space GL
-
-.SH DESCRIZIONE
-Esegue test di connettività e integrità sullo stato della memoria condivisa di Space GL.
+.TH SPACEGL_DIAG 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.SH NAME
+spacegl_diag \- SpaceGL real-time diagnostic scanner
+.SH SYNOPSIS
+.B spacegl_diag
+.I PID
+.SH DESCRIPTION
+.B spacegl_diag
+is an ncurses-based real-time diagnostic tool for the SpaceGL engine.
+Given the PID of a running
+.BR spacegl_server (1)
+process, it attaches to the server's shared memory segment and displays
+live diagnostic data including entity states, network statistics, SHM
+layout, and system health indicators.
+.PP
+.B spacegl_diag
+is typically launched via
+.BR spacegl_diag.sh (1),
+which handles server PID detection and opens a dedicated xterm session
+with optimized terminal geometry.
+.SH ARGUMENTS
+.TP
+.I PID
+The process ID of the running
+.B spacegl_server
+instance to inspect.
+.SH FILES
+.TP
+.I /usr/bin/spacegl_diag
+Diagnostic executable.
+.SH SEE ALSO
+.BR spacegl_diag.sh (1),
+.BR spacegl_hud (1),
+.BR spacegl_server (1)
+.SH AUTHOR
+Nicola Taibi
+.SH LICENSE
+GPL-3.0-or-later

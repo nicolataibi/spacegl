@@ -1,3 +1,6 @@
+* Sun Apr 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.19.01
+- Fixed rpmlint packaging errors: added man pages for all binaries and wrapper scripts (man/man1/), resolving bad-manual-page-folder and no-manual-page-for-binary warnings, - Added %license to spacegl-data subpackage to resolve no-documentation warning, Delegated man page installation to CMake (GNUInstallDirs/mandir), removing manual install commands from SPEC.
+
 * Sat Apr 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.18.01
 - Consolidated recent improvements: fixed rotation/timing issues and automated man page generation.
 - Improved packaging: automatic help2man generation.

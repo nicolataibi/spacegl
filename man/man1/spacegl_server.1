@@ -1,6 +1,37 @@
-.TH SPACEGL_SERVER 1
-.SH NOME
-spacegl_server - script di avvio per il server di Space GL
-
-.SH DESCRIZIONE
-Avvia il server di sincronizzazione galattica di Space GL.
+.TH SPACEGL_SERVER 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.SH NAME
+spacegl_server \- SpaceGL galaxy server daemon
+.SH SYNOPSIS
+.B spacegl_server
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B spacegl_server
+is the central game server for the SpaceGL multi-user 3D space engine.
+It manages galaxy state, player sessions, NPC entities, and secure
+communication channels via shared memory (SHM) and TCP networking on
+port 5000.
+.PP
+Authentication is performed through a master key provided via the
+.B SPACEGL_KEY
+environment variable or interactively at startup.
+.SH OPTIONS
+.TP
+.B \-\-version
+Print version information and exit.
+.SH ENVIRONMENT
+.TP
+.B SPACEGL_KEY
+Master authentication key for the server session.
+.SH FILES
+.TP
+.I /usr/bin/spacegl_server
+Server executable.
+.SH SEE ALSO
+.BR spacegl_client (1),
+.BR spacegl_server.sh (1),
+.BR spacegl_3dview (1),
+.BR spacegl_vulkan (1)
+.SH AUTHOR
+Nicola Taibi
+.SH LICENSE
+GPL-3.0-or-later
