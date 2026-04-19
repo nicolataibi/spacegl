@@ -707,14 +707,26 @@ int main(int argc, char *argv[]) {
                                     } 
                                 }
                                 
-                                /* 2. If not found, try to find the slot already reserved for this FD during handshake */
+                                /* 2. If not found, find a TRULY empty slot (no name) */
                                 if (slot == -1) {
-                                    for(int j=0; j<MAX_CLIENTS; j++) if (players[j].socket == fd) { slot = j; break; }
+                                    for(int j=0; j<MAX_CLIENTS; j++) {
+                                        if (players[j].name[0] == '\0') {
+                                            slot = j;
+                                            break;
+                                        }
+                                    }
                                 }
-                                
-                                /* 3. If still not found, take ANY free slot (socket == 0) */
+
+                                /* 3. Fallback: if server is full of named players, reuse an inactive slot (socket == 0)
+                                   but we MUST clear it first so it's treated as a new player. */
                                 if (slot == -1) {
-                                    for(int j=0; j<MAX_CLIENTS; j++) if (players[j].socket == 0) { slot = j; break; }
+                                    for(int j=0; j<MAX_CLIENTS; j++) {
+                                        if (players[j].socket == 0) {
+                                            slot = j;
+                                            memset(players[slot].name, 0, 64); /* Force is_new = true */
+                                            break;
+                                        }
+                                    }
                                 }
                                 
                                 if (slot != -1) {
@@ -724,7 +736,10 @@ int main(int argc, char *argv[]) {
 
                                     if (handshake_slot != -1 && handshake_slot != slot) {
                                         memcpy(players[slot].session_key, players[handshake_slot].session_key, 32);
-                                        players[handshake_slot].socket = 0; /* Release temporary slot */
+                                        /* If the temporary slot was just for handshake, clear it */
+                                        if (players[handshake_slot].name[0] == '\0') {
+                                            players[handshake_slot].socket = 0;
+                                        }
                                     }
 
                                     players[slot].socket = fd;

@@ -2681,6 +2681,187 @@ void drawMonster(int type, double x, double y, double z) { (void)x; (void)y; (vo
     }
 }
 
+void drawDysonFragment(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    glRotatef(pulse * 15.0, 0, 1, 0.5);
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    
+    /* Large fragmented shell */
+    glColor4f(1.0, 0.8, 0.2, 0.4);
+    glutWireSphere(1.0, 12, 12);
+    
+    /* Inner energy core */
+    glColor4f(1.0, 0.4, 0.0, 0.8);
+    glutSolidSphere(0.3 + sin(pulse*10.0)*0.05, 12, 12);
+    
+    /* Radial energy spikes */
+    glBegin(GL_LINES);
+    for(int i=0; i<8; i++) {
+        glRotatef(45, 0, 1, 1);
+        glVertex3f(0,0,0); glVertex3f(0, 1.2, 0);
+    }
+    glEnd();
+    
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+    glPopMatrix();
+}
+
+void drawTradingHub(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    glRotatef(pulse * 5.0, 0, 1, 0);
+    
+    /* Central Spire */
+    glColor3f(0.6, 0.6, 0.6);
+    glPushMatrix(); glScalef(0.2, 2.0, 0.2); glutSolidCube(1.0); glPopMatrix();
+    
+    /* Rotating Rings */
+    for(int i=0; i<3; i++) {
+        glPushMatrix();
+        glRotatef(pulse * (10.0 + i*5.0), 0, 1, 0);
+        glTranslatef(0, (i-1)*0.5, 0);
+        glColor3f(0.4, 0.5, 0.8);
+        glutWireTorus(0.05, 0.8 + i*0.2, 8, 32);
+        
+        /* Docking pads on rings */
+        for(int j=0; j<4; j++) {
+            glPushMatrix();
+            glRotatef(j*90, 0, 1, 0);
+            glTranslatef(0.8 + i*0.2, 0, 0);
+            glColor3f(0.7, 0.7, 0.7);
+            glutSolidCube(0.15);
+            glPopMatrix();
+        }
+        glPopMatrix();
+    }
+    
+    /* Beacon Light */
+    glDisable(GL_LIGHTING);
+    glColor3f(0, 1, 0);
+    glPushMatrix(); glTranslatef(0, 1.0, 0); glutSolidSphere(0.05, 8, 8); glPopMatrix();
+    glEnable(GL_LIGHTING);
+    
+    glPopMatrix();
+}
+
+void drawAncientRelic(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    glRotatef(pulse * 8.0, 1, 1, 1);
+    glDisable(GL_LIGHTING);
+    
+    /* Strange geometric form */
+    glColor3f(0.0, 1.0, 0.8);
+    glutWireOctahedron();
+    
+    /* Inner glowing lattice */
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glColor4f(0.2, 0.8, 1.0, 0.5 + sin(pulse*5.0)*0.2);
+    glutSolidIcosahedron();
+    
+    /* Floating orbiting shards */
+    for(int i=0; i<4; i++) {
+        glPushMatrix();
+        glRotatef(pulse * 30.0 + i*90, 0, 1, 0.2);
+        glTranslatef(0.6, 0, 0);
+        glColor4f(0.5, 1.0, 1.0, 0.8);
+        glutSolidCube(0.08);
+        glPopMatrix();
+    }
+    
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+    glPopMatrix();
+}
+
+void drawSubspaceRupture(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glPushMatrix();
+    
+    /* Violent purple/red energy distortion */
+    for(int i=0; i<6; i++) {
+        glPushMatrix();
+        glRotatef(pulse * (50.0 + i*15.0), 1.0, 0.2, 0.5);
+        glScalef(1.0 + sin(pulse*10.0 + i)*0.2, 1.0, 1.0);
+        glColor4f(0.6, 0.0, 0.8, 0.5 - i*0.05);
+        glutWireTorus(0.05, 0.5 + i*0.1, 6, 16);
+        glPopMatrix();
+    }
+    
+    /* Core void */
+    glColor4f(0.2, 0, 0.2, 0.9);
+    glutSolidSphere(0.2, 12, 12);
+    
+    glPopMatrix();
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+}
+
+void drawSatellite(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    glRotatef(pulse * 12.0, 0, 1, 0);
+    
+    /* Body */
+    glColor3f(0.7, 0.7, 0.7);
+    glutSolidCube(0.2);
+    
+    /* Solar Panels */
+    glColor3f(0.1, 0.2, 0.5);
+    glPushMatrix(); glTranslatef(0.3, 0, 0); glScalef(0.4, 0.02, 0.2); glutSolidCube(1.0); glPopMatrix();
+    glPushMatrix(); glTranslatef(-0.3, 0, 0); glScalef(0.4, 0.02, 0.2); glutSolidCube(1.0); glPopMatrix();
+    
+    /* Antenna */
+    glColor3f(0.5, 0.5, 0.5);
+    glPushMatrix(); glTranslatef(0, 0.2, 0); glRotatef(-90, 1, 0, 0); glutSolidCone(0.05, 0.2, 8, 2); glPopMatrix();
+    
+    /* Blinking LED */
+    if(fmod(pulse, 2.0) < 0.2) {
+        glDisable(GL_LIGHTING);
+        glColor3f(1, 0, 0);
+        glPushMatrix(); glTranslatef(0, 0.1, 0.1); glutSolidSphere(0.02, 4, 4); glPopMatrix();
+        glEnable(GL_LIGHTING);
+    }
+    
+    glPopMatrix();
+}
+
+void drawIonStorm(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glPushMatrix();
+    
+    /* Large electrical clouds */
+    for(int i=0; i<3; i++) {
+        glPushMatrix();
+        glRotatef(pulse * (10.0 + i*5.0), 0.5, 1.0, 0.2);
+        double s = 2.0 + i*0.5 + sin(pulse*2.0 + i)*0.2;
+        glScalef(s, s*0.7, s*0.9);
+        glColor4f(0.4, 0.4, 1.0, 0.2);
+        glutWireSphere(1.0, 10, 10);
+        glPopMatrix();
+    }
+    
+    /* Electrical discharges */
+    if(rand()%10 < 3) {
+        glColor4f(1.0, 1.0, 1.0, 0.8);
+        glBegin(GL_LINES);
+        for(int i=0; i<5; i++) {
+            glVertex3f(((rand()%200-100)/100.0)*2.0, ((rand()%200-100)/100.0)*2.0, ((rand()%200-100)/100.0)*2.0);
+            glVertex3f(((rand()%200-100)/100.0)*2.0, ((rand()%200-100)/100.0)*2.0, ((rand()%200-100)/100.0)*2.0);
+        }
+        glEnd();
+    }
+    
+    glPopMatrix();
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+}
+
 void drawGalacticCompass() {
     glDisable(GL_LIGHTING);
     glPushMatrix();
@@ -4074,6 +4255,12 @@ void display() {
                         drawTorpedoModel(0, 0, 0);
                     } break;
                     case 29: drawQuasar(objects[i].x, objects[i].y, objects[i].z, objects[i].ship_class); break;
+                    case 34: drawDysonFragment(0,0,0); break;
+                    case 35: drawTradingHub(0,0,0); break;
+                    case 36: drawAncientRelic(0,0,0); break;
+                    case 37: drawSubspaceRupture(0,0,0); break;
+                    case 38: drawSatellite(0,0,0); break;
+                    case 39: drawIonStorm(0,0,0); break;
                 }
                 glUseProgram(0);
             }

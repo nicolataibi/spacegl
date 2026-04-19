@@ -37,6 +37,20 @@
 Space GL è un simulatore spaziale avanzato che unisce la profondità strategica dei classici giochi testuali anni '70 con un'architettura moderna Client-Server e una visualizzazione 3D accelerata hardware.
 ---
 
+## 🚀 Punti Salienti Versione 3.0 (Rel. 20 - Arricchimento Galattico e Hub Diagnostico)
+
+L'aggiornamento 3.0 espande significativamente i contenuti fisici della galassia e perfeziona la suite diagnostica di plancia per un monitoraggio di livello professionale:
+*   **Hub Diagnostico Tattico (`spacegl_diag`)**:
+    *   **Menu di Navigazione Interattivo**: La Pagina 1 è stata rifattorizzata in un menu centrale. I capitani possono ora saltare direttamente a una qualsiasi delle 36 categorie diagnostiche usando i tasti freccia e Invio, eliminando lo scorrimento sequenziale.
+    *   **Intestazione Telemetrica in Tempo Reale**: Aggiunti contatori globali degli oggetti (`ITEMS`) e lo stato della risoluzione dei simboli (`SYMS`). Un controllo di errore critico impedisce ora il fallimento della diagnostica se i simboli del server vengono rimossi (stripped).
+    *   **Scorciatoie Contestuali**: Premendo 'm' o Esc ora l'operatore torna istantaneamente al menu principale da qualsiasi pagina.
+*   **Espansione della Tipologia Galattica**:
+    *   Introdotte 6 nuove classi di entità persistenti: **Frammenti di Dyson**, **Hub Commerciali**, **Reliquie Antiche**, **Rotture del Sottospazio**, **Satelliti Orbitali** e **Tempeste Ioniche**.
+    *   Integrate queste entità nell'**Indice di Partizionamento Spaziale** e nel sistema asincrono `save_galaxy`.
+*   **Integrità della Sessione Giocatore**:
+    *   Riprogettata la logica di allocazione degli slot di login in `spacegl_server`. Il server ora dà priorità ai nomi corrispondenti per la persistenza, assicurando che i capitani di ritorno recuperino il loro stato esatto.
+    *   Risolto un bug critico per cui i login successivi da utenti diversi (es. Nick vs Nick2) potevano causare la sovrascrittura degli slot e reset involontari dello stato.
+
 ## 🚀 Novità Versione 2.9 (Rel. 19 - Full 3-DOF & Tactical Navigation).
 
 L'aggiornamento 2.9 trasforma il rollio da semplice effetto estetico a componente fondamentale della navigazione e del combattimento:
@@ -454,6 +468,11 @@ Il visualizzatore 3D è un motore di rendering standalone basato su **OpenGL e G
         *   🛡️ **Piattaforma** (Arancione Scuro): Difesa statica automatizzata.
         *   🌀 **Rift** (Ciano): Anomalia spaziale instabile (teletrasporto).
         *   👾 **Mostro Spaziale** (Bianco Pulsante): Minaccia di classe Omega.
+        *   🏛️ **Frammento di Dyson** (Arancio/Giallo): Frammenti di antiche sfere di Dyson.
+        *   🏢 **Hub Commerciale** (Blu/Grigio): Stazione neutrale di commercio e attracco.
+        *   🏺 **Reliquia Antica** (Ciano Wireframe): Manufatto tecnologico di una civiltà perduta.
+        *   🌋 **Rottura del Subspazio** (Viola/Rosso): Violenta distorsione energetica.
+        *   📡 **Satellite** (Grigio/Rosso): Stazione di monitoraggio o relè planetario.
         *   ⚡ **Tempesta Ionica** (Bianco Wireframe): Perturbazione energetica locale.
     *   Le **tempeste ioniche** attive sono visualizzate come gusci energetici bianchi che avvolgono il quadrante.
     *   La posizione attuale del giocatore è evidenziata da un **indicatore bianco pulsante**, facilitando la navigazione a lungo raggio.
@@ -639,7 +658,12 @@ Space GL implementa un sistema di reputazione dinamico che gestisce le relazioni
 
 ### 👾 Anomalie e Creature
 *   **Mostri Spaziali**: Include l'**Entità Cristallina** e l'**Ameba Spaziale**, creature uniche che cacciano attivamente i vascelli per nutrirsi della loro energia.
-*   **Tempeste Ioniche**: Fenomeni meteorologici che si spostano nella galassia, capaci di accecare i sensori e deviare la rotta delle navi.
+*   **Frammenti di Dyson**: Resti massicci di sfere di Dyson incomplete o distrutte. Volare vicino ad essi fornisce una **ricarica energetica automatica** tramite induzione solare.
+*   **Hub Commerciali**: Avamposti commerciali automatizzati. Fungono da punti di attracco neutrali per riparazioni e rifornimento (funzionalità di commercio non ancora attiva per il giocatore).
+*   **Reliquie Antiche**: Manufatti che emettono campi di riparazione specializzati. La prossimità attiva la **riparazione automatica dei sottosistemi** (ID 0-9) al ritmo del 2% per tick.
+*   **Rotture del Subspazio**: Violenti strappi nel subspazio. La vicinanza causa **danni diretti allo scafo** (0.5% per tick) a causa delle sollecitazioni mareali.
+*   **Satelliti Planetari**: Piattaforme orbitali utilizzate per il monitoraggio. Possono essere scansionati per ottenere dati tattici locali.
+*   **Tempeste Ioniche**: Fenomeni meteorologici che si spostano nella galassia, capaci di accecare i sensori, deviare la rotta delle navi e **drenare gli scudi** (1% per tick).
 
 ## 💎 Guida alle Risorse e ai Materiali
 
@@ -729,7 +753,7 @@ Di seguito la lista completa dei comandi disponibili, raggruppati per funzione.
     *   **Orientamento**: 
         *   **Vettore Tattico 3D**: Una linea gialla sottile con una punta a cono rossa indica la direzione (Heading e Mark) della nave direttamente nella mappa.
         *   **Bussola Galattica 3D**: Un sistema di assi sincronizzato (Blu: 0°, Rosso: 90°, Verde: Mark) è visualizzato in alto al centro per il riferimento spaziale assoluto.
-    *   **Filtri Opzionali**: Puoi visualizzare solo categorie specifiche usando: `map st` (Stelle), `map pl` (Pianeti), `map bs` (Basi), `map en` (Nemici), `map bh` (Buchi Neri), `map ne` (Nebulose), `map pu` (Pulsar), `map qu` (Quasar), `map is` (Tempeste), `map co` (Comete), `map as` (Asteroidi), `map de` (Relitti), `map mi` (Mine), `map bu` (Boe), `map pf` (Piattaforme), `map ri` (Rift), `map mo` (Mostri).
+    *   **Filtri Opzionali**: Puoi visualizzare solo categorie specifiche usando: `map st` (Stelle), `map pl` (Pianeti), `map bs` (Basi), `map en` (Nemici), `map bh` (Buchi Neri), `map ne` (Nebulose), `map pu` (Pulsar), `map qu` (Quasar), `map is` (Tempeste), `map co` (Comete), `map as` (Asteroidi), `map de` (Relitti), `map mi` (Mine), `map bu` (Boe), `map pf` (Piattaforme), `map ri` (Rift), `map mo` (Mostri), `map dy` (Dyson), `map hb` (Hub), `map re` (Reliquie), `map ru` (Rotture), `map sa` (Satelliti).
     *   **HUD Verticale**: In modalità mappa, una legenda a sinistra mostra i colori e i codici filtro per ogni oggetto.
     *   **Anomalie Dinamiche**:
         *   **Tempeste Ioniche**: Quadranti racchiusi in un guscio wireframe bianco trasparente.

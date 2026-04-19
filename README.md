@@ -41,6 +41,20 @@
 Space GL is an advanced space simulator combining the strategic depth of classic 70s text-based games with a modern Client-Server architecture and hardware-accelerated 3D visualization.
 ---
 
+## 🚀 Version 3.0 Highlights (Rel. 20 - Galactic Enrichment & Diagnostic Hub)
+
+Update 3.0 significantly expands the galaxy's physical content and refines the bridge diagnostic suite for professional-grade monitoring:
+*   **Tactical Diagnostic Hub (`spacegl_diag`)**:
+    *   **Interactive Navigation Menu**: Page 1 has been refactored into a central menu. Captains can now jump directly to any of the 36 diagnostic categories using arrow keys and Enter, eliminating sequential scrolling.
+    *   **Real-Time Telemetry Header**: Added global object counters (`ITEMS`) and symbol resolution status (`SYMS`). A critical error check now prevents diagnostic failure if server symbols are stripped.
+    *   **Contextual Shortcuts**: Pressing 'm' or Esc now instantly returns the operator to the main menu from any page.
+*   **Galactic Typology Expansion**:
+    *   Introduced 6 new classes of persistent entities: **Dyson Fragments**, **Trading Hubs**, **Ancient Relics**, **Subspace Ruptures**, **Orbital Satellites**, and **Ionic Storms**.
+    *   Integrated these entities into the **Spatial Partitioning Index** and the asynchronous `save_galaxy` system.
+*   **Player Session Integrity**:
+    *   Redesigned the login slot allocation logic in `spacegl_server`. The server now prioritizes matching names for persistence, ensuring returning captains reclaim their exact state.
+    *   Fixed a critical bug where subsequent logins from different users (e.g., Nick vs Nick2) could cause slot overwriting and unintended state resets.
+
 ## 🚀 Version 2.9 Highlights (Rel. 19 - Full 3-DOF & Tactical Navigation).
 
 Update 2.9 transforms roll from a simple aesthetic effect into a core component of navigation and combat:
@@ -498,6 +512,11 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
         *   🛡️ **Platform** (Dark Orange): Automated static defense.
         *   🌀 **Rift** (Cyan): Unstable spatial anomaly (teleport).
         *   👾 **Space Monster** (Pulsing White): Omega-class threat.
+        *   🏛️ **Dyson Fragment** (Orange/Yellow): Ancient solar energy shell fragments.
+        *   🏢 **Trading Hub** (Blue/Grey): Neutral commerce and docking station.
+        *   🏺 **Ancient Relic** (Cyan Wireframe): Technological artifact from a lost civilization.
+        *   🌋 **Subspace Rupture** (Purple/Red): Violent energy distortion.
+        *   📡 **Satellite** (Grey/Red): Planetary monitoring or relay station.
         *   ⚡ **Ion Storm** (White Wireframe): Local energy perturbation.
     *   Active **ion storms** are visualized as white energy shells surrounding the quadrant.
     *   The player's current position is highlighted by a **pulsing white indicator**, facilitating long-range navigation.
@@ -683,7 +702,12 @@ Space GL implements a dynamic reputation system that manages relationships betwe
 
 ### 👾 Anomalies and Creatures
 *   **Space Monsters**: Includes the **Crystalline Entity** and the **Space Amoeba**, unique creatures that actively hunt vessels to feed on their energy.
-*   **Ion Storms**: Meteorological phenomena moving through the galaxy, capable of blinding sensors and diverting ships' courses.
+*   **Dyson Fragments**: Massive remnants of incomplete or shattered Dyson spheres. Flying near them provides **automatic energy recharge** via solar induction.
+*   **Trading Hubs**: Automated commercial outposts. They act as neutral docking points for repairs and supply (not yet fully operational for player trade).
+*   **Ancient Relics**: Artifacts emitting specialized repair fields. Proximity triggers **automatic subsystem repair** (ID 0-9) at 2% per tick.
+*   **Subspace Ruptures**: Violent tears in subspace. Proximity causes **direct hull damage** (0.5% per tick) due to tidal stresses.
+*   **Planetary Satellites**: Orbital platforms used for monitoring. They can be scanned for local tactical data.
+*   **Ion Storms**: Meteorological phenomena moving through the galaxy, capable of blinding sensors, diverting ships' courses, and **draining shields** (1% per tick).
 
 ## 💎 Resources and Materials Guide
 
@@ -773,7 +797,7 @@ Below is the complete list of available commands, grouped by function.
     *   **Orientation**: 
         *   **3D Tactical Needle**: A thin yellow line with a red cone pointer indicates the ship's current Heading and Mark directly within the map.
         *   **3D Galactic Compass**: A synchronized axis reference (Blue: 0°, Red: 90°, Green: Mark) is displayed at the top center of the view.
-    *   **Optional Filters**: You can display only specific categories using: `map st` (Stars), `map pl` (Planets), `map bs` (Bases), `map en` (Enemies), `map bh` (Black Holes), `map ne` (Nebulas), `map pu` (Pulsars), `map qu` (Quasars), `map is` (Storms), `map co` (Comets), `map as` (Asteroids), `map de` (Derelicts), `map mi` (Mines), `map bu` (Buoys), `map pf` (Platforms), `map ri` (Rifts), `map mo` (Monsters).
+    *   **Optional Filters**: You can display only specific categories using: `map st` (Stars), `map pl` (Planets), `map bs` (Bases), `map en` (Enemies), `map bh` (Black Holes), `map ne` (Nebulas), `map pu` (Pulsars), `map qu` (Quasars), `map is` (Storms), `map co` (Comets), `map as` (Asteroids), `map de` (Derelicts), `map mi` (Mines), `map bu` (Buoys), `map pf` (Platforms), `map ri` (Rifts), `map mo` (Monsters), `map dy` (Dyson), `map hb` (Hubs), `map re` (Relics), `map ru` (Ruptures), `map sa` (Satellites).
     *   **Vertical HUD**: In map mode, a legend on the left side shows colors and filter codes for each object.
     *   **Dynamic Anomalies**:
         *   **Ion Storms**: Quadrants enclosed in a white transparent wireframe shell.

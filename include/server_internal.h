@@ -374,6 +374,72 @@ typedef struct {
 
 typedef struct { 
     int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int active; 
+} NPCDyson;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int active; 
+} NPCHub;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int active; 
+} NPCRelic;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int active; 
+} NPCRupture;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int active; 
+} NPCSatellite;
+
+typedef struct { 
+    int id;
+    int q1;
+    int q2;
+    int q3; 
+    double x;
+    double y;
+    double z; 
+    int active; 
+} NPCStorm;
+
+typedef struct { 
+    int id;
     int faction;
     int q1;
     int q2;
@@ -421,6 +487,12 @@ typedef struct {
 #define MAX_PLATFORMS 200
 #define MAX_RIFTS 50
 #define MAX_MONSTERS 30
+#define MAX_DYSON 150
+#define MAX_HUBS 80
+#define MAX_RELICS 200
+#define MAX_RUPTURES 150
+#define MAX_SATELLITES 600
+#define MAX_STORMS 120
 
 /* Local Quadrant Limits for Spatial Index (Optimization) */
 #define MAX_Q_NPC 32
@@ -441,6 +513,12 @@ typedef struct {
 #define MAX_Q_MONSTERS 4
 #define MAX_Q_PLAYERS 32
 #define MAX_Q_TORPEDOES 32
+#define MAX_Q_DYSON 4
+#define MAX_Q_HUBS 4
+#define MAX_Q_RELICS 4
+#define MAX_Q_RUPTURES 4
+#define MAX_Q_SATELLITES 8
+#define MAX_Q_STORMS 4
 
 /* Global Data accessed by modules */
 extern NPCStar stars_data[MAX_STARS];
@@ -459,6 +537,12 @@ extern NPCMonster monsters[MAX_MONSTERS];
 extern NPCPlanet planets[MAX_PLANETS];
 extern NPCBase bases[MAX_BASES];
 extern NPCShip npcs[MAX_NPC];
+extern NPCDyson dysons[MAX_DYSON];
+extern NPCHub hubs[MAX_HUBS];
+extern NPCRelic relics[MAX_RELICS];
+extern NPCRupture ruptures[MAX_RUPTURES];
+extern NPCSatellite satellites[MAX_SATELLITES];
+extern NPCStorm storms[MAX_STORMS];
 extern PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 extern ConnectedPlayer players[MAX_CLIENTS];
 extern SpaceGLGame spacegl_master;
@@ -480,7 +564,7 @@ extern SupernovaState supernova_event;
 
 #define LOG_DEBUG(...) do { if (g_debug) { printf("DEBUG: " __VA_ARGS__); fflush(stdout); } } while (0)
 
-#define GALAXY_VERSION 20260311
+#define GALAXY_VERSION 20260419
 
 /* Spatial Partitioning Index */
 typedef struct {
@@ -523,6 +607,18 @@ typedef struct {
     int rift_count;
     NPCMonster *monsters[MAX_Q_MONSTERS];
     int monster_count;
+    NPCDyson *dysons[MAX_Q_DYSON];
+    int dyson_count;
+    NPCHub *hubs[MAX_Q_HUBS];
+    int hub_count;
+    NPCRelic *relics[MAX_Q_RELICS];
+    int relic_count;
+    NPCRupture *ruptures[MAX_Q_RUPTURES];
+    int rupture_count;
+    NPCSatellite *satellites[MAX_Q_SATELLITES];
+    int satellite_count;
+    NPCStorm *storms[MAX_Q_STORMS];
+    int storm_count;
     ConnectedPlayer *players[MAX_Q_PLAYERS];
     int player_count;
     PlayerTorpedo *torpedoes[MAX_Q_TORPEDOES];

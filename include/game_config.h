@@ -186,6 +186,24 @@
 #define GALAXY_OBJECT_MIN_QUASAR      27000
 #define GALAXY_OBJECT_MAX_QUASAR      27999
 
+#define GALAXY_OBJECT_MIN_DYSON       28000
+#define GALAXY_OBJECT_MAX_DYSON       28999
+
+#define GALAXY_OBJECT_MIN_HUB         29000
+#define GALAXY_OBJECT_MAX_HUB         29999
+
+#define GALAXY_OBJECT_MIN_RELIC       30000
+#define GALAXY_OBJECT_MAX_RELIC       30999
+
+#define GALAXY_OBJECT_MIN_RUPTURE     31000
+#define GALAXY_OBJECT_MAX_RUPTURE     31999
+
+#define GALAXY_OBJECT_MIN_SATELLITE   32000
+#define GALAXY_OBJECT_MAX_SATELLITE   32999
+
+#define GALAXY_OBJECT_MIN_STORM       33000
+#define GALAXY_OBJECT_MAX_STORM       33999
+
 /* --- Galaxy Generation Ranges --- */
 #define GALAXY_CREATE_OBJECT_MIN_NPC_FACTION        70
 #define GALAXY_CREATE_OBJECT_MAX_NPC_FACTION        100
@@ -237,6 +255,24 @@
 
 #define GALAXY_CREATE_OBJECT_MIN_QUASAR              150
 #define GALAXY_CREATE_OBJECT_MAX_QUASAR              200
+
+#define GALAXY_CREATE_OBJECT_MIN_DYSON               100
+#define GALAXY_CREATE_OBJECT_MAX_DYSON               150
+
+#define GALAXY_CREATE_OBJECT_MIN_HUB                 50
+#define GALAXY_CREATE_OBJECT_MAX_HUB                 80
+
+#define GALAXY_CREATE_OBJECT_MIN_RELIC               150
+#define GALAXY_CREATE_OBJECT_MAX_RELIC               200
+
+#define GALAXY_CREATE_OBJECT_MIN_RUPTURE             100
+#define GALAXY_CREATE_OBJECT_MAX_RUPTURE             150
+
+#define GALAXY_CREATE_OBJECT_MIN_SATELLITE           400
+#define GALAXY_CREATE_OBJECT_MAX_SATELLITE           600
+
+#define GALAXY_CREATE_OBJECT_MIN_STORM               80
+#define GALAXY_CREATE_OBJECT_MAX_STORM               120
 
 /* --- Resource Costs (Energy) --- */
 #define COST_ACTION_LOW          10             /* Costo base operazioni minori (es. SRS, Lock) */

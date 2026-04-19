@@ -1431,6 +1431,18 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     mat4_scale(S_ship, (vec3){shipScale, shipScale, shipScale});
                     mat4_multiply(S_ship, ship_opc.model, ship_opc.model);
                 }
+                
+                /* Specialized Rendering for new types in Vulkan */
+                if (obj->type == 34 || obj->type == 37 || obj->type == 39) { // Dyson, Rupture, Storm (GLOW)
+                    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
+                    ship_opc.usePushColor = 6; // Pulse mode
+                    if (obj->type == 34) { ship_opc.color[0]=1; ship_opc.color[1]=0.8f; ship_opc.color[2]=0.2f; }
+                    if (obj->type == 37) { ship_opc.color[0]=0.6f; ship_opc.color[1]=0; ship_opc.color[2]=0.8f; }
+                    if (obj->type == 39) { ship_opc.color[0]=0.4f; ship_opc.color[1]=0.4f; ship_opc.color[2]=1; }
+                } else if (obj->type == 36) { // Ancient Relic (WIREFRAME)
+                    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+                    ship_opc.color[0]=0; ship_opc.color[1]=1; ship_opc.color[2]=0.8f;
+                }
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ship_opc), &ship_opc);
                 VkBuffer vb;
                 VkBuffer ib;
@@ -1440,11 +1452,11 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     vb = app->torpVertexBuffer;
                     ib = app->torpIndexBuffer;
                     cnt = sizeof(torpIndices)/4;
-                } else if (obj->type == 4 || obj->type == 5 || obj->type == 6) {
+                } else if (obj->type == 4 || obj->type == 5 || obj->type == 6 || obj->type == 34 || obj->type == 36 || obj->type == 37 || obj->type == 39) {
                     vb = app->sphereVertexBuffer;
                     ib = app->sphereIndexBuffer;
                     cnt = SPHERE_LATS * SPHERE_LONGS * 6;
-                } else if (obj->type == 3 || obj->type == 21) {
+                } else if (obj->type == 3 || obj->type == 21 || obj->type == 38) {
                     vb = app->cubeVertexBuffer;
                     ib = app->cubeIndexBuffer;
                     cnt = sizeof(cubeIndices)/4;

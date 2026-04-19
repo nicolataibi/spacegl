@@ -1932,6 +1932,71 @@ void update_game_logic() {
         }
     }
 
+    /* --- NEW GALACTIC OBJECTS PROXIMITY EFFECTS --- */
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (!players[i].active) continue;
+        int q1 = players[i].state.q1, q2 = players[i].state.q2, q3 = players[i].state.q3;
+        QuadrantIndex *lq = &spatial_index[q1][q2][q3];
+
+        /* 1. Dyson Fragments: Massive energy recharge if very close */
+        for (int d = 0; d < lq->dyson_count; d++) {
+            double dx = players[i].state.s1 - lq->dysons[d]->x;
+            double dy = players[i].state.s2 - lq->dysons[d]->y;
+            double dz = players[i].state.s3 - lq->dysons[d]->z;
+            double dist = sqrt(dx*dx + dy*dy + dz*dz);
+            if (dist < DIST_INTERACTION_MAX) {
+                uint64_t recharge = 5000 * (1.0 + (DIST_INTERACTION_MAX - dist));
+                if (players[i].state.energy < MAX_ENERGY_CAPACITY - recharge) players[i].state.energy += recharge;
+                if (global_tick % 120 == 0) send_server_msg(i, "ENGINE", "DYSON RESONANCE DETECTED: ENERGY OVERFLOW!");
+            }
+        }
+
+        /* 2. Subspace Ruptures: Severe hull damage and energy drain */
+        for (int r = 0; r < lq->rupture_count; r++) {
+            double dx = players[i].state.s1 - lq->ruptures[r]->x;
+            double dy = players[i].state.s2 - lq->ruptures[r]->y;
+            double dz = players[i].state.s3 - lq->ruptures[r]->z;
+            double dist = sqrt(dx*dx + dy*dy + dz*dz);
+            if (dist < DIST_NEBULA_EFFECT) {
+                apply_hull_damage(i, 0.05);
+                if (players[i].state.energy > 2000) players[i].state.energy -= 2000;
+                if (global_tick % 60 == 0) send_server_msg(i, "CRITICAL", "SUBSPACE RUPTURE: STRUCTURAL INTEGRITY COMPROMISED!");
+            }
+        }
+
+        /* 3. Ancient Relics: Shield boost and system repairs */
+        for (int re = 0; re < lq->relic_count; re++) {
+            double dx = players[i].state.s1 - lq->relics[re]->x;
+            double dy = players[i].state.s2 - lq->relics[re]->y;
+            double dz = players[i].state.s3 - lq->relics[re]->z;
+            double dist = sqrt(dx*dx + dy*dy + dz*dz);
+            if (dist < DIST_INTERACTION_MAX) {
+                for (int s = 0; s < 6; s++) {
+                    if (players[i].state.shields[s] < SHIELD_MAX_STRENGTH) players[i].state.shields[s] += 100;
+                }
+                for (int sys = 0; sys < MAX_SYSTEMS; sys++) {
+                    if (players[i].state.system_health[sys] < YIELD_HARVEST_MAX) players[i].state.system_health[sys] += 0.1;
+                }
+                if (global_tick % 180 == 0) send_server_msg(i, "SCIENCE", "ANCIENT RELIC DETECTED: HARMONIC SYSTEM REPAIR IN PROGRESS.");
+            }
+        }
+
+        /* 4. Ion Storms: Heavy shield drain and sensor interference */
+        for (int st = 0; st < lq->storm_count; st++) {
+            double dx = players[i].state.s1 - lq->storms[st]->x;
+            double dy = players[i].state.s2 - lq->storms[st]->y;
+            double dz = players[i].state.s3 - lq->storms[st]->z;
+            double dist = sqrt(dx*dx + dy*dy + dz*dz);
+            if (dist < DIST_PULSAR_BEAM) {
+                for (int s = 0; s < 6; s++) {
+                    if (players[i].state.shields[s] > 200) players[i].state.shields[s] -= 200;
+                    else players[i].state.shields[s] = 0;
+                }
+                if (global_tick % 90 == 0) send_server_msg(i, "TACTICAL", "ION STORM IMPACT: SHIELD COLLAPSE IMMINENT!");
+            }
+        }
+    }
+
     pthread_mutex_unlock(&game_mutex);
 
     /* 3. Send Updates to clients */
@@ -1976,6 +2041,7 @@ void update_game_logic() {
         upd->radio_lock_target = players[i].radio_lock_target;
         
         int o_idx = 0;
+        double pulse = 0.5 + 0.5 * sin(global_tick * 0.05);
         upd->objects[o_idx] = (NetObject){players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].state.van_h, players[i].state.van_m, players[i].state.van_r, 1, players[i].ship_class, 1, (int)players[i].state.hull_integrity, players[i].state.energy, 0, (int)players[i].state.hull_integrity, players[i].faction, i+1, players[i].state.is_cloaked, "", players[i].vx, players[i].vy, players[i].vz};
         strncpy(upd->objects[o_idx].name, players[i].name, 63); upd->objects[o_idx].name[63] = '\0';
         o_idx++;
@@ -1998,6 +2064,12 @@ void update_game_logic() {
         for(int h=0; h<lq->bh_count && o_idx < MAX_NET_OBJECTS; h++) { NPCBlackHole *bh = lq->black_holes[h]; if(!bh->active) continue; upd->objects[o_idx++] = (NetObject){bh->x, bh->y, bh->z, 0, 0, 0, 6, 0, 1, 100, 0, 0, 100, 6, bh->id + GALAXY_OBJECT_MIN_BLACKHOLE, 0, "Black Hole", 0,0,0}; }
         for(int n=0; n<lq->nebula_count && o_idx < MAX_NET_OBJECTS; n++) { NPCNebula *nb = lq->nebulas[n]; if(!nb->active) continue; upd->objects[o_idx++] = (NetObject){nb->x, nb->y, nb->z, 0, 0, 0, 7, nb->type, 1, 100, 0, 0, 100, 7, nb->id + GALAXY_OBJECT_MIN_NEBULA, 0, "Nebula", 0,0,0}; }
         for(int p=0; p<lq->pulsar_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPulsar *pu = lq->pulsars[p]; if(!pu->active) continue; upd->objects[o_idx++] = (NetObject){pu->x, pu->y, pu->z, 0, 0, 0, 8, 0, 1, 100, 0, 0, 100, 8, pu->id + GALAXY_OBJECT_MIN_PULSAR, 0, "Pulsar", 0,0,0}; }
+        for(int d=0; d<lq->dyson_count && o_idx < MAX_NET_OBJECTS; d++) { NPCDyson *dy = lq->dysons[d]; if(!dy->active) continue; upd->objects[o_idx++] = (NetObject){dy->x, dy->y, dy->z, pulse, pulse*0.5, 0, 34, 0, 1, 100, 0, 0, 100, 34, dy->id + GALAXY_OBJECT_MIN_DYSON, 0, "Dyson Fragment", 0,0,0}; }
+        for(int h=0; h<lq->hub_count && o_idx < MAX_NET_OBJECTS; h++) { NPCHub *hb = lq->hubs[h]; if(!hb->active) continue; upd->objects[o_idx++] = (NetObject){hb->x, hb->y, hb->z, 0, pulse*0.1, 0, 35, 0, 1, 100, 0, 0, 100, 35, hb->id + GALAXY_OBJECT_MIN_HUB, 0, "Trading Hub", 0,0,0}; }
+        for(int r=0; r<lq->relic_count && o_idx < MAX_NET_OBJECTS; r++) { NPCRelic *re = lq->relics[r]; if(!re->active) continue; upd->objects[o_idx++] = (NetObject){re->x, re->y, re->z, pulse*0.3, pulse*0.7, 0, 36, 0, 1, 100, 0, 0, 100, 36, re->id + GALAXY_OBJECT_MIN_RELIC, 0, "Ancient Relic", 0,0,0}; }
+        for(int ru=0; ru<lq->rupture_count && o_idx < MAX_NET_OBJECTS; ru++) { NPCRupture *rp = lq->ruptures[ru]; if(!rp->active) continue; upd->objects[o_idx++] = (NetObject){rp->x, rp->y, rp->z, 0, 0, 0, 37, 0, 1, 100, 0, 0, 100, 37, rp->id + GALAXY_OBJECT_MIN_RUPTURE, 0, "Subspace Rupture", 0,0,0}; }
+        for(int sa=0; sa<lq->satellite_count && o_idx < MAX_NET_OBJECTS; sa++) { NPCSatellite *st = lq->satellites[sa]; if(!st->active) continue; upd->objects[o_idx++] = (NetObject){st->x, st->y, st->z, pulse, 0, 0, 38, 0, 1, 100, 0, 0, 100, 38, st->id + GALAXY_OBJECT_MIN_SATELLITE, 0, "Satellite", 0,0,0}; }
+        for(int so=0; so<lq->storm_count && o_idx < MAX_NET_OBJECTS; so++) { NPCStorm *sm = lq->storms[so]; if(!sm->active) continue; upd->objects[o_idx++] = (NetObject){sm->x, sm->y, sm->z, 0, 0, 0, 39, 0, 1, 100, 0, 0, 100, 39, sm->id + GALAXY_OBJECT_MIN_STORM, 0, "Ion Storm", 0,0,0}; }
         for(int qsr=0; qsr<lq->quasar_count && o_idx < MAX_NET_OBJECTS; qsr++) { NPCQuasar *qs = lq->quasars[qsr]; if(!qs->active) continue; upd->objects[o_idx++] = (NetObject){qs->x, qs->y, qs->z, 0, 0, 0, 29, qs->type, 1, 100, 0, 0, 100, 0, qs->id + GALAXY_OBJECT_MIN_QUASAR, 0, "Quasar", 0,0,0}; }
         for(int c=0; c<lq->comet_count && o_idx < MAX_NET_OBJECTS; c++) { NPCComet *co = lq->comets[c]; if(!co->active) continue; upd->objects[o_idx++] = (NetObject){co->x, co->y, co->z, 0, 0, 0, 9, 0, 1, 100, 0, 0, 100, 9, co->id + GALAXY_OBJECT_MIN_COMET, 0, "Comet", 0,0,0}; }
         for(int d=0; d<lq->derelict_count && o_idx < MAX_NET_OBJECTS; d++) { NPCDerelict *de = lq->derelicts[d]; if(!de->active) continue; upd->objects[o_idx] = (NetObject){de->x, de->y, de->z, 0, 0, 0, 22, de->ship_class, 1, 100, 0, 0, 100, de->faction, de->id + GALAXY_OBJECT_MIN_DERELICT, 0, "", 0,0,0}; snprintf(upd->objects[o_idx].name, 64, "%s", de->name); o_idx++; }

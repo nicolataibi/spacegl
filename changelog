@@ -1,3 +1,9 @@
+* Sun Apr 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.19.04
+- Implemented an interactive navigation menu in spacegl_diag for direct access to all 36 telemetry categories.
+- Expanded the galactic content with 6 new persistent entity classes: Dyson Fragments, Trading Hubs, Ancient Relics, Subspace Ruptures, Orbital Satellites, and Ionic Storms.
+- Fixed a critical player persistence bug in spacegl_server, ensuring correct slot allocation and state preservation for returning captains.
+- Added real-time diagnostic headers (ITEMS/SYMS) and critical symbol-resolution safety checks.
+
 * Sun Apr 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.19.03
 - Finalized RPM compliance after extensive troubleshooting of build-time constraints.
 - Optimized %check section to perform non-intrusive integrity verification, ensuring compatibility with headless build environments (COPR/Mock).

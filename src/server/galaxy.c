@@ -43,6 +43,12 @@ NPCMonster monsters[MAX_MONSTERS];
 NPCPlanet planets[MAX_PLANETS];
 NPCBase bases[MAX_BASES];
 NPCShip npcs[MAX_NPC];
+NPCDyson dysons[MAX_DYSON];
+NPCHub hubs[MAX_HUBS];
+NPCRelic relics[MAX_RELICS];
+NPCRupture ruptures[MAX_RUPTURES];
+NPCSatellite satellites[MAX_SATELLITES];
+NPCStorm storms[MAX_STORMS];
 PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 ConnectedPlayer players[MAX_CLIENTS];
 SpaceGLGame spacegl_master;
@@ -142,6 +148,48 @@ void init_static_spatial_index() {
             }
         }
     }
+    for (int s = 0; s < MAX_STORMS; s++) {
+        if (storms[s].active) {
+            if (!IS_Q_VALID(storms[s].q1, storms[s].q2, storms[s].q3)) continue;
+            QuadrantIndex *q = &spatial_index[storms[s].q1][storms[s].q2][storms[s].q3];
+            if (q->storm_count < MAX_Q_STORMS) q->storms[q->storm_count++] = &storms[s];
+        }
+    }
+    for (int d = 0; d < MAX_DYSON; d++) {
+        if (dysons[d].active) {
+            if (!IS_Q_VALID(dysons[d].q1, dysons[d].q2, dysons[d].q3)) continue;
+            QuadrantIndex *q = &spatial_index[dysons[d].q1][dysons[d].q2][dysons[d].q3];
+            if (q->dyson_count < MAX_Q_DYSON) q->dysons[q->dyson_count++] = &dysons[d];
+        }
+    }
+    for (int h = 0; h < MAX_HUBS; h++) {
+        if (hubs[h].active) {
+            if (!IS_Q_VALID(hubs[h].q1, hubs[h].q2, hubs[h].q3)) continue;
+            QuadrantIndex *q = &spatial_index[hubs[h].q1][hubs[h].q2][hubs[h].q3];
+            if (q->hub_count < MAX_Q_HUBS) q->hubs[q->hub_count++] = &hubs[h];
+        }
+    }
+    for (int r = 0; r < MAX_RELICS; r++) {
+        if (relics[r].active) {
+            if (!IS_Q_VALID(relics[r].q1, relics[r].q2, relics[r].q3)) continue;
+            QuadrantIndex *q = &spatial_index[relics[r].q1][relics[r].q2][relics[r].q3];
+            if (q->relic_count < MAX_Q_RELICS) q->relics[q->relic_count++] = &relics[r];
+        }
+    }
+    for (int ru = 0; ru < MAX_RUPTURES; ru++) {
+        if (ruptures[ru].active) {
+            if (!IS_Q_VALID(ruptures[ru].q1, ruptures[ru].q2, ruptures[ru].q3)) continue;
+            QuadrantIndex *q = &spatial_index[ruptures[ru].q1][ruptures[ru].q2][ruptures[ru].q3];
+            if (q->rupture_count < MAX_Q_RUPTURES) q->ruptures[q->rupture_count++] = &ruptures[ru];
+        }
+    }
+    for (int sa = 0; sa < MAX_SATELLITES; sa++) {
+        if (satellites[sa].active) {
+            if (!IS_Q_VALID(satellites[sa].q1, satellites[sa].q2, satellites[sa].q3)) continue;
+            QuadrantIndex *q = &spatial_index[satellites[sa].q1][satellites[sa].q2][satellites[sa].q3];
+            if (q->satellite_count < MAX_Q_SATELLITES) q->satellites[q->satellite_count++] = &satellites[sa];
+        }
+    }
 }
 
 static void mark_quad_dirty(int q1, int q2, int q3) {
@@ -227,6 +275,12 @@ void rebuild_spatial_index() {
         q->monster_count = 0;
         q->quasar_count = 0;
         q->torpedo_count = 0;
+        q->dyson_count = 0;
+        q->hub_count = 0;
+        q->relic_count = 0;
+        q->rupture_count = 0;
+        q->satellite_count = 0;
+        q->storm_count = 0;
     }
     dirty_count = 0;
 
@@ -235,6 +289,50 @@ void rebuild_spatial_index() {
             mark_quad_dirty(npcs[n].q1, npcs[n].q2, npcs[n].q3);
             QuadrantIndex *q = &spatial_index[npcs[n].q1][npcs[n].q2][npcs[n].q3];
             if (q->npc_count < MAX_Q_NPC) q->npcs[q->npc_count++] = &npcs[n];
+        }
+    }
+    /* ... (rest of loops should be here, assuming they are in the truncated part) ... */
+    /* Populating new types in spatial index */
+    for(int d=0; d<MAX_DYSON; d++) if(dysons[d].active) {
+        if (IS_Q_VALID(dysons[d].q1, dysons[d].q2, dysons[d].q3)) {
+            mark_quad_dirty(dysons[d].q1, dysons[d].q2, dysons[d].q3);
+            QuadrantIndex *q = &spatial_index[dysons[d].q1][dysons[d].q2][dysons[d].q3];
+            if (q->dyson_count < MAX_Q_DYSON) q->dysons[q->dyson_count++] = &dysons[d];
+        }
+    }
+    for(int h=0; h<MAX_HUBS; h++) if(hubs[h].active) {
+        if (IS_Q_VALID(hubs[h].q1, hubs[h].q2, hubs[h].q3)) {
+            mark_quad_dirty(hubs[h].q1, hubs[h].q2, hubs[h].q3);
+            QuadrantIndex *q = &spatial_index[hubs[h].q1][hubs[h].q2][hubs[h].q3];
+            if (q->hub_count < MAX_Q_HUBS) q->hubs[q->hub_count++] = &hubs[h];
+        }
+    }
+    for(int r=0; r<MAX_RELICS; r++) if(relics[r].active) {
+        if (IS_Q_VALID(relics[r].q1, relics[r].q2, relics[r].q3)) {
+            mark_quad_dirty(relics[r].q1, relics[r].q2, relics[r].q3);
+            QuadrantIndex *q = &spatial_index[relics[r].q1][relics[r].q2][relics[r].q3];
+            if (q->relic_count < MAX_Q_RELICS) q->relics[q->relic_count++] = &relics[r];
+        }
+    }
+    for(int ru=0; ru<MAX_RUPTURES; ru++) if(ruptures[ru].active) {
+        if (IS_Q_VALID(ruptures[ru].q1, ruptures[ru].q2, ruptures[ru].q3)) {
+            mark_quad_dirty(ruptures[ru].q1, ruptures[ru].q2, ruptures[ru].q3);
+            QuadrantIndex *q = &spatial_index[ruptures[ru].q1][ruptures[ru].q2][ruptures[ru].q3];
+            if (q->rupture_count < MAX_Q_RUPTURES) q->ruptures[q->rupture_count++] = &ruptures[ru];
+        }
+    }
+    for(int sa=0; sa<MAX_SATELLITES; sa++) if(satellites[sa].active) {
+        if (IS_Q_VALID(satellites[sa].q1, satellites[sa].q2, satellites[sa].q3)) {
+            mark_quad_dirty(satellites[sa].q1, satellites[sa].q2, satellites[sa].q3);
+            QuadrantIndex *q = &spatial_index[satellites[sa].q1][satellites[sa].q2][satellites[sa].q3];
+            if (q->satellite_count < MAX_Q_SATELLITES) q->satellites[q->satellite_count++] = &satellites[sa];
+        }
+    }
+    for(int st=0; st<MAX_STORMS; st++) if(storms[st].active) {
+        if (IS_Q_VALID(storms[st].q1, storms[st].q2, storms[st].q3)) {
+            mark_quad_dirty(storms[st].q1, storms[st].q2, storms[st].q3);
+            QuadrantIndex *q = &spatial_index[storms[st].q1][storms[st].q2][storms[st].q3];
+            if (q->storm_count < MAX_Q_STORMS) q->storms[q->storm_count++] = &storms[st];
         }
     }
     /* ... existing loops ... */
@@ -443,8 +541,12 @@ const char* get_species_name(int s) {
         case 24: return "Comm Buoy";
         case 25: return "Defense Platform";
         case 26: return "Spatial Rift";
-        case 30: return "Crystalline Entity";
-        case 31: return "Space Amoeba";
+        case 28: return "Dyson Fragment";
+        case 29: return "Trading Hub";
+        case 30: return "Ancient Relic";
+        case 31: return "Subspace Rupture";
+        case 32: return "Satellite";
+        case 33: return "Ion Storm";
         default: return "Unknown";
     }
 }
@@ -740,12 +842,64 @@ void generate_galaxy() {
                     monster_type_counts[m_type_idx]++;
                     mon_count++;
                 }
+
+                int dyson_count = 0;
+                int target_dyson = GALAXY_CREATE_OBJECT_MIN_DYSON + (rand() % (GALAXY_CREATE_OBJECT_MAX_DYSON - GALAXY_CREATE_OBJECT_MIN_DYSON + 1));
+                for (int i = 0; i < target_dyson && dyson_count < MAX_DYSON; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    dysons[dyson_count] = (NPCDyson){.id=dyson_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    dyson_count++;
+                }
+
+                int hub_count = 0;
+                int target_hub = GALAXY_CREATE_OBJECT_MIN_HUB + (rand() % (GALAXY_CREATE_OBJECT_MAX_HUB - GALAXY_CREATE_OBJECT_MIN_HUB + 1));
+                for (int i = 0; i < target_hub && hub_count < MAX_HUBS; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    hubs[hub_count] = (NPCHub){.id=hub_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    hub_count++;
+                }
+
+                int relic_count = 0;
+                int target_relic = GALAXY_CREATE_OBJECT_MIN_RELIC + (rand() % (GALAXY_CREATE_OBJECT_MAX_RELIC - GALAXY_CREATE_OBJECT_MIN_RELIC + 1));
+                for (int i = 0; i < target_relic && relic_count < MAX_RELICS; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    relics[relic_count] = (NPCRelic){.id=relic_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    relic_count++;
+                }
+
+                int rupture_count = 0;
+                int target_rupture = GALAXY_CREATE_OBJECT_MIN_RUPTURE + (rand() % (GALAXY_CREATE_OBJECT_MAX_RUPTURE - GALAXY_CREATE_OBJECT_MIN_RUPTURE + 1));
+                for (int i = 0; i < target_rupture && rupture_count < MAX_RUPTURES; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    ruptures[rupture_count] = (NPCRupture){.id=rupture_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    rupture_count++;
+                }
+
+                int satellite_count = 0;
+                int target_satellite = GALAXY_CREATE_OBJECT_MIN_SATELLITE + (rand() % (GALAXY_CREATE_OBJECT_MAX_SATELLITE - GALAXY_CREATE_OBJECT_MIN_SATELLITE + 1));
+                for (int i = 0; i < target_satellite && satellite_count < MAX_SATELLITES; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    satellites[satellite_count] = (NPCSatellite){.id=satellite_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    satellite_count++;
+                }
+
+                int storm_count = 0;
+                int target_storm = GALAXY_CREATE_OBJECT_MIN_STORM + (rand() % (GALAXY_CREATE_OBJECT_MAX_STORM - GALAXY_CREATE_OBJECT_MIN_STORM + 1));
+                for (int i = 0; i < target_storm && storm_count < MAX_STORMS; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    storms[storm_count] = (NPCStorm){.id=storm_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    storm_count++;
+                }
+
                 rebuild_spatial_index();
     refresh_lrs_grid();
 
     printf("\n%s .--- GALAXY GENERATION COMPLETED: ASTROMETRICS REPORT ----------.%s\n", B_CYAN, RESET);
     printf("%s | %s 🚀 TOTAL VESSELS: %s%-5d %s| %s 🪐 Planets:            %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, n_count, B_CYAN, B_WHITE, B_GREEN, p_count, B_CYAN);
     printf("%s | %s 🏚️ TOTAL WRECKS:  %s%-5d %s| %s 🛰️ Starbases:          %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, der_count, B_CYAN, B_WHITE, B_GREEN, b_count, B_CYAN);
+    printf("%s | %s 🏛️ DYSON FRAGS:   %s%-5d %s| %s 🏢 TRADING HUBS:      %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, dyson_count, B_CYAN, B_WHITE, B_GREEN, hub_count, B_CYAN);
+    printf("%s | %s 🏺 ANCIENT RELICS: %s%-5d %s| %s ⚡ ION STORMS:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, relic_count, B_CYAN, B_WHITE, B_GREEN, storm_count, B_CYAN);
+    printf("%s | %s 🌋 SUBSPACE RUPT: %s%-5d %s| %s 📡 SATELLITES:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, rupture_count, B_CYAN, B_WHITE, B_GREEN, satellite_count, B_CYAN);
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     
     printf("%s | %s [ STAR SPECTRAL TYPES ]    %s| %s [ NEBULA CLASSIFICATION ]  %s|\n", B_CYAN, B_YELLOW, B_CYAN, B_YELLOW, B_CYAN);
