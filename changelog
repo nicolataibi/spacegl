@@ -1,3 +1,6 @@
+* Tue Apr 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.21.03
+- Updated Fedora packaging compliance and documentation.
+
 * Tue Apr 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.21.01
 - Updated Fedora packaging to comply with official guidelines (standardized CMake macros).
 - Consolidated documentation by removing redundant files and utilizing proper %doc packaging.
