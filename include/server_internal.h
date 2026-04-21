@@ -564,7 +564,7 @@ extern SupernovaState supernova_event;
 
 #define LOG_DEBUG(...) do { if (g_debug) { printf("DEBUG: " __VA_ARGS__); fflush(stdout); } } while (0)
 
-#define GALAXY_VERSION 20260419
+#define GALAXY_VERSION 20260421
 
 /* Spatial Partitioning Index */
 typedef struct {

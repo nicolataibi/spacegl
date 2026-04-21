@@ -497,29 +497,31 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
     *   Activatable via the `map` command, this mode transforms the tactical view into a global 10x10x10 galactic map.
     *   **Holographic Object Legend**: The map provides a high-resolution holographic projection of the sector, using specific symbols and chromatic coding to identify entities at a glance:
         *   🚀 **Player** (Cyan): Your vessel.
-        *   ☀️ **Star** (Yellow): Variable spectral class.
-        *   🪐 **Planet** (Cyan): Mineral or habitable resources.
-        *   🛰️ **Starbase** (Green): Safe harbor for repairs.
-        *   🕳️ **Black Hole** (Purple): Gravitational singularity.
-        *   🌫️ **Nebula** (Grey): Gas cloud (sensor interference).
-        *   ✴️ **Pulsar** (Orange): Neutron star (radiation).
-        *   🔯 **Quasar** (Magenta): Active galactic nucleus.
-        *   ☄️ **Comet** (Light Blue): Icy body in eccentric orbit.
-        *   🪨 **Asteroid** (Brown): Navigable debris field.
-        *   🛸 **Derelict** (Dark Grey): Abandoned ship for dismantling.
-        *   💣 **Mine** (Red): Proximity explosive.
-        *   📍 **Buoy** (Blue): Navigation transponder.
-        *   🛡️ **Platform** (Dark Orange): Automated static defense.
-        *   🌀 **Rift** (Cyan): Unstable spatial anomaly (teleport).
-        *   👾 **Space Monster** (Pulsing White): Omega-class threat.
-        *   🏛️ **Dyson Fragment** (Orange/Yellow): Ancient solar energy shell fragments.
-        *   🏢 **Trading Hub** (Blue/Grey): Neutral commerce and docking station.
-        *   🏺 **Ancient Relic** (Cyan Wireframe): Technological artifact from a lost civilization.
-        *   🌋 **Subspace Rupture** (Purple/Red): Violent energy distortion.
-        *   📡 **Satellite** (Grey/Red): Planetary monitoring or relay station.
-        *   ⚡ **Ion Storm** (White Wireframe): Local energy perturbation.
-    *   Active **ion storms** are visualized as white energy shells surrounding the quadrant.
-    *   The player's current position is highlighted by a **pulsing white indicator**, facilitating long-range navigation.
+
+<table>
+  <tr><th>ID</th><th>Object</th><th>Description</th><th>Image</th></tr>
+  <tr><td>1</td><td>☀️ Star</td><td>Stella variabile</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Stella%20variabile%20di%20classe%20spettrale.png" width="150"></td></tr>
+  <tr><td>2</td><td>🪐 Planet</td><td>Risorse planetarie</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Pianeta%20ricco%20di%20risorse.png" width="150"></td></tr>
+  <tr><td>3</td><td>🛰️ Starbase</td><td>Riparazioni</td><td><img src="readme_assets/galactic_objects/3🛰️%20Starbase%20(Green):%20Porto%20sicuro%20Alliance%20per%20riparazioni.png" width="150"></td></tr>
+  <tr><td>4</td><td>🕳️ Black Hole</td><td>Singolarità</td><td><img src="readme_assets/galactic_objects/4🕳️%20Black%20Hole%20(Purple):%20Singolarità%20gravitazionale%20estrema.png" width="150"></td></tr>
+  <tr><td>5</td><td>🌫️ Nebula</td><td>Gas e interferenze</td><td><img src="readme_assets/galactic_objects/5🌫️%20Nebula%20(Grey):%20Vasta%20nube%20di%20gas%20con%20interferenza%20sensori.png" width="150"></td></tr>
+  <tr><td>6</td><td>✴️ Pulsar</td><td>Radiazione neutronica</td><td><img src="readme_assets/galactic_objects/6✴️%20Pulsar%20(Orange):%20Stella%20di%20neutroni%20ad%20alta%20radiazione.png" width="150"></td></tr>
+  <tr><td>7</td><td>🔯 Quasar</td><td>Nucleo luminoso</td><td><img src="readme_assets/galactic_objects/7🔯%20Quasar%20(Magenta):%20Nucleo%20galattico%20attivo%20ultra-luminoso..png" width="150"></td></tr>
+  <tr><td>8</td><td>☄️ Comet</td><td>Orbita eccentrica</td><td><img src="readme_assets/galactic_objects/8☄️%20Comet%20(Light%20Blue):%20Corpo%20ghiacciato%20in%20orbita%20eccentrica.png" width="150"></td></tr>
+  <tr><td>9</td><td>🪨 Asteroid</td><td>Detriti</td><td><img src="readme_assets/galactic_objects/9🪨%20Asteroid%20(Brown):%20Campo%20di%20detriti%20navigabile.png" width="150"></td></tr>
+  <tr><td>10</td><td>🛸 Derelict</td><td>Nave abbandonata</td><td><img src="readme_assets/galactic_objects/10🛸%20Derelict%20(Dark%20Grey):%20Nave%20abbandonata%20pronta%20allo%20smantellamento.png" width="150"></td></tr>
+  <tr><td>11</td><td>💣 Mine</td><td>Esplosivo attivo</td><td><img src="readme_assets/galactic_objects/11💣%20Mine%20(Red):%20Esplosivo%20di%20prossimità%20attivo.png" width="150"></td></tr>
+  <tr><td>12</td><td>📍 Buoy</td><td>Transponder</td><td><img src="readme_assets/galactic_objects/12📍%20Buoy%20(Blue):%20Transponder%20di%20navigazione.png" width="150"></td></tr>
+  <tr><td>13</td><td>🛡️ Platform</td><td>Difesa statica</td><td><img src="readme_assets/galactic_objects/13🛡️%20Platform%20(Dark%20Orange):%20Difesa%20statica%20automatizzata.png" width="150"></td></tr>
+  <tr><td>14</td><td>🌀 Rift</td><td>Anomalia spaziale</td><td><img src="readme_assets/galactic_objects/14🌀%20Rift%20(Cyan):%20Anomalia%20spaziale%20instabile%20(teletrasporto).png" width="150"></td></tr>
+  <tr><td>15</td><td>👾 Space Monster</td><td>Minaccia Omega</td><td><img src="readme_assets/galactic_objects/15👾%20Space%20Monster%20(Pulsing%20White):%20Minaccia%20di%20classe%20Omega..png" width="150"></td></tr>
+  <tr><td>16</td><td>🏛️ Dyson Fragment</td><td>Frammenti energetici</td><td><img src="readme_assets/galactic_objects/16🏛️%20Dyson%20Fragment%20(Orange⁄Yellow):%20Frammenti%20di%20guscio%20energetico%20antico.png" width="150"></td></tr>
+  <tr><td>17</td><td>🏢 Trading Hub</td><td>Commercio</td><td><img src="readme_assets/galactic_objects/17🏢%20Trading%20Hub%20(Blue⁄Grey):%20Stazione%20commerciale%20neutrale.png" width="150"></td></tr>
+  <tr><td>18</td><td>🏺 Ancient Relic</td><td>Artefatto tecnologico</td><td><img src="readme_assets/galactic_objects/18🏺%20Ancient%20Relic%20(Cyan%20Wireframe):%20Artefatto%20tecnologico%20di%20civiltà%20perduta.png" width="150"></td></tr>
+  <tr><td>20</td><td>📡 Satellite</td><td>Stazione relè</td><td><img src="readme_assets/galactic_objects/20📡%20Satellite%20(Grey⁄Red):%20Stazione%20di%20monitoraggio%20o%20relè.png" width="150"></td></tr>
+  <tr><td>21</td><td>⚡ Ion Storm</td><td>Perturbazione ionica</td><td><img src="readme_assets/galactic_objects/21⚡%20Ion%20Storm%20(White%20Wireframe):%20Perturbazione%20energetica%20locale.png" width="150"></td></tr>
+</table>
+ 
 *   **Dynamic Tactical HUD**: Implements a 2D-on-3D projection (via `gluProject`) to anchor labels, health bars, and IDs directly above vessels.
     *   **Ship Status Indicators**: The HUD now displays real-time operational states:
         *   `DOCKED`: Green status, ship is secured at base.

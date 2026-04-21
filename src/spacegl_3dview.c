@@ -5210,7 +5210,7 @@ void timer(int v) { (void)v;
                 }
             }
 
-            if (global_trail_tick % 2 == 0) { /* Riduciamo la densità della scia per fluidità visiva */
+            if (global_trail_tick % 2 == 0) { /* Reduce trail density for visual fluidity */
                 objects[i].trail[objects[i].trail_ptr][0] = objects[i].x;
                 objects[i].trail[objects[i].trail_ptr][1] = objects[i].y;
                 objects[i].trail[objects[i].trail_ptr][2] = objects[i].z;

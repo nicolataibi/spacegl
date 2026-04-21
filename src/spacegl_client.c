@@ -443,7 +443,7 @@ void cleanup() {
     }
 }
 
-/* Funzione di utilità per leggere esattamente N byte dal socket */
+/* Utility function to read exactly N bytes from the socket */
 void clear_stdin() {
     int c;
     while ((c = getchar()) != '\n' && c != EOF);

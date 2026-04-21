@@ -1478,9 +1478,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 if (obj->faction == 0 || obj->faction == 1) is_alliance = 1;
 
                 if ((obj->type == 1 || obj->type >= 10) && is_alliance) {
-                    /* La nostra piramide è scalata di 0.55f * tactScale e la sua poppa si trova a X = -0.7288f locali.
-                     * Quindi in spazio opc.model, la coda è a -0.7288f * 0.55f * tactScale = -0.40084f * tactScale.
-                     * Posizioniamo il core quantico esattamente lì */
+                    /* Our pyramid is scaled by 0.55f * tactScale and its stern is at local X = -0.7288f.
+                     * So in opc.model space, the tail is at -0.7288f * 0.55f * tactScale = -0.40084f * tactScale.
+                     * We place the quantum core exactly there */
                     /* 1. Procedural Wireframe Polyhedron Core */
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
                     PushConstants qpc = {0};
@@ -1490,13 +1490,13 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     int cl = obj->ship_class;
                     if (cl < 0 || cl > 12) cl = 12;
                     
-                    /* Velocità di rotazione basata sulla classe: Legacy (0) ruota più velocemente */
+                    /* Rotation speed based on class: Legacy (0) rotates faster */
                     mat4 R_q; mat4_identity(R_q);
                     float rotSpeed = 1.0f + (12 - cl) * 0.2f; 
                     mat4_rotate(R_q, pulse * rotSpeed, (vec3){0.0f, 1.0f, 0.0f});
                     mat4_multiply(S_q, R_q, S_q);
                     
-                    /* Posizioniamo il core leggermente più indietro (-0.46f) per non affogarlo nella coda */
+                    /* Position the core slightly further back (-0.46f) so it doesn't sink into the tail */
                     mat4 T_core_loc, M_core;
                     mat4_translate(T_core_loc, (vec3){-0.46f * tactScale, 0.0f, 0.0f}); 
                     mat4_multiply(T_core_loc, opc.model, M_core);
@@ -1818,23 +1818,22 @@ void drawFrame(VulkanApp* app) {
         float h_rad = ph * M_PI / 180.0f;
         mat4_rotate(R_ship, pm * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
 
-        /* Camera Position: esattamente sull'asse verde (local Y), poco sopra la nave */
+        /* Camera Position: exactly on the local Y-axis, slightly above the ship */
         float ly = (app->showBridge >= 11) ? (-BRIDGE_CAMERA_OFFSET_Y * SCALE_SHIP * tactScale) : (BRIDGE_CAMERA_OFFSET_Y * SCALE_SHIP * tactScale);
-        /* wx, wy, wz = PosNave + R_ship * (0, ly, 0) */
+        /* wx, wy, wz = ShipPos + R_ship * (0, ly, 0) */
         float wx = ly * R_ship[1][0] + px;
         float wy = ly * R_ship[1][1] + py;
         float wz = ly * R_ship[1][2] + pz;
 
-        /* Orientamento Telecamera Bridge: Solidale con la nave.
-           La nave guarda il suo asse locale +X (Nose). La camera guarda -Z di default.
-           Per allineare il Forward della camera con la prua (+X), usiamo la rotazione 
-           di +90 gradi. Moltiplichiamo R_base per R_ship per applicare le rotazioni 
-           mondiali della nave alla vista già orientata. */
+        /* Bridge Camera Orientation: Fixed relative to the ship.
+           The ship looks along its local +X axis (Nose). The camera looks along -Z by default. */
+        /* To align the camera's Forward with the bow (+X), we use a +90 degree rotation. 
+           We multiply R_base by R_ship to apply the ship's world rotations to the already oriented view. */
         mat4 R_cam_world;
         mat4 R_base; mat4_identity(R_base);
         mat4_rotate(R_base, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
 
-        /* Rotazione basata sulla Modalità (Look around) - Relativa alla Prua */
+        /* Rotation based on Mode (Look around) - Relative to the bow */
         int mode = app->showBridge % 10;
         if (mode == 2) mat4_rotate(R_base, M_PI/2.0f, (vec3){0, 1, 0});       /* LEFT: +90 deg from forward */
         else if (mode == 3) mat4_rotate(R_base, -M_PI/2.0f, (vec3){0, 1, 0});  /* RIGHT: -90 deg from forward */

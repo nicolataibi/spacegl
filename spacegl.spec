@@ -51,11 +51,11 @@ and other runtime data required by SpaceGL.
 %autosetup -n %{name}-%{version} -p1
 
 
-%build
-%cmake \
-    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DCMAKE_STRIP=/bin/true
+%conf
+%cmake
 
+
+%build
 %cmake_build
 
 
@@ -70,13 +70,15 @@ done
 
 # Install additional assets not handled by CMake
 install -d %{buildroot}%{_datadir}/%{name}/readme_assets
+install -d %{buildroot}%{_datadir}/%{name}/readme_assets/galactic_objects
 install -pm 0644 readme_assets/*.jpg %{buildroot}%{_datadir}/%{name}/readme_assets/
 install -pm 0644 readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_assets/
+install -pm 0644 readme_assets/galactic_objects/*.png %{buildroot}%{_datadir}/%{name}/readme_assets/galactic_objects/
 
 
 %files
 %license LICENSE.txt
-%doc README.md README_it.md HOWTO.txt
+%doc README.md README_it.md HOWTO.txt readme_assets/
 
 %{_bindir}/spacegl_server
 %{_bindir}/spacegl_client
@@ -99,6 +101,7 @@ install -pm 0644 readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_asse
 %dir %{_datadir}/%{name}
 %{_datadir}/%{name}/readme_assets/
 %{_datadir}/%{name}/shaders/
+
 
 
 %changelog

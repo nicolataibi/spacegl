@@ -791,7 +791,7 @@ int main(int argc, char *argv[]) {
                                         players[slot].gy = (players[slot].state.q2 - 1) * QUADRANT_SIZE + players[slot].state.s2;
                                         players[slot].gz = (players[slot].state.q3 - 1) * QUADRANT_SIZE + players[slot].state.s3;
                                         
-                                        players[slot].state.inventory[1] = COST_ACTION_LOW; /* Initial Aetherium for jumps */
+                                        players[slot].state.inventory[1] = 1000000ULL; /* Initial Aetherium for jumps */
                                                                             
                                         for (int s = 0; s < 6; s++) {
                                             players[slot].state.shields[s] = SHIELD_MAX_STRENGTH;

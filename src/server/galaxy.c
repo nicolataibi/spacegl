@@ -52,7 +52,6 @@ NPCStorm storms[MAX_STORMS];
 PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 ConnectedPlayer players[MAX_CLIENTS];
 SpaceGLGame spacegl_master;
-SupernovaState supernova_event = {0};
 
 static atomic_bool g_is_saving = false;
 
@@ -895,10 +894,10 @@ void generate_galaxy() {
     refresh_lrs_grid();
 
     printf("\n%s .--- GALAXY GENERATION COMPLETED: ASTROMETRICS REPORT ----------.%s\n", B_CYAN, RESET);
-    printf("%s | %s 🚀 TOTAL VESSELS: %s%-5d %s| %s 🪐 Planets:            %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, n_count, B_CYAN, B_WHITE, B_GREEN, p_count, B_CYAN);
     printf("%s | %s 🏚️ TOTAL WRECKS:  %s%-5d %s| %s 🛰️ Starbases:          %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, der_count, B_CYAN, B_WHITE, B_GREEN, b_count, B_CYAN);
     printf("%s | %s 🏛️ DYSON FRAGS:   %s%-5d %s| %s 🏢 TRADING HUBS:      %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, dyson_count, B_CYAN, B_WHITE, B_GREEN, hub_count, B_CYAN);
     printf("%s | %s 🏺 ANCIENT RELICS: %s%-5d %s| %s ⚡ ION STORMS:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, relic_count, B_CYAN, B_WHITE, B_GREEN, storm_count, B_CYAN);
+    printf("%s | %s 🚀 TOTAL VESSELS: %s%-5d %s| %s 🪐 Planets:            %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, n_count, B_CYAN, B_WHITE, B_GREEN, p_count, B_CYAN);
     printf("%s | %s 🌋 SUBSPACE RUPT: %s%-5d %s| %s 📡 SATELLITES:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, rupture_count, B_CYAN, B_WHITE, B_GREEN, satellite_count, B_CYAN);
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     
@@ -959,9 +958,6 @@ void generate_galaxy() {
     printf("%s | %s [ PLANETARY RESOURCES ]                                      %s|\n", B_CYAN, B_YELLOW, B_CYAN);
     const char* res_names[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
     for(int k=1; k<=8; k+=2) {
-        printf("%s | %s %-14s: %s%-4d %s| %s %-14s: %s%-4d %s|\n", 
-               B_CYAN, B_WHITE, res_names[k], B_GREEN, planet_type_counts[k], B_CYAN, 
-               B_WHITE, (k+1 <= 8) ? res_names[k+1] : "", B_GREEN, (k+1 <= 8) ? planet_type_counts[k+1] : 0, B_CYAN);
     }
 
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
