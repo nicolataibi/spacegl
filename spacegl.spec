@@ -3,7 +3,7 @@
 %global autorelease_version 1
 
 Name:           spacegl
-Version:        2026.04.21.03
+Version:        2026.04.21.04
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
@@ -68,12 +68,6 @@ done
 %install
 %cmake_install
 
-# Install additional assets not handled by CMake
-install -d %{buildroot}%{_datadir}/%{name}/readme_assets
-install -d %{buildroot}%{_datadir}/%{name}/readme_assets/galactic_objects
-install -pm 0644 readme_assets/*.jpg %{buildroot}%{_datadir}/%{name}/readme_assets/
-install -pm 0644 readme_assets/*.png %{buildroot}%{_datadir}/%{name}/readme_assets/
-install -pm 0644 readme_assets/galactic_objects/*.png %{buildroot}%{_datadir}/%{name}/readme_assets/galactic_objects/
 
 
 %files
@@ -99,7 +93,6 @@ install -pm 0644 readme_assets/galactic_objects/*.png %{buildroot}%{_datadir}/%{
 %license LICENSE.txt
 %doc README.md README_it.md
 %dir %{_datadir}/%{name}
-%{_datadir}/%{name}/readme_assets/
 %{_datadir}/%{name}/shaders/
 
 

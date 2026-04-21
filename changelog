@@ -99,3 +99,6 @@
 - 3: PIE compliance, spacegl_diag tool has been refactored, .sh scripts prioritize the optimized /build environment.
 - 2: Migrated to pure CMake build system, improved packaging standards, and resolved NPC/Wormhole rendering issues.
 - Updated SPEC file to include %autorelease and %autochangelog macros. Migrated SRPM generation workflow to 'rpkg' to ensure macro preservation. Fixed Source RPM structure to comply with Fedora/Sponsor automation standards.
+* mar 21 apr 2026 Nick <nick@glauke> - 2026.04.21.04-1
+- Cleaned up package installation: moved readme_assets only to documentation directory
+
