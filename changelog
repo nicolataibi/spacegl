@@ -1,3 +1,9 @@
+* Tue Apr 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.21.01
+- Updated Fedora packaging to comply with official guidelines (standardized CMake macros).
+- Consolidated documentation by removing redundant files and utilizing proper %doc packaging.
+- Standardized all source code comments to English.
+- Integrated comprehensive galactic object images into README files via HTML tables.
+
 * Sun Apr 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.19.04
 - Implemented an interactive navigation menu in spacegl_diag for direct access to all 36 telemetry categories.
 - Expanded the galactic content with 6 new persistent entity classes: Dyson Fragments, Trading Hubs, Ancient Relics, Subspace Ruptures, Orbital Satellites, and Ionic Storms.
