@@ -1,3 +1,6 @@
+* Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.08
+- Updated documentation (README.md and README_it.md) to include all newly implemented galactic object types (IDs 40-50).
+
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.07
 - Implemented 'Subspace Anomalies' (Type 50) as physical, persistent galactic objects.
 - Added procedural generation, SHM indexing, and persistence for Subspace Anomalies.

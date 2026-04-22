@@ -9,6 +9,7 @@ spacegl_diag
 
 # Directory di build
 build/
+_build/
 
 # Directory di spacegl
 captain

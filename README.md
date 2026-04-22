@@ -41,19 +41,20 @@
 Space GL is an advanced space simulator combining the strategic depth of classic 70s text-based games with a modern Client-Server architecture and hardware-accelerated 3D visualization.
 ---
 
-## 🚀 Version 3.0 Highlights (Rel. 20 - Galactic Enrichment & Diagnostic Hub)
+## 🚀 Version 3.0 Highlights (Rel. 2026.04.22.xx - Galactic Enrichment & Diagnostic Hub)
 
 Update 3.0 significantly expands the galaxy's physical content and refines the bridge diagnostic suite for professional-grade monitoring:
 *   **Tactical Diagnostic Hub (`spacegl_diag`)**:
-    *   **Interactive Navigation Menu**: Page 1 has been refactored into a central menu. Captains can now jump directly to any of the 36 diagnostic categories using arrow keys and Enter, eliminating sequential scrolling.
-    *   **Real-Time Telemetry Header**: Added global object counters (`ITEMS`) and symbol resolution status (`SYMS`). A critical error check now prevents diagnostic failure if server symbols are stripped.
-    *   **Contextual Shortcuts**: Pressing 'm' or Esc now instantly returns the operator to the main menu from any page.
+    *   **Interactive Multi-Column Menu**: Refactored to support up to 3 columns of menu items, allowing easy access to 50+ telemetry pages with arrow-key navigation (up/down/left/right).
+    *   **Full Object Coverage**: Telemetry support extended to 10 new galactic entity types (IDs 40-49), including *Alien Artifacts, Warp Gates, Neutron Stars, Mega Structures, Dark Matter Clouds, Quantum Singularities, Plasma Storms, Orbital Rings, Time Anomalies,* and *Void Crystals*.
 *   **Galactic Typology Expansion**:
-    *   Introduced 6 new classes of persistent entities: **Dyson Fragments**, **Trading Hubs**, **Ancient Relics**, **Subspace Ruptures**, **Orbital Satellites**, and **Ionic Storms**.
-    *   Integrated these entities into the **Spatial Partitioning Index** and the asynchronous `save_galaxy` system.
-*   **Player Session Integrity**:
-    *   Redesigned the login slot allocation logic in `spacegl_server`. The server now prioritizes matching names for persistence, ensuring returning captains reclaim their exact state.
-    *   Fixed a critical bug where subsequent logins from different users (e.g., Nick vs Nick2) could cause slot overwriting and unintended state resets.
+    *   Implemented **Subspace Anomalies (Type 50)** as persistent, procedurally generated entities.
+    *   Integrated anomaly rendering pipelines for both Vulkan (Emerald Green glow) and `freeglut` (instability-effect cubes).
+*   **Server-Side Astrometrics**:
+    *   Enhanced server startup report with a dedicated **"ANCIENT STRUCTURES & ANOMALIES"** section.
+    *   Fixed a bug where planetary resource statistics were missing from the startup report.
+*   **Packaging**:
+    *   Implemented `spacegl-doc` subpackage to isolate 193MB of documentation, reducing main package size significantly.
 
 ## 🚀 Version 2.9 Highlights (Rel. 19 - Full 3-DOF & Tactical Navigation).
 
@@ -521,6 +522,17 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
   <tr><td>18</td><td>🏺 Ancient Relic (Cyan Wireframe)</td><td>Ancient technological artifact</td><td><img src="readme_assets/galactic_objects/18🏺%20Ancient%20Relic%20(Cyan%20Wireframe):%20Ancient%20technological%20artifact.png" width="150"></td></tr>
   <tr><td>20</td><td>📡 Satellite (Grey⁄Red)</td><td>Monitoring or relay station</td><td><img src="readme_assets/galactic_objects/20📡%20Satellite%20(Grey⁄Red):%20Monitoring%20or%20relay%20station.png" width="150"></td></tr>
   <tr><td>21</td><td>⚡ Ion Storm (White Wireframe)</td><td>Local energy disturbance</td><td><img src="readme_assets/galactic_objects/21⚡%20Ion%20Storm%20(White%20Wireframe):%20Local%20energy%20disturbance.png" width="150"></td></tr>
+  <tr><td>40</td><td>👽 Alien Artifact</td><td>Ancient exotic technology</td><td><img src="readme_assets/galactic_objects/40👽 Alien Artifact (Gold): Ancient exotic: Ancient exotic technology.png" width="150"></td></tr>
+  <tr><td>41</td><td>🌀 Warp Gate</td><td>Stable FTL gateway</td><td><img src="readme_assets/galactic_objects/41🌀 Warp Gate (Blue): FTL gateway: Stable FTL gateway.png" width="150"></td></tr>
+  <tr><td>42</td><td>⭐ Neutron Star</td><td>Dense stellar remnant</td><td><img src="readme_assets/galactic_objects/42⭐ Neutron Star (White): Dense stellar: Dense stellar remnant.png" width="150"></td></tr>
+  <tr><td>43</td><td>🏢 Mega Structure</td><td>Massive orbital facility</td><td><img src="readme_assets/galactic_objects/43🏢 Mega Structure (Steel): Massive orbital: Massive orbital facility.png" width="150"></td></tr>
+  <tr><td>44</td><td>☁️ Dark Matter Cloud</td><td>Obscured matter field</td><td><img src="readme_assets/galactic_objects/44☁ Dark Cloud (Black): Obscured matter: Obscured matter field.png" width="150"></td></tr>
+  <tr><td>45</td><td>🕳️ Singularity</td><td>Quantum space distortion</td><td><img src="readme_assets/galactic_objects/45🕳 Singularity (Green): Quantum space: Quantum space distortion.png" width="150"></td></tr>
+  <tr><td>46</td><td>⚡ Plasma Storm</td><td>Unstable energy storm</td><td><img src="readme_assets/galactic_objects/46⚡ Plasma Storm (Purple): Unstable energy: Unstable energy storm.png" width="150"></td></tr>
+  <tr><td>47</td><td>💍 Orbital Ring</td><td>Planetary orbital ring</td><td><img src="readme_assets/galactic_objects/47💍 Orbital Ring (Yellow): Planetary ring: Planetary orbital ring.png" width="150"></td></tr>
+  <tr><td>48</td><td>⏳ Time Anomaly</td><td>Temporal distortion field</td><td><img src="readme_assets/galactic_objects/48⏳ Time Anomaly (Aqua): Temporal distortion: Temporal distortion field.png" width="150"></td></tr>
+  <tr><td>49</td><td>💎 Void Crystal</td><td>Crystalline energy source</td><td><img src="readme_assets/galactic_objects/49💎 Void Crystal (Dark Violet): Crystalline energy: Crystalline energy source.png" width="150"></td></tr>
+  <tr><td>50</td><td>🌀 Subspace Anomaly</td><td>Unstable subspace anomaly</td><td><img src="readme_assets/galactic_objects/50🌀 Subspace Anom (Seafoam): Unstable anomaly: Unstable subspace anomaly.png" width="150"></td></tr>
 </table>
  
 *   **Dynamic Tactical HUD**: Implements a 2D-on-3D projection (via `gluProject`) to anchor labels, health bars, and IDs directly above vessels.
