@@ -1197,6 +1197,14 @@ void generate_galaxy() {
     }
 
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ ANCIENT STRUCTURES & ANOMALIES ]                         %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    printf("%s | %s Alien Artifacts: %s%-4d %s| %s Warp Gates:      %s%-4d %s|\n", B_CYAN, B_WHITE, B_GREEN, artifact_count, B_CYAN, B_WHITE, B_GREEN, warp_gate_count, B_CYAN);
+    printf("%s | %s Neutron Stars:   %s%-4d %s| %s Mega Structures: %s%-4d %s|\n", B_CYAN, B_WHITE, B_GREEN, neutron_star_count, B_CYAN, B_WHITE, B_GREEN, mega_struct_count, B_CYAN);
+    printf("%s | %s Dark Matter Clds:%s%-4d %s| %s Q-Singularities: %s%-4d %s|\n", B_CYAN, B_WHITE, B_GREEN, dark_cloud_count, B_CYAN, B_WHITE, B_GREEN, singularity_count, B_CYAN);
+    printf("%s | %s Plasma Storms:  %s%-4d %s| %s Orbital Rings:   %s%-4d %s|\n", B_CYAN, B_WHITE, B_GREEN, plasma_storm_count, B_CYAN, B_WHITE, B_GREEN, orbital_ring_count, B_CYAN);
+    printf("%s | %s Time Anomalies: %s%-4d %s| %s Void Crystals:   %s%-4d %s|\n", B_CYAN, B_WHITE, B_GREEN, time_anomaly_count, B_CYAN, B_WHITE, B_GREEN, void_crystal_count, B_CYAN);
+
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     printf("%s | %s ☀️ Total Stars:        %s%-5d %s| %s 🕳️ Black Holes:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, s_count, B_CYAN, B_WHITE, B_GREEN, bh_count, B_CYAN);
     printf("%s | %s ☁️ Total Nebulas:      %s%-5d %s| %s 🌟 Total Pulsars:      %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, neb_count, B_CYAN, B_WHITE, B_GREEN, pul_count, B_CYAN);
     printf("%s | %s 🔯 Total Quasars:      %s%-5d %s| %s ☄️ Comets:             %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, qsr_count, B_CYAN, B_WHITE, B_GREEN, com_count, B_CYAN);

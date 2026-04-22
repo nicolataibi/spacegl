@@ -1,3 +1,6 @@
+* Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.04
+- Enhanced server startup report with a new 'ANCIENT STRUCTURES & ANOMALIES' section to display statistics for exotic galactic objects (types 40-49).
+
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.03
 - Implemented 'spacegl-doc' subpackage in SPEC file to isolate heavy documentation assets (193 MB), reducing main package size.
 - Updated spacegl_diag with full support for 10 new galactic object types (Alien Artifacts, Warp Gates, Neutron Stars, etc., types 40-49).
