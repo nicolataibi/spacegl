@@ -20,13 +20,16 @@
 #include "network.h"
 #include "server_internal.h"
 
-#define MAX_PAGES 36
+#define MAX_PAGES 50
 #define sym_type(i) ((i) & 0xf)
 
 typedef enum {
     CAT_MENU = 0, CAT_SHIP, CAT_STAR, CAT_PLANET, CAT_BASE, CAT_BH, CAT_NEBULA, CAT_PULSAR, CAT_QUASAR,
     CAT_COMET, CAT_ASTEROID, CAT_DERELICT, CAT_MINE, CAT_BUOY, CAT_PLATFORM, CAT_RIFT, CAT_MONSTER,
-    CAT_DYSON, CAT_HUB, CAT_RELIC, CAT_RUPTURE, CAT_SATELLITE, CAT_STORM, CAT_TORPEDO
+    CAT_DYSON, CAT_HUB, CAT_RELIC, CAT_RUPTURE, CAT_SATELLITE, CAT_STORM, CAT_TORPEDO,
+    CAT_ARTIFACT, CAT_WARP_GATE, CAT_NEUTRON_STAR, CAT_MEGA_STRUCT, CAT_DARK_CLOUD,
+    CAT_SINGULARITY, CAT_PLASMA_STORM, CAT_ORBITAL_RING, CAT_TIME_ANOMALY, CAT_VOID_CRYSTAL,
+    CAT_ANOMALY
 } DiagCat;
 
 typedef struct {
@@ -60,6 +63,17 @@ DiagPage pages[MAX_PAGES] = {
     {CAT_PLATFORM, 0, "DEFENSE PLATFORMS"},
     {CAT_RIFT, 0, "SPATIAL RIFTS"},
     {CAT_TORPEDO, 0, "ACTIVE TORPEDOES"},
+    {CAT_ARTIFACT, 0, "ALIEN ARTIFACTS"},
+    {CAT_WARP_GATE, 0, "WARP GATES (STAGATE)"},
+    {CAT_NEUTRON_STAR, 0, "NEUTRON STARS"},
+    {CAT_MEGA_STRUCT, 0, "MEGA STRUCTURES"},
+    {CAT_DARK_CLOUD, 0, "DARK MATTER CLOUDS"},
+    {CAT_SINGULARITY, 0, "QUANTUM SINGULARITIES"},
+    {CAT_PLASMA_STORM, 0, "PLASMA STORMS"},
+    {CAT_ORBITAL_RING, 0, "ORBITAL RINGS"},
+    {CAT_TIME_ANOMALY, 0, "TIME ANOMALIES"},
+    {CAT_VOID_CRYSTAL, 0, "VOID CRYSTALS"},
+    {CAT_ANOMALY, 0, "SUBSPACE ANOMALIES"},
     {CAT_SHIP, FACTION_ALLIANCE, "ALLIANCE (PLAYER)"},
     {CAT_SHIP, FACTION_KORTHIAN, "KORTHIAN EMPIRE"},
     {CAT_SHIP, FACTION_XYLARI,   "XYLARI HEGEMONY"},
@@ -196,8 +210,10 @@ int main(int argc, char** argv) {
     RESOLVE(comets); RESOLVE(asteroids); RESOLVE(derelicts); RESOLVE(mines); RESOLVE(buoys);
     RESOLVE(platforms); RESOLVE(rifts); RESOLVE(monsters); RESOLVE(dysons); RESOLVE(hubs);
     RESOLVE(relics); RESOLVE(ruptures); RESOLVE(satellites); RESOLVE(storms); RESOLVE(players_torpedoes);
+    RESOLVE(artifacts); RESOLVE(warp_gates); RESOLVE(neutron_stars); RESOLVE(mega_structs); RESOLVE(dark_clouds);
+    RESOLVE(singularities); RESOLVE(plasma_storms); RESOLVE(orbital_rings); RESOLVE(time_anomalies); RESOLVE(void_crystals);
 
-    if (unresolved_count > 15) {
+    if (unresolved_count > 25) {
         printf("CRITICAL ERROR: Failed to resolve %d symbols. Ensure spacegl_server has symbols.\n", unresolved_count);
         return 1;
     }
@@ -237,8 +253,18 @@ int main(int argc, char** argv) {
     NPCRupture* rup_buf = malloc(sizeof(NPCRupture) * MAX_RUPTURES);
     NPCSatellite* sat_buf = malloc(sizeof(NPCSatellite) * MAX_SATELLITES);
     NPCStorm* sto_buf = malloc(sizeof(NPCStorm) * MAX_STORMS);
+    NPCArtifact* art_buf = malloc(sizeof(NPCArtifact) * MAX_ARTIFACTS);
+    NPCWarpGate* war_buf = malloc(sizeof(NPCWarpGate) * MAX_WARP_GATES);
+    NPCNeutronStar* neu_buf = malloc(sizeof(NPCNeutronStar) * MAX_NEUTRON_STARS);
+    NPCMegaStructure* meg_buf = malloc(sizeof(NPCMegaStructure) * MAX_MEGA_STRUCTS);
+    NPCDarkCloud* dar_buf = malloc(sizeof(NPCDarkCloud) * MAX_DARK_CLOUDS);
+    NPCSingularity* sin_buf = malloc(sizeof(NPCSingularity) * MAX_SINGULARITIES);
+    NPCPlasmaStorm* pla_buf = malloc(sizeof(NPCPlasmaStorm) * MAX_PLASMA_STORMS);
+    NPCOrbitalRing* orb_buf = malloc(sizeof(NPCOrbitalRing) * MAX_ORBITAL_RINGS);
+    NPCTimeAnomaly* tim_buf = malloc(sizeof(NPCTimeAnomaly) * MAX_TIME_ANOMALIES);
+    NPCVoidCrystal* voi_buf = malloc(sizeof(NPCVoidCrystal) * MAX_VOID_CRYSTALS);
     PlayerTorpedo* torp_buf = malloc(sizeof(PlayerTorpedo) * MAX_GLOBAL_TORPEDOES);
-    RenderItem* render_list = malloc(sizeof(RenderItem) * 30000);
+    RenderItem* render_list = malloc(sizeof(RenderItem) * 50000);
 
     while ((ch = getch()) != 'q') {
         if (ch == 'n') { current_page = (current_page + 1) % MAX_PAGES; scroll_offset = 0; }
@@ -301,6 +327,16 @@ int main(int argc, char** argv) {
                 case CAT_SATELLITE: READ_CAT(sat_buf, a_satellites, MAX_SATELLITES, 21); break;
                 case CAT_STORM: READ_CAT(sto_buf, a_storms, MAX_STORMS, 22); break;
                 case CAT_TORPEDO: READ_CAT(torp_buf, a_players_torpedoes, MAX_GLOBAL_TORPEDOES, 23); break;
+                case CAT_ARTIFACT: READ_CAT(art_buf, a_artifacts, MAX_ARTIFACTS, 30); break;
+                case CAT_WARP_GATE: READ_CAT(war_buf, a_warp_gates, MAX_WARP_GATES, 31); break;
+                case CAT_NEUTRON_STAR: READ_CAT(neu_buf, a_neutron_stars, MAX_NEUTRON_STARS, 32); break;
+                case CAT_MEGA_STRUCT: READ_CAT(meg_buf, a_mega_structs, MAX_MEGA_STRUCTS, 33); break;
+                case CAT_DARK_CLOUD: READ_CAT(dar_buf, a_dark_clouds, MAX_DARK_CLOUDS, 34); break;
+                case CAT_SINGULARITY: READ_CAT(sin_buf, a_singularities, MAX_SINGULARITIES, 35); break;
+                case CAT_PLASMA_STORM: READ_CAT(pla_buf, a_plasma_storms, MAX_PLASMA_STORMS, 36); break;
+                case CAT_ORBITAL_RING: READ_CAT(orb_buf, a_orbital_rings, MAX_ORBITAL_RINGS, 37); break;
+                case CAT_TIME_ANOMALY: READ_CAT(tim_buf, a_time_anomalies, MAX_TIME_ANOMALIES, 38); break;
+                case CAT_VOID_CRYSTAL: READ_CAT(voi_buf, a_void_crystals, MAX_VOID_CRYSTALS, 39); break;
                 default: break;
             }
         }
@@ -370,6 +406,16 @@ int main(int argc, char** argv) {
                     case 21: { NPCSatellite* s = &sat_buf[item.index]; cp=5; sprintf(sid, "SA%04d", s->id); sprintf(name, "Satellite"); sprintf(info, "Relay"); sprintf(qstr, "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
                     case 22: { NPCStorm* s = &sto_buf[item.index]; cp=5; sprintf(sid, "SO%04d", s->id); sprintf(name, "Ion Storm"); sprintf(info, "Meteo"); sprintf(qstr, "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
                     case 23: { PlayerTorpedo* t = &torp_buf[item.index]; cp=4; sprintf(sid, "T%04d", t->id); sprintf(name, "Torpedo"); sprintf(info, "Owner %d", t->owner_idx); sprintf(qstr, "[%2d,%2d,%2d]", t->q1, t->q2, t->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", t->x, t->y, t->z); sprintf(extra, "TO:%d", t->timeout); } break;
+                    case 30: { NPCArtifact* a = &art_buf[item.index]; cp=3; sprintf(sid, "AA%04d", a->id); sprintf(name, "Alien Artifact"); sprintf(info, "Exotic"); sprintf(qstr, "[%2d,%2d,%2d]", a->q1, a->q2, a->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", a->x, a->y, a->z); } break;
+                    case 31: { NPCWarpGate* w = &war_buf[item.index]; cp=2; sprintf(sid, "WG%04d", w->id); sprintf(name, "Warp Gate"); sprintf(info, "Active"); sprintf(qstr, "[%2d,%2d,%2d]", w->q1, w->q2, w->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", w->x, w->y, w->z); } break;
+                    case 32: { NPCNeutronStar* n = &neu_buf[item.index]; cp=5; sprintf(sid, "NS%04d", n->id); sprintf(name, "Neutron Star"); sprintf(info, "Degenerate"); sprintf(qstr, "[%2d,%2d,%2d]", n->q1, n->q2, n->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", n->x, n->y, n->z); } break;
+                    case 33: { NPCMegaStructure* m = &meg_buf[item.index]; cp=1; sprintf(sid, "MS%04d", m->id); sprintf(name, "Mega Struct"); sprintf(info, "Unknown"); sprintf(qstr, "[%2d,%2d,%2d]", m->q1, m->q2, m->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", m->x, m->y, m->z); } break;
+                    case 34: { NPCDarkCloud* d = &dar_buf[item.index]; cp=4; sprintf(sid, "DC%04d", d->id); sprintf(name, "Dark Matter"); sprintf(info, "Obscured"); sprintf(qstr, "[%2d,%2d,%2d]", d->q1, d->q2, d->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", d->x, d->y, d->z); } break;
+                    case 35: { NPCSingularity* s = &sin_buf[item.index]; cp=4; sprintf(sid, "QS%04d", s->id); sprintf(name, "Singularity"); sprintf(info, "Quantum"); sprintf(qstr, "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 36: { NPCPlasmaStorm* p = &pla_buf[item.index]; cp=3; sprintf(sid, "PS%04d", p->id); sprintf(name, "Plasma Storm"); sprintf(info, "Unstable"); sprintf(qstr, "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", p->x, p->y, p->z); } break;
+                    case 37: { NPCOrbitalRing* o = &orb_buf[item.index]; cp=2; sprintf(sid, "OR%04d", o->id); sprintf(name, "Orbital Ring"); sprintf(info, "Planetary"); sprintf(qstr, "[%2d,%2d,%2d]", o->q1, o->q2, o->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", o->x, o->y, o->z); } break;
+                    case 38: { NPCTimeAnomaly* t = &tim_buf[item.index]; cp=1; sprintf(sid, "TA%04d", t->id); sprintf(name, "Time Anomaly"); sprintf(info, "Temporal"); sprintf(qstr, "[%2d,%2d,%2d]", t->q1, t->q2, t->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", t->x, t->y, t->z); } break;
+                    case 39: { NPCVoidCrystal* v = &voi_buf[item.index]; cp=5; sprintf(sid, "VC%04d", v->id); sprintf(name, "Void Crystal"); sprintf(info, "Crystalline"); sprintf(qstr, "[%2d,%2d,%2d]", v->q1, v->q2, v->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", v->x, v->y, v->z); } break;
                     default: break;
                 }
 

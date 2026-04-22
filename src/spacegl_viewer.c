@@ -45,6 +45,22 @@ NPCRift rifts[MAX_RIFTS];
 NPCMonster monsters[MAX_MONSTERS];
 NPCPlanet planets[MAX_PLANETS];
 NPCBase bases[MAX_BASES];
+NPCDyson dysons[MAX_DYSON];
+NPCHub hubs[MAX_HUBS];
+NPCRelic relics[MAX_RELICS];
+NPCRupture ruptures[MAX_RUPTURES];
+NPCSatellite satellites[MAX_SATELLITES];
+NPCStorm storms[MAX_STORMS];
+NPCArtifact artifacts[MAX_ARTIFACTS];
+NPCWarpGate warp_gates[MAX_WARP_GATES];
+NPCNeutronStar neutron_stars[MAX_NEUTRON_STARS];
+NPCMegaStructure mega_structs[MAX_MEGA_STRUCTS];
+NPCDarkCloud dark_clouds[MAX_DARK_CLOUDS];
+NPCSingularity singularities[MAX_SINGULARITIES];
+NPCPlasmaStorm plasma_storms[MAX_PLASMA_STORMS];
+NPCOrbitalRing orbital_rings[MAX_ORBITAL_RINGS];
+NPCTimeAnomaly time_anomalies[MAX_TIME_ANOMALIES];
+NPCVoidCrystal void_crystals[MAX_VOID_CRYSTALS];
 ConnectedPlayer players[MAX_CLIENTS];
 
 const char* get_faction_name(int faction) {
@@ -207,6 +223,22 @@ int main(int argc, char *argv[]) {
                          (long)sizeof(NPCPlatform) * MAX_PLATFORMS + 
                          (long)sizeof(NPCRift) * MAX_RIFTS + 
                          (long)sizeof(NPCMonster) * MAX_MONSTERS + 
+                         (long)sizeof(NPCDyson) * MAX_DYSON +
+                         (long)sizeof(NPCHub) * MAX_HUBS +
+                         (long)sizeof(NPCRelic) * MAX_RELICS +
+                         (long)sizeof(NPCRupture) * MAX_RUPTURES +
+                         (long)sizeof(NPCSatellite) * MAX_SATELLITES +
+                         (long)sizeof(NPCStorm) * MAX_STORMS +
+                         (long)sizeof(NPCArtifact) * MAX_ARTIFACTS +
+                         (long)sizeof(NPCWarpGate) * MAX_WARP_GATES +
+                         (long)sizeof(NPCNeutronStar) * MAX_NEUTRON_STARS +
+                         (long)sizeof(NPCMegaStructure) * MAX_MEGA_STRUCTS +
+                         (long)sizeof(NPCDarkCloud) * MAX_DARK_CLOUDS +
+                         (long)sizeof(NPCSingularity) * MAX_SINGULARITIES +
+                         (long)sizeof(NPCPlasmaStorm) * MAX_PLASMA_STORMS +
+                         (long)sizeof(NPCOrbitalRing) * MAX_ORBITAL_RINGS +
+                         (long)sizeof(NPCTimeAnomaly) * MAX_TIME_ANOMALIES +
+                         (long)sizeof(NPCVoidCrystal) * MAX_VOID_CRYSTALS +
                          (long)sizeof(ConnectedPlayer) * MAX_CLIENTS;
     
     if (actual_size < expected_data + (long)sizeof(int)) {
@@ -237,6 +269,22 @@ int main(int argc, char *argv[]) {
     CHECK_READ(platforms, sizeof(NPCPlatform), MAX_PLATFORMS, f);
     CHECK_READ(rifts, sizeof(NPCRift), MAX_RIFTS, f);
     CHECK_READ(monsters, sizeof(NPCMonster), MAX_MONSTERS, f);
+    CHECK_READ(dysons, sizeof(NPCDyson), MAX_DYSON, f);
+    CHECK_READ(hubs, sizeof(NPCHub), MAX_HUBS, f);
+    CHECK_READ(relics, sizeof(NPCRelic), MAX_RELICS, f);
+    CHECK_READ(ruptures, sizeof(NPCRupture), MAX_RUPTURES, f);
+    CHECK_READ(satellites, sizeof(NPCSatellite), MAX_SATELLITES, f);
+    CHECK_READ(storms, sizeof(NPCStorm), MAX_STORMS, f);
+    CHECK_READ(artifacts, sizeof(NPCArtifact), MAX_ARTIFACTS, f);
+    CHECK_READ(warp_gates, sizeof(NPCWarpGate), MAX_WARP_GATES, f);
+    CHECK_READ(neutron_stars, sizeof(NPCNeutronStar), MAX_NEUTRON_STARS, f);
+    CHECK_READ(mega_structs, sizeof(NPCMegaStructure), MAX_MEGA_STRUCTS, f);
+    CHECK_READ(dark_clouds, sizeof(NPCDarkCloud), MAX_DARK_CLOUDS, f);
+    CHECK_READ(singularities, sizeof(NPCSingularity), MAX_SINGULARITIES, f);
+    CHECK_READ(plasma_storms, sizeof(NPCPlasmaStorm), MAX_PLASMA_STORMS, f);
+    CHECK_READ(orbital_rings, sizeof(NPCOrbitalRing), MAX_ORBITAL_RINGS, f);
+    CHECK_READ(time_anomalies, sizeof(NPCTimeAnomaly), MAX_TIME_ANOMALIES, f);
+    CHECK_READ(void_crystals, sizeof(NPCVoidCrystal), MAX_VOID_CRYSTALS, f);
     CHECK_READ(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
 
@@ -262,6 +310,22 @@ int main(int argc, char *argv[]) {
         int plat_active = 0;
         int rift_active = 0;
         int mon_active = 0;
+        int dys_active = 0;
+        int hub_active = 0;
+        int rel_active = 0;
+        int rup_active = 0;
+        int sat_active = 0;
+        int sto_active = 0;
+        int art_active = 0;
+        int war_active = 0;
+        int neu_active = 0;
+        int meg_active = 0;
+        int dar_active = 0;
+        int sin_active = 0;
+        int pla_active = 0;
+        int orb_active = 0;
+        int tim_active = 0;
+        int voi_active = 0;
         for (int i = 0; i < MAX_NPC; i++) {
             if (npcs[i].active) {
                 n_active++;
@@ -342,6 +406,22 @@ int main(int argc, char *argv[]) {
                 mon_active++;
             }
         }
+        for (int i = 0; i < MAX_DYSON; i++) if (dysons[i].active) dys_active++;
+        for (int i = 0; i < MAX_HUBS; i++) if (hubs[i].active) hub_active++;
+        for (int i = 0; i < MAX_RELICS; i++) if (relics[i].active) rel_active++;
+        for (int i = 0; i < MAX_RUPTURES; i++) if (ruptures[i].active) rup_active++;
+        for (int i = 0; i < MAX_SATELLITES; i++) if (satellites[i].active) sat_active++;
+        for (int i = 0; i < MAX_STORMS; i++) if (storms[i].active) sto_active++;
+        for (int i = 0; i < MAX_ARTIFACTS; i++) if (artifacts[i].active) art_active++;
+        for (int i = 0; i < MAX_WARP_GATES; i++) if (warp_gates[i].active) war_active++;
+        for (int i = 0; i < MAX_NEUTRON_STARS; i++) if (neutron_stars[i].active) neu_active++;
+        for (int i = 0; i < MAX_MEGA_STRUCTS; i++) if (mega_structs[i].active) meg_active++;
+        for (int i = 0; i < MAX_DARK_CLOUDS; i++) if (dark_clouds[i].active) dar_active++;
+        for (int i = 0; i < MAX_SINGULARITIES; i++) if (singularities[i].active) sin_active++;
+        for (int i = 0; i < MAX_PLASMA_STORMS; i++) if (plasma_storms[i].active) pla_active++;
+        for (int i = 0; i < MAX_ORBITAL_RINGS; i++) if (orbital_rings[i].active) orb_active++;
+        for (int i = 0; i < MAX_TIME_ANOMALIES; i++) if (time_anomalies[i].active) tim_active++;
+        for (int i = 0; i < MAX_VOID_CRYSTALS; i++) if (void_crystals[i].active) voi_active++;
 
         printf("--- Galaxy Statistics ---\n");
         printf("Version: %d\n", version);
@@ -374,6 +454,22 @@ int main(int argc, char *argv[]) {
         printf("  Defense Platforms: %d\n", plat_active);
         printf("  Spatial Rifts:     %d\n", rift_active);
         printf("  Space Monsters:    %d\n", mon_active);
+        printf("  Dyson Fragments:   %d\n", dys_active);
+        printf("  Trading Hubs:      %d\n", hub_active);
+        printf("  Ancient Relics:    %d\n", rel_active);
+        printf("  Subspace Ruptures: %d\n", rup_active);
+        printf("  Satellites:        %d\n", sat_active);
+        printf("  Ion Storms:        %d\n", sto_active);
+        printf("  Alien Artifacts:   %d\n", art_active);
+        printf("  Warp Gates:        %d\n", war_active);
+        printf("  Neutron Stars:     %d\n", neu_active);
+        printf("  Mega Structures:   %d\n", meg_active);
+        printf("  Dark Clouds:       %d\n", dar_active);
+        printf("  Singularities:     %d\n", sin_active);
+        printf("  Plasma Storms:     %d\n", pla_active);
+        printf("  Orbital Rings:     %d\n", orb_active);
+        printf("  Time Anomalies:    %d\n", tim_active);
+        printf("  Void Crystals:     %d\n", voi_active);
 
         printf("\nFaction Counts (SpaceGL Master):\n");
         for (int i = 0; i <= 10; i++) {
@@ -440,7 +536,7 @@ int main(int argc, char *argv[]) {
         printf("--- GALAXY LOCALIZATION REPORT ---\n");
         printf("%-10s %-8s %-15s %-12s %s\n", "TYPE", "ID", "COORD", "FACTION", "NAME/INFO");
         
-        int counts[20] = {0};
+        int counts[40] = {0};
 
         for(int i=0; i<MAX_CLIENTS; i++) if(players[i].name[0] != '\0') {
             printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "PLAYER", i, players[i].state.q1, players[i].state.q2, players[i].state.q3, get_faction_name(players[i].faction), players[i].name);
@@ -526,11 +622,94 @@ int main(int argc, char *argv[]) {
             printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "MONSTER", monsters[i].id+GALAXY_OBJECT_MIN_MONSTER, monsters[i].q1, monsters[i].q2, monsters[i].q3, get_faction_name(monsters[i].type), "Space Monster");
             counts[15]++;
         }
+
+        for(int i=0; i<MAX_DYSON; i++) if(dysons[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "DYSON", dysons[i].id+GALAXY_OBJECT_MIN_DYSON, dysons[i].q1, dysons[i].q2, dysons[i].q3, "None", "Dyson Fragment");
+            counts[17]++;
+        }
+
+        for(int i=0; i<MAX_HUBS; i++) if(hubs[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "HUB", hubs[i].id+GALAXY_OBJECT_MIN_HUB, hubs[i].q1, hubs[i].q2, hubs[i].q3, "None", "Trading Hub");
+            counts[18]++;
+        }
+
+        for(int i=0; i<MAX_RELICS; i++) if(relics[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "RELIC", relics[i].id+GALAXY_OBJECT_MIN_RELIC, relics[i].q1, relics[i].q2, relics[i].q3, "None", "Ancient Relic");
+            counts[19]++;
+        }
+
+        for(int i=0; i<MAX_RUPTURES; i++) if(ruptures[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "RUPTURE", ruptures[i].id+GALAXY_OBJECT_MIN_RUPTURE, ruptures[i].q1, ruptures[i].q2, ruptures[i].q3, "None", "Subspace Rupture");
+            counts[20]++;
+        }
+
+        for(int i=0; i<MAX_SATELLITES; i++) if(satellites[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "SATELLITE", satellites[i].id+GALAXY_OBJECT_MIN_SATELLITE, satellites[i].q1, satellites[i].q2, satellites[i].q3, "None", "Satellite");
+            counts[21]++;
+        }
+
+        for(int i=0; i<MAX_STORMS; i++) if(storms[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "STORM", storms[i].id+GALAXY_OBJECT_MIN_STORM, storms[i].q1, storms[i].q2, storms[i].q3, "None", "Ion Storm");
+            counts[22]++;
+        }
+
+        for(int i=0; i<MAX_ARTIFACTS; i++) if(artifacts[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "ARTIFACT", artifacts[i].id+GALAXY_OBJECT_MIN_ARTIFACT, artifacts[i].q1, artifacts[i].q2, artifacts[i].q3, "None", "Alien Artifact");
+            counts[23]++;
+        }
+
+        for(int i=0; i<MAX_WARP_GATES; i++) if(warp_gates[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "WARP_GATE", warp_gates[i].id+GALAXY_OBJECT_MIN_WARP_GATE, warp_gates[i].q1, warp_gates[i].q2, warp_gates[i].q3, "None", "Warp Gate");
+            counts[24]++;
+        }
+
+        for(int i=0; i<MAX_NEUTRON_STARS; i++) if(neutron_stars[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "N_STAR", neutron_stars[i].id+GALAXY_OBJECT_MIN_NEUTRON_STAR, neutron_stars[i].q1, neutron_stars[i].q2, neutron_stars[i].q3, "None", "Neutron Star");
+            counts[25]++;
+        }
+
+        for(int i=0; i<MAX_MEGA_STRUCTS; i++) if(mega_structs[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "M_STRUCT", mega_structs[i].id+GALAXY_OBJECT_MIN_MEGA_STRUCT, mega_structs[i].q1, mega_structs[i].q2, mega_structs[i].q3, "None", "Mega Structure");
+            counts[26]++;
+        }
+
+        for(int i=0; i<MAX_DARK_CLOUDS; i++) if(dark_clouds[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "D_CLOUD", dark_clouds[i].id+GALAXY_OBJECT_MIN_DARK_CLOUD, dark_clouds[i].q1, dark_clouds[i].q2, dark_clouds[i].q3, "None", "Dark Cloud");
+            counts[27]++;
+        }
+
+        for(int i=0; i<MAX_SINGULARITIES; i++) if(singularities[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "SINGULAR", singularities[i].id+GALAXY_OBJECT_MIN_SINGULARITY, singularities[i].q1, singularities[i].q2, singularities[i].q3, "None", "Singularity");
+            counts[28]++;
+        }
+
+        for(int i=0; i<MAX_PLASMA_STORMS; i++) if(plasma_storms[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "P_STORM", plasma_storms[i].id+GALAXY_OBJECT_MIN_PLASMA_STORM, plasma_storms[i].q1, plasma_storms[i].q2, plasma_storms[i].q3, "None", "Plasma Storm");
+            counts[29]++;
+        }
+
+        for(int i=0; i<MAX_ORBITAL_RINGS; i++) if(orbital_rings[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "O_RING", orbital_rings[i].id+GALAXY_OBJECT_MIN_ORBITAL_RING, orbital_rings[i].q1, orbital_rings[i].q2, orbital_rings[i].q3, "None", "Orbital Ring");
+            counts[30]++;
+        }
+
+        for(int i=0; i<MAX_TIME_ANOMALIES; i++) if(time_anomalies[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "T_ANOMALY", time_anomalies[i].id+GALAXY_OBJECT_MIN_TIME_ANOMALY, time_anomalies[i].q1, time_anomalies[i].q2, time_anomalies[i].q3, "None", "Time Anomaly");
+            counts[31]++;
+        }
+
+        for(int i=0; i<MAX_VOID_CRYSTALS; i++) if(void_crystals[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "V_CRYSTAL", void_crystals[i].id+GALAXY_OBJECT_MIN_VOID_CRYSTAL, void_crystals[i].q1, void_crystals[i].q2, void_crystals[i].q3, "None", "Void Crystal");
+            counts[32]++;
+        }
         
         printf("\n--- Summary ---\n");
         printf("Players: %d, NPCs: %d, Bases: %d, Planets: %d, Stars: %d\n", counts[0], counts[1], counts[2], counts[3], counts[4]);
         printf("BlackHoles: %d, Nebulas: %d, Pulsars: %d, Quasars: %d, Comets: %d, Asteroids: %d\n", counts[5], counts[6], counts[7], counts[16], counts[8], counts[9]);
         printf("Derelicts: %d, Mines: %d, Buoys: %d, Platforms: %d, Rifts: %d, Monsters: %d\n", counts[10], counts[11], counts[12], counts[13], counts[14], counts[15]);
+        printf("Dysons: %d, Hubs: %d, Relics: %d, Ruptures: %d, Satellites: %d, Storms: %d\n", counts[17], counts[18], counts[19], counts[20], counts[21], counts[22]);
+        printf("Artifacts: %d, WarpGates: %d, NeutronStars: %d, MegaStructs: %d, DarkClouds: %d, Singularities: %d\n", counts[23], counts[24], counts[25], counts[26], counts[27], counts[28]);
+        printf("PlasmaStorms: %d, OrbitalRings: %d, TimeAnomalies: %d, VoidCrystals: %d\n", counts[29], counts[30], counts[31], counts[32]);
     }
     else if (strcmp(argv[1], "map") == 0 && argc == 3) {
         int q3 = atoi(argv[2]);

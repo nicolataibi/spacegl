@@ -438,6 +438,17 @@ typedef struct {
     int active; 
 } NPCStorm;
 
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCArtifact;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCWarpGate;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCNeutronStar;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCMegaStructure;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCDarkCloud;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCSingularity;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCPlasmaStorm;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCOrbitalRing;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCTimeAnomaly;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCVoidCrystal;
+
 typedef struct { 
     int id;
     int faction;
@@ -493,6 +504,16 @@ typedef struct {
 #define MAX_RUPTURES 150
 #define MAX_SATELLITES 600
 #define MAX_STORMS 120
+#define MAX_ARTIFACTS 100
+#define MAX_WARP_GATES 50
+#define MAX_NEUTRON_STARS 150
+#define MAX_MEGA_STRUCTS 50
+#define MAX_DARK_CLOUDS 200
+#define MAX_SINGULARITIES 30
+#define MAX_PLASMA_STORMS 120
+#define MAX_ORBITAL_RINGS 80
+#define MAX_TIME_ANOMALIES 40
+#define MAX_VOID_CRYSTALS 30
 
 /* Local Quadrant Limits for Spatial Index (Optimization) */
 #define MAX_Q_NPC 32
@@ -519,6 +540,16 @@ typedef struct {
 #define MAX_Q_RUPTURES 4
 #define MAX_Q_SATELLITES 8
 #define MAX_Q_STORMS 4
+#define MAX_Q_ARTIFACTS 4
+#define MAX_Q_WARP_GATES 4
+#define MAX_Q_NEUTRON_STARS 4
+#define MAX_Q_MEGA_STRUCTS 4
+#define MAX_Q_DARK_CLOUDS 8
+#define MAX_Q_SINGULARITIES 4
+#define MAX_Q_PLASMA_STORMS 4
+#define MAX_Q_ORBITAL_RINGS 4
+#define MAX_Q_TIME_ANOMALIES 4
+#define MAX_Q_VOID_CRYSTALS 4
 
 /* Global Data accessed by modules */
 extern NPCStar stars_data[MAX_STARS];
@@ -543,6 +574,16 @@ extern NPCRelic relics[MAX_RELICS];
 extern NPCRupture ruptures[MAX_RUPTURES];
 extern NPCSatellite satellites[MAX_SATELLITES];
 extern NPCStorm storms[MAX_STORMS];
+extern NPCArtifact artifacts[MAX_ARTIFACTS];
+extern NPCWarpGate warp_gates[MAX_WARP_GATES];
+extern NPCNeutronStar neutron_stars[MAX_NEUTRON_STARS];
+extern NPCMegaStructure mega_structs[MAX_MEGA_STRUCTS];
+extern NPCDarkCloud dark_clouds[MAX_DARK_CLOUDS];
+extern NPCSingularity singularities[MAX_SINGULARITIES];
+extern NPCPlasmaStorm plasma_storms[MAX_PLASMA_STORMS];
+extern NPCOrbitalRing orbital_rings[MAX_ORBITAL_RINGS];
+extern NPCTimeAnomaly time_anomalies[MAX_TIME_ANOMALIES];
+extern NPCVoidCrystal void_crystals[MAX_VOID_CRYSTALS];
 extern PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 extern ConnectedPlayer players[MAX_CLIENTS];
 extern SpaceGLGame spacegl_master;
@@ -564,7 +605,7 @@ extern SupernovaState supernova_event;
 
 #define LOG_DEBUG(...) do { if (g_debug) { printf("DEBUG: " __VA_ARGS__); fflush(stdout); } } while (0)
 
-#define GALAXY_VERSION 20260421
+#define GALAXY_VERSION 20260422
 
 /* Spatial Partitioning Index */
 typedef struct {
@@ -619,6 +660,16 @@ typedef struct {
     int satellite_count;
     NPCStorm *storms[MAX_Q_STORMS];
     int storm_count;
+    NPCArtifact *artifacts[MAX_Q_ARTIFACTS]; int artifact_count;
+    NPCWarpGate *warp_gates[MAX_Q_WARP_GATES]; int warp_gate_count;
+    NPCNeutronStar *neutron_stars[MAX_Q_NEUTRON_STARS]; int neutron_star_count;
+    NPCMegaStructure *mega_structs[MAX_Q_MEGA_STRUCTS]; int mega_struct_count;
+    NPCDarkCloud *dark_clouds[MAX_Q_DARK_CLOUDS]; int dark_cloud_count;
+    NPCSingularity *singularities[MAX_Q_SINGULARITIES]; int singularity_count;
+    NPCPlasmaStorm *plasma_storms[MAX_Q_PLASMA_STORMS]; int plasma_storm_count;
+    NPCOrbitalRing *orbital_rings[MAX_Q_ORBITAL_RINGS]; int orbital_ring_count;
+    NPCTimeAnomaly *time_anomalies[MAX_Q_TIME_ANOMALIES]; int time_anomaly_count;
+    NPCVoidCrystal *void_crystals[MAX_Q_VOID_CRYSTALS]; int void_crystal_count;
     ConnectedPlayer *players[MAX_Q_PLAYERS];
     int player_count;
     PlayerTorpedo *torpedoes[MAX_Q_TORPEDOES];

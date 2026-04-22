@@ -1,0 +1,14 @@
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/spacegl_shaders.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/spacegl_server.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/spacegl_client.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/spacegl_3dview.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/spacegl_viewer.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/spacegl_hud.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/spacegl_vulkan.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/spacegl_diag.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/edit_cache.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/rebuild_cache.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/list_install_components.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/install.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/install/local.dir
+/home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/_build/CMakeFiles/install/strip.dir

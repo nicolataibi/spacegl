@@ -49,6 +49,16 @@ NPCRelic relics[MAX_RELICS];
 NPCRupture ruptures[MAX_RUPTURES];
 NPCSatellite satellites[MAX_SATELLITES];
 NPCStorm storms[MAX_STORMS];
+NPCArtifact artifacts[MAX_ARTIFACTS];
+NPCWarpGate warp_gates[MAX_WARP_GATES];
+NPCNeutronStar neutron_stars[MAX_NEUTRON_STARS];
+NPCMegaStructure mega_structs[MAX_MEGA_STRUCTS];
+NPCDarkCloud dark_clouds[MAX_DARK_CLOUDS];
+NPCSingularity singularities[MAX_SINGULARITIES];
+NPCPlasmaStorm plasma_storms[MAX_PLASMA_STORMS];
+NPCOrbitalRing orbital_rings[MAX_ORBITAL_RINGS];
+NPCTimeAnomaly time_anomalies[MAX_TIME_ANOMALIES];
+NPCVoidCrystal void_crystals[MAX_VOID_CRYSTALS];
 PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 ConnectedPlayer players[MAX_CLIENTS];
 SpaceGLGame spacegl_master;
@@ -280,6 +290,16 @@ void rebuild_spatial_index() {
         q->rupture_count = 0;
         q->satellite_count = 0;
         q->storm_count = 0;
+        q->artifact_count = 0;
+        q->warp_gate_count = 0;
+        q->neutron_star_count = 0;
+        q->mega_struct_count = 0;
+        q->dark_cloud_count = 0;
+        q->singularity_count = 0;
+        q->plasma_storm_count = 0;
+        q->orbital_ring_count = 0;
+        q->time_anomaly_count = 0;
+        q->void_crystal_count = 0;
     }
     dirty_count = 0;
 
@@ -332,6 +352,86 @@ void rebuild_spatial_index() {
             mark_quad_dirty(storms[st].q1, storms[st].q2, storms[st].q3);
             QuadrantIndex *q = &spatial_index[storms[st].q1][storms[st].q2][storms[st].q3];
             if (q->storm_count < MAX_Q_STORMS) q->storms[q->storm_count++] = &storms[st];
+        }
+    }
+
+    for(int a=0; a<MAX_ARTIFACTS; a++) if(artifacts[a].active) {
+        if (IS_Q_VALID(artifacts[a].q1, artifacts[a].q2, artifacts[a].q3)) {
+            mark_quad_dirty(artifacts[a].q1, artifacts[a].q2, artifacts[a].q3);
+            QuadrantIndex *q = &spatial_index[artifacts[a].q1][artifacts[a].q2][artifacts[a].q3];
+            if (q->artifact_count < MAX_Q_ARTIFACTS) q->artifacts[q->artifact_count++] = &artifacts[a];
+        }
+    }
+
+    for(int a=0; a<MAX_WARP_GATES; a++) if(warp_gates[a].active) {
+        if (IS_Q_VALID(warp_gates[a].q1, warp_gates[a].q2, warp_gates[a].q3)) {
+            mark_quad_dirty(warp_gates[a].q1, warp_gates[a].q2, warp_gates[a].q3);
+            QuadrantIndex *q = &spatial_index[warp_gates[a].q1][warp_gates[a].q2][warp_gates[a].q3];
+            if (q->warp_gate_count < MAX_Q_WARP_GATES) q->warp_gates[q->warp_gate_count++] = &warp_gates[a];
+        }
+    }
+
+    for(int a=0; a<MAX_NEUTRON_STARS; a++) if(neutron_stars[a].active) {
+        if (IS_Q_VALID(neutron_stars[a].q1, neutron_stars[a].q2, neutron_stars[a].q3)) {
+            mark_quad_dirty(neutron_stars[a].q1, neutron_stars[a].q2, neutron_stars[a].q3);
+            QuadrantIndex *q = &spatial_index[neutron_stars[a].q1][neutron_stars[a].q2][neutron_stars[a].q3];
+            if (q->neutron_star_count < MAX_Q_NEUTRON_STARS) q->neutron_stars[q->neutron_star_count++] = &neutron_stars[a];
+        }
+    }
+
+    for(int a=0; a<MAX_MEGA_STRUCTS; a++) if(mega_structs[a].active) {
+        if (IS_Q_VALID(mega_structs[a].q1, mega_structs[a].q2, mega_structs[a].q3)) {
+            mark_quad_dirty(mega_structs[a].q1, mega_structs[a].q2, mega_structs[a].q3);
+            QuadrantIndex *q = &spatial_index[mega_structs[a].q1][mega_structs[a].q2][mega_structs[a].q3];
+            if (q->mega_struct_count < MAX_Q_MEGA_STRUCTS) q->mega_structs[q->mega_struct_count++] = &mega_structs[a];
+        }
+    }
+
+    for(int a=0; a<MAX_DARK_CLOUDS; a++) if(dark_clouds[a].active) {
+        if (IS_Q_VALID(dark_clouds[a].q1, dark_clouds[a].q2, dark_clouds[a].q3)) {
+            mark_quad_dirty(dark_clouds[a].q1, dark_clouds[a].q2, dark_clouds[a].q3);
+            QuadrantIndex *q = &spatial_index[dark_clouds[a].q1][dark_clouds[a].q2][dark_clouds[a].q3];
+            if (q->dark_cloud_count < MAX_Q_DARK_CLOUDS) q->dark_clouds[q->dark_cloud_count++] = &dark_clouds[a];
+        }
+    }
+
+    for(int a=0; a<MAX_SINGULARITIES; a++) if(singularities[a].active) {
+        if (IS_Q_VALID(singularities[a].q1, singularities[a].q2, singularities[a].q3)) {
+            mark_quad_dirty(singularities[a].q1, singularities[a].q2, singularities[a].q3);
+            QuadrantIndex *q = &spatial_index[singularities[a].q1][singularities[a].q2][singularities[a].q3];
+            if (q->singularity_count < MAX_Q_SINGULARITIES) q->singularities[q->singularity_count++] = &singularities[a];
+        }
+    }
+
+    for(int a=0; a<MAX_PLASMA_STORMS; a++) if(plasma_storms[a].active) {
+        if (IS_Q_VALID(plasma_storms[a].q1, plasma_storms[a].q2, plasma_storms[a].q3)) {
+            mark_quad_dirty(plasma_storms[a].q1, plasma_storms[a].q2, plasma_storms[a].q3);
+            QuadrantIndex *q = &spatial_index[plasma_storms[a].q1][plasma_storms[a].q2][plasma_storms[a].q3];
+            if (q->plasma_storm_count < MAX_Q_PLASMA_STORMS) q->plasma_storms[q->plasma_storm_count++] = &plasma_storms[a];
+        }
+    }
+
+    for(int a=0; a<MAX_ORBITAL_RINGS; a++) if(orbital_rings[a].active) {
+        if (IS_Q_VALID(orbital_rings[a].q1, orbital_rings[a].q2, orbital_rings[a].q3)) {
+            mark_quad_dirty(orbital_rings[a].q1, orbital_rings[a].q2, orbital_rings[a].q3);
+            QuadrantIndex *q = &spatial_index[orbital_rings[a].q1][orbital_rings[a].q2][orbital_rings[a].q3];
+            if (q->orbital_ring_count < MAX_Q_ORBITAL_RINGS) q->orbital_rings[q->orbital_ring_count++] = &orbital_rings[a];
+        }
+    }
+
+    for(int a=0; a<MAX_TIME_ANOMALIES; a++) if(time_anomalies[a].active) {
+        if (IS_Q_VALID(time_anomalies[a].q1, time_anomalies[a].q2, time_anomalies[a].q3)) {
+            mark_quad_dirty(time_anomalies[a].q1, time_anomalies[a].q2, time_anomalies[a].q3);
+            QuadrantIndex *q = &spatial_index[time_anomalies[a].q1][time_anomalies[a].q2][time_anomalies[a].q3];
+            if (q->time_anomaly_count < MAX_Q_TIME_ANOMALIES) q->time_anomalies[q->time_anomaly_count++] = &time_anomalies[a];
+        }
+    }
+
+    for(int a=0; a<MAX_VOID_CRYSTALS; a++) if(void_crystals[a].active) {
+        if (IS_Q_VALID(void_crystals[a].q1, void_crystals[a].q2, void_crystals[a].q3)) {
+            mark_quad_dirty(void_crystals[a].q1, void_crystals[a].q2, void_crystals[a].q3);
+            QuadrantIndex *q = &spatial_index[void_crystals[a].q1][void_crystals[a].q2][void_crystals[a].q3];
+            if (q->void_crystal_count < MAX_Q_VOID_CRYSTALS) q->void_crystals[q->void_crystal_count++] = &void_crystals[a];
         }
     }
     /* ... existing loops ... */
@@ -443,6 +543,22 @@ static void save_task(void* arg) {
     fwrite(platforms, sizeof(NPCPlatform), MAX_PLATFORMS, f);
     fwrite(rifts, sizeof(NPCRift), MAX_RIFTS, f);
     fwrite(monsters, sizeof(NPCMonster), MAX_MONSTERS, f);
+    fwrite(dysons, sizeof(NPCDyson), MAX_DYSON, f);
+    fwrite(hubs, sizeof(NPCHub), MAX_HUBS, f);
+    fwrite(relics, sizeof(NPCRelic), MAX_RELICS, f);
+    fwrite(ruptures, sizeof(NPCRupture), MAX_RUPTURES, f);
+    fwrite(satellites, sizeof(NPCSatellite), MAX_SATELLITES, f);
+    fwrite(storms, sizeof(NPCStorm), MAX_STORMS, f);
+    fwrite(artifacts, sizeof(NPCArtifact), MAX_ARTIFACTS, f);
+    fwrite(warp_gates, sizeof(NPCWarpGate), MAX_WARP_GATES, f);
+    fwrite(neutron_stars, sizeof(NPCNeutronStar), MAX_NEUTRON_STARS, f);
+    fwrite(mega_structs, sizeof(NPCMegaStructure), MAX_MEGA_STRUCTS, f);
+    fwrite(dark_clouds, sizeof(NPCDarkCloud), MAX_DARK_CLOUDS, f);
+    fwrite(singularities, sizeof(NPCSingularity), MAX_SINGULARITIES, f);
+    fwrite(plasma_storms, sizeof(NPCPlasmaStorm), MAX_PLASMA_STORMS, f);
+    fwrite(orbital_rings, sizeof(NPCOrbitalRing), MAX_ORBITAL_RINGS, f);
+    fwrite(time_anomalies, sizeof(NPCTimeAnomaly), MAX_TIME_ANOMALIES, f);
+    fwrite(void_crystals, sizeof(NPCVoidCrystal), MAX_VOID_CRYSTALS, f);
     fwrite(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
     
@@ -504,6 +620,22 @@ int load_galaxy() {
     CHECK_READ(platforms, sizeof(NPCPlatform), MAX_PLATFORMS, f);
     CHECK_READ(rifts, sizeof(NPCRift), MAX_RIFTS, f);
     CHECK_READ(monsters, sizeof(NPCMonster), MAX_MONSTERS, f);
+    CHECK_READ(dysons, sizeof(NPCDyson), MAX_DYSON, f);
+    CHECK_READ(hubs, sizeof(NPCHub), MAX_HUBS, f);
+    CHECK_READ(relics, sizeof(NPCRelic), MAX_RELICS, f);
+    CHECK_READ(ruptures, sizeof(NPCRupture), MAX_RUPTURES, f);
+    CHECK_READ(satellites, sizeof(NPCSatellite), MAX_SATELLITES, f);
+    CHECK_READ(storms, sizeof(NPCStorm), MAX_STORMS, f);
+    CHECK_READ(artifacts, sizeof(NPCArtifact), MAX_ARTIFACTS, f);
+    CHECK_READ(warp_gates, sizeof(NPCWarpGate), MAX_WARP_GATES, f);
+    CHECK_READ(neutron_stars, sizeof(NPCNeutronStar), MAX_NEUTRON_STARS, f);
+    CHECK_READ(mega_structs, sizeof(NPCMegaStructure), MAX_MEGA_STRUCTS, f);
+    CHECK_READ(dark_clouds, sizeof(NPCDarkCloud), MAX_DARK_CLOUDS, f);
+    CHECK_READ(singularities, sizeof(NPCSingularity), MAX_SINGULARITIES, f);
+    CHECK_READ(plasma_storms, sizeof(NPCPlasmaStorm), MAX_PLASMA_STORMS, f);
+    CHECK_READ(orbital_rings, sizeof(NPCOrbitalRing), MAX_ORBITAL_RINGS, f);
+    CHECK_READ(time_anomalies, sizeof(NPCTimeAnomaly), MAX_TIME_ANOMALIES, f);
+    CHECK_READ(void_crystals, sizeof(NPCVoidCrystal), MAX_VOID_CRYSTALS, f);
     CHECK_READ(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
     
@@ -604,6 +736,22 @@ void generate_galaxy() {
     memset(platforms, 0, sizeof(platforms));
     memset(rifts, 0, sizeof(rifts));
     memset(monsters, 0, sizeof(monsters));
+    memset(dysons, 0, sizeof(dysons));
+    memset(hubs, 0, sizeof(hubs));
+    memset(relics, 0, sizeof(relics));
+    memset(ruptures, 0, sizeof(ruptures));
+    memset(satellites, 0, sizeof(satellites));
+    memset(storms, 0, sizeof(storms));
+    memset(artifacts, 0, sizeof(artifacts));
+    memset(warp_gates, 0, sizeof(warp_gates));
+    memset(neutron_stars, 0, sizeof(neutron_stars));
+    memset(mega_structs, 0, sizeof(mega_structs));
+    memset(dark_clouds, 0, sizeof(dark_clouds));
+    memset(singularities, 0, sizeof(singularities));
+    memset(plasma_storms, 0, sizeof(plasma_storms));
+    memset(orbital_rings, 0, sizeof(orbital_rings));
+    memset(time_anomalies, 0, sizeof(time_anomalies));
+    memset(void_crystals, 0, sizeof(void_crystals));
 
     int n_count = 0, b_count = 0, p_count = 0, s_count = 0, bh_count = 0, neb_count = 0, pul_count = 0, com_count = 0, ast_count = 0, der_count = 0, mine_count = 0, buoy_count = 0, plat_count = 0, rift_count = 0, mon_count = 0;
     int faction_counts[21] = {0};
@@ -888,6 +1036,86 @@ void generate_galaxy() {
                     int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
                     storms[storm_count] = (NPCStorm){.id=storm_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
                     storm_count++;
+                }
+
+                int artifact_count = 0;
+                int target_artifact = GALAXY_CREATE_OBJECT_MIN_ARTIFACT + (rand() % (GALAXY_CREATE_OBJECT_MAX_ARTIFACT - GALAXY_CREATE_OBJECT_MIN_ARTIFACT + 1));
+                for (int i = 0; i < target_artifact && artifact_count < MAX_ARTIFACTS; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    artifacts[artifact_count] = (NPCArtifact){.id=artifact_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    artifact_count++;
+                }
+
+                int warp_gate_count = 0;
+                int target_warp_gate = GALAXY_CREATE_OBJECT_MIN_WARP_GATE + (rand() % (GALAXY_CREATE_OBJECT_MAX_WARP_GATE - GALAXY_CREATE_OBJECT_MIN_WARP_GATE + 1));
+                for (int i = 0; i < target_warp_gate && warp_gate_count < MAX_WARP_GATES; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    warp_gates[warp_gate_count] = (NPCWarpGate){.id=warp_gate_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    warp_gate_count++;
+                }
+
+                int neutron_star_count = 0;
+                int target_neutron_star = GALAXY_CREATE_OBJECT_MIN_NEUTRON_STAR + (rand() % (GALAXY_CREATE_OBJECT_MAX_NEUTRON_STAR - GALAXY_CREATE_OBJECT_MIN_NEUTRON_STAR + 1));
+                for (int i = 0; i < target_neutron_star && neutron_star_count < MAX_NEUTRON_STARS; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    neutron_stars[neutron_star_count] = (NPCNeutronStar){.id=neutron_star_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    neutron_star_count++;
+                }
+
+                int mega_struct_count = 0;
+                int target_mega_struct = GALAXY_CREATE_OBJECT_MIN_MEGA_STRUCT + (rand() % (GALAXY_CREATE_OBJECT_MAX_MEGA_STRUCT - GALAXY_CREATE_OBJECT_MIN_MEGA_STRUCT + 1));
+                for (int i = 0; i < target_mega_struct && mega_struct_count < MAX_MEGA_STRUCTS; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    mega_structs[mega_struct_count] = (NPCMegaStructure){.id=mega_struct_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    mega_struct_count++;
+                }
+
+                int dark_cloud_count = 0;
+                int target_dark_cloud = GALAXY_CREATE_OBJECT_MIN_DARK_CLOUD + (rand() % (GALAXY_CREATE_OBJECT_MAX_DARK_CLOUD - GALAXY_CREATE_OBJECT_MIN_DARK_CLOUD + 1));
+                for (int i = 0; i < target_dark_cloud && dark_cloud_count < MAX_DARK_CLOUDS; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    dark_clouds[dark_cloud_count] = (NPCDarkCloud){.id=dark_cloud_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    dark_cloud_count++;
+                }
+
+                int singularity_count = 0;
+                int target_singularity = GALAXY_CREATE_OBJECT_MIN_SINGULARITY + (rand() % (GALAXY_CREATE_OBJECT_MAX_SINGULARITY - GALAXY_CREATE_OBJECT_MIN_SINGULARITY + 1));
+                for (int i = 0; i < target_singularity && singularity_count < MAX_SINGULARITIES; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    singularities[singularity_count] = (NPCSingularity){.id=singularity_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    singularity_count++;
+                }
+
+                int plasma_storm_count = 0;
+                int target_plasma_storm = GALAXY_CREATE_OBJECT_MIN_PLASMA_STORM + (rand() % (GALAXY_CREATE_OBJECT_MAX_PLASMA_STORM - GALAXY_CREATE_OBJECT_MIN_PLASMA_STORM + 1));
+                for (int i = 0; i < target_plasma_storm && plasma_storm_count < MAX_PLASMA_STORMS; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    plasma_storms[plasma_storm_count] = (NPCPlasmaStorm){.id=plasma_storm_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    plasma_storm_count++;
+                }
+
+                int orbital_ring_count = 0;
+                int target_orbital_ring = GALAXY_CREATE_OBJECT_MIN_ORBITAL_RING + (rand() % (GALAXY_CREATE_OBJECT_MAX_ORBITAL_RING - GALAXY_CREATE_OBJECT_MIN_ORBITAL_RING + 1));
+                for (int i = 0; i < target_orbital_ring && orbital_ring_count < MAX_ORBITAL_RINGS; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    orbital_rings[orbital_ring_count] = (NPCOrbitalRing){.id=orbital_ring_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    orbital_ring_count++;
+                }
+
+                int time_anomaly_count = 0;
+                int target_time_anomaly = GALAXY_CREATE_OBJECT_MIN_TIME_ANOMALY + (rand() % (GALAXY_CREATE_OBJECT_MAX_TIME_ANOMALY - GALAXY_CREATE_OBJECT_MIN_TIME_ANOMALY + 1));
+                for (int i = 0; i < target_time_anomaly && time_anomaly_count < MAX_TIME_ANOMALIES; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    time_anomalies[time_anomaly_count] = (NPCTimeAnomaly){.id=time_anomaly_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    time_anomaly_count++;
+                }
+
+                int void_crystal_count = 0;
+                int target_void_crystal = GALAXY_CREATE_OBJECT_MIN_VOID_CRYSTAL + (rand() % (GALAXY_CREATE_OBJECT_MAX_VOID_CRYSTAL - GALAXY_CREATE_OBJECT_MIN_VOID_CRYSTAL + 1));
+                for (int i = 0; i < target_void_crystal && void_crystal_count < MAX_VOID_CRYSTALS; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    void_crystals[void_crystal_count] = (NPCVoidCrystal){.id=void_crystal_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    void_crystal_count++;
                 }
 
                 rebuild_spatial_index();

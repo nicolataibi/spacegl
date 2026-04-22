@@ -1,3 +1,8 @@
+* Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.03
+- Implemented 'spacegl-doc' subpackage in SPEC file to isolate heavy documentation assets (193 MB), reducing main package size.
+- Updated spacegl_diag with full support for 10 new galactic object types (Alien Artifacts, Warp Gates, Neutron Stars, etc., types 40-49).
+- Synchronized object type definitions across server, Vulkan client, and diagnostic tools.
+
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.02
 - Revision script fix: corrected changelog path resolution.
 

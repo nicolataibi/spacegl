@@ -1,0 +1,1 @@
+/usr/lib64/ccache/cc -O3 -DNDEBUG -pie -Wl,-z,relro,-z,now CMakeFiles/spacegl_vulkan.dir/src/spacegl_vulkan.c.o -o spacegl_vulkan  /usr/lib64/libcrypto.so -lm -lrt /lib64/libvulkan.so -lglfw /usr/lib/gcc/x86_64-redhat-linux/15/libgomp.so /usr/lib64/libpthread.a

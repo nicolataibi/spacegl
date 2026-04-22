@@ -2862,6 +2862,144 @@ void drawIonStorm(double x, double y, double z) { (void)x; (void)y; (void)z;
     glEnable(GL_LIGHTING);
 }
 
+void drawAlienArtifact(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    glRotatef(pulse * 20.0, 1, 1, 0);
+    glColor3f(1.0, 0.5, 0.0);
+    glutWireDodecahedron();
+    glColor4f(1.0, 0.2, 0.0, 0.5);
+    glutSolidDodecahedron();
+    glPopMatrix();
+}
+
+void drawWarpGate(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    glRotatef(pulse * 10.0, 0, 1, 0);
+    glColor3f(0.0, 0.5, 1.0);
+    glutWireTorus(0.05, 0.8, 8, 32);
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glColor4f(0.0, 0.8, 1.0, 0.3 + sin(pulse*4.0)*0.2);
+    glutSolidTorus(0.04, 0.78, 8, 32);
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+    glPopMatrix();
+}
+
+void drawNeutronStar(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    glRotatef(pulse * 100.0, 0, 1, 0); // Very fast spin
+    glColor3f(0.8, 0.8, 1.0);
+    glutSolidSphere(0.15, 24, 24);
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glColor4f(0.5, 0.5, 1.0, 0.6);
+    glutWireSphere(0.2, 16, 16);
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+    glPopMatrix();
+}
+
+void drawMegaStructure(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    glRotatef(pulse * 5.0, 1, 0, 1);
+    glColor3f(0.5, 0.5, 0.5);
+    glutWireCube(1.5);
+    glColor3f(0.3, 0.3, 0.3);
+    glutSolidCube(1.4);
+    glPopMatrix();
+}
+
+void drawDarkCloud(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glPushMatrix();
+    for(int i=0; i<4; i++) {
+        glPushMatrix();
+        glRotatef(pulse * (5.0 + i*2.0), 0.5, 1.0, 0.2);
+        glScalef(1.5 + i*0.2, 1.0, 1.2 + i*0.1);
+        glColor4f(0.1, 0.0, 0.2, 0.4);
+        glutSolidSphere(0.8, 12, 12);
+        glPopMatrix();
+    }
+    glPopMatrix();
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+}
+
+void drawSingularity(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    glColor3f(0.0, 0.0, 0.0);
+    glutSolidSphere(0.3, 24, 24); // Pitch black core
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    for(int i=0; i<3; i++) {
+        glPushMatrix();
+        glRotatef(pulse * (50.0 + i*20.0), 1, 1, 0);
+        glColor4f(0.5, 0.0, 1.0, 0.3);
+        glutWireTorus(0.02, 0.4 + i*0.1, 8, 32);
+        glPopMatrix();
+    }
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+    glPopMatrix();
+}
+
+void drawPlasmaStorm(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glPushMatrix();
+    for(int i=0; i<4; i++) {
+        glPushMatrix();
+        glRotatef(pulse * (15.0 + i*5.0), 1.0, 0.5, 0.0);
+        glScalef(1.2 + sin(pulse*3.0 + i)*0.2, 1.0, 1.0);
+        glColor4f(1.0, 0.2, 0.6, 0.3);
+        glutWireSphere(0.8, 12, 12);
+        glPopMatrix();
+    }
+    glPopMatrix();
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+}
+
+void drawOrbitalRing(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    glRotatef(pulse * 15.0, 0, 1, 0);
+    glColor3f(0.7, 0.7, 0.0);
+    glutWireTorus(0.1, 1.0, 12, 48);
+    glColor4f(0.4, 0.4, 0.0, 0.8);
+    glutSolidTorus(0.08, 1.0, 12, 48);
+    glPopMatrix();
+}
+
+void drawTimeAnomaly(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glPushMatrix();
+    glRotatef(pulse * -30.0, 0, 1, 0);
+    glColor4f(0.0, 1.0, 0.5, 0.5);
+    glutWireTeapot(0.5); // Abstract shape for anomaly
+    glPopMatrix();
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+}
+
+void drawVoidCrystal(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    glRotatef(pulse * 10.0, 0, 1, 0);
+    glColor3f(0.9, 0.0, 0.9);
+    glutWireOctahedron();
+    glColor4f(0.5, 0.0, 0.5, 0.7);
+    glutSolidOctahedron();
+    glPopMatrix();
+}
+
 void drawGalacticCompass() {
     glDisable(GL_LIGHTING);
     glPushMatrix();
@@ -4261,6 +4399,16 @@ void display() {
                     case 37: drawSubspaceRupture(0,0,0); break;
                     case 38: drawSatellite(0,0,0); break;
                     case 39: drawIonStorm(0,0,0); break;
+                    case 40: drawAlienArtifact(0,0,0); break;
+                    case 41: drawWarpGate(0,0,0); break;
+                    case 42: drawNeutronStar(0,0,0); break;
+                    case 43: drawMegaStructure(0,0,0); break;
+                    case 44: drawDarkCloud(0,0,0); break;
+                    case 45: drawSingularity(0,0,0); break;
+                    case 46: drawPlasmaStorm(0,0,0); break;
+                    case 47: drawOrbitalRing(0,0,0); break;
+                    case 48: drawTimeAnomaly(0,0,0); break;
+                    case 49: drawVoidCrystal(0,0,0); break;
                 }
                 glUseProgram(0);
             }

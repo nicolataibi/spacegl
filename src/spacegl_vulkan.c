@@ -1442,6 +1442,19 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 } else if (obj->type == 36) { // Ancient Relic (WIREFRAME)
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
                     ship_opc.color[0]=0; ship_opc.color[1]=1; ship_opc.color[2]=0.8f;
+                } else if (obj->type >= 40 && obj->type <= 49) {
+                    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+                    ship_opc.usePushColor = 1;
+                    if (obj->type == 40) { ship_opc.color[0]=1.0f; ship_opc.color[1]=0.5f; ship_opc.color[2]=0.0f; } // Artifact
+                    else if (obj->type == 41) { ship_opc.color[0]=0.0f; ship_opc.color[1]=0.5f; ship_opc.color[2]=1.0f; } // Warp Gate
+                    else if (obj->type == 42) { ship_opc.color[0]=0.8f; ship_opc.color[1]=0.8f; ship_opc.color[2]=1.0f; } // Neutron Star
+                    else if (obj->type == 43) { ship_opc.color[0]=0.5f; ship_opc.color[1]=0.5f; ship_opc.color[2]=0.5f; } // Mega Struct
+                    else if (obj->type == 44) { ship_opc.color[0]=0.2f; ship_opc.color[1]=0.0f; ship_opc.color[2]=0.4f; } // Dark Cloud
+                    else if (obj->type == 45) { ship_opc.color[0]=0.1f; ship_opc.color[1]=0.1f; ship_opc.color[2]=0.1f; } // Singularity
+                    else if (obj->type == 46) { ship_opc.color[0]=1.0f; ship_opc.color[1]=0.2f; ship_opc.color[2]=0.6f; } // Plasma Storm
+                    else if (obj->type == 47) { ship_opc.color[0]=0.7f; ship_opc.color[1]=0.7f; ship_opc.color[2]=0.0f; } // Orbital Ring
+                    else if (obj->type == 48) { ship_opc.color[0]=0.0f; ship_opc.color[1]=1.0f; ship_opc.color[2]=0.5f; } // Time Anomaly
+                    else if (obj->type == 49) { ship_opc.color[0]=0.9f; ship_opc.color[1]=0.0f; ship_opc.color[2]=0.9f; } // Void Crystal
                 }
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ship_opc), &ship_opc);
                 VkBuffer vb;
@@ -1452,14 +1465,18 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     vb = app->torpVertexBuffer;
                     ib = app->torpIndexBuffer;
                     cnt = sizeof(torpIndices)/4;
-                } else if (obj->type == 4 || obj->type == 5 || obj->type == 6 || obj->type == 34 || obj->type == 36 || obj->type == 37 || obj->type == 39) {
+                } else if (obj->type == 4 || obj->type == 5 || obj->type == 6 || obj->type == 34 || obj->type == 36 || obj->type == 37 || obj->type == 39 || obj->type == 42 || obj->type == 44 || obj->type == 45 || obj->type == 46 || obj->type == 48) {
                     vb = app->sphereVertexBuffer;
                     ib = app->sphereIndexBuffer;
                     cnt = SPHERE_LATS * SPHERE_LONGS * 6;
-                } else if (obj->type == 3 || obj->type == 21 || obj->type == 38) {
+                } else if (obj->type == 3 || obj->type == 21 || obj->type == 38 || obj->type == 40 || obj->type == 43 || obj->type == 49) {
                     vb = app->cubeVertexBuffer;
                     ib = app->cubeIndexBuffer;
                     cnt = sizeof(cubeIndices)/4;
+                } else if (obj->type == 41 || obj->type == 47) {
+                    vb = app->circleVertexBuffer;
+                    ib = app->circleIndexBuffer;
+                    cnt = CIRCLE_SEGMENTS * 2;
                 } else { 
                     vb = app->shipVertexBuffer;
                     ib = app->shipIndexBuffer;

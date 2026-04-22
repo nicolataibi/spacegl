@@ -3,7 +3,7 @@
 %global autorelease_version 1
 
 Name:           spacegl
-Version:        2026.04.22.01
+Version:        2026.04.22.03
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
@@ -47,6 +47,15 @@ This package contains graphical assets, shaders, textures,
 and other runtime data required by SpaceGL.
 
 
+%package doc
+Summary:        Documentation and user manuals for %{name}
+BuildArch:      noarch
+
+%description doc
+This package contains user manuals, READMEs, HOWTOs,
+and additional assets explaining the SpaceGL engine and game play.
+
+
 %prep
 %autosetup -n %{name}-%{version} -p1
 
@@ -72,8 +81,6 @@ done
 
 %files
 %license LICENSE.txt
-%doc README.md README_it.md HOWTO.txt readme_assets/
-
 %{_bindir}/spacegl_server
 %{_bindir}/spacegl_client
 %{_bindir}/spacegl_3dview
@@ -91,10 +98,14 @@ done
 
 %files data
 %license LICENSE.txt
-%doc README.md README_it.md
 %dir %{_datadir}/%{name}
 %{_datadir}/%{name}/shaders/
 
+
+%files doc
+%license LICENSE.txt
+%doc README.md README_it.md HOWTO.txt
+%doc readme_assets/
 
 
 %changelog
