@@ -448,6 +448,7 @@ typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; i
 typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCOrbitalRing;
 typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCTimeAnomaly;
 typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCVoidCrystal;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCSubspaceAnomaly;
 
 typedef struct { 
     int id;
@@ -514,6 +515,7 @@ typedef struct {
 #define MAX_ORBITAL_RINGS 80
 #define MAX_TIME_ANOMALIES 40
 #define MAX_VOID_CRYSTALS 30
+#define MAX_SUBSPACE_ANOMALIES 50
 
 /* Local Quadrant Limits for Spatial Index (Optimization) */
 #define MAX_Q_NPC 32
@@ -550,6 +552,7 @@ typedef struct {
 #define MAX_Q_ORBITAL_RINGS 4
 #define MAX_Q_TIME_ANOMALIES 4
 #define MAX_Q_VOID_CRYSTALS 4
+#define MAX_Q_SUBSPACE_ANOMALIES 4
 
 /* Global Data accessed by modules */
 extern NPCStar stars_data[MAX_STARS];
@@ -584,6 +587,7 @@ extern NPCPlasmaStorm plasma_storms[MAX_PLASMA_STORMS];
 extern NPCOrbitalRing orbital_rings[MAX_ORBITAL_RINGS];
 extern NPCTimeAnomaly time_anomalies[MAX_TIME_ANOMALIES];
 extern NPCVoidCrystal void_crystals[MAX_VOID_CRYSTALS];
+extern NPCSubspaceAnomaly subspace_anomalies[MAX_SUBSPACE_ANOMALIES];
 extern PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 extern ConnectedPlayer players[MAX_CLIENTS];
 extern SpaceGLGame spacegl_master;
@@ -670,6 +674,7 @@ typedef struct {
     NPCOrbitalRing *orbital_rings[MAX_Q_ORBITAL_RINGS]; int orbital_ring_count;
     NPCTimeAnomaly *time_anomalies[MAX_Q_TIME_ANOMALIES]; int time_anomaly_count;
     NPCVoidCrystal *void_crystals[MAX_Q_VOID_CRYSTALS]; int void_crystal_count;
+    NPCSubspaceAnomaly *subspace_anomalies[MAX_Q_SUBSPACE_ANOMALIES]; int subspace_anomaly_count;
     ConnectedPlayer *players[MAX_Q_PLAYERS];
     int player_count;
     PlayerTorpedo *torpedoes[MAX_Q_TORPEDOES];

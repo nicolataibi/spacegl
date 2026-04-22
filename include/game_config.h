@@ -234,6 +234,9 @@
 #define GALAXY_OBJECT_MIN_VOID_CRYSTAL 43000
 #define GALAXY_OBJECT_MAX_VOID_CRYSTAL 43999
 
+#define GALAXY_OBJECT_MIN_SUBSPACE_ANOM 44000
+#define GALAXY_OBJECT_MAX_SUBSPACE_ANOM 44999
+
 /* --- Galaxy Generation Ranges --- */
 #define GALAXY_CREATE_OBJECT_MIN_NPC_FACTION        70
 #define GALAXY_CREATE_OBJECT_MAX_NPC_FACTION        100
@@ -333,6 +336,9 @@
 
 #define GALAXY_CREATE_OBJECT_MIN_VOID_CRYSTAL        5
 #define GALAXY_CREATE_OBJECT_MAX_VOID_CRYSTAL        15
+
+#define GALAXY_CREATE_OBJECT_MIN_SUBSPACE_ANOM       10
+#define GALAXY_CREATE_OBJECT_MAX_SUBSPACE_ANOM       25
 
 /* --- Resource Costs (Energy) --- */
 #define COST_ACTION_LOW          10             /* Costo base operazioni minori (es. SRS, Lock) */

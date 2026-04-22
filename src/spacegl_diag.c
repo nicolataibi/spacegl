@@ -211,9 +211,9 @@ int main(int argc, char** argv) {
     RESOLVE(platforms); RESOLVE(rifts); RESOLVE(monsters); RESOLVE(dysons); RESOLVE(hubs);
     RESOLVE(relics); RESOLVE(ruptures); RESOLVE(satellites); RESOLVE(storms); RESOLVE(players_torpedoes);
     RESOLVE(artifacts); RESOLVE(warp_gates); RESOLVE(neutron_stars); RESOLVE(mega_structs); RESOLVE(dark_clouds);
-    RESOLVE(singularities); RESOLVE(plasma_storms); RESOLVE(orbital_rings); RESOLVE(time_anomalies); RESOLVE(void_crystals);
+    RESOLVE(singularities); RESOLVE(plasma_storms); RESOLVE(orbital_rings); RESOLVE(time_anomalies); RESOLVE(void_crystals); RESOLVE(subspace_anomalies);
 
-    if (unresolved_count > 25) {
+    if (unresolved_count > 30) {
         printf("CRITICAL ERROR: Failed to resolve %d symbols. Ensure spacegl_server has symbols.\n", unresolved_count);
         return 1;
     }
@@ -263,6 +263,7 @@ int main(int argc, char** argv) {
     NPCOrbitalRing* orb_buf = malloc(sizeof(NPCOrbitalRing) * MAX_ORBITAL_RINGS);
     NPCTimeAnomaly* tim_buf = malloc(sizeof(NPCTimeAnomaly) * MAX_TIME_ANOMALIES);
     NPCVoidCrystal* voi_buf = malloc(sizeof(NPCVoidCrystal) * MAX_VOID_CRYSTALS);
+    NPCSubspaceAnomaly* sub_buf = malloc(sizeof(NPCSubspaceAnomaly) * MAX_SUBSPACE_ANOMALIES);
     PlayerTorpedo* torp_buf = malloc(sizeof(PlayerTorpedo) * MAX_GLOBAL_TORPEDOES);
     RenderItem* render_list = malloc(sizeof(RenderItem) * 50000);
 
@@ -339,6 +340,7 @@ int main(int argc, char** argv) {
                 case CAT_ORBITAL_RING: READ_CAT(orb_buf, a_orbital_rings, MAX_ORBITAL_RINGS, 37); break;
                 case CAT_TIME_ANOMALY: READ_CAT(tim_buf, a_time_anomalies, MAX_TIME_ANOMALIES, 38); break;
                 case CAT_VOID_CRYSTAL: READ_CAT(voi_buf, a_void_crystals, MAX_VOID_CRYSTALS, 39); break;
+                case CAT_ANOMALY: READ_CAT(sub_buf, a_subspace_anomalies, MAX_SUBSPACE_ANOMALIES, 50); break;
                 default: break;
             }
         }
@@ -421,6 +423,7 @@ int main(int argc, char** argv) {
                     case 37: { NPCOrbitalRing* o = &orb_buf[item.index]; cp=2; sprintf(sid, "OR%04d", o->id); sprintf(name, "Orbital Ring"); sprintf(info, "Planetary"); sprintf(qstr, "[%2d,%2d,%2d]", o->q1, o->q2, o->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", o->x, o->y, o->z); } break;
                     case 38: { NPCTimeAnomaly* t = &tim_buf[item.index]; cp=1; sprintf(sid, "TA%04d", t->id); sprintf(name, "Time Anomaly"); sprintf(info, "Temporal"); sprintf(qstr, "[%2d,%2d,%2d]", t->q1, t->q2, t->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", t->x, t->y, t->z); } break;
                     case 39: { NPCVoidCrystal* v = &voi_buf[item.index]; cp=5; sprintf(sid, "VC%04d", v->id); sprintf(name, "Void Crystal"); sprintf(info, "Crystalline"); sprintf(qstr, "[%2d,%2d,%2d]", v->q1, v->q2, v->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", v->x, v->y, v->z); } break;
+                    case 50: { NPCSubspaceAnomaly* s = &sub_buf[item.index]; cp=2; sprintf(sid, "AN%04d", s->id); sprintf(name, "Subspace Anom"); sprintf(info, "Unstable"); sprintf(qstr, "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
                     default: break;
                 }
 

@@ -59,6 +59,7 @@ NPCPlasmaStorm plasma_storms[MAX_PLASMA_STORMS];
 NPCOrbitalRing orbital_rings[MAX_ORBITAL_RINGS];
 NPCTimeAnomaly time_anomalies[MAX_TIME_ANOMALIES];
 NPCVoidCrystal void_crystals[MAX_VOID_CRYSTALS];
+NPCSubspaceAnomaly subspace_anomalies[MAX_SUBSPACE_ANOMALIES];
 PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 ConnectedPlayer players[MAX_CLIENTS];
 SpaceGLGame spacegl_master;
@@ -300,6 +301,7 @@ void rebuild_spatial_index() {
         q->orbital_ring_count = 0;
         q->time_anomaly_count = 0;
         q->void_crystal_count = 0;
+        q->subspace_anomaly_count = 0;
     }
     dirty_count = 0;
 
@@ -434,6 +436,14 @@ void rebuild_spatial_index() {
             if (q->void_crystal_count < MAX_Q_VOID_CRYSTALS) q->void_crystals[q->void_crystal_count++] = &void_crystals[a];
         }
     }
+
+    for(int a=0; a<MAX_SUBSPACE_ANOMALIES; a++) if(subspace_anomalies[a].active) {
+        if (IS_Q_VALID(subspace_anomalies[a].q1, subspace_anomalies[a].q2, subspace_anomalies[a].q3)) {
+            mark_quad_dirty(subspace_anomalies[a].q1, subspace_anomalies[a].q2, subspace_anomalies[a].q3);
+            QuadrantIndex *q = &spatial_index[subspace_anomalies[a].q1][subspace_anomalies[a].q2][subspace_anomalies[a].q3];
+            if (q->subspace_anomaly_count < MAX_Q_SUBSPACE_ANOMALIES) q->subspace_anomalies[q->subspace_anomaly_count++] = &subspace_anomalies[a];
+        }
+    }
     /* ... existing loops ... */
     for(int c=0; c<MAX_COMETS; c++) if(comets[c].active) {
         if (IS_Q_VALID(comets[c].q1, comets[c].q2, comets[c].q3)) {
@@ -559,6 +569,7 @@ static void save_task(void* arg) {
     fwrite(orbital_rings, sizeof(NPCOrbitalRing), MAX_ORBITAL_RINGS, f);
     fwrite(time_anomalies, sizeof(NPCTimeAnomaly), MAX_TIME_ANOMALIES, f);
     fwrite(void_crystals, sizeof(NPCVoidCrystal), MAX_VOID_CRYSTALS, f);
+    fwrite(subspace_anomalies, sizeof(NPCSubspaceAnomaly), MAX_SUBSPACE_ANOMALIES, f);
     fwrite(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
     
@@ -636,6 +647,7 @@ int load_galaxy() {
     CHECK_READ(orbital_rings, sizeof(NPCOrbitalRing), MAX_ORBITAL_RINGS, f);
     CHECK_READ(time_anomalies, sizeof(NPCTimeAnomaly), MAX_TIME_ANOMALIES, f);
     CHECK_READ(void_crystals, sizeof(NPCVoidCrystal), MAX_VOID_CRYSTALS, f);
+    CHECK_READ(subspace_anomalies, sizeof(NPCSubspaceAnomaly), MAX_SUBSPACE_ANOMALIES, f);
     CHECK_READ(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
     
@@ -752,6 +764,7 @@ void generate_galaxy() {
     memset(orbital_rings, 0, sizeof(orbital_rings));
     memset(time_anomalies, 0, sizeof(time_anomalies));
     memset(void_crystals, 0, sizeof(void_crystals));
+    memset(subspace_anomalies, 0, sizeof(subspace_anomalies));
 
     int n_count = 0, b_count = 0, p_count = 0, s_count = 0, bh_count = 0, neb_count = 0, pul_count = 0, com_count = 0, ast_count = 0, der_count = 0, mine_count = 0, buoy_count = 0, plat_count = 0, rift_count = 0, mon_count = 0;
     int faction_counts[21] = {0};
@@ -1118,6 +1131,14 @@ void generate_galaxy() {
                     void_crystal_count++;
                 }
 
+                int sub_anomaly_count = 0;
+                int target_sub_anomaly = GALAXY_CREATE_OBJECT_MIN_SUBSPACE_ANOM + (rand() % (GALAXY_CREATE_OBJECT_MAX_SUBSPACE_ANOM - GALAXY_CREATE_OBJECT_MIN_SUBSPACE_ANOM + 1));
+                for (int i = 0; i < target_sub_anomaly && sub_anomaly_count < MAX_SUBSPACE_ANOMALIES; i++) {
+                    int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
+                    subspace_anomalies[sub_anomaly_count] = (NPCSubspaceAnomaly){.id=sub_anomaly_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
+                    sub_anomaly_count++;
+                }
+
                 rebuild_spatial_index();
     refresh_lrs_grid();
 
@@ -1206,6 +1227,7 @@ void generate_galaxy() {
     printf("%s | %s Dark Matter Clds:%s%-4d %s| %s Q-Singularities: %s%-4d %s|\n", B_CYAN, B_WHITE, B_GREEN, dark_cloud_count, B_CYAN, B_WHITE, B_GREEN, singularity_count, B_CYAN);
     printf("%s | %s Plasma Storms:  %s%-4d %s| %s Orbital Rings:   %s%-4d %s|\n", B_CYAN, B_WHITE, B_GREEN, plasma_storm_count, B_CYAN, B_WHITE, B_GREEN, orbital_ring_count, B_CYAN);
     printf("%s | %s Time Anomalies: %s%-4d %s| %s Void Crystals:   %s%-4d %s|\n", B_CYAN, B_WHITE, B_GREEN, time_anomaly_count, B_CYAN, B_WHITE, B_GREEN, void_crystal_count, B_CYAN);
+    printf("%s | %s Subspace Anom:  %s%-4d %s| %s                   %s      %s|\n", B_CYAN, B_WHITE, B_GREEN, sub_anomaly_count, B_CYAN, B_WHITE, B_GREEN, B_CYAN);
 
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     printf("%s | %s ☀️ Total Stars:        %s%-5d %s| %s 🕳️ Black Holes:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, s_count, B_CYAN, B_WHITE, B_GREEN, bh_count, B_CYAN);

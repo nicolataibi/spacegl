@@ -3000,6 +3000,20 @@ void drawVoidCrystal(double x, double y, double z) { (void)x; (void)y; (void)z;
     glPopMatrix();
 }
 
+void drawSubspaceAnomaly(double x, double y, double z) { (void)x; (void)y; (void)z;
+    glPushMatrix();
+    double s = 0.8 + sin(pulse * 20.0) * 0.2;
+    glScalef(s, s, s);
+    glRotatef(pulse * 45.0, 1, 1, 1);
+    glColor3f(0.0, 1.0, 0.5); /* Seafoam Green */
+    glutWireCube(0.5);
+    glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glColor4f(0.0, 1.0, 0.8, 0.3);
+    glutSolidCube(0.4);
+    glDisable(GL_BLEND);
+    glPopMatrix();
+}
+
 void drawGalacticCompass() {
     glDisable(GL_LIGHTING);
     glPushMatrix();
@@ -4409,6 +4423,7 @@ void display() {
                     case 47: drawOrbitalRing(0,0,0); break;
                     case 48: drawTimeAnomaly(0,0,0); break;
                     case 49: drawVoidCrystal(0,0,0); break;
+                    case 50: drawSubspaceAnomaly(0,0,0); break;
                 }
                 glUseProgram(0);
             }
@@ -4951,6 +4966,7 @@ void display() {
                     case 29: t_name = "QUASAR"; break;
                     case 30: t_name = "ENTITY"; break;
                     case 31: t_name = "AMOEBA"; break;
+                    case 50: t_name = "ANOMALY"; break;
                     default: t_name = "UNKNOWN"; break;
                 }
                 
@@ -4981,6 +4997,8 @@ void display() {
                     sprintf(buf, "[%03d] ASTEROID: %s", objects[i].id, as_res[r_idx]);
                 } else if (objects[i].type == 24) {
                     sprintf(buf, "[%03d] COMM BUOY", objects[i].id);
+                } else if (objects[i].type == 50) {
+                    sprintf(buf, "[%03d] SUBSPACE ANOMALY", objects[i].id);
                 }
                 else sprintf(buf, "[%03d] %s (%s)", objects[i].id, objects[i].name, t_name);
                 

@@ -1,3 +1,9 @@
+* Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.07
+- Implemented 'Subspace Anomalies' (Type 50) as physical, persistent galactic objects.
+- Added procedural generation, SHM indexing, and persistence for Subspace Anomalies.
+- Integrated Type 50 rendering in freeglut (drawSubspaceAnomaly) and Vulkan clients.
+- Operationalized the 'Subspace Anomalies' telemetry page in spacegl_diag.
+
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.06
 - Fixed missing statistics in the server startup report: implemented the planetary resources loop to correctly display counts for all 8 resource types.
 

@@ -399,6 +399,7 @@ void getObjectColor(int type, int faction, float* r, float* g, float* b) {
     else if (type == 6) { *r = 0.5f; *g = 0.0f; *b = 1.0f; }
     else if (type == 29) { *r = 1.0f; *g = 0.0f; *b = 1.0f; }
     else if (type == 21) { *r = 0.5f; *g = 0.35f; *b = 0.25f; }
+    else if (type == 50) { *r = 0.0f; *g = 1.0f; *b = 0.5f; }
 }
 
 void drawWormholeCore(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse, int type) {
@@ -1295,7 +1296,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
 
             if (o == 0) memcpy(app->playerT, T, sizeof(mat4));
 
-            float s = (obj->type==3?SCALE_BASE: (obj->type==4?SCALE_STAR: (obj->type==5?SCALE_PLANET: (obj->type==6?SCALE_BLACKHOLE: (obj->type==29?SCALE_QUASAR: (obj->type==21?SCALE_ASTEROID: SCALE_SHIP))))));
+            float s = (obj->type==3?SCALE_BASE: (obj->type==4?SCALE_STAR: (obj->type==5?SCALE_PLANET: (obj->type==6?SCALE_BLACKHOLE: (obj->type==29?SCALE_QUASAR: (obj->type==21?SCALE_ASTEROID: (obj->type==50?SCALE_BASE: SCALE_SHIP)))))));
             /* Scale the object itself by tactScale */
             s *= tactScale;
             mat4_scale(S, (vec3){s,s,s});
@@ -1465,7 +1466,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     vb = app->torpVertexBuffer;
                     ib = app->torpIndexBuffer;
                     cnt = sizeof(torpIndices)/4;
-                } else if (obj->type == 4 || obj->type == 5 || obj->type == 6 || obj->type == 34 || obj->type == 36 || obj->type == 37 || obj->type == 39 || obj->type == 42 || obj->type == 44 || obj->type == 45 || obj->type == 46 || obj->type == 48) {
+                } else if (obj->type == 4 || obj->type == 5 || obj->type == 6 || obj->type == 34 || obj->type == 36 || obj->type == 37 || obj->type == 39 || obj->type == 42 || obj->type == 44 || obj->type == 45 || obj->type == 46 || obj->type == 48 || obj->type == 50) {
                     vb = app->sphereVertexBuffer;
                     ib = app->sphereIndexBuffer;
                     cnt = SPHERE_LATS * SPHERE_LONGS * 6;
