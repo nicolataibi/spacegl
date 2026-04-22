@@ -1186,6 +1186,9 @@ void generate_galaxy() {
     printf("%s | %s [ PLANETARY RESOURCES ]                                      %s|\n", B_CYAN, B_YELLOW, B_CYAN);
     const char* res_names[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
     for(int k=1; k<=8; k+=2) {
+        printf("%s | %s %-14s: %s%-4d %s| %s %-14s: %s%-4d %s|\n", 
+               B_CYAN, B_WHITE, res_names[k], B_GREEN, planet_type_counts[k], B_CYAN, 
+               B_WHITE, (k+1 <= 8) ? res_names[k+1] : "", B_GREEN, (k+1 <= 8) ? planet_type_counts[k+1] : 0, B_CYAN);
     }
 
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);

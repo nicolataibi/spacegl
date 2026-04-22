@@ -1,3 +1,6 @@
+* Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.06
+- Fixed missing statistics in the server startup report: implemented the planetary resources loop to correctly display counts for all 8 resource types.
+
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.05
 - Refactored spacegl_diag main menu with a multi-column layout (up to 3 columns) to accommodate the expanded list of 50 telemetry pages.
 - Added support for lateral navigation (left/right arrows) in the diagnostic menu.
