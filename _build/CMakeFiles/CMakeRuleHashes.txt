@@ -1,4 +1,0 @@
-# Hashes of file build rules.
-24585ebe8ecb1887dcb2b31bfdd789a7 CMakeFiles/spacegl_shaders
-8eefb24f685e026e90469ca0f9dc0325 shaders/shader.frag.spv
-f9cbd0257e22ba374df710920310df5c shaders/shader.vert.spv

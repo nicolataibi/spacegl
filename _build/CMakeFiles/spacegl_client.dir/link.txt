@@ -1,1 +1,0 @@
-/usr/lib64/ccache/cc -O3 -DNDEBUG -pie -Wl,-z,relro,-z,now CMakeFiles/spacegl_client.dir/src/spacegl_client.c.o -o spacegl_client  /usr/lib64/libcrypto.so -lm -lrt /usr/lib/gcc/x86_64-redhat-linux/15/libgomp.so /usr/lib64/libpthread.a
