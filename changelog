@@ -1,3 +1,9 @@
+* Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.02
+- Revision script fix: corrected changelog path resolution.
+
+* Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.01
+- Fixed faction display issue in spacegl_diag: players are now correctly identified by their chosen faction instead of defaulting to "Alliance".
+
 * Tue Apr 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.21.03
 - Updated Fedora packaging compliance and documentation.
 
@@ -101,4 +107,3 @@
 - Updated SPEC file to include %autorelease and %autochangelog macros. Migrated SRPM generation workflow to 'rpkg' to ensure macro preservation. Fixed Source RPM structure to comply with Fedora/Sponsor automation standards.
 * mar 21 apr 2026 Nick <nick@glauke> - 2026.04.21.04-1
 - Cleaned up package installation: moved readme_assets only to documentation directory
-
