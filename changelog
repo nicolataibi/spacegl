@@ -1,3 +1,7 @@
+* Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.05
+- Refactored spacegl_diag main menu with a multi-column layout (up to 3 columns) to accommodate the expanded list of 50 telemetry pages.
+- Added support for lateral navigation (left/right arrows) in the diagnostic menu.
+
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.04
 - Enhanced server startup report with a new 'ANCIENT STRUCTURES & ANOMALIES' section to display statistics for exotic galactic objects (types 40-49).
 

@@ -275,6 +275,8 @@ int main(int argc, char** argv) {
         if (cat == CAT_MENU) {
             if (ch == KEY_UP && menu_selection > 1) menu_selection--;
             if (ch == KEY_DOWN && menu_selection < MAX_PAGES - 1) menu_selection++;
+            if (ch == KEY_RIGHT && menu_selection + 22 < MAX_PAGES) menu_selection += 22;
+            if (ch == KEY_LEFT && menu_selection - 22 >= 1) menu_selection -= 22;
             if (ch == 10 || ch == 13 || ch == KEY_ENTER) {
                 current_page = menu_selection;
                 scroll_offset = 0;
@@ -359,15 +361,18 @@ int main(int argc, char** argv) {
             attroff(A_BOLD);
             mvprintw(y++, 4, "Use ARROWS to select and ENTER to jump. Press 'm' to return here.");
             y++;
+            int start_y = y;
             for (int i = 1; i < MAX_PAGES; i++) {
+                int col = (i - 1) / 22;
+                int row = (i - 1) % 22;
+                int x_pos = 4 + (col * 42);
                 if (i == menu_selection) {
                     attron(COLOR_PAIR(1) | A_REVERSE);
-                    mvprintw(y++, 6, " > %-40s ", pages[i].name);
+                    mvprintw(start_y + row, x_pos, " > %-36s ", pages[i].name);
                     attroff(COLOR_PAIR(1) | A_REVERSE);
                 } else {
-                    mvprintw(y++, 6, "   %-40s ", pages[i].name);
+                    mvprintw(start_y + row, x_pos, "   %-36s ", pages[i].name);
                 }
-                if (y >= LINES - 2) break;
             }
         } else {
             attron(A_BOLD | COLOR_PAIR(5));
