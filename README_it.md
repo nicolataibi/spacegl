@@ -918,6 +918,23 @@ Per interagire con gli oggetti galattici usando i comandi `lock`, `scan`, `pha`,
 | **Mostri** | 25.000 - 25.999 | `lock 25000` | Scenari di combattimento estremo |
 | **Sonde** | 26.000 - 26.999 | `apr 26000` | Recupero e telemetria automatizzata |
 | **Quasar** | 27.000 - 27.999 | `lock 27000` | Raccolta energetica ad alta intensità |
+| **Frammenti di Dyson**| 28.000 - 28.999 | `lock 28000` | Induzione energia solare |
+| **Hub Commerciali** | 29.000 - 29.999 | `lock 29000` | Interazione commerciale neutrale |
+| **Antichi Reliquari** | 30.000 - 30.999 | `lock 30000` | Campo di riparazione sistemi |
+| **Rotture Subspaziali**| 31.000 - 31.999 | `lock 31000` | Evitamento danni gravitazionali |
+| **Satelliti Planetari**| 32.000 - 32.999 | `lock 32000` | Monitoraggio tattico locale |
+| **Tempeste Ioniche**  | 33.000 - 33.999 | `lock 33000` | Evitamento disturbo sensori |
+| **Artefatti Alieni**  | 34.000 - 34.999 | `lock 34000` | Recupero tecnologia esotica |
+| **Warp Gates**       | 35.000 - 35.999 | `lock 35000` | Transito gateway FTL |
+| **Stelle di Neutroni**| 36.000 - 36.999 | `lock 36000` | Navigazione ad alta gravità |
+| **Mega Strutture**    | 37.000 - 37.999 | `lock 37000` | Interazione strutture orbitali |
+| **Nubi Materia Oscura**| 38.000 - 38.999 | `lock 38000` | Ricerca materia oscura |
+| **Singolarità**       | 39.000 - 39.999 | `lock 39000` | Analisi spazio quantistico |
+| **Tempeste di Plasma**| 40.000 - 40.999 | `lock 40000` | Studio campi ad alta energia |
+| **Anelli Orbitali**   | 41.000 - 41.999 | `lock 41000` | Approccio orbitale planetario |
+| **Anomalie Temporali**| 42.000 - 42.999 | `lock 42000` | Ricerca distorsioni temporali |
+| **Cristalli del Vuoto**| 43.000 - 43.999 | `lock 43000` | Fonte energia ad alta densità |
+| **Anomalie Subspazio**| 44.000 - 44.999 | `lock 44000` | Studio instabilità subspazio |
 
 **Nota**: L'aggancio e l'autopilota (`apr`) funzionano **esclusivamente** se l'oggetto è nel tuo quadrante attuale. Se l'ID esiste ma è lontano, il computer indicherà le coordinate `Q[x,y,z]` del bersaglio. Questo vincolo garantisce che l'autopilota operi solo su bersagli effettivamente rilevabili dai sensori a corto raggio.
 
@@ -944,8 +961,15 @@ Distanze espresse in unità di settore (0.0 - 40.0). Se la tua distanza è super
 | :--- | :--- | :--- | :--- |
 | **Stella** | `sco` | **< 3.1** | Ricarica solare (Solar scooping) |
 | **Pianeta** | `min` | **< 3.1** | Estrazione planetaria |
-| **Base Stellare** | `doc` | **< 3.1** | Riparazione completa (Scafo, Scudi, Sistemi), ricarica energia, siluri, equipaggio e sbarco prigionieri |
+| **Base Stellare** | `doc` | **< 3.1** | Riparazione completa e rifornimento |
 | **Buco Nero** | `har` | **< 3.1** | Raccolta Plasma Reserves |
+| **Frammento Dyson** | `har` | **< 3.1** | Induzione energia solare |
+| **Hub Commerciale** | `doc` | **< 3.1** | Scambi e servizi commerciali |
+| **Antico Reliquario**| `bor` | **< 1.0** | Riparazione sistemi (campo locale) |
+| **Warp Gate** | `doc` | **< 3.1** | Inizializzazione salto FTL |
+| **Mega Struttura** | `doc` | **< 3.1** | Accesso ai servizi orbitali |
+| **Nube Mat. Oscura** | `har` | **< 3.1** | Estrazione materia oscura |
+| **Cristallo Vuoto** | `min` | **< 3.1** | Estrazione energetica |
 | **Relitto** | `dis` | **< 1.5** | Smantellamento per risorse |
 | **Nave Nemica** | `bor` | **< 1.0** | Operazione squadra d'abbordaggio |
 | **Nave Nemica** | `pha` (Fuoco) | **< 6.0** | Gittata massima Ion Beam NPC |
@@ -977,7 +1001,19 @@ Il comando `apr <ID> <DIST>` ti permette di avvicinarti automaticamente a qualsi
 | **Piattaforme Difesa** | 23000 - 23999 | `pha`, `tor`, `scan` | - | Solo quadrante attuale |
 | **Rift Spaziali** | 24000 - 24999 | `scan` | - | Solo quadrante attuale |
 | **Mostri Spaziali** | 25000 - 25999 | `pha`, `tor`, `scan` | **< 1.5** | Solo quadrante attuale |
+| **Sonde** | 26000 - 26999 | `scan` | - | Solo quadrante attuale |
 | **Quasar** | 27000 - 27999 | `orb`, `scan` | **< 1.0** | Solo quadrante attuale |
+| **Frammenti Dyson** | 28000 - 28999 | `har`, `scan` | **< 3.1** | Induzione energetica |
+| **Hub Commerciali** | 29000 - 29999 | `doc`, `scan` | **< 3.1** | Commercio e rifornimento |
+| **Antichi Reliquari** | 30000 - 30999 | `bor`, `scan` | **< 1.0** | Riparazione hardware |
+| **Warp Gates** | 35000 - 35999 | `doc`, `scan` | **< 3.1** | Transito gateway FTL |
+| **Stelle Neutroni** | 36000 - 36999 | `sco`, `scan` | **< 3.1** | Monitoraggio gravità |
+| **Mega Strutture** | 37000 - 37999 | `doc`, `scan` | **< 3.1** | Struttura orbitale |
+| **Nubi Mat. Oscura** | 38000 - 38999 | `har`, `scan` | **< 3.1** | Raccolta materia oscura |
+| **Singolarità** | 39000 - 39999 | `scan` | - | Analisi quantistica |
+| **Anomalie Temporali**| 42000 - 42999 | `scan` | - | Ricerca temporale |
+| **Cristalli Vuoto** | 43000 - 43999 | `min`, `scan` | **< 3.1** | Raccolta energetica |
+| **Anomalie Subspazio**| 44000 - 44999 | `scan` | - | Instabilità subspazio |
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Configurazione Scudi**. Distribuisce l'energia ai 6 scudi.
     *   **Requisiti**: Minimo 10% di integrità del sistema Scudi (ID 8).

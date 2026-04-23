@@ -976,6 +976,23 @@ To interact with galactic objects using the `lock`, `scan`, `pha`, `tor`, `bor`,
 | **Monsters** | 25,000 - 25,999 | `lock 25000` | Extreme combat scenarios |
 | **Probes** | 26,000 - 26,999 | `apr 26000` | Recovery and automated telemetry |
 | **Quasars** | 27,000 - 27,999 | `lock 27000` | High-energy harvesting |
+| **Dyson Fragments** | 28,000 - 28,999 | `lock 28000` | Solar energy induction |
+| **Trading Hubs** | 29,000 - 29,999 | `lock 29000` | Neutral commercial interaction |
+| **Ancient Relics** | 30,000 - 30,999 | `lock 30000` | Subsystem repair field |
+| **Subspace Ruptures** | 31,000 - 31,999 | `lock 31000` | Avoiding gravitational damage |
+| **Planetary Satellites** | 32,000 - 32,999 | `lock 32000` | Local tactical monitoring |
+| **Ion Storms** | 33,000 - 33,999 | `lock 33000` | Avoiding sensor jamming |
+| **Alien Artifacts** | 34,000 - 34,999 | `lock 34000` | Exotic tech recovery |
+| **Warp Gates** | 35,000 - 35,999 | `lock 35000` | FTL gateway transit |
+| **Neutron Stars** | 36,000 - 36,999 | `lock 36000` | High-gravity navigation |
+| **Mega Structures** | 37,000 - 37,999 | `lock 37000` | Orbital facility interaction |
+| **Dark Matter Clouds** | 38,000 - 38,999 | `lock 38000` | Obscured matter research |
+| **Singularities** | 39,000 - 39,999 | `lock 39000` | Quantum space analysis |
+| **Plasma Storms** | 40,000 - 40,999 | `lock 40000` | High-energy field study |
+| **Orbital Rings** | 41,000 - 41,999 | `lock 41000` | Planetary orbital approach |
+| **Time Anomalies** | 42,000 - 42,999 | `lock 42000` | Temporal distortion research |
+| **Void Crystals** | 43,000 - 43,999 | `lock 43000` | High-density energy source |
+| **Subspace Anomalies** | 44,000 - 44,999 | `lock 44000` | Subspace instability study |
 
 **Note**: Locking and autopilot (`apr`) only work if the object is in your current quadrant. If the ID exists but is far away, the computer will indicate the target's `Q[x,y,z]` coordinates.
 
@@ -1035,7 +1052,19 @@ The `apr <ID> <DIST>` command allows you to automatically approach any object de
 | **Defense Platforms** | 23000 - 23999 | `pha`, `tor`, `scan` | - | Current quadrant only |
 | **Spatial Rifts** | 24000 - 24999 | `scan` | - | Current quadrant only |
 | **Space Monsters** | 25000 - 25999 | `pha`, `tor`, `scan` | **< 1.5** | Current quadrant only |
+| **Probes** | 26000 - 26999 | `scan` | - | Current quadrant only |
 | **Quasars** | 27000 - 27999 | `orb`, `scan` | **< 1.0** | Current quadrant only |
+| **Dyson Fragments** | 28000 - 28999 | `har`, `scan` | **< 3.1** | Energy induction field |
+| **Trading Hubs** | 29000 - 29999 | `doc`, `scan` | **< 3.1** | Commercial interaction |
+| **Ancient Relics** | 30000 - 30999 | `bor`, `scan` | **< 1.0** | Subsystem repair field |
+| **Warp Gates** | 35000 - 35999 | `doc`, `scan` | **< 3.1** | FTL gateway transit |
+| **Neutron Stars** | 36000 - 36999 | `sco`, `scan` | **< 3.1** | High-gravity monitoring |
+| **Mega Structures** | 37000 - 37999 | `doc`, `scan` | **< 3.1** | Orbital facility |
+| **Dark Matter Clouds** | 38000 - 38999 | `har`, `scan` | **< 3.1** | Dark matter harvesting |
+| **Singularities** | 39000 - 39999 | `scan` | - | Space distortion study |
+| **Time Anomalies** | 42000 - 42999 | `scan` | - | Temporal research |
+| **Void Crystals** | 43000 - 43999 | `min`, `scan` | **< 3.1** | Crystalline harvesting |
+| **Subspace Anomalies**| 44000 - 44999 | `scan` | - | Unstable subspace |
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Shield Configuration**. Distributes energy to the 6 shields.
     *   **Requirements**: Minimum 10% Shield system integrity (ID 8).
@@ -1438,49 +1467,51 @@ Torpedoes (`tor` command) are physically simulated weapons with high precision:
 
 ### 🌪️ Space Anomalies and Environmental Hazards
 The quadrant is scattered with natural phenomena detectable by both sensors and the **3D tactical view**:
-*   **Space Monsters (ID 18xxx)**: Hostile biological entities (Crystalline Entity, Space Amoeba). They are extremely aggressive and can be tracked using the `cha` command.
-*   **Defense Platforms (ID 16xxx)**: Heavily armed static sentinels protecting strategic zones. They can be locked (`lock`), scanned (`scan`), and destroyed with phasers or torpedoes.
-*   **Spatial Rifts (ID 17xxx)**: Distortions in the fabric of space-time.
-*   **Nebulas (ID 8xxx)**:
+*   **Space Monsters (ID 25xxx)**: Hostile biological entities (Crystalline Entity, Space Amoeba). They are extremely aggressive and can be tracked using the `cha` command.
+*   **Defense Platforms (ID 23xxx)**: Heavily armed static sentinels protecting strategic zones. They can be locked (`lock`), scanned (`scan`), and destroyed with phasers or torpedoes.
+*   **Spatial Rifts (ID 24xxx)**: Distortions in the fabric of space-time.
+*   **Warp Gates (ID 35xxx)**: Advanced FTL transit nodes. Require docking proximity (`doc`) to initialize galactic jump sequence.
+*   **Nebulas (ID 12xxx)**:
     *   **Classes**: Standard, High-Energy, Dark Matter, Ionic, Gravimetric, Temporal.
     *   **Effect**: Clouds of gas and particles that interfere with short and long range sensors (telemetry noise and distortion).
-    *   **3D View**: Colored gas volumes based on class (Purple/Blue for Standard, Yellow/Orange for High-Energy, Black/Purple for Dark Matter, etc.).
+    *   **3D View**: Colored gas volumes based on class.
     *   **Hazard**: Remaining inside (Distance < 2.0) causes constant energy drain and inhibits shield regeneration.
     *   **Advantage**: Provides natural tactical cover (passive cloaking) against enemy sensors.
-*   **Pulsars (ID 5xxx)**:
-    *   **Effect**: Rapidly rotating neutron stars emitting deadly radiation.
+*   **Pulsars (ID 13xxx)**:
+    *   **Effect**: Rapidly rotating neutron stars emitting deadly radiation beams.
     *   **3D View**: Visible as bright cores with rotating radiation beams.
     *   **Hazard**: Approaching too close (Distance < 2.5) severely damages shields and rapidly kills crew via radiation poisoning.
-*   **Comets (ID 10xxx)**:
+*   **Comets (ID 14xxx)**:
     *   **Effect**: Fast-moving objects traversing the sector in eccentric orbits.
     *   **3D View**: Icy nuclei with a blue trail of gas and dust.
-    *   **Tactical Actions**: Can be locked (`lock`), scanned (`scan`), and intercepted via autopilot (`apr`).
     *   **Resource Harvesting**: Approaching the tail (**Distance < 0.6**) allows the automatic collection of **Nebular Gas**.
-    *   **Strategy**: Use the `cha` (Chase) command to synchronize your ship's velocity with the comet, making it easier to stay within the tail for optimal harvesting.
-*   **Asteroid Fields (ID 8xxx)**:
+    *   **Strategy**: Use the `cha` (Chase) command to synchronize your ship's velocity with the comet.
+*   **Asteroid Fields (ID 18xxx)**:
     *   **Effect**: Clusters of space rocks of various sizes.
-    *   **3D View**: Rotating brown rocks with irregular shapes.
-    *   **Hazard**: Navigating inside at impulse speeds higher than **0.1** causes continuous shield damage. If shields are depleted, **Hull Integrity** will be progressively eroded. Reduce speed below 0.1 for safe passage.
-*   **Singularities / Black Holes (ID 7xxx)**:
-    *   **Slingshot Stress**: During a gravitational slingshot maneuver (`NAV_STATE_SLINGSHOT`), speeds exceeding **1.5** cause structural stress, dealing periodic hull damage.
+    *   **3D View**: Rotating rocks with irregular shapes.
+    *   **Hazard**: Navigating inside at impulse speeds higher than **0.1** causes continuous shield/hull damage.
+*   **Black Holes (ID 11xxx)**:
+    *   **Slingshot Stress**: During a gravitational slingshot maneuver, speeds exceeding **1.5** cause structural stress.
     *   **Dangerous Harvesting**: Extracting antimatter (`har`) without shield protection directly damages the hull due to tidal forces.
+*   **Mega Structures (ID 37xxx)**: Massive orbital facilities like Dyson Fragments or Trading Hubs. Can be interacted with via `doc` or `har` depending on the type.
+*   **Time Anomalies (ID 42xxx)**: Localized temporal distortions. Approaching them can cause unpredictable shifts in local galactic time (tick variation).
 
 ### 🛠️ Maintenance and Repairs
 **Important Note**: Hull integrity **never regenerates autonomously**.
 *   **Field Repairs**: Use the `fix` command (requires 50 Graphene and 20 Neo-Ti).
 *   **Full Overhaul**: Dock at a Starbase (`doc`) for a complete and free hull restoration.
-*   **Systems**: Only energy shields recharge autonomously (provided the reactor has energy and system ID 8 is operational).
+*   **Derelicts (ID 15xxx)**:
     *   **Effect**: Abandoned Alliance Command or alien vessels.
     *   **3D View**: Dark and cold hulls drifting slowly in space.
-    *   **Opportunity**: Can be explored via the `bor` (boarding) command to recover Aetherium, Synaptics Chips, or to perform instant emergency repairs.
-*   **Minefields (ID 9xxx)**:
-    *   **Effect**: Defensive zones with cloaked mines placed by hostile factions.
-    *   **3D View**: Small spiked metallic spheres with pulsing red light (visible only at distance < 1.5).
-    *   **Hazard**: Detonation causes massive damage to shields and energy. Use the `scan` command to detect them before entering the sector.
-*   **Communication Buoys (ID 15xxx)**:
+    *   **Opportunity**: Can be explored via the `bor` (boarding) command to recover resources or perform emergency repairs.
+*   **Minefields (ID 205xx)**:
+    *   **Effect**: Defensive zones with cloaked mines.
+    *   **3D View**: Small spiked spheres with pulsing red light (visible at distance < 1.5).
+    *   **Hazard**: Detonation causes massive damage to shields and energy.
+*   **Communication Buoys (ID 22xxx)**:
     *   **Effect**: Alliance Command network nodes for sector monitoring.
     *   **3D View**: Lattice structures with rotating antennas and pulsing blue signals.
-    *   **Advantage**: Being near a buoy (**Distance < 1.2**) enhances long-range sensors (`lrs`), revealing the exact composition of adjacent quadrants (e.g., `H:1 P:2`) instead of a simple total count.
+    *   **Advantage**: Being near a buoy (**Distance < 1.2**) enhances long-range sensors (`lrs`), revealing exact quadrant composition.
 *   **Defense Platforms (ID 11xxx)**:
     *   **Effect**: Heavily armed static sentinels protecting strategic zones.
     *   **3D View**: Hexagonal metallic structures with active Ion Beam banks and an energy core.
