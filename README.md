@@ -498,40 +498,71 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
     *   Activatable via the `map` command, this mode transforms the tactical view into a global 10x10x10 galactic map.
     *   **Holographic Object Legend**: The map provides a high-resolution holographic projection of the sector, using specific symbols and chromatic coding to identify entities at a glance:
 
-        *   🚀 **Player** (Cyan): Your vessel.
-
 <table>
   <tr><th>ID</th><th>Object</th><th>Description</th><th>Image</th></tr>
+  
+  <tr><td>1</td><td>🚀 Player</td><td>Your vessel</td><td><img src="readme_assets/galactic_objects/0🚀 Player (Cyan): Your vessel.png" width="150"></td></tr>
+
   <tr><td>1</td><td>☀️ Star (Yellow)</td><td>Spectral Class Variable</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
-  <tr><td>2</td><td>🪐 Planet (Cyan)</td><td>Resource rich planet</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
-  <tr><td>3</td><td>🛰️ Starbase (Green)</td><td>Alliance safe harbor for repairs</td><td><img src="readme_assets/galactic_objects/3🛰️%20Starbase%20(Green):%20Alliance%20safe%20harbor%20for%20repairs.png" width="150"></td></tr>
-  <tr><td>4</td><td>🕳️ Black Hole (Purple)</td><td>Extreme gravitational singularity</td><td><img src="readme_assets/galactic_objects/4🕳️%20Black%20Hole%20(Purple):%20Extreme%20gravitational%20singularity.png" width="150"></td></tr>
-  <tr><td>5</td><td>🌫️ Nebula (Grey)</td><td>Vast gas cloud with sensor interference</td><td><img src="readme_assets/galactic_objects/5🌫️%20Nebula%20(Grey):%20Vast%20gas%20cloud%20with%20sensor%20interference.png" width="150"></td></tr>
-  <tr><td>6</td><td>✴️ Pulsar (Orange)</td><td>High-radiation neutron star</td><td><img src="readme_assets/galactic_objects/6✴️%20Pulsar%20(Orange):%20High-radiation%20neutron%20star.png" width="150"></td></tr>
-  <tr><td>7</td><td>🔯 Quasar (Magenta)</td><td>Ultra-luminous active galactic nucleus</td><td><img src="readme_assets/galactic_objects/7🔯%20Quasar%20(Magenta):%20Ultra-luminous%20active%20galactic%20nucleus.png" width="150"></td></tr>
-  <tr><td>8</td><td>☄️ Comet (Light Blue)</td><td>Icy body in eccentric orbit</td><td><img src="readme_assets/galactic_objects/8☄️%20Comet%20(Light%20Blue):%20Icy%20body%20in%20eccentric%20orbit.png" width="150"></td></tr>
-  <tr><td>9</td><td>🪨 Asteroid (Brown)</td><td>Navigable debris field</td><td><img src="readme_assets/galactic_objects/9🪨%20Asteroid%20(Brown):%20Navigable%20debris%20field.png" width="150"></td></tr>
-  <tr><td>10</td><td>🛸 Derelict (Dark Grey)</td><td>Abandoned ship ready for dismantling</td><td><img src="readme_assets/galactic_objects/10🛸%20Derelict%20(Dark%20Grey):%20Abandoned%20ship%20ready%20for%20dismantling.png" width="150"></td></tr>
-  <tr><td>11</td><td>💣 Mine (Red): Active proximity</td><td>Active proximity explosive</td><td><img src="readme_assets/galactic_objects/11💣%20Mine%20(Red):%20Active%20proximity%20explosive.png" width="150"></td></tr>
-  <tr><td>12</td><td>📍 Buoy (Blue): Navigation</td><td>Navigation transponder</td><td><img src="readme_assets/galactic_objects/12📍%20Buoy%20(Blue):%20Navigation%20transponder.png" width="150"></td></tr>
-  <tr><td>13</td><td>🛡️ Platform (Dark Orange)</td><td>Automated static defense</td><td><img src="readme_assets/galactic_objects/13🛡️%20Platform%20(Dark%20Orange):%20Automated%20static%20defense.png" width="150"></td></tr>
-  <tr><td>14</td><td>🌀 Rift (Cyan)</td><td>Unstable spatial anomaly (teleport)</td><td><img src="readme_assets/galactic_objects/14🌀%20Rift%20(Cyan):%20Unstable%20spatial%20anomaly%20(teleport).png" width="150"></td></tr>
-  <tr><td>15</td><td>👾 Space Monster (Pulsing White)</td><td>Omega-class threat</td><td><img src="readme_assets/galactic_objects/15👾%20Space%20Monster%20(Pulsing%20White):%20Omega-class%20threat.png" width="150"></td></tr>
-  <tr><td>16</td><td>🏛️ Dyson Fragment (Orange⁄Yellow)</td><td>Ancient energy shell fragments</td><td><img src="readme_assets/galactic_objects/16🏛️%20Dyson%20Fragment%20(Orange⁄Yellow):%20Ancient%20energy%20shell%20fragments.png" width="150"></td></tr>
-  <tr><td>17</td><td>🏢 Trading Hub (Blue⁄Grey)</td><td>Neutral commercial station</td><td><img src="readme_assets/galactic_objects/17🏢%20Trading%20Hub%20(Blue⁄Grey):%20Neutral%20commercial%20station.png" width="150"></td></tr>
-  <tr><td>18</td><td>🏺 Ancient Relic (Cyan Wireframe)</td><td>Ancient technological artifact</td><td><img src="readme_assets/galactic_objects/18🏺%20Ancient%20Relic%20(Cyan%20Wireframe):%20Ancient%20technological%20artifact.png" width="150"></td></tr>
-  <tr><td>20</td><td>📡 Satellite (Grey⁄Red)</td><td>Monitoring or relay station</td><td><img src="readme_assets/galactic_objects/20📡%20Satellite%20(Grey⁄Red):%20Monitoring%20or%20relay%20station.png" width="150"></td></tr>
-  <tr><td>21</td><td>⚡ Ion Storm (White Wireframe)</td><td>Local energy disturbance</td><td><img src="readme_assets/galactic_objects/21⚡%20Ion%20Storm%20(White%20Wireframe):%20Local%20energy%20disturbance.png" width="150"></td></tr>
+
+  <tr><td>2</td><td>🪐 Planet</td><td>Resource rich planet</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+
+  <tr><td>3</td><td>🛰️ Starbase</td><td>Alliance safe harbor for repairs</td><td><img src="readme_assets/galactic_objects/3🛰️%20Starbase%20(Green):%20Alliance%20safe%20harbor%20for%20repairs.png" width="150"></td></tr>
+
+  <tr><td>4</td><td>🕳️ Black Hole</td><td>Extreme gravitational singularity</td><td><img src="readme_assets/galactic_objects/4🕳️%20Black%20Hole%20(Purple):%20Extreme%20gravitational%20singularity.png" width="150"></td></tr>
+
+  <tr><td>5</td><td>🌫️ Nebula</td><td>Vast gas cloud with sensor interference</td><td><img src="readme_assets/galactic_objects/5🌫️%20Nebula%20(Grey):%20Vast%20gas%20cloud%20with%20sensor%20interference.png" width="150"></td></tr>
+
+  <tr><td>6</td><td>✴️ Pulsar</td><td>High-radiation neutron star</td><td><img src="readme_assets/galactic_objects/6✴️%20Pulsar%20(Orange):%20High-radiation%20neutron%20star.png" width="150"></td></tr>
+
+  <tr><td>7</td><td>🔯 Quasar</td><td>Ultra-luminous active galactic nucleus</td><td><img src="readme_assets/galactic_objects/7🔯%20Quasar%20(Magenta):%20Ultra-luminous%20active%20galactic%20nucleus.png" width="150"></td></tr>
+
+  <tr><td>8</td><td>☄️ Comet</td><td>Icy body in eccentric orbit</td><td><img src="readme_assets/galactic_objects/8☄️%20Comet%20(Light%20Blue):%20Icy%20body%20in%20eccentric%20orbit.png" width="150"></td></tr>
+
+  <tr><td>9</td><td>🪨 Asteroid</td><td>Navigable debris field</td><td><img src="readme_assets/galactic_objects/9🪨%20Asteroid%20(Brown):%20Navigable%20debris%20field.png" width="150"></td></tr>
+
+  <tr><td>10</td><td>🛸 Derelict</td><td>Abandoned ship ready for dismantling</td><td><img src="readme_assets/galactic_objects/10🛸%20Derelict%20(Dark%20Grey):%20Abandoned%20ship%20ready%20for%20dismantling.png" width="150"></td></tr>
+
+  <tr><td>11</td><td>💣 Mine</td><td>Active proximity explosive</td><td><img src="readme_assets/galactic_objects/11💣%20Mine%20(Red):%20Active%20proximity%20explosive.png" width="150"></td></tr>
+
+  <tr><td>12</td><td>📍 Buoy</td><td>Navigation transponder</td><td><img src="readme_assets/galactic_objects/12📍%20Buoy%20(Blue):%20Navigation%20transponder.png" width="150"></td></tr>
+
+  <tr><td>13</td><td>🛡️ Platform</td><td>Automated static defense</td><td><img src="readme_assets/galactic_objects/13🛡️%20Platform%20(Dark%20Orange):%20Automated%20static%20defense.png" width="150"></td></tr>
+
+  <tr><td>14</td><td>🌀 Rift</td><td>Unstable spatial anomaly (teleport)</td><td><img src="readme_assets/galactic_objects/14🌀%20Rift%20(Cyan):%20Unstable%20spatial%20anomaly%20(teleport).png" width="150"></td></tr>
+
+  <tr><td>15</td><td>👾 Space Monster</td><td>Omega-class threat</td><td><img src="readme_assets/galactic_objects/15👾%20Space%20Monster%20(Pulsing%20White):%20Omega-class%20threat.png" width="150"></td></tr>
+
+  <tr><td>16</td><td>🏛️ Dyson Fragment</td><td>Ancient energy shell fragments</td><td><img src="readme_assets/galactic_objects/16🏛️%20Dyson%20Fragment%20(Orange⁄Yellow):%20Ancient%20energy%20shell%20fragments.png" width="150"></td></tr>
+
+  <tr><td>17</td><td>🏢 Trading Hub</td><td>Neutral commercial station</td><td><img src="readme_assets/galactic_objects/17🏢%20Trading%20Hub%20(Blue⁄Grey):%20Neutral%20commercial%20station.png" width="150"></td></tr>
+
+  <tr><td>18</td><td>🏺 Ancient Relic</td><td>Ancient technological artifact</td><td><img src="readme_assets/galactic_objects/18🏺%20Ancient%20Relic%20(Cyan%20Wireframe):%20Ancient%20technological%20artifact.png" width="150"></td></tr>
+
+  <tr><td>20</td><td>📡 Satellite</td><td>Monitoring or relay station</td><td><img src="readme_assets/galactic_objects/20📡%20Satellite%20(Grey⁄Red):%20Monitoring%20or%20relay%20station.png" width="150"></td></tr>
+
+  <tr><td>21</td><td>⚡ Ion Storm</td><td>Local energy disturbance</td><td><img src="readme_assets/galactic_objects/21⚡%20Ion%20Storm%20(White%20Wireframe):%20Local%20energy%20disturbance.png" width="150"></td></tr>
+
   <tr><td>40</td><td>👽 Alien Artifact</td><td>Ancient exotic technology</td><td><img src="readme_assets/galactic_objects/40👽 Alien Artifact (Gold): Ancient exotic: Ancient exotic technology.png" width="150"></td></tr>
+
   <tr><td>41</td><td>🌀 Warp Gate</td><td>Stable FTL gateway</td><td><img src="readme_assets/galactic_objects/41🌀 Warp Gate (Blue): FTL gateway: Stable FTL gateway.png" width="150"></td></tr>
+
   <tr><td>42</td><td>⭐ Neutron Star</td><td>Dense stellar remnant</td><td><img src="readme_assets/galactic_objects/42⭐ Neutron Star (White): Dense stellar: Dense stellar remnant.png" width="150"></td></tr>
+
   <tr><td>43</td><td>🏢 Mega Structure</td><td>Massive orbital facility</td><td><img src="readme_assets/galactic_objects/43🏢 Mega Structure (Steel): Massive orbital: Massive orbital facility.png" width="150"></td></tr>
+
   <tr><td>44</td><td>☁️ Dark Matter Cloud</td><td>Obscured matter field</td><td><img src="readme_assets/galactic_objects/44☁ Dark Cloud (Black): Obscured matter: Obscured matter field.png" width="150"></td></tr>
+
   <tr><td>45</td><td>🕳️ Singularity</td><td>Quantum space distortion</td><td><img src="readme_assets/galactic_objects/45🕳 Singularity (Green): Quantum space: Quantum space distortion.png" width="150"></td></tr>
+
   <tr><td>46</td><td>⚡ Plasma Storm</td><td>Unstable energy storm</td><td><img src="readme_assets/galactic_objects/46⚡ Plasma Storm (Purple): Unstable energy: Unstable energy storm.png" width="150"></td></tr>
+
   <tr><td>47</td><td>💍 Orbital Ring</td><td>Planetary orbital ring</td><td><img src="readme_assets/galactic_objects/47💍 Orbital Ring (Yellow): Planetary ring: Planetary orbital ring.png" width="150"></td></tr>
+
   <tr><td>48</td><td>⏳ Time Anomaly</td><td>Temporal distortion field</td><td><img src="readme_assets/galactic_objects/48⏳ Time Anomaly (Aqua): Temporal distortion: Temporal distortion field.png" width="150"></td></tr>
+
   <tr><td>49</td><td>💎 Void Crystal</td><td>Crystalline energy source</td><td><img src="readme_assets/galactic_objects/49💎 Void Crystal (Dark Violet): Crystalline energy: Crystalline energy source.png" width="150"></td></tr>
+
   <tr><td>50</td><td>🌀 Subspace Anomaly</td><td>Unstable subspace anomaly</td><td><img src="readme_assets/galactic_objects/50🌀 Subspace Anom (Seafoam): Unstable anomaly: Unstable subspace anomaly.png" width="150"></td></tr>
 </table>
  

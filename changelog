@@ -1,3 +1,9 @@
+* Fri Apr 24 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.24.02
+- Space GL is now available for Fedora 44. README updates.
+
+* Fri Apr 24 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.24.01
+- Space GL is now available for Fedora 44.
+
 * Thu Apr 23 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.23.01
 - Updated documentation (README.md and README_it.md) to include all newly implemented galactic entity types (Type Codes 40-50, Universal IDs 34,000-44,999) and updated interaction distance schemas.
 
