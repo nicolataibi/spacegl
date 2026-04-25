@@ -1214,7 +1214,6 @@ void loadGameState() {
         g_recovery_fx.timer = (int)GAME_TICK_RATE;
         state->recovery_fx.active = 0;
     }
-    kill(getppid(), SIGUSR2);
     g_is_loading = 0;
 }
 
@@ -4344,7 +4343,6 @@ void display() {
                 if (t == 3 || t == 10 || t == 21 || t == 22 || t == 23 || t == 24 || t == 25 || (t >= 11 && t <= 20)) use_hull = true;
                 
                 if (use_hull && !g_is_cloaked_rendering) glUseProgram(hullShaderProgram);
-                asteroidInstanceCount = 0;
                 switch(t) {
                     case 3: drawStarbase(0,0,0); break;
                     case 4: drawStar(objects[i].x, objects[i].y, objects[i].z, objects[i].id); break;
@@ -4522,7 +4520,7 @@ void display() {
     /* 3. BLOOM PASS: Blur the Bright Texture (Ping-Pong) */
     if (fbo_scene != 0) {
         bool horizontal = true, first_iteration = true;
-        unsigned int amount = 10;
+        unsigned int amount = 6;
         glUseProgram(blurShaderProgram);
         glDisable(GL_DEPTH_TEST);
         for (unsigned int i = 0; i < amount; i++) {
@@ -5342,9 +5340,9 @@ void timer(int v) { (void)v;
             objects[i].z = objects[i].tz;
         } else {
             /* Convergenza morbida verso il bersaglio per cancellare lo stutter avanti e indietro */
-            objects[i].x += dx_err * 0.15f;
-            objects[i].y += dy_err * 0.15f;
-            objects[i].z += dz_err * 0.15f;
+            objects[i].x += dx_err * INTERP_SPEED_OBJECT * deltaTime;
+            objects[i].y += dy_err * INTERP_SPEED_OBJECT * deltaTime;
+            objects[i].z += dz_err * INTERP_SPEED_OBJECT * deltaTime;
         }
         
         /* Interpolazione fluida per l'orientamento (Heading/Mark/Roll) */
@@ -5399,9 +5397,9 @@ void timer(int v) { (void)v;
             if (dx_err*dx_err + dy_err*dy_err + dz_err*dz_err > 100.0) {
                 g_torps[s].x = g_torps[s].tx; g_torps[s].y = g_torps[s].ty; g_torps[s].z = g_torps[s].tz;
             } else {
-                g_torps[s].x += dx_err * 0.2f;
-                g_torps[s].y += dy_err * 0.2f;
-                g_torps[s].z += dz_err * 0.2f;
+                g_torps[s].x += dx_err * INTERP_SPEED_TORPEDO * deltaTime;
+                g_torps[s].y += dy_err * INTERP_SPEED_TORPEDO * deltaTime;
+                g_torps[s].z += dz_err * INTERP_SPEED_TORPEDO * deltaTime;
             }
         }
     }
@@ -5433,7 +5431,19 @@ void special(int k, int x, int y) { (void)k; (void)x; (void)y;
     if(k==GLUT_KEY_RIGHT) angleY+=5; 
 }
 
+void check_display_protocol() {
+    char *wayland_display = getenv("WAYLAND_DISPLAY");
+    if (wayland_display) {
+        printf("\n[3D VIEW] COMPATIBILITY ERROR\n");
+        printf("A Wayland session has been detected. FreeGLUT is currently incompatible with the Wayland protocol.\n");
+        printf("Native support is currently under development (Work In Progress).\n");
+        printf("The application will now terminate.\n\n");
+        exit(0);
+    }
+}
+
 int main(int argc, char** argv) {
+    check_display_protocol();
     /* Handle --help and --version for help2man */
     if (argc > 1) {
         if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {

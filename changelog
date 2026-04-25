@@ -1,3 +1,8 @@
+* Sat Apr 25 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.25.01
+- Implemented a professional Wayland protocol compatibility check in spacegl_3dview.
+- Added automatic termination with a formal error message when a Wayland session is detected, as FreeGLUT currently requires X11.
+- Updated build system to ensure correct library path resolution for FreeGLUT on Fedora systems.
+
 * Fri Apr 24 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.24.02
 - Space GL is now available for Fedora 44. README updates.
 
