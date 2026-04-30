@@ -1,5 +1,15 @@
 # Space GL: 3D Multi-User Client-Server Edition
+![Version](https://img.shields.io/badge/Version-3.0-green)
+![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
+![Language](https://img.shields.io/badge/Language-C-blue)
+![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
+![Platform](https://img.shields.io/badge/Platform-Fedora%2044-blue?logo=fedora)
+
 ## Un gioco di esplorazione e combattimento spaziale
+![Status](https://img.shields.io/badge/Status-Verified%20HMAC--SHA256-brightgreen)
+![Alliance](https://img.shields.io/badge/Fleet-Stellar%20Alliance-cyan)
+![Security](https://img.shields.io/badge/Encryption-AES%20%7C%20ChaCha%20%7C%20Blowfish-lightgrey)
+
 ## "Per Tenebras, Lumen" ("Attraverso le tenebre, la luce")
 ### Website: https://github.com/nicolataibi/spacegl
 ### Authors: Nicola Taibi, Supported by Google Gemini
@@ -50,6 +60,62 @@ L'aggiornamento 3.0 espande significativamente i contenuti fisici della galassia
 *   **Integrità della Sessione Giocatore**:
     *   Riprogettata la logica di allocazione degli slot di login in `spacegl_server`. Il server ora dà priorità ai nomi corrispondenti per la persistenza, assicurando che i capitani di ritorno recuperino il loro stato esatto.
     *   Risolto un bug critico per cui i login successivi da utenti diversi (es. Nick vs Nick2) potevano causare la sovrascrittura degli slot e reset involontari dello stato.
+*   **Packaging**:
+    *   Implementato il sottopacchetto `spacegl-doc` per isolare 193 MB di documentazione, riducendo significativamente le dimensioni del pacchetto principale.
+
+---
+
+## 🌌 Archivi Galattici: La Lore di Space GL
+
+### 🌑 1. L'Era del Segnale Silenzioso
+Nell'anno 2026, la galassia non è più un luogo di esplorazione pacifica. Dopo l'evento noto come la *"Grande Decrittazione"*, ogni segnale radio in chiaro è diventato un faro per i predatori. Le civiltà che una volta comunicavano apertamente si sono ritirate nel silenzio, protette da strati di crittografia avanzata. Space GL è il simulatore tattico definitivo, progettato per addestrare i Comandanti a navigare in questo universo "muto", dove la scelta della frequenza crittografica (`enc`) è l'unica differenza tra un alleato e un bersaglio.
+
+### 💎 2. Il Ciclo delle Risorse Vitali
+L'equilibrio galattico è retto da tre risorse critiche, essenziali per la sopravvivenza di ogni nave:
+*   **Aetherium**: Il sangue dei motori a curvatura. Senza questi cristalli, i salti tra i quadranti (`jum`) sono impossibili.
+*   **Materia Oscura**: Trovata in rari asteroidi radioattivi, è l'unica sostanza capace di alimentare i reattori delle navi di classe *Legacy* (fino a 999 miliardi di unità di energia).
+*   **Void-Essence**: Estratta dal cuore dei buchi neri, viene utilizzata per stabilizzare le testate dei siluri al plasma, permettendo loro di correggere la rotta nel vuoto.
+
+### 🎖️ 3. Protagonisti della Frontiera
+*   **High Admiral Hyperion Niklaus (Alleanza Stellare)**: Il fautore della "Dottrina del Silenzio". Ha imposto l'uso del protocollo **HMAC-SHA256** per garantire che nessun ordine della flotta possa essere alterato da agenti nemici. Un leader severo ma giusto, dedito alla protezione dei territori dell'Alleanza.
+*   **Captain Lyra Vance**: Comandante dell'esploratrice *Stellar Alliance*, nota per aver mappato le prime **Anomalie di Sottospazio (Tipo 50)**. Sostiene che il bagliore verde smeraldo di queste anomalie sia un segnale di una dimensione parallela, un mistero che ha giurato di risolvere.
+*   **Commander Leandros Thorne**: Leggendario veterano dell'Intelligence della Flotta e guardiano instancabile delle frontiere esterne. Celebrato come un eroe per le sue azioni durante le crisi di confine, Thorne ricopre attualmente l'incarico di Comandante Operativo per la protezione delle rotte commerciali vitali che collegano il **Cartello Dorato** al cuore dell'Alleanza. È considerato il massimo esperto galattico del protocollo **Blowfish**, che utilizza per generare "scudi di silenzio" capaci di mimetizzare i convogli di rifornimenti e profughi, proteggendoli dalle incursioni nemiche.
+
+### 🌪️ 4. Il Mistero dei Grandi Oggetti (Type 40-50)
+Oltre le stelle e i pianeti, i Comandanti hanno scoperto entità che sfidano la logica:
+*   **Frammenti di Dyson & Warp Gates (Type 40-49)**: Resti di megastrutture che una volta circondavano i soli. Si dice che chi riuscirà a riattivare un *Warp Gate* (Tipo 41) potrà viaggiare oltre i confini della mappa conosciuta, verso settori dimenticati.
+*   **Anomalie di Sottospazio (Tipo 50)**: Questi non sono semplici pericoli ambientali. Sono "strappi" nel tessuto dello spazio causati dall'uso intensivo del motore Hyperdrive. I sensori le rilevano come masse instabili: rappresentano l'entropia della galassia che cerca di guarire dalle ferite della guerra.
+
+### 📡 5. Il Legame Neurale (Shared Memory)
+Il ponte di comando di una nave Space GL non usa semplici schermi. Il Comandante opera tramite una **connessione neurale diretta** con il computer di bordo. Quello che tecnicamente viene chiamato **Shared Memory Inspector** (`m`) è in realtà la rappresentazione visiva dei sub-processi della nave. Accedere alla telemetria significa immergersi nel flusso di coscienza della nave stessa, percependo la galassia come dati puri prima che vengano tradotti in immagini AR sul ponte.
+
+---
+
+### 📜 Registri Riservati e Diari di Bordo
+
+#### 🛰️ Registri della Flotta Aegis (Dottrina Niklaus)
+> **📔 Diario di Bordo Militare: Incrociatore Classe Legacy *USS Aegis***
+> **Data Stellare:** 2026.04.30 | **Settore:** 0-0-1 (Nucleo Centrale)
+> **Soggetto:** Rapporto di Pattugliamento "Velo di Silenzio"
+>
+> *"Siamo entrati nel quadrante sotto silenzio radio assoluto (`enc off`). Il ticchettio del motore Hyperdrive a 60Hz è l'unico suono che risuona nel ponte di comando. Alle ore 04:12, i sensori hanno rilevato un pacchetto dati BPNBS proveniente da una boa di comunicazione isolata. 
+>
+> Il computer di bordo ha impiegato meno di 16ms per completare la procedura di validazione. Risultato: **Firma HMAC-SHA256 VERIFICATA**. Origine: Comando Supremo, Ammiraglio Niklaus. L'ordine è perentorio: 'Mantenere la griglia tattica, identificare ogni segnale non firmato come ostile'.
+>
+> In questo settore della galassia, la fiducia è una risorsa più rara dell'Aetherium. Senza la firma digitale dell'Ammiraglio, saremmo solo un altro bersaglio nel buio. Abbiamo attivato i sistemi di puntamento Ion Beam. Per Tenebras, Lumen."*
+> — **Ufficiale Tattico, Flotta Aegis**
+
+#### 🛡️ Rapporti di Scorta del Cartello (Operazioni Thorne)
+> **📔 Registro Operativo: Vascello di Scorta *Gilded Ghost***
+> **Data Stellare:** 2026.04.28 | **Settore:** Frontiera Esterna
+> **Soggetto:** Protezione Convoglio Profughi Vega Prime
+>
+> *"Le navi dello Sciame erano ovunque sulla griglia. Il Commander Thorne ha ordinato il passaggio immediato al protocollo **Blowfish** (`enc bf`). Ha detto: 'Non combattiamo questa battaglia con i cannoni, la combattiamo con il silenzio'. 
+>
+> Abbiamo generato una bolla di mimetizzazione crittografica che ha ingannato i loro sensori quantistici per dieci minuti critici. Mentre i cubi Swarm scansionavano il vuoto, il convoglio è scivolato attraverso il corridoio cieco mappato da Thorne. Non abbiamo sparato un solo colpo, ma abbiamo salvato cinquemila vite. Thorne è rimasto sul ponte finché l'ultima nave non ha completato il salto. Un eroe? No, lui dice che è solo buona gestione del rischio."*
+> — **Log della Pilotina di Scorta 07**
+
+---
 
 ## 🚀 Novità Versione 2.9 (Rel. 19 - Full 3-DOF & Tactical Navigation).
 
@@ -356,7 +422,7 @@ Per garantire che la sicurezza sia attiva, utilizzare sempre gli script bash for
 
 **Avvio del Client:**
 ```bash
-./spacegl_client.sh
+./spacegl_client.sh gl|vk
 # Inserisci la STESSA Master Key impostata sul server.
 # Il sistema confermerà: "Secure Link Established. Unique Frequency active."
 ```
@@ -666,19 +732,31 @@ L'universo di Space GL è un ecosistema dinamico popolato da 17 classi di entit�
 *   **Comete (Comets)**: Oggetti in movimento veloce con code volumetriche. Possono essere analizzate per raccogliere gas rari.
 *   **Faglie Spaziali (Spatial Rifts)**: Strappi nel tessuto spaziotemporale. Fungono da teletrasporti naturali che proiettano la nave in un punto casuale della galassia.
 
-### 🚩 Fazioni e Navi Intelligenti
-*   **Alleanza (Player/Starbase)**: La tua nave e le Basi Stellari (Ciano `r:0, g:1, b:1` per i giocatori, Verde `r:0, g:1, b:0` per le basi). Permette l'attracco (`doc`) per riparazioni complete e rifornimenti.
-*   **Impero Korthian (ID 10)**: Guerrieri aggressivi che pattugliano i quadranti, spesso protetti da piattaforme difensive. Identificabili visivamente da un wireframe **Rosso/Arancio Brillante** `(1.0, 0.1, 0.0)`.
-*   **Impero Stellare Xylario (ID 11)**: Maestri dell'inganno che utilizzano dispositivi di occultamento per lanciare attacchi a sorpresa. Resi in **Verde Neon** `(0.0, 1.0, 0.2)`.
-*   **Collettivo Swarm (ID 12)**: La minaccia più grande. Le loro navi hanno una potenza di fuoco massiccia e capacità rigenerative superiori. Estremamente difficili da individuare con scafi **Grigio Scuro** `(0.1, 0.1, 0.1)`.
-*   **Conclave Vesperiano (ID 13)**: Identificato da firme **Magenta/Fucsia** `(1.0, 0.0, 1.0)`.
-*   **Dominio Ascendant (ID 14)**: Reso in **Viola Scuro (Deep Purple)** `(0.5, 0.0, 0.8)`.
-*   **Assemblea Quarzite (ID 15)**: Identificata da emissioni **Arancio Brillante** `(1.0, 0.5, 0.0)`.
-*   **Egemonia Sauriana (ID 16)**: Visualizzata con scafi **Verde Oliva** `(0.4, 0.6, 0.1)`.
-*   **Federazione Gilded (ID 17)**: Ricchi mercantili resi in **Oro/Rame** `(0.8, 0.7, 0.1)`.
-*   **Flotta Fluida Specie 8472 (ID 18)**: Entità biologiche con firme **Bio-Verde/Giallo** `(0.7, 1.0, 0.0)`.
-*   **Confederazione Cryos (ID 19)**: Specie di ambienti freddi identificate da wireframe **Blu Ghiaccio** `(0.0, 0.5, 1.0)`.
-*   **Cacciatori Apex (ID 20)**: Inseguitori implacabili resi in **Rosso Ruggine** `(0.6, 0.2, 0.1)`.
+### 🚩 Fazioni e Potenze Galattiche
+
+La galassia di Space GL è un mosaico di ideologie in conflitto. La scelta della tua fazione non determina solo il colore del tuo scafo, ma la tua collocazione nel delicato equilibrio di potere.
+
+| Fazione | Filosofia Core | Dottrina Tattica | Personaggio Chiave |
+| :--- | :--- | :--- | :--- |
+| **Alleanza Stellare** | *Ordine e Unità* | Difesa coordinata, protocolli HMAC e navi multi-ruolo. | **Ammiraglio Niklaus** |
+| **Egemonia Korthiana** | *Onore e Forza* | Abbordaggi aggressivi e attacchi lampo ad alta velocità. | **Cancelliere Dahar** |
+| **Impero Xylario** | *Segretezza e Infiltrazione* | Occultamento (`clo`), guerra elettronica e attacchi di precisione. | **Comandante Alara** |
+| **Collettivo Swarm** | *Consumo e Adattamento* | Attacco di massa, rigenerazione scafo e crittografia PQC. | **La Regina del Nexus** |
+| **Cartello Dorato** | *Profitto e Influenza* | Commercio di Aetherium, occultamento commerciale e mercenari. | **Barone Gilded** |
+| **Unione Vesperiana** | *Resilienza e Controllo* | Controllo territoriale e logistica pesante. | **Gul Damar** |
+
+#### 🏛️ Profili delle Grandi Potenze
+
+*   **Alleanza Stellare (Player/Starbase)**: Gli eredi della democrazia galattica. La loro dottrina si basa sulla protezione delle rotte commerciali e sul mantenimento del GDIS.
+    *   *Nota di Lore*: "Per l'Alleanza, il protocollo è vita. L'Ammiraglio Niklaus ha trasformato la flotta in un orologio sincronizzato dove ogni tick a 60Hz serve a prevenire il caos."
+*   **Egemonia Korthiana (ID 10)**: Una società feudale di guerrieri. Vedono il combattimento come un rituale e disprezzano l'occultamento.
+    *   *Nota di Lore*: "Un Korthiano non si nasconde. Il loro scafo rosso arancio è un avvertimento: se puoi vederli, sei già nel raggio dei loro Ion Beam."
+*   **Impero Stellare Xylario (ID 11)**: Enigmatici e isolazionisti. Credono che la conoscenza sia l'unica vera arma.
+    *   *Nota di Lore*: "La Comandante Alara sostiene che la miglior battaglia è quella vinta prima ancora che il nemico sappia di essere sotto attacco. I loro scafi verde neon sono l'ultima cosa che vedrai quando disattivano l'occultamento."
+*   **Collettivo Swarm (ID 12)**: Un'unica mente alveare orchestrata dalla **Regina del Nexus**. Non cercano il territorio, ma le risorse computazionali e la Materia Oscura.
+    *   *Nota di Lore*: "Lo Sciame non negozia. La Regina vede ogni nave come un'estensione del suo pensiero quantistico. Quando attaccano in massa, la griglia tattica diventa un incubo di segnali PQC."
+*   **Cartello Dorato (ID 17)**: Una coalizione di gilde commerciali guidate dal misterioso **Barone Gilded**. Gestiscono il mercato nero dell'Aetherium e della Materia Oscura.
+    *   *Nota di Lore*: "Il Barone dice spesso che la pace è buona per gli affari, ma una guerra controllata è ancora meglio. Il Commander Thorne è il loro braccio armato, colui che assicura che il Blowfish nasconda ciò che deve restare invisibile."
 
 #### ⚖️ Sistema di Fazioni e Protocollo "Traditore" (Renegade)
 Space GL implementa un sistema di reputazione dinamico che gestisce le relazioni tra il giocatore e le diverse potenze galattiche.
@@ -692,24 +770,27 @@ Space GL implementa un sistema di reputazione dinamico che gestisce le relazioni
     *   Durante questo periodo, ogni ulteriore attacco contro alleati resetterà il timer.
     *   Allo scadere del tempo, se non sono state commesse altre ostilità, il Comando di Settore concederà l'amnistia: `Amnesty granted. Your status has been restored to active duty.` e le unità della fazione torneranno ad essere neutrali/alleate.
 
-### ⚠️ Pericoli e Risorse Tattiche
-*   **Interferenza Elettronica (Jamming)**: In presenza di tempeste ioniche o nemici specializzati, i sensori possono essere **disturbati**. La mappa galattica diventa illeggibile e i calcoli di navigazione vengono corrotti.
-*   **Fionda Gravitazionale (Slingshot)**: Volare ad alta velocità vicino a stelle o buchi neri può innescare un'accelerazione gravitazionale gratuita, con rischio di danni strutturali.
-*   **Deriva di Emergenza (Drift)**: In assenza di energia o propulsione, la nave entra in uno stato di deriva inerziale fino al completo arresto.
-*   **Campi di Asteroidi**: Detriti rocciosi che rappresentano un rischio fisico. Il danno da collisione aumenta con la velocità della nave.
-*   **Mine Spaziali**: Ordigni esplosivi occulti piazzati da fazioni ostili. Rilevabili solo tramite scansione ravvicinata.
-*   **Relitti alla Deriva (Derelicts)**: Gusci di navi distrutte. Possono essere smantellati (`dis`) per recuperare componenti e risorse.
-*   **Boe di Comunicazione**: Nodi della rete del Comando dell'Alleanza. Trovarsi vicino potenzia i sensori a lungo raggio (`lrs`), fornendo dati dettagliati sulla composizione dei quadranti adiacenti.
-*   **Piattaforme Difensive (Turrets)**: Sentinelle automatiche pesantemente armate che proteggono aree di interesse strategico.
+### ⚠️ Pericoli e Risorse Tattiche: Rapporti di Campo
 
-### 👾 Anomalie e Creature
-*   **Mostri Spaziali**: Include l'**Entità Cristallina** e l'**Ameba Spaziale**, creature uniche che cacciano attivamente i vascelli per nutrirsi della loro energia.
-*   **Frammenti di Dyson**: Resti massicci di sfere di Dyson incomplete o distrutte. Volare vicino ad essi fornisce una **ricarica energetica automatica** tramite induzione solare.
-*   **Hub Commerciali**: Avamposti commerciali automatizzati. Fungono da punti di attracco neutrali per riparazioni e rifornimento (funzionalità di commercio non ancora attiva per il giocatore).
-*   **Reliquie Antiche**: Manufatti che emettono campi di riparazione specializzati. La prossimità attiva la **riparazione automatica dei sottosistemi** (ID 0-9) al ritmo del 2% per tick.
-*   **Rotture del Subspazio**: Violenti strappi nel subspazio. La vicinanza causa **danni diretti allo scafo** (0.5% per tick) a causa delle sollecitazioni mareali.
-*   **Satelliti Planetari**: Piattaforme orbitali utilizzate per il monitoraggio. Possono essere scansionati per ottenere dati tattici locali.
-*   **Tempeste Ioniche**: Fenomeni meteorologici che si spostano nella galassia, capaci di accecare i sensori, deviare la rotta delle navi e **drenare gli scudi** (1% per tick).
+L'ambiente galattico non è un vuoto inerte, ma un campo di battaglia modellato da millenni di conflitti e fenomeni naturali estremi.
+
+*   **Interferenza Elettronica (Jamming)**: In presenza di tempeste ioniche o nemici specializzati, i sensori possono essere **disturbati**. 
+    *   *Riferimento Storico*: Durante l'**Assedio di Proxima**, l'intera flotta dell'Alleanza fu accecata per ore da una rete di boe di disturbo, costringendo i piloti a navigare "a vista" tra i relitti.
+*   **Fionda Gravitazionale (Slingshot)**: Volare ad alta velocità vicino a stelle o buchi neri può innescare un'accelerazione gravitazionale gratuita.
+    *   *Nota Tattica*: "La Manovra di Niklaus" utilizza il pozzo gravitazionale dei Buchi Neri per lanciare incrociatori pesanti a velocità di intercettazione senza consumare Aetherium.
+*   **Boe di Comunicazione**: Nodi della rete del Comando dell'Alleanza. 
+    *   *Enciclopedia*: Queste boe sono le ultime vestigia della **Grande Rete GDIS**. Trovarsi vicino a una di esse permette di "agganciare" il segnale del Settore Centrale, triplicando la risoluzione dei sensori a lungo raggio.
+
+### 👾 Enciclopedia delle Anomalie e delle Creature
+
+*   **Mostri Spaziali (Entità Cristallina / Ameba)**: Creature uniche che cacciano vascelli per nutrirsi di energia.
+    *   *Evento Storico*: La **Battaglia del Settore 4** rimane un monito per tutti i capitani. Un'unica Ameba Spaziale decimò una flottiglia Korthiana in pochi minuti, assorbendo l'energia dei loro scudi prima ancora che potessero rispondere al fuoco.
+*   **Frammenti di Dyson (Type 40-49)**: Resti massicci di sfere di Dyson distrutte.
+    *   *La Guerra dei Costruttori*: Millenni fa, una razza nota solo come "I Costruttori" cercò di incapsulare i soli della galassia. La guerra civile che ne seguì ridusse le loro opere in frammenti che ancora oggi emettono energia solare residua, capace di ricaricare i reattori delle navi moderne per induzione.
+*   **Reliquie Antiche**: Manufatti che emettono campi di riparazione specializzati.
+    *   *Leggenda*: Si dice che le Reliquie siano i nuclei di elaborazione di antiche navi ospedale. Chiunque rimanga nella loro aura sperimenta una riparazione automatica dei sistemi, come se "fantasmi digitali" stessero lavorando nei circuiti della nave.
+*   **Tempeste Ioniche**: Fenomeni meteorologici galattici devastanti.
+    *   *Rapporto Meteorologico*: "La Danza di Ossidiana" è la tempesta più celebre, una perturbazione che attraversa tre settori ogni ciclo, drenando gli scudi di chiunque sia così folle da non cercare rifugio dietro un pianeta o una nebulosa.
 
 ## 💎 Guida alle Risorse e ai Materiali
 
@@ -1286,28 +1367,31 @@ In Space GL, la crittografia non riguarda solo la sicurezza: è una **scelta di 
 
 *   **Identità e Firma (Ed25519)**: Ogni pacchetto radio è firmato digitalmente **prima** della cifratura. Se ricevi un messaggio con un tag **`[VERIFIED]`**, hai la certezza matematica che provenga dal capitano dichiarato.
 *   **Frequenze Crittografiche (`enc <TYPE>`)**:
-    *   **AES (`enc aes`)**: Indice di frequenza **1**. Utilizza **AES-256-GCM**. Lo standard della Flotta per comunicazioni sicure e autenticate.
-    *   **ChaCha20 (`enc chacha`)**: Indice di frequenza **2**. Utilizza **ChaCha20-Poly1305**. Cifratore di flusso tattico ad alta velocità.
-    *   **ARIA (`enc aria`)**: Indice di frequenza **3**. Cifratore standard sudcoreano, robusto e affidabile.
-    *   **Camellia (`enc camellia`)**: Indice di frequenza **4**. Avanzato cifratore a blocchi giapponese (Xylari).
-    *   **SEED (`enc seed`)**: Indice di frequenza **5**. SEED-CBC (Orione).
-    *   **CAST5 (`enc cast`)**: Indice di frequenza **6**. CAST5-CBC (Vecchia Repubblica).
-    *   **IDEA (`enc idea`)**: Indice di frequenza **7**. IDEA-CBC (Maquis).
-    *   **3DES (`enc 3des`)**: Indice di frequenza **8**. DES-EDE3-CBC (Antico).
-    *   **Blowfish (`enc bf`)**: Indice di frequenza **9**. BLOWFISH-CBC (Gilded).
-    *   **RC4 (`enc rc4`)**: Indice di frequenza **10**. RC4-STREAM (Tattico).
-    *   **DES (`enc des`)**: Indice di frequenza **11**. DES-CBC (Pre-Curvatura).
-    *   **PQC (`enc pqc`)**: Indice di frequenza **12**. **Crittografia Post-Quantistica (ML-KEM-1024)**. Resistente agli attacchi dei computer quantistici.
-    *   **McEliece (`enc mceliece`)**: Indice di frequenza **13**. Classic McEliece (PQC code-based).
-    *   **Dilithium (`enc dilithium`)**: Indice di frequenza **14**. Dilithium ML-DSA (Firma Post-Quantistica).
-    *   **Serpent (`enc serpent`)**: Indice di frequenza **15**. SERPENT-256-GCM.
-    *   **Twofish (`enc twofish`)**: Indice di frequenza **16**. TWOFISH-256-CBC.
-    *   **SM4 (`enc sm4`)**: Indice di frequenza **17**. SM4-CBC (Syndicate).
-    *   **Ascon (`enc ascon`)**: Indice di frequenza **18**. ASCON-128 (Lightweight).
-    *   **Present (`enc present`)**: Indice di frequenza **19**. PRESENT (Biometrico).
-    *   **GOST (`enc gost`)**: Indice di frequenza **20**. GOST-Kuznyechik.
-    *   **Salsa20 (`enc salsa`)**: Indice di frequenza **21**. Cifratore di flusso SALSA20.
-    *   **OFF (`enc off`)**: Indice **0**. Comunicazione in chiaro. Usata per chiamate di soccorso d'emergenza o trasmissioni non protette.
+    *   **AES (`enc aes`)**: Indice di frequenza **1**. *Nota Intel: "Il muro d'acciaio della comunicazione; affidabile, ma la sua firma è facilmente identificabile dai sensori nemici."* Utilizza **AES-256-GCM**. Lo standard della Flotta per comunicazioni sicure e autenticate.
+    *   **ChaCha20 (`enc chacha`)**: Indice di frequenza **2**. *Nota Intel: "Il preferito dei piloti di intercettori. La sua bassa latenza permette di coordinare manovre a 60Hz senza ritardi neurali."* Utilizza **ChaCha20-Poly1305**. Cifratore di flusso tattico ad alta velocità.
+    *   **ARIA (`enc aria`)**: Indice di frequenza **3**. *Nota Intel: "Algoritmo robusto utilizzato spesso nelle stazioni di ricerca della Nebulosa Core; eccellente per resistere alle interferenze magnetiche."* Cifratore standard sudcoreano, robusto e affidabile.
+    *   **Camellia (`enc camellia`)**: Indice di frequenza **4**. *Nota Intel: "Il fiore d'acciaio degli Xylari. Elegante, complesso e quasi impossibile da penetrare senza le chiavi biometriche originali."* Avanzato cifratore a blocchi giapponese (Xylari).
+    *   **SEED (`enc seed`)**: Indice di frequenza **5**. *Nota Intel: "Vecchio codice delle colonie minerarie di Orion. Poco sofisticato, ma estremamente leggero per sistemi con energia ridotta."* SEED-CBC (Orione).
+    *   **CAST5 (`enc cast`)**: Indice di frequenza **6**. *Nota Intel: "Utilizzato dalla Vecchia Repubblica. Molti veterani lo preferiscono per la sua prevedibilità in situazioni di stress termico."* CAST5-CBC (Vecchia Repubblica).
+    *   **IDEA (`enc idea`)**: Indice di frequenza **7**. *Nota Intel: "Il codice dei ribelli Maquis. Progettato per essere scambiato rapidamente durante i salti Hyperdrive."* IDEA-CBC (Maquis).
+    *   **3DES (`enc 3des`)**: Indice di frequenza **8**. *Nota Intel: "Un reperto storico. Utilizzato oggi solo per comunicare con antiche sonde automatiche o installazioni abbandonate."* DES-EDE3-CBC (Antico).
+    *   **Blowfish (`enc bf`)**: Indice di frequenza **9**. *Nota Intel: "La firma del Commander Thorne. Trasforma il segnale in un 'fantasma' digitale, perfetto per il passaggio silenzioso attraverso i blocchi."* BLOWFISH-CBC (Gilded).
+    *   **RC4 (`enc rc4`)**: Indice di frequenza **10**. *Nota Intel: "Veloce ma fragile. Utile solo per trasmissioni tattiche a brevissimo raggio durante i combattimenti mischia."* RC4-STREAM (Tattico).
+    *   **DES (`enc des`)**: Indice di frequenza **11**. *Nota Intel: "Obsoleto. Usarlo in combattimento equivale a urlare i propri piani nel vuoto."* DES-CBC (Pre-Curvatura).
+    *   **PQC (`enc pqc`)**: Indice di frequenza **12**. *Nota Intel: "L'ultima difesa contro le intelligenze artificiali dei collettivi Swarm. Resistente ai tentativi di forzatura quantistica."* **Crittografia Post-Quantistica (ML-KEM-1024)**. Resistente agli attacchi dei computer quantistici.
+    *   **McEliece (`enc mceliece`)**: Indice di frequenza **13**. *Nota Intel: "Codice basato su matrici d'errore. Anche se il segnale è disturbato al 40%, il messaggio arriva integro."* Classic McEliece (PQC code-based).
+    *   **Dilithium (`enc dilithium`)**: Indice di frequenza **14**. *Nota Intel: "Firma digitale post-quantistica. Garantisce che l'ordine provenga direttamente dal ponte dell'Ammiraglio Niklaus."* Dilithium ML-DSA (Firma Post-Quantistica).
+    *   **Serpent (`enc serpent`)**: Indice di frequenza **15**. *Nota Intel: "Lento, massiccio e impenetrabile. Viene usato per proteggere i manifesti di carico dell'Aetherium più prezioso."* SERPENT-256-GCM.
+    *   **Twofish (`enc twofish`)**: Indice di frequenza **16**. *Nota Intel: "Il successore del Blowfish. Più complesso, progettato per resistere agli attacchi a forza bruta delle super-stazioni di calcolo."* TWOFISH-256-CBC.
+    *   **SM4 (`enc sm4`)**: Indice di frequenza **17**. *Nota Intel: "Lo standard del Sindacato. Spesso associato a trasmissioni criptiche riguardanti il mercato nero della Materia Oscura."* SM4-CBC (Syndicate).
+    *   **Ascon (`enc ascon`)**: Indice di frequenza **18**. *Nota Intel: "Cifratura leggera per droni e sonde esterne. Consuma pochissima energia, ideale per missioni di spionaggio a lungo termine."* ASCON-128 (Lightweight).
+    *   **Present (`enc present`)**: Indice di frequenza **19**. *Nota Intel: "Protocollo biometrico. Sincronizza il battito cardiaco del Comandante con il flusso dati."* PRESENT (Biometrico).
+    *   **GOST (`enc gost`)**: Indice di frequenza **20**. *Nota Intel: "Cifrario a blocchi derivato dai vecchi archivi terrestri. Brutale ed efficace."* GOST-Kuznyechik.
+    *   **Salsa20 (`enc salsa`)**: Indice di frequenza **21**. *Nota Intel: "Il cugino esotico del ChaCha. Molti piloti indipendenti lo usano per evitare i monitoraggi standard dell'Alleanza."* Cifratore di flusso SALSA20.
+    *   **OFF (`enc off`)**: Indice **0**. *Nota Intel: "Comunicazione in chiaro. Solo per soccorso o per chi non ha nulla da nascondere... o nulla da perdere."* Usata per chiamate di soccorso d'emergenza o trasmissioni non protette.
+
+> **📔 Diario di Bordo: L'Eclissi di Ossidiana (Anno 2024)**
+> *"I sensori morirono in un istante. Quando il Quasar di settore ebbe quel sussulto gravitazionale, la realtà stessa sembrò spegnersi. Navigammo per tre giorni usando solo gli echi dei colpi di scafo e il coraggio dei piloti. Fu allora che capimmo: nello spazio, il silenzio non è assenza di rumore, è assenza di verità." — Inquisitore Xal'Tar, Rapporto sulla Purificazione del Segnale.*
 
 *   **Persistenza delle Chiavi (`captains/`)**: Le chiavi crittografiche per ogni frequenza (1-21) sono salvate localmente nella directory `captains/NomeCapitano/`. Questo permette al server e al client di mantenere la sincronizzazione delle chiavi anche tra diverse sessioni. Se cambi computer, devi spostare questa cartella per mantenere l'accesso alle tue frequenze sicure.
 
@@ -1318,6 +1402,25 @@ Per garantire che la crittografia funzioni come una vera radio tattica, il siste
 2.  **Validazione Server**: Il server utilizza le chiavi in `DEFAULT` come riferimento globale per decriptare e validare i messaggi di *qualsiasi* capitano. Questo permette al server di verificare l'integrità del segnale e applicare i costi energetici corretti senza dover conoscere le chiavi private di ogni singola nave.
 3.  **Template di Ripristino**: Se un capitano perde le proprie chiavi o corrompe la propria directory, il sistema può rigenerarle istantaneamente riallineandosi alla baseline di `DEFAULT`.
 4.  **Audit Tattico**: Qualsiasi capitano può confrontare le proprie chiavi con quelle in `DEFAULT` per assicurarsi che i propri sistemi di bordo siano correttamente sincronizzati con le frequenze della Flotta.
+
+> **📔 Diario di Bordo: Incontro nella Tempesta**
+> *"La nebbia ionica era così fitta che le luci di navigazione erano inutili. Improvvisamente, un raggio verde smeraldo squarciò il vuoto. Era un'Anomalia di Tipo 50. Non era un oggetto, era un lamento dello spazio-tempo. La Diplomatica Xyla ordinò il silenzio radio assoluto: 'Non disturbate il sonno della galassia', disse. Aveva ragione." — Log della USS Event Horizon.*
+
+#### 🌌 Diario di Bordo: L'Orizzonte degli Imbuti
+> **📔 Registro di Navigazione: *USS Event Horizon* - Settore 9**
+> **Data Stellare:** 2026.04.30 | **Evento:** Salto Wormhole (Ponte di Einstein-Rosen)
+>
+> *"Non si tratta di viaggiare. Si tratta di essere scomposti e ricomposti attraverso l'impossibile. Quando abbiamo attivato il salto, lo spazio davanti a noi si è piegato in un imbuto di pura luce accecante. Poi, l'orizzonte degli eventi: una sfera nera, così profonda che sembrava risucchiare non solo la luce, ma il tempo stesso. E accanto, la sua gemella, una sfera di una luminosità bianca che feriva le retine, una stella nata dal nulla.*
+
+>><table>
+<tr>
+    <td><img src="readme_assets/jump_black.png" alt="Black jump" width="200"/></td>
+    <td><img src="readme_assets/jump_white.png" alt="White jump" width="200"/></td>
+  </tr>
+</table>
+
+> *Passare nel mezzo è stato come attraversare l'incrocio più trafficato e solitario della storia umana. La nave vibrava su frequenze che i sensori non potevano registrare. Ho visto il mio equipaggio riflesso nel vetro del ponte: erano stanchi, vulnerabili, persone comuni catapultate in un viaggio che non avrebbero dovuto fare. Quando siamo riemersi nel quadrante di destinazione, ho controllato l'orologio: il salto è durato 15 secondi, ma mi sono sentito invecchiare di una vita intera. Il navigatore giura di aver sentito il brusio di mille voci che chiedevano di tornare a casa. Mai più."*
+> — **Comandante Kaelen, dopo la transizione nel Settore 9**
 
 *   **Rumore di Segnale (Mismatch)**: Se due capitani sono su frequenze diverse...
 

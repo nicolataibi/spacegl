@@ -1,5 +1,15 @@
 # Space GL: 3D Multi-User Client-Server Edition
+![Version](https://img.shields.io/badge/Version-3.0-green)
+![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
+![Language](https://img.shields.io/badge/Language-C-blue)
+![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
+![Platform](https://img.shields.io/badge/Platform-Fedora%2044-blue?logo=fedora)
+
 ## A space exploration & combat game
+![Status](https://img.shields.io/badge/Status-Verified%20HMAC--SHA256-brightgreen)
+![Alliance](https://img.shields.io/badge/Fleet-Stellar%20Alliance-cyan)
+![Security](https://img.shields.io/badge/Encryption-AES%20%7C%20ChaCha%20%7C%20Blowfish-lightgrey)
+
 ## "Per Tenebras, Lumen" (Through darkness, light)
 ### Website: https://github.com/nicolataibi/spacegl
 ### Authors: Nicola Taibi, Supported by Google Gemini
@@ -55,6 +65,60 @@ Update 3.0 significantly expands the galaxy's physical content and refines the b
     *   Fixed a bug where planetary resource statistics were missing from the startup report.
 *   **Packaging**:
     *   Implemented `spacegl-doc` subpackage to isolate 193MB of documentation, reducing main package size significantly.
+
+---
+
+## 🌌 Galactic Archives: The Lore of Space GL
+
+### 🌑 1. The Era of the Silent Signal
+In the year 2026, the galaxy is no longer a place of peaceful exploration. Following the event known as the *"Great Decryption"*, every cleartext radio signal became a beacon for predators. Civilizations that once communicated openly have retreated into silence, protected by layers of advanced cryptography. Space GL is the ultimate tactical simulator, designed to train Commanders to navigate this "mute" universe, where the choice of cryptographic frequency (`enc`) is the only difference between an ally and a target.
+
+### 💎 2. The Cycle of Vital Resources
+The galactic balance is held by three critical resources, essential for the survival of every vessel:
+*   **Aetherium**: The lifeblood of warp engines. Without these crystals, jumps between quadrants (`jum`) are impossible.
+*   **Dark Matter**: Found in rare radioactive asteroids, it is the only substance capable of powering the reactors of *Legacy-class* ships (up to 999 billion energy units).
+*   **Void-Essence**: Harvested from the heart of black holes, it is used to stabilize plasma torpedo warheads, allowing them to correct their course in the vacuum of space.
+
+### 🎖️ 3. Protagonists of the Frontier
+*   **High Admiral Hyperion Niklaus (Stellar Alliance)**: The architect of the "Doctrine of Silence." He mandated the use of the **HMAC-SHA256** protocol to ensure that no fleet order could be altered by enemy agents. A stern but just leader, dedicated to protecting Alliance territories.
+*   **Captain Lyra Vance**: Commander of the explorer *Stellar Alliance*, famous for mapping the first **Subspace Anomalies (Type 50)**. She believes that the emerald green glow of these anomalies is a signal from a parallel dimension, a mystery she has sworn to solve.
+*   **Commander Leandros Thorne**: A legendary veteran of Fleet Intelligence and a tireless guardian of the outer frontiers. Celebrated as a hero for his actions during border crises, Thorne currently serves as the Operational Commander for the protection of vital trade routes linking the **Golden Cartel** to the Alliance core. He is considered the galactic foremost expert on the **Blowfish** protocol, which he uses to generate "shields of silence" capable of cloaking supply and refugee convoys from enemy incursions.
+
+### 🌪️ 4. The Mystery of Great Objects (Type 40-50)
+Beyond stars and planets, Commanders have discovered entities that defy logic:
+*   **Dyson Fragments & Warp Gates (Type 40-49)**: Remnants of megastructures that once encircled suns. It is said that whoever manages to reactivate a *Warp Gate* (Type 41) will be able to travel beyond the edges of the known map, towards forgotten sectors.
+*   **Subspace Anomalies (Type 50)**: These are not simple environmental hazards. They are "tears" in the fabric of space caused by the intensive use of the Hyperdrive engine. Sensors detect them as unstable masses: they represent the galaxy's entropy trying to heal from the wounds of war.
+
+### 📡 5. The Neural Link (Shared Memory)
+The bridge of a Space GL ship does not use simple screens. The Commander operates via a **direct neural connection** with the onboard computer. What is technically called the **Shared Memory Inspector** (`m`) is actually the visual representation of the ship's sub-processes. Accessing telemetry means diving into the ship's stream of consciousness, perceiving the galaxy as raw data before it is translated into AR imagery on the bridge.
+
+---
+
+### 📜 Classified Records and Captain's Logs
+
+#### 🛰️ Aegis Fleet Logs (Niklaus Doctrine)
+> **📔 Military Log: Legacy-class Cruiser *USS Aegis***
+> **Stardate:** 2026.04.30 | **Sector:** 0-0-1 (Central Core)
+> **Subject:** "Veil of Silence" Patrol Report
+>
+> *"We entered the quadrant under absolute radio silence (`enc off`). The 60Hz hum of the Hyperdrive engine is the only sound echoing on the command bridge. At 04:12 hours, sensors detected a BPNBS data packet from an isolated communication buoy.
+>
+> The onboard computer took less than 16ms to complete the validation procedure. Result: **HMAC-SHA256 Signature VERIFIED**. Origin: Supreme Command, Admiral Niklaus. The order is peremptory: 'Maintain tactical grid, identify any unsigned signal as hostile.'
+>
+> In this sector of the galaxy, trust is a rarer resource than Aetherium. Without the Admiral's digital signature, we would be just another target in the dark. We have activated the Ion Beam targeting systems. Per Tenebras, Lumen."*
+> — **Tactical Officer, Aegis Fleet**
+
+#### 🛡️ Cartel Escort Reports (Thorne Operations)
+> **📔 Operational Log: Escort Vessel *Gilded Ghost***
+> **Stardate:** 2026.04.28 | **Sector:** Outer Frontier
+> **Subject:** Vega Prime Refugee Convoy Protection
+>
+> *"Swarm ships were everywhere on the grid. Commander Thorne ordered an immediate switch to the **Blowfish** protocol (`enc bf`). He said: 'We don't fight this battle with cannons, we fight it with silence.'
+>
+> We generated a cryptographic camouflage bubble that fooled their quantum sensors for ten critical minutes. While the Swarm cubes scanned the void, the convoy slipped through the blind corridor mapped by Thorne. We didn't fire a single shot, but we saved five thousand lives. Thorne stayed on the bridge until the last ship completed the jump. A hero? No, he says it's just good risk management."*
+> — **Log of Escort Scout 07**
+
+---
 
 ## 🚀 Version 2.9 Highlights (Rel. 19 - Full 3-DOF & Tactical Navigation).
 
@@ -392,7 +456,7 @@ To ensure security is active, always use the provided bash scripts instead of la
 
 **Starting the Client:**
 ```bash
-./spacegl_client.sh
+./spacegl_client.sh gl|vk
 # Enter the SAME Master Key set on the server.
 # The system will confirm: "Secure Link Established. Unique Frequency active."
 ```
@@ -710,19 +774,31 @@ The Space GL universe is a dynamic ecosystem populated by 17 classes of entities
 *   **Comets**: Fast-moving objects with volumetric tails. They can be analyzed to collect rare gases.
 *   **Spatial Rifts**: Tears in the spacetime fabric. They act as natural teleporters that project the ship to a random point in the galaxy.
 
-### 🚩 Factions and Intelligent Ships
-*   **Alliance (Player/Starbase)**: Your ship and Starbases (Cyan `r:0, g:1, b:1` for players, Green `r:0, g:1, b:0` for bases). Allows docking (`doc`) for full repairs and resupply.
-*   **Korthian Empire (ID 10)**: Aggressive warriors patrolling quadrants, often protected by defense platforms. Visually identified by a **Bright Red/Orange** wireframe `(1.0, 0.1, 0.0)`.
-*   **Xylari Star Empire (ID 11)**: Masters of deception using cloaking devices to launch surprise attacks. Rendered in **Neon Green** `(0.0, 1.0, 0.2)`.
-*   **Swarm Collective (ID 12)**: The greatest threat. Their ships have massive firepower and superior regenerative capabilities. Extremely difficult to spot with **Dark Grey** hulls `(0.1, 0.1, 0.1)`.
-*   **Vesperian Conclave (ID 13)**: Identified by **Magenta/Fuchsia** signatures `(1.0, 0.0, 1.0)`.
-*   **Ascendant Dominion (ID 14)**: Rendered in **Deep Purple** `(0.5, 0.0, 0.8)`.
-*   **Quarzite Assembly (ID 15)**: Identified by **Bright Orange** emissions `(1.0, 0.5, 0.0)`.
-*   **Saurian Hegemony (ID 16)**: Visualized with **Olive Green** hulls `(0.4, 0.6, 0.1)`.
-*   **Gilded Federation (ID 17)**: Wealthy merchant vessels rendered in **Gold/Copper** `(0.8, 0.7, 0.1)`.
-*   **Fluidic Species 8472 (ID 18)**: Biological entities with **Bio-Green/Yellow** signatures `(0.7, 1.0, 0.0)`.
-*   **Cryos Confederacy (ID 19)**: Cold-environment species identified by **Ice Blue** wireframes `(0.0, 0.5, 1.0)`.
-*   **Apex Hunters (ID 20)**: Relentless pursuers rendered in **Rust Red** `(0.6, 0.2, 0.1)`.
+### 🚩 Factions and Galactic Powers
+
+The galaxy of Space GL is a mosaic of conflicting ideologies. Your choice of faction determines not only the color of your hull but your position in the delicate balance of power.
+
+| Faction | Core Philosophy | Tactical Doctrine | Key Character |
+| :--- | :--- | :--- | :--- |
+| **Stellar Alliance** | *Order and Unity* | Coordinated defense, HMAC protocols, and multi-role vessels. | **Admiral Niklaus** |
+| **Korthian Hegemony** | *Honor and Strength* | Aggressive boarding and high-speed lightning strikes. | **Chancellor Dahar** |
+| **Xylari Empire** | *Secrecy and Infiltration* | Cloaking (`clo`), electronic warfare, and precision strikes. | **Commander Alara** |
+| **Swarm Collective** | *Consumption and Adaptation* | Mass attack, hull regeneration, and PQC encryption. | **The Nexus Queen** |
+| **Golden Cartel** | *Profit and Influence* | Aetherium trade, commercial cloaking, and mercenaries. | **Baron Gilded** |
+| **Vesperian Union** | *Resilience and Control* | Territorial control and heavy logistics. | **Gul Damar** |
+
+#### 🏛️ Great Power Profiles
+
+*   **Stellar Alliance (Player/Starbase)**: The heirs of galactic democracy. Their doctrine focuses on protecting trade routes and maintaining the GDIS. Identified by **Cyan** (players) or **Green** (starbases).
+    *   *Lore Note*: "For the Alliance, protocol is life. Admiral Niklaus has turned the fleet into a synchronized clock where every 60Hz tick serves to prevent chaos."
+*   **Korthian Hegemony (ID 10)**: A feudal society of warriors. They view combat as a ritual and despise cloaking. Ships rendered in **Bright Red/Orange**.
+    *   *Lore Note*: "A Korthian does not hide. Their bright red-orange hull is a warning: if you can see them, you are already within range of their Ion Beams."
+*   **Xylari Star Empire (ID 11)**: Enigmatic and isolationist. They believe knowledge is the only true weapon. Ships rendered in **Neon Green**.
+    *   *Lore Note*: "Commander Alara argues that the best battle is the one won before the enemy even knows they are under attack. Their neon green hulls are the last thing you'll see when they decloak."
+*   **Swarm Collective (ID 12)**: A single hive mind orchestrated by the **Nexus Queen**. They seek not territory, but computational resources and Dark Matter. Ships rendered in **Dark Grey**.
+    *   *Lore Note*: "The Swarm does not negotiate. The Queen sees every ship as an extension of her quantum thought. When they attack in mass, the tactical grid becomes a nightmare of PQC signals."
+*   **Golden Cartel (ID 17)**: A coalition of trade guilds led by the mysterious **Baron Gilded**. They manage the black market for Aetherium and Dark Matter. Ships rendered in **Gold/Copper**.
+    *   *Lore Note*: "The Baron often says that peace is good for business, but a controlled war is even better. Commander Thorne is their armed wing, the one who ensures that Blowfish hides what must remain invisible."
 
 #### ⚖️ Faction System and "Renegade" Protocol
 Space GL implements a dynamic reputation system that manages relationships between the player and the various galactic powers.
@@ -736,24 +812,27 @@ Space GL implements a dynamic reputation system that manages relationships betwe
     *   During this period, any further attack against allies will reset the timer.
     *   When the timer expires, if no further hostilities have been committed, Sector Command will grant amnesty: `Amnesty granted. Your status has been restored to active duty.` and faction units will return to being neutral/allied.
 
-### ⚠️ Tactical Hazards and Resources
-*   **Electronic Warfare Jamming**: In high-intensity Ion Storms or near specialized hostiles, ship sensors can be **jammed**. The Galaxy Map will fail to render and navigational computers will return corrupted data.
-*   **Gravitational Slingshot**: Flying at high speed near stars or black holes can trigger a gravitational assist, providing massive acceleration without energy cost, but risking hull stress damage.
-*   **Emergency Drift**: If energy is depleted or propulsion systems are destroyed, the ship enters a drift state, maintaining inertia until speed is neutralized.
-*   **Asteroid Fields**: Rocky debris posing a physical risk. Collision damage increases with ship speed.
-*   **Space Mines**: Hidden explosive devices placed by hostile factions. Detectable only via close-range scanning.
-*   **Derelict Ships**: Hulls of destroyed vessels. Can be dismantled (`dis`) to recover components and resources.
-*   **Communication Buoys**: Alliance Command network nodes. Being nearby enhances long-range sensors (`lrs`), providing detailed composition data on adjacent quadrants.
-*   **Defense Platforms (Turrets)**: Heavily armed automated sentinels protecting strategic areas of interest.
+### ⚠️ Tactical Hazards and Resources: Field Reports
 
-### 👾 Anomalies and Creatures
-*   **Space Monsters**: Includes the **Crystalline Entity** and the **Space Amoeba**, unique creatures that actively hunt vessels to feed on their energy.
-*   **Dyson Fragments**: Massive remnants of incomplete or shattered Dyson spheres. Flying near them provides **automatic energy recharge** via solar induction.
-*   **Trading Hubs**: Automated commercial outposts. They act as neutral docking points for repairs and supply (not yet fully operational for player trade).
-*   **Ancient Relics**: Artifacts emitting specialized repair fields. Proximity triggers **automatic subsystem repair** (ID 0-9) at 2% per tick.
-*   **Subspace Ruptures**: Violent tears in subspace. Proximity causes **direct hull damage** (0.5% per tick) due to tidal stresses.
-*   **Planetary Satellites**: Orbital platforms used for monitoring. They can be scanned for local tactical data.
-*   **Ion Storms**: Meteorological phenomena moving through the galaxy, capable of blinding sensors, diverting ships' courses, and **draining shields** (1% per tick).
+The galactic environment is not an inert void, but a battlefield shaped by millennia of conflict and extreme natural phenomena.
+
+*   **Electronic Warfare Jamming**: In the presence of ion storms or specialized hostiles, ship sensors can be **jammed**.
+    *   *Historical Reference*: During the **Siege of Proxima**, the entire Alliance fleet was blinded for hours by a network of jamming buoys, forcing pilots to navigate "by sight" among the wreckage.
+*   **Gravitational Slingshot**: Flying at high speed near stars or black holes can trigger a gravitational assist.
+    *   *Tactical Note*: "Niklaus's Maneuver" uses the gravitational well of Black Holes to launch heavy cruisers at intercept speeds without consuming Aetherium.
+*   **Communication Buoys**: Nodes of the Alliance Command network.
+    *   *Encyclopedia*: These buoys are the last vestiges of the **Great GDIS Network**. Being near one of them allows you to "lock onto" the Central Sector signal, tripling the resolution of long-range sensors.
+
+### 👾 Encyclopedia of Anomalies and Creatures
+
+*   **Space Monsters (Crystalline Entity / Amoeba)**: Unique creatures that hunt vessels to feed on energy.
+    *   *Historical Event*: The **Battle of Sector 4** remains a warning to all captains. A single Space Amoeba decimated a Korthian flotilla in minutes, absorbing their shield energy before they could even return fire.
+*   **Dyson Fragments (Type 40-49)**: Massive remnants of destroyed Dyson spheres.
+    *   *The War of the Builders*: Millennia ago, a race known only as "The Builders" sought to encapsulate the galaxy's suns. The civil war that followed reduced their works to fragments that still emit residual solar energy, capable of recharging modern ship reactors via induction.
+*   **Ancient Relics**: Artifacts emitting specialized repair fields.
+    *   *Legend*: Relics are said to be the processing cores of ancient hospital ships. Anyone remaining in their aura experiences automatic system repair, as if "digital ghosts" were working within the ship's circuits.
+*   **Ion Storms**: Devastating galactic meteorological phenomena.
+    *   *Meteorological Report*: "The Obsidian Dance" is the most famous storm, a disturbance that crosses three sectors every cycle, draining the shields of anyone foolish enough not to seek shelter behind a planet or nebula.
 
 ## 💎 Resources and Materials Guide
 
@@ -1351,28 +1430,31 @@ In Space GL, encryption is not just about security—it's a **tactical frequency
 
 *   **Identity & Signature (Ed25519)**: Every radio packet is digitally signed **before** encryption. If you receive a message with a **`[VERIFIED]`** tag, you have mathematical certainty it comes from the declared captain.
 *   **Cryptographic Frequencies (`enc <TYPE>`)**:
-    *   **AES (`enc aes`)**: Frequency index **1**. Uses **AES-256-GCM**. Fleet Standard for secure, authenticated communications.
-    *   **ChaCha20 (`enc chacha`)**: Frequency index **2**. Uses **ChaCha20-Poly1305**. High-speed tactical stream cipher.
-    *   **ARIA (`enc aria`)**: Frequency index **3**. South Korean standard cipher, robust and reliable.
-    *   **Camellia (`enc camellia`)**: Frequency index **4**. Advanced Japanese block cipher (Xylari).
-    *   **SEED (`enc seed`)**: Frequency index **5**. SEED-CBC (Orion).
-    *   **CAST5 (`enc cast`)**: Frequency index **6**. CAST5-CBC (Old Republic).
-    *   **IDEA (`enc idea`)**: Frequency index **7**. IDEA-CBC (Maquis).
-    *   **3DES (`enc 3des`)**: Frequency index **8**. DES-EDE3-CBC (Ancient).
-    *   **Blowfish (`enc bf`)**: Frequency index **9**. BLOWFISH-CBC (Gilded).
-    *   **RC4 (`enc rc4`)**: Frequency index **10**. RC4-STREAM (Tactical).
-    *   **DES (`enc des`)**: Frequency index **11**. DES-CBC (Pre-Hyperdrive).
-    *   **PQC (`enc pqc`)**: Frequency index **12**. **Post-Quantum Cryptography (ML-KEM-1024)**. Resistant to quantum computer attacks.
-    *   **McEliece (`enc mceliece`)**: Frequency index **13**. Classic McEliece (PQC code-based).
-    *   **Dilithium (`enc dilithium`)**: Frequency index **14**. Dilithium ML-DSA (Post-Quantum signature).
-    *   **Serpent (`enc serpent`)**: Frequency index **15**. SERPENT-256-GCM.
-    *   **Twofish (`enc twofish`)**: Frequency index **16**. TWOFISH-256-CBC.
-    *   **SM4 (`enc sm4`)**: Frequency index **17**. SM4-CBC (Syndicate).
-    *   **Ascon (`enc ascon`)**: Frequency index **18**. ASCON-128 (Lightweight).
-    *   **Present (`enc present`)**: Frequency index **19**. PRESENT (Biometric).
-    *   **GOST (`enc gost`)**: Frequency index **20**. GOST-Kuznyechik.
-    *   **Salsa20 (`enc salsa`)**: Frequency index **21**. SALSA20 Stream Cipher.
-    *   **OFF (`enc off`)**: Index **0**. Cleartext communication. Used for emergency distress calls or unencrypted broadcast.
+    *   **AES (`enc aes`)**: Frequency index **1**. *Intel Note: "The steel wall of communications; reliable, but its signature is easily identified by enemy sensors."* Uses **AES-256-GCM**. Fleet Standard for secure, authenticated communications.
+    *   **ChaCha20 (`enc chacha`)**: Frequency index **2**. *Intel Note: "The favorite of interceptor pilots. Its low latency allows for coordinating maneuvers at 60Hz without neural lag."* Uses **ChaCha20-Poly1305**. High-speed tactical stream cipher.
+    *   **ARIA (`enc aria`)**: Frequency index **3**. *Intel Note: "Robust algorithm often used in the Core Nebula research stations; excellent for resisting magnetic interference."* South Korean standard cipher, robust and reliable.
+    *   **Camellia (`enc camellia`)**: Frequency index **4**. *Intel Note: "The steel flower of the Xylari. Elegant, complex, and nearly impossible to penetrate without the original biometric keys."* Advanced Japanese block cipher (Xylari).
+    *   **SEED (`enc seed`)**: Frequency index **5**. *Intel Note: "Old code from the Orion mining colonies. Unsophisticated, but extremely lightweight for low-energy systems."* SEED-CBC (Orion).
+    *   **CAST5 (`enc cast`)**: Frequency index **6**. *Intel Note: "Used by the Old Republic. Many veterans prefer it for its predictability under thermal stress."* CAST5-CBC (Old Republic).
+    *   **IDEA (`enc idea`)**: Frequency index **7**. *Intel Note: "The code of the Maquis rebels. Designed to be swapped quickly during Hyperdrive jumps."* IDEA-CBC (Maquis).
+    *   **3DES (`enc 3des`)**: Frequency index **8**. *Intel Note: "A historical artifact. Used today only for communicating with ancient automated probes or abandoned installations."* DES-EDE3-CBC (Ancient).
+    *   **Blowfish (`enc bf`)**: Frequency index **9**. *Intel Note: "Commander Thorne's signature. Transforms the signal into a digital 'ghost', perfect for silent passage through blockades."* BLOWFISH-CBC (Gilded).
+    *   **RC4 (`enc rc4`)**: Frequency index **10**. *Intel Note: "Fast but fragile. Useful only for short-range tactical transmissions during melee combat."* RC4-STREAM (Tactical).
+    *   **DES (`enc des`)**: Frequency index **11**. *Intel Note: "Obsolete. Using it in combat is equivalent to shouting your plans into the void."* DES-CBC (Pre-Hyperdrive).
+    *   **PQC (`enc pqc`)**: Frequency index **12**. *Intel Note: "The ultimate defense against the artificial intelligences of the Swarm collectives. Resistant to quantum forcing attempts."* **Post-Quantum Cryptography (ML-KEM-1024)**. Resistant to quantum computer attacks.
+    *   **McEliece (`enc mceliece`)**: Frequency index **13**. *Intel Note: "Code based on error matrices. Even if the signal is 40% disturbed, the message arrives intact."* Classic McEliece (PQC code-based).
+    *   **Dilithium (`enc dilithium`)**: Frequency index **14**. *Intel Note: "Post-quantum digital signature. Guarantees that the order comes directly from Admiral Niklaus's bridge."* Dilithium ML-DSA (Post-Quantum signature).
+    *   **Serpent (`enc serpent`)**: Frequency index **15**. *Intel Note: "Slow, massive, and impenetrable. Used to protect the most precious Aetherium cargo manifests."* SERPENT-256-GCM.
+    *   **Twofish (`enc twofish`)**: Frequency index **16**. *Intel Note: "The successor to Blowfish. More complex, designed to resist brute-force attacks from super-computing stations."* TWOFISH-256-CBC.
+    *   **SM4 (`enc sm4`)**: Frequency index **17**. *Intel Note: "The Syndicate standard. Often associated with cryptic transmissions concerning the Dark Matter black market."* SM4-CBC (Syndicate).
+    *   **Ascon (`enc ascon`)**: Frequency index **18**. *Intel Note: "Lightweight encryption for drones and external probes. Consumes very little energy, ideal for long-term spying missions."* ASCON-128 (Lightweight).
+    *   **Present (`enc present`)**: Frequency index **19**. *Intel Note: "Biometric protocol. Synchronizes the Commander's heartbeat with the data stream."* PRESENT (Biometric).
+    *   **GOST (`enc gost`)**: Frequency index **20**. *Intel Note: "Block cipher derived from old Earth archives. Brutal and effective."* GOST-Kuznyechik.
+    *   **Salsa20 (`enc salsa`)**: Frequency index **21**. *Intel Note: "The exotic cousin of ChaCha. Many independent pilots use it to avoid standard Alliance monitoring."* SALSA20 Stream Cipher.
+    *   **OFF (`enc off`)**: Index **0**. *Intel Note: "Cleartext communication. Only for distress calls or for those with nothing to hide... or nothing to lose."* Used for emergency distress calls or unencrypted broadcast.
+
+> **📔 Captain's Log: The Obsidian Eclipse (Year 2024)**
+> *"The sensors died in an instant. When the sector Quasar had that gravitational surge, reality itself seemed to shut down. We navigated for three days using only hull echoes and the courage of our pilots. That was when we understood: in space, silence is not the absence of noise, it is the absence of truth." — Inquisitor Xal'Tar, Report on Signal Purification.*
 
 *   **Key Persistence (`captains/`)**: Cryptographic keys for each frequency (1-21) are saved locally in the `captains/CaptainName/` directory. This allows the server and client to maintain key synchronization across sessions. If you switch computers, you must move this folder to maintain your secure frequencies.
 
@@ -1383,6 +1465,25 @@ To ensure that encryption functions like a true tactical radio, the system adopt
 2.  **Server Validation**: The server uses the keys in `DEFAULT` as a global reference to decrypt and validate messages from *any* captain. This allows the server to verify signal integrity and apply correct energy costs without needing to store individual private keys for every ship.
 3.  **Recovery Template**: If a captain loses their keys or corrupts their directory, the system can instantly regenerate them by realigning with the `DEFAULT` baseline.
 4.  **Tactical Audit**: Any captain can compare their local keys with those in `DEFAULT` to ensure their onboard systems are correctly synchronized with Fleet frequencies.
+
+> **📔 Captain's Log: Encounter in the Storm**
+> *"The ionic fog was so thick that navigation lights were useless. Suddenly, an emerald green beam pierced the void. It was a Type 50 Anomaly. It wasn't an object, it was a moan of space-time. Diplomat Xyla ordered absolute radio silence: 'Do not disturb the galaxy's sleep,' she said. She was right." — Log of the USS Event Horizon.*
+
+#### 🌌 Captain's Log: The Horizon of Funnels
+> **📔 Navigation Log: *USS Event Horizon* - Sector 9**
+> **Stardate:** 2026.04.30 | **Event:** Wormhole Jump (Einstein-Rosen Bridge)
+>
+> *"It's not about traveling. It's about being broken down and rebuilt through the impossible. When we activated the jump, space ahead of us folded into a funnel of blinding light. Then, the event horizon: a black sphere, so deep it seemed to suck away not just the light, but time itself. And next to it, its twin, a sphere of white luminosity that burned our retinas, a star born out of nothing.*
+
+><table>
+<tr>
+    <td><img src="readme_assets/jump_black.png" alt="Black jump" width="200"/></td>
+    <td><img src="readme_assets/jump_white.png" alt="White jump" width="200"/></td>
+  </tr>
+</table>
+
+> *Passing through the middle felt like traversing the busiest and loneliest intersection in human history. The ship vibrated on frequencies sensors couldn't record. I saw my crew reflected in the bridge glass: they looked tired, vulnerable, ordinary people thrust into a journey they were never meant to take. When we re-emerged in the destination quadrant, I checked the clock: the jump lasted 15 seconds, but I felt like I had aged a lifetime. The navigator swears he heard the buzzing of a thousand voices asking to go home. Never again."*
+> — **Commander Kaelen, after the Sector 9 transition**
 
 *   **Signal Noise (Mismatch)**: If two captains are on different frequencies...
 
