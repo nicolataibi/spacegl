@@ -1,3 +1,11 @@
+* Fri May 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.01.01
+- Completed the visual modernization of the SpaceGL Vulkan engine by replacing legacy wireframe placeholders with high-fidelity, procedurally rendered 3D models.
+- Implemented specialized PBR-compliant rendering handlers for 14 object classes: Starbases, Pulsars, Comets, Asteroids, Monsters (Crystalline/Amoeba), Trading Hubs, Mines, Comm Buoys, Defense Platforms, Spatial Rifts, Alien Artifacts, Mega Structures, Void Crystals, and Satellites.
+- Integrated dynamic animation systems for rotating docking rings, scanning dishes, solar arrays, and unstable subspace discharges.
+- Enhanced tactical visualization with faction-colored energy reactors and multi-point navigation beacons using advanced glow pipelines.
+- Synchronized object type definitions between server logic and Vulkan rendering, resolving ID mismatches for Alien Artifacts (Type 40) and specialized anomalies.
+- Optimized the Vulkan command buffer loop for diverse specialized draw calls and improved material property mapping in getObjectColor.
+
 * Thu Apr 30 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.30.01
 - Updated documentation (README.md and README_it.md) to include new Captain's log.
 
