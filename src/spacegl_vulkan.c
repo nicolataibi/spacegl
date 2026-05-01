@@ -834,7 +834,7 @@ void drawMonster(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int type, float
         vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
         for (int i=0; i<6; i++) {
-            mat4 S_f, R_f, T_f;
+            mat4 S_f, R_f;
             mat4_identity(R_f);
             mat4_rotate(R_f, (float)i * 60.0f * M_PI / 180.0f + pulse, (vec3){1, 1, 0});
             mat4_scale(S_f, (vec3){0.3f * tactScale, 1.8f * tactScale, 0.3f * tactScale});

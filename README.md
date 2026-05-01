@@ -2271,9 +2271,9 @@ Space GL implements enterprise-grade security for galactic state synchronization
 
 ### ⚙️ System Requirements & Dependencies
 To compile and run the SPACE GL suite, ensure the following libraries are installed:
-*   **FreeGLUT / OpenGL**: Core rendering engine and window management.
+*   **GLFW / OpenGL**: Core rendering engine and window management.
 *   **GLEW**: OpenGL Extension Wrangler for advanced shader support.
-*   **Vulkan / GLFW**: Next-gen rendering backend (`libvulkan`, `libglfw`, SPIR-V shaders via `glslc`).
+*   **Vulkan**: Next-gen rendering backend (`libvulkan`, SPIR-V shaders via `glslc`).
 *   **ncurses**: Terminal HUD interface for `spacegl_hud` (`libncurses`).
 *   **OpenSSL**: Required for the complete cryptographic suite (AES, HMAC, etc.).
 *   **POSIX Threads & RT**: Managed via `lpthread` and `lrt` for shared memory and synchronization.
@@ -2464,3 +2464,4 @@ He turned and left the bridge with the same measured, rhythmic step with which h
 
 ---
 *SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.03.11*
+ GDIS LOG 2026.03.11*

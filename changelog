@@ -1,3 +1,12 @@
+* Fri May 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.01.04
+- [Refactor] Migrated spacegl_3dview from FreeGLUT to GLFW for native Wayland support and improved window management.
+- [Compatibility] Implemented a custom GLUT compatibility layer (glut_compat.c/h) to replicate legacy geometric primitives and text rendering.
+- [Performance] Enabled native VSync via glfwSwapInterval(1) for smooth 60 FPS synchronization, replacing legacy usleep timing.
+- [Rendering] Enabled Backface Culling (GL_CULL_FACE) globally to optimize GPU throughput, with selective bypass for Skybox visibility.
+- [Bugfix] Fixed text rendering corruption by setting correct pixel unpack alignment (GL_UNPACK_ALIGNMENT 1) for 1-byte font bitmaps.
+- [Bugfix] Resolved bracket rendering issues by fixing a line-continuation syntax error in the compatibility font definition.
+- [Optimization] Standardized OpenGL context initialization to request 3.0 Compatibility Profile, ensuring stability on modern Wayland drivers.
+
 * Fri May 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.01.03
 - [Game Logic] Implemented faction defense AI for proprietary starbases: bases now open fire at 3 shots/second (20-tick cooldown at 60 Hz) when a player from a different faction attempts to dock. Damage targets shields first, then hull directly (8% per shot). Alliance starbases remain neutral.
 - [Network] Serialized starbase combat beams (NetBeam) into the per-quadrant update pipeline alongside platform and monster beams. Beams are broadcast via IPC_EV_BEAM and rendered in real-time by both Vulkan and FreeGLUT clients.

@@ -3,7 +3,7 @@
 %global autorelease_version 1
 
 Name:           spacegl
-Version:        2026.05.01.03
+Version:        2026.05.01.04
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
@@ -17,7 +17,6 @@ Source0:        %{url}/archive/refs/tags/%{version}.tar.gz#/%{name}-%{version}.t
 
 BuildRequires:  cmake
 BuildRequires:  gcc
-BuildRequires:  freeglut-devel
 BuildRequires:  mesa-libGL-devel
 BuildRequires:  mesa-libGLU-devel
 BuildRequires:  glew-devel

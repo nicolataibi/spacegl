@@ -2192,9 +2192,9 @@ Space GL implementa la sicurezza di livello enterprise per la sincronizzazione d
 
 ### ⚙️ Requisiti di Sistema e Dipendenze
 Per compilare ed eseguire la suite SPACE GL, assicurarsi che le seguenti librerie siano installate:
-*   **FreeGLUT / OpenGL**: Motore di rendering principale e gestione delle finestre.
+*   **GLFW / OpenGL**: Motore di rendering principale e gestione delle finestre.
 *   **GLEW**: OpenGL Extension Wrangler per il supporto avanzato degli shader.
-*   **Vulkan / GLFW**: Backend di rendering di nuova generazione (`libvulkan`, `libglfw`, shader SPIR-V tramite `glslc`).
+*   **Vulkan**: Backend di rendering di nuova generazione (`libvulkan`, shader SPIR-V tramite `glslc`).
 *   **ncurses**: Interfaccia HUD testuale per `spacegl_hud` (`libncurses`).
 *   **OpenSSL**: Richiesto per la suite crittografica completa (AES, HMAC, ecc.).
 *   **POSIX Threads & RT**: Gestiti tramite `lpthread` e `lrt` per la memoria condivisa e la sincronizzazione.
@@ -2384,3 +2384,4 @@ Si voltò e lasciò il ponte con lo stesso passo misurato e ritmico con cui vi e
 
 ---
 *SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.03.11*
+ GDIS LOG 2026.03.11*

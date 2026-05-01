@@ -20,7 +20,8 @@
 #define _DEFAULT_SOURCE
 #define GL_GLEXT_PROTOTYPES
 #include <GL/glew.h>
-#include <GL/freeglut.h>
+#include <GLFW/glfw3.h>
+#include "glut_compat.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -4001,6 +4002,7 @@ void drawParticles() {
 }
 
 void drawSkybox() {
+    glDisable(GL_CULL_FACE); /* Ensure skybox is visible from inside */
     glDisable(GL_LIGHTING);
     glDepthMask(GL_FALSE);
     glUseProgram(skyboxShaderProgram);
@@ -4015,6 +4017,7 @@ void drawSkybox() {
     glUseProgram(0);
     glDepthMask(GL_TRUE);
     glEnable(GL_LIGHTING);
+    glEnable(GL_CULL_FACE);
 }
 
 void drawShieldEffect() {
@@ -5470,8 +5473,6 @@ void timer(int v) { (void)v;
         }
     }
     global_trail_tick++;
-
-    glutPostRedisplay(); glutTimerFunc(16, timer, 0); 
 }
 void keyboard(unsigned char k, int x, int y) { (void)k; (void)x; (void)y; 
     if(k==27) exit(0); 
@@ -5497,15 +5498,48 @@ void special(int k, int x, int y) { (void)k; (void)x; (void)y;
     if(k==GLUT_KEY_RIGHT) angleY+=5; 
 }
 
+void glfw_key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    (void)window; (void)scancode; (void)mods;
+    if (action != GLFW_PRESS && action != GLFW_REPEAT) return;
+    
+    if (key == GLFW_KEY_ESCAPE) exit(0);
+    
+    // Map to GLUT keyboard()
+    if (key >= 32 && key <= 95) keyboard((unsigned char)key, 0, 0);
+    else if (key == GLFW_KEY_SPACE) keyboard(' ', 0, 0);
+    else if (key == GLFW_KEY_W) keyboard('W', 0, 0);
+    else if (key == GLFW_KEY_S) keyboard('S', 0, 0);
+    else if (key == GLFW_KEY_H) keyboard('H', 0, 0);
+
+    // Map to GLUT special()
+    int sk = -1;
+    if (key == GLFW_KEY_F1) sk = GLUT_KEY_F1;
+    else if (key == GLFW_KEY_F2) sk = GLUT_KEY_F2;
+    else if (key == GLFW_KEY_F3) sk = GLUT_KEY_F3;
+    else if (key == GLFW_KEY_F4) sk = GLUT_KEY_F4;
+    else if (key == GLFW_KEY_F5) sk = GLUT_KEY_F5;
+    else if (key == GLFW_KEY_F6) sk = GLUT_KEY_F6;
+    else if (key == GLFW_KEY_F7) sk = GLUT_KEY_F7;
+    else if (key == GLFW_KEY_F8) sk = GLUT_KEY_F8;
+    else if (key == GLFW_KEY_F9) sk = GLUT_KEY_F9;
+    else if (key == GLFW_KEY_F10) sk = GLUT_KEY_F10;
+    else if (key == GLFW_KEY_F11) sk = GLUT_KEY_F11;
+    else if (key == GLFW_KEY_F12) sk = GLUT_KEY_F12;
+    else if (key == GLFW_KEY_LEFT) sk = GLUT_KEY_LEFT;
+    else if (key == GLFW_KEY_UP) sk = GLUT_KEY_UP;
+    else if (key == GLFW_KEY_RIGHT) sk = GLUT_KEY_RIGHT;
+    else if (key == GLFW_KEY_DOWN) sk = GLUT_KEY_DOWN;
+    
+    if (sk != -1) special(sk, 0, 0);
+}
+
+void glfw_reshape_callback(GLFWwindow* window, int w, int h) {
+    (void)window;
+    reshape(w, h);
+}
+
 void check_display_protocol() {
-    char *wayland_display = getenv("WAYLAND_DISPLAY");
-    if (wayland_display) {
-        printf("\n[3D VIEW] COMPATIBILITY ERROR\n");
-        printf("A Wayland session has been detected. FreeGLUT is currently incompatible with the Wayland protocol.\n");
-        printf("Native support is currently under development (Work In Progress).\n");
-        printf("The application will now terminate.\n\n");
-        exit(0);
-    }
+    /* No-op: GLFW handles Wayland natively */
 }
 
 int main(int argc, char** argv) {
@@ -5575,18 +5609,52 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    printf("[3D VIEW] Initializing GLUT (check DISPLAY: %s)...\n", getenv("DISPLAY"));
-    glutInit(&argc, argv); 
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_MULTISAMPLE); glutInitWindowSize(TACTICAL_CUBE_W, TACTICAL_CUBE_H); glutCreateWindow("Space GL 3DView - Multiuser");
+    printf("[3D VIEW] Initializing GLFW...\n");
+    if (!glfwInit()) {
+        fprintf(stderr, "[3D VIEW] Failed to initialize GLFW\n");
+        return 1;
+    }
+    
+    /* Request OpenGL 3.0 Compatibility Profile for legacy + shader support */
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    
+    GLFWwindow* window = glfwCreateWindow(TACTICAL_CUBE_W, TACTICAL_CUBE_H, "Space GL 3DView - Multiuser", NULL, NULL);
+    if (!window) {
+        /* Fallback to 2.1 if 3.0 fails */
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+        window = glfwCreateWindow(TACTICAL_CUBE_W, TACTICAL_CUBE_H, "Space GL 3DView - Multiuser", NULL, NULL);
+    }
+
+    if (!window) {
+        fprintf(stderr, "[3D VIEW] Failed to create GLFW window\n");
+        glfwTerminate();
+        return 1;
+    }
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(1); /* Enable VSync: Native 60FPS synchronization */
+    glfwSetFramebufferSizeCallback(window, glfw_reshape_callback);
+    glfwSetKeyCallback(window, glfw_key_callback);
     
     /* Initialize GLEW */
     glewExperimental = GL_TRUE;
     GLenum err = glewInit();
     if (GLEW_OK != err) {
-        fprintf(stderr, "[3D VIEW] GLEW Error: %s\n", glewGetErrorString(err));
-        return 1;
+        /* On some drivers, glewInit might return GLEW_ERROR_NO_GL_VERSION (1) 
+           even if context is valid when using glewExperimental. 
+           We check if the context is actually working. */
+        const GLubyte* version = glGetString(GL_VERSION);
+        if (version) {
+            printf("[3D VIEW] GLEW init reported error but context is valid. Version: %s\n", version);
+        } else {
+            fprintf(stderr, "[3D VIEW] GLEW Error: %s (Code: %d)\n", glewGetErrorString(err), err);
+            return 1;
+        }
+    } else {
+        printf("[3D VIEW] GLEW initialized. OpenGL Version: %s\n", glGetString(GL_VERSION));
     }
-    printf("[3D VIEW] GLEW initialized. OpenGL Version: %s\n", glGetString(GL_VERSION));
 
     /* Initialize Bloom FBOs */
     initBloomFBO();
@@ -5595,6 +5663,7 @@ int main(int argc, char** argv) {
     initShaders();
 
     glEnable(GL_DEPTH_TEST); 
+    glEnable(GL_CULL_FACE); /* Optimization: Don't render internal/back faces */
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_BLEND); 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -5621,12 +5690,26 @@ int main(int argc, char** argv) {
     GLfloat white[] = {1.0, 1.0, 1.0, 1.0};
     glLightfv(GL_LIGHT0, GL_DIFFUSE, white);
     glLightfv(GL_LIGHT0, GL_SPECULAR, white);
-        initStars(); initVBOs(); glMatrixMode(GL_PROJECTION); gluPerspective(45, 1.77, 1, 500); glMatrixMode(GL_MODELVIEW);
-        glutDisplayFunc(display); glutReshapeFunc(reshape); glutKeyboardFunc(keyboard); glutSpecialFunc(special); glutTimerFunc(16, timer, 0);
+    
+    initStars(); 
+    initVBOs(); 
+    
+    glMatrixMode(GL_PROJECTION); 
+    gluPerspective(45, (double)TACTICAL_CUBE_W/TACTICAL_CUBE_H, 1, 500); 
+    glMatrixMode(GL_MODELVIEW);
         
-        printf("[3D VIEW] Ready. Sending handshake to parent (PID %d).\n", getppid());
-        kill(getppid(), SIGUSR2); 
-        glutMainLoop(); 
-        return 0;
+    printf("[3D VIEW] Ready. Sending handshake to parent (PID %d).\n", getppid());
+    kill(getppid(), SIGUSR2); 
+    
+    while (!glfwWindowShouldClose(window)) {
+        timer(0);
+        display();
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+        /* usleep removed: glfwSwapInterval(1) handles timing natively and smoothly */
+    }
+    
+    glfwTerminate();
+    return 0;
 }
     
