@@ -361,70 +361,245 @@ typedef struct VulkanApp {
     int shm_inspector_page; /* 0=Off, 1=Energy/Status, 2=Galaxy/HMAC, 3=Networking */
 } VulkanApp;
 
-void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
-    /* Enhanced Starbase: Spire + Multi-Disk + Pulsing Core */
+void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse, int faction) {
+    /* Faction-Specific Proprietary Starbases */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
     pc.time = pulse;
     
-    /* 1. CENTRAL ENERGY CORE (Wireframe Sphere, Pulsing) */
-    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
-    mat4 S_core, R_core;
-    mat4_identity(R_core);
-    mat4_rotate(R_core, pulse * 0.5f, (vec3){0,1,0});
-    float corePulse = 0.8f + 0.2f * sinf(pulse * 3.0f);
-    mat4_scale(S_core, (vec3){corePulse * tactScale, corePulse * tactScale, corePulse * tactScale});
-    mat4_multiply(S_core, R_core, pc.model);
-    mat4_multiply(pc.model, baseT, pc.model);
-    pc.color[0]=1.0f; pc.color[1]=0.8f; pc.color[2]=0.0f; pc.color[3]=1.0f;
-    pc.usePushColor=1;
-    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
-    vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
-
-    /* 2. CENTRAL SPIRE (Solid, Dark Gray) */
-    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
-    mat4 S_spire, T_spire;
-    /* Very thin and tall vertical pylon */
-    mat4_scale(S_spire, (vec3){0.2f * tactScale, 4.0f * tactScale, 0.2f * tactScale});
-    mat4_identity(T_spire); /* Centered on baseT */
-    mat4_multiply(S_spire, T_spire, pc.model);
-    mat4_multiply(pc.model, baseT, pc.model);
-    pc.color[0]=0.3f; pc.color[1]=0.3f; pc.color[2]=0.3f; pc.color[3]=1.0f;
-    pc.usePushColor=5; /* PBR */
-    pc.metallic = 0.8f; pc.roughness = 0.2f;
-    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
-    vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
-
-    /* 3. MAIN HABITATION DISK (Solid, Gray) */
-    mat4 S_disk, R_disk;
-    mat4_identity(R_disk);
-    mat4_rotate(R_disk, pulse * 0.2f, (vec3){0,1,0});
-    mat4_scale(S_disk, (vec3){2.2f * tactScale, 0.15f * tactScale, 2.2f * tactScale});
-    mat4_multiply(S_disk, R_disk, pc.model);
-    mat4_multiply(pc.model, baseT, pc.model);
-    pc.color[0]=0.5f; pc.color[1]=0.5f; pc.color[2]=0.5f; pc.color[3]=1.0f;
-    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
-
-    /* 4. AUXILIARY SENSOR DISKS (Solid, Light Gray) */
-    float diskOffsets[] = {1.2f, -1.2f};
-    for(int i=0; i<2; i++) {
-        mat4 S_aux, T_aux, R_aux;
-        mat4_identity(R_aux);
-        mat4_rotate(R_aux, -pulse * 0.4f * (i+1), (vec3){0,1,0});
-        mat4_scale(S_aux, (vec3){1.0f * tactScale, 0.08f * tactScale, 1.0f * tactScale});
-        mat4_translate(T_aux, (vec3){0, diskOffsets[i] * tactScale, 0});
-        mat4_multiply(S_aux, R_aux, pc.model);
-        mat4_multiply(pc.model, T_aux, pc.model);
-        mat4_multiply(pc.model, baseT, pc.model);
-        pc.color[0]=0.6f; pc.color[1]=0.6f; pc.color[2]=0.6f; pc.color[3]=1.0f;
+    if (faction == 10) { /* Korthian: Aggressive, jagged design. Red glow. Large spikes. */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        mat4 S_core; mat4_scale(S_core, (vec3){1.2f*tactScale, 1.2f*tactScale, 1.2f*tactScale});
+        mat4_multiply(S_core, baseT, pc.model);
+        pc.color[0]=0.15f; pc.color[1]=0.15f; pc.color[2]=0.15f; pc.color[3]=1.0f; pc.usePushColor=5;
+        pc.metallic=0.8f; pc.roughness=0.3f;
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+        
+        pc.color[0]=1.0f; pc.color[1]=0.1f; pc.color[2]=0.0f; pc.usePushColor=6; /* Red Glow */
+        for (int i=0; i<4; i++) {
+            mat4 S_spike, R_spike, T_spike;
+            mat4_identity(R_spike); mat4_rotate(R_spike, i*M_PI/2.0f + pulse*0.5f, (vec3){0,1,0});
+            mat4_scale(S_spike, (vec3){0.2f*tactScale, 0.2f*tactScale, 3.5f*tactScale});
+            mat4_translate(T_spike, (vec3){0, 0, 1.2f*tactScale});
+            mat4_multiply(S_spike, T_spike, pc.model); mat4_multiply(pc.model, R_spike, pc.model); mat4_multiply(pc.model, baseT, pc.model);
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+        }
+    } else if (faction == 11) { /* Xylari: Organic/Plant-like. Green glow. */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+        pc.color[0]=0.0f; pc.color[1]=1.0f; pc.color[2]=0.2f; pc.color[3]=0.8f; pc.usePushColor=1;
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        for(int i=0; i<3; i++) {
+            mat4 S_sph, T_sph; float s = (1.2f + 0.4f*sinf(pulse*2.0f + i))*tactScale;
+            mat4_scale(S_sph, (vec3){s, s, s}); mat4_translate(T_sph, (vec3){0, (i-1)*tactScale*1.0f, 0});
+            mat4_multiply(S_sph, T_sph, pc.model); mat4_multiply(pc.model, baseT, pc.model);
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDrawIndexed(cb, SPHERE_LATS*SPHERE_LONGS*6, 1, 0, 0, 0);
+        }
+    } else if (faction == 12) { /* Swarm Dark: Hive-like structure */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        pc.color[0]=0.1f; pc.color[1]=0.1f; pc.color[2]=0.1f; pc.color[3]=1.0f; pc.usePushColor=5;
+        for(int i=0; i<8; i++) {
+            mat4 S_c, R_c, T_c;
+            mat4_identity(R_c); mat4_rotate(R_c, pulse*0.5f + i, (vec3){1,1,1});
+            mat4_scale(S_c, (vec3){0.8f*tactScale, 0.8f*tactScale, 0.8f*tactScale});
+            mat4_translate(T_c, (vec3){sinf(i)*1.5f*tactScale, cosf(i)*1.5f*tactScale, sinf(i*2.0f)*1.5f*tactScale});
+            mat4_multiply(S_c, R_c, pc.model); mat4_multiply(pc.model, T_c, pc.model); mat4_multiply(pc.model, baseT, pc.model);
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+        }
+    } else if (faction == 13) { /* Vesperian: Elegant tall pylons, magenta rings */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        pc.color[0]=0.8f; pc.color[1]=0.8f; pc.color[2]=0.9f; pc.color[3]=1.0f; pc.usePushColor=5;
+        for(int i=-1; i<=1; i+=2) {
+            mat4 S_p, T_p; mat4_scale(S_p, (vec3){0.4f*tactScale, 4.0f*tactScale, 0.4f*tactScale});
+            mat4_translate(T_p, (vec3){i*1.2f*tactScale, 0, 0});
+            mat4_multiply(S_p, T_p, pc.model); mat4_multiply(pc.model, baseT, pc.model);
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+        }
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
+        pc.color[0]=1.0f; pc.color[1]=0.0f; pc.color[2]=1.0f; pc.color[3]=0.8f; pc.usePushColor=1;
+        for(int i=-1; i<=1; i++) {
+            mat4 S_r, T_r, R_r; mat4_identity(R_r); mat4_rotate(R_r, M_PI/2.0f, (vec3){1,0,0}); mat4_rotate(R_r, pulse*2.0f, (vec3){0,0,1});
+            mat4_scale(S_r, (vec3){2.0f*tactScale, 2.0f*tactScale, 2.0f*tactScale});
+            mat4_translate(T_r, (vec3){0, i*2.0f*tactScale, 0});
+            mat4_multiply(S_r, R_r, pc.model); mat4_multiply(pc.model, T_r, pc.model); mat4_multiply(pc.model, baseT, pc.model);
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDraw(cb, 64, 1, 0, 0);
+        }
+    } else if (faction == 14) { /* Ascendant: Angelic rings */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        mat4 S_c; mat4_scale(S_c, (vec3){1.0f*tactScale, 1.0f*tactScale, 1.0f*tactScale}); mat4_multiply(S_c, baseT, pc.model);
+        pc.color[0]=0.8f; pc.color[1]=0.8f; pc.color[2]=1.0f; pc.color[3]=1.0f; pc.usePushColor=6;
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdDrawIndexed(cb, SPHERE_LATS*SPHERE_LONGS*6, 1, 0, 0, 0);
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
+        pc.color[0]=0.5f; pc.color[1]=0.0f; pc.color[2]=0.8f; pc.color[3]=0.8f; pc.usePushColor=1;
+        for(int i=0; i<3; i++) {
+            mat4 S_r, R_r; mat4_identity(R_r); mat4_rotate(R_r, pulse*(1.0f+i), (vec3){1,1,0});
+            mat4_scale(S_r, (vec3){(1.8f+i*0.6f)*tactScale, (1.8f+i*0.6f)*tactScale, (1.8f+i*0.6f)*tactScale});
+            mat4_multiply(S_r, R_r, pc.model); mat4_multiply(pc.model, baseT, pc.model);
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDraw(cb, 64, 1, 0, 0);
+        }
+    } else if (faction == 15) { /* Quarzite: Crystals */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        pc.color[0]=1.0f; pc.color[1]=0.5f; pc.color[2]=0.0f; pc.color[3]=1.0f; pc.usePushColor=6;
+        for(int i=0; i<4; i++) {
+            mat4 S_c, R_c; mat4_identity(R_c); mat4_rotate(R_c, pulse*0.2f + i*M_PI/4.0f, (vec3){0,1,1});
+            mat4_scale(S_c, (vec3){1.5f*tactScale, 0.4f*tactScale, 1.5f*tactScale});
+            mat4_multiply(S_c, R_c, pc.model); mat4_multiply(pc.model, baseT, pc.model);
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+        }
+    } else if (faction == 16) { /* Saurian: Brutalist blocks */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        pc.color[0]=0.4f; pc.color[1]=0.4f; pc.color[2]=0.3f; pc.color[3]=1.0f; pc.usePushColor=5;
+        mat4 S_b; mat4_scale(S_b, (vec3){2.0f*tactScale, 2.0f*tactScale, 2.0f*tactScale}); mat4_multiply(S_b, baseT, pc.model);
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+        pc.color[0]=0.4f; pc.color[1]=0.6f; pc.color[2]=0.1f; pc.usePushColor=6;
+        for(int i=-1; i<=1; i+=2) {
+            mat4 S_g, T_g; mat4_scale(S_g, (vec3){2.1f*tactScale, 0.3f*tactScale, 2.1f*tactScale});
+            mat4_translate(T_g, (vec3){0, i*1.0f*tactScale, 0});
+            mat4_multiply(S_g, T_g, pc.model); mat4_multiply(pc.model, baseT, pc.model);
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+        }
+    } else if (faction == 17) { /* Gilded: Gold sphere + rings */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        pc.color[0]=1.0f; pc.color[1]=0.8f; pc.color[2]=0.1f; pc.color[3]=1.0f; pc.usePushColor=5; pc.metallic=1.0f; pc.roughness=0.1f;
+        mat4 S_s; mat4_scale(S_s, (vec3){1.5f*tactScale, 1.5f*tactScale, 1.5f*tactScale}); mat4_multiply(S_s, baseT, pc.model);
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdDrawIndexed(cb, SPHERE_LATS*SPHERE_LONGS*6, 1, 0, 0, 0);
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
+        pc.usePushColor=1;
+        for(int i=0; i<3; i++) {
+            mat4 S_r, R_r; mat4_identity(R_r); mat4_rotate(R_r, M_PI/2.0f, (vec3){1,0,0}); mat4_rotate(R_r, pulse*0.5f*(i+1), (vec3){0,0,1});
+            mat4_scale(S_r, (vec3){(1.8f+i*0.5f)*tactScale, (1.8f+i*0.5f)*tactScale, (1.8f+i*0.5f)*tactScale});
+            mat4_multiply(S_r, R_r, pc.model); mat4_multiply(pc.model, baseT, pc.model);
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDraw(cb, 64, 1, 0, 0);
+        }
+    } else if (faction == 18) { /* Fluidic Void: Shifting wireframes */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        pc.color[0]=0.7f; pc.color[1]=1.0f; pc.color[2]=0.0f; pc.color[3]=0.6f; pc.usePushColor=1;
+        for(int i=0; i<3; i++) {
+            mat4 S_w, R_w; mat4_identity(R_w); mat4_rotate(R_w, pulse*(1.0f+i), (vec3){0.5f, 1, 0});
+            float w_s = (1.5f + 0.5f*sinf(pulse*3.0f + i))*tactScale;
+            mat4_scale(S_w, (vec3){w_s, w_s*0.8f, w_s});
+            mat4_multiply(S_w, R_w, pc.model); mat4_multiply(pc.model, baseT, pc.model);
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDrawIndexed(cb, SPHERE_LATS*SPHERE_LONGS*6, 1, 0, 0, 0);
+        }
+    } else if (faction == 19) { /* Cryos: Ice shards */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        pc.color[0]=0.0f; pc.color[1]=0.8f; pc.color[2]=1.0f; pc.color[3]=0.8f; pc.usePushColor=6;
+        for(int i=0; i<5; i++) {
+            mat4 S_i, R_i, T_i; mat4_identity(R_i); mat4_rotate(R_i, i*M_PI*2.0f/5.0f + pulse*0.2f, (vec3){0,1,0});
+            mat4_scale(S_i, (vec3){0.3f*tactScale, (2.5f+sinf(i))*tactScale, 0.3f*tactScale});
+            mat4_translate(T_i, (vec3){0,0,1.2f*tactScale});
+            mat4_multiply(S_i, T_i, pc.model); mat4_multiply(pc.model, R_i, pc.model); mat4_multiply(pc.model, baseT, pc.model);
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+        }
+    } else if (faction == 20) { /* Apex: Dark red monoliths */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        pc.color[0]=0.2f; pc.color[1]=0.0f; pc.color[2]=0.0f; pc.color[3]=1.0f; pc.usePushColor=5;
+        mat4 S_m; mat4_scale(S_m, (vec3){1.2f*tactScale, 3.5f*tactScale, 1.2f*tactScale}); mat4_multiply(S_m, baseT, pc.model);
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+        pc.color[0]=1.0f; pc.color[1]=0.1f; pc.color[2]=0.1f; pc.usePushColor=6;
+        mat4 S_g; mat4_scale(S_g, (vec3){1.3f*tactScale, 0.15f*tactScale, 1.3f*tactScale}); mat4_multiply(S_g, baseT, pc.model);
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+    } else {
+        /* Default / Alliance: Spire + Disk + Pulsing Core */
+        /* 1. CENTRAL ENERGY CORE (Wireframe Sphere, Pulsing) */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+        mat4 S_core, R_core;
+        mat4_identity(R_core);
+        mat4_rotate(R_core, pulse * 0.5f, (vec3){0,1,0});
+        float corePulse = 0.8f + 0.2f * sinf(pulse * 3.0f);
+        mat4_scale(S_core, (vec3){corePulse * tactScale, corePulse * tactScale, corePulse * tactScale});
+        mat4_multiply(S_core, R_core, pc.model);
+        mat4_multiply(pc.model, baseT, pc.model);
+        pc.color[0]=1.0f; pc.color[1]=0.8f; pc.color[2]=0.0f; pc.color[3]=1.0f;
+        pc.usePushColor=1;
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+
+        /* 2. CENTRAL SPIRE (Solid, Dark Gray) */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        mat4 S_spire, T_spire;
+        mat4_scale(S_spire, (vec3){0.2f * tactScale, 4.0f * tactScale, 0.2f * tactScale});
+        mat4_identity(T_spire); /* Centered on baseT */
+        mat4_multiply(S_spire, T_spire, pc.model);
+        mat4_multiply(pc.model, baseT, pc.model);
+        pc.color[0]=0.3f; pc.color[1]=0.3f; pc.color[2]=0.3f; pc.color[3]=1.0f;
+        pc.usePushColor=5; /* PBR */
+        pc.metallic = 0.8f; pc.roughness = 0.2f;
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+
+        /* 3. MAIN HABITATION DISK (Solid, Gray) */
+        mat4 S_disk, R_disk;
+        mat4_identity(R_disk);
+        mat4_rotate(R_disk, pulse * 0.2f, (vec3){0,1,0});
+        mat4_scale(S_disk, (vec3){2.2f * tactScale, 0.15f * tactScale, 2.2f * tactScale});
+        mat4_multiply(S_disk, R_disk, pc.model);
+        mat4_multiply(pc.model, baseT, pc.model);
+        pc.color[0]=0.5f; pc.color[1]=0.5f; pc.color[2]=0.5f; pc.color[3]=1.0f;
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+
+        /* 4. AUXILIARY SENSOR DISKS (Solid, Light Gray) */
+        float diskOffsets[] = {1.2f, -1.2f};
+        for(int i=0; i<2; i++) {
+            mat4 S_aux, T_aux, R_aux;
+            mat4_identity(R_aux);
+            mat4_rotate(R_aux, -pulse * 0.4f * (i+1), (vec3){0,1,0});
+            mat4_scale(S_aux, (vec3){1.0f * tactScale, 0.08f * tactScale, 1.0f * tactScale});
+            mat4_translate(T_aux, (vec3){0, diskOffsets[i] * tactScale, 0});
+            mat4_multiply(S_aux, R_aux, pc.model);
+            mat4_multiply(pc.model, T_aux, pc.model);
+            mat4_multiply(pc.model, baseT, pc.model);
+            pc.color[0]=0.6f; pc.color[1]=0.6f; pc.color[2]=0.6f; pc.color[3]=1.0f;
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+            vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+        }
     }
+    
     /* Restore pipeline for next objects in the loop */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
@@ -3039,7 +3214,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             }
 
             if (obj->type == 3) {
-                drawStarbase(cb, app, T, tactScale, pulse);
+                drawStarbase(cb, app, T, tactScale, pulse, obj->faction);
                 continue;
             }
 

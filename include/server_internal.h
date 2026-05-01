@@ -460,7 +460,10 @@ typedef struct {
     double y;
     double z; 
     int health;
-    int active; 
+    int active;
+    int fire_cooldown;
+    int beam_count;
+    NetBeam beams[4];
 } NPCBase;
 
 typedef struct {

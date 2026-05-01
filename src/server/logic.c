@@ -2060,7 +2060,7 @@ void update_game_logic() {
         /* ... celestial objects ... */
         for(int s=0; s<lq->star_count && o_idx < MAX_NET_OBJECTS; s++) { NPCStar *st = lq->stars[s]; if(!st->active) continue; upd->objects[o_idx++] = (NetObject){st->x, st->y, st->z, 0, 0, 0, 4, 1, 1, 100, 0, 0, 100, 4, st->id + GALAXY_OBJECT_MIN_STAR, 0, "Star", 0,0,0}; }
         for(int p=0; p<lq->planet_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlanet *pl = lq->planets[p]; if(!pl->active) continue; upd->objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, 5, pl->resource_type, 1, 100, pl->amount, 0, 100, 5, pl->id + GALAXY_OBJECT_MIN_PLANET, 0, "Planet", 0,0,0}; }
-        for(int b=0; b<lq->base_count && o_idx < MAX_NET_OBJECTS; b++) { NPCBase *ba = lq->bases[b]; if(!ba->active) continue; upd->objects[o_idx++] = (NetObject){ba->x, ba->y, ba->z, 0, 0, 0, 3, 1, 1, (int)(ba->health/(COST_ACTION_MED * 2)), 0, 0, (int)(ba->health/(COST_ACTION_MED * 2)), 0, ba->id + GALAXY_OBJECT_MIN_STARBASE, 0, "Starbase", 0,0,0}; }
+        for(int b=0; b<lq->base_count && o_idx < MAX_NET_OBJECTS; b++) { NPCBase *ba = lq->bases[b]; if(!ba->active) continue; upd->objects[o_idx++] = (NetObject){ba->x, ba->y, ba->z, 0, 0, 0, 3, 1, 1, (int)(ba->health/(COST_ACTION_MED * 2)), 0, 0, (int)(ba->health/(COST_ACTION_MED * 2)), ba->faction, ba->id + GALAXY_OBJECT_MIN_STARBASE, 0, "Starbase", 0,0,0}; }
         for(int h=0; h<lq->bh_count && o_idx < MAX_NET_OBJECTS; h++) { NPCBlackHole *bh = lq->black_holes[h]; if(!bh->active) continue; upd->objects[o_idx++] = (NetObject){bh->x, bh->y, bh->z, 0, 0, 0, 6, 0, 1, 100, 0, 0, 100, 6, bh->id + GALAXY_OBJECT_MIN_BLACKHOLE, 0, "Black Hole", 0,0,0}; }
         for(int n=0; n<lq->nebula_count && o_idx < MAX_NET_OBJECTS; n++) { NPCNebula *nb = lq->nebulas[n]; if(!nb->active) continue; upd->objects[o_idx++] = (NetObject){nb->x, nb->y, nb->z, 0, 0, 0, 7, nb->type, 1, 100, 0, 0, 100, 7, nb->id + GALAXY_OBJECT_MIN_NEBULA, 0, "Nebula", 0,0,0}; }
         for(int p=0; p<lq->pulsar_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPulsar *pu = lq->pulsars[p]; if(!pu->active) continue; upd->objects[o_idx++] = (NetObject){pu->x, pu->y, pu->z, 0, 0, 0, 8, pu->type, 1, 100, 0, 0, 100, 8, pu->id + GALAXY_OBJECT_MIN_PULSAR, 0, "Pulsar", 0,0,0}; }
@@ -2122,6 +2122,7 @@ void update_game_logic() {
         for (int n = 0; n < lq->npc_count; n++) { NPCShip *ns = lq->npcs[n]; if (!ns->active) continue; for (int b = 0; b < ns->beam_count && b_idx < MAX_NET_BEAMS; b++) upd->beams[b_idx++] = ns->beams[b]; }
         for (int m = 0; m < lq->monster_count; m++) { NPCMonster *mo = lq->monsters[m]; if (!mo->active) continue; for (int b = 0; b < mo->beam_count && b_idx < MAX_NET_BEAMS; b++) upd->beams[b_idx++] = mo->beams[b]; }
         for (int p = 0; p < lq->platform_count; p++) { NPCPlatform *pl = lq->platforms[p]; if (!pl->active) continue; for (int b = 0; b < pl->beam_count && b_idx < MAX_NET_BEAMS; b++) upd->beams[b_idx++] = pl->beams[b]; }
+        for (int bb = 0; bb < lq->base_count; bb++) { NPCBase *ba = lq->bases[bb]; if (!ba->active) continue; for (int b = 0; b < ba->beam_count && b_idx < MAX_NET_BEAMS; b++) upd->beams[b_idx++] = ba->beams[b]; }
         upd->beam_count = b_idx;
 
         if (supernova_event.supernova_timer > 0) { upd->map_update_q[0] = supernova_event.supernova_q1; upd->map_update_q[1] = supernova_event.supernova_q2; upd->map_update_q[2] = supernova_event.supernova_q3; upd->map_update_val = -supernova_event.supernova_timer; }
@@ -2131,6 +2132,73 @@ void update_game_logic() {
 
         send_optimized_update(i, upd);
         free(upd);
+    }
+
+    /* === STARBASE FACTION DEFENSE: fire at players docking into hostile bases === */
+    /* Rate: 3 shots/s at 60 Hz  =>  cooldown = 20 ticks */
+#define BASE_FIRE_COOLDOWN_TICKS  20
+#define BASE_FIRE_RANGE           3.5   /* same as DIST_DOCKING_MAX */
+#define BASE_FIRE_DAMAGE          8.0   /* hull % per shot */
+    for (int b = 0; b < MAX_BASES; b++) {
+        if (!bases[b].active) {
+            continue;
+        }
+        if (bases[b].fire_cooldown > 0) {
+            bases[b].fire_cooldown--;
+        }
+        for (int pi = 0; pi < MAX_CLIENTS; pi++) {
+            if (!players[pi].active) {
+                continue;
+            }
+            /* Only target players who are in docking sequence with THIS base */
+            int docking_base_id = players[pi].pending_bor_target - GALAXY_OBJECT_MIN_STARBASE;
+            if (players[pi].nav_state != NAV_STATE_DOCKING) {
+                continue;
+            }
+            if (docking_base_id != b) {
+                continue;
+            }
+            /* Skip same faction */
+            if (bases[b].faction == players[pi].faction || bases[b].faction == FACTION_ALLIANCE) {
+                continue;
+            }
+            /* Distance check: player must be within firing range */
+            double dx = bases[b].x - players[pi].state.s1;
+            double dy = bases[b].y - players[pi].state.s2;
+            double dz = bases[b].z - players[pi].state.s3;
+            double dist = sqrt(dx * dx + dy * dy + dz * dz);
+            if (dist > BASE_FIRE_RANGE * 2.0) {
+                continue;
+            }
+            if (bases[b].fire_cooldown <= 0) {
+                /* Abort the docking sequence */
+                players[pi].nav_state = NAV_STATE_IDLE;
+                players[pi].pending_bor_target = 0;
+                /* Visual beam from base to player */
+                if (bases[b].beam_count < 4) {
+                    bases[b].beams[bases[b].beam_count++] = (NetBeam){
+                        bases[b].x, bases[b].y, bases[b].z,
+                        players[pi].state.s1, players[pi].state.s2, players[pi].state.s3,
+                        b + GALAXY_OBJECT_MIN_STARBASE, pi + 1, 1
+                    };
+                }
+                /* Damage player shields and hull */
+                int s_idx = rand() % 6;
+                if (players[pi].state.shields[s_idx] > 0) {
+                    int shield_dmg = 200 + rand() % 300;
+                    if ((int)players[pi].state.shields[s_idx] > shield_dmg) {
+                        players[pi].state.shields[s_idx] -= shield_dmg;
+                    } else {
+                        players[pi].state.shields[s_idx] = 0;
+                        apply_hull_damage(pi, BASE_FIRE_DAMAGE * 0.5);
+                    }
+                } else {
+                    apply_hull_damage(pi, BASE_FIRE_DAMAGE);
+                }
+                send_server_msg(pi, "STARBASE", "\033[31m*** UNAUTHORIZED DOCKING ATTEMPT! DEFENSIVE BATTERIES OPENED FIRE! ***\033[0m");
+                bases[b].fire_cooldown = BASE_FIRE_COOLDOWN_TICKS;
+            }
+        }
     }
 
     rebuild_spatial_index();
@@ -2155,6 +2223,11 @@ void update_game_logic() {
     for (int i = 0; i < MAX_PLATFORMS; i++) {
         if (platforms[i].active) {
             platforms[i].beam_count = 0;
+        }
+    }
+    for (int i = 0; i < MAX_BASES; i++) {
+        if (bases[i].active) {
+            bases[i].beam_count = 0;
         }
     }
 }

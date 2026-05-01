@@ -662,7 +662,7 @@ float PlayerX = 0, PlayerY = 0, PlayerZ = 0;
 float stars[8000][3];
 
 /* Prototypes */
-void drawStarbase(double x, double y, double z);
+void drawStarbase(double x, double y, double z, int faction);
 void drawPlanet(double x, double y, double z);
 void drawGrid();
 void drawKorthian(double x, double y, double z);
@@ -2028,9 +2028,75 @@ void drawApex(double x, double y, double z) { (void)x; (void)y; (void)z;
     glPushMatrix(); glTranslatef(-0.4, 0, 0); glScalef(0.5, 0.8, 1.5); glutSolidCube(0.2); glPopMatrix();
 }
 
-void drawStarbase(double x, double y, double z) { (void)x; (void)y; (void)z;
-    glRotatef(pulse*10, 0, 1, 0); glColor3f(0.9, 0.9, 0.1); glutWireSphere(0.4, 12, 12);
-    glColor3f(0.5, 0.5, 0.5); glPushMatrix(); glScalef(1.5, 0.1, 1.5); glutSolidCube(0.6); glPopMatrix();
+void drawStarbase(double x, double y, double z, int faction) { (void)x; (void)y; (void)z;
+    if (faction == 10) { /* Korthian */
+        glColor3f(0.15, 0.15, 0.15); glutSolidCube(1.2);
+        glColor3f(1.0, 0.1, 0.0);
+        for(int i=0; i<4; i++) {
+            glPushMatrix(); glRotatef(i*90.0 + pulse*30.0, 0,1,0); glTranslatef(0,0,1.2); glScalef(0.2, 0.2, 3.5); glutSolidCube(1.0); glPopMatrix();
+        }
+    } else if (faction == 11) { /* Xylari */
+        glColor4f(0.0, 1.0, 0.2, 0.8);
+        for(int i=0; i<3; i++) {
+            glPushMatrix(); glTranslatef(0, (i-1)*1.0, 0); double s = 1.2 + 0.4*sin(pulse*2.0 + i); glutWireSphere(s, 16, 16); glPopMatrix();
+        }
+    } else if (faction == 12) { /* Swarm */
+        glColor3f(0.1, 0.1, 0.1);
+        for(int i=0; i<8; i++) {
+            glPushMatrix(); glTranslatef(sin(i)*1.5, cos(i)*1.5, sin(i*2.0)*1.5); glRotatef(pulse*30.0 + i*50.0, 1,1,1); glutSolidCube(0.8); glPopMatrix();
+        }
+    } else if (faction == 13) { /* Vesperian */
+        glColor3f(0.8, 0.8, 0.9);
+        for(int i=-1; i<=1; i+=2) {
+            glPushMatrix(); glTranslatef(i*1.2, 0, 0); glScalef(0.4, 4.0, 0.4); glutSolidCube(1.0); glPopMatrix();
+        }
+        glColor4f(1.0, 0.0, 1.0, 0.8);
+        for(int i=-1; i<=1; i++) {
+            glPushMatrix(); glTranslatef(0, i*2.0, 0); glRotatef(90, 1,0,0); glRotatef(pulse*120.0, 0,0,1); glutWireTorus(0.05, 2.0, 8, 32); glPopMatrix();
+        }
+    } else if (faction == 14) { /* Ascendant */
+        glColor3f(0.8, 0.8, 1.0); glutSolidSphere(1.0, 24, 24);
+        glColor4f(0.5, 0.0, 0.8, 0.8);
+        for(int i=0; i<3; i++) {
+            glPushMatrix(); glRotatef(pulse*60.0*(1.0+i), 1,1,0); glutWireTorus(0.05, 1.8+i*0.6, 8, 32); glPopMatrix();
+        }
+    } else if (faction == 15) { /* Quarzite */
+        glColor3f(1.0, 0.5, 0.0);
+        for(int i=0; i<4; i++) {
+            glPushMatrix(); glRotatef(pulse*12.0 + i*45.0, 0,1,1); glScalef(1.5, 0.4, 1.5); glutSolidCube(1.0); glPopMatrix();
+        }
+    } else if (faction == 16) { /* Saurian */
+        glColor3f(0.4, 0.4, 0.3); glutSolidCube(2.0);
+        glColor3f(0.4, 0.6, 0.1);
+        for(int i=-1; i<=1; i+=2) {
+            glPushMatrix(); glTranslatef(0, i*1.0, 0); glScalef(2.1, 0.3, 2.1); glutSolidCube(1.0); glPopMatrix();
+        }
+    } else if (faction == 17) { /* Gilded */
+        glColor3f(1.0, 0.8, 0.1); glutSolidSphere(1.5, 24, 24);
+        for(int i=0; i<3; i++) {
+            glPushMatrix(); glRotatef(90, 1,0,0); glRotatef(pulse*30.0*(i+1), 0,0,1); glutWireTorus(0.1, 1.8+i*0.5, 8, 32); glPopMatrix();
+        }
+    } else if (faction == 18) { /* Fluidic Void */
+        glColor4f(0.7, 1.0, 0.0, 0.6);
+        for(int i=0; i<3; i++) {
+            glPushMatrix(); glRotatef(pulse*60.0*(1.0+i), 0.5, 1, 0); double s = 1.5 + 0.5*sin(pulse*3.0 + i); glScalef(s, s*0.8, s); glutWireSphere(1.0, 16, 16); glPopMatrix();
+        }
+    } else if (faction == 19) { /* Cryos */
+        glColor4f(0.0, 0.8, 1.0, 0.8);
+        for(int i=0; i<5; i++) {
+            glPushMatrix(); glRotatef(i*72.0 + pulse*12.0, 0,1,0); glTranslatef(0,0,1.2); glScalef(0.3, 2.5+sin(i), 0.3); glutSolidCube(1.0); glPopMatrix();
+        }
+    } else if (faction == 20) { /* Apex */
+        glColor3f(0.2, 0.0, 0.0); glPushMatrix(); glScalef(1.2, 3.5, 1.2); glutSolidCube(1.0); glPopMatrix();
+        glColor3f(1.0, 0.1, 0.1); glPushMatrix(); glScalef(1.3, 0.15, 1.3); glutSolidCube(1.0); glPopMatrix();
+    } else { /* Default / Alliance */
+        glPushMatrix(); glRotatef(pulse*30.0, 0, 1, 0); glColor3f(1.0, 0.8, 0.0); double s = 0.8 + 0.2*sin(pulse*3.0); glutWireSphere(s, 16, 16); glPopMatrix();
+        glColor3f(0.3, 0.3, 0.3); glPushMatrix(); glScalef(0.2, 4.0, 0.2); glutSolidCube(1.0); glPopMatrix();
+        glColor3f(0.5, 0.5, 0.5); glPushMatrix(); glRotatef(pulse*12.0, 0,1,0); glScalef(2.2, 0.15, 2.2); glutSolidCube(1.0); glPopMatrix();
+        glColor3f(0.6, 0.6, 0.6);
+        float offsets[] = {1.2, -1.2};
+        for(int i=0; i<2; i++) { glPushMatrix(); glTranslatef(0, offsets[i], 0); glRotatef(-pulse*24.0*(i+1), 0,1,0); glScalef(1.0, 0.08, 1.0); glutSolidCube(1.0); glPopMatrix(); }
+    }
 }
 
 void drawStar(double x, double y, double z, int id) {
@@ -4344,7 +4410,7 @@ void display() {
                 
                 if (use_hull && !g_is_cloaked_rendering) glUseProgram(hullShaderProgram);
                 switch(t) {
-                    case 3: drawStarbase(0,0,0); break;
+                    case 3: drawStarbase(0,0,0, objects[i].faction); break;
                     case 4: drawStar(objects[i].x, objects[i].y, objects[i].z, objects[i].id); break;
                     case 5: drawPlanet(0,0,0); break;
                     case 6: drawBlackHole(0,0,0); break;

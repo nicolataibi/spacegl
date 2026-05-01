@@ -2543,8 +2543,14 @@ void handle_doc(int i, const char *params, bool *should_disconnect) {
     }
 
     if(base_idx != -1) {
-        if (bases[base_idx].faction != players[i].faction) {
-            send_server_msg(i, "COMPUTER", "DOCKING DENIED: Starbase identified as HOSTILE or UNAUTHORIZED.");
+        if (bases[base_idx].faction != players[i].faction && bases[base_idx].faction != FACTION_ALLIANCE) {
+            /* Allow sequence to start so defense AI can engage, but warn immediately */
+            players[i].state.energy -= COST_ACTION_HIGH;
+            players[i].nav_state = NAV_STATE_DOCKING;
+            players[i].nav_timer = (int)TIMER_DOCKING_SEQ;
+            players[i].hyper_speed = 0;
+            players[i].pending_bor_target = base_idx + GALAXY_OBJECT_MIN_STARBASE;
+            send_server_msg(i, "STARBASE", "\033[31m*** RED ALERT: UNAUTHORIZED DOCKING ATTEMPT DETECTED! HOSTILE STARBASE DEFENSIVE BATTERIES ARE POWERING UP! ***\033[0m");
             return;
         }
 

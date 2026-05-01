@@ -768,6 +768,7 @@ void generate_galaxy() {
 
     int n_count = 0, b_count = 0, p_count = 0, s_count = 0, bh_count = 0, neb_count = 0, pul_count = 0, com_count = 0, ast_count = 0, der_count = 0, mine_count = 0, buoy_count = 0, plat_count = 0, rift_count = 0, mon_count = 0;
     int faction_counts[21] = {0};
+    int faction_base_counts[21] = {0};
     int class_der_counts[14] = {0};
     int faction_der_counts[21] = {0};
     int star_spectral_counts[7] = {0}; /* O, B, A, F, G, K, M */
@@ -865,7 +866,9 @@ void generate_galaxy() {
     int target_bases = GALAXY_CREATE_OBJECT_MIN_BASE + (rand() % (GALAXY_CREATE_OBJECT_MAX_BASE - GALAXY_CREATE_OBJECT_MIN_BASE + 1));
     for (int i = 0; i < target_bases && b_count < MAX_BASES; i++) {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
-        bases[b_count] = (NPCBase){.id=b_count, .faction=FACTION_ALLIANCE, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .health=COST_HYPERDRIVE_INIT, .active=1};
+        int faction = (rand() % 12 == 0) ? FACTION_ALLIANCE : 10 + (rand() % 11);
+        bases[b_count] = (NPCBase){.id=b_count, .faction=faction, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .health=COST_HYPERDRIVE_INIT, .active=1};
+        faction_base_counts[faction]++;
         b_count++;
     }
 
@@ -1187,6 +1190,20 @@ void generate_galaxy() {
         printf("%s | %s %s| %s %s %s|\n", B_CYAN, f1, B_CYAN, B_CYAN, f2, B_CYAN);
     }
 
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ STARBASES BY FACTION ]                                     %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    char fb1[64], fb2[64] = "";
+    sprintf(fb1, "%s %-12s: %s%-4d", B_WHITE, get_species_name(FACTION_ALLIANCE), B_GREEN, faction_base_counts[FACTION_ALLIANCE]);
+    printf("%s | %s %s| %s %s %s|\n", B_CYAN, fb1, B_CYAN, B_CYAN, "                       ", B_CYAN);
+    for(int f=10; f<=20; f+=2) {
+        sprintf(fb1, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f), B_GREEN, faction_base_counts[f]);
+        if (f+1 <= 20) {
+            sprintf(fb2, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f+1), B_GREEN, faction_base_counts[f+1]);
+        } else {
+            fb2[0] = '\0';
+        }
+        printf("%s | %s %s| %s %-23s %s|\n", B_CYAN, fb1, B_CYAN, B_CYAN, fb2, B_CYAN);
+    }
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     printf("%s | %s [ CLASS-OMEGA THREATS ]    %s| %s [ PULSAR CLASSIFICATION ]  %s|\n", B_CYAN, B_YELLOW, B_CYAN, B_YELLOW, B_CYAN);
     const char* p_classes[] = {"Rotation-Pwr", "Accretion-Pwr", "Magnetar"};
