@@ -1,4 +1,8 @@
-# Space GL: 3D Multi-User Client-Server Edition
+<div style="text-align: center; border-bottom: 1px solid #ccc; margin-bottom: 20px;">
+<h1>Space GL: 3D Multi-User Client-Server Edition</h1>
+<p>May 3, 2026</p>
+</div>
+
 ![Version](https://img.shields.io/badge/Version-3.0-green)
 ![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
 ![Language](https://img.shields.io/badge/Language-C-blue)
@@ -167,7 +171,7 @@ Update 3.0 significantly expands the galaxy's physical content and refines the b
     *   **Full Object Coverage**: Telemetry support extended to 10 new galactic entity types (IDs 40-49), including *Alien Artifacts, Warp Gates, Neutron Stars, Mega Structures, Dark Matter Clouds, Quantum Singularities, Plasma Storms, Orbital Rings, Time Anomalies,* and *Void Crystals*.
 *   **Galactic Typology Expansion**:
     *   Implemented **Subspace Anomalies (Type 50)** as persistent, procedurally generated entities.
-    *   Integrated anomaly rendering pipelines for both Vulkan (Emerald Green glow) and `freeglut` (instability-effect cubes).
+    *   Integrated anomaly rendering pipelines for both Vulkan (Emerald Green glow) and `GLFW` (instability-effect cubes).
 *   **Server-Side Astrometrics**:
     *   Enhanced server startup report with a dedicated **"ANCIENT STRUCTURES & ANOMALIES"** section.
     *   Fixed a bug where planetary resource statistics were missing from the startup report.
@@ -320,7 +324,7 @@ The v2.5 architecture is designed to handle mass combat scenarios without perfor
 Ensure your package list is up to date, then install the required dependencies:
 ```bash
 sudo apt-get update
-sudo apt-get install build-essential freeglut3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
+sudo apt-get install build-essential libglfw3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
                      libvulkan-dev vulkan-tools glslc libglfw3-dev libncurses5-dev libncursesw5-dev
 ```
 
@@ -329,7 +333,7 @@ Ensure you have the EPEL repository enabled, then:
 ```bash
 sudo dnf install epel-release
 sudo dnf groupinstall "Development Tools"
-sudo dnf install freeglut-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel \
+sudo dnf install glfw-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel \
                  vulkan-loader-devel vulkan-validation-layers-devel glslang ncurses-devel glfw-devel
 ```
 

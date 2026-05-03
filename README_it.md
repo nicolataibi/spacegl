@@ -1,4 +1,8 @@
-# Space GL: 3D Multi-User Client-Server Edition
+<div style="text-align: center; border-bottom: 1px solid #ccc; margin-bottom: 20px;">
+<h1>Space GL: 3D Multi-User Client-Server Edition</h1>
+<p>May 3, 2026</p>
+</div>
+
 ![Version](https://img.shields.io/badge/Version-3.0-green)
 ![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
 ![Language](https://img.shields.io/badge/Language-C-blue)
@@ -321,7 +325,7 @@ L'aggiornamento 2.4 introduce ottimizzazioni di nuova generazione e una robustez
 Assicurati che la lista dei pacchetti sia aggiornata, quindi installa le dipendenze necessarie:
 ```bash
 sudo apt-get update
-sudo apt-get install build-essential freeglut3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
+sudo apt-get install build-essential libglfw3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
                      libvulkan-dev vulkan-tools glslc libglfw3-dev libncurses5-dev libncursesw5-dev
 ```
 
@@ -330,7 +334,7 @@ Assicurati di aver abilitato il repository EPEL, quindi:
 ```bash
 sudo dnf install epel-release
 sudo dnf groupinstall "Development Tools"
-sudo dnf install freeglut-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel \
+sudo dnf install glfw-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel \
                  vulkan-loader-devel vulkan-validation-layers-devel glslang ncurses-devel glfw-devel
 ```
 
