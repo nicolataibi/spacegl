@@ -3,7 +3,7 @@
 %global autorelease_version 1
 
 Name:           spacegl
-Version:        2026.05.01.04
+Version:        2026.05.03.01
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
@@ -30,10 +30,11 @@ BuildRequires:  glslc
 Requires:       %{name}-data = %{version}-%{release}
 
 %description
-SpaceGL is a high-performance 3D multi-user client-server game engine.
-It provides real-time galaxy synchronization using shared memory (SHM),
-secure communication channels, and multiple 3D visualization front-ends
-based on OpenGL and Vulkan.
+Space GL is a high-performance 3D multi-user client-server space flight and
+combat simulator. The engine features real-time galaxy state synchronization
+using shared memory (SHM), cryptographically signed data integrity
+(HMAC-SHA256), a dual-socket advanced telemetry subsystem for tactical
+oversight, and versatile visualization front-ends built on OpenGL and Vulkan.
 
 
 %package data
@@ -69,7 +70,7 @@ and additional assets explaining the SpaceGL engine and game play.
 
 %check
 # Verifica l'integrità dei binari senza eseguirli (importante per build headless)
-for bin in spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_vulkan spacegl_hud spacegl_diag; do
+for bin in spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_vulkan spacegl_hud spacegl_diag spacegl_telemetry; do
     find . -type f -executable -name "$bin" -print | grep -q "." || { echo "Error: $bin not found or not executable"; exit 1; }
 done
 
@@ -87,6 +88,7 @@ done
 %{_bindir}/spacegl_vulkan
 %{_bindir}/spacegl_hud
 %{_bindir}/spacegl_diag
+%{_bindir}/spacegl_telemetry
 
 %{_bindir}/spacegl_server.sh
 %{_bindir}/spacegl_client.sh

@@ -88,8 +88,12 @@ set(COMMON_LIBS Threads::Threads OpenMP::OpenMP_C OpenSSL::Crypto m rt)
 
 # 1. spacegl_server
 file(GLOB SERVER_EXTRA_SRCS "src/server/*.c")
-add_executable(spacegl_server src/spacegl_server.c ${SERVER_EXTRA_SRCS})
+add_executable(spacegl_server src/spacegl_server.c src/telemetry_server.c ${SERVER_EXTRA_SRCS})
 target_link_libraries(spacegl_server ${COMMON_LIBS})
+
+# 1b. spacegl_telemetry
+add_executable(spacegl_telemetry src/spacegl_telemetry.c)
+target_link_libraries(spacegl_telemetry ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 
 # 2. spacegl_client
 add_executable(spacegl_client src/spacegl_client.c)
@@ -120,7 +124,7 @@ target_link_libraries(spacegl_diag ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 
 include(GNUInstallDirs)
 
-install(TARGETS spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_hud spacegl_vulkan spacegl_diag
+install(TARGETS spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_hud spacegl_vulkan spacegl_diag spacegl_telemetry
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 install(PROGRAMS spacegl_server.sh spacegl_client.sh spacegl_diag.sh
@@ -137,6 +141,7 @@ install(FILES
     man/man1/spacegl_vulkan.1
     man/man1/spacegl_hud.1
     man/man1/spacegl_diag.1
+    man/man1/spacegl_telemetry.1
     man/man1/spacegl_server.sh.1
     man/man1/spacegl_client.sh.1
     man/man1/spacegl_diag.sh.1

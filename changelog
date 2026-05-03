@@ -1,3 +1,13 @@
+* Sun May 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.03.01
+- [Feature] Implemented high-performance dual-socket telemetry system (TCP/Unix Domain Sockets).
+- [Architecture] Adopted server-streaming (Push) model for real-time 60Hz tactical updates, reducing network overhead.
+- [Network] Simultaneous support for local IPC via Unix Sockets and remote monitoring via TCP Port 5001.
+- [Instrumentation] Comprehensive monitoring of 35+ galactic categories with 12 distinct faction-specific ship streams.
+- [Client] New `spacegl_telemetry` ncurses client featuring unique faction color mapping and deterministic navigation.
+- [Asset Integration] Enhanced factional presence tracking by including Starbases and connected players in real-time counts.
+- [Compliance] Full COPR specification adherence for CLI help messages and argument handling.
+- [Localization] Updated README.md and README_it.md with "The Omniscience Protocol" narrative lore and technical user guides.
+
 * Fri May 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.01.04
 - [Refactor] Migrated spacegl_3dview from FreeGLUT to GLFW for native Wayland support and improved window management.
 - [Compatibility] Implemented a custom GLUT compatibility layer (glut_compat.c/h) to replicate legacy geometric primitives and text rendering.

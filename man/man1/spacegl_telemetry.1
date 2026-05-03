@@ -1,0 +1,50 @@
+.TH SPACEGL_TELEMETRY 1 "2026-05-03" "SpaceGL 2026.05.03.01" "SpaceGL Manual"
+.SH NAME
+spacegl_telemetry \- SpaceGL real-time tactical telemetry client
+.SH SYNOPSIS
+.B spacegl_telemetry
+[\fB\-\-tcp\fR [\fIHOST\fR]] [\fB\-\-help\fR]
+.SH DESCRIPTION
+.B spacegl_telemetry
+is a high-performance tactical monitoring tool for the SpaceGL engine.
+It connects to a running
+.BR spacegl_server (1)
+via either a Unix Domain Socket (local) or a TCP socket (remote) to receive
+a real-time binary stream of galactic asset data.
+.PP
+The tool features an interactive ncurses interface that organizes telemetry
+into 45+ categories, including detailed per-faction ship monitors,
+celestial bodies, and subspace anomalies.
+.SH OPTIONS
+.TP
+.BI \-\-tcp \ [HOST]
+Connect to the server via TCP on port 5001. If \fIHOST\fR is omitted, 
+it defaults to 127.0.0.1.
+.TP
+.B \-h, \-\-help
+Display help message and exit.
+.SH CONTROLS
+.TP
+.B [N]
+Switch to the next telemetry category.
+.TP
+.B [P]
+Switch to the previous telemetry category.
+.TP
+.B [UP/DOWN]
+Scroll through the entity list if it exceeds terminal height.
+.TP
+.B [Q]
+Quit the application.
+.SH FILES
+.TP
+.I /tmp/spacegl_telemetry.sock
+Default Unix Domain Socket for local IPC.
+.SH SEE ALSO
+.BR spacegl_server (1),
+.BR spacegl_diag (1),
+.BR spacegl_hud (1)
+.SH AUTHOR
+Nicola Taibi
+.SH LICENSE
+GPL-3.0-or-later

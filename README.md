@@ -48,7 +48,115 @@
   </tr>
 </table>
 
-Space GL is an advanced space simulator combining the strategic depth of classic 70s text-based games with a modern Client-Server architecture and hardware-accelerated 3D visualization.
+Space GL is a high-performance 3D multi-user client-server space flight and combat simulator. The engine features real-time galaxy state synchronization via shared memory (SHM), cryptographically signed data integrity (HMAC-SHA256), a dual-socket advanced telemetry subsystem for tactical oversight, and versatile visualization front-ends built on OpenGL and Vulkan.
+---
+
+## 🚀 Version 3.1 Highlights (Rel. 2026.05.03 - The Omniscience Protocol)
+
+Update 3.1 introduces a revolutionary telemetry architecture, granting Commanders unprecedented real-time awareness of the galactic theater:
+*   **Advanced Telemetry Subsystem**:
+    *   **Dual-Socket Architecture**: Simultaneous support for **Unix Domain Sockets** (ultra-low latency local monitoring) and **TCP Sockets** (remote multi-server dashboarding).
+    *   **Server Streaming (Push Model)**: Eliminated polling overhead. The server now "pushes" tactical data to clients at the end of every tick, ensuring zero-latency awareness.
+    *   **Full Spectrum Coverage**: All 35 categories of galactic entities are now instrumented, from standard ships to exotic Dyson fragments and subspace anomalies.
+*   **Tactical Telemetry Client (`spacegl_telemetry`)**:
+    *   A new high-performance diagnostic tool featuring an interactive `ncurses` interface.
+    *   Supports dynamic category switching and remote uplink capabilities via `--tcp`.
+
+---
+
+# 🌌 SPACE GL: THE OMNISCIENCE PROTOCOL
+
+## PART 1: SILENCE FROM THE ABYSS (STORY)
+
+### Chapter 1: The Shadow in the Network
+
+><table>
+<tr>
+    <td><img src="readme_assets/telemetry/telemetry1.png" alt="Black jump" width="200"/></td>
+  </tr>
+</table>
+
+The command bridge of the Alliance Flagship was bathed in silence, broken only by the hum of the warp engines. Grand Admiral Hyperion Niklaus stared at the galactic maps: "Our reports arrive too many seconds late. In a battle against the Xylari Hegemony, three seconds are the difference between glory and space debris." Standard communications were saturated. A new way was needed to "feel" the galaxy without clogging tactical channels.
+
+### Chapter 2: The Local Nerve (Unix Socket)
+
+><table>
+<tr>
+    <td><img src="readme_assets/telemetry/telemetry2.png" alt="Black jump" width="200"/></td>
+  </tr>
+</table>
+
+In the secret laboratories of the Aegis research station, technicians began mapping raw data flows directly from the Galactic Server's kernel. They implemented the "Unix Channel": an ultra-fast data tunnel flowing silently within the system itself. It bypassed the external network; it was an exposed nerve transmitting information with zero latency. Now, every internal module of the server could see the entire galaxy as if it were a neural projection.
+
+### Chapter 3: The TCP Pulsar
+
+><table>
+<tr>
+    <td><img src="readme_assets/telemetry/telemetry3.png" alt="Black jump" width="200"/></td>
+  </tr>
+</table>
+
+"We must go further," Niklaus ordered. "I want Alliance command on Earth Prime to see what I see, in real-time, across thousands of light-years." Engineers opened the "TCP Pulsar," a remote uplink on frequency 5001. The signal, encrypted with PQC algorithms, began to flow through space, carrying the vital status of every single entity. Remote monitoring was no longer a dream, but an unstoppable binary stream.
+
+### Chapter 4: The 35 Sentinels
+
+><table>
+<tr>
+    <td><img src="readme_assets/telemetry/telemetry4.png" alt="Black jump" width="200"/></td>
+  </tr>
+</table>
+
+The system came to life. Thirty-five categories of objects were instrumented. Not just ships and stars, but also Dyson sphere fragments, void crystals, and temporal anomalies. Every entity began transmitting its own signature: integrity, energy, exact coordinates. The galaxy, once dark and mysterious, became an open book. The server's efficiency report marked 100%: 35 out of 35 categories were under watch.
+
+### Chapter 5: Galactic Omniscience
+
+><table>
+<tr>
+    <td><img src="readme_assets/telemetry/telemetry5.png" alt="Black jump" width="200"/></td>
+  </tr>
+</table>
+
+As a Cryos Confederation fleet emerged from a wormhole, the remote telemetry monitor on Earth Prime instantly lit up red. "Contact detected," announced the operator thousands of parsecs away. Thanks to server streaming, the Alliance was no longer blind. The era of uncertainty was over; the era of omniscience had just begun.
+
+---
+
+## 🛠 TECHNICAL SECTION: ADVANCED TELEMETRY SUBSYSTEM
+
+### Streaming and Monitoring Architecture
+The **Space GL** telemetry system is a high-performance real-time monitoring infrastructure designed to provide diagnostic and tactical data without interfering with the main game loop.
+
+#### 📡 Communication Channels
+1.  **Unix Domain Socket (`/tmp/spacegl_telemetry.sock`):** Optimized for local diagnostic tools. Uses inter-process communication (IPC) to ensure minimal latency and bypasses the network stack.
+2.  **TCP Socket (Port 5001):** Designed for remote dashboards and multi-server monitoring. Supports compact binary streaming to minimize bandwidth consumption.
+
+#### 📊 Data Model: Server Streaming
+Unlike traditional polling, the server uses a **Push** model:
+*   The client subscribes to a specific category.
+*   The server pushes updates at the end of every logic tick.
+*   Dedicated multithreaded management via `epoll` to handle up to 32 simultaneous clients.
+
+### 🔍 Instrumented Categories (35/35)
+The subsystem covers the entire spectrum of galactic entities:
+
+| Category | Description | Monitored Parameters |
+| :--- | :--- | :--- |
+| **SHIPS** | Player and NPC vessels | ID, Integrity, Energy, Coordinates, Faction |
+| **STARS / PULSARS** | Stellar bodies | Spectral class, Emission type |
+| **PLANETS** | Planetary bodies | Resource type, Available quantity |
+| **BASES / HUBS** | Installations | Defensive status, Health, Affiliation |
+| **BLACK HOLES** | Singularities | Position and gravitational strength |
+| **ANOMALIES** | Subspace phenomena | Type (Temporal, Quantum, Void) |
+| **TACTICAL** | Mines, Torpedoes, Buoys | Timeout timers, Target lock, Active status |
+| **EXOTIC** | Dyson, Relics, Artifacts | Ancient technological signatures |
+| **THREATS** | Monsters (Amoeba/Crystal) | Biological integrity, OMEGA behavior |
+
+#### 🖥️ Using the Telemetry Client
+The `spacegl_telemetry` client offers an interactive `ncurses` interface to navigate data streams:
+
+*   **Local Launch:** `./spacegl_telemetry`
+*   **Remote Launch:** `./spacegl_telemetry --tcp [SERVER_IP]`
+*   **Commands:** `[N]` Next category, `[P]` Previous category, `[Q]` Exit.
+
 ---
 
 ## 🚀 Version 3.0 Highlights (Rel. 2026.04.22.xx - Galactic Enrichment & Diagnostic Hub)
@@ -1425,6 +1533,18 @@ The Space GL bridge operates via a high-precision Command Line Interface (CLI). 
 *   `sta`: **Status Report**. Complete systems diagnostic, including energy levels, hardware integrity, and power distribution.
 *   `hull`: **Composite Reinforcement**. If you have **100 units of Composite** in cargo, this command applies reinforced plating to the hull (+500 HP physical shield), visible as gold in the HUD.
 
+#### 📡 Real-Time Telemetry Client (`spacegl_telemetry`)
+For high-level tactical oversight, use the standalone telemetry client. It provides a live, streaming view of galactic assets categorized by faction and type.
+
+*   **Launch (Local/Unix)**: `./spacegl_telemetry` (Uses ultra-low latency IPC).
+*   **Launch (Remote/TCP)**: `./spacegl_telemetry --tcp <SERVER_IP>` (Monitor remote sectors).
+*   **Navigation**:
+    *   `[N]`: Next category (Scroll through all 12 Factions and 20+ Object types).
+    *   `[P]`: Previous category.
+    *   `[UP/DOWN]`: Scroll through long lists of vessels/entities.
+    *   `[Q]`: Quit telemetry and return to terminal.
+*   **Tactical Colors**: Each faction is represented with its unique signature color (Alliance: Green, Korthian: Red, etc.).
+
 #### 🛡️ Tactical Cryptography: Communication "Frequencies"
 In Space GL, encryption is not just about security—it's a **tactical frequency choice**. Each algorithm acts as a separate communication band. If two captains are on different frequencies, they will only receive static/scrambled noise from each other.
 
@@ -2271,9 +2391,9 @@ Space GL implements enterprise-grade security for galactic state synchronization
 
 ### ⚙️ System Requirements & Dependencies
 To compile and run the SPACE GL suite, ensure the following libraries are installed:
-*   **GLFW / OpenGL**: Core rendering engine and window management.
+*   **FreeGLUT / OpenGL**: Core rendering engine and window management.
 *   **GLEW**: OpenGL Extension Wrangler for advanced shader support.
-*   **Vulkan**: Next-gen rendering backend (`libvulkan`, SPIR-V shaders via `glslc`).
+*   **Vulkan / GLFW**: Next-gen rendering backend (`libvulkan`, `libglfw`, SPIR-V shaders via `glslc`).
 *   **ncurses**: Terminal HUD interface for `spacegl_hud` (`libncurses`).
 *   **OpenSSL**: Required for the complete cryptographic suite (AES, HMAC, etc.).
 *   **POSIX Threads & RT**: Managed via `lpthread` and `lrt` for shared memory and synchronization.
@@ -2464,4 +2584,3 @@ He turned and left the bridge with the same measured, rhythmic step with which h
 
 ---
 *SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.03.11*
- GDIS LOG 2026.03.11*

@@ -265,6 +265,8 @@ void *game_loop_thread(void *arg) {
         update_game_logic();
         global_tick++;
         spacegl_master.frame_id++;
+        extern void telemetry_broadcast();
+        telemetry_broadcast();
         pthread_mutex_unlock(&game_mutex);
     }
 }
@@ -471,6 +473,9 @@ int main(int argc, char *argv[]) {
     sign_galaxy_data();
     init_static_spatial_index();
     
+    extern void telemetry_init();
+    telemetry_init();
+
     pthread_t tid; pthread_create(&tid, NULL, game_loop_thread, NULL);
 
     printf("%s | %s GALAXY ENGINE:     %sSectors mapped and synchronized               %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, B_MAGENTA, RESET);

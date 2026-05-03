@@ -44,7 +44,115 @@
   </tr>
 </table>
 
-Space GL è un simulatore spaziale avanzato che unisce la profondità strategica dei classici giochi testuali anni '70 con un'architettura moderna Client-Server e una visualizzazione 3D accelerata hardware.
+Space GL è un simulatore di volo e combattimento spaziale 3D multi-utente ad alte prestazioni. Il motore include la sincronizzazione della galassia in tempo reale tramite memoria condivisa (SHM), l'integrità dei dati firmata crittograficamente (HMAC-SHA256), un sottosistema avanzato di telemetria dual-socket per la supervisione tattica e interfacce di visualizzazione versatili basate su OpenGL e Vulkan.
+---
+
+## 🚀 Highlights della Versione 3.1 (Rel. 2026.05.03 - Il Protocollo Onniscienza)
+
+L'aggiornamento 3.1 introduce una rivoluzionaria architettura di telemetria, garantendo ai Comandanti una consapevolezza in tempo reale senza precedenti del teatro galattico:
+*   **Sottosistema di Telemetria Avanzato**:
+    *   **Architettura Dual-Socket**: Supporto simultaneo per **Unix Domain Sockets** (monitoraggio locale a bassissima latenza) e **TCP Sockets** (dashboarding remoto multi-server).
+    *   **Server Streaming (Modello Push)**: Eliminato l'overhead del polling. Il server ora "spinge" i dati tattici ai client alla fine di ogni tick, garantendo una consapevolezza a latenza zero.
+    *   **Copertura Totale dello Spettro**: Tutte le 35 categorie di entità galattiche sono ora instrumentate, dai vascelli standard ai frammenti esotici di Dyson e alle anomalie subspaziali.
+*   **Client di Telemetria Tattica (`spacegl_telemetry`)**:
+    *   Un nuovo strumento diagnostico ad alte prestazioni con interfaccia `ncurses` interattiva.
+    *   Supporta il cambio dinamico di categoria e funzionalità di uplink remoto tramite `--tcp`.
+
+---
+
+# 🌌 SPACE GL: IL PROTOCOLLO ONNISCIENZA
+
+## PARTE 1: IL SILENZIO DEGLI ABISSI (STORIA)
+
+### Capitolo 1: L'Ombra nella Rete
+
+><table>
+<tr>
+    <td><img src="readme_assets/telemetry/telemetry1.png" alt="Black jump" width="200"/></td>
+  </tr>
+</table>
+
+Il ponte di comando dell'Ammiraglia Alliance era immerso nel silenzio, interrotto solo dal ronzio dei motori a curvatura. Il Grande Ammiraglio Hyperion Niklaus fissava le mappe galattiche: "I nostri rapporti arrivano con troppi secondi di ritardo. In una battaglia contro l'Egemone Xylari, tre secondi sono la differenza tra la gloria e detriti spaziali." Le comunicazioni standard erano sature. Serviva un nuovo modo per "sentire" la galassia senza intasare i canali tattici.
+
+### Capitolo 2: Il Nervo Locale (Unix Socket)
+
+><table>
+<tr>
+    <td><img src="readme_assets/telemetry/telemetry2.png" alt="Black jump" width="200"/></td>
+  </tr>
+</table>
+
+Nei laboratori segreti della stazione di ricerca Aegis, i tecnici iniziarono a mappare i flussi di dati grezzi direttamente dal kernel del Server Galattico. Implementarono il "Canale Unix": un tunnel di dati ultra-veloce che scorreva silenzioso all'interno del sistema stesso. Non passava per la rete esterna; era un nervo scoperto che trasmetteva informazioni a latenza zero. Ora, ogni modulo interno del server poteva vedere l'intera galassia come se fosse una proiezione neurale.
+
+### Capitolo 3: Il Pulsar TCP
+
+><table>
+<tr>
+    <td><img src="readme_assets/telemetry/telemetry3.png" alt="Black jump" width="200"/></td>
+  </tr>
+</table>
+
+"Dobbiamo andare oltre," ordinò Niklaus. "Voglio che il comando dell'Alleanza su Terra Prima veda ciò che vedo io, in tempo reale, attraverso migliaia di anni luce." Gli ingegneri aprirono il "Pulsar TCP", un uplink remoto sulla frequenza 5001. Il segnale, criptato con algoritmi PQC, iniziò a fluire attraverso lo spazio, trasportando lo stato vitale di ogni singola entità. Il monitoraggio remoto non era più un sogno, ma un flusso binario inarrestabile.
+
+### Capitolo 4: Le 35 Sentinelle
+
+><table>
+<tr>
+    <td><img src="readme_assets/telemetry/telemetry4.png" alt="Black jump" width="200"/></td>
+  </tr>
+</table>
+
+Il sistema prese vita. Trentacinque categorie di oggetti vennero instrumentate. Non solo navi e stelle, ma anche frammenti di sfere di Dyson, cristalli del vuoto e anomalie temporali. Ogni entità iniziò a trasmettere la propria firma: integrità, energia, coordinate esatte. La galassia, un tempo buia e misteriosa, divenne un libro aperto. Il report di efficienza del server segnò il 100%: 35 su 35 categorie erano sotto scacco.
+
+### Capitolo 5: Onniscienza Galattica
+
+><table>
+<tr>
+    <td><img src="readme_assets/telemetry/telemetry5.png" alt="Black jump" width="200"/></td>
+  </tr>
+</table>
+
+Mentre una flotta della Confederazione Cryos emergeva da un wormhole, il monitor di telemetria remota su Terra Prima si illuminò istantaneamente di rosso. "Contatto rilevato," annunciò l'operatore a migliaia di parsec di distanza. Grazie allo streaming dei server, l'Alleanza non era più cieca. L'era dell'incertezza era finita; l'era dell'onniscienza era appena iniziata.
+
+---
+
+## 🛠 SEZIONE TECNICA: ADVANCED TELEMETRY SUBSYSTEM
+
+### Architettura di Streaming e Monitoraggio
+Il sistema di telemetria di **Space GL** è un'infrastruttura di monitoraggio in tempo reale ad alte prestazioni progettata per fornire dati diagnostici e tattici senza interferire con il loop principale di gioco.
+
+#### 📡 Canali di Comunicazione
+1.  **Unix Domain Socket (`/tmp/spacegl_telemetry.sock`):** Ottimizzato per strumenti diagnostici locali. Utilizza la comunicazione inter-processo (IPC) per garantire latenza minima e bypassare lo stack di rete.
+2.  **TCP Socket (Porta 5001):** Progettato per dashboard remote e monitoraggio multi-server. Supporta lo streaming binario compatto per minimizzare il consumo di banda.
+
+#### 📊 Modello di Dati: Server Streaming
+A differenza del polling tradizionale, il server utilizza un modello **Push**:
+*   Il client si sottoscrive a una specifica categoria.
+*   Il server spinge gli aggiornamenti al termine di ogni tick logico.
+*   Gestione multithread dedicata tramite `epoll` per gestire fino a 32 client simultanei.
+
+### 🔍 Categorie Monitorate (35/35 Instrumented)
+Il sottosistema copre l'intero spettro delle entità galattiche:
+
+| Categoria | Descrizione | Parametri Monitorati |
+| :--- | :--- | :--- |
+| **SHIPS** | Navi Player e NPC | ID, Integrità, Energia, Coordinate, Fazione |
+| **STARS / PULSARS** | Corpi Stellari | Classe spettrale, Tipo di emissione |
+| **PLANETS** | Corpi Planetari | Tipo di risorsa, Quantità disponibile |
+| **BASES / HUBS** | Installazioni | Stato difensivo, Salute, Affiliation |
+| **BLACK HOLES** | Singolarità | Posizione e forza gravitazionale |
+| **ANOMALIES** | Fenomeni Subspaziali | Tipo (Temporale, Quantistica, Vuoto) |
+| **TACTICAL** | Mine, Siluri, Boe | Timer di timeout, Target lock, Stato attivo |
+| **EXOTIC** | Dyson, Relics, Artifacts | Firme tecnologiche antiche |
+| **THREATS** | Monsters (Amoeba/Crystal) | Integrità biologica, Comportamento OMEGA |
+
+#### 🖥️ Utilizzo del Client di Telemetria
+Il client `spacegl_telemetry` offre un'interfaccia interattiva `ncurses` per navigare tra i flussi di dati:
+
+*   **Lancio Locale:** `./spacegl_telemetry`
+*   **Lancio Remoto:** `./spacegl_telemetry --tcp [SERVER_IP]`
+*   **Comandi:** `[N]` Prossima categoria, `[P]` Categoria precedente, `[Q]` Esci.
+
 ---
 
 ## 🚀 Punti Salienti Versione 3.0 (Rel. 20 - Arricchimento Galattico e Hub Diagnostico)
@@ -1362,6 +1470,18 @@ Il ponte di comando di Space GL opera tramite un'interfaccia a riga di comando (
 *   `sta`: **Rapporto di Stato**. Diagnostica completa dei sistemi, inclusi i livelli di energia, l'integrità dell'hardware e la distribuzione della potenza.
 *   `hull`: **Rinforzo in Composite**. Se hai **100 unità di Composite** nella stiva, questo comando applica una placcatura rinforzata allo scafo (+500 HP di scudo fisico), visibile come oro nell'HUD.
 
+#### 📡 Client di Telemetria in Tempo Reale (`spacegl_telemetry`)
+Per una supervisione tattica di alto livello, utilizza il client di telemetria indipendente. Fornisce una visualizzazione live e in streaming degli asset galattici categorizzati per fazione e tipo.
+
+*   **Avvio (Locale/Unix)**: `./spacegl_telemetry` (Utilizza IPC a bassissima latenza).
+*   **Avvio (Remoto/TCP)**: `./spacegl_telemetry --tcp <IP_SERVER>` (Monitora settori remoti).
+*   **Navigazione**:
+    *   `[N]`: Prossima categoria (Scorri tra le 12 Fazioni e oltre 20 tipi di Oggetti).
+    *   `[P]`: Categoria precedente.
+    *   `[UP/DOWN]`: Scorri elenchi lunghi di vascelli/entità.
+    *   `[Q]`: Esci dalla telemetria e torna al terminale.
+*   **Colori Tattici**: Ogni fazione è rappresentata con il suo colore identificativo unico (Alliance: Verde, Korthian: Rosso, ecc.).
+
 #### 🛡️ Crittografia Tattica: "Frequenze" di Comunicazione
 In Space GL, la crittografia non riguarda solo la sicurezza: è una **scelta di frequenza tattica**. Ogni algoritmo agisce come una banda di comunicazione separata. Se due capitani usano frequenze diverse, riceveranno solo rumore statico/criptato l'uno dall'altro.
 
@@ -2192,9 +2312,9 @@ Space GL implementa la sicurezza di livello enterprise per la sincronizzazione d
 
 ### ⚙️ Requisiti di Sistema e Dipendenze
 Per compilare ed eseguire la suite SPACE GL, assicurarsi che le seguenti librerie siano installate:
-*   **GLFW / OpenGL**: Motore di rendering principale e gestione delle finestre.
+*   **FreeGLUT / OpenGL**: Motore di rendering principale e gestione delle finestre.
 *   **GLEW**: OpenGL Extension Wrangler per il supporto avanzato degli shader.
-*   **Vulkan**: Backend di rendering di nuova generazione (`libvulkan`, shader SPIR-V tramite `glslc`).
+*   **Vulkan / GLFW**: Backend di rendering di nuova generazione (`libvulkan`, `libglfw`, shader SPIR-V tramite `glslc`).
 *   **ncurses**: Interfaccia HUD testuale per `spacegl_hud` (`libncurses`).
 *   **OpenSSL**: Richiesto per la suite crittografica completa (AES, HMAC, ecc.).
 *   **POSIX Threads & RT**: Gestiti tramite `lpthread` e `lrt` per la memoria condivisa e la sincronizzazione.
@@ -2384,4 +2504,3 @@ Si voltò e lasciò il ponte con lo stesso passo misurato e ritmico con cui vi e
 
 ---
 *SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.03.11*
- GDIS LOG 2026.03.11*
