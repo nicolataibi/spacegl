@@ -1,3 +1,9 @@
+* Sun May 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.03.02
+- [Telemetry] Fixed factional filtering logic to ensure connected players are correctly categorized in faction-specific streams.
+- [Telemetry] Integrated persistent infrastructure (Starbases) into factional telemetry monitors to ensure accurate asset representation.
+- [Telemetry] Optimized bandwidth by removing redundant 'SUMMARY' page and streamlining real-time data flow.
+- [Stability] Optimized telemetry broadcasting loop by utilizing pre-allocated buffers and removing dynamic allocations, improving server tick stability.
+
 * Sun May 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.03.01
 - [Feature] Implemented high-performance dual-socket telemetry system (TCP/Unix Domain Sockets).
 - [Architecture] Adopted server-streaming (Push) model for real-time 60Hz tactical updates, reducing network overhead.
