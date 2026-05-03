@@ -1,3 +1,6 @@
+* Sun May 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.03.03
+- [Documentation] Fixed Markdown syntax in README_it.md to prevent incorrect visual formatting (sidebar/blockquote nesting).
+
 * Sun May 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.03.02
 - [Telemetry] Fixed factional filtering logic to ensure connected players are correctly categorized in faction-specific streams.
 - [Telemetry] Integrated persistent infrastructure (Starbases) into factional telemetry monitors to ensure accurate asset representation.

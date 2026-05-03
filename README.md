@@ -70,7 +70,7 @@ Update 3.1 introduces a revolutionary telemetry architecture, granting Commander
 
 ### Chapter 1: The Shadow in the Network
 
-><table>
+<table>
 <tr>
     <td><img src="readme_assets/telemetry/telemetry1.png" alt="Black jump" width="200"/></td>
   </tr>
@@ -80,7 +80,7 @@ The command bridge of the Alliance Flagship was bathed in silence, broken only b
 
 ### Chapter 2: The Local Nerve (Unix Socket)
 
-><table>
+<table>
 <tr>
     <td><img src="readme_assets/telemetry/telemetry2.png" alt="Black jump" width="200"/></td>
   </tr>
@@ -90,7 +90,7 @@ In the secret laboratories of the Aegis research station, technicians began mapp
 
 ### Chapter 3: The TCP Pulsar
 
-><table>
+<table>
 <tr>
     <td><img src="readme_assets/telemetry/telemetry3.png" alt="Black jump" width="200"/></td>
   </tr>
@@ -100,7 +100,7 @@ In the secret laboratories of the Aegis research station, technicians began mapp
 
 ### Chapter 4: The 35 Sentinels
 
-><table>
+<table>
 <tr>
     <td><img src="readme_assets/telemetry/telemetry4.png" alt="Black jump" width="200"/></td>
   </tr>
@@ -110,7 +110,7 @@ The system came to life. Thirty-five categories of objects were instrumented. No
 
 ### Chapter 5: Galactic Omniscience
 
-><table>
+<table>
 <tr>
     <td><img src="readme_assets/telemetry/telemetry5.png" alt="Black jump" width="200"/></td>
   </tr>
@@ -1595,7 +1595,7 @@ To ensure that encryption functions like a true tactical radio, the system adopt
 >
 > *"It's not about traveling. It's about being broken down and rebuilt through the impossible. When we activated the jump, space ahead of us folded into a funnel of blinding light. Then, the event horizon: a black sphere, so deep it seemed to suck away not just the light, but time itself. And next to it, its twin, a sphere of white luminosity that burned our retinas, a star born out of nothing.*
 
-><table>
+<table>
 <tr>
     <td><img src="readme_assets/jump_black.png" alt="Black jump" width="200"/></td>
     <td><img src="readme_assets/jump_white.png" alt="White jump" width="200"/></td>

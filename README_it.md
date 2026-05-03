@@ -66,7 +66,7 @@ L'aggiornamento 3.1 introduce una rivoluzionaria architettura di telemetria, gar
 
 ### Capitolo 1: L'Ombra nella Rete
 
-><table>
+<table>
 <tr>
     <td><img src="readme_assets/telemetry/telemetry1.png" alt="Black jump" width="200"/></td>
   </tr>
@@ -76,7 +76,7 @@ Il ponte di comando dell'Ammiraglia Alliance era immerso nel silenzio, interrott
 
 ### Capitolo 2: Il Nervo Locale (Unix Socket)
 
-><table>
+<table>
 <tr>
     <td><img src="readme_assets/telemetry/telemetry2.png" alt="Black jump" width="200"/></td>
   </tr>
@@ -86,7 +86,7 @@ Nei laboratori segreti della stazione di ricerca Aegis, i tecnici iniziarono a m
 
 ### Capitolo 3: Il Pulsar TCP
 
-><table>
+<table>
 <tr>
     <td><img src="readme_assets/telemetry/telemetry3.png" alt="Black jump" width="200"/></td>
   </tr>
@@ -96,7 +96,7 @@ Nei laboratori segreti della stazione di ricerca Aegis, i tecnici iniziarono a m
 
 ### Capitolo 4: Le 35 Sentinelle
 
-><table>
+<table>
 <tr>
     <td><img src="readme_assets/telemetry/telemetry4.png" alt="Black jump" width="200"/></td>
   </tr>
@@ -106,7 +106,7 @@ Il sistema prese vita. Trentacinque categorie di oggetti vennero instrumentate. 
 
 ### Capitolo 5: Onniscienza Galattica
 
-><table>
+<table>
 <tr>
     <td><img src="readme_assets/telemetry/telemetry5.png" alt="Black jump" width="200"/></td>
   </tr>
@@ -1532,7 +1532,7 @@ Per garantire che la crittografia funzioni come una vera radio tattica, il siste
 >
 > *"Non si tratta di viaggiare. Si tratta di essere scomposti e ricomposti attraverso l'impossibile. Quando abbiamo attivato il salto, lo spazio davanti a noi si è piegato in un imbuto di pura luce accecante. Poi, l'orizzonte degli eventi: una sfera nera, così profonda che sembrava risucchiare non solo la luce, ma il tempo stesso. E accanto, la sua gemella, una sfera di una luminosità bianca che feriva le retine, una stella nata dal nulla.*
 
->><table>
+<table>
 <tr>
     <td><img src="readme_assets/jump_black.png" alt="Black jump" width="200"/></td>
     <td><img src="readme_assets/jump_white.png" alt="White jump" width="200"/></td>
@@ -1874,6 +1874,7 @@ Il database centrale GDIS preserva le gesta dei comandanti che hanno plasmato i 
 </table>
 
 ---
+
 > **Nota di Comando:** L'Alleanza Stellare non è solo una coalizione militare, ma un ideale di ordine e progresso che si contrappone al caos dei territori di frontiera e all'oscurità dei quadranti inesplorati.
 ---
 
@@ -2367,7 +2368,7 @@ Per garantire una coordinazione perfetta tra logica di combattimento, telemetria
     *   **Feedback Tattico**: Gestione dinamica dei temi di colore e allarmi visivi per la navigazione e il combattimento.
 
 ---
-*SPACE GL - 3D LOGIC ENGINE. Sviluppato con eccellenza tecnica da Nicola Taibi. "Per Tenebras, Lumen"*
+* SPACE GL - 3D LOGIC ENGINE. Sviluppato con eccellenza tecnica da Nicola Taibi. "Per Tenebras, Lumen"*
 
 ---
 
