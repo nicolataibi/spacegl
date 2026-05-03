@@ -1,3 +1,9 @@
+* Sun May 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.03.04
+- [Vulkan] Implemented Ion Storm visual effect: multi-layer rendering with pulsing core, randomized jagged lightning arcs, and spatial distortion rings.
+- [Vulkan] Added dual-palette support (Electric Blue/Violet) for Ion Storm instability states.
+- [Docs] Added comprehensive installation and verification guides for AlmaLinux/RHEL/Fedora and Ubuntu/Debian in README.md and README_it.md.
+- [Tooling] Updated spacegl_viewer diagnostic tool to support reporting and counting of Ion Storms and Void Crystals.
+
 * Sun May 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.03.03
 - [Documentation] Fixed Markdown syntax in README_it.md to prevent incorrect visual formatting (sidebar/blockquote nesting).
 

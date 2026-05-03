@@ -1878,6 +1878,74 @@ void drawSingularity(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     }
 }
 
+void drawIonStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse, int type) {
+    /* Ion Storm: Pulsing Core + Randomized Lightning Arcs + Spatial Distortion Rings */
+    VkDeviceSize off = 0;
+    PushConstants pc = {0};
+    pc.time = pulse;
+
+    float mainCol[3], secCol[3];
+    if (type == 0) { /* Standard Electric Blue */
+        mainCol[0]=0.0f; mainCol[1]=0.5f; mainCol[2]=1.0f;
+        secCol[0]=0.4f; secCol[1]=0.8f; secCol[2]=1.0f;
+    } else { /* High Instability Violet */
+        mainCol[0]=0.7f; mainCol[1]=0.0f; mainCol[2]=1.0f;
+        secCol[0]=0.9f; secCol[1]=0.4f; secCol[2]=1.0f;
+    }
+
+    /* 1. CORE PULSE (Wireframe sphere) */
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+    vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    float corePulse = 0.8f + 0.2f * sinf(pulse * 5.0f);
+    mat4 S_core;
+    mat4_scale(S_core, (vec3){corePulse * tactScale, corePulse * tactScale, corePulse * tactScale});
+    mat4_multiply(S_core, baseT, pc.model);
+    pc.color[0]=mainCol[0]; pc.color[1]=mainCol[1]; pc.color[2]=mainCol[2]; pc.color[3]=0.9f;
+    pc.usePushColor=1;
+    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+
+    /* 2. JAGGED LIGHTNING ARCS (Randomized spikes) */
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
+    vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    pc.color[0]=secCol[0]; pc.color[1]=secCol[1]; pc.color[2]=secCol[2]; pc.color[3]=1.0f;
+    pc.usePushColor=6;
+    for (int i=0; i<8; i++) {
+        float flick = (sinf(pulse * 30.0f + i*2.0f) > 0.6f) ? 1.0f : 0.0f;
+        if (flick < 0.5f) continue;
+        mat4 S_spike, R_spike, T_spike;
+        mat4_identity(R_spike);
+        mat4_rotate(R_spike, (float)i * 45.0f * M_PI / 180.0f + pulse, (vec3){sinf(i), 1, cosf(i)});
+        mat4_scale(S_spike, (vec3){0.05f * tactScale, 2.0f * tactScale, 0.05f * tactScale});
+        mat4_translate(T_spike, (vec3){0, 0.5f * tactScale, 0});
+        mat4_multiply(S_spike, R_spike, pc.model);
+        mat4_multiply(pc.model, T_spike, pc.model);
+        mat4_multiply(pc.model, baseT, pc.model);
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
+    }
+
+    /* 3. SPATIAL DISTORTION RINGS */
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
+    for (int i=0; i<3; i++) {
+        float r_pulse = fmodf(pulse * 0.6f + (float)i * 0.5f, 1.2f);
+        float r_scale = r_pulse * 3.5f * tactScale;
+        mat4 S_ring, R_ring;
+        mat4_identity(R_ring);
+        mat4_rotate(R_ring, M_PI/2.0f, (vec3){1, 0.2f*i, 0});
+        mat4_scale(S_ring, (vec3){r_scale, r_scale, r_scale});
+        mat4_multiply(S_ring, R_ring, pc.model);
+        mat4_multiply(pc.model, baseT, pc.model);
+        pc.color[0]=mainCol[0]; pc.color[1]=mainCol[1]; pc.color[2]=mainCol[2]; pc.color[3]=0.5f * (1.0f - r_pulse/1.2f);
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdDraw(cb, 64, 1, 0, 0);
+    }
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+}
+
 void drawPlasmaStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
     /* Plasma Storm: Fire Nucleus + Plasma Arcs + Turbulence Shells */
     VkDeviceSize off = 0;
@@ -3110,6 +3178,11 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             /* Specialized Rendering (Starbases, Torpedoes, etc.) */
             if (obj->type == 50) {
                 drawSubspaceAnomaly(cb, app, T, tactScale, pulse);
+                continue;
+            }
+
+            if (obj->type == 39) {
+                drawIonStorm(cb, app, T, tactScale, pulse, 0);
                 continue;
             }
 

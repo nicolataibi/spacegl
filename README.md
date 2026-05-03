@@ -315,19 +315,26 @@ The v2.5 architecture is designed to handle mass combat scenarios without perfor
 ## 🚀 Quick Start Guide
 
 ### 1. Install Dependencies (Linux)
+
+#### Ubuntu / Debian
+Ensure your package list is up to date, then install the required dependencies:
 ```bash
-# Ubuntu / Debian
+sudo apt-get update
 sudo apt-get install build-essential freeglut3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
                      libvulkan-dev vulkan-tools glslc libglfw3-dev libncurses5-dev libncursesw5-dev
+```
 
-# Fedora / Red Hat
+#### AlmaLinux / Red Hat / Fedora
+Ensure you have the EPEL repository enabled, then:
+```bash
+sudo dnf install epel-release
 sudo dnf groupinstall "Development Tools"
 sudo dnf install freeglut-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel \
-                 vulkan-loader-devel vulkan-validation-layers-devel glslc ncurses-devel
+                 vulkan-loader-devel vulkan-validation-layers-devel glslang ncurses-devel glfw-devel
 ```
 
 ### 2. Build
-Create a build directory and compile the project using CMake to generate the executables:
+Create a build directory and compile the project using CMake:
 ```bash
 mkdir build
 cd build
@@ -335,34 +342,41 @@ cmake ..
 make
 ```
 
-### 3. Start Server
-Run the startup script from the project root. You will be asked to set a **Master Key** (secret password for the server):
+### 3. Verification & Testing
+After a successful build, verify the installation by running:
+```bash
+# Check if the binary is correctly linked
+./spacegl_diag --version
+
+# Run a self-check of the compiled binaries
+../local_check.sh
+```
+The `local_check.sh` script verifies that all dependencies are met and binaries are functional.
+
+### 4. Start Server
+Run the startup script from the project root. You will be asked to set a **Master Key**:
 ```bash
 ./spacegl_server.sh
 ```
 
-### 4. Start Client
-In another terminal, launch the client from the project root:
+### 5. Start Client
+Launch the client from the project root:
 ```bash
 ./spacegl_client.sh gl|vk
 ```
 **Login Flow:**
 1.  **Server IP:** Enter the server address.
-2.  **Handshake:** The client validates the Master Key. If incorrect, it exits immediately for security.
-3.  **Identification:** Only if the link is secured, you will be asked for your **Commander Name**.
-4.  **Configuration:** If it's your first time, you will select your Faction and Ship Class.
+2.  **Handshake:** The client validates the Master Key.
+3.  **Identification:** Provide your **Commander Name**.
+4.  **Configuration:** Select your Faction and Ship Class if it's your first time.
 
-### 5. Diagnostic Tools (SpaceGL Viewer)
-To monitor the galaxy in real-time or inspect the `galaxy.dat` save file, a dedicated administration tool is available:
+### 6. Diagnostic Tools (SpaceGL Viewer)
+To monitor the galaxy or inspect `galaxy.dat`:
 ```bash
-# Usage examples
-./spacegl_viewer stats          # Global statistics and faction counts
-./spacegl_viewer master         # Vital ship status (Energy, Shields, Inventory)
-./spacegl_viewer list 10 1 39   # List objects and probes in a specific quadrant
-./spacegl_viewer search "Nick"  # Find the position of a player or NPC
-./spacegl_viewer report         # Generate a full registry of all objects (>14,000)
+./spacegl_viewer stats
+./spacegl_viewer report
 ```
-The viewer performs an automatic binary alignment check at startup to ensure the integrity of the read data.
+The viewer performs an automatic binary alignment check at startup to ensure data integrity.
 
 ---
 

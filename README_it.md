@@ -316,19 +316,26 @@ L'aggiornamento 2.4 introduce ottimizzazioni di nuova generazione e una robustez
 ## 🚀 Guida Rapida
 
 ### 1. Installazione delle Dipendenze (Linux)
+
+#### Ubuntu / Debian
+Assicurati che la lista dei pacchetti sia aggiornata, quindi installa le dipendenze necessarie:
 ```bash
-# Ubuntu / Debian
+sudo apt-get update
 sudo apt-get install build-essential freeglut3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
                      libvulkan-dev vulkan-tools glslc libglfw3-dev libncurses5-dev libncursesw5-dev
+```
 
-# Fedora / Red Hat
+#### AlmaLinux / Red Hat / Fedora
+Assicurati di aver abilitato il repository EPEL, quindi:
+```bash
+sudo dnf install epel-release
 sudo dnf groupinstall "Development Tools"
 sudo dnf install freeglut-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel \
-                 vulkan-loader-devel vulkan-validation-layers-devel glslc ncurses-devel
+                 vulkan-loader-devel vulkan-validation-layers-devel glslang ncurses-devel glfw-devel
 ```
 
 ### 2. Compilazione
-Crea una directory di build e compila il progetto utilizzando CMake per generare gli eseguibili:
+Crea una directory di build e compila il progetto utilizzando CMake:
 ```bash
 mkdir build
 cd build
@@ -336,34 +343,41 @@ cmake ..
 make
 ```
 
-### 3. Avvio del Server
-Lancia lo script di avvio dalla root del progetto. Ti verrà chiesto di impostare una **Master Key** (password segreta per il server):
+### 3. Verifica e Test
+Dopo una compilazione riuscita, verifica l'installazione eseguendo:
+```bash
+# Controlla che il binario sia correttamente collegato
+./spacegl_diag --version
+
+# Esegui un auto-controllo dei binari compilati
+../local_check.sh
+```
+Lo script `local_check.sh` verifica che tutte le dipendenze siano soddisfatte e che i binari siano funzionali.
+
+### 4. Avvio del Server
+Lancia lo script di avvio dalla root del progetto. Ti verrà chiesto di impostare una **Master Key**:
 ```bash
 ./spacegl_server.sh
 ```
 
-### 4. Avvio del Client
-In un altro terminale, lancia il client dalla root del progetto:
+### 5. Avvio del Client
+Lancia il client dalla root del progetto:
 ```bash
 ./spacegl_client.sh gl|vk
 ```
 **Flusso di accesso:**
 1.  **Server IP:** Inserisci l'indirizzo del server.
-2.  **Handshake:** Il client valida la Master Key. Se errata, esce immediatamente per sicurezza.
-3.  **Identificazione:** Solo se il link è sicuro, ti verrà chiesto il **Commander Name**.
-4.  **Configurazione:** Se è la tua prima volta, sceglierai Fazione e Classe della nave.
+2.  **Handshake:** Il client valida la Master Key.
+3.  **Identificazione:** Fornisci il tuo **Commander Name**.
+4.  **Configurazione:** Seleziona Fazione e Classe della nave se è la tua prima volta.
 
-### 5. Strumenti di Diagnostica (SpaceGL Viewer)
-Per monitorare la galassia in tempo reale o ispezionare il file di salvataggio `galaxy.dat`, è disponibile uno strumento di amministrazione dedicato:
+### 6. Strumenti di Diagnostica (SpaceGL Viewer)
+Per monitorare la galassia o ispezionare `galaxy.dat`:
 ```bash
-# Esempi di utilizzo
-./spacegl_viewer stats          # Statistiche globali e conteggio fazioni
-./spacegl_viewer master         # Stato vitale della nave (Energia, Scudi, Inventario)
-./spacegl_viewer list 10 1 39   # Elenco oggetti e sonde in un quadrante specifico
-./spacegl_viewer search "Nick"  # Trova la posizione di un giocatore o NPC
-./spacegl_viewer report         # Genera un'anagrafica completa di tutti gli oggetti (>14.000)
+./spacegl_viewer stats
+./spacegl_viewer report
 ```
-Il viewer esegue una diagnostica automatica dell'allineamento binario all'avvio per garantire l'integrità dei dati letti.
+Il viewer esegue una diagnostica automatica dell'allineamento binario all'avvio per garantire l'integrità dei dati.
 
 ---
 
