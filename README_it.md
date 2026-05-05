@@ -325,8 +325,9 @@ L'aggiornamento 2.4 introduce ottimizzazioni di nuova generazione e una robustez
 Assicurati che la lista dei pacchetti sia aggiornata, quindi installa le dipendenze necessarie:
 ```bash
 sudo apt-get update
-sudo apt-get install build-essential libglfw3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
-                     libvulkan-dev vulkan-tools glslc libglfw3-dev libncurses5-dev libncursesw5-dev
+sudo apt-get install build-essential libglfw3-dev libglu1-mesa-dev libglew-dev \
+                     libssl-dev libomp-dev \
+                     libvulkan-dev vulkan-tools glslc libncurses5-dev libncursesw5-dev
 ```
 
 #### AlmaLinux / Red Hat / Fedora
@@ -335,7 +336,7 @@ Assicurati di aver abilitato il repository EPEL, quindi:
 sudo dnf install epel-release
 sudo dnf groupinstall "Development Tools"
 sudo dnf install glfw-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel \
-                 vulkan-loader-devel vulkan-validation-layers-devel glslang ncurses-devel glfw-devel
+                 vulkan-loader-devel vulkan-validation-layers-devel glslang ncurses-devel
 ```
 
 ### 2. Compilazione

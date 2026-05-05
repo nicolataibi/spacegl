@@ -1,3 +1,8 @@
+* Tue May 05 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.05.01
+- [Bugfix] Resolved flickering/flashing labels in the 3D viewer by standardizing object cache iteration using the MAX_OBJECTS macro, ensuring consistent rendering regardless of transient network update sizes.
+- [Visuals] Implemented a high-intensity, multi-colored pixel explosion effect for the dismantle (DIS) command. The new effect features over 1100 particles with randomized vibrant hues, extended life, and a high-velocity central core flash.
+- [Refactor] Standardized use of MAX_OBJECTS and MAX_BEAMS macros across the OpenGL tactical viewer for improved maintainability and memory safety.
+
 * Mon May 04 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.04.01
 - Remove freeglut dependencies from documentation
 

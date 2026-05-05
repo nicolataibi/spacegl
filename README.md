@@ -324,8 +324,9 @@ The v2.5 architecture is designed to handle mass combat scenarios without perfor
 Ensure your package list is up to date, then install the required dependencies:
 ```bash
 sudo apt-get update
-sudo apt-get install build-essential libglfw3-dev libglu1-mesa-dev libglew-dev libssl-dev libomp-dev \
-                     libvulkan-dev vulkan-tools glslc libglfw3-dev libncurses5-dev libncursesw5-dev
+sudo apt-get install build-essential libglfw3-dev libglu1-mesa-dev \
+                     libglew-dev libssl-dev libomp-dev \
+                     libvulkan-dev vulkan-tools glslc libncurses5-dev libncursesw5-dev
 ```
 
 #### AlmaLinux / Red Hat / Fedora
@@ -334,7 +335,7 @@ Ensure you have the EPEL repository enabled, then:
 sudo dnf install epel-release
 sudo dnf groupinstall "Development Tools"
 sudo dnf install glfw-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel \
-                 vulkan-loader-devel vulkan-validation-layers-devel glslang ncurses-devel glfw-devel
+                 vulkan-loader-devel vulkan-validation-layers-devel glslang ncurses-devel
 ```
 
 ### 2. Build

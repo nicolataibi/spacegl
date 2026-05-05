@@ -638,7 +638,7 @@ typedef struct {
     int timer;
 } RecoveryFX;
 
-GameObject objects[256];
+GameObject objects[MAX_OBJECTS];
 int objectCount = 0;
 ViewProbe g_local_probes[3];
 ArrivalEffect g_arrival_fx = {0};
@@ -646,7 +646,7 @@ RecoveryFX g_recovery_fx = {0};
 
 /* Rimosse variabili globali scia singola per scia universale */
 typedef struct { float sx, sy, sz, tx, ty, tz, alpha; } IonBeam;
-IonBeam beams[64];
+IonBeam beams[MAX_BEAMS];
 int beamCount = 0;
 
 typedef struct { float x, y, z, tx, ty, tz, vx, vy, vz, h, m; int active; int timer; } ViewPoint;
@@ -898,7 +898,7 @@ void loadGameState() {
         g_local_probes[p].z = (QUADRANT_SIZE / 2.0) - state->probes[p].s2;
     }
 
-    int updated[256] = {0};
+    int updated[MAX_OBJECTS] = {0};
     objectCount = state->object_count;
     
     /* 1. FORCE player ship at index 0 for consistent HUD/Camera behavior */
@@ -954,7 +954,7 @@ void loadGameState() {
         int local_idx = -1;
 
         /* Find existing object by ID (skip index 0) */
-        for(int k=1; k<256; k++) {
+        for(int k=1; k<MAX_OBJECTS; k++) {
             if (objects[k].id == target_id && target_id != 0) {
                 local_idx = k;
                 break;
@@ -963,7 +963,7 @@ void loadGameState() {
 
         /* If not found, find an empty slot (skip index 0) */
         if (local_idx == -1) {
-            for(int k=1; k<256; k++) {
+            for(int k=1; k<MAX_OBJECTS; k++) {
                 if (objects[k].id == 0) {
                     local_idx = k;
                     objects[k].id = target_id;
@@ -1024,7 +1024,7 @@ void loadGameState() {
     }
 
     /* Clear stale objects not present in the latest update */
-    for(int k=0; k<256; k++) {
+    for(int k=0; k<MAX_OBJECTS; k++) {
         if (!updated[k]) {
             objects[k].type = 0;
             objects[k].id = 0;
@@ -1072,15 +1072,39 @@ void loadGameState() {
                 float dx = ev->x1 - (QUADRANT_SIZE / 2.0);
                 float dy = ev->z1 - (QUADRANT_SIZE / 2.0);
                 float dz = (QUADRANT_SIZE / 2.0) - ev->y1;
-                int species = ev->extra;
-                float fr, fg, fb;
-                getFactionColor(species, &fr, &fg, &fb);
-                for(int i=0; i<MAX_PARTICLES/4; i++) { 
-                    float vx = ((rand()%100)-50)/50.0;
-                    float vy = ((rand()%100)-50)/50.0;
-                    float vz = ((rand()%100)-50)/50.0;
-                    float var = ((rand()%60)-30)/100.0;
-                    spawnParticle(dx, dy, dz, vx, vy, vz, fr + var, fg + var, fb + var, 1.5, 3.0);
+                
+                /* VIBRANT MULTI-COLORED PIXEL EXPLOSION - MEGA VERSION */
+                for(int i=0; i<MAX_PARTICLES/2; i++) { 
+                    float speed = 0.8 + (rand()%200)/100.0;
+                    float theta = (rand()%360) * M_PI / 180.0;
+                    float phi = (rand()%180 - 90) * M_PI / 180.0;
+                    
+                    float vx = speed * cos(phi) * cos(theta);
+                    float vy = speed * sin(phi);
+                    float vz = speed * cos(phi) * sin(theta);
+                    
+                    /* Extreme vibrant colors */
+                    float r = (rand()%100)/100.0;
+                    float g = (rand()%100)/100.0;
+                    float b = (rand()%100)/100.0;
+                    
+                    /* Boost brightness */
+                    if (r < 0.3 && g < 0.3 && b < 0.3) {
+                        r += 0.5; g += 0.5; b += 0.5;
+                    }
+                    
+                    float p_size = 5.0 + (rand()%1500)/100.0; /* Much bigger: 5.0 to 20.0 */
+                    float p_life = 4.0 + (rand()%400)/100.0;  /* Longer life: 4 to 8 seconds */
+                    
+                    spawnParticle(dx, dy, dz, vx, vy, vz, r, g, b, p_size, p_life);
+                }
+                
+                /* Central high-intensity flash */
+                for(int i=0; i<200; i++) {
+                    float vx = ((rand()%100)-50)/5.0;
+                    float vy = ((rand()%100)-50)/5.0;
+                    float vz = ((rand()%100)-50)/5.0;
+                    spawnParticle(dx, dy, dz, vx, vy, vz, 1.0, 1.0, 1.0, 15.0, 1.5);
                 }
             } else if (ev->type == IPC_EV_RECOVERY) {
                 g_recovery_fx.x = ev->x1 - (QUADRANT_SIZE / 2.0);
@@ -1187,27 +1211,7 @@ void loadGameState() {
     }
 
     /* Dismantle */
-    if (state->dismantle.active) {
-        float dx = state->dismantle.shm_x - (QUADRANT_SIZE / 2.0);
-        float dy = state->dismantle.shm_z - (QUADRANT_SIZE / 2.0);
-        float dz = (QUADRANT_SIZE / 2.0) - state->dismantle.shm_y;
-        int species = state->dismantle.species;
-        
-        float fr, fg, fb;
-        getFactionColor(species, &fr, &fg, &fb);
-
-        /* Inject particles into the global robust system */
-        for(int i=0; i<150; i++) {
-            float vx = ((rand()%100)-50)/100.0;
-            float vy = ((rand()%100)-50)/100.0;
-            float vz = ((rand()%100)-50)/100.0;
-            float var = ((rand()%60)-30)/100.0;
-            spawnParticle(dx, dy, dz, vx, vy, vz, fr + var, fg + var, fb + var, 0.3, 1.5);
-        }
-        /* Reset event to prevent re-triggering */
-        state->dismantle.active = 0;
-    }
-
+    /* Reset event to prevent re-triggering */
     if (state->recovery_fx.active) {
         g_recovery_fx.x = state->recovery_fx.shm_x - (QUADRANT_SIZE / 2.0);
         g_recovery_fx.y = state->recovery_fx.shm_z - (QUADRANT_SIZE / 2.0);
@@ -1292,7 +1296,7 @@ const char* getClassName(int c) {
 }
 
 void drawHUD(int obj_idx) {
-    if (obj_idx < 0 || obj_idx >= objectCount) return;
+    if (obj_idx < 0 || obj_idx >= MAX_OBJECTS) return;
     GameObject *obj = &objects[obj_idx];
     if (obj->type == 28) return; /* Skip HUD labels for Torpedoes */
     float x = obj->x;
@@ -4228,7 +4232,7 @@ void display() {
         /* 2. LOCAL OBJECTS */
         /* Find a star for dynamic lighting */
         double lX = 50.0, lY = 50.0, lZ = 50.0; /* Default distant light */
-        for(int i=0; i<256; i++) {
+        for(int i=0; i<MAX_OBJECTS; i++) {
             if (objects[i].type == 4) {
                 lX = objects[i].x; lY = objects[i].y; lZ = objects[i].z;
                 break;
@@ -4324,14 +4328,14 @@ void display() {
         }
 
         /* Trails */
-        for(int k=0; k<256; k++) {
+        for(int k=0; k<MAX_OBJECTS; k++) {
             if (objects[k].type == 1 || objects[k].type >= 10) drawShipTrail(k);
         }
 
         /* Objects (Solids) */
         glEnable(GL_LIGHTING);
         asteroidInstanceCount = 0;
-        for(int i=0; i<256; i++) {
+        for(int i=0; i<MAX_OBJECTS; i++) {
             if (objects[i].type == 0) continue;
 
             glColor4f(1.0, 1.0, 1.0, 1.0);
@@ -4622,7 +4626,7 @@ void display() {
     /* HUD Overlay (Tactical Mode) - Fade Alpha */
     if (g_show_hud) {
         if (map_anim < 0.5) {
-            for(int i=0; i<256; i++) {
+            for(int i=0; i<MAX_OBJECTS; i++) {
                 if (objects[i].type != 0 && !g_is_loading) {
                     drawHUD(i);
                 }
@@ -4957,7 +4961,7 @@ void display() {
             drawText3D(tx_pos, ty_pos, 0, ">>> TARGET LOCKED <<<"); ty_pos -= 20;
             
             /* Find target data */
-            for(int i=0; i<256; i++) {
+            for(int i=0; i<MAX_OBJECTS; i++) {
                 if (objects[i].id == g_lock_target) {
                     glColor3f(1.0, 1.0, 1.0);
                     
@@ -5002,7 +5006,7 @@ void display() {
         drawText3D(850, y_off, 0, "--- QUADRANT SENSORS ---");
         y_off -= 25;
         
-        for(int i=0; i<256; i++) {
+        for(int i=0; i<MAX_OBJECTS; i++) {
             if (objects[i].id != 0 && objects[i].type != 0) {
                 if (objects[i].type == 1) glColor3f(0, 1, 1);
                 else if (objects[i].type >= 10 && objects[i].type <= 20) glColor3f(1, 0, 0);
@@ -5225,7 +5229,7 @@ void display() {
         float grav = 0.0;
         float chron = 0.0;
         /* Simple proximity heuristics for telemetry feel */
-        for(int i=0; i<256; i++) {
+        for(int i=0; i<MAX_OBJECTS; i++) {
             if (objects[i].id != 0 && objects[i].type != 0) {
                 double d = sqrt(pow(objects[i].x-PlayerX,2)+pow(objects[i].y-PlayerY,2)+pow(objects[i].z-PlayerZ,2));
                 if (d < 5.0) {
@@ -5371,7 +5375,7 @@ void timer(int v) { (void)v;
     }
 
     /* Update Objects with Interpolation (GLIDE EFFECT) - Adjusted for 60Hz/60Hz Sync */
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < MAX_OBJECTS; i++) {
         /* Allow ID 0 (Player) to be interpolated, but handle snap-jumps (Quadrant changes) */
         if (objects[i].id == 0 && objects[i].type == 0) continue; 
         
@@ -5566,7 +5570,7 @@ int main(int argc, char** argv) {
 
     memset(objects, 0, sizeof(objects));
 
-    for(int i=0; i<256; i++) { objects[i].x = objects[i].y = objects[i].z = -100.0; }
+    for(int i=0; i<MAX_OBJECTS; i++) { objects[i].x = objects[i].y = objects[i].z = -100.0; }
 
     printf("[3D VIEW] Starting...\n");
 
