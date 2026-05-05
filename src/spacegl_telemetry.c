@@ -145,12 +145,30 @@ int main(int argc, char** argv) {
                 }
                 tel_obj_count = count;
             } else if (hdr.type == TEL_PKT_STATS) {
-                recv(sock, &tel_stats, sizeof(tel_stats), 0);
+                int total = 0;
+                char* target = (char*)&tel_stats;
+                while(total < (int)hdr.length && total < (int)sizeof(tel_stats)) {
+                    int r = recv(sock, target + total, (int)hdr.length - total, 0);
+                    if (r <= 0) {
+                        if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+                        break;
+                    }
+                    total += r;
+                }
             } else {
                 if (hdr.length > 0) {
-                    char* dummy = malloc(hdr.length);
-                    recv(sock, dummy, hdr.length, 0);
-                    free(dummy);
+                    /* Robustly skip unknown packets */
+                    int total = 0;
+                    while(total < (int)hdr.length) {
+                        char dummy[1024];
+                        int to_read = ((int)hdr.length - total > 1024) ? 1024 : (int)hdr.length - total;
+                        int r = recv(sock, dummy, to_read, 0);
+                        if (r <= 0) {
+                            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+                            break;
+                        }
+                        total += r;
+                    }
                 }
             }
         }

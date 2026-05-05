@@ -68,7 +68,7 @@ GLuint fbo_pingpong[2] = {0, 0}, tex_pingpong[2] = {0, 0};
 GLuint blurShaderProgram = 0, finalShaderProgram = 0;
 GLuint quadVAO = 0, quadVBO = 0;
 
-#define MAX_PARTICLES 2000
+#define MAX_PARTICLES 16384
 typedef struct {
     float x, y, z;
     float r, g, b, a;
@@ -762,6 +762,151 @@ void loadGameState() {
         exit(0);
     }
 
+    /* Process Persistent Event Queue (Transient Effects) - ALWAYS process even if state is unchanged */
+    if (g_shm) {
+        int head = atomic_load_explicit(&g_shm->event_head, memory_order_acquire);
+        int tail = atomic_load_explicit(&g_shm->event_tail, memory_order_acquire);
+        
+        while (head != tail) {
+            IPCEvent *ev = &g_shm->event_queue[head];
+            
+            if (ev->type == IPC_EV_BEAM) {
+                int slot = -1;
+                for(int j=0; j<64; j++) if(beams[j].alpha <= 0) { slot = j; break; }
+                if (slot == -1) slot = rand()%64;
+                /* Note: net_y is Viewer Z, net_z is Viewer Y */
+                beams[slot].sx = ev->x1 - (QUADRANT_SIZE / 2.0);
+                beams[slot].sy = ev->z1 - (QUADRANT_SIZE / 2.0);
+                beams[slot].sz = (QUADRANT_SIZE / 2.0) - ev->y1;
+                beams[slot].tx = ev->x2 - (QUADRANT_SIZE / 2.0);
+                beams[slot].ty = ev->z2 - (QUADRANT_SIZE / 2.0);
+                beams[slot].tz = (QUADRANT_SIZE / 2.0) - ev->y2;
+                beams[slot].alpha = 1.0;
+            } else if (ev->type == IPC_EV_BOOM) {
+                g_booms[boom_idx].x = ev->x1 - (QUADRANT_SIZE / 2.0);
+                g_booms[boom_idx].y = ev->z1 - (QUADRANT_SIZE / 2.0);
+                g_booms[boom_idx].z = (QUADRANT_SIZE / 2.0) - ev->y1;
+                g_booms[boom_idx].active = 1;
+                g_booms[boom_idx].timer = (int)(2 * GAME_TICK_RATE / 3); 
+                int current_boom = boom_idx;
+                boom_idx = (boom_idx + 1) % 10;
+                /* Force kill nearest torpedo visual on impact */
+                for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) {
+                    if (g_torps[s].active) {
+                        double dxb = g_torps[s].x - g_booms[current_boom].x;
+                        double dyb = g_torps[s].y - g_booms[current_boom].y;
+                        double dzb = g_torps[s].z - g_booms[current_boom].z;
+                        if ((dxb*dxb + dyb*dyb + dzb*dzb) < 1.0) g_torps[s].active = 0;
+                    }
+                }
+            } else if (ev->type == IPC_EV_DISMANTLE) {
+                float dx = ev->x1 - (QUADRANT_SIZE / 2.0);
+                float dy = ev->z1 - (QUADRANT_SIZE / 2.0);
+                float dz = (QUADRANT_SIZE / 2.0) - ev->y1;
+                
+                /* VIBRANT MULTI-COLORED PIXEL EXPLOSION - CALIBRATED FOR MAX LOAD */
+                /* Quota: 800 particles per dismantle. Max 16 players = 12,800 particles total. */
+                for(int i=0; i<800; i++) { 
+                    float speed = 0.8 + (rand()%200)/100.0;
+                    float theta = (rand()%360) * M_PI / 180.0;
+                    float phi = (rand()%180 - 90) * M_PI / 180.0;
+                    
+                    float vx = speed * cos(phi) * cos(theta);
+                    float vy = speed * sin(phi);
+                    float vz = speed * cos(phi) * sin(theta);
+                    
+                    /* Extreme vibrant colors */
+                    float r = (rand()%100)/100.0;
+                    float g = (rand()%100)/100.0;
+                    float b = (rand()%100)/100.0;
+                    
+                    /* Boost brightness */
+                    if (r < 0.3 && g < 0.3 && b < 0.3) {
+                        r += 0.5; g += 0.5; b += 0.5;
+                    }
+                    
+                    float p_size = 5.0 + (rand()%1500)/100.0; /* 5.0 to 20.0 */
+                    float p_life = 4.0 + (rand()%400)/100.0;  /* 4 to 8 seconds */
+                    
+                    spawnParticle(dx, dy, dz, vx, vy, vz, r, g, b, p_size, p_life);
+                }
+                
+                /* Central high-intensity flash (Fixed 100 particles) */
+                for(int i=0; i<100; i++) {
+                    float vx = ((rand()%100)-50)/5.0;
+                    float vy = ((rand()%100)-50)/5.0;
+                    float vz = ((rand()%100)-50)/5.0;
+                    spawnParticle(dx, dy, dz, vx, vy, vz, 1.0, 1.0, 1.0, 15.0, 1.5);
+                }
+            } else if (ev->type == IPC_EV_RECOVERY) {
+                g_recovery_fx.x = ev->x1 - (QUADRANT_SIZE / 2.0);
+                g_recovery_fx.y = ev->z1 - (QUADRANT_SIZE / 2.0);
+                g_recovery_fx.z = (QUADRANT_SIZE / 2.0) - ev->y1;
+                g_recovery_fx.timer = (int)GAME_TICK_RATE;
+            } else if (ev->type == IPC_EV_JUMP) {
+                /* ... (existing jump logic) ... */
+                float jx = ev->x1 - 20.0;
+                float jy = ev->z1 - 20.0;
+                float jz = 20.0 - ev->y1;
+                g_jump_arrival.x = jx; g_jump_arrival.y = jy; g_jump_arrival.z = jz;
+                g_jump_arrival.h = state->shm_h; 
+                g_jump_arrival.m = state->shm_m;
+                g_jump_arrival.active = 1;
+                g_jump_arrival.timer = (5 * GAME_TICK_RATE);
+                g_arrival_fx.x = jx; g_arrival_fx.y = jy; g_arrival_fx.z = jz;
+                g_arrival_fx.timer = (5 * GAME_TICK_RATE);
+                for(int i=0; i<150; i++) {
+                    float theta = (rand() % 360) * M_PI / 180.0;
+                    float phi = (rand() % 180 - 90) * M_PI / 180.0;
+                    float dist = 3.0 + (rand() % 200) / 100.0;
+                    g_arrival_fx.particles[i].x = g_arrival_fx.x + dist * cos(phi) * cos(theta);
+                    g_arrival_fx.particles[i].y = g_arrival_fx.y + dist * sin(phi);
+                    g_arrival_fx.particles[i].z = g_arrival_fx.z + dist * cos(phi) * sin(theta);
+                    g_arrival_fx.particles[i].vx = (g_arrival_fx.x - g_arrival_fx.particles[i].x) / 100.0;
+                    g_arrival_fx.particles[i].vy = (g_arrival_fx.y - g_arrival_fx.particles[i].y) / 100.0;
+                    g_arrival_fx.particles[i].vz = (g_arrival_fx.z - g_arrival_fx.particles[i].z) / 100.0;
+                    g_arrival_fx.particles[i].r = (rand() % 100) / 100.0;
+                    g_arrival_fx.particles[i].g = (rand() % 100) / 100.0;
+                    g_arrival_fx.particles[i].b = (rand() % 100) / 100.0;
+                    g_arrival_fx.particles[i].active = 1;
+                }
+            } else if (ev->type == IPC_EV_TORPEDO) {
+                /* Zero-Loss Projectile Tracking */
+                int tid = ev->extra;
+                float n_tx = ev->x1 - (QUADRANT_SIZE / 2.0);
+                float n_ty = ev->z1 - (QUADRANT_SIZE / 2.0);
+                float n_tz = (QUADRANT_SIZE / 2.0) - ev->y1;
+                
+                int found = -1;
+                for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) {
+                    if (g_torps[s].active && g_torps[s].timer == tid) { found = s; break; }
+                }
+                
+                if (found == -1) {
+                    /* New torpedo from Zero-Loss stream */
+                    for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) {
+                        if (!g_torps[s].active) { 
+                            found = s; 
+                            g_torps[s].x = n_tx; g_torps[s].y = n_ty; g_torps[s].z = n_tz;
+                            break; 
+                        }
+                    }
+                }
+                
+                if (found != -1) {
+                    g_torps[found].tx = n_tx; g_torps[found].ty = n_ty; g_torps[found].tz = n_tz;
+                    g_torps[found].vx = ev->x2; g_torps[found].vy = ev->z2; g_torps[found].vz = -ev->y2;
+                    g_torps[found].active = 1;
+                    g_torps[found].timer = tid; /* Use timer field as persistent ID */
+                    g_torps[found].h = 10;      /* Internal TTL (Time to Live) frames */
+                }
+            }
+            
+            head = (head + 1) % IPC_EVENT_QUEUE_SIZE;
+            atomic_store_explicit(&g_shm->event_head, head, memory_order_release);
+        }
+    }
+
     if (state->frame_id == last_frame_id) { return; }
     last_frame_id = state->frame_id;
     g_is_loading = 1;
@@ -1031,150 +1176,6 @@ void loadGameState() {
         }
     }
 
-    /* Process Persistent Event Queue (Transient Effects) */
-    if (g_shm) {
-        int head = atomic_load_explicit(&g_shm->event_head, memory_order_acquire);
-        int tail = atomic_load_explicit(&g_shm->event_tail, memory_order_acquire);
-        
-        while (head != tail) {
-            IPCEvent *ev = &g_shm->event_queue[head];
-            
-            if (ev->type == IPC_EV_BEAM) {
-                int slot = -1;
-                for(int j=0; j<64; j++) if(beams[j].alpha <= 0) { slot = j; break; }
-                if (slot == -1) slot = rand()%64;
-                /* Note: net_y is Viewer Z, net_z is Viewer Y */
-                beams[slot].sx = ev->x1 - (QUADRANT_SIZE / 2.0);
-                beams[slot].sy = ev->z1 - (QUADRANT_SIZE / 2.0);
-                beams[slot].sz = (QUADRANT_SIZE / 2.0) - ev->y1;
-                beams[slot].tx = ev->x2 - (QUADRANT_SIZE / 2.0);
-                beams[slot].ty = ev->z2 - (QUADRANT_SIZE / 2.0);
-                beams[slot].tz = (QUADRANT_SIZE / 2.0) - ev->y2;
-                beams[slot].alpha = 1.0;
-            } else if (ev->type == IPC_EV_BOOM) {
-                g_booms[boom_idx].x = ev->x1 - (QUADRANT_SIZE / 2.0);
-                g_booms[boom_idx].y = ev->z1 - (QUADRANT_SIZE / 2.0);
-                g_booms[boom_idx].z = (QUADRANT_SIZE / 2.0) - ev->y1;
-                g_booms[boom_idx].active = 1;
-                g_booms[boom_idx].timer = (int)(2 * GAME_TICK_RATE / 3); 
-                int current_boom = boom_idx;
-                boom_idx = (boom_idx + 1) % 10;
-                /* Force kill nearest torpedo visual on impact */
-                for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) {
-                    if (g_torps[s].active) {
-                        double dxb = g_torps[s].x - g_booms[current_boom].x;
-                        double dyb = g_torps[s].y - g_booms[current_boom].y;
-                        double dzb = g_torps[s].z - g_booms[current_boom].z;
-                        if ((dxb*dxb + dyb*dyb + dzb*dzb) < 1.0) g_torps[s].active = 0;
-                    }
-                }
-            } else if (ev->type == IPC_EV_DISMANTLE) {
-                float dx = ev->x1 - (QUADRANT_SIZE / 2.0);
-                float dy = ev->z1 - (QUADRANT_SIZE / 2.0);
-                float dz = (QUADRANT_SIZE / 2.0) - ev->y1;
-                
-                /* VIBRANT MULTI-COLORED PIXEL EXPLOSION - MEGA VERSION */
-                for(int i=0; i<MAX_PARTICLES/2; i++) { 
-                    float speed = 0.8 + (rand()%200)/100.0;
-                    float theta = (rand()%360) * M_PI / 180.0;
-                    float phi = (rand()%180 - 90) * M_PI / 180.0;
-                    
-                    float vx = speed * cos(phi) * cos(theta);
-                    float vy = speed * sin(phi);
-                    float vz = speed * cos(phi) * sin(theta);
-                    
-                    /* Extreme vibrant colors */
-                    float r = (rand()%100)/100.0;
-                    float g = (rand()%100)/100.0;
-                    float b = (rand()%100)/100.0;
-                    
-                    /* Boost brightness */
-                    if (r < 0.3 && g < 0.3 && b < 0.3) {
-                        r += 0.5; g += 0.5; b += 0.5;
-                    }
-                    
-                    float p_size = 5.0 + (rand()%1500)/100.0; /* Much bigger: 5.0 to 20.0 */
-                    float p_life = 4.0 + (rand()%400)/100.0;  /* Longer life: 4 to 8 seconds */
-                    
-                    spawnParticle(dx, dy, dz, vx, vy, vz, r, g, b, p_size, p_life);
-                }
-                
-                /* Central high-intensity flash */
-                for(int i=0; i<200; i++) {
-                    float vx = ((rand()%100)-50)/5.0;
-                    float vy = ((rand()%100)-50)/5.0;
-                    float vz = ((rand()%100)-50)/5.0;
-                    spawnParticle(dx, dy, dz, vx, vy, vz, 1.0, 1.0, 1.0, 15.0, 1.5);
-                }
-            } else if (ev->type == IPC_EV_RECOVERY) {
-                g_recovery_fx.x = ev->x1 - (QUADRANT_SIZE / 2.0);
-                g_recovery_fx.y = ev->z1 - (QUADRANT_SIZE / 2.0);
-                g_recovery_fx.z = (QUADRANT_SIZE / 2.0) - ev->y1;
-                g_recovery_fx.timer = (int)GAME_TICK_RATE;
-            } else if (ev->type == IPC_EV_JUMP) {
-                /* ... (existing jump logic) ... */
-                float jx = ev->x1 - 20.0;
-                float jy = ev->z1 - 20.0;
-                float jz = 20.0 - ev->y1;
-                g_jump_arrival.x = jx; g_jump_arrival.y = jy; g_jump_arrival.z = jz;
-                g_jump_arrival.h = state->shm_h; 
-                g_jump_arrival.m = state->shm_m;
-                g_jump_arrival.active = 1;
-                g_jump_arrival.timer = (5 * GAME_TICK_RATE);
-                g_arrival_fx.x = jx; g_arrival_fx.y = jy; g_arrival_fx.z = jz;
-                g_arrival_fx.timer = (5 * GAME_TICK_RATE);
-                for(int i=0; i<150; i++) {
-                    float theta = (rand() % 360) * M_PI / 180.0;
-                    float phi = (rand() % 180 - 90) * M_PI / 180.0;
-                    float dist = 3.0 + (rand() % 200) / 100.0;
-                    g_arrival_fx.particles[i].x = g_arrival_fx.x + dist * cos(phi) * cos(theta);
-                    g_arrival_fx.particles[i].y = g_arrival_fx.y + dist * sin(phi);
-                    g_arrival_fx.particles[i].z = g_arrival_fx.z + dist * cos(phi) * sin(theta);
-                    g_arrival_fx.particles[i].vx = (g_arrival_fx.x - g_arrival_fx.particles[i].x) / 100.0;
-                    g_arrival_fx.particles[i].vy = (g_arrival_fx.y - g_arrival_fx.particles[i].y) / 100.0;
-                    g_arrival_fx.particles[i].vz = (g_arrival_fx.z - g_arrival_fx.particles[i].z) / 100.0;
-                    g_arrival_fx.particles[i].r = (rand() % 100) / 100.0;
-                    g_arrival_fx.particles[i].g = (rand() % 100) / 100.0;
-                    g_arrival_fx.particles[i].b = (rand() % 100) / 100.0;
-                    g_arrival_fx.particles[i].active = 1;
-                }
-            } else if (ev->type == IPC_EV_TORPEDO) {
-                /* Zero-Loss Projectile Tracking */
-                int tid = ev->extra;
-                float n_tx = ev->x1 - (QUADRANT_SIZE / 2.0);
-                float n_ty = ev->z1 - (QUADRANT_SIZE / 2.0);
-                float n_tz = (QUADRANT_SIZE / 2.0) - ev->y1;
-                
-                int found = -1;
-                for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) {
-                    if (g_torps[s].active && g_torps[s].timer == tid) { found = s; break; }
-                }
-                
-                if (found == -1) {
-                    /* New torpedo from Zero-Loss stream */
-                    for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) {
-                        if (!g_torps[s].active) { 
-                            found = s; 
-                            g_torps[s].x = n_tx; g_torps[s].y = n_ty; g_torps[s].z = n_tz;
-                            break; 
-                        }
-                    }
-                }
-                
-                if (found != -1) {
-                    g_torps[found].tx = n_tx; g_torps[found].ty = n_ty; g_torps[found].tz = n_tz;
-                    g_torps[found].vx = ev->x2; g_torps[found].vy = ev->z2; g_torps[found].vz = -ev->y2;
-                    g_torps[found].active = 1;
-                    g_torps[found].timer = tid; /* Use timer field as persistent ID */
-                    g_torps[found].h = 10;      /* Internal TTL (Time to Live) frames */
-                }
-            }
-            
-            head = (head + 1) % IPC_EVENT_QUEUE_SIZE;
-            atomic_store_explicit(&g_shm->event_head, head, memory_order_release);
-        }
-    }
-
     /* Old Torpedo state-sampling stream disabled in favor of Zero-Loss FX */
     for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) {
         if (g_torps[s].active) {
@@ -1210,15 +1211,6 @@ void loadGameState() {
         g_sn_q[0] = g_sn_q[1] = g_sn_q[2] = 0;
     }
 
-    /* Dismantle */
-    /* Reset event to prevent re-triggering */
-    if (state->recovery_fx.active) {
-        g_recovery_fx.x = state->recovery_fx.shm_x - (QUADRANT_SIZE / 2.0);
-        g_recovery_fx.y = state->recovery_fx.shm_z - (QUADRANT_SIZE / 2.0);
-        g_recovery_fx.z = (QUADRANT_SIZE / 2.0) - state->recovery_fx.shm_y;
-        g_recovery_fx.timer = (int)GAME_TICK_RATE;
-        state->recovery_fx.active = 0;
-    }
     g_is_loading = 0;
 }
 
@@ -3916,15 +3908,20 @@ void drawTacticalCube() {
 }
 
 void spawnParticle(double x, double y, double z, double vx, double vy, double vz, double r, double g, double b, double size, double life) {
+    static int last_spawn_idx = 0;
+    int search_idx = last_spawn_idx;
+
     for (int i = 0; i < MAX_PARTICLES; i++) {
-        if (!fx_particles[i].active) {
-            fx_particles[i].x = x; fx_particles[i].y = y; fx_particles[i].z = z;
-            fx_particles[i].vx = vx; fx_particles[i].vy = vy; fx_particles[i].vz = vz;
-            fx_particles[i].r = r; fx_particles[i].g = g; fx_particles[i].b = b;
-            fx_particles[i].a = 1.0;
-            fx_particles[i].size = size;
-            fx_particles[i].life = life;
-            fx_particles[i].active = 1;
+        int idx = (search_idx + i) % MAX_PARTICLES;
+        if (!fx_particles[idx].active) {
+            fx_particles[idx].x = x; fx_particles[idx].y = y; fx_particles[idx].z = z;
+            fx_particles[idx].vx = vx; fx_particles[idx].vy = vy; fx_particles[idx].vz = vz;
+            fx_particles[idx].r = r; fx_particles[idx].g = g; fx_particles[idx].b = b;
+            fx_particles[idx].a = 1.0;
+            fx_particles[idx].size = size;
+            fx_particles[idx].life = life;
+            fx_particles[idx].active = 1;
+            last_spawn_idx = (idx + 1) % MAX_PARTICLES;
             break;
         }
     }
