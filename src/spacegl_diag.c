@@ -86,6 +86,7 @@ DiagPage pages[MAX_PAGES] = {
     {CAT_SHIP, FACTION_SPECIES_8472, "FLUIDIC SPECIES"},
     {CAT_SHIP, FACTION_BREEN,     "CRYOS CONFEDERACY"},
     {CAT_SHIP, FACTION_HIROGEN,   "APEX HUNTERS"},
+    {0, 0, NULL} /* Sentinel */
 };
 
 typedef struct {
@@ -198,12 +199,17 @@ int main(int argc, char** argv) {
     }
 
     int is_pie = 0;
-    #define RESOLVE(name) uintptr_t a_##name = (get_symbol_offset(exe, #name, &is_pie) + (is_pie ? base : 0)); if (a_##name == (is_pie?base:0)) unresolved_count++;
-    #define RESOLVE_S(name, sym) uintptr_t a_##name = (get_symbol_offset(exe, sym, &is_pie) + (is_pie ? base : 0)); if (a_##name == (is_pie?base:0)) unresolved_count++;
+    #define RESOLVE(name) uintptr_t off_##name = get_symbol_offset(exe, #name, &is_pie); \
+                          uintptr_t a_##name = off_##name ? (off_##name + (is_pie ? base : 0)) : 0; \
+                          if (!a_##name) unresolved_count++;
+    #define RESOLVE_S(name, sym) uintptr_t off_##name = get_symbol_offset(exe, sym, &is_pie); \
+                                uintptr_t a_##name = off_##name ? (off_##name + (is_pie ? base : 0)) : 0; \
+                                if (!a_##name) unresolved_count++;
 
     int unresolved_count = 0;
-    uintptr_t a_tick = (get_symbol_offset(exe, "global_tick", &is_pie) + (is_pie ? base : 0));
-    if (a_tick == (is_pie?base:0)) unresolved_count++;
+    uintptr_t off_tick = get_symbol_offset(exe, "global_tick", &is_pie);
+    uintptr_t a_tick = off_tick ? (off_tick + (is_pie ? base : 0)) : 0;
+    if (!a_tick) unresolved_count++;
 
     RESOLVE(npcs); RESOLVE(players); RESOLVE_S(stars, "stars_data"); RESOLVE(planets);
     RESOLVE(bases); RESOLVE(black_holes); RESOLVE(nebulas); RESOLVE(pulsars); RESOLVE(quasars);
@@ -230,53 +236,58 @@ int main(int argc, char** argv) {
     int menu_selection = 1;
     int ch;
 
-    ConnectedPlayer* pl_buf = malloc(sizeof(ConnectedPlayer) * MAX_CLIENTS);
-    NPCShip* npc_buf = malloc(sizeof(NPCShip) * MAX_NPC);
-    NPCStar* star_buf = malloc(sizeof(NPCStar) * MAX_STARS);
-    NPCPlanet* planet_buf = malloc(sizeof(NPCPlanet) * MAX_PLANETS);
-    NPCBase* base_buf = malloc(sizeof(NPCBase) * MAX_BASES);
-    NPCBlackHole* bh_buf = malloc(sizeof(NPCBlackHole) * MAX_BH);
-    NPCNebula* neb_buf = malloc(sizeof(NPCNebula) * MAX_NEBULAS);
-    NPCPulsar* pul_buf = malloc(sizeof(NPCPulsar) * MAX_PULSARS);
-    NPCQuasar* qua_buf = malloc(sizeof(NPCQuasar) * MAX_QUASARS);
-    NPCComet* com_buf = malloc(sizeof(NPCComet) * MAX_COMETS);
-    NPCAsteroid* ast_buf = malloc(sizeof(NPCAsteroid) * MAX_ASTEROIDS);
-    NPCDerelict* der_buf = malloc(sizeof(NPCDerelict) * MAX_DERELICTS);
-    NPCMine* mine_buf = malloc(sizeof(NPCMine) * MAX_MINES);
-    NPCBuoy* buoy_buf = malloc(sizeof(NPCBuoy) * MAX_BUOYS);
-    NPCPlatform* plat_buf = malloc(sizeof(NPCPlatform) * MAX_PLATFORMS);
-    NPCRift* rift_buf = malloc(sizeof(NPCRift) * MAX_RIFTS);
-    NPCMonster* mon_buf = malloc(sizeof(NPCMonster) * MAX_MONSTERS);
-    NPCDyson* dys_buf = malloc(sizeof(NPCDyson) * MAX_DYSON);
-    NPCHub* hub_buf = malloc(sizeof(NPCHub) * MAX_HUBS);
-    NPCRelic* rel_buf = malloc(sizeof(NPCRelic) * MAX_RELICS);
-    NPCRupture* rup_buf = malloc(sizeof(NPCRupture) * MAX_RUPTURES);
-    NPCSatellite* sat_buf = malloc(sizeof(NPCSatellite) * MAX_SATELLITES);
-    NPCStorm* sto_buf = malloc(sizeof(NPCStorm) * MAX_STORMS);
-    NPCArtifact* art_buf = malloc(sizeof(NPCArtifact) * MAX_ARTIFACTS);
-    NPCWarpGate* war_buf = malloc(sizeof(NPCWarpGate) * MAX_WARP_GATES);
-    NPCNeutronStar* neu_buf = malloc(sizeof(NPCNeutronStar) * MAX_NEUTRON_STARS);
-    NPCMegaStructure* meg_buf = malloc(sizeof(NPCMegaStructure) * MAX_MEGA_STRUCTS);
-    NPCDarkCloud* dar_buf = malloc(sizeof(NPCDarkCloud) * MAX_DARK_CLOUDS);
-    NPCSingularity* sin_buf = malloc(sizeof(NPCSingularity) * MAX_SINGULARITIES);
-    NPCPlasmaStorm* pla_buf = malloc(sizeof(NPCPlasmaStorm) * MAX_PLASMA_STORMS);
-    NPCOrbitalRing* orb_buf = malloc(sizeof(NPCOrbitalRing) * MAX_ORBITAL_RINGS);
-    NPCTimeAnomaly* tim_buf = malloc(sizeof(NPCTimeAnomaly) * MAX_TIME_ANOMALIES);
-    NPCVoidCrystal* voi_buf = malloc(sizeof(NPCVoidCrystal) * MAX_VOID_CRYSTALS);
-    NPCSubspaceAnomaly* sub_buf = malloc(sizeof(NPCSubspaceAnomaly) * MAX_SUBSPACE_ANOMALIES);
-    PlayerTorpedo* torp_buf = malloc(sizeof(PlayerTorpedo) * MAX_GLOBAL_TORPEDOES);
-    RenderItem* render_list = malloc(sizeof(RenderItem) * 50000);
+    ConnectedPlayer* pl_buf = calloc(MAX_CLIENTS, sizeof(ConnectedPlayer));
+    NPCShip* npc_buf = calloc(MAX_NPC, sizeof(NPCShip));
+    NPCStar* star_buf = calloc(MAX_STARS, sizeof(NPCStar));
+    NPCPlanet* planet_buf = calloc(MAX_PLANETS, sizeof(NPCPlanet));
+    NPCBase* base_buf = calloc(MAX_BASES, sizeof(NPCBase));
+    NPCBlackHole* bh_buf = calloc(MAX_BH, sizeof(NPCBlackHole));
+    NPCNebula* neb_buf = calloc(MAX_NEBULAS, sizeof(NPCNebula));
+    NPCPulsar* pul_buf = calloc(MAX_PULSARS, sizeof(NPCPulsar));
+    NPCQuasar* qua_buf = calloc(MAX_QUASARS, sizeof(NPCQuasar));
+    NPCComet* com_buf = calloc(MAX_COMETS, sizeof(NPCComet));
+    NPCAsteroid* ast_buf = calloc(MAX_ASTEROIDS, sizeof(NPCAsteroid));
+    NPCDerelict* der_buf = calloc(MAX_DERELICTS, sizeof(NPCDerelict));
+    NPCMine* mine_buf = calloc(MAX_MINES, sizeof(NPCMine));
+    NPCBuoy* buoy_buf = calloc(MAX_BUOYS, sizeof(NPCBuoy));
+    NPCPlatform* plat_buf = calloc(MAX_PLATFORMS, sizeof(NPCPlatform));
+    NPCRift* rift_buf = calloc(MAX_RIFTS, sizeof(NPCRift));
+    NPCMonster* mon_buf = calloc(MAX_MONSTERS, sizeof(NPCMonster));
+    NPCDyson* dys_buf = calloc(MAX_DYSON, sizeof(NPCDyson));
+    NPCHub* hub_buf = calloc(MAX_HUBS, sizeof(NPCHub));
+    NPCRelic* rel_buf = calloc(MAX_RELICS, sizeof(NPCRelic));
+    NPCRupture* rup_buf = calloc(MAX_RUPTURES, sizeof(NPCRupture));
+    NPCSatellite* sat_buf = calloc(MAX_SATELLITES, sizeof(NPCSatellite));
+    NPCStorm* sto_buf = calloc(MAX_STORMS, sizeof(NPCStorm));
+    NPCArtifact* art_buf = calloc(MAX_ARTIFACTS, sizeof(NPCArtifact));
+    NPCWarpGate* war_buf = calloc(MAX_WARP_GATES, sizeof(NPCWarpGate));
+    NPCNeutronStar* neu_buf = calloc(MAX_NEUTRON_STARS, sizeof(NPCNeutronStar));
+    NPCMegaStructure* meg_buf = calloc(MAX_MEGA_STRUCTS, sizeof(NPCMegaStructure));
+    NPCDarkCloud* dar_buf = calloc(MAX_DARK_CLOUDS, sizeof(NPCDarkCloud));
+    NPCSingularity* sin_buf = calloc(MAX_SINGULARITIES, sizeof(NPCSingularity));
+    NPCPlasmaStorm* pla_buf = calloc(MAX_PLASMA_STORMS, sizeof(NPCPlasmaStorm));
+    NPCOrbitalRing* orb_buf = calloc(MAX_ORBITAL_RINGS, sizeof(NPCOrbitalRing));
+    NPCTimeAnomaly* tim_buf = calloc(MAX_TIME_ANOMALIES, sizeof(NPCTimeAnomaly));
+    NPCVoidCrystal* voi_buf = calloc(MAX_VOID_CRYSTALS, sizeof(NPCVoidCrystal));
+    NPCSubspaceAnomaly* sub_buf = calloc(MAX_SUBSPACE_ANOMALIES, sizeof(NPCSubspaceAnomaly));
+    PlayerTorpedo* torp_buf = calloc(MAX_GLOBAL_TORPEDOES, sizeof(PlayerTorpedo));
+    RenderItem* render_list = malloc(sizeof(RenderItem) * 100000);
 
     while ((ch = getch()) != 'q') {
         if (ch == 'n') { current_page = (current_page + 1) % MAX_PAGES; scroll_offset = 0; }
         if (ch == 'p') { current_page = (current_page - 1 + MAX_PAGES) % MAX_PAGES; scroll_offset = 0; }
         
+        while (current_page < MAX_PAGES && pages[current_page].name == NULL) current_page = (current_page + 1) % MAX_PAGES;
         DiagCat cat = pages[current_page].cat;
 
         if (cat == CAT_MENU) {
             if (ch == KEY_UP && menu_selection > 1) menu_selection--;
-            if (ch == KEY_DOWN && menu_selection < MAX_PAGES - 1) menu_selection++;
-            if (ch == KEY_RIGHT && menu_selection + 22 < MAX_PAGES) menu_selection += 22;
+            if (ch == KEY_DOWN && menu_selection < MAX_PAGES - 1) {
+                if (pages[menu_selection + 1].name != NULL) menu_selection++;
+            }
+            if (ch == KEY_RIGHT && menu_selection + 22 < MAX_PAGES) {
+                if (pages[menu_selection + 22].name != NULL) menu_selection += 22;
+            }
             if (ch == KEY_LEFT && menu_selection - 22 >= 1) menu_selection -= 22;
             if (ch == 10 || ch == 13 || ch == KEY_ENTER) {
                 current_page = menu_selection;
@@ -306,7 +317,7 @@ int main(int argc, char** argv) {
             for (int i = 0; i < MAX_CLIENTS; i++) if (pl_buf[i].active && (filter == -1 || pl_buf[i].faction == filter)) { render_list[total_items].type = 0; render_list[total_items].index = i; total_items++; }
             for (int i = 0; i < MAX_NPC; i++) if (npc_buf[i].active && (filter == -1 || npc_buf[i].faction == filter)) { render_list[total_items].type = 1; render_list[total_items].index = i; total_items++; }
         } else {
-            #define READ_CAT(buf, addr, max, type_id) read_remote(pid, addr, buf, sizeof(*buf)*max); for(int i=0; i<max; i++) if(buf[i].active) { render_list[total_items].type = type_id; render_list[total_items].index = i; total_items++; }
+            #define READ_CAT(buf, addr, max, type_id) if (addr) { if (read_remote(pid, addr, buf, sizeof(*buf)*max) > 0) { for(int i=0; i<max; i++) if(buf[i].active) { render_list[total_items].type = type_id; render_list[total_items].index = i; total_items++; } } }
             switch(cat) {
                 case CAT_STAR: READ_CAT(star_buf, a_stars, MAX_STARS, 2); break;
                 case CAT_PLANET: READ_CAT(planet_buf, a_planets, MAX_PLANETS, 3); break;
@@ -346,13 +357,13 @@ int main(int argc, char** argv) {
         }
 
         int max_visible_lines = LINES - 6;
-        if (scroll_offset > total_items - max_visible_lines) scroll_offset = total_items - max_visible_lines;
+        if (total_items > 0 && scroll_offset > total_items - max_visible_lines) scroll_offset = total_items - max_visible_lines;
         if (scroll_offset < 0) scroll_offset = 0;
 
         erase();
         attron(COLOR_PAIR(2) | A_BOLD);
         mvprintw(1, 2, "SPACE GL GLOBAL SCANNER | TICK: %d | PAGE %d/%d: %s | ITEMS: %d | SYMS: %s", 
-                tick, current_page+1, MAX_PAGES, pages[current_page].name, total_items, 
+                tick, current_page+1, MAX_PAGES, pages[current_page].name ? pages[current_page].name : "UNKNOWN", total_items, 
                 (unresolved_count==0)?"OK":"MISSING");
         mvhline(2, 0, ACS_HLINE, COLS); attroff(A_BOLD);
 
@@ -365,15 +376,16 @@ int main(int argc, char** argv) {
             y++;
             int start_y = y;
             for (int i = 1; i < MAX_PAGES; i++) {
+                if (pages[i].name == NULL) continue;
                 int col = (i - 1) / 22;
                 int row = (i - 1) % 22;
                 int x_pos = 4 + (col * 42);
                 if (i == menu_selection) {
                     attron(COLOR_PAIR(1) | A_REVERSE);
-                    mvprintw(start_y + row, x_pos, " > %-36s ", pages[i].name);
+                    mvprintw(start_y + row, x_pos, " > %-36.36s ", pages[i].name);
                     attroff(COLOR_PAIR(1) | A_REVERSE);
                 } else {
-                    mvprintw(start_y + row, x_pos, "   %-36s ", pages[i].name);
+                    mvprintw(start_y + row, x_pos, "   %-36.36s ", pages[i].name);
                 }
             }
         } else {
@@ -385,45 +397,45 @@ int main(int argc, char** argv) {
                 int idx = scroll_offset + i; if (idx >= total_items) break;
                 RenderItem item = render_list[idx];
                 int cp = 5;
-                char sid[16], name[64], info[32], qstr[32], sstr[32], integ[16], extra[32];
+                char sid[32], name[64], info[64], qstr[64], sstr[128], integ[32], extra[64];
                 strcpy(integ, "100%"); strcpy(extra, "-");
 
                 switch(item.type) {
-                    case 0: { ConnectedPlayer* p = &pl_buf[item.index]; cp=1; sprintf(sid, "P%02d", item.index+1); sprintf(name, "%s", p->name); sprintf(info, "%s", get_species_name(p->faction)); sprintf(qstr, "[%2d,%2d,%2d]", p->state.q1, p->state.q2, p->state.q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", p->state.s1, p->state.s2, p->state.s3); sprintf(integ, "%3d%%", (int)p->state.hull_integrity); sprintf(extra, "%" PRIu64, p->state.energy); } break;
-                    case 1: { NPCShip* n = &npc_buf[item.index]; cp=(n->faction==FACTION_KORTHIAN)?4:3; sprintf(sid, "N%04d", n->id); sprintf(name, "%s", n->name); sprintf(info, "%s", get_species_name(n->faction)); sprintf(qstr, "[%2d,%2d,%2d]", n->q1, n->q2, n->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", n->x, n->y, n->z); sprintf(integ, "%3d%%", (int)n->health); sprintf(extra, "%" PRIu64, n->energy); } break;
-                    case 2: { NPCStar* s = &star_buf[item.index]; cp=3; sprintf(sid, "S%04d", s->id); sprintf(name, "Star"); sprintf(info, "Spectral %d", s->faction); sprintf(qstr, "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
-                    case 3: { NPCPlanet* p = &planet_buf[item.index]; cp=2; sprintf(sid, "PL%04d", p->id); sprintf(name, "Planet"); sprintf(info, "Res:%d", p->resource_type); sprintf(qstr, "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", p->x, p->y, p->z); sprintf(extra, "Amt:%d", p->amount); } break;
-                    case 4: { NPCBase* b = &base_buf[item.index]; cp=1; sprintf(sid, "B%04d", b->id); sprintf(name, "%s Base", get_species_name(b->faction)); sprintf(info, "Faction %d", b->faction); sprintf(qstr, "[%2d,%2d,%2d]", b->q1, b->q2, b->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", b->x, b->y, b->z); sprintf(integ, "%d", b->health); } break;
-                    case 5: { NPCBlackHole* b = &bh_buf[item.index]; cp=4; sprintf(sid, "BH%04d", b->id); sprintf(name, "Black Hole"); sprintf(info, "Singularity"); sprintf(qstr, "[%2d,%2d,%2d]", b->q1, b->q2, b->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", b->x, b->y, b->z); } break;
-                    case 6: { NPCNebula* n = &neb_buf[item.index]; cp=5; sprintf(sid, "NEB%04d", n->id); sprintf(name, "Nebula"); sprintf(info, "Type:%d", n->type); sprintf(qstr, "[%2d,%2d,%2d]", n->q1, n->q2, n->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", n->x, n->y, n->z); } break;
-                    case 7: { NPCPulsar* p = &pul_buf[item.index]; cp=3; sprintf(sid, "PUL%04d", p->id); sprintf(name, "Pulsar"); sprintf(info, "Type:%d", p->type); sprintf(qstr, "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", p->x, p->y, p->z); } break;
-                    case 8: { NPCQuasar* q = &qua_buf[item.index]; cp=3; sprintf(sid, "QSR%04d", q->id); sprintf(name, "Quasar"); sprintf(info, "Type:%d", q->type); sprintf(qstr, "[%2d,%2d,%2d]", q->q1, q->q2, q->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", q->x, q->y, q->z); } break;
-                    case 9: { NPCComet* c = &com_buf[item.index]; cp=2; sprintf(sid, "COM%04d", c->id); sprintf(name, "Comet"); sprintf(info, "Moving"); sprintf(qstr, "[%2d,%2d,%2d]", c->q1, c->q2, c->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", c->x, c->y, c->z); } break;
-                    case 10: { NPCAsteroid* a = &ast_buf[item.index]; cp=3; sprintf(sid, "AST%04d", a->id); sprintf(name, "Asteroid"); sprintf(info, "Res:%d", a->resource_type); sprintf(qstr, "[%2d,%2d,%2d]", a->q1, a->q2, a->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", a->x, a->y, a->z); sprintf(extra, "Amt:%d", a->amount); } break;
-                    case 11: { NPCDerelict* d = &der_buf[item.index]; cp=5; sprintf(sid, "DE%04d", d->id); sprintf(name, "%s", d->name); sprintf(info, "Class %d", d->ship_class); sprintf(qstr, "[%2d,%2d,%2d]", d->q1, d->q2, d->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", d->x, d->y, d->z); } break;
-                    case 12: { NPCMine* m = &mine_buf[item.index]; cp=4; sprintf(sid, "MIN%04d", m->id); sprintf(name, "Mine"); sprintf(info, "Faction %d", m->faction); sprintf(qstr, "[%2d,%2d,%2d]", m->q1, m->q2, m->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", m->x, m->y, m->z); } break;
-                    case 13: { NPCBuoy* b = &buoy_buf[item.index]; cp=2; sprintf(sid, "BUY%04d", b->id); sprintf(name, "Comm Buoy"); sprintf(info, "Active"); sprintf(qstr, "[%2d,%2d,%2d]", b->q1, b->q2, b->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", b->x, b->y, b->z); } break;
-                    case 14: { NPCPlatform* p = &plat_buf[item.index]; cp=4; sprintf(sid, "PF%04d", p->id); sprintf(name, "Platform"); sprintf(info, "Fac:%d", p->faction); sprintf(qstr, "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", p->x, p->y, p->z); sprintf(integ, "%d", p->health); sprintf(extra, "E:%" PRIu64, p->energy); } break;
-                    case 15: { NPCRift* r = &rift_buf[item.index]; cp=2; sprintf(sid, "RIF%04d", r->id); sprintf(name, "Spatial Rift"); sprintf(info, "Active"); sprintf(qstr, "[%2d,%2d,%2d]", r->q1, r->q2, r->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", r->x, r->y, r->z); } break;
-                    case 16: { NPCMonster* m = &mon_buf[item.index]; cp=4; sprintf(sid, "M%02d", m->id); sprintf(name, (m->type==30)?"Crystalline":"Amoeba"); sprintf(info, "OMEGA"); sprintf(qstr, "[%2d,%2d,%2d]", m->q1, m->q2, m->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", m->x, m->y, m->z); sprintf(integ, "%d", m->health); } break;
-                    case 17: { NPCDyson* d = &dys_buf[item.index]; cp=3; sprintf(sid, "DY%04d", d->id); sprintf(name, "Dyson Frag"); sprintf(info, "Ancient"); sprintf(qstr, "[%2d,%2d,%2d]", d->q1, d->q2, d->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", d->x, d->y, d->z); } break;
-                    case 18: { NPCHub* h = &hub_buf[item.index]; cp=2; sprintf(sid, "HB%04d", h->id); sprintf(name, "Trading Hub"); sprintf(info, "Neutral"); sprintf(qstr, "[%2d,%2d,%2d]", h->q1, h->q2, h->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", h->x, h->y, h->z); } break;
-                    case 19: { NPCRelic* r = &rel_buf[item.index]; cp=2; sprintf(sid, "RE%04d", r->id); sprintf(name, "Ancient Relic"); sprintf(info, "Tech"); sprintf(qstr, "[%2d,%2d,%2d]", r->q1, r->q2, r->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", r->x, r->y, r->z); } break;
-                    case 20: { NPCRupture* r = &rup_buf[item.index]; cp=4; sprintf(sid, "RU%04d", r->id); sprintf(name, "Subspace Rup"); sprintf(info, "Anomaly"); sprintf(qstr, "[%2d,%2d,%2d]", r->q1, r->q2, r->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", r->x, r->y, r->z); } break;
-                    case 21: { NPCSatellite* s = &sat_buf[item.index]; cp=5; sprintf(sid, "SA%04d", s->id); sprintf(name, "Satellite"); sprintf(info, "Relay"); sprintf(qstr, "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
-                    case 22: { NPCStorm* s = &sto_buf[item.index]; cp=5; sprintf(sid, "SO%04d", s->id); sprintf(name, "Ion Storm"); sprintf(info, "Meteo"); sprintf(qstr, "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
-                    case 23: { PlayerTorpedo* t = &torp_buf[item.index]; cp=4; sprintf(sid, "T%04d", t->id); sprintf(name, "Torpedo"); sprintf(info, "Owner %d", t->owner_idx); sprintf(qstr, "[%2d,%2d,%2d]", t->q1, t->q2, t->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", t->x, t->y, t->z); sprintf(extra, "TO:%d", t->timeout); } break;
-                    case 30: { NPCArtifact* a = &art_buf[item.index]; cp=3; sprintf(sid, "AA%04d", a->id); sprintf(name, "Alien Artifact"); sprintf(info, "Exotic"); sprintf(qstr, "[%2d,%2d,%2d]", a->q1, a->q2, a->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", a->x, a->y, a->z); } break;
-                    case 31: { NPCWarpGate* w = &war_buf[item.index]; cp=2; sprintf(sid, "WG%04d", w->id); sprintf(name, "Warp Gate"); sprintf(info, "Active"); sprintf(qstr, "[%2d,%2d,%2d]", w->q1, w->q2, w->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", w->x, w->y, w->z); } break;
-                    case 32: { NPCNeutronStar* n = &neu_buf[item.index]; cp=5; sprintf(sid, "NS%04d", n->id); sprintf(name, "Neutron Star"); sprintf(info, "Degenerate"); sprintf(qstr, "[%2d,%2d,%2d]", n->q1, n->q2, n->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", n->x, n->y, n->z); } break;
-                    case 33: { NPCMegaStructure* m = &meg_buf[item.index]; cp=1; sprintf(sid, "MS%04d", m->id); sprintf(name, "Mega Struct"); sprintf(info, "Unknown"); sprintf(qstr, "[%2d,%2d,%2d]", m->q1, m->q2, m->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", m->x, m->y, m->z); } break;
-                    case 34: { NPCDarkCloud* d = &dar_buf[item.index]; cp=4; sprintf(sid, "DC%04d", d->id); sprintf(name, "Dark Matter"); sprintf(info, "Obscured"); sprintf(qstr, "[%2d,%2d,%2d]", d->q1, d->q2, d->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", d->x, d->y, d->z); } break;
-                    case 35: { NPCSingularity* s = &sin_buf[item.index]; cp=4; sprintf(sid, "QS%04d", s->id); sprintf(name, "Singularity"); sprintf(info, "Quantum"); sprintf(qstr, "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
-                    case 36: { NPCPlasmaStorm* p = &pla_buf[item.index]; cp=3; sprintf(sid, "PS%04d", p->id); sprintf(name, "Plasma Storm"); sprintf(info, "Unstable"); sprintf(qstr, "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", p->x, p->y, p->z); } break;
-                    case 37: { NPCOrbitalRing* o = &orb_buf[item.index]; cp=2; sprintf(sid, "OR%04d", o->id); sprintf(name, "Orbital Ring"); sprintf(info, "Planetary"); sprintf(qstr, "[%2d,%2d,%2d]", o->q1, o->q2, o->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", o->x, o->y, o->z); } break;
-                    case 38: { NPCTimeAnomaly* t = &tim_buf[item.index]; cp=1; sprintf(sid, "TA%04d", t->id); sprintf(name, "Time Anomaly"); sprintf(info, "Temporal"); sprintf(qstr, "[%2d,%2d,%2d]", t->q1, t->q2, t->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", t->x, t->y, t->z); } break;
-                    case 39: { NPCVoidCrystal* v = &voi_buf[item.index]; cp=5; sprintf(sid, "VC%04d", v->id); sprintf(name, "Void Crystal"); sprintf(info, "Crystalline"); sprintf(qstr, "[%2d,%2d,%2d]", v->q1, v->q2, v->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", v->x, v->y, v->z); } break;
-                    case 50: { NPCSubspaceAnomaly* s = &sub_buf[item.index]; cp=2; sprintf(sid, "AN%04d", s->id); sprintf(name, "Subspace Anom"); sprintf(info, "Unstable"); sprintf(qstr, "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); sprintf(sstr, "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 0: { ConnectedPlayer* p = &pl_buf[item.index]; cp=1; snprintf(sid, sizeof(sid), "P%02d", item.index+1); snprintf(name, sizeof(name), "%s", p->name); snprintf(info, sizeof(info), "%s", get_species_name(p->faction)); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", p->state.q1, p->state.q2, p->state.q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", p->state.s1, p->state.s2, p->state.s3); snprintf(integ, sizeof(integ), "%3d%%", (int)p->state.hull_integrity); snprintf(extra, sizeof(extra), "%" PRIu64, p->state.energy); } break;
+                    case 1: { NPCShip* n = &npc_buf[item.index]; cp=(n->faction==FACTION_KORTHIAN)?4:3; snprintf(sid, sizeof(sid), "N%04d", n->id); snprintf(name, sizeof(name), "%s", n->name); snprintf(info, sizeof(info), "%s", get_species_name(n->faction)); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", n->q1, n->q2, n->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", n->x, n->y, n->z); snprintf(integ, sizeof(integ), "%3d%%", (int)n->health); snprintf(extra, sizeof(extra), "%" PRIu64, n->energy); } break;
+                    case 2: { NPCStar* s = &star_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "S%04d", s->id); snprintf(name, sizeof(name), "Star"); snprintf(info, sizeof(info), "Spectral %d", s->faction); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 3: { NPCPlanet* p = &planet_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "PL%04d", p->id); snprintf(name, sizeof(name), "Planet"); snprintf(info, sizeof(info), "Res:%d", p->resource_type); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", p->x, p->y, p->z); snprintf(extra, sizeof(extra), "Amt:%d", p->amount); } break;
+                    case 4: { NPCBase* b = &base_buf[item.index]; cp=1; snprintf(sid, sizeof(sid), "B%04d", b->id); snprintf(name, sizeof(name), "%s Base", get_species_name(b->faction)); snprintf(info, sizeof(info), "Faction %d", b->faction); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", b->q1, b->q2, b->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", b->x, b->y, b->z); snprintf(integ, sizeof(integ), "%d", b->health); } break;
+                    case 5: { NPCBlackHole* b = &bh_buf[item.index]; cp=4; snprintf(sid, sizeof(sid), "BH%04d", b->id); snprintf(name, sizeof(name), "Black Hole"); snprintf(info, sizeof(info), "Singularity"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", b->q1, b->q2, b->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", b->x, b->y, b->z); } break;
+                    case 6: { NPCNebula* n = &neb_buf[item.index]; cp=5; snprintf(sid, sizeof(sid), "NEB%04d", n->id); snprintf(name, sizeof(name), "Nebula"); snprintf(info, sizeof(info), "Type:%d", n->type); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", n->q1, n->q2, n->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", n->x, n->y, n->z); } break;
+                    case 7: { NPCPulsar* p = &pul_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "PUL%04d", p->id); snprintf(name, sizeof(name), "Pulsar"); snprintf(info, sizeof(info), "Type:%d", p->type); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", p->x, p->y, p->z); } break;
+                    case 8: { NPCQuasar* q = &qua_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "QSR%04d", q->id); snprintf(name, sizeof(name), "Quasar"); snprintf(info, sizeof(info), "Type:%d", q->type); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", q->q1, q->q2, q->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", q->x, q->y, q->z); } break;
+                    case 9: { NPCComet* c = &com_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "COM%04d", c->id); snprintf(name, sizeof(name), "Comet"); snprintf(info, sizeof(info), "Moving"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", c->q1, c->q2, c->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", c->x, c->y, c->z); } break;
+                    case 10: { NPCAsteroid* a = &ast_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "AST%04d", a->id); snprintf(name, sizeof(name), "Asteroid"); snprintf(info, sizeof(info), "Res:%d", a->resource_type); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", a->q1, a->q2, a->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", a->x, a->y, a->z); snprintf(extra, sizeof(extra), "Amt:%d", a->amount); } break;
+                    case 11: { NPCDerelict* d = &der_buf[item.index]; cp=5; snprintf(sid, sizeof(sid), "DE%04d", d->id); snprintf(name, sizeof(name), "%s", d->name); snprintf(info, sizeof(info), "Class %d", d->ship_class); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", d->q1, d->q2, d->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", d->x, d->y, d->z); } break;
+                    case 12: { NPCMine* m = &mine_buf[item.index]; cp=4; snprintf(sid, sizeof(sid), "MIN%04d", m->id); snprintf(name, sizeof(name), "Mine"); snprintf(info, sizeof(info), "Faction %d", m->faction); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", m->q1, m->q2, m->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", m->x, m->y, m->z); } break;
+                    case 13: { NPCBuoy* b = &buoy_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "BUY%04d", b->id); snprintf(name, sizeof(name), "Comm Buoy"); snprintf(info, sizeof(info), "Active"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", b->q1, b->q2, b->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", b->x, b->y, b->z); } break;
+                    case 14: { NPCPlatform* p = &plat_buf[item.index]; cp=4; snprintf(sid, sizeof(sid), "PF%04d", p->id); snprintf(name, sizeof(name), "Platform"); snprintf(info, sizeof(info), "Fac:%d", p->faction); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", p->x, p->y, p->z); snprintf(integ, sizeof(integ), "%d", p->health); snprintf(extra, sizeof(extra), "E:%" PRIu64, p->energy); } break;
+                    case 15: { NPCRift* r = &rift_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "RIF%04d", r->id); snprintf(name, sizeof(name), "Spatial Rift"); snprintf(info, sizeof(info), "Active"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", r->q1, r->q2, r->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", r->x, r->y, r->z); } break;
+                    case 16: { NPCMonster* m = &mon_buf[item.index]; cp=4; snprintf(sid, sizeof(sid), "M%02d", m->id); snprintf(name, sizeof(name), (m->type==30)?"Crystalline":"Amoeba"); snprintf(info, sizeof(info), "OMEGA"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", m->q1, m->q2, m->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", m->x, m->y, m->z); snprintf(integ, sizeof(integ), "%d", m->health); } break;
+                    case 17: { NPCDyson* d = &dys_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "DY%04d", d->id); snprintf(name, sizeof(name), "Dyson Frag"); snprintf(info, sizeof(info), "Ancient"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", d->q1, d->q2, d->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", d->x, d->y, d->z); } break;
+                    case 18: { NPCHub* h = &hub_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "HB%04d", h->id); snprintf(name, sizeof(name), "Trading Hub"); snprintf(info, sizeof(info), "Neutral"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", h->q1, h->q2, h->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", h->x, h->y, h->z); } break;
+                    case 19: { NPCRelic* r = &rel_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "RE%04d", r->id); snprintf(name, sizeof(name), "Ancient Relic"); snprintf(info, sizeof(info), "Tech"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", r->q1, r->q2, r->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", r->x, r->y, r->z); } break;
+                    case 20: { NPCRupture* r = &rup_buf[item.index]; cp=4; snprintf(sid, sizeof(sid), "RU%04d", r->id); snprintf(name, sizeof(name), "Subspace Rup"); snprintf(info, sizeof(info), "Anomaly"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", r->q1, r->q2, r->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", r->x, r->y, r->z); } break;
+                    case 21: { NPCSatellite* s = &sat_buf[item.index]; cp=5; snprintf(sid, sizeof(sid), "SA%04d", s->id); snprintf(name, sizeof(name), "Satellite"); snprintf(info, sizeof(info), "Relay"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 22: { NPCStorm* s = &sto_buf[item.index]; cp=5; snprintf(sid, sizeof(sid), "SO%04d", s->id); snprintf(name, sizeof(name), "Ion Storm"); snprintf(info, sizeof(info), "Meteo"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 23: { PlayerTorpedo* t = &torp_buf[item.index]; cp=4; snprintf(sid, sizeof(sid), "T%04d", t->id); snprintf(name, sizeof(name), "Torpedo"); snprintf(info, sizeof(info), "Owner %d", t->owner_idx); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", t->q1, t->q2, t->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", t->x, t->y, t->z); snprintf(extra, sizeof(extra), "TO:%d", t->timeout); } break;
+                    case 30: { NPCArtifact* a = &art_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "AA%04d", a->id); snprintf(name, sizeof(name), "Alien Artifact"); snprintf(info, sizeof(info), "Exotic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", a->q1, a->q2, a->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", a->x, a->y, a->z); } break;
+                    case 31: { NPCWarpGate* w = &war_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "WG%04d", w->id); snprintf(name, sizeof(name), "Warp Gate"); snprintf(info, sizeof(info), "Active"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", w->q1, w->q2, w->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", w->x, w->y, w->z); } break;
+                    case 32: { NPCNeutronStar* n = &neu_buf[item.index]; cp=5; snprintf(sid, sizeof(sid), "NS%04d", n->id); snprintf(name, sizeof(name), "Neutron Star"); snprintf(info, sizeof(info), "Degenerate"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", n->q1, n->q2, n->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", n->x, n->y, n->z); } break;
+                    case 33: { NPCMegaStructure* m = &meg_buf[item.index]; cp=1; snprintf(sid, sizeof(sid), "MS%04d", m->id); snprintf(name, sizeof(name), "Mega Struct"); snprintf(info, sizeof(info), "Unknown"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", m->q1, m->q2, m->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", m->x, m->y, m->z); } break;
+                    case 34: { NPCDarkCloud* d = &dar_buf[item.index]; cp=4; snprintf(sid, sizeof(sid), "DC%04d", d->id); snprintf(name, sizeof(name), "Dark Matter"); snprintf(info, sizeof(info), "Obscured"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", d->q1, d->q2, d->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", d->x, d->y, d->z); } break;
+                    case 35: { NPCSingularity* s = &sin_buf[item.index]; cp=4; snprintf(sid, sizeof(sid), "QS%04d", s->id); snprintf(name, sizeof(name), "Singularity"); snprintf(info, sizeof(info), "Quantum"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 36: { NPCPlasmaStorm* p = &pla_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "PS%04d", p->id); snprintf(name, sizeof(name), "Plasma Storm"); snprintf(info, sizeof(info), "Unstable"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", p->x, p->y, p->z); } break;
+                    case 37: { NPCOrbitalRing* o = &orb_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "OR%04d", o->id); snprintf(name, sizeof(name), "Orbital Ring"); snprintf(info, sizeof(info), "Planetary"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", o->q1, o->q2, o->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", o->x, o->y, o->z); } break;
+                    case 38: { NPCTimeAnomaly* t = &tim_buf[item.index]; cp=1; snprintf(sid, sizeof(sid), "TA%04d", t->id); snprintf(name, sizeof(name), "Time Anomaly"); snprintf(info, sizeof(info), "Temporal"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", t->q1, t->q2, t->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", t->x, t->y, t->z); } break;
+                    case 39: { NPCVoidCrystal* v = &voi_buf[item.index]; cp=5; snprintf(sid, sizeof(sid), "VC%04d", v->id); snprintf(name, sizeof(name), "Void Crystal"); snprintf(info, sizeof(info), "Crystalline"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", v->q1, v->q2, v->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", v->x, v->y, v->z); } break;
+                    case 50: { NPCSubspaceAnomaly* s = &sub_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "AN%04d", s->id); snprintf(name, sizeof(name), "Subspace Anom"); snprintf(info, sizeof(info), "Unstable"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
                     default: break;
                 }
 

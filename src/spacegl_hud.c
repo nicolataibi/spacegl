@@ -91,6 +91,12 @@ const char* get_crypto_name(int a) {
     return "UNKNOWN";
 }
 
+typedef enum {
+    MODE_HUD = 0,
+    MODE_INSPECTOR_MENU,
+    MODE_INSPECTOR_PAGE
+} HudMode;
+
 int current_color_idx = 0;
 short COLOR_AMBER = 8; /* Custom color index */
 short hud_colors[] = {COLOR_GREEN, COLOR_BLUE, 8, COLOR_WHITE, COLOR_RED}; 
@@ -103,6 +109,37 @@ void cycle_hud_colors() {
     }
     /* Pair 7 is ALWAYS Red for alerts */
     init_pair(7, COLOR_RED, COLOR_BLACK);
+}
+
+void draw_shm_menu(int selection) {
+    const char* options[] = {
+        "1. CORE SYSTEMS (Energy, Hull, Shields)",
+        "2. NAVIGATION (Coords, Heading, Nav State)",
+        "3. NETWORK & CRYPTO (Uptime, KBPS, Algos)",
+        "4. COMBAT & CARGO (Torpedoes, Inventory)",
+        "5. TACTICAL OBJECTS (Raw Data)",
+        "6. TRANSIENT EVENTS (IPC Queue)"
+    };
+    
+    attron(COLOR_PAIR(6) | A_BOLD);
+    mvprintw(2, 2, "[ SHARED MEMORY INSPECTOR - MAIN MENU ]");
+    attroff(A_BOLD);
+    
+    mvprintw(4, 2, "Use ARROWS to select and ENTER to view. Press 'M' to return to HUD.");
+    
+    for (int i = 0; i < 6; i++) {
+        if (i == selection) {
+            attron(COLOR_PAIR(1) | A_REVERSE);
+            mvprintw(6 + i, 4, " > %-45s ", options[i]);
+            attroff(COLOR_PAIR(1) | A_REVERSE);
+        } else {
+            mvprintw(6 + i, 4, "   %-45s ", options[i]);
+        }
+    }
+    
+    attron(COLOR_PAIR(2));
+    mvprintw(30, 2, "[UP/DOWN] Select | [ENTER] Open | [M] Exit to HUD | [Q] Quit");
+    attroff(COLOR_PAIR(2));
 }
 
 void draw_shm_inspector(SharedIPC *shm_ptr, GameState *st, int page) {
@@ -203,7 +240,7 @@ void draw_shm_inspector(SharedIPC *shm_ptr, GameState *st, int page) {
     }
     
     attron(COLOR_PAIR(2));
-    mvprintw(30, 2, "INSPECTOR CONTROLS: [N] Next Page | [P] Prev Page | [M] Exit to HUD");
+    mvprintw(30, 2, "INSPECTOR CONTROLS: [N] Next | [P] Prev | [ESC] Menu | [M] Exit to HUD");
     attroff(COLOR_PAIR(2));
 }
 
@@ -247,26 +284,56 @@ int main(int argc, char** argv) {
     bkgd(COLOR_PAIR(2));
 
     int ch;
-    int show_inspector = 0;
+    HudMode mode = MODE_HUD;
+    int menu_selection = 0;
     int inspector_page = 0;
 
-    while ((ch = getch()) != 'q') {
+    while (1) {
+        /* Robust Input Handling: Discard redundant keys if held down */
+        int first_ch = getch();
+        if (first_ch == 'q') break;
+        
+        int next_ch;
+        ch = first_ch;
+        if (ch != ERR) {
+            while ((next_ch = getch()) != ERR) {
+                if (next_ch == 'q') { ch = 'q'; break; }
+                ch = next_ch; /* Keep only the latest key in this frame */
+            }
+        }
+        if (ch == 'q') break;
+
         if (atomic_load(&shm->force_shutdown)) {
             endwin();
             printf("[HUD] GLOBAL EMERGENCY SHUTDOWN SIGNAL RECEIVED. CLEAN EXIT.\n");
             return 0;
         }
+
         if (ch == 'c') {
             current_color_idx = (current_color_idx + 1) % 5;
             cycle_hud_colors();
         }
+
         if (ch == 'm') {
-            show_inspector = !show_inspector;
+            if (mode == MODE_HUD) mode = MODE_INSPECTOR_MENU;
+            else if (mode == MODE_INSPECTOR_PAGE) mode = MODE_INSPECTOR_MENU;
+            else mode = MODE_HUD;
             erase();
         }
-        if (show_inspector) {
+
+        if (mode == MODE_INSPECTOR_MENU) {
+            if (ch == KEY_UP && menu_selection > 0) menu_selection--;
+            if (ch == KEY_DOWN && menu_selection < 5) menu_selection++;
+            if (ch == 10 || ch == 13 || ch == KEY_ENTER) {
+                inspector_page = menu_selection;
+                mode = MODE_INSPECTOR_PAGE;
+                erase();
+            }
+            if (ch == 27) { mode = MODE_HUD; erase(); }
+        } else if (mode == MODE_INSPECTOR_PAGE) {
             if (ch == 'n') inspector_page = (inspector_page + 1) % 6;
             if (ch == 'p') inspector_page = (inspector_page - 1 + 6) % 6;
+            if (ch == 27) { mode = MODE_INSPECTOR_MENU; erase(); }
         }
 
         int r_idx = atomic_load(&shm->read_index);
@@ -280,11 +347,18 @@ int main(int argc, char** argv) {
 
         erase();
 
-        if (show_inspector) {
+        if (mode == MODE_INSPECTOR_MENU) {
+            draw_shm_menu(menu_selection);
+            refresh(); usleep(REFRESH_RATE_USEC);
+            continue;
+        }
+
+        if (mode == MODE_INSPECTOR_PAGE) {
              draw_shm_inspector(shm, st, inspector_page);
              refresh(); usleep(REFRESH_RATE_USEC);
              continue;
         }
+
 
         // --- TOP HEADER ---
         attron(COLOR_PAIR(2) | A_BOLD);

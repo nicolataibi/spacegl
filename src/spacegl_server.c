@@ -265,12 +265,18 @@ void *game_loop_thread(void *arg) {
         update_game_logic();
         global_tick++;
         spacegl_master.frame_id++;
+        
+        /* Sync telemetry state while we hold the game lock */
+        extern void telemetry_sync_state();
+        telemetry_sync_state();
+
+        pthread_mutex_unlock(&game_mutex);
+
+        /* Broadcast telemetry OUTSIDE of the game lock to avoid stalling the main loop */
         extern void telemetry_broadcast();
         telemetry_broadcast();
-        pthread_mutex_unlock(&game_mutex);
-    }
-}
-
+        }
+        }
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
 #include <time.h>

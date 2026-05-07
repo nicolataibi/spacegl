@@ -447,18 +447,51 @@ Il realismo della simulazione è garantito da un sistema di consumo energetico d
 *   **Docking Safe Mode**: Il consumo energetico è completamente sospeso quando la nave è collegata a una Base Stellare (alimentazione esterna).
 *   **Emergenza Energia**: Se le riserve scendono a zero, il **Supporto Vitale** inizia a degradarsi dello **0.1% per tick**. Al raggiungimento dello **0%**, si verificheranno **vittime tra l'equipaggio** (1 membro al secondo). Ripristinare l'energia ricaricherà automaticamente il supporto vitale.
 
-### 3. Navigazione Avanzata (Standard GDIS)
+### 3. Gestione dell'Equipaggio (Crew Management)
+La gestione dell'equipaggio in Space GL è un sistema vitale e punitivo, strettamente legato all'energia e al supporto vitale. Ecco i pilastri del funzionamento:
+
+#### 1. Dimensioni Iniziali
+Il numero di membri dell'equipaggio dipende esclusivamente dalla classe della nave scelta all'inizio:
+*   **Explorer (Aegis-D)**: 1012 membri (il massimo standard).
+*   **Carrier**: 1200 membri.
+*   **Flagship**: 850 membri.
+*   **Heavy Cruiser**: 750 membri.
+*   **Scout**: ~30 membri (molto vulnerabile).
+
+#### 2. Sopravvivenza e Supporto Vitale (Vital Integrity)
+L'equipaggio dipende dal sistema di Life Support:
+*   **Consumo Energia**: La nave consuma costantemente una piccola quantità di energia per mantenere attivo il supporto vitale. In stato di Red Alert, questo consumo aumenta drasticamente.
+*   **Emergenza Energia**: Se le riserve di energia scendono a zero, il supporto vitale inizia a degradarsi (0.1% per tick).
+*   **Vittime periodiche**: Se l'integrità del supporto vitale scende a 0%, l'equipaggio inizia a morire al ritmo di 1 membro al secondo.
+*   **Danni da Combattimento**: Quando la nave subisce danni allo scafo (Hull Integrity), una parte dell'equipaggio viene persa proporzionalmente alla gravità del colpo.
+
+#### 3. Pericoli Ambientali (Pulsar e Radiazioni)
+Navigare troppo vicino a una Pulsar (Distanza < 2.5) espone la nave a radiazioni letali che uccidono rapidamente l'equipaggio, indipendentemente dallo stato degli scudi.
+
+#### 4. Mission Failure (Perdita della Nave)
+L'equipaggio è la risorsa definitiva. Se il conteggio arriva a zero:
+1.  **Distruzione istantanea**: La nave viene dichiarata persa e lascia un relitto permanente (derelict) nella galassia, che altri giocatori possono smantellare.
+2.  **Emergency Reentry**: Il giocatore viene teletrasportato in un settore sicuro della galassia a bordo di una "navetta di salvataggio" con sistemi minimi, energia carica e un equipaggio ridotto al 10% (circa 101 membri per un'Explorer).
+
+#### 5. Recupero e Operazioni Speciali
+*   **Starbase**: Attraccando (doc) a una base stellare, l'equipaggio viene ripristinato e stabilizzato.
+*   **Squadre di Ricerca**: Esplorando i relitti, è possibile trovare sopravvissuti in stasi che vengono integrati nell'equipaggio corrente.
+*   **Prison Unit**: Durante le operazioni di abbordaggio, i membri dell'equipaggio nemico catturati non diventano parte della tua flotta ma vengono confinati nella Prison Unit, pronti per essere consegnati al comando per dei bonus.
+
+In sintesi, l'equipaggio funge da "barra della vita" finale: puoi riparare i sistemi e lo scafo, ma una volta perso l'equipaggio, la missione finisce inevitabilmente.
+
+### 4. Navigazione Avanzata (Standard GDIS)
 Il sistema di navigazione è stato riprogettato per garantire precisione matematica e fluidità visiva:
 *   **Coordinate Galattiche Assolute:** Tutti i calcoli di movimento e distanza utilizzano una scala standardizzata **0.0 - 1600.0 assoluta**. Questo garantisce puntamenti coerenti e tracciamento dei siluri affidabile anche quando si attraversano i confini dei quadranti.
 *   **Navigazione di Precisione (`nav`):** Il comando `nav` ora integra un sistema di blocco della destinazione. Una volta raggiunte le coordinate `target_gx/gy/gz` calcolate, la nave disattiverà automaticamente i motori e uscirà dall'Hyperdrive nella posizione precisa richiesta.
 *   **Ricalibrazione Hyperdrive (Velocità Costante):** Il sistema di propulsione è stato calibrato per transiti ad altissima velocità. **Il Fattore 9.9 percorre l'intera diagonale della galassia (circa 2771 unità) in esattamente 40 secondi.** La velocità è perfettamente costante e indipendente dalla potenza dei motori o dall'integrità per garantire tempi di arrivo corrispondenti alle stime del comando `cal`.
-*   **Modello Energetico e Danni:** 
+*   **Modello Energetico e Danni:**
     *   **Drenaggio Lineare**: Il consumo energetico dell'Hyperdrive scala linearmente con la velocità.
     *   **Penalità Integrità**: I sistemi di propulsione danneggiati (Hyperdrive/Impulse) subiscono un aumento dello spreco energetico (dissipazione di calore). Il consumo è inversamente proporzionale all'integrità del sistema.
 *   **Autopilota Fluido (LERP Tracking):** Il comando `apr` (approach) non esegue più uno scatto istantaneo dell'orientamento. Utilizza invece l'**Interpolazione Lineare (LERP)** per allineare dolcemente la prua (heading) e il mark della nave con il bersaglio, prevenendo rotazioni erratiche e offrendo un'esperienza di volo cinematografica.
 *   **Limiti Galattici:** I confini della galassia sono applicati rigidamente a **[0.05, 1599.95]**. Le navi che tentano di uscire dalla galassia attiveranno automaticamente i freni di emergenza e invertiranno la rotta (virata di 180°) per rimanere nello spazio navigabile.
 
-### 3. Revisione del Combattimento Tattico
+### 5. Revisione del Combattimento Tattico
 Il combattimento presenta ora un modello di danno sofisticato, con tracciamento degli ordigni migliorato e gestione dinamica delle difese:
 *   **Tracciamento Assoluto Ordigni:** I siluri si muovono ora utilizzando le **Coordinate Galattiche Assolute**. Questo permette a un siluro lanciato in un quadrante di colpire con successo un bersaglio che si è spostato in un settore adiacente, eliminando i "mancamenti fantasma" ai confini.
 *   **Homing Migliorato:** Il sistema di autoguida dei siluri è stato potenziato (fattore di correzione 45%), affidandosi alla salute dei **Sensori (ID 2)** per la precisione.
@@ -473,8 +506,7 @@ Il combattimento presenta ora un modello di danno sofisticato, con tracciamento 
     *   **Validazione Continua**: Il computer di bordo monitora costantemente la validità del bersaglio ad ogni tick logico.
 *   **Danni Sistemici ai Motori:** Ogni impatto andato a segno infligge dal **10% al 20% di danno permanente** ai motori dell'NPC, causandone la perdita di velocità e manovrabilità durante il corso della battaglia.
 
-### 4. Ottimizzazione Prestazioni e Strutturale (Risoluzione Lag)
-Per mantenere un tasso logico di 30 TPS (Tick Per Secondo) costante gestendo un universo massiccio di 64.000 quadranti, l'engine ha subito un refactoring strutturale focalizzato sulla rimozione di tre colli di bottiglia critici:
+### 6. Ottimizzazione Prestazioni e Strutturale (Risoluzione Lag)Per mantenere un tasso logico di 30 TPS (Tick Per Secondo) costante gestendo un universo massiccio di 64.000 quadranti, l'engine ha subito un refactoring strutturale focalizzato sulla rimozione di tre colli di bottiglia critici:
 
 #### 🧠 A. Dirty Quadrant Indexing (Tecnica "Sparse Reset")
 *   **Il Problema**: In precedenza, il server eseguiva un `memset` sull'intero indice spaziale da 275MB e iterava attraverso tutti i 64.000 quadranti ad ogni singolo tick per cancellare i dati obsoleti. Questo consumava una larghezza di banda di memoria e tempo di CPU massicci.

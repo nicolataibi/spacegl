@@ -10,10 +10,12 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/epoll.h>
+#include <netinet/tcp.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <pthread.h>
+#include <poll.h>
 #include "telemetry.h"
 #include "server_internal.h"
 
@@ -23,17 +25,17 @@
 typedef struct {
     int fd;
     uint32_t category;
+    uint32_t category_index;
     bool active;
 } TelClient;
 
 static TelClient tel_clients[MAX_TEL_CLIENTS];
+static pthread_mutex_t tel_clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int tel_tcp_fd = -1;
 static int tel_unix_fd = -1;
 static int tel_epoll_fd = -1;
 static pthread_t tel_thread;
 static bool tel_running = false;
-
-static TelemetryObject broadcast_buffer[MAX_VISIBLE_TEL];
 
 const char* cat_names_diag[] = {
     "SHIPS ALLIANCE", "SHIPS KORTHIAN", "SHIPS XYLARI", "SHIPS SWARM", 
@@ -45,6 +47,49 @@ const char* cat_names_diag[] = {
     "ARTIFACTS", "WARP GATES", "NEUTRON STARS", "MEGA STRUCTS", "DARK CLOUDS", "SINGULARITIES",
     "PLASMA STORMS", "ORBITAL RINGS", "TIME ANOMALIES", "VOID CRYSTALS", "ANOMALIES"
 };
+
+static pthread_mutex_t cat_mutexes[TEL_CAT_COUNT];
+
+/* Robust read that handles EAGAIN for non-blocking telemetry control socket */
+static int robust_read_all(int fd, void* buf, size_t len) {
+    size_t total = 0;
+    char* p = (char*)buf;
+    while (total < len) {
+        ssize_t n = recv(fd, p + total, len - total, 0);
+        if (n == 0) return 0;
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                struct pollfd pfd = { .fd = fd, .events = POLLIN };
+                if (poll(&pfd, 1, 100) > 0) continue;
+                return -1;
+            }
+            if (errno == EINTR) continue;
+            return -1;
+        }
+        total += n;
+    }
+    return (int)total;
+}
+
+static int send_all(int fd, const void *buf, size_t len) {
+    size_t total = 0;
+    while (total < len) {
+        ssize_t r = send(fd, (const char*)buf + total, len - total, MSG_NOSIGNAL);
+        if (r < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                /* Wait up to 100ms for buffer space */
+                struct pollfd pfd = { .fd = fd, .events = POLLOUT };
+                if (poll(&pfd, 1, 100) > 0) continue;
+                return -1; 
+            }
+            if (errno == EINTR) continue;
+            return -1;
+        }
+        if (r == 0) return -1;
+        total += r;
+    }
+    return (int)total;
+}
 
 static void set_nonblocking(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
@@ -108,10 +153,13 @@ static void* telemetry_worker(void* arg) {
                 if (client_fd == -1) continue;
 
                 set_nonblocking(client_fd);
+                int sndbuf = 4 * 1024 * 1024; /* 4MB buffer for high-volume categories like STARS */
+                setsockopt(client_fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
                 ev.events = EPOLLIN;
                 ev.data.fd = client_fd;
                 epoll_ctl(tel_epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
 
+                pthread_mutex_lock(&tel_clients_mutex);
                 for (int j = 0; j < MAX_TEL_CLIENTS; j++) {
                     if (!tel_clients[j].active) {
                         tel_clients[j].fd = client_fd;
@@ -120,26 +168,33 @@ static void* telemetry_worker(void* arg) {
                         break;
                     }
                 }
+                pthread_mutex_unlock(&tel_clients_mutex);
             } else {
                 TelemetryHeader hdr;
-                ssize_t r = read(fd, &hdr, sizeof(hdr));
+                int r = robust_read_all(fd, &hdr, sizeof(hdr));
                 if (r <= 0) {
                     epoll_ctl(tel_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
                     close(fd);
+                    pthread_mutex_lock(&tel_clients_mutex);
                     for (int j = 0; j < MAX_TEL_CLIENTS; j++) {
                         if (tel_clients[j].active && tel_clients[j].fd == fd) {
                             tel_clients[j].active = false;
                             break;
                         }
                     }
+                    pthread_mutex_unlock(&tel_clients_mutex);
                 } else if (hdr.type == TEL_PKT_SUBSCRIBE) {
                     TelemetrySubscribe sub;
-                    if (read(fd, &sub, sizeof(sub)) == sizeof(sub)) {
-                        for (int j = 0; j < MAX_TEL_CLIENTS; j++) {
-                            if (tel_clients[j].active && tel_clients[j].fd == fd) {
-                                tel_clients[j].category = sub.category;
-                                break;
+                    if (robust_read_all(fd, &sub, sizeof(sub)) == sizeof(sub)) {
+                        if (sub.category < TEL_CAT_COUNT) {
+                            pthread_mutex_lock(&tel_clients_mutex);
+                            for (int j = 0; j < MAX_TEL_CLIENTS; j++) {
+                                if (tel_clients[j].active && tel_clients[j].fd == fd) {
+                                    tel_clients[j].category = sub.category;
+                                    break;
+                                }
                             }
+                            pthread_mutex_unlock(&tel_clients_mutex);
                         }
                     }
                 }
@@ -155,10 +210,13 @@ void telemetry_init() {
     bool tcp_ok = false;
     bool unix_ok = false;
     
+    for(int i=0; i<TEL_CAT_COUNT; i++) pthread_mutex_init(&cat_mutexes[i], NULL);
+
     tel_tcp_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (tel_tcp_fd >= 0) {
         int opt = 1;
         setsockopt(tel_tcp_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+        int one = 1; setsockopt(tel_tcp_fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
         struct sockaddr_in tcp_addr = {0};
         tcp_addr.sin_family = AF_INET;
         tcp_addr.sin_addr.s_addr = INADDR_ANY;
@@ -256,432 +314,595 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
     memset(to, 0, sizeof(TelemetryObject));
     to->integrity = 100;
     to->color_pair = 13;
-    strcpy(to->extra, "-");
+    strncpy(to->extra, "-", sizeof(to->extra)-1);
 
     int faction = get_faction_from_cat(cat);
     if (faction != -1) {
-        if (idx < MAX_CLIENTS) {
+        if (idx >= 0 && idx < MAX_CLIENTS) {
             ConnectedPlayer* p = &players[idx];
-            sprintf(to->id, "P%02d", idx + 1);
-            strncpy(to->name, p->name, 31);
-            sprintf(to->info, "%s", get_species_name(p->faction));
+            snprintf(to->id, sizeof(to->id), "P%02d", idx + 1);
+            strncpy(to->name, p->name, sizeof(to->name)-1);
+            strncpy(to->info, get_species_name(p->faction), sizeof(to->info)-1);
             to->q1 = p->state.q1; to->q2 = p->state.q2; to->q3 = p->state.q3;
             to->x = p->state.s1; to->y = p->state.s2; to->z = p->state.s3;
             to->integrity = (uint32_t)p->state.hull_integrity;
             to->energy = p->state.energy;
             to->color_pair = get_color_from_faction(p->faction);
-        } else if (idx < MAX_CLIENTS + MAX_NPC) {
-            NPCShip* n = &npcs[idx - MAX_CLIENTS];
-            sprintf(to->id, "N%04d", n->id);
-            strncpy(to->name, n->name, 31);
-            sprintf(to->info, "%s", get_species_name(n->faction));
-            to->q1 = n->q1; to->q2 = n->q2; to->q3 = n->q3;
-            to->x = n->x; to->y = n->y; to->z = n->z;
-            to->integrity = (uint32_t)n->health;
-            to->energy = n->energy;
-            to->color_pair = get_color_from_faction(n->faction);
+        } else if (idx >= MAX_CLIENTS && idx < MAX_CLIENTS + MAX_NPC) {
+            int n_idx = idx - MAX_CLIENTS;
+            if (n_idx < MAX_NPC) {
+                NPCShip* n = &npcs[n_idx];
+                snprintf(to->id, sizeof(to->id), "N%04d", n->id);
+                strncpy(to->name, n->name, sizeof(to->name)-1);
+                strncpy(to->info, get_species_name(n->faction), sizeof(to->info)-1);
+                to->q1 = n->q1; to->q2 = n->q2; to->q3 = n->q3;
+                to->x = n->x; to->y = n->y; to->z = n->z;
+                to->integrity = (uint32_t)n->health;
+                to->energy = n->energy;
+                to->color_pair = get_color_from_faction(n->faction);
+            }
         } else {
-            NPCBase* b = &bases[idx - MAX_CLIENTS - MAX_NPC];
-            sprintf(to->id, "B%04d", b->id);
-            sprintf(to->name, "%s Starbase", get_species_name(b->faction));
-            sprintf(to->info, "BASE");
-            to->q1 = b->q1; to->q2 = b->q2; to->q3 = b->q3;
-            to->x = b->x; to->y = b->y; to->z = b->z;
-            to->integrity = b->health;
-            to->color_pair = get_color_from_faction(b->faction);
+            int b_idx = idx - MAX_CLIENTS - MAX_NPC;
+            if (b_idx >= 0 && b_idx < MAX_BASES) {
+                NPCBase* b = &bases[b_idx];
+                snprintf(to->id, sizeof(to->id), "B%04d", b->id);
+                snprintf(to->name, sizeof(to->name), "%s Starbase", get_species_name(b->faction));
+                strncpy(to->info, "BASE", sizeof(to->info)-1);
+                to->q1 = b->q1; to->q2 = b->q2; to->q3 = b->q3;
+                to->x = b->x; to->y = b->y; to->z = b->z;
+                to->integrity = b->health;
+                to->color_pair = get_color_from_faction(b->faction);
+            }
         }
-        return;
+    } else {
+        switch(cat) {
+            case TEL_CAT_STAR: {
+                if (idx >= 0 && idx < MAX_STARS) {
+                    NPCStar* s = &stars_data[idx];
+                    snprintf(to->id, sizeof(to->id), "S%04d", s->id);
+                    strncpy(to->name, "Star", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Spectral %d", s->faction);
+                    to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
+                    to->x = s->x; to->y = s->y; to->z = s->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_PLANET: {
+                if (idx >= 0 && idx < MAX_PLANETS) {
+                    NPCPlanet* p = &planets[idx];
+                    snprintf(to->id, sizeof(to->id), "PL%04d", p->id);
+                    strncpy(to->name, "Planet", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Res:%d", p->resource_type);
+                    to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
+                    to->x = p->x; to->y = p->y; to->z = p->z;
+                    snprintf(to->extra, sizeof(to->extra), "Amt:%d", p->amount);
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_BASE: {
+                if (idx >= 0 && idx < MAX_BASES) {
+                    NPCBase* b = &bases[idx];
+                    snprintf(to->id, sizeof(to->id), "B%04d", b->id);
+                    snprintf(to->name, sizeof(to->name), "%s Base", get_species_name(b->faction));
+                    snprintf(to->info, sizeof(to->info), "Faction %d", b->faction);
+                    to->q1 = b->q1; to->q2 = b->q2; to->q3 = b->q3;
+                    to->x = b->x; to->y = b->y; to->z = b->z;
+                    to->integrity = b->health;
+                    to->color_pair = get_color_from_faction(b->faction);
+                }
+            } break;
+            case TEL_CAT_BH: {
+                if (idx >= 0 && idx < MAX_BH) {
+                    NPCBlackHole* b = &black_holes[idx];
+                    snprintf(to->id, sizeof(to->id), "BH%04d", b->id);
+                    strncpy(to->name, "Black Hole", sizeof(to->name)-1);
+                    strncpy(to->info, "Singularity", sizeof(to->info)-1);
+                    to->q1 = b->q1; to->q2 = b->q2; to->q3 = b->q3;
+                    to->x = b->x; to->y = b->y; to->z = b->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_NEBULA: {
+                if (idx >= 0 && idx < MAX_NEBULAS) {
+                    NPCNebula* n = &nebulas[idx];
+                    snprintf(to->id, sizeof(to->id), "NEB%04d", n->id);
+                    strncpy(to->name, "Nebula", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Type:%d", n->type);
+                    to->q1 = n->q1; to->q2 = n->q2; to->q3 = n->q3;
+                    to->x = n->x; to->y = n->y; to->z = n->z;
+                    to->color_pair = 13;
+                }
+            } break;
+            case TEL_CAT_PULSAR: {
+                if (idx >= 0 && idx < MAX_PULSARS) {
+                    NPCPulsar* p = &pulsars[idx];
+                    snprintf(to->id, sizeof(to->id), "PUL%04d", p->id);
+                    strncpy(to->name, "Pulsar", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Type:%d", p->type);
+                    to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
+                    to->x = p->x; to->y = p->y; to->z = p->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_QUASAR: {
+                if (idx >= 0 && idx < MAX_QUASARS) {
+                    NPCQuasar* q = &quasars[idx];
+                    snprintf(to->id, sizeof(to->id), "QSR%04d", q->id);
+                    strncpy(to->name, "Quasar", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Type:%d", q->type);
+                    to->q1 = q->q1; to->q2 = q->q2; to->q3 = q->q3;
+                    to->x = q->x; to->y = q->y; to->z = q->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_COMET: {
+                if (idx >= 0 && idx < MAX_COMETS) {
+                    NPCComet* c = &comets[idx];
+                    snprintf(to->id, sizeof(to->id), "COM%04d", c->id);
+                    strncpy(to->name, "Comet", sizeof(to->name)-1);
+                    strncpy(to->info, "Moving", sizeof(to->info)-1);
+                    to->q1 = c->q1; to->q2 = c->q2; to->q3 = c->q3;
+                    to->x = c->x; to->y = c->y; to->z = c->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_ASTEROID: {
+                if (idx >= 0 && idx < MAX_ASTEROIDS) {
+                    NPCAsteroid* a = &asteroids[idx];
+                    snprintf(to->id, sizeof(to->id), "AST%04d", a->id);
+                    strncpy(to->name, "Asteroid", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Res:%d", a->resource_type);
+                    to->q1 = a->q1; to->q2 = a->q2; to->q3 = a->q3;
+                    to->x = a->x; to->y = a->y; to->z = a->z;
+                    snprintf(to->extra, sizeof(to->extra), "Amt:%d", a->amount);
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_DERELICT: {
+                if (idx >= 0 && idx < MAX_DERELICTS) {
+                    NPCDerelict* d = &derelicts[idx];
+                    snprintf(to->id, sizeof(to->id), "DE%04d", d->id);
+                    strncpy(to->name, d->name, sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Class %d", d->ship_class);
+                    to->q1 = d->q1; to->q2 = d->q2; to->q3 = d->q3;
+                    to->x = d->x; to->y = d->y; to->z = d->z;
+                    to->color_pair = 13;
+                }
+            } break;
+            case TEL_CAT_MINE: {
+                if (idx >= 0 && idx < MAX_MINES) {
+                    NPCMine* m = &mines[idx];
+                    snprintf(to->id, sizeof(to->id), "MIN%04d", m->id);
+                    strncpy(to->name, "Mine", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Faction %d", m->faction);
+                    to->q1 = m->q1; to->q2 = m->q2; to->q3 = m->q3;
+                    to->x = m->x; to->y = m->y; to->z = m->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_BUOY: {
+                if (idx >= 0 && idx < MAX_BUOYS) {
+                    NPCBuoy* b = &buoys[idx];
+                    snprintf(to->id, sizeof(to->id), "BUY%04d", b->id);
+                    strncpy(to->name, "Comm Buoy", sizeof(to->name)-1);
+                    strncpy(to->info, "Active", sizeof(to->info)-1);
+                    to->q1 = b->q1; to->q2 = b->q2; to->q3 = b->q3;
+                    to->x = b->x; to->y = b->y; to->z = b->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_PLATFORM: {
+                if (idx >= 0 && idx < MAX_PLATFORMS) {
+                    NPCPlatform* p = &platforms[idx];
+                    snprintf(to->id, sizeof(to->id), "PF%04d", p->id);
+                    strncpy(to->name, "Platform", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Fac:%d", p->faction);
+                    to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
+                    to->x = p->x; to->y = p->y; to->z = p->z;
+                    to->integrity = p->health;
+                    to->energy = p->energy;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_RIFT: {
+                if (idx >= 0 && idx < MAX_RIFTS) {
+                    NPCRift* r = &rifts[idx];
+                    snprintf(to->id, sizeof(to->id), "RIF%04d", r->id);
+                    strncpy(to->name, "Spatial Rift", sizeof(to->name)-1);
+                    strncpy(to->info, "Active", sizeof(to->info)-1);
+                    to->q1 = r->q1; to->q2 = r->q2; to->q3 = r->q3;
+                    to->x = r->x; to->y = r->y; to->z = r->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_MONSTER: {
+                if (idx >= 0 && idx < MAX_MONSTERS) {
+                    NPCMonster* m = &monsters[idx];
+                    snprintf(to->id, sizeof(to->id), "M%02d", m->id);
+                    strncpy(to->name, (m->type == 30) ? "Crystalline" : "Amoeba", sizeof(to->name)-1);
+                    strncpy(to->info, "OMEGA", sizeof(to->info)-1);
+                    to->q1 = m->q1; to->q2 = m->q2; to->q3 = m->q3;
+                    to->x = m->x; to->y = m->y; to->z = m->z;
+                    to->integrity = (uint32_t)m->health;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_DYSON: {
+                if (idx >= 0 && idx < MAX_DYSON) {
+                    NPCDyson* d = &dysons[idx];
+                    snprintf(to->id, sizeof(to->id), "DY%04d", d->id);
+                    strncpy(to->name, "Dyson Frag", sizeof(to->name)-1);
+                    strncpy(to->info, "Ancient", sizeof(to->info)-1);
+                    to->q1 = d->q1; to->q2 = d->q2; to->q3 = d->q3;
+                    to->x = d->x; to->y = d->y; to->z = d->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_HUB: {
+                if (idx >= 0 && idx < MAX_HUBS) {
+                    NPCHub* h = &hubs[idx];
+                    snprintf(to->id, sizeof(to->id), "HB%04d", h->id);
+                    strncpy(to->name, "Trading Hub", sizeof(to->name)-1);
+                    strncpy(to->info, "Neutral", sizeof(to->info)-1);
+                    to->q1 = h->q1; to->q2 = h->q2; to->q3 = h->q3;
+                    to->x = h->x; to->y = h->y; to->z = h->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_RELIC: {
+                if (idx >= 0 && idx < MAX_RELICS) {
+                    NPCRelic* r = &relics[idx];
+                    snprintf(to->id, sizeof(to->id), "RE%04d", r->id);
+                    strncpy(to->name, "Ancient Relic", sizeof(to->name)-1);
+                    strncpy(to->info, "Tech", sizeof(to->info)-1);
+                    to->q1 = r->q1; to->q2 = r->q2; to->q3 = r->q3;
+                    to->x = r->x; to->y = r->y; to->z = r->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_RUPTURE: {
+                if (idx >= 0 && idx < MAX_RUPTURES) {
+                    NPCRupture* r = &ruptures[idx];
+                    snprintf(to->id, sizeof(to->id), "RU%04d", r->id);
+                    strncpy(to->name, "Subspace Rup", sizeof(to->name)-1);
+                    strncpy(to->info, "Anomaly", sizeof(to->info)-1);
+                    to->q1 = r->q1; to->q2 = r->q2; to->q3 = r->q3;
+                    to->x = r->x; to->y = r->y; to->z = r->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_SATELLITE: {
+                if (idx >= 0 && idx < MAX_SATELLITES) {
+                    NPCSatellite* s = &satellites[idx];
+                    snprintf(to->id, sizeof(to->id), "SA%04d", s->id);
+                    strncpy(to->name, "Satellite", sizeof(to->name)-1);
+                    strncpy(to->info, "Relay", sizeof(to->info)-1);
+                    to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
+                    to->x = s->x; to->y = s->y; to->z = s->z;
+                    to->color_pair = 13;
+                }
+            } break;
+            case TEL_CAT_STORM: {
+                if (idx >= 0 && idx < MAX_STORMS) {
+                    NPCStorm* s = &storms[idx];
+                    snprintf(to->id, sizeof(to->id), "SO%04d", s->id);
+                    strncpy(to->name, "Ion Storm", sizeof(to->name)-1);
+                    strncpy(to->info, "Meteo", sizeof(to->info)-1);
+                    to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
+                    to->x = s->x; to->y = s->y; to->z = s->z;
+                    to->color_pair = 13;
+                }
+            } break;
+            case TEL_CAT_TORPEDO: {
+                if (idx >= 0 && idx < MAX_GLOBAL_TORPEDOES) {
+                    PlayerTorpedo* t = &players_torpedoes[idx];
+                    snprintf(to->id, sizeof(to->id), "T%04d", t->id);
+                    strncpy(to->name, "Torpedo", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Owner %d", t->owner_idx);
+                    to->q1 = t->q1; to->q2 = t->q2; to->q3 = t->q3;
+                    to->x = t->x; to->y = t->y; to->z = t->z;
+                    snprintf(to->extra, sizeof(to->extra), "TO:%d", t->timeout);
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_ARTIFACT: {
+                if (idx >= 0 && idx < MAX_ARTIFACTS) {
+                    NPCArtifact* a = &artifacts[idx];
+                    snprintf(to->id, sizeof(to->id), "AA%04d", a->id);
+                    strncpy(to->name, "Alien Artifact", sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic", sizeof(to->info)-1);
+                    to->q1 = a->q1; to->q2 = a->q2; to->q3 = a->q3;
+                    to->x = a->x; to->y = a->y; to->z = a->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_WARP_GATE: {
+                if (idx >= 0 && idx < MAX_WARP_GATES) {
+                    NPCWarpGate* w = &warp_gates[idx];
+                    snprintf(to->id, sizeof(to->id), "WG%04d", w->id);
+                    strncpy(to->name, "Warp Gate", sizeof(to->name)-1);
+                    strncpy(to->info, "Active", sizeof(to->info)-1);
+                    to->q1 = w->q1; to->q2 = w->q2; to->q3 = w->q3;
+                    to->x = w->x; to->y = w->y; to->z = w->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_NEUTRON_STAR: {
+                if (idx >= 0 && idx < MAX_NEUTRON_STARS) {
+                    NPCNeutronStar* n = &neutron_stars[idx];
+                    snprintf(to->id, sizeof(to->id), "NS%04d", n->id);
+                    strncpy(to->name, "Neutron Star", sizeof(to->name)-1);
+                    strncpy(to->info, "Degenerate", sizeof(to->info)-1);
+                    to->q1 = n->q1; to->q2 = n->q2; to->q3 = n->q3;
+                    to->x = n->x; to->y = n->y; to->z = n->z;
+                    to->color_pair = 13;
+                }
+            } break;
+            case TEL_CAT_MEGA_STRUCT: {
+                if (idx >= 0 && idx < MAX_MEGA_STRUCTS) {
+                    NPCMegaStructure* m = &mega_structs[idx];
+                    snprintf(to->id, sizeof(to->id), "MS%04d", m->id);
+                    strncpy(to->name, "Mega Struct", sizeof(to->name)-1);
+                    strncpy(to->info, "Unknown", sizeof(to->info)-1);
+                    to->q1 = m->q1; to->q2 = m->q2; to->q3 = m->q3;
+                    to->x = m->x; to->y = m->y; to->z = m->z;
+                    to->color_pair = 1;
+                }
+            } break;
+            case TEL_CAT_DARK_CLOUD: {
+                if (idx >= 0 && idx < MAX_DARK_CLOUDS) {
+                    NPCDarkCloud* d = &dark_clouds[idx];
+                    snprintf(to->id, sizeof(to->id), "DC%04d", d->id);
+                    strncpy(to->name, "Dark Matter", sizeof(to->name)-1);
+                    strncpy(to->info, "Obscured", sizeof(to->info)-1);
+                    to->q1 = d->q1; to->q2 = d->q2; to->q3 = d->q3;
+                    to->x = d->x; to->y = d->y; to->z = d->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_SINGULARITY: {
+                if (idx >= 0 && idx < MAX_SINGULARITIES) {
+                    NPCSingularity* s = &singularities[idx];
+                    snprintf(to->id, sizeof(to->id), "QS%04d", s->id);
+                    strncpy(to->name, "Singularity", sizeof(to->name)-1);
+                    strncpy(to->info, "Quantum", sizeof(to->info)-1);
+                    to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
+                    to->x = s->x; to->y = s->y; to->z = s->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_PLASMA_STORM: {
+                if (idx >= 0 && idx < MAX_PLASMA_STORMS) {
+                    NPCPlasmaStorm* p = &plasma_storms[idx];
+                    snprintf(to->id, sizeof(to->id), "PS%04d", p->id);
+                    strncpy(to->name, "Plasma Storm", sizeof(to->name)-1);
+                    strncpy(to->info, "Unstable", sizeof(to->info)-1);
+                    to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
+                    to->x = p->x; to->y = p->y; to->z = p->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_ORBITAL_RING: {
+                if (idx >= 0 && idx < MAX_ORBITAL_RINGS) {
+                    NPCOrbitalRing* o = &orbital_rings[idx];
+                    snprintf(to->id, sizeof(to->id), "OR%04d", o->id);
+                    strncpy(to->name, "Orbital Ring", sizeof(to->name)-1);
+                    strncpy(to->info, "Planetary", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_TIME_ANOMALY: {
+                if (idx >= 0 && idx < MAX_TIME_ANOMALIES) {
+                    NPCTimeAnomaly* t = &time_anomalies[idx];
+                    snprintf(to->id, sizeof(to->id), "TA%04d", t->id);
+                    strncpy(to->name, "Time Anomaly", sizeof(to->name)-1);
+                    strncpy(to->info, "Temporal", sizeof(to->info)-1);
+                    to->q1 = t->q1; to->q2 = t->q2; to->q3 = t->q3;
+                    to->x = t->x; to->y = t->y; to->z = t->z;
+                    to->color_pair = 1;
+                }
+            } break;
+            case TEL_CAT_VOID_CRYSTAL: {
+                if (idx >= 0 && idx < MAX_VOID_CRYSTALS) {
+                    NPCVoidCrystal* v = &void_crystals[idx];
+                    snprintf(to->id, sizeof(to->id), "VC%04d", v->id);
+                    strncpy(to->name, "Void Crystal", sizeof(to->name)-1);
+                    strncpy(to->info, "Crystalline", sizeof(to->info)-1);
+                    to->q1 = v->q1; to->q2 = v->q2; to->q3 = v->q3;
+                    to->x = v->x; to->y = v->y; to->z = v->z;
+                    to->color_pair = 13;
+                }
+            } break;
+            case TEL_CAT_ANOMALY: {
+                if (idx >= 0 && idx < MAX_SUBSPACE_ANOMALIES) {
+                    NPCSubspaceAnomaly* s = &subspace_anomalies[idx];
+                    snprintf(to->id, sizeof(to->id), "AN%04d", s->id);
+                    strncpy(to->name, "Subspace Anom", sizeof(to->name)-1);
+                    strncpy(to->info, "Unstable", sizeof(to->info)-1);
+                    to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
+                    to->x = s->x; to->y = s->y; to->z = s->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            default: break;
+        }
     }
+    
+    /* Ensure all strings are null-terminated */
+    to->id[sizeof(to->id)-1] = '\0';
+    to->name[sizeof(to->name)-1] = '\0';
+    to->info[sizeof(to->info)-1] = '\0';
+    to->extra[sizeof(to->extra)-1] = '\0';
+}
 
-    switch(cat) {
-        case TEL_CAT_STAR: {
-            NPCStar* s = &stars_data[idx];
-            sprintf(to->id, "S%04d", s->id);
-            strcpy(to->name, "Star");
-            sprintf(to->info, "Spectral %d", s->faction);
-            to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
-            to->x = s->x; to->y = s->y; to->z = s->z;
-            to->color_pair = 4;
-        } break;
-        case TEL_CAT_PLANET: {
-            NPCPlanet* p = &planets[idx];
-            sprintf(to->id, "PL%04d", p->id);
-            strcpy(to->name, "Planet");
-            sprintf(to->info, "Res:%d", p->resource_type);
-            to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
-            to->x = p->x; to->y = p->y; to->z = p->z;
-            sprintf(to->extra, "Amt:%d", p->amount);
-            to->color_pair = 3;
-        } break;
-        case TEL_CAT_BASE: {
-            NPCBase* b = &bases[idx];
-            sprintf(to->id, "B%04d", b->id);
-            sprintf(to->name, "%s Base", get_species_name(b->faction));
-            sprintf(to->info, "Faction %d", b->faction);
-            to->q1 = b->q1; to->q2 = b->q2; to->q3 = b->q3;
-            to->x = b->x; to->y = b->y; to->z = b->z;
-            to->integrity = b->health;
-            to->color_pair = get_color_from_faction(b->faction);
-        } break;
-        case TEL_CAT_BH: {
-            NPCBlackHole* b = &black_holes[idx];
-            sprintf(to->id, "BH%04d", b->id);
-            strcpy(to->name, "Black Hole");
-            strcpy(to->info, "Singularity");
-            to->q1 = b->q1; to->q2 = b->q2; to->q3 = b->q3;
-            to->x = b->x; to->y = b->y; to->z = b->z;
-            to->color_pair = 2;
-        } break;
-        case TEL_CAT_NEBULA: {
-            NPCNebula* n = &nebulas[idx];
-            sprintf(to->id, "NEB%04d", n->id);
-            strcpy(to->name, "Nebula");
-            sprintf(to->info, "Type:%d", n->type);
-            to->q1 = n->q1; to->q2 = n->q2; to->q3 = n->q3;
-            to->x = n->x; to->y = n->y; to->z = n->z;
-            to->color_pair = 13;
-        } break;
-        case TEL_CAT_PULSAR: {
-            NPCPulsar* p = &pulsars[idx];
-            sprintf(to->id, "PUL%04d", p->id);
-            strcpy(to->name, "Pulsar");
-            sprintf(to->info, "Type:%d", p->type);
-            to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
-            to->x = p->x; to->y = p->y; to->z = p->z;
-            to->color_pair = 4;
-        } break;
-        case TEL_CAT_QUASAR: {
-            NPCQuasar* q = &quasars[idx];
-            sprintf(to->id, "QSR%04d", q->id);
-            strcpy(to->name, "Quasar");
-            sprintf(to->info, "Type:%d", q->type);
-            to->q1 = q->q1; to->q2 = q->q2; to->q3 = q->q3;
-            to->x = q->x; to->y = q->y; to->z = q->z;
-            to->color_pair = 4;
-        } break;
-        case TEL_CAT_COMET: {
-            NPCComet* c = &comets[idx];
-            sprintf(to->id, "COM%04d", c->id);
-            strcpy(to->name, "Comet");
-            strcpy(to->info, "Moving");
-            to->q1 = c->q1; to->q2 = c->q2; to->q3 = c->q3;
-            to->x = c->x; to->y = c->y; to->z = c->z;
-            to->color_pair = 3;
-        } break;
-        case TEL_CAT_ASTEROID: {
-            NPCAsteroid* a = &asteroids[idx];
-            sprintf(to->id, "AST%04d", a->id);
-            strcpy(to->name, "Asteroid");
-            sprintf(to->info, "Res:%d", a->resource_type);
-            to->q1 = a->q1; to->q2 = a->q2; to->q3 = a->q3;
-            to->x = a->x; to->y = a->y; to->z = a->z;
-            sprintf(to->extra, "Amt:%d", a->amount);
-            to->color_pair = 4;
-        } break;
-        case TEL_CAT_DERELICT: {
-            NPCDerelict* d = &derelicts[idx];
-            sprintf(to->id, "DE%04d", d->id);
-            strncpy(to->name, d->name, 31);
-            sprintf(to->info, "Class %d", d->ship_class);
-            to->q1 = d->q1; to->q2 = d->q2; to->q3 = d->q3;
-            to->x = d->x; to->y = d->y; to->z = d->z;
-            to->color_pair = 13;
-        } break;
-        case TEL_CAT_MINE: {
-            NPCMine* m = &mines[idx];
-            sprintf(to->id, "MIN%04d", m->id);
-            strcpy(to->name, "Mine");
-            sprintf(to->info, "Faction %d", m->faction);
-            to->q1 = m->q1; to->q2 = m->q2; to->q3 = m->q3;
-            to->x = m->x; to->y = m->y; to->z = m->z;
-            to->color_pair = 2;
-        } break;
-        case TEL_CAT_BUOY: {
-            NPCBuoy* b = &buoys[idx];
-            sprintf(to->id, "BUY%04d", b->id);
-            strcpy(to->name, "Comm Buoy");
-            strcpy(to->info, "Active");
-            to->q1 = b->q1; to->q2 = b->q2; to->q3 = b->q3;
-            to->x = b->x; to->y = b->y; to->z = b->z;
-            to->color_pair = 3;
-        } break;
-        case TEL_CAT_PLATFORM: {
-            NPCPlatform* p = &platforms[idx];
-            sprintf(to->id, "PF%04d", p->id);
-            strcpy(to->name, "Platform");
-            sprintf(to->info, "Fac:%d", p->faction);
-            to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
-            to->x = p->x; to->y = p->y; to->z = p->z;
-            to->integrity = p->health;
-            to->energy = p->energy;
-            to->color_pair = 2;
-        } break;
-        case TEL_CAT_RIFT: {
-            NPCRift* r = &rifts[idx];
-            sprintf(to->id, "RIF%04d", r->id);
-            strcpy(to->name, "Spatial Rift");
-            strcpy(to->info, "Active");
-            to->q1 = r->q1; to->q2 = r->q2; to->q3 = r->q3;
-            to->x = r->x; to->y = r->y; to->z = r->z;
-            to->color_pair = 3;
-        } break;
-        case TEL_CAT_MONSTER: {
-            NPCMonster* m = &monsters[idx];
-            sprintf(to->id, "M%02d", m->id);
-            strcpy(to->name, (m->type == 30) ? "Crystalline" : "Amoeba");
-            strcpy(to->info, "OMEGA");
-            to->q1 = m->q1; to->q2 = m->q2; to->q3 = m->q3;
-            to->x = m->x; to->y = m->y; to->z = m->z;
-            to->integrity = m->health;
-            to->color_pair = 2;
-        } break;
-        case TEL_CAT_DYSON: {
-            NPCDyson* d = &dysons[idx];
-            sprintf(to->id, "DY%04d", d->id);
-            strcpy(to->name, "Dyson Frag");
-            strcpy(to->info, "Ancient");
-            to->q1 = d->q1; to->q2 = d->q2; to->q3 = d->q3;
-            to->x = d->x; to->y = d->y; to->z = d->z;
-            to->color_pair = 4;
-        } break;
-        case TEL_CAT_HUB: {
-            NPCHub* h = &hubs[idx];
-            sprintf(to->id, "HB%04d", h->id);
-            strcpy(to->name, "Trading Hub");
-            strcpy(to->info, "Neutral");
-            to->q1 = h->q1; to->q2 = h->q2; to->q3 = h->q3;
-            to->x = h->x; to->y = h->y; to->z = h->z;
-            to->color_pair = 3;
-        } break;
-        case TEL_CAT_RELIC: {
-            NPCRelic* r = &relics[idx];
-            sprintf(to->id, "RE%04d", r->id);
-            strcpy(to->name, "Ancient Relic");
-            strcpy(to->info, "Tech");
-            to->q1 = r->q1; to->q2 = r->q2; to->q3 = r->q3;
-            to->x = r->x; to->y = r->y; to->z = r->z;
-            to->color_pair = 3;
-        } break;
-        case TEL_CAT_RUPTURE: {
-            NPCRupture* r = &ruptures[idx];
-            sprintf(to->id, "RU%04d", r->id);
-            strcpy(to->name, "Subspace Rup");
-            strcpy(to->info, "Anomaly");
-            to->q1 = r->q1; to->q2 = r->q2; to->q3 = r->q3;
-            to->x = r->x; to->y = r->y; to->z = r->z;
-            to->color_pair = 2;
-        } break;
-        case TEL_CAT_SATELLITE: {
-            NPCSatellite* s = &satellites[idx];
-            sprintf(to->id, "SA%04d", s->id);
-            strcpy(to->name, "Satellite");
-            strcpy(to->info, "Relay");
-            to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
-            to->x = s->x; to->y = s->y; to->z = s->z;
-            to->color_pair = 13;
-        } break;
-        case TEL_CAT_STORM: {
-            NPCStorm* s = &storms[idx];
-            sprintf(to->id, "SO%04d", s->id);
-            strcpy(to->name, "Ion Storm");
-            strcpy(to->info, "Meteo");
-            to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
-            to->x = s->x; to->y = s->y; to->z = s->z;
-            to->color_pair = 13;
-        } break;
-        case TEL_CAT_TORPEDO: {
-            PlayerTorpedo* t = &players_torpedoes[idx];
-            sprintf(to->id, "T%04d", t->id);
-            strcpy(to->name, "Torpedo");
-            sprintf(to->info, "Owner %d", t->owner_idx);
-            to->q1 = t->q1; to->q2 = t->q2; to->q3 = t->q3;
-            to->x = t->x; to->y = t->y; to->z = t->z;
-            sprintf(to->extra, "TO:%d", t->timeout);
-            to->color_pair = 2;
-        } break;
-        case TEL_CAT_ARTIFACT: {
-            NPCArtifact* a = &artifacts[idx];
-            sprintf(to->id, "AA%04d", a->id);
-            strcpy(to->name, "Alien Artifact");
-            strcpy(to->info, "Exotic");
-            to->q1 = a->q1; to->q2 = a->q2; to->q3 = a->q3;
-            to->x = a->x; to->y = a->y; to->z = a->z;
-            to->color_pair = 4;
-        } break;
-        case TEL_CAT_WARP_GATE: {
-            NPCWarpGate* w = &warp_gates[idx];
-            sprintf(to->id, "WG%04d", w->id);
-            strcpy(to->name, "Warp Gate");
-            strcpy(to->info, "Active");
-            to->q1 = w->q1; to->q2 = w->q2; to->q3 = w->q3;
-            to->x = w->x; to->y = w->y; to->z = w->z;
-            to->color_pair = 3;
-        } break;
-        case TEL_CAT_NEUTRON_STAR: {
-            NPCNeutronStar* n = &neutron_stars[idx];
-            sprintf(to->id, "NS%04d", n->id);
-            strcpy(to->name, "Neutron Star");
-            strcpy(to->info, "Degenerate");
-            to->q1 = n->q1; to->q2 = n->q2; to->q3 = n->q3;
-            to->x = n->x; to->y = n->y; to->z = n->z;
-            to->color_pair = 13;
-        } break;
-        case TEL_CAT_MEGA_STRUCT: {
-            NPCMegaStructure* m = &mega_structs[idx];
-            sprintf(to->id, "MS%04d", m->id);
-            strcpy(to->name, "Mega Struct");
-            strcpy(to->info, "Unknown");
-            to->q1 = m->q1; to->q2 = m->q2; to->q3 = m->q3;
-            to->x = m->x; to->y = m->y; to->z = m->z;
-            to->color_pair = 1;
-        } break;
-        case TEL_CAT_DARK_CLOUD: {
-            NPCDarkCloud* d = &dark_clouds[idx];
-            sprintf(to->id, "DC%04d", d->id);
-            strcpy(to->name, "Dark Matter");
-            strcpy(to->info, "Obscured");
-            to->q1 = d->q1; to->q2 = d->q2; to->q3 = d->q3;
-            to->x = d->x; to->y = d->y; to->z = d->z;
-            to->color_pair = 2;
-        } break;
-        case TEL_CAT_SINGULARITY: {
-            NPCSingularity* s = &singularities[idx];
-            sprintf(to->id, "QS%04d", s->id);
-            strcpy(to->name, "Singularity");
-            strcpy(to->info, "Quantum");
-            to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
-            to->x = s->x; to->y = s->y; to->z = s->z;
-            to->color_pair = 2;
-        } break;
-        case TEL_CAT_PLASMA_STORM: {
-            NPCPlasmaStorm* p = &plasma_storms[idx];
-            sprintf(to->id, "PS%04d", p->id);
-            strcpy(to->name, "Plasma Storm");
-            strcpy(to->info, "Unstable");
-            to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
-            to->x = p->x; to->y = p->y; to->z = p->z;
-            to->color_pair = 4;
-        } break;
-        case TEL_CAT_ORBITAL_RING: {
-            NPCOrbitalRing* o = &orbital_rings[idx];
-            sprintf(to->id, "OR%04d", o->id);
-            strcpy(to->name, "Orbital Ring");
-            strcpy(to->info, "Planetary");
-            to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
-            to->x = o->x; to->y = o->y; to->z = o->z;
-            to->color_pair = 3;
-        } break;
-        case TEL_CAT_TIME_ANOMALY: {
-            NPCTimeAnomaly* t = &time_anomalies[idx];
-            sprintf(to->id, "TA%04d", t->id);
-            strcpy(to->name, "Time Anomaly");
-            strcpy(to->info, "Temporal");
-            to->q1 = t->q1; to->q2 = t->q2; to->q3 = t->q3;
-            to->x = t->x; to->y = t->y; to->z = t->z;
-            to->color_pair = 1;
-        } break;
-        case TEL_CAT_VOID_CRYSTAL: {
-            NPCVoidCrystal* v = &void_crystals[idx];
-            sprintf(to->id, "VC%04d", v->id);
-            strcpy(to->name, "Void Crystal");
-            strcpy(to->info, "Crystalline");
-            to->q1 = v->q1; to->q2 = v->q2; to->q3 = v->q3;
-            to->x = v->x; to->y = v->y; to->z = v->z;
-            to->color_pair = 13;
-        } break;
-        case TEL_CAT_ANOMALY: {
-            NPCSubspaceAnomaly* s = &subspace_anomalies[idx];
-            sprintf(to->id, "AN%04d", s->id);
-            strcpy(to->name, "Subspace Anom");
-            strcpy(to->info, "Unstable");
-            to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
-            to->x = s->x; to->y = s->y; to->z = s->z;
-            to->color_pair = 3;
-        } break;
-        default: break;
+static TelemetryObject cat_cache[TEL_CAT_COUNT][MAX_VISIBLE_TEL];
+static int cat_cache_count[TEL_CAT_COUNT];
+static uint32_t cat_cache_tick[TEL_CAT_COUNT];
+
+static void update_category_cache(int cat) {
+    if (cat < 0 || cat >= TEL_CAT_COUNT) return;
+    if (cat_cache_tick[cat] == (uint32_t)global_tick) return;
+
+    pthread_mutex_lock(&cat_mutexes[cat]);
+    int count = 0;
+    int faction = get_faction_from_cat(cat);
+    
+    if (faction != -1) {
+        for (int j = 0; j < MAX_CLIENTS && count < MAX_VISIBLE_TEL; j++) {
+            if (players[j].active && players[j].faction == faction) fill_obj(&cat_cache[cat][count++], cat, j);
+        }
+        for (int j = 0; j < MAX_NPC && count < MAX_VISIBLE_TEL; j++) {
+            if (npcs[j].active && npcs[j].faction == faction) fill_obj(&cat_cache[cat][count++], cat, j + MAX_CLIENTS);
+        }
+        for (int j = 0; j < MAX_BASES && count < MAX_VISIBLE_TEL; j++) {
+            if (bases[j].active && bases[j].faction == faction) fill_obj(&cat_cache[cat][count++], cat, j + MAX_CLIENTS + MAX_NPC);
+        }
+    } else {
+        #define FILL_CACHE_CAT(arr, max) for(int j=0; j<max && count<MAX_VISIBLE_TEL; j++) if(arr[j].active) fill_obj(&cat_cache[cat][count++], cat, j)
+        switch(cat) {
+            case TEL_CAT_STAR:      FILL_CACHE_CAT(stars_data, MAX_STARS); break;
+            case TEL_CAT_PLANET:    FILL_CACHE_CAT(planets, MAX_PLANETS); break;
+            case TEL_CAT_BASE:      FILL_CACHE_CAT(bases, MAX_BASES); break;
+            case TEL_CAT_BH:        FILL_CACHE_CAT(black_holes, MAX_BH); break;
+            case TEL_CAT_NEBULA:    FILL_CACHE_CAT(nebulas, MAX_NEBULAS); break;
+            case TEL_CAT_PULSAR:    FILL_CACHE_CAT(pulsars, MAX_PULSARS); break;
+            case TEL_CAT_QUASAR:    FILL_CACHE_CAT(quasars, MAX_QUASARS); break;
+            case TEL_CAT_COMET:     FILL_CACHE_CAT(comets, MAX_COMETS); break;
+            case TEL_CAT_ASTEROID:  FILL_CACHE_CAT(asteroids, MAX_ASTEROIDS); break;
+            case TEL_CAT_DERELICT:  FILL_CACHE_CAT(derelicts, MAX_DERELICTS); break;
+            case TEL_CAT_MINE:      FILL_CACHE_CAT(mines, MAX_MINES); break;
+            case TEL_CAT_BUOY:      FILL_CACHE_CAT(buoys, MAX_BUOYS); break;
+            case TEL_CAT_PLATFORM:  FILL_CACHE_CAT(platforms, MAX_PLATFORMS); break;
+            case TEL_CAT_RIFT:      FILL_CACHE_CAT(rifts, MAX_RIFTS); break;
+            case TEL_CAT_MONSTER:   FILL_CACHE_CAT(monsters, MAX_MONSTERS); break;
+            case TEL_CAT_DYSON:     FILL_CACHE_CAT(dysons, MAX_DYSON); break;
+            case TEL_CAT_HUB:       FILL_CACHE_CAT(hubs, MAX_HUBS); break;
+            case TEL_CAT_RELIC:     FILL_CACHE_CAT(relics, MAX_RELICS); break;
+            case TEL_CAT_RUPTURE:   FILL_CACHE_CAT(ruptures, MAX_RUPTURES); break;
+            case TEL_CAT_SATELLITE: FILL_CACHE_CAT(satellites, MAX_SATELLITES); break;
+            case TEL_CAT_STORM:     FILL_CACHE_CAT(storms, MAX_STORMS); break;
+            case TEL_CAT_TORPEDO:   FILL_CACHE_CAT(players_torpedoes, MAX_GLOBAL_TORPEDOES); break;
+            case TEL_CAT_ARTIFACT:  FILL_CACHE_CAT(artifacts, MAX_ARTIFACTS); break;
+            case TEL_CAT_WARP_GATE: FILL_CACHE_CAT(warp_gates, MAX_WARP_GATES); break;
+            case TEL_CAT_NEUTRON_STAR: FILL_CACHE_CAT(neutron_stars, MAX_NEUTRON_STARS); break;
+            case TEL_CAT_MEGA_STRUCT: FILL_CACHE_CAT(mega_structs, MAX_MEGA_STRUCTS); break;
+            case TEL_CAT_DARK_CLOUD: FILL_CACHE_CAT(dark_clouds, MAX_DARK_CLOUDS); break;
+            case TEL_CAT_SINGULARITY: FILL_CACHE_CAT(singularities, MAX_SINGULARITIES); break;
+            case TEL_CAT_PLASMA_STORM: FILL_CACHE_CAT(plasma_storms, MAX_PLASMA_STORMS); break;
+            case TEL_CAT_ORBITAL_RING: FILL_CACHE_CAT(orbital_rings, MAX_ORBITAL_RINGS); break;
+            case TEL_CAT_TIME_ANOMALY: FILL_CACHE_CAT(time_anomalies, MAX_TIME_ANOMALIES); break;
+            case TEL_CAT_VOID_CRYSTAL: FILL_CACHE_CAT(void_crystals, MAX_VOID_CRYSTALS); break;
+            case TEL_CAT_ANOMALY:   FILL_CACHE_CAT(subspace_anomalies, MAX_SUBSPACE_ANOMALIES); break;
+        }
+    }
+    cat_cache_count[cat] = count;
+    cat_cache_tick[cat] = (uint32_t)global_tick;
+    pthread_mutex_unlock(&cat_mutexes[cat]);
+}
+
+static void disconnect_client(int i) {
+    pthread_mutex_lock(&tel_clients_mutex);
+    if (tel_clients[i].active) {
+        epoll_ctl(tel_epoll_fd, EPOLL_CTL_DEL, tel_clients[i].fd, NULL);
+        close(tel_clients[i].fd);
+        tel_clients[i].active = false;
+        printf("\033[1;31m[TELEMETRY]\033[0m Client %d dropped due to transmission failure.\n", i);
+    }
+    pthread_mutex_unlock(&tel_clients_mutex);
+}
+
+void telemetry_sync_state() {
+    if (!tel_running) return;
+    
+    /* Identify which categories need caching this tick */
+    bool needs_update[TEL_CAT_COUNT] = {false};
+    pthread_mutex_lock(&tel_clients_mutex);
+    for (int i = 0; i < MAX_TEL_CLIENTS; i++) {
+        if (tel_clients[i].active && tel_clients[i].category < TEL_CAT_COUNT) {
+            needs_update[tel_clients[i].category] = true;
+        }
+    }
+    pthread_mutex_unlock(&tel_clients_mutex);
+
+    /* Update caches for active categories (Must be called while game_mutex is held) */
+    for (int c = 0; c < TEL_CAT_COUNT; c++) {
+        if (needs_update[c]) {
+            update_category_cache(c);
+        }
     }
 }
 
 void telemetry_broadcast() {
     if (!tel_running) return;
 
-    TelemetryHeader hdr;
-    hdr.type = TEL_PKT_DATA;
+    /* Prepare global stats (Snapshot taken from global variables) */
+    TelemetryHeader shdr = {TEL_PKT_STATS, sizeof(TelemetryStats)};
+    TelemetryStats stats = {0};
+    stats.tick = global_tick;
+    /* We read these without game lock, but they are simple ints, safe enough for telemetry */
+    for(int j=0; j<MAX_CLIENTS; j++) if(players[j].active) stats.active_players++;
+    for(int j=0; j<MAX_NPC; j++) if(npcs[j].active) stats.active_npcs++;
 
     for (int i = 0; i < MAX_TEL_CLIENTS; i++) {
-        if (!tel_clients[i].active) continue;
+        pthread_mutex_lock(&tel_clients_mutex);
+        if (!tel_clients[i].active) {
+            pthread_mutex_unlock(&tel_clients_mutex);
+            continue;
+        }
 
+        int fd = tel_clients[i].fd;
         uint32_t cat = tel_clients[i].category;
-        int count = 0;
+        pthread_mutex_unlock(&tel_clients_mutex);
 
-        int faction = get_faction_from_cat(cat);
-        if (faction != -1) {
-            for (int j = 0; j < MAX_CLIENTS && count < MAX_VISIBLE_TEL; j++) {
-                if (players[j].active && players[j].faction == faction) fill_obj(&broadcast_buffer[count++], cat, j);
-            }
-            for (int j = 0; j < MAX_NPC && count < MAX_VISIBLE_TEL; j++) {
-                if (npcs[j].active && npcs[j].faction == faction) fill_obj(&broadcast_buffer[count++], cat, j + MAX_CLIENTS);
-            }
-            for (int j = 0; j < MAX_BASES && count < MAX_VISIBLE_TEL; j++) {
-                if (bases[j].active && bases[j].faction == faction) fill_obj(&broadcast_buffer[count++], cat, j + MAX_CLIENTS + MAX_NPC);
-            }
+        if (cat >= TEL_CAT_COUNT) { disconnect_client(i); continue; }
+
+        /* Check if socket is ready to receive data (don't block the server too long) */
+        struct pollfd pfd;
+        pfd.fd = fd;
+        pfd.events = POLLOUT;
+        if (poll(&pfd, 1, 0) <= 0) {
+            /* Socket buffer is likely full, skip this tick for this client */
+            continue;
+        }
+
+        /* Use cached data (Already updated by telemetry_sync_state) */
+        pthread_mutex_lock(&cat_mutexes[cat]);
+        int count = cat_cache_count[cat];
+        bool failed = false;
+
+        /* Send data chunk */
+        if (count == 0) {
+            TelemetryHeader dhdr = {TEL_PKT_DATA, 0};
+            if (send_all(fd, &dhdr, sizeof(dhdr)) != sizeof(dhdr)) failed = true;
         } else {
-            #define FILL_CAT(arr, max) for(int j=0; j<max && count<MAX_VISIBLE_TEL; j++) if(arr[j].active) fill_obj(&broadcast_buffer[count++], cat, j)
-            switch(cat) {
-                case TEL_CAT_STAR:      FILL_CAT(stars_data, MAX_STARS); break;
-                case TEL_CAT_PLANET:    FILL_CAT(planets, MAX_PLANETS); break;
-                case TEL_CAT_BASE:      FILL_CAT(bases, MAX_BASES); break;
-                case TEL_CAT_BH:        FILL_CAT(black_holes, MAX_BH); break;
-                case TEL_CAT_NEBULA:    FILL_CAT(nebulas, MAX_NEBULAS); break;
-                case TEL_CAT_PULSAR:    FILL_CAT(pulsars, MAX_PULSARS); break;
-                case TEL_CAT_QUASAR:    FILL_CAT(quasars, MAX_QUASARS); break;
-                case TEL_CAT_COMET:     FILL_CAT(comets, MAX_COMETS); break;
-                case TEL_CAT_ASTEROID:  FILL_CAT(asteroids, MAX_ASTEROIDS); break;
-                case TEL_CAT_DERELICT:  FILL_CAT(derelicts, MAX_DERELICTS); break;
-                case TEL_CAT_MINE:      FILL_CAT(mines, MAX_MINES); break;
-                case TEL_CAT_BUOY:      FILL_CAT(buoys, MAX_BUOYS); break;
-                case TEL_CAT_PLATFORM:  FILL_CAT(platforms, MAX_PLATFORMS); break;
-                case TEL_CAT_RIFT:      FILL_CAT(rifts, MAX_RIFTS); break;
-                case TEL_CAT_MONSTER:   FILL_CAT(monsters, MAX_MONSTERS); break;
-                case TEL_CAT_DYSON:     FILL_CAT(dysons, MAX_DYSON); break;
-                case TEL_CAT_HUB:       FILL_CAT(hubs, MAX_HUBS); break;
-                case TEL_CAT_RELIC:     FILL_CAT(relics, MAX_RELICS); break;
-                case TEL_CAT_RUPTURE:   FILL_CAT(ruptures, MAX_RUPTURES); break;
-                case TEL_CAT_SATELLITE: FILL_CAT(satellites, MAX_SATELLITES); break;
-                case TEL_CAT_STORM:     FILL_CAT(storms, MAX_STORMS); break;
-                case TEL_CAT_TORPEDO:   FILL_CAT(players_torpedoes, MAX_GLOBAL_TORPEDOES); break;
-                case TEL_CAT_ARTIFACT:  FILL_CAT(artifacts, MAX_ARTIFACTS); break;
-                case TEL_CAT_WARP_GATE: FILL_CAT(warp_gates, MAX_WARP_GATES); break;
-                case TEL_CAT_NEUTRON_STAR: FILL_CAT(neutron_stars, MAX_NEUTRON_STARS); break;
-                case TEL_CAT_MEGA_STRUCT: FILL_CAT(mega_structs, MAX_MEGA_STRUCTS); break;
-                case TEL_CAT_DARK_CLOUD: FILL_CAT(dark_clouds, MAX_DARK_CLOUDS); break;
-                case TEL_CAT_SINGULARITY: FILL_CAT(singularities, MAX_SINGULARITIES); break;
-                case TEL_CAT_PLASMA_STORM: FILL_CAT(plasma_storms, MAX_PLASMA_STORMS); break;
-                case TEL_CAT_ORBITAL_RING: FILL_CAT(orbital_rings, MAX_ORBITAL_RINGS); break;
-                case TEL_CAT_TIME_ANOMALY: FILL_CAT(time_anomalies, MAX_TIME_ANOMALIES); break;
-                case TEL_CAT_VOID_CRYSTAL: FILL_CAT(void_crystals, MAX_VOID_CRYSTALS); break;
-                case TEL_CAT_ANOMALY:   FILL_CAT(subspace_anomalies, MAX_SUBSPACE_ANOMALIES); break;
+            int chunk_size = 100;
+            for (int offset = 0; offset < count; offset += chunk_size) {
+                int current_chunk = (offset + chunk_size > count) ? (count - offset) : chunk_size;
+                TelemetryHeader dhdr;
+                dhdr.type = TEL_PKT_DATA;
+                dhdr.length = (uint32_t)(current_chunk * sizeof(TelemetryObject));
+                
+                if (send_all(fd, &dhdr, sizeof(dhdr)) == sizeof(dhdr)) {
+                    if (send_all(fd, &cat_cache[cat][offset], dhdr.length) != (int)dhdr.length) {
+                        failed = true; break;
+                    }
+                } else {
+                    failed = true; break;
+                }
             }
         }
+        pthread_mutex_unlock(&cat_mutexes[cat]);
 
-        hdr.length = count * sizeof(TelemetryObject);
-        if (send(tel_clients[i].fd, &hdr, sizeof(hdr), MSG_NOSIGNAL) == sizeof(hdr)) {
-            if (hdr.length > 0) {
-                send(tel_clients[i].fd, broadcast_buffer, hdr.length, MSG_NOSIGNAL);
-            }
+        if (!failed) {
+            if (send_all(fd, &shdr, sizeof(shdr)) == sizeof(shdr)) {
+                if (send_all(fd, &stats, sizeof(stats)) != sizeof(stats)) failed = true;
+            } else failed = true;
         }
 
-        TelemetryHeader shdr = {TEL_PKT_STATS, sizeof(TelemetryStats)};
-        TelemetryStats stats = {
-            .tick = global_tick,
-            .active_players = 0,
-            .active_npcs = 0
-        };
-        for(int j=0; j<MAX_CLIENTS; j++) if(players[j].active) stats.active_players++;
-        for(int j=0; j<MAX_NPC; j++) if(npcs[j].active) stats.active_npcs++;
-        
-        if (send(tel_clients[i].fd, &shdr, sizeof(shdr), MSG_NOSIGNAL) == sizeof(shdr)) {
-            send(tel_clients[i].fd, &stats, sizeof(stats), MSG_NOSIGNAL);
+        if (failed) {
+            disconnect_client(i);
         }
     }
 }

@@ -487,28 +487,60 @@ Simulation realism is ensured by a dynamic energy consumption system that never 
 *   **Docking Safe Mode:** Energy consumption is completely suspended when the ship is connected to a Starbase (external power).
 *   **Energy Emergency:** If reserves drop to zero, **Life Support** begins to degrade by **0.1% per tick**. At **0%**, **crew casualties** will occur (1 member per second). Restoring energy will automatically recharge life support.
 
-### 3. Advanced Navigation (GDIS Standard)
+### 3. Gestione dell'Equipaggio (Crew Management)
+La gestione dell'equipaggio in Space GL è un sistema vitale e punitivo, strettamente legato all'energia e al supporto vitale. Ecco i pilastri del funzionamento:
+
+#### 1. Dimensioni Iniziali
+Il numero di membri dell'equipaggio dipende esclusivamente dalla classe della nave scelta all'inizio:
+*   **Explorer (Aegis-D)**: 1012 membri (il massimo standard).
+*   **Carrier**: 1200 membri.
+*   **Flagship**: 850 membri.
+*   **Heavy Cruiser**: 750 membri.
+*   **Scout**: ~30 membri (molto vulnerabile).
+
+#### 2. Sopravvivenza e Supporto Vitale (Vital Integrity)
+L'equipaggio dipende dal sistema di Life Support:
+*   **Consumo Energia**: La nave consuma costantemente una piccola quantità di energia per mantenere attivo il supporto vitale. In stato di Red Alert, questo consumo aumenta drasticamente.
+*   **Emergenza Energia**: Se le riserve di energia scendono a zero, il supporto vitale inizia a degradarsi (0.1% per tick).
+*   **Vittime periodiche**: Se l'integrità del supporto vitale scende a 0%, l'equipaggio inizia a morire al ritmo di 1 membro al secondo.
+*   **Danni da Combattimento**: Quando la nave subisce danni allo scafo (Hull Integrity), una parte dell'equipaggio viene persa proporzionalmente alla gravità del colpo.
+
+#### 3. Pericoli Ambientali (Pulsar e Radiazioni)
+Navigare troppo vicino a una Pulsar (Distanza < 2.5) espone la nave a radiazioni letali che uccidono rapidamente l'equipaggio, indipendentemente dallo stato degli scudi.
+
+#### 4. Mission Failure (Perdita della Nave)
+L'equipaggio è la risorsa definitiva. Se il conteggio arriva a zero:
+1.  **Distruzione istantanea**: La nave viene dichiarata persa e lascia un relitto permanente (derelict) nella galassia, che altri giocatori possono smantellare.
+2.  **Emergency Reentry**: Il giocatore viene teletrasportato in un settore sicuro della galassia a bordo di una "navetta di salvataggio" con sistemi minimi, energia carica e un equipaggio ridotto al 10% (circa 101 membri per un'Explorer).
+
+#### 5. Recupero e Operazioni Speciali
+*   **Starbase**: Attraccando (doc) a una base stellare, l'equipaggio viene ripristinato e stabilizzato.
+*   **Squadre di Ricerca**: Esplorando i relitti, è possibile trovare sopravvissuti in stasi che vengono integrati nell'equipaggio corrente.
+*   **Prison Unit**: Durante le operazioni di abbordaggio, i membri dell'equipaggio nemico catturati non diventano parte della tua flotta ma vengono confinati nella Prison Unit, pronti per essere consegnati al comando per dei bonus.
+
+In sintesi, l'equipaggio funge da "barra della vita" finale: puoi riparare i sistemi e lo scafo, ma una volta perso l'equipaggio, la missione finisce inevitabilmente.
+
+### 4. Advanced Navigation (GDIS Standard)
 The navigation system has been overhauled for mathematical precision and visual fluidity:
 *   **Absolute Galactic Coordinates:** All movement and distance calculations use a standardized **0.0 - 1600.0 absolute scale**. This ensures consistent targeting and torpedo tracking even when crossing quadrant boundaries.
 *   **Precision Navigation (`nav`):** The `nav` command now features an automatic destination lock. Once the vessel reaches the calculated `target_gx/gy/gz` coordinates, it will automatically disengage engines and drop out of Hyperdrive at the precise location.
 *   **Hyperdrive Recalibration (Constant Speed):** The propulsion system has been calibrated for ultra-high-speed transit. **Factor 9.9 traverses the entire galaxy diagonal (approx. 2771 units) in exactly 40 seconds.** Velocity is perfectly constant and independent of power distribution or system integrity to guarantee arrival times matching the `cal` command estimates.
-*   **Energy & Damage Model:** 
+*   **Energy & Damage Model:**
     *   **Linear Drain**: Hyperdrive energy consumption scales linearly with speed.
     *   **Integrity Penalty**: Damaged propulsion systems (Hyperdrive/Impulse) suffer from increased energy waste (heat dissipation). Consumption is inversely proportional to system integrity.
 *   **Smooth Autopilot (LERP Tracking):** The `apr` (approach) command no longer "snaps" the ship's orientation. Instead, it uses **Linear Interpolation (LERP)** to smoothly align the vessel's heading and mark with the target, preventing erratic spinning and providing a cinematic flight experience.
 *   **Boundary Enforcement:** Galactic limits are enforced at **[0.05, 1599.95]**. Ships attempting to exit the galaxy will automatically engage emergency brakes and invert their heading (180° turn) to remain within navigable space.
 
-### 3. Tactical Combat Overhaul
+### 5. Tactical Combat Overhaul
 Combat against NPC vessels features a sophisticated damage model and improved ordnance tracking:
 *   **Absolute Ordnance Tracking:** Torpedoes now move using **Absolute Galactic Coordinates**. This allows a torpedo launched in one quadrant to successfully hit a target that has moved into an adjacent sector, eliminating "ghost misses" at boundary crossings.
 *   **Improved Homing:** The torpedo auto-guidance system has been boosted (45% correction factor), relying on **Sensors (ID 2)** health for precision.
 *   **Precision Scaling:** Torpedo damage varies by impact accuracy. Direct hits (<0.2 units) grant a **1.2x bonus**, while glancing blows (0.5-0.8 units) are reduced to **0.7x**.
 *   **Faction Resistance:** Alien hull technologies react differently to Alliance torpedoes. **Bio-armor (Swarm, Species 8472)** reduces incoming damage to **0.6x**, while fragile commercial/scout hulls (**Gilded, Gorn**) suffer increased damage of **1.4x**.
-*   **Layered Defense (Plating vs. Hull):** Torpedoes must first erode a vessel's **Composite Plating** before dealing structural damage to the **Hull**. 
+*   **Layered Defense (Plating vs. Hull):** Torpedoes must first erode a vessel's **Composite Plating** before dealing structural damage to the **Hull**.
 *   **Systemic Engine Damage:** Every successful torpedo hit inflicts **10% to 20% permanent damage** to the NPC's engines, causing them to lose speed and maneuverability as the battle progresses.
 
-### 4. Performance & Structural Optimization (Lag Resolution)
-To maintain a seamless 30 TPS (Ticks Per Second) logic rate while managing a massive 64,000-quadrant universe, the engine underwent a major structural refactoring focused on three primary bottlenecks:
+### 6. Performance & Structural Optimization (Lag Resolution)To maintain a seamless 30 TPS (Ticks Per Second) logic rate while managing a massive 64,000-quadrant universe, the engine underwent a major structural refactoring focused on three primary bottlenecks:
 
 #### 🧠 A. Dirty Quadrant Indexing (The "Sparse Reset" Technique)
 *   **The Problem**: Previously, the server performed a `memset` on the entire 275MB spatial index and iterated through all 64,000 quadrants every single tick to clear old data. This consumed massive memory bandwidth and CPU time.

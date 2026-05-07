@@ -71,7 +71,7 @@ typedef struct {
 #define TEL_PKT_DATA      2  /* Server -> Client: Object list data */
 #define TEL_PKT_STATS     3  /* Server -> Client: Global server stats */
 
-#define MAX_VISIBLE_TEL 1000
+#define MAX_VISIBLE_TEL 5000
 
 typedef struct {
     uint32_t category;
