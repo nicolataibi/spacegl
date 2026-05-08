@@ -754,6 +754,187 @@ void handle_apr(int i, const char *params, bool *should_disconnect) {
                     }
                 }
             }
+
+            if (!found && tid >= GALAXY_OBJECT_MIN_QUASAR && tid <= GALAXY_OBJECT_MAX_QUASAR) {
+                for (int n = 0; n < lq->quasar_count; n++) {
+                    if (lq->quasars[n]->id + GALAXY_OBJECT_MIN_QUASAR == tid) {
+                        tx = (lq->quasars[n]->q1 - 1) * QUADRANT_SIZE + lq->quasars[n]->x;
+                        ty = (lq->quasars[n]->q2 - 1) * QUADRANT_SIZE + lq->quasars[n]->y;
+                        tz = (lq->quasars[n]->q3 - 1) * QUADRANT_SIZE + lq->quasars[n]->z;
+                        found = true; strcpy(target_name, "Quasar"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_DYSON && tid <= GALAXY_OBJECT_MAX_DYSON) {
+                for (int n = 0; n < lq->dyson_count; n++) {
+                    if (lq->dysons[n]->id + GALAXY_OBJECT_MIN_DYSON == tid) {
+                        tx = (lq->dysons[n]->q1 - 1) * QUADRANT_SIZE + lq->dysons[n]->x;
+                        ty = (lq->dysons[n]->q2 - 1) * QUADRANT_SIZE + lq->dysons[n]->y;
+                        tz = (lq->dysons[n]->q3 - 1) * QUADRANT_SIZE + lq->dysons[n]->z;
+                        found = true; strcpy(target_name, "Dyson Fragment"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_HUB && tid <= GALAXY_OBJECT_MAX_HUB) {
+                for (int n = 0; n < lq->hub_count; n++) {
+                    if (lq->hubs[n]->id + GALAXY_OBJECT_MIN_HUB == tid) {
+                        tx = (lq->hubs[n]->q1 - 1) * QUADRANT_SIZE + lq->hubs[n]->x;
+                        ty = (lq->hubs[n]->q2 - 1) * QUADRANT_SIZE + lq->hubs[n]->y;
+                        tz = (lq->hubs[n]->q3 - 1) * QUADRANT_SIZE + lq->hubs[n]->z;
+                        found = true; strcpy(target_name, "Trading Hub"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_RELIC && tid <= GALAXY_OBJECT_MAX_RELIC) {
+                for (int n = 0; n < lq->relic_count; n++) {
+                    if (lq->relics[n]->id + GALAXY_OBJECT_MIN_RELIC == tid) {
+                        tx = (lq->relics[n]->q1 - 1) * QUADRANT_SIZE + lq->relics[n]->x;
+                        ty = (lq->relics[n]->q2 - 1) * QUADRANT_SIZE + lq->relics[n]->y;
+                        tz = (lq->relics[n]->q3 - 1) * QUADRANT_SIZE + lq->relics[n]->z;
+                        found = true; strcpy(target_name, "Ancient Relic"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_RUPTURE && tid <= GALAXY_OBJECT_MAX_RUPTURE) {
+                for (int n = 0; n < lq->rupture_count; n++) {
+                    if (lq->ruptures[n]->id + GALAXY_OBJECT_MIN_RUPTURE == tid) {
+                        tx = (lq->ruptures[n]->q1 - 1) * QUADRANT_SIZE + lq->ruptures[n]->x;
+                        ty = (lq->ruptures[n]->q2 - 1) * QUADRANT_SIZE + lq->ruptures[n]->y;
+                        tz = (lq->ruptures[n]->q3 - 1) * QUADRANT_SIZE + lq->ruptures[n]->z;
+                        found = true; strcpy(target_name, "Subspace Rupture"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_SATELLITE && tid <= GALAXY_OBJECT_MAX_SATELLITE) {
+                for (int n = 0; n < lq->satellite_count; n++) {
+                    if (lq->satellites[n]->id + GALAXY_OBJECT_MIN_SATELLITE == tid) {
+                        tx = (lq->satellites[n]->q1 - 1) * QUADRANT_SIZE + lq->satellites[n]->x;
+                        ty = (lq->satellites[n]->q2 - 1) * QUADRANT_SIZE + lq->satellites[n]->y;
+                        tz = (lq->satellites[n]->q3 - 1) * QUADRANT_SIZE + lq->satellites[n]->z;
+                        found = true; strcpy(target_name, "Satellite"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_STORM && tid <= GALAXY_OBJECT_MAX_STORM) {
+                for (int n = 0; n < lq->storm_count; n++) {
+                    if (lq->storms[n]->id + GALAXY_OBJECT_MIN_STORM == tid) {
+                        tx = (lq->storms[n]->q1 - 1) * QUADRANT_SIZE + lq->storms[n]->x;
+                        ty = (lq->storms[n]->q2 - 1) * QUADRANT_SIZE + lq->storms[n]->y;
+                        tz = (lq->storms[n]->q3 - 1) * QUADRANT_SIZE + lq->storms[n]->z;
+                        found = true; strcpy(target_name, "Ion Storm"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_ARTIFACT && tid <= GALAXY_OBJECT_MAX_ARTIFACT) {
+                for (int n = 0; n < lq->artifact_count; n++) {
+                    if (lq->artifacts[n]->id + GALAXY_OBJECT_MIN_ARTIFACT == tid) {
+                        tx = (lq->artifacts[n]->q1 - 1) * QUADRANT_SIZE + lq->artifacts[n]->x;
+                        ty = (lq->artifacts[n]->q2 - 1) * QUADRANT_SIZE + lq->artifacts[n]->y;
+                        tz = (lq->artifacts[n]->q3 - 1) * QUADRANT_SIZE + lq->artifacts[n]->z;
+                        found = true; strcpy(target_name, "Alien Artifact"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_WARP_GATE && tid <= GALAXY_OBJECT_MAX_WARP_GATE) {
+                for (int n = 0; n < lq->warp_gate_count; n++) {
+                    if (lq->warp_gates[n]->id + GALAXY_OBJECT_MIN_WARP_GATE == tid) {
+                        tx = (lq->warp_gates[n]->q1 - 1) * QUADRANT_SIZE + lq->warp_gates[n]->x;
+                        ty = (lq->warp_gates[n]->q2 - 1) * QUADRANT_SIZE + lq->warp_gates[n]->y;
+                        tz = (lq->warp_gates[n]->q3 - 1) * QUADRANT_SIZE + lq->warp_gates[n]->z;
+                        found = true; strcpy(target_name, "Warp Gate"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_NEUTRON_STAR && tid <= GALAXY_OBJECT_MAX_NEUTRON_STAR) {
+                for (int n = 0; n < lq->neutron_star_count; n++) {
+                    if (lq->neutron_stars[n]->id + GALAXY_OBJECT_MIN_NEUTRON_STAR == tid) {
+                        tx = (lq->neutron_stars[n]->q1 - 1) * QUADRANT_SIZE + lq->neutron_stars[n]->x;
+                        ty = (lq->neutron_stars[n]->q2 - 1) * QUADRANT_SIZE + lq->neutron_stars[n]->y;
+                        tz = (lq->neutron_stars[n]->q3 - 1) * QUADRANT_SIZE + lq->neutron_stars[n]->z;
+                        found = true; strcpy(target_name, "Neutron Star"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_MEGA_STRUCT && tid <= GALAXY_OBJECT_MAX_MEGA_STRUCT) {
+                for (int n = 0; n < lq->mega_struct_count; n++) {
+                    if (lq->mega_structs[n]->id + GALAXY_OBJECT_MIN_MEGA_STRUCT == tid) {
+                        tx = (lq->mega_structs[n]->q1 - 1) * QUADRANT_SIZE + lq->mega_structs[n]->x;
+                        ty = (lq->mega_structs[n]->q2 - 1) * QUADRANT_SIZE + lq->mega_structs[n]->y;
+                        tz = (lq->mega_structs[n]->q3 - 1) * QUADRANT_SIZE + lq->mega_structs[n]->z;
+                        found = true; strcpy(target_name, "Mega Structure"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_DARK_CLOUD && tid <= GALAXY_OBJECT_MAX_DARK_CLOUD) {
+                for (int n = 0; n < lq->dark_cloud_count; n++) {
+                    if (lq->dark_clouds[n]->id + GALAXY_OBJECT_MIN_DARK_CLOUD == tid) {
+                        tx = (lq->dark_clouds[n]->q1 - 1) * QUADRANT_SIZE + lq->dark_clouds[n]->x;
+                        ty = (lq->dark_clouds[n]->q2 - 1) * QUADRANT_SIZE + lq->dark_clouds[n]->y;
+                        tz = (lq->dark_clouds[n]->q3 - 1) * QUADRANT_SIZE + lq->dark_clouds[n]->z;
+                        found = true; strcpy(target_name, "Dark Cloud"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_SINGULARITY && tid <= GALAXY_OBJECT_MAX_SINGULARITY) {
+                for (int n = 0; n < lq->singularity_count; n++) {
+                    if (lq->singularities[n]->id + GALAXY_OBJECT_MIN_SINGULARITY == tid) {
+                        tx = (lq->singularities[n]->q1 - 1) * QUADRANT_SIZE + lq->singularities[n]->x;
+                        ty = (lq->singularities[n]->q2 - 1) * QUADRANT_SIZE + lq->singularities[n]->y;
+                        tz = (lq->singularities[n]->q3 - 1) * QUADRANT_SIZE + lq->singularities[n]->z;
+                        found = true; strcpy(target_name, "Quantum Singularity"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_PLASMA_STORM && tid <= GALAXY_OBJECT_MAX_PLASMA_STORM) {
+                for (int n = 0; n < lq->plasma_storm_count; n++) {
+                    if (lq->plasma_storms[n]->id + GALAXY_OBJECT_MIN_PLASMA_STORM == tid) {
+                        tx = (lq->plasma_storms[n]->q1 - 1) * QUADRANT_SIZE + lq->plasma_storms[n]->x;
+                        ty = (lq->plasma_storms[n]->q2 - 1) * QUADRANT_SIZE + lq->plasma_storms[n]->y;
+                        tz = (lq->plasma_storms[n]->q3 - 1) * QUADRANT_SIZE + lq->plasma_storms[n]->z;
+                        found = true; strcpy(target_name, "Plasma Storm"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_ORBITAL_RING && tid <= GALAXY_OBJECT_MAX_ORBITAL_RING) {
+                for (int n = 0; n < lq->orbital_ring_count; n++) {
+                    if (lq->orbital_rings[n]->id + GALAXY_OBJECT_MIN_ORBITAL_RING == tid) {
+                        tx = (lq->orbital_rings[n]->q1 - 1) * QUADRANT_SIZE + lq->orbital_rings[n]->x;
+                        ty = (lq->orbital_rings[n]->q2 - 1) * QUADRANT_SIZE + lq->orbital_rings[n]->y;
+                        tz = (lq->orbital_rings[n]->q3 - 1) * QUADRANT_SIZE + lq->orbital_rings[n]->z;
+                        found = true; strcpy(target_name, "Orbital Ring"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_TIME_ANOMALY && tid <= GALAXY_OBJECT_MAX_TIME_ANOMALY) {
+                for (int n = 0; n < lq->time_anomaly_count; n++) {
+                    if (lq->time_anomalies[n]->id + GALAXY_OBJECT_MIN_TIME_ANOMALY == tid) {
+                        tx = (lq->time_anomalies[n]->q1 - 1) * QUADRANT_SIZE + lq->time_anomalies[n]->x;
+                        ty = (lq->time_anomalies[n]->q2 - 1) * QUADRANT_SIZE + lq->time_anomalies[n]->y;
+                        tz = (lq->time_anomalies[n]->q3 - 1) * QUADRANT_SIZE + lq->time_anomalies[n]->z;
+                        found = true; strcpy(target_name, "Time Anomaly"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_VOID_CRYSTAL && tid <= GALAXY_OBJECT_MAX_VOID_CRYSTAL) {
+                for (int n = 0; n < lq->void_crystal_count; n++) {
+                    if (lq->void_crystals[n]->id + GALAXY_OBJECT_MIN_VOID_CRYSTAL == tid) {
+                        tx = (lq->void_crystals[n]->q1 - 1) * QUADRANT_SIZE + lq->void_crystals[n]->x;
+                        ty = (lq->void_crystals[n]->q2 - 1) * QUADRANT_SIZE + lq->void_crystals[n]->y;
+                        tz = (lq->void_crystals[n]->q3 - 1) * QUADRANT_SIZE + lq->void_crystals[n]->z;
+                        found = true; strcpy(target_name, "Void Crystal"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_SUBSPACE_ANOM && tid <= GALAXY_OBJECT_MAX_SUBSPACE_ANOM) {
+                for (int n = 0; n < lq->subspace_anomaly_count; n++) {
+                    if (lq->subspace_anomalies[n]->id + GALAXY_OBJECT_MIN_SUBSPACE_ANOM == tid) {
+                        tx = (lq->subspace_anomalies[n]->q1 - 1) * QUADRANT_SIZE + lq->subspace_anomalies[n]->x;
+                        ty = (lq->subspace_anomalies[n]->q2 - 1) * QUADRANT_SIZE + lq->subspace_anomalies[n]->y;
+                        tz = (lq->subspace_anomalies[n]->q3 - 1) * QUADRANT_SIZE + lq->subspace_anomalies[n]->z;
+                        found = true; strcpy(target_name, "Subspace Anomaly"); break;
+                    }
+                }
+            }
         }
 
         if (found) {

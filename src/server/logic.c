@@ -1137,6 +1137,42 @@ void update_game_logic() {
                             found = true;
                         }
                     }
+                } else if (tid >= GALAXY_OBJECT_MIN_BLACKHOLE && tid <= GALAXY_OBJECT_MAX_BLACKHOLE) {
+                    for (int h = 0; h < lq->bh_count; h++) {
+                        if (lq->black_holes[h]->id + GALAXY_OBJECT_MIN_BLACKHOLE == tid) {
+                            tx = (lq->black_holes[h]->q1 - 1) * QUADRANT_SIZE + lq->black_holes[h]->x;
+                            ty = (lq->black_holes[h]->q2 - 1) * QUADRANT_SIZE + lq->black_holes[h]->y;
+                            tz = (lq->black_holes[h]->q3 - 1) * QUADRANT_SIZE + lq->black_holes[h]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_NEBULA && tid <= GALAXY_OBJECT_MAX_NEBULA) {
+                    for (int n = 0; n < lq->nebula_count; n++) {
+                        if (lq->nebulas[n]->id + GALAXY_OBJECT_MIN_NEBULA == tid) {
+                            tx = (lq->nebulas[n]->q1 - 1) * QUADRANT_SIZE + lq->nebulas[n]->x;
+                            ty = (lq->nebulas[n]->q2 - 1) * QUADRANT_SIZE + lq->nebulas[n]->y;
+                            tz = (lq->nebulas[n]->q3 - 1) * QUADRANT_SIZE + lq->nebulas[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_PULSAR && tid <= GALAXY_OBJECT_MAX_PULSAR) {
+                    for (int p = 0; p < lq->pulsar_count; p++) {
+                        if (lq->pulsars[p]->id + GALAXY_OBJECT_MIN_PULSAR == tid) {
+                            tx = (lq->pulsars[p]->q1 - 1) * QUADRANT_SIZE + lq->pulsars[p]->x;
+                            ty = (lq->pulsars[p]->q2 - 1) * QUADRANT_SIZE + lq->pulsars[p]->y;
+                            tz = (lq->pulsars[p]->q3 - 1) * QUADRANT_SIZE + lq->pulsars[p]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_COMET && tid <= GALAXY_OBJECT_MAX_COMET) {
+                    for (int c = 0; c < lq->comet_count; c++) {
+                        if (lq->comets[c]->id + GALAXY_OBJECT_MIN_COMET == tid) {
+                            tx = (lq->comets[c]->q1 - 1) * QUADRANT_SIZE + lq->comets[c]->x;
+                            ty = (lq->comets[c]->q2 - 1) * QUADRANT_SIZE + lq->comets[c]->y;
+                            tz = (lq->comets[c]->q3 - 1) * QUADRANT_SIZE + lq->comets[c]->z;
+                            found = true;
+                        }
+                    }
                 } else if (tid >= GALAXY_OBJECT_MIN_ASTEROID && tid <= GALAXY_OBJECT_MAX_ASTEROID) {
                     for (int a = 0; a < lq->asteroid_count; a++) {
                         if (lq->asteroids[a]->id + GALAXY_OBJECT_MIN_ASTEROID == tid) {
@@ -1163,6 +1199,213 @@ void update_game_logic() {
                             tz = (lq->platforms[p]->q3 - 1) * QUADRANT_SIZE + lq->platforms[p]->z;
                             found = true;
                         }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_QUASAR && tid <= GALAXY_OBJECT_MAX_QUASAR) {
+                    for (int n = 0; n < lq->quasar_count; n++) {
+                        if (lq->quasars[n]->id + GALAXY_OBJECT_MIN_QUASAR == tid) {
+                            tx = (lq->quasars[n]->q1 - 1) * QUADRANT_SIZE + lq->quasars[n]->x;
+                            ty = (lq->quasars[n]->q2 - 1) * QUADRANT_SIZE + lq->quasars[n]->y;
+                            tz = (lq->quasars[n]->q3 - 1) * QUADRANT_SIZE + lq->quasars[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_DYSON && tid <= GALAXY_OBJECT_MAX_DYSON) {
+                    for (int n = 0; n < lq->dyson_count; n++) {
+                        if (lq->dysons[n]->id + GALAXY_OBJECT_MIN_DYSON == tid) {
+                            tx = (lq->dysons[n]->q1 - 1) * QUADRANT_SIZE + lq->dysons[n]->x;
+                            ty = (lq->dysons[n]->q2 - 1) * QUADRANT_SIZE + lq->dysons[n]->y;
+                            tz = (lq->dysons[n]->q3 - 1) * QUADRANT_SIZE + lq->dysons[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_HUB && tid <= GALAXY_OBJECT_MAX_HUB) {
+                    for (int n = 0; n < lq->hub_count; n++) {
+                        if (lq->hubs[n]->id + GALAXY_OBJECT_MIN_HUB == tid) {
+                            tx = (lq->hubs[n]->q1 - 1) * QUADRANT_SIZE + lq->hubs[n]->x;
+                            ty = (lq->hubs[n]->q2 - 1) * QUADRANT_SIZE + lq->hubs[n]->y;
+                            tz = (lq->hubs[n]->q3 - 1) * QUADRANT_SIZE + lq->hubs[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_RELIC && tid <= GALAXY_OBJECT_MAX_RELIC) {
+                    for (int n = 0; n < lq->relic_count; n++) {
+                        if (lq->relics[n]->id + GALAXY_OBJECT_MIN_RELIC == tid) {
+                            tx = (lq->relics[n]->q1 - 1) * QUADRANT_SIZE + lq->relics[n]->x;
+                            ty = (lq->relics[n]->q2 - 1) * QUADRANT_SIZE + lq->relics[n]->y;
+                            tz = (lq->relics[n]->q3 - 1) * QUADRANT_SIZE + lq->relics[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_RUPTURE && tid <= GALAXY_OBJECT_MAX_RUPTURE) {
+                    for (int n = 0; n < lq->rupture_count; n++) {
+                        if (lq->ruptures[n]->id + GALAXY_OBJECT_MIN_RUPTURE == tid) {
+                            tx = (lq->ruptures[n]->q1 - 1) * QUADRANT_SIZE + lq->ruptures[n]->x;
+                            ty = (lq->ruptures[n]->q2 - 1) * QUADRANT_SIZE + lq->ruptures[n]->y;
+                            tz = (lq->ruptures[n]->q3 - 1) * QUADRANT_SIZE + lq->ruptures[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_SATELLITE && tid <= GALAXY_OBJECT_MAX_SATELLITE) {
+                    for (int n = 0; n < lq->satellite_count; n++) {
+                        if (lq->satellites[n]->id + GALAXY_OBJECT_MIN_SATELLITE == tid) {
+                            tx = (lq->satellites[n]->q1 - 1) * QUADRANT_SIZE + lq->satellites[n]->x;
+                            ty = (lq->satellites[n]->q2 - 1) * QUADRANT_SIZE + lq->satellites[n]->y;
+                            tz = (lq->satellites[n]->q3 - 1) * QUADRANT_SIZE + lq->satellites[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_STORM && tid <= GALAXY_OBJECT_MAX_STORM) {
+                    for (int n = 0; n < lq->storm_count; n++) {
+                        if (lq->storms[n]->id + GALAXY_OBJECT_MIN_STORM == tid) {
+                            tx = (lq->storms[n]->q1 - 1) * QUADRANT_SIZE + lq->storms[n]->x;
+                            ty = (lq->storms[n]->q2 - 1) * QUADRANT_SIZE + lq->storms[n]->y;
+                            tz = (lq->storms[n]->q3 - 1) * QUADRANT_SIZE + lq->storms[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_ARTIFACT && tid <= GALAXY_OBJECT_MAX_ARTIFACT) {
+                    for (int n = 0; n < lq->artifact_count; n++) {
+                        if (lq->artifacts[n]->id + GALAXY_OBJECT_MIN_ARTIFACT == tid) {
+                            tx = (lq->artifacts[n]->q1 - 1) * QUADRANT_SIZE + lq->artifacts[n]->x;
+                            ty = (lq->artifacts[n]->q2 - 1) * QUADRANT_SIZE + lq->artifacts[n]->y;
+                            tz = (lq->artifacts[n]->q3 - 1) * QUADRANT_SIZE + lq->artifacts[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_WARP_GATE && tid <= GALAXY_OBJECT_MAX_WARP_GATE) {
+                    for (int n = 0; n < lq->warp_gate_count; n++) {
+                        if (lq->warp_gates[n]->id + GALAXY_OBJECT_MIN_WARP_GATE == tid) {
+                            tx = (lq->warp_gates[n]->q1 - 1) * QUADRANT_SIZE + lq->warp_gates[n]->x;
+                            ty = (lq->warp_gates[n]->q2 - 1) * QUADRANT_SIZE + lq->warp_gates[n]->y;
+                            tz = (lq->warp_gates[n]->q3 - 1) * QUADRANT_SIZE + lq->warp_gate_count;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_NEUTRON_STAR && tid <= GALAXY_OBJECT_MAX_NEUTRON_STAR) {
+                    for (int n = 0; n < lq->neutron_star_count; n++) {
+                        if (lq->neutron_stars[n]->id + GALAXY_OBJECT_MIN_NEUTRON_STAR == tid) {
+                            tx = (lq->neutron_stars[n]->q1 - 1) * QUADRANT_SIZE + lq->neutron_stars[n]->x;
+                            ty = (lq->neutron_stars[n]->q2 - 1) * QUADRANT_SIZE + lq->neutron_stars[n]->y;
+                            tz = (lq->neutron_stars[n]->q3 - 1) * QUADRANT_SIZE + lq->neutron_stars[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_MEGA_STRUCT && tid <= GALAXY_OBJECT_MAX_MEGA_STRUCT) {
+                    for (int n = 0; n < lq->mega_struct_count; n++) {
+                        if (lq->mega_structs[n]->id + GALAXY_OBJECT_MIN_MEGA_STRUCT == tid) {
+                            tx = (lq->mega_structs[n]->q1 - 1) * QUADRANT_SIZE + lq->mega_structs[n]->x;
+                            ty = (lq->mega_structs[n]->q2 - 1) * QUADRANT_SIZE + lq->mega_structs[n]->y;
+                            tz = (lq->mega_structs[n]->q3 - 1) * QUADRANT_SIZE + lq->mega_structs[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_DARK_CLOUD && tid <= GALAXY_OBJECT_MAX_DARK_CLOUD) {
+                    for (int n = 0; n < lq->dark_cloud_count; n++) {
+                        if (lq->dark_clouds[n]->id + GALAXY_OBJECT_MIN_DARK_CLOUD == tid) {
+                            tx = (lq->dark_clouds[n]->q1 - 1) * QUADRANT_SIZE + lq->dark_clouds[n]->x;
+                            ty = (lq->dark_clouds[n]->q2 - 1) * QUADRANT_SIZE + lq->dark_clouds[n]->y;
+                            tz = (lq->dark_clouds[n]->q3 - 1) * QUADRANT_SIZE + lq->dark_clouds[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_SINGULARITY && tid <= GALAXY_OBJECT_MAX_SINGULARITY) {
+                    for (int n = 0; n < lq->singularity_count; n++) {
+                        if (lq->singularities[n]->id + GALAXY_OBJECT_MIN_SINGULARITY == tid) {
+                            tx = (lq->singularities[n]->q1 - 1) * QUADRANT_SIZE + lq->singularities[n]->x;
+                            ty = (lq->singularities[n]->q2 - 1) * QUADRANT_SIZE + lq->singularities[n]->y;
+                            tz = (lq->singularities[n]->q3 - 1) * QUADRANT_SIZE + lq->singularities[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_PLASMA_STORM && tid <= GALAXY_OBJECT_MAX_PLASMA_STORM) {
+                    for (int n = 0; n < lq->plasma_storm_count; n++) {
+                        if (lq->plasma_storms[n]->id + GALAXY_OBJECT_MIN_PLASMA_STORM == tid) {
+                            tx = (lq->plasma_storms[n]->q1 - 1) * QUADRANT_SIZE + lq->plasma_storms[n]->x;
+                            ty = (lq->plasma_storms[n]->q2 - 1) * QUADRANT_SIZE + lq->plasma_storms[n]->y;
+                            tz = (lq->plasma_storms[n]->q3 - 1) * QUADRANT_SIZE + lq->plasma_storms[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_ORBITAL_RING && tid <= GALAXY_OBJECT_MAX_ORBITAL_RING) {
+                    for (int n = 0; n < lq->orbital_ring_count; n++) {
+                        if (lq->orbital_rings[n]->id + GALAXY_OBJECT_MIN_ORBITAL_RING == tid) {
+                            tx = (lq->orbital_rings[n]->q1 - 1) * QUADRANT_SIZE + lq->orbital_rings[n]->x;
+                            ty = (lq->orbital_rings[n]->q2 - 1) * QUADRANT_SIZE + lq->orbital_rings[n]->y;
+                            tz = (lq->orbital_rings[n]->q3 - 1) * QUADRANT_SIZE + lq->orbital_rings[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_TIME_ANOMALY && tid <= GALAXY_OBJECT_MAX_TIME_ANOMALY) {
+                    for (int n = 0; n < lq->time_anomaly_count; n++) {
+                        if (lq->time_anomalies[n]->id + GALAXY_OBJECT_MIN_TIME_ANOMALY == tid) {
+                            tx = (lq->time_anomalies[n]->q1 - 1) * QUADRANT_SIZE + lq->time_anomalies[n]->x;
+                            ty = (lq->time_anomalies[n]->q2 - 1) * QUADRANT_SIZE + lq->time_anomalies[n]->y;
+                            tz = (lq->time_anomalies[n]->q3 - 1) * QUADRANT_SIZE + lq->time_anomalies[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_VOID_CRYSTAL && tid <= GALAXY_OBJECT_MAX_VOID_CRYSTAL) {
+                    for (int n = 0; n < lq->void_crystal_count; n++) {
+                        if (lq->void_crystals[n]->id + GALAXY_OBJECT_MIN_VOID_CRYSTAL == tid) {
+                            tx = (lq->void_crystals[n]->q1 - 1) * QUADRANT_SIZE + lq->void_crystals[n]->x;
+                            ty = (lq->void_crystals[n]->q2 - 1) * QUADRANT_SIZE + lq->void_crystals[n]->y;
+                            tz = (lq->void_crystals[n]->q3 - 1) * QUADRANT_SIZE + lq->void_crystals[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_SUBSPACE_ANOM && tid <= GALAXY_OBJECT_MAX_SUBSPACE_ANOM) {
+                    for (int n = 0; n < lq->subspace_anomaly_count; n++) {
+                        if (lq->subspace_anomalies[n]->id + GALAXY_OBJECT_MIN_SUBSPACE_ANOM == tid) {
+                            tx = (lq->subspace_anomalies[n]->q1 - 1) * QUADRANT_SIZE + lq->subspace_anomalies[n]->x;
+                            ty = (lq->subspace_anomalies[n]->q2 - 1) * QUADRANT_SIZE + lq->subspace_anomalies[n]->y;
+                            tz = (lq->subspace_anomalies[n]->q3 - 1) * QUADRANT_SIZE + lq->subspace_anomalies[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_MINE && tid <= GALAXY_OBJECT_MAX_MINE) {
+                    for (int n = 0; n < lq->mine_count; n++) {
+                        if (lq->mines[n]->id + GALAXY_OBJECT_MIN_MINE == tid) {
+                            tx = (lq->mines[n]->q1 - 1) * QUADRANT_SIZE + lq->mines[n]->x;
+                            ty = (lq->mines[n]->q2 - 1) * QUADRANT_SIZE + lq->mines[n]->y;
+                            tz = (lq->mines[n]->q3 - 1) * QUADRANT_SIZE + lq->mines[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_BUOY && tid <= GALAXY_OBJECT_MAX_BUOY) {
+                    for (int n = 0; n < lq->buoy_count; n++) {
+                        if (lq->buoys[n]->id + GALAXY_OBJECT_MIN_BUOY == tid) {
+                            tx = (lq->buoys[n]->q1 - 1) * QUADRANT_SIZE + lq->buoys[n]->x;
+                            ty = (lq->buoys[n]->q2 - 1) * QUADRANT_SIZE + lq->buoys[n]->y;
+                            tz = (lq->buoys[n]->q3 - 1) * QUADRANT_SIZE + lq->buoys[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_RIFT && tid <= GALAXY_OBJECT_MAX_RIFT) {
+                    for (int n = 0; n < lq->rift_count; n++) {
+                        if (lq->rifts[n]->id + GALAXY_OBJECT_MIN_RIFT == tid) {
+                            tx = (lq->rifts[n]->q1 - 1) * QUADRANT_SIZE + lq->rifts[n]->x;
+                            ty = (lq->rifts[n]->q2 - 1) * QUADRANT_SIZE + lq->rifts[n]->y;
+                            tz = (lq->rifts[n]->q3 - 1) * QUADRANT_SIZE + lq->rifts[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER) {
+                    for (int n = 0; n < lq->monster_count; n++) {
+                        if (lq->monsters[n]->id + GALAXY_OBJECT_MIN_MONSTER == tid) {
+                            tx = (lq->monsters[n]->q1 - 1) * QUADRANT_SIZE + lq->monsters[n]->x;
+                            ty = (lq->monsters[n]->q2 - 1) * QUADRANT_SIZE + lq->monsters[n]->y;
+                            tz = (lq->monsters[n]->q3 - 1) * QUADRANT_SIZE + lq->monsters[n]->z;
+                            found = true;
+                        }
+                    }
+                } else if (tid >= GALAXY_OBJECT_MIN_PROBE && tid <= GALAXY_OBJECT_MAX_PROBE) {
+                    int p_idx = (tid - GALAXY_OBJECT_MIN_PROBE) / 3;
+                    int pr_idx = (tid - GALAXY_OBJECT_MIN_PROBE) % 3;
+                    if (p_idx < MAX_CLIENTS && players[p_idx].state.probes[pr_idx].active) {
+                        tx = players[p_idx].state.probes[pr_idx].gx;
+                        ty = players[p_idx].state.probes[pr_idx].gy;
+                        tz = players[p_idx].state.probes[pr_idx].gz;
+                        found = true;
                     }
                 }
                 
@@ -1192,6 +1435,30 @@ void update_game_logic() {
                         ty = (black_holes[idx].q2 - 1) * QUADRANT_SIZE + black_holes[idx].y;
                         tz = (black_holes[idx].q3 - 1) * QUADRANT_SIZE + black_holes[idx].z;
                         found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_NEBULA && tid <= GALAXY_OBJECT_MAX_NEBULA && nebulas[tid - GALAXY_OBJECT_MIN_NEBULA].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_NEBULA;
+                        tx = (nebulas[idx].q1 - 1) * QUADRANT_SIZE + nebulas[idx].x;
+                        ty = (nebulas[idx].q2 - 1) * QUADRANT_SIZE + nebulas[idx].y;
+                        tz = (nebulas[idx].q3 - 1) * QUADRANT_SIZE + nebulas[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_PULSAR && tid <= GALAXY_OBJECT_MAX_PULSAR && pulsars[tid - GALAXY_OBJECT_MIN_PULSAR].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_PULSAR;
+                        tx = (pulsars[idx].q1 - 1) * QUADRANT_SIZE + pulsars[idx].x;
+                        ty = (pulsars[idx].q2 - 1) * QUADRANT_SIZE + pulsars[idx].y;
+                        tz = (pulsars[idx].q3 - 1) * QUADRANT_SIZE + pulsars[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_QUASAR && tid <= GALAXY_OBJECT_MAX_QUASAR && quasars[tid - GALAXY_OBJECT_MIN_QUASAR].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_QUASAR;
+                        tx = (quasars[idx].q1 - 1) * QUADRANT_SIZE + quasars[idx].x;
+                        ty = (quasars[idx].q2 - 1) * QUADRANT_SIZE + quasars[idx].y;
+                        tz = (quasars[idx].q3 - 1) * QUADRANT_SIZE + quasars[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_COMET && tid <= GALAXY_OBJECT_MAX_COMET && comets[tid - GALAXY_OBJECT_MIN_COMET].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_COMET;
+                        tx = (comets[idx].q1 - 1) * QUADRANT_SIZE + comets[idx].x;
+                        ty = (comets[idx].q2 - 1) * QUADRANT_SIZE + comets[idx].y;
+                        tz = (comets[idx].q3 - 1) * QUADRANT_SIZE + comets[idx].z;
+                        found = true;
                     } else if (tid >= GALAXY_OBJECT_MIN_ASTEROID && tid <= GALAXY_OBJECT_MAX_ASTEROID && asteroids[tid - GALAXY_OBJECT_MIN_ASTEROID].active) {
                         int idx = tid - GALAXY_OBJECT_MIN_ASTEROID;
                         tx = (asteroids[idx].q1 - 1) * QUADRANT_SIZE + asteroids[idx].x;
@@ -1203,6 +1470,138 @@ void update_game_logic() {
                         tx = (derelicts[idx].q1 - 1) * QUADRANT_SIZE + derelicts[idx].x;
                         ty = (derelicts[idx].q2 - 1) * QUADRANT_SIZE + derelicts[idx].y;
                         tz = (derelicts[idx].q3 - 1) * QUADRANT_SIZE + derelicts[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_MINE && tid <= GALAXY_OBJECT_MAX_MINE && mines[tid - GALAXY_OBJECT_MIN_MINE].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_MINE;
+                        tx = (mines[idx].q1 - 1) * QUADRANT_SIZE + mines[idx].x;
+                        ty = (mines[idx].q2 - 1) * QUADRANT_SIZE + mines[idx].y;
+                        tz = (mines[idx].q3 - 1) * QUADRANT_SIZE + mines[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_BUOY && tid <= GALAXY_OBJECT_MAX_BUOY && buoys[tid - GALAXY_OBJECT_MIN_BUOY].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_BUOY;
+                        tx = (buoys[idx].q1 - 1) * QUADRANT_SIZE + buoys[idx].x;
+                        ty = (buoys[idx].q2 - 1) * QUADRANT_SIZE + buoys[idx].y;
+                        tz = (buoys[idx].q3 - 1) * QUADRANT_SIZE + buoys[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM && platforms[tid - GALAXY_OBJECT_MIN_PLATFORM].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_PLATFORM;
+                        tx = (platforms[idx].q1 - 1) * QUADRANT_SIZE + platforms[idx].x;
+                        ty = (platforms[idx].q2 - 1) * QUADRANT_SIZE + platforms[idx].y;
+                        tz = (platforms[idx].q3 - 1) * QUADRANT_SIZE + platforms[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_RIFT && tid <= GALAXY_OBJECT_MAX_RIFT && rifts[tid - GALAXY_OBJECT_MIN_RIFT].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_RIFT;
+                        tx = (rifts[idx].q1 - 1) * QUADRANT_SIZE + rifts[idx].x;
+                        ty = (rifts[idx].q2 - 1) * QUADRANT_SIZE + rifts[idx].y;
+                        tz = (rifts[idx].q3 - 1) * QUADRANT_SIZE + rifts[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER && monsters[tid - GALAXY_OBJECT_MIN_MONSTER].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_MONSTER;
+                        tx = (monsters[idx].q1 - 1) * QUADRANT_SIZE + monsters[idx].x;
+                        ty = (monsters[idx].q2 - 1) * QUADRANT_SIZE + monsters[idx].y;
+                        tz = (monsters[idx].q3 - 1) * QUADRANT_SIZE + monsters[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_DYSON && tid <= GALAXY_OBJECT_MAX_DYSON && dysons[tid - GALAXY_OBJECT_MIN_DYSON].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_DYSON;
+                        tx = (dysons[idx].q1 - 1) * QUADRANT_SIZE + dysons[idx].x;
+                        ty = (dysons[idx].q2 - 1) * QUADRANT_SIZE + dysons[idx].y;
+                        tz = (dysons[idx].q3 - 1) * QUADRANT_SIZE + dysons[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_HUB && tid <= GALAXY_OBJECT_MAX_HUB && hubs[tid - GALAXY_OBJECT_MIN_HUB].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_HUB;
+                        tx = (hubs[idx].q1 - 1) * QUADRANT_SIZE + hubs[idx].x;
+                        ty = (hubs[idx].q2 - 1) * QUADRANT_SIZE + hubs[idx].y;
+                        tz = (hubs[idx].q3 - 1) * QUADRANT_SIZE + hubs[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_RELIC && tid <= GALAXY_OBJECT_MAX_RELIC && relics[tid - GALAXY_OBJECT_MIN_RELIC].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_RELIC;
+                        tx = (relics[idx].q1 - 1) * QUADRANT_SIZE + relics[idx].x;
+                        ty = (relics[idx].q2 - 1) * QUADRANT_SIZE + relics[idx].y;
+                        tz = (relics[idx].q3 - 1) * QUADRANT_SIZE + relics[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_RUPTURE && tid <= GALAXY_OBJECT_MAX_RUPTURE && ruptures[tid - GALAXY_OBJECT_MIN_RUPTURE].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_RUPTURE;
+                        tx = (ruptures[idx].q1 - 1) * QUADRANT_SIZE + ruptures[idx].x;
+                        ty = (ruptures[idx].q2 - 1) * QUADRANT_SIZE + ruptures[idx].y;
+                        tz = (ruptures[idx].q3 - 1) * QUADRANT_SIZE + ruptures[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_SATELLITE && tid <= GALAXY_OBJECT_MAX_SATELLITE && satellites[tid - GALAXY_OBJECT_MIN_SATELLITE].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_SATELLITE;
+                        tx = (satellites[idx].q1 - 1) * QUADRANT_SIZE + satellites[idx].x;
+                        ty = (satellites[idx].q2 - 1) * QUADRANT_SIZE + satellites[idx].y;
+                        tz = (satellites[idx].q3 - 1) * QUADRANT_SIZE + satellites[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_STORM && tid <= GALAXY_OBJECT_MAX_STORM && storms[tid - GALAXY_OBJECT_MIN_STORM].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_STORM;
+                        tx = (storms[idx].q1 - 1) * QUADRANT_SIZE + storms[idx].x;
+                        ty = (storms[idx].q2 - 1) * QUADRANT_SIZE + storms[idx].y;
+                        tz = (storms[idx].q3 - 1) * QUADRANT_SIZE + storms[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_ARTIFACT && tid <= GALAXY_OBJECT_MAX_ARTIFACT && artifacts[tid - GALAXY_OBJECT_MIN_ARTIFACT].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_ARTIFACT;
+                        tx = (artifacts[idx].q1 - 1) * QUADRANT_SIZE + artifacts[idx].x;
+                        ty = (artifacts[idx].q2 - 1) * QUADRANT_SIZE + artifacts[idx].y;
+                        tz = (artifacts[idx].q3 - 1) * QUADRANT_SIZE + artifacts[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_WARP_GATE && tid <= GALAXY_OBJECT_MAX_WARP_GATE && warp_gates[tid - GALAXY_OBJECT_MIN_WARP_GATE].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_WARP_GATE;
+                        tx = (warp_gates[idx].q1 - 1) * QUADRANT_SIZE + warp_gates[idx].x;
+                        ty = (warp_gates[idx].q2 - 1) * QUADRANT_SIZE + warp_gates[idx].y;
+                        tz = (warp_gates[idx].q3 - 1) * QUADRANT_SIZE + warp_gates[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_NEUTRON_STAR && tid <= GALAXY_OBJECT_MAX_NEUTRON_STAR && neutron_stars[tid - GALAXY_OBJECT_MIN_NEUTRON_STAR].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_NEUTRON_STAR;
+                        tx = (neutron_stars[idx].q1 - 1) * QUADRANT_SIZE + neutron_stars[idx].x;
+                        ty = (neutron_stars[idx].q2 - 1) * QUADRANT_SIZE + neutron_stars[idx].y;
+                        tz = (neutron_stars[idx].q3 - 1) * QUADRANT_SIZE + neutron_stars[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_MEGA_STRUCT && tid <= GALAXY_OBJECT_MAX_MEGA_STRUCT && mega_structs[tid - GALAXY_OBJECT_MIN_MEGA_STRUCT].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_MEGA_STRUCT;
+                        tx = (mega_structs[idx].q1 - 1) * QUADRANT_SIZE + mega_structs[idx].x;
+                        ty = (mega_structs[idx].q2 - 1) * QUADRANT_SIZE + mega_structs[idx].y;
+                        tz = (mega_structs[idx].q3 - 1) * QUADRANT_SIZE + mega_structs[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_DARK_CLOUD && tid <= GALAXY_OBJECT_MAX_DARK_CLOUD && dark_clouds[tid - GALAXY_OBJECT_MIN_DARK_CLOUD].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_DARK_CLOUD;
+                        tx = (dark_clouds[idx].q1 - 1) * QUADRANT_SIZE + dark_clouds[idx].x;
+                        ty = (dark_clouds[idx].q2 - 1) * QUADRANT_SIZE + dark_clouds[idx].y;
+                        tz = (dark_clouds[idx].q3 - 1) * QUADRANT_SIZE + dark_clouds[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_SINGULARITY && tid <= GALAXY_OBJECT_MAX_SINGULARITY && singularities[tid - GALAXY_OBJECT_MIN_SINGULARITY].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_SINGULARITY;
+                        tx = (singularities[idx].q1 - 1) * QUADRANT_SIZE + singularities[idx].x;
+                        ty = (singularities[idx].q2 - 1) * QUADRANT_SIZE + singularities[idx].y;
+                        tz = (singularities[idx].q3 - 1) * QUADRANT_SIZE + singularities[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_PLASMA_STORM && tid <= GALAXY_OBJECT_MAX_PLASMA_STORM && plasma_storms[tid - GALAXY_OBJECT_MIN_PLASMA_STORM].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_PLASMA_STORM;
+                        tx = (plasma_storms[idx].q1 - 1) * QUADRANT_SIZE + plasma_storms[idx].x;
+                        ty = (plasma_storms[idx].q2 - 1) * QUADRANT_SIZE + plasma_storms[idx].y;
+                        tz = (plasma_storms[idx].q3 - 1) * QUADRANT_SIZE + plasma_storms[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_ORBITAL_RING && tid <= GALAXY_OBJECT_MAX_ORBITAL_RING && orbital_rings[tid - GALAXY_OBJECT_MIN_ORBITAL_RING].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_ORBITAL_RING;
+                        tx = (orbital_rings[idx].q1 - 1) * QUADRANT_SIZE + orbital_rings[idx].x;
+                        ty = (orbital_rings[idx].q2 - 1) * QUADRANT_SIZE + orbital_rings[idx].y;
+                        tz = (orbital_rings[idx].q3 - 1) * QUADRANT_SIZE + orbital_rings[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_TIME_ANOMALY && tid <= GALAXY_OBJECT_MAX_TIME_ANOMALY && time_anomalies[tid - GALAXY_OBJECT_MIN_TIME_ANOMALY].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_TIME_ANOMALY;
+                        tx = (time_anomalies[idx].q1 - 1) * QUADRANT_SIZE + time_anomalies[idx].x;
+                        ty = (time_anomalies[idx].q2 - 1) * QUADRANT_SIZE + time_anomalies[idx].y;
+                        tz = (time_anomalies[idx].q3 - 1) * QUADRANT_SIZE + time_anomalies[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_VOID_CRYSTAL && tid <= GALAXY_OBJECT_MAX_VOID_CRYSTAL && void_crystals[tid - GALAXY_OBJECT_MIN_VOID_CRYSTAL].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_VOID_CRYSTAL;
+                        tx = (void_crystals[idx].q1 - 1) * QUADRANT_SIZE + void_crystals[idx].x;
+                        ty = (void_crystals[idx].q2 - 1) * QUADRANT_SIZE + void_crystals[idx].y;
+                        tz = (void_crystals[idx].q3 - 1) * QUADRANT_SIZE + void_crystals[idx].z;
+                        found = true;
+                    } else if (tid >= GALAXY_OBJECT_MIN_SUBSPACE_ANOM && tid <= GALAXY_OBJECT_MAX_SUBSPACE_ANOM && subspace_anomalies[tid - GALAXY_OBJECT_MIN_SUBSPACE_ANOM].active) {
+                        int idx = tid - GALAXY_OBJECT_MIN_SUBSPACE_ANOM;
+                        tx = (subspace_anomalies[idx].q1 - 1) * QUADRANT_SIZE + subspace_anomalies[idx].x;
+                        ty = (subspace_anomalies[idx].q2 - 1) * QUADRANT_SIZE + subspace_anomalies[idx].y;
+                        tz = (subspace_anomalies[idx].q3 - 1) * QUADRANT_SIZE + subspace_anomalies[idx].z;
                         found = true;
                     }
                 }

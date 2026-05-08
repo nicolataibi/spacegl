@@ -1019,6 +1019,14 @@ Di seguito la lista completa dei comandi disponibili, raggruppati per funzione.
     *   Se non viene fornito un ID, utilizza il **bersaglio attualmente agganciato**.
     *   Se viene fornito un solo numero, viene interpretato come **distanza** per il bersaglio agganciato (se < 100).
     *   Fornisce una conferma radio specifica menzionando il nome del bersaglio.
+
+#### 🕹️ Dettagli Tecnici Navigazione APR
+L'Autopilota di Avvicinamento Universale (APR) utilizza una logica multi-fase avanzata per garantire arrivi fluidi e cinematici:
+1.  **Calcolo del Vettore**: Il sistema calcola il vettore euclideo più breve verso la sfera di avvicinamento del bersaglio (definita dal parametro `DIST`).
+2.  **Fase di Decelerazione**: Per prevenire il superamento del bersaglio (overshooting) e l'effetto "molla", l'autopilota monitora la `delta_d` (distanza residua dal punto di arrivo). Quando `delta_d < 1.0`, viene applicata una **rampa di decelerazione lineare**, che rallenta il vascello fino al 20% della sua velocità nominale man mano che si avvicina alla destinazione.
+3.  **Inseguimento Orientamento Fluido (LERP)**: La nave non "scatta" istantaneamente verso il bersaglio. Utilizza invece l'**Interpolazione Lineare (LERP)** con un fattore di smoothing di 0.15 per Heading e Mark. Questo assicura che il vascello viri elegantemente verso l'obiettivo durante il volo.
+4.  **Stabilizzazione Finale**: Una volta che la nave si trova entro **0.1 unità** dalla distanza target, l'autopilota esegue un micro-scatto di correzione per stabilizzare perfettamente la posizione e disingaggia i motori.
+5.  **Strategia di Rifornimento**: Per le **Nebulose ad Alta Energia**, si consiglia di utilizzare `apr <ID> 1.0`. Poiché l'effetto di ricarica antimateria si attiva a `Distanza < 2.0`, questo comando posiziona la nave in sicurezza all'interno del nucleo della nube per la massima efficienza di rifornimento.
 *   `cha`: **Autopilota di Inseguimento**. Insegue attivamente il bersaglio agganciato, mantenendo la traiettoria di intercettazione.
     *   **Requisiti**: Minimo 10% di integrità per i sistemi **Impulse (ID 1)** e **Computer (ID 6)**. Richiede un **Aggancio Bersaglio** (`lock`) attivo.
     *   **Costo**: 150 unità di Energia per l'ingaggio dell'inseguimento.
@@ -1697,28 +1705,28 @@ I siluri (comando `tor`) sono armi simulate fisicamente con alta precisione:
 Il quadrante è disseminato di fenomeni naturali rilevabili sia dai sensori che dalla **vista tattica 3D**:
 *   **Mostri Spaziali (ID 18xxx)**: Entità biologiche ostili (Entità Cristallina, Amoeba Spaziale). Sono estremamente aggressive e possono essere inseguite con il comando `cha`.
 *   **Piattaforme di Difesa (ID 16xxx)**: Strutture fisse pesantemente armate che proteggono settori strategici. Possono essere agganciate (`lock`), scansionate (`scan`) e distrutte con fasatori o siluri.
-*   **Rift Spaziali (ID 17xxx)**: Distorsioni nel tessuto spazio-temporale.
-*   **Nebulose (ID 8xxx)**:
+*   **Nebulose (ID 12xxx)**:
     *   **Classi**: Standard, Alta Energia, Materia Oscura, Ionica, Gravimetrica, Temporale.
     *   **Effetto**: Nubi di gas e particelle che interferiscono con i sensori a corto e lungo raggio (rumore telemetrico e distorsione).
     *   **Vista 3D**: Volumi di gas colorati in base alla classe (Viola/Blu per Standard, Giallo/Arancio per Alta Energia, Nero/Viola per Materia Oscura, ecc.).
     *   **Pericolo**: Rimanere all'interno (Distanza < 2.0) causa un drenaggio costante di energia e inibisce la rigenerazione degli scudi.
+    *   **Rifornimento Antimateria**: Le **Nebulose ad Alta Energia (Tipo 1)** contengono densi ammassi di particelle instabili. Le navi che navigano all'interno di queste nubi (Distanza < 2.0) rigenerano passivamente **10 unità di Antimateria al secondo**, offrendo un'opportunità strategica di rifornimento per operazioni tattiche avanzate (es. bluff Psy-Ops).
     *   **Vantaggio**: Fornisce una copertura tattica naturale (occultamento passivo) contro i sensori nemici.
-*   **Pulsar (ID 5xxx)**:
+*   **Pulsar (ID 13xxx)**:
     *   **Effetto**: Stelle di neutroni a rotazione rapida che emettono radiazioni letali.
     *   **Vista 3D**: Visibili come nuclei luminosi con fasci di radiazioni rotanti.
     *   **Pericolo**: Avvicinarsi troppo (Distanza < 2.5) danneggia gravemente gli scudi e uccide rapidamente l'equipaggio per avvelenamento da radiazioni.
-*   **Comete (ID 10xxx)**:
+*   **Comete (ID 14xxx)**:
     *   **Effetto**: Oggetti in movimento veloce che attraversano il settore in orbite eccentriche.
     *   **Vista 3D**: Nuclei ghiacciati con una scia blu di gas e polvere.
     *   **Azioni Tattiche**: Possono essere agganciate (`lock`), scansionate (`scan`) e intercettate con l'autopilota (`apr`).
     *   **Raccolta Risorse**: Avvicinarsi alla coda (**Distanza < 0.6**) permette la raccolta automatica di **Gas Nebulare**.
     *   **Strategia**: Usa il comando `cha` (Inseguimento) per sincronizzare la velocità della nave con quella della cometa, facilitando il mantenimento della posizione nella scia per una raccolta ottimale.
-*   **Campi di Asteroidi (ID 8xxx)**:
+*   **Campi di Asteroidi (ID 18xxx)**:
     *   **Effetto**: Ammassi di rocce spaziali di varie dimensioni.
     *   **Vista 3D**: Rocce marroni rotanti con forme irregolari.
     *   **Pericolo**: Navigare all'interno a velocità d'impulso superiore a **0.1** causa danni continui agli scudi. Se gli scudi sono esauriti, l'**Integrità dello Scafo** viene erosa progressivamente. Ridurre la velocità sotto 0.1 per navigare in sicurezza.
-*   **Singolarità / Buchi Neri (ID 7xxx)**:
+*   **Singolarità / Buchi Neri (ID 11xxx)**:
     *   **Slingshot Stress**: Durante una manovra di fionda gravitazionale (`NAV_STATE_SLINGSHOT`), velocità superiori a **1.5** causano stress strutturale con danni periodici allo scafo.
     *   **Raccolta Pericolosa**: L'estrazione di antimateria (`har`) senza protezione degli scudi danneggia direttamente lo scafo a causa delle forze di marea.
 

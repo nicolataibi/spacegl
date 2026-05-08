@@ -1,3 +1,7 @@
+* Fri May 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.08.02
+- [Docs] Integrated comprehensive technical documentation for the Universal Approach Autopilot (APR) in both README.md and README_it.md, detailing deceleration ramps and LERP-based orientation.
+- [Docs] Documented strategic refueling maneuvers for High-Energy Nebulae, including optimal distance parameters and antimatter replenishment rates.
+
 * Fri May 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.08.01
 - [Logic] Implemented antimatter replenishment mechanics: ships entering High-Energy Nebulae (Type 1) now passively regenerate 10 antimatter units per second.
 - [HUD] Updated ncurses HUD (spacegl_hud) to display current anti-matter reserves (A-MAT) in the tactical vitals section.

@@ -1061,6 +1061,14 @@ Below is the complete list of available commands, grouped by function.
     *   If no ID is provided, it uses the currently **locked target**.
     *   If only one number is provided, it is treated as **distance** for the locked target (if < 100).
     *   Provides specific radio confirmation mentioning the target's name.
+
+#### 🕹️ APR Technical Navigation Details
+The Universal Approach Autopilot (APR) uses a sophisticated multi-phase logic to ensure smooth and cinematic arrivals:
+1.  **Vector Calculation**: The system calculates the shortest Euclidean vector to the target's approach sphere (defined by the `DIST` parameter).
+2.  **Deceleration Phase**: To prevent overshooting and "rubber-banding," the autopilot monitors the `delta_d` (distance remaining to the approach point). When `delta_d < 1.0`, a **linear deceleration ramp** is applied, slowing the vessel down to 20% of its nominal speed as it nears the destination.
+3.  **Smooth Orientation Tracking (LERP)**: The ship does not "snap" its nose toward the target. Instead, it uses **Linear Interpolation (LERP)** with a 0.15 smoothing factor for Heading and Mark. This ensures the vessel elegantly banks and turns toward the objective during the flight.
+4.  **Final Snapping**: Once the ship is within **0.1 units** of the target distance, the autopilot performs a micro-correction "snap" to perfectly stabilize the position and disengages the engines.
+5.  **Refueling Strategy**: For **High-Energy Nebulae**, it is recommended to use `apr <ID> 1.0`. Since the antimatter effect triggers at `Distance < 2.0`, this command places the ship safely inside the core of the cloud for maximum replenishment efficiency.
 *   `cha`: **Chase Autopilot**. Actively chases the locked target, maintaining intercept trajectory.
     *   **Requirements**: Minimum 10% integrity for both **Impulse Drive (ID 1)** and **Computer (ID 6)**. Must have an active **Target Lock** (`lock`).
     *   **Cost**: 150 units of Energy for pursuit engagement.
@@ -1777,8 +1785,9 @@ The quadrant is scattered with natural phenomena detectable by both sensors and 
 *   **Nebulas (ID 12xxx)**:
     *   **Classes**: Standard, High-Energy, Dark Matter, Ionic, Gravimetric, Temporal.
     *   **Effect**: Clouds of gas and particles that interfere with short and long range sensors (telemetry noise and distortion).
-    *   **3D View**: Colored gas volumes based on class.
+    *   **3D View**: Colored gas volumes based on class (e.g., Yellow/Orange for High-Energy).
     *   **Hazard**: Remaining inside (Distance < 2.0) causes constant energy drain and inhibits shield regeneration.
+    *   **Antimatter Replenishment**: **High-Energy Nebulas (Type 1)** contain dense pockets of unstable particles. Ships navigating within these clouds (Distance < 2.0) passively regenerate **10 units of Antimatter per second**, providing a strategic refueling opportunity for advanced tactical operations (e.g., Psy-Ops bluffs).
     *   **Advantage**: Provides natural tactical cover (passive cloaking) against enemy sensors.
 *   **Pulsars (ID 13xxx)**:
     *   **Effect**: Rapidly rotating neutron stars emitting deadly radiation beams.
