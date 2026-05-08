@@ -366,25 +366,25 @@ void update_game_logic() {
         refresh_lrs_grid();
     }
 
-    /* Comet Tail Resource Collection */
+    /* High-Energy Nebula Antimatter Refill */
     #pragma omp parallel for schedule(dynamic)
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (!players[i].active) continue;
-        int pq1=players[i].state.q1, pq2=players[i].state.q2, pq3=players[i].state.q3;
+        int pq1 = players[i].state.q1, pq2 = players[i].state.q2, pq3 = players[i].state.q3;
         QuadrantIndex *lq = &spatial_index[pq1][pq2][pq3];
-        for(int c=0; c<lq->comet_count; c++) {
-            NPCComet *co = lq->comets[c];
-            if (co->active) {
-                double dx = co->x - players[i].state.s1;
-                double dy = co->y - players[i].state.s2;
-                double dz = co->z - players[i].state.s3;
-                double dist = sqrt(dx*dx+dy*dy+dz*dz);
-                if (dist < 0.6) {
-                    if (global_tick % (GAME_TICK_RATE / 2) == 0) { /* Once per second */
-                        #pragma omp atomic
-                        players[i].state.inventory[6] += 5;
-                        #pragma omp critical
-                        send_server_msg(i, "SCIENCE", "Nebular Gas collected from comet tail (+5).");
+        for (int n = 0; n < lq->nebula_count; n++) {
+            NPCNebula *nb = lq->nebulas[n];
+            if (nb->type == 1) { /* High-Energy Nebula */
+                double dx = nb->x - players[i].state.s1;
+                double dy = nb->y - players[i].state.s2;
+                double dz = nb->z - players[i].state.s3;
+                if (sqrt(dx*dx + dy*dy + dz*dz) < DIST_NEBULA_EFFECT) {
+                    static double am_acc[MAX_CLIENTS] = {0};
+                    am_acc[i] += (10.0 / (double)GAME_TICK_RATE);
+                    if (am_acc[i] >= 1.0) {
+                        int add = (int)am_acc[i];
+                        players[i].state.anti_matter_count += add;
+                        am_acc[i] -= add;
                     }
                 }
             }

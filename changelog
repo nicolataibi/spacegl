@@ -1,3 +1,7 @@
+* Fri May 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.08.01
+- [Logic] Implemented antimatter replenishment mechanics: ships entering High-Energy Nebulae (Type 1) now passively regenerate 10 antimatter units per second.
+- [HUD] Updated ncurses HUD (spacegl_hud) to display current anti-matter reserves (A-MAT) in the tactical vitals section.
+
 * Thu May 07 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.07.01
 - [Navigation] Verified and validated the Precision Approach Autopilot (APR) logic: confirmed universal target resolution for all 45+ galactic entity categories in the server-side navigation state machine.
 - [Telemetry] Finalized the dual-socket high-performance telemetry system, ensuring consistent data streams and robust faction-specific monitoring across the fleet.

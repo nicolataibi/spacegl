@@ -390,7 +390,8 @@ int main(int argc, char** argv) {
         mvprintw(12, 2, "ENERGY :"); draw_bar(12, 11, 15, (double)st->shm_energy, (double)999999999999ULL, 2);
         mvprintw(13, 2, "HULL   :"); draw_bar(13, 11, 15, st->shm_hull_integrity, 100.0, (st->shm_hull_integrity > 50)?2:3);
         mvprintw(14, 2, "LIFE S :"); draw_bar(14, 11, 15, st->shm_life_support, 100.0, 1);
-        mvprintw(15, 2, "CREW   : %-5d | PRISON: %-5d", st->shm_crew, st->shm_prison_unit);
+        mvprintw(15, 2, "A-MAT  : %-5d", st->shm_anti_matter);
+        mvprintw(16, 2, "CREW   : %-5d | PRISON: %-5d", st->shm_crew, st->shm_prison_unit);
 
         attron(COLOR_PAIR(6) | A_BOLD); mvprintw(17, 2, "[ SUBSYSTEMS ]"); attroff(A_BOLD);
         const char* sys_n[] = {"HDV", "IMP", "SRS", "LRS", "SEN", "TRP", "ION", "COM", "SHL", "LS "};
