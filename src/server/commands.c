@@ -1146,13 +1146,13 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         if (h < 0) {
             h += 360;
         }
-        double m = asin(dz / d) * 180 / M_PI;
+        double m = (d > 0.001) ? asin(dz / d) * 180 / M_PI : 0;
         int pid = (int)(p - players) + 1;
         char status[64] = "";
         if (pid == locked_id) {
-            strcat(status, RED "[LOCKED]" RESET);
+            strncpy(status, RED "[LOCKED]" RESET, 63);
             if (chasing) {
-                strcat(status, B_RED "[CHASE]" RESET);
+                strncat(status, B_RED "[CHASE]" RESET, 63 - strlen(status));
             }
         }
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🚀 %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     %s (Player) [E:%" PRIu64 "] %s\n", "Vessel", pid, p->state.s1 + get_sensor_error(i), p->state.s2 + get_sensor_error(i), p->state.s3 + get_sensor_error(i), d, h, m, p->name, p->state.energy, status);
@@ -1173,13 +1173,13 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         if (h < 0) {
             h += 360;
         }
-        double m = asin(dz / d) * 180 / M_PI;
+        double m = (d > 0.001) ? asin(dz / d) * 180 / M_PI : 0;
         int nid = npc->id + GALAXY_OBJECT_MIN_NPC;
         char status[64] = "";
         if (nid == locked_id) {
-            strcat(status, RED "[LOCKED]" RESET);
+            strncpy(status, RED "[LOCKED]" RESET, 63);
             if (chasing) {
-                strcat(status, B_RED "[CHASE]" RESET);
+                strncat(status, B_RED "[CHASE]" RESET, 63 - strlen(status));
             }
         }
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "⚔️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     %s (%s) [E:%" PRIu64 "] [Engines:%.0f%%] %s\n", "Vessel", nid, npc->x + get_sensor_error(i), npc->y + get_sensor_error(i), npc->z + get_sensor_error(i), d, h, m, get_species_name(npc->faction), npc->name, npc->energy, npc->engine_health, status);
@@ -1273,6 +1273,46 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         const char *neb_names[] = {"Standard", "High-Energy", "Dark Matter", "Ionic", "Gravimetric", "Temporal"};
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌫️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     %s Nebula\n", "Nebula", nb->id + GALAXY_OBJECT_MIN_NEBULA, nb->x, nb->y, nb->z, d, h, m, (nb->type >= 0 && nb->type < 6) ? neb_names[nb->type] : "Unknown");
     }
+    for (int p_idx = 0; p_idx < local_q->pulsar_count; p_idx++) {
+        NPCPulsar *pu = local_q->pulsars[p_idx];
+        double dx = pu->x - s1; double dy = pu->y - s2; double dz = pu->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "☄️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Pulsar (Neutron Star)\n", "Pulsar", pu->id + GALAXY_OBJECT_MIN_PULSAR, pu->x, pu->y, pu->z, d, h, m);
+    }
+    for (int q_idx = 0; q_idx < local_q->quasar_count; q_idx++) {
+        NPCQuasar *qu = local_q->quasars[q_idx];
+        double dx = qu->x - s1; double dy = qu->y - s2; double dz = qu->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🎇  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Quasar (High-Energy Core)\n", "Quasar", qu->id + GALAXY_OBJECT_MIN_QUASAR, qu->x, qu->y, qu->z, d, h, m);
+    }
+    for (int r_idx = 0; r_idx < local_q->rift_count; r_idx++) {
+        NPCRift *ri = local_q->rifts[r_idx];
+        double dx = ri->x - s1; double dy = ri->y - s2; double dz = ri->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌀  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Sub-space Rift\n", "Rift", ri->id + GALAXY_OBJECT_MIN_RIFT, ri->x, ri->y, ri->z, d, h, m);
+    }
+    for (int m_idx = 0; m_idx < local_q->monster_count; m_idx++) {
+        NPCMonster *mo = local_q->monsters[m_idx];
+        double dx = mo->x - s1; double dy = mo->y - s2; double dz = mo->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "👾  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Space Monster (Organic Entity)\n", "Monster", mo->id + GALAXY_OBJECT_MIN_MONSTER, mo->x, mo->y, mo->z, d, h, m);
+    }
+    for (int s_idx = 0; s_idx < local_q->subspace_anomaly_count; s_idx++) {
+        NPCSubspaceAnomaly *sa = local_q->subspace_anomalies[s_idx];
+        double dx = sa->x - s1; double dy = sa->y - s2; double dz = sa->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💥  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Subspace Anomaly\n", "S-Anomaly", sa->id + GALAXY_OBJECT_MIN_SUBSPACE_ANOM, sa->x, sa->y, sa->z, d, h, m);
+    }
 
     /* 7. Derelicts (Wrecks) */
     for (int d_idx = 0; d_idx < local_q->derelict_count; d_idx++) {
@@ -1289,7 +1329,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         int deid = de->id + GALAXY_OBJECT_MIN_DERELICT;
         char status[64] = "";
         if (deid == locked_id) {
-            strcat(status, RED "[LOCKED]" RESET);
+            strncpy(status, RED "[LOCKED]" RESET, 63);
         }
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🏚️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     %s (%s Wreck) %s\n", "Wreck", deid, de->x, de->y, de->z, d, h, m, de->name, get_ship_class_name(de->ship_class), status);
     }
@@ -1311,7 +1351,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         const char* r_name = (as->resource_type >= 0 && as->resource_type <= 8) ? res_names[as->resource_type] : "Unknown";
         char status[64] = "";
         if (asid == locked_id) {
-            strcat(status, RED "[LOCKED]" RESET);
+            strncpy(status, RED "[LOCKED]" RESET, 63);
         }
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪨  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Asteroid (%s) %s\n", "Asteroid", asid, as->x, as->y, as->z, d, h, m, r_name, status);
     }
@@ -1345,7 +1385,7 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
             q1, q2, q3, players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].state.van_h, players[i].state.van_m);
     strcat(b, status);
     strcat(b, B_CYAN "'------------------------------------------------------------------------------'\n" RESET);
-    strcat(b, " DATA: [ H:B-Hole P:Planet N:NPC B:Base S:Star ] Symbols: ~:*+#!M>Q\n\n");
+    strcat(b, " DATA: [ H:B-Hole P:Planet N:NPC B:Base S:Star ] Symbols: ~:*+#!M>QA\n\n");
 
     bool sensor_boost = is_near_buoy(i);
     int scan_range = sensor_boost ? 2 : 1;
@@ -1376,6 +1416,7 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
                     int storm = (v / 10000000LL) % 10;
                     int com = (v / 100000000) % 10;
                     int ast = (v / 1000000000) % 10;
+                    int sub_anom = (v / 1000000000000000000LL) % 10;
                     int mon = (v / 10000000000000000LL) % 10;
                     int qsr = (v / 100000000000000000LL) % 10;
                     int u = (v / 1000000000000000LL) % 10;
@@ -1438,6 +1479,9 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
                     }
                     if (qsr > 0) {
                         strcat(an_info, "Q");
+                    }
+                    if (sub_anom > 0) {
+                        strcat(an_info, "A");
                     }
 
                     char row[256];

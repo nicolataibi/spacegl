@@ -274,10 +274,11 @@ void broadcast_message(PacketMessage *msg) {
 }
 
 void send_server_msg(int p_idx, const char *from, const char *text) {
-    PacketMessage msg;
-    memset(&msg, 0, sizeof(PacketMessage));
-    msg.type = PKT_MESSAGE;
-    strncpy(msg.from, from, 63);
+    PacketMessage *msg = malloc(sizeof(PacketMessage));
+    if (!msg) return;
+    memset(msg, 0, sizeof(PacketMessage));
+    msg->type = PKT_MESSAGE;
+    strncpy(msg->from, from, 63);
     
     if (p_idx == -1) {
         /* Broadcast system message to all */
@@ -286,29 +287,31 @@ void send_server_msg(int p_idx, const char *from, const char *text) {
                 send_server_msg(i, from, text);
             }
         }
+        free(msg);
         return;
     }
 
     if (players[p_idx].state.shm_crypto_algo != CRYPTO_NONE) {
-        msg.is_encrypted = 1;
-        msg.crypto_algo = players[p_idx].state.shm_crypto_algo;
+        msg->is_encrypted = 1;
+        msg->crypto_algo = players[p_idx].state.shm_crypto_algo;
         
-        uint8_t *k = (msg.crypto_algo >= 1 && msg.crypto_algo <= MAX_CRYPTO_ALGOS) ? players[p_idx].algo_keys[msg.crypto_algo] : players[p_idx].session_key;
+        uint8_t *k = (msg->crypto_algo >= 1 && msg->crypto_algo <= MAX_CRYPTO_ALGOS) ? players[p_idx].algo_keys[msg->crypto_algo] : players[p_idx].session_key;
         
-        encrypt_payload(&msg, text, k, spacegl_master.frame_id);
+        encrypt_payload(msg, text, k, spacegl_master.frame_id);
     } else {
-        msg.is_encrypted = 0;
+        msg->is_encrypted = 0;
         size_t plen = strlen(text);
         if (plen > 65535) plen = 65535;
-        memcpy(msg.text, text, plen);
-        msg.text[plen] = '\0';
-        msg.length = plen;
+        memcpy(msg->text, text, plen);
+        msg->text[plen] = '\0';
+        msg->length = plen;
     }
     
-    size_t pkt_size = offsetof(PacketMessage, text) + msg.length;
+    size_t pkt_size = offsetof(PacketMessage, text) + msg->length;
     pthread_mutex_lock(&players[p_idx].socket_mutex);
-    if (players[p_idx].socket != 0) write_all(players[p_idx].socket, &msg, pkt_size);
+    if (players[p_idx].socket != 0) write_all(players[p_idx].socket, msg, pkt_size);
     pthread_mutex_unlock(&players[p_idx].socket_mutex);
+    free(msg);
 }
 
 void send_optimized_update(int p_idx, PacketUpdate *upd) {

@@ -239,9 +239,11 @@ void refresh_lrs_grid() {
                 int c_s = (q->star_count > 9) ? 9 : q->star_count;
                 
                 int c_qsr = (q->quasar_count > 9) ? 9 : q->quasar_count;
+                int c_sub = (q->subspace_anomaly_count > 9) ? 9 : q->subspace_anomaly_count;
                 
                 long long storm_flag = (spacegl_master.g[i][j][l] / 10000000LL) % 10;
-                spacegl_master.g[i][j][l] = (long long)c_qsr * 100000000000000000LL
+                spacegl_master.g[i][j][l] = (long long)c_sub * 1000000000000000000LL
+                                          + (long long)c_qsr * 100000000000000000LL
                                           + (long long)c_mon * 10000000000000000LL 
                                           + (long long)c_u   * 1000000000000000LL
                                           + (long long)c_tor * 1000000000000000LL /* Combine torps with user activity for LRS */
@@ -253,13 +255,13 @@ void refresh_lrs_grid() {
                                           + (long long)c_ast * 1000000000LL 
                                           + (long long)c_com * 100000000LL 
                                           + (long long)storm_flag * 10000000LL
-                                          + c_pul * 1000000 
-                                          + c_neb * 100000 
-                                          + c_bh * SHIELD_MAX_STRENGTH
-                                          + c_p * 1000 
-                                          + c_npc * 100 
-                                          + c_b * 10 
-                                          + c_s;
+                                          + (long long)c_pul * 1000000 
+                                          + (long long)c_neb * 100000 
+                                          + (long long)c_bh * 10000
+                                          + (long long)c_p * 1000 
+                                          + (long long)c_npc * 100 
+                                          + (long long)c_b * 10 
+                                          + (long long)c_s;
             }
         }
     }

@@ -1,3 +1,10 @@
+* Fri May 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.08.03
+- [Sensors] Expanded Short Range Sensors (SRS) to include all galactic object categories, including Subspace Anomalies, Pulsars, Quasars, Rifts, and Space Monsters.
+- [Sensors] Updated Long Range Sensors (LRS) and galaxy bitmask logic to correctly identify and display Subspace Anomalies (Symbol: 'A').
+- [Logic] Optimized refresh_lrs_grid to handle high-power bitmask operations using safe long long multipliers.
+- [Bugfix] Fixed intermittent 'srs' command failures by refactoring handle_srs to use safe string operations (strncpy/strncat) and ensuring buffer limits are respected.
+- [Network] Mitigated potential stack overflow in send_server_msg by transitioning PacketMessage allocation from stack to heap, ensuring stability for large data payloads.
+
 * Fri May 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.08.02
 - [Docs] Integrated comprehensive technical documentation for the Universal Approach Autopilot (APR) in both README.md and README_it.md, detailing deceleration ramps and LERP-based orientation.
 - [Docs] Documented strategic refueling maneuvers for High-Energy Nebulae, including optimal distance parameters and antimatter replenishment rates.
