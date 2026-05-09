@@ -1,3 +1,6 @@
+* Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.02
+- [Story] Integrated narrative framework and background documentation for 'The Void Protocol' into the project documentation.
+
 * Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.01
 - [Sensors] Standardized Long Range Sensors (LRS) to scan the full 3x3x3 volumetric neighborhood (27 quadrants).
 - [Sensors] Integrated all 35 galactic entity categories into both SRS and LRS scans for comprehensive tactical coverage.

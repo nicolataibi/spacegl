@@ -2546,6 +2546,7 @@ To ensure perfect coordination between combat logic, HUD telemetry, and 3D visua
 > *"Geometry is the only truth in a silent universe." — H. Niklaus*
 
 ---
+*SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.03.11 - Operation "Wall of Orion"*
 
 ## 📜 Historical Reconstruction: Operation "Wall of Orion" (GDIS-HIST-2026-N1K)
 
@@ -2665,4 +2666,503 @@ The Captain did not respond. He watched a small piece of debris—perhaps a sect
 He turned and left the bridge with the same measured, rhythmic step with which he had entered. Behind him, the universe remained mute, vast and beautifully terrifying.
 
 ---
-*SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.03.11*
+*SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.03.11 - Operation "Wall of Orion"*
+
+---
+*SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.05.09 - MISSION: VOID PROTOCOL*
+
+## Mission Archive: The Void Protocol
+(Note: Full mission text provided below)
+
+
+### Chapter 1: The Phantom Signal
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/tvp01.png" alt="Chapter 1" width="600"/></td>
+ </tr>
+</table>
+
+Grand Admiral H. Niklaus sat on the bridge of his flagship, observing the Void stretching out before him like a waiting abyss. The ship, a technologically superior Legacy Class, vibrated subtly under the weight of its warp engines.
+
+"Admiral," the tactical officer's voice broke the silence, "LRS sensors have detected an anomalous cryptographic signature. It is an HMAC-SHA256 ping, but it originates from coordinates that indicate empty space on the galaxy map."
+
+Niklaus raised an eyebrow. "Proximity analysis. Activate SRS sensors to maximum efficiency."
+
+The bridge lit up with data. The tactical display showed the 3x3x3 grid of the long-range sensors. Inside quadrant [18,1,18], a small yellow signature—an index of an anomaly in the local plane—pulsed weakly. Niklaus activated the SRS scanner.
+
+#### 📡 SHORT RANGE SENSOR ANALYSIS
+
+**Quadrant:** `[18,1,18]` | **Sector:** `[5.21, 12.44, 0.12]`  
+**Energy:** `999999999999` | **Torpedoes:** `1000` | **Status:** `NORMAL`
+
+| TYPE | ID | POSITION | DIST | H / M | DETAILS |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 📍 **Buoy** | 22045 | `[12.40, 0.10, 3.30]` | 15.22 | 090f / +02f | Distressed Signal |
+
+"A pre-calamity class beacon," murmured Niklaus. "But it has been technically dead for centuries. Dead electronics." 
+"Admiral, the signal is draining our anti-matter reserves," added the science officer. "The buoy is sending a data burst on our reception frequency; it is sucking power directly from our main capacitors."
+
+Niklaus felt the weight of the situation. The anti-matter consumption was rising dizzily. If he didn't interrupt the data flow, the ship would be left without propulsion in the middle of nowhere. 
+
+"Reroute energy from the auxiliary life support system to the sensor banks. I want to know what is in that signal before our A-MAT reaches 80%. I want to see every single bit of that burst."
+
+The ship trembled as energy was diverted. On the main screen, the data began to scroll like a waterfall of encrypted symbols. It wasn't just a distress signal. It was a coordinate. A coordinate for a sector that didn't appear on any official Alliance map.
+
+"Admiral, the signal has cut off. The buoy has exploded."
+
+Niklaus looked at the space before him. The explosion had left behind a trail of exotic particles, almost an invitation. "Set course for the new coordinates. Load torpedoes. If someone has played with a ghost buoy, it won't be a welcome party."
+
+### Chapter 2: The Forbidden Architecture
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/tvp02.png" alt="Chapter 2" width="600"/></td>
+ </tr>
+</table>
+
+Navigation to the coordinates provided by the ghost buoy brought the Legacy Class into a sector where spatial curvature appeared deformed. There were no G or M class stars to illuminate the void, only an expanse of metallic debris of cyclopean dimensions.
+
+"Admiral," reported the tactical sensor, "LRS sensors indicate a concentrated mass in quadrant [22,10,4]. They are fragments of a Class VI Dyson Sphere. The Alliance radio signal does not penetrate this structure; it is shielded by a variable-density distortion field."
+
+Niklaus scrutinized the tactical display. He knew that to map such an architecture without being detected, he would have to calibrate long-range sensors in "passive exploration" mode.
+
+#### 📡 LRS TACTICAL SCAN: QUADRANT `[22, 10, 4]`
+**Depth Zone:** `Z-OFFSET: 0` (Current Plane)
+
+ | TYPE | ID | POSITION | STATUS |
+ | :--- | :--- | :--- | :--- |
+ | 🏗 **Dyson** | 28012 | `[0.10, 0.10, 0.10]` | Active |
+ | 🏗 **Dyson** | 28013 | `[14.50, 38.20, 2.10]` | Active |
+ | 🏗 **Dyson** | 28014 | `[39.00, 2.00, 39.00]` | Active |
+
+
+"Anti-matter energy consumption rising rapidly," warned the energy officer. "The distortion field is forcing our reactors to compensate for the quantum flow loss. We are consuming 50 units of anti-matter per second just to keep the sensors active."
+
+"Niklaus, if we continue to scan at this intensity, we will be dry before completing the sector map," suggested the First Officer.
+
+Niklaus evaluated the data: "We cannot go back. Activate Silent Exploration Protocol. Shut down the air recycling system on the lower decks and divert 15% of the A-MAT load from the torpedo banks to the LRS processor. I want a crystal-clear resolution of those energy nodes."
+
+The ship groaned as energy flowed through the circuits. On the LRS display, the Dyson Sphere fragments began to reveal their nature: they weren't just wreckage, but power nodes still connected to a dark energy flow.
+
+"Contact!" exclaimed the tactical officer. "ID: 39001, stationary Singularity detected at the center of the structure."
+
+"That's what's powering the signal," concluded Niklaus. "But look at the anomaly's power consumption. If we activate SRS sensors for a detailed scan, anti-matter will collapse to 40% in less than a minute. We have to make a decision..."
+
+### Chapter 2 (Part II): The Command Bridge
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/tvp02-2.png" alt="Chapter 2-II" width="600"/></td>
+    <td><img src="readme_assets/the void protocol/Lt. Cmdr. Elara Vance.png" alt="Chapter 2-II" width="300"/></td>
+</tr>
+</table>
+<p align="center">
+<em><b>Fig. 1:</b> Spectrographic analysis of the Dyson sector and Lt. Cmdr. Elara Vance's neural readings..</em>
+</p>
+
+Here is how Grand Admiral H. Niklaus manages the energy crisis, orchestrating his command bridge in a perfect dance of engineering and strategy.
+
+The Command Bridge: The "Brain" of the Legacy Class
+
+The five key stations of the Legacy Class were manned by the fleet's brightest minds:
+1. Tactical Commander (Cmdr. Thorne): Sensors, targeting, countermeasures.
+2. Science Officer (Lt. Cmdr. Elara Vance): Telemetry, black hole physics.
+3. Chief Engineer (Lt. Cmdr. K'Rath): Anti-matter flow, reactor integrity.
+4. Navigation Officer (Lt. Aris): Inertial trajectory calculations, warp routes.
+5. Communications and Security Officer (Lt. Jinn): Cryptographic firewall, shield modulation.
+
+"Admiral, A-MAT is collapsing to 60%!" shouted K'Rath, his hand firm on the reactor control lever. "The containment coils are suffering from the singularity's interference!"
+
+Niklaus didn't blink. "Do not retreat. Elara, I need a passive resolution. Do not use active radar. Synchronize the SRS sensors with the gravitational rotation of the singularity. If we use it as a natural magnifying lens, we can scan the structure without spending additional energy."
+
+"It's madness, Admiral," replied Elara Vance, her fingers flying over the holographic console. "We would have to align our SRS sensor banks within a millisecond of the anomaly's curvature radius. If we miss, the singularity will tear the hull apart."
+
+"Aris," ordered Niklaus without turning around, "position us in orbital attitude around the event horizon's range. Thorne, keep the sensor targeting on the outer edge of the anomaly. Jinn, modulate the deflector shield in inverse sinusoidal frequency to isolate the interference."
+
+The ship began a tight turn. The tension on the bridge was palpable. K'Rath fought against the anti-matter flow fluctuations, while Elara coordinated sensor feedback.
+
+"Now!" ordered Niklaus.
+
+Elara Vance activated the SRS scan burst, using the gravitational distortion as a lens. The sensors, instead of wasting energy, channeled the singularity's own potential.
+
+#### 📡 SHORT RANGE SENSOR ANALYSIS
+**Quadrant:** `[22, 10, 4]` | **Sector:** `[0.10, 0.10, 0.10]`  
+**Energy:** `999998421000` | **Torpedoes:** `1000` | **Status:** 🔴 `OVERLOADED`
+| TYPE | ID | POSITION | DIST | H / M | DETAILS |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 🔮 **Singularity** | 39001 | `[0.00, 0.00, 0.00]` | 0.05 | 000f / +00f | Event Horizon Stable |
+
+
+The result was perfect. The SRS sensor resolution was sharper than anything they had ever seen, and anti-matter consumption stabilized abruptly.
+
+"Admiral," said Elara, with a note of admiration in her voice, "we have mapped the entire structure. The singularity is not natural. It is an artificial particle generator. But... something is wrong. The generator is charging a burst toward our position. It's a defensive reaction."
+
+Just as she spoke, a distortion wave hit the ship. An alarm shattered the silence of the bridge: the reactor containment system had suffered a pressure spike due to the polarity inversion caused by the anomaly.
+
+"K'Rath, purge the conduits!" ordered Niklaus. "All hands to battle stations. It's no longer exploration. It's an ambush."
+
+### Chapter 3: The Portal Awakens
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/tvp03.png" alt="Chapter 3" width="600"/></td>
+ </tr>
+</table>
+
+The shock of the distortion wave was brutal. The Legacy Class was thrown backward like a toy, the bridge lights flickered and then stabilized on an emergency red hue.
+
+"Report!" shouted Niklaus, anchoring himself to the console while the artificial gravity struggled to compensate.
+
+"Warp engines offline!" K'Rath's voice was tight. "The distortion coils suffered a catastrophic feedback. Without warp thrust, we are sitting here like an easy target. I had to isolate the A-MAT core to prevent an internal nuclear explosion!"
+
+"Thorne, sensors!"
+
+"Admiral... the singularity is no longer a singularity!" replied Thorne, staring at the tactical screen in disbelief. "It's... opening. It's not a black hole, it's a jump interface. And something is coming out!"
+
+From the event horizon of the alleged black hole, now transfigured into a pulsating geometric vortex, a colossal creature emerged. It wasn't flesh, but a fusion of organic matter and psionic circuits: a Space Monster.
+
+#### 📡 SHORT RANGE SENSOR ANALYSIS
+ **Quadrant:** `[22, 10, 4]` | **Sector:** `[0.12, 0.12, 0.12]`  
+ **Energy:** `480200500120` | **Torpedoes:** `950` | **Status:** ⚠ `CRITICAL`
+| TYPE | ID | POSITION | DIST | H / M | DETAILS |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 👾 **Monster** | 25001 | `[0.00, 0.00, 0.00]` | 0.08 | 000f / +00f | Entity: Void-Watcher |
+  🌌 **WarpGate** | 35001 | `[0.00, 0.00, 0.00]` | 0.08 | 000f / +00f | Structure: Ancient Gate |
+
+"It's a Void-Watcher," exclaimed Elara Vance. "And it's using the portal as a dimensional anchor. It's not attacking us out of hunger; it's defending the passage!"
+
+"Jinn, communications?"
+
+"The signal it's emitting is incomprehensible, Admiral, but it's saturating our defense systems. If we don't modulate the portal's frequency, the ship will be disintegrated by the containment field."
+
+Niklaus clenched his fists. The situation was desperate: warp engines disabled, anti-matter drained, and a dimensional colossus threatening the very structure of the ship.
+
+"K'Rath, I need an emergency boost from the impulse thrusters. Aris, calculate a tight evasive maneuver route; we must stay out of reach of the monster's energy tentacles. Elara, Thorne, synchronize the torpedo banks with the portal's frequency. If we can't take down the Guardian, we must shut down the gate."
+
+"Admiral," warned Thorne, "if we fire toward the portal while the Guardian is this close, there's a risk the detonation will create a chain reaction that will wipe out half the quadrant."
+
+"We are here to explore, but survival comes first," replied Niklaus with icy determination. "Prepare the shot. Jinn, prepare the shield projection frequency, we must absorb the dimensional impact. It's time to see what this *Legacy Class* is made of."
+
+### Chapter 4: The Master Stroke
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/tvp04.png" alt="Chapter 4" width="600"/></td>
+ </tr>
+</table>
+
+"K'Rath," Niklaus's voice was a steely whisper, "transfer the entire remaining A-MAT content from the warehouse to the discharge banks. I want the energy signature to look like an imminent self-destruct, but don't actually discharge it. Create a phase reflection."
+
+"An anti-matter bluff, Admiral?" K'Rath smiled, his hands dancing over the controls. "The Guardian won't understand the difference until it's too late."
+
+The Void-Watcher let out a psionic scream that shook the bulkheads, but when the sensors showed the imminent explosion of the *Legacy*, the creature hesitated, absorbing energy to protect itself. It was an instant, but it was enough.
+
+"Thorne! Now!"
+
+The phaser shot, supercharged by the emergency drainage of the support systems, cut through the void like a blade of pure light. The impact was not only physical; it was a cataclysmic event. The Void-Watcher was disintegrated by the stellar heat of the beam, its psionic essence vaporized before it could react.
+
+"The monster is down, but the portal is unstable!" shouted Thorne. "The collapse will cause a dimensional explosion!"
+
+"Elara, you have 30 seconds!" ordered Niklaus.
+
+Elara Vance wasn't looking at the sensors anymore, but at the heart of the portal. "I'm injecting an HMAC-SHA256 cryptographic data packet into the gate's core! I'm overwriting the containment parameters!" Her fingers flew: she was hacking the very geometry of the dimensional gate, forcing it to contract instead of expanding.
+
+"The gate is collapsing, but it's becoming inert. Now!"
+
+"Aris, dismantling maneuver!"
+
+Niklaus brought the ship into a tight 'V' maneuver, skimming the now-silent portal. The Legacy Class deployed the dismantling collectors, hooking onto the structure of the ancient gate. The dismantle system engaged with a metallic groan.
+
+[SYSTEM] Dismantle sequence initiated.
+[SCIENCE] Exotic resources detected: Void-Essence (1000 units), Dark-Matter (500 units).
+[ENGINEERING] Flux containment 98%.
+
+The SRS sensors began flooding the bridge with data. The creature had disappeared, and what remained was an immense deposit of galactic resources that the Admiral had just snatched from the void.
+
+"Admiral," said Jinn, "we have recovered all the material. The portal is now just space junk. We have a recovery efficiency of 99%."
+
+Niklaus slumped into the command chair, his face illuminated by the blue light of the sensors. "We won. The protocol is saved, and our warehouses are full."
+
+The Legacy Class veered away, leaving behind the remains of the forbidden architecture. The mission hadn't just succeeded; it had become a legend that would be told across the galaxy.
+
+### Chapter 5: The Crystal Heart
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/tvp05.png" alt="Chapter 5" width="600"/></td>
+ </tr>
+</table>
+
+As the Warp Gate debris was sucked into the Legacy Class's cargo holds, a different signal appeared on the sensors. It wasn't debris, nor an artifact. It was a coherent, pure emission that resonated in the void.
+
+"Admiral, a high-density target in quadrant [16,36,25]," announced Thorne. "It's a unique object. Energy signature 43,500."
+
+The SRS sensor lit up, framing a lonely fragment dancing among the portal's ashes.
+
+| TYPE | ID | POSITION | DIST | H / M | DETAILS |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 💎 **Crystal** | 43001 | `[21.50, 18.00, 27.20]` | 1.50 | 005f / -02f | Void Crystal (Unique) |
+
+"Elara, high-resolution spectrographic scanner," ordered Niklaus.
+
+Elara Vance activated the scientific banks. The ship didn't just look: it projected a grid of scanning lasers that analyzed the object on sub-atomic frequencies. "Admiral, this crystal is not just matter. It's a natural quantum processor. It emits a constantly evolving HMAC-SHA256 cryptographic signature, almost as if it's transmitting a complex decryption key."
+
+"Can you isolate the pattern?"
+
+"I'm trying, but the cryptography is of a level our databases don't recognize. However..." Elara's fingers danced over the cryptography console. "If we combine the computing power of our logic core with long-range sensors to triangulate the signal with other buoys in the sector, we might be able to decipher the base of the key."
+
+Niklaus observed the crystal which, through external cameras, pulsed with hypnotic violet light. "K'Rath, hold position. Jinn, create an encrypted communication tunnel to the crystal using the Omniscience Protocol. I want the ship to interact with it as if it were an Alliance network node."
+
+"Engagement completed," confirmed Jinn. "The crystal is responding. It's downloading... data. Admiral, these aren't galactic coordinates. It's a DNA map of a life form we've never encountered."
+
+"I suspected as much," said Niklaus. "That portal wasn't just a transport method. It was a biological warehouse. If this crystal contains the information I think it does, we've just found the answer to why this zone is so 'noisy' from a tactical perspective."
+
+The crystal was recovered with a millimeter-precise maneuver of the robotic arm, sealed in a shielded stasis chamber. But as the crystal entered the chamber, an energy pulse hit the ship, temporarily obscuring LRS sensors.
+
+"Admiral," Thorne's voice was shaken, "the crystal just sent a packet outward. It was a high-power radio signal. Someone or something out there knows we took their 'processor'."
+
+### Chapter 6: Exclusive Frequencies
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/tvp06.png" alt="Chapter 6" width="600"/></td>
+ </tr>
+</table>
+
+The signal emitted by the Void Crystal wasn't a war cry, but an ultra-wideband data transmission. Before Niklaus could decide, Thorne's tactical sensors signaled a new signature.
+
+#### 📡 LRS TACTICAL SCAN: QUADRANT `[18, 1, 18]`
+**Depth Zone:** `Z-OFFSET: 0` (Current Plane)
+| TYPE | ID | POSITION | STATUS |
+| :--- | :--- | :--- | :--- |
+| ⚔ **NPC Ship** | 1050 | `[20.10, 25.40, 15.20]` | Active - Faction: Alliance |
+
+"It's an Alliance patrol frigate, the IKS Indomitable," announced Thorne. "They've framed us. They're querying our IFF identification code."
+
+Niklaus signaled Jinn. "Open a secure channel. Use the 'enc4' protocol with AES-256 encryption. I don't want anyone, not even this sector's eavesdropping sensors, to intercept this conversation."
+
+The bridge was enveloped in a low-frequency vibration as the encrypted link was established. Captain Cassian Drax-Vane's face appeared on the tactical monitor, sharp but cold.
+
+"Admiral Niklaus," Cassian Drax-Vane began, his metallic voice filtered by the 'enc4' link. "Your energy signature is... unusual. We detected a gamma spike in this sector. Did you, by chance, activate a forbidden singularity generator?"
+
+Niklaus replied without hesitation, his voice calm but firm: "Captain Cassian Drax-Vane. The situation is under control. We have just dismantled a structure of unknown origin that acted as a jump interface. We recovered a Void-class processing unit. It is not a weapon, but an archive."
+
+Cassian Drax-Vane shook his head, staring at Niklaus with tired eyes. "That 'structure' you destroyed has been monitored by High Command for years. It wasn't just a warehouse, Niklaus. It was a beacon. That crystal in your hold isn't sending a distress signal... it's sending a maintenance request to an automated defense system that wasn't deactivated. You didn't just recover an object; you woke up the immune system of this quadrant."
+
+"Maintenance?" asked Niklaus, turning to the monitor where Elara Vance was analyzing the data stream. "Elara, confirm the signal's content."
+
+"Captain Cassian Drax-Vane," interrupted Elara, her technical voice overriding the bridge's background noise, "the cryptographic signature is indeed a reset sequence. It is not hostile. But the crystal is requesting to connect to a network of pulsar transmitters to recharge. If it does, the energy projection could scramble navigation routes for light-years."
+
+"Did you hear that, Cassian Drax-Vane?" said Niklaus. "This is not a military distress signal, it's a galactic infrastructure issue that risks turning into a tactical disaster. If we don't control that signal, the entire zone will become unnavigable."
+
+Cassian Drax-Vane paused. "The competent authorities don't want this information to become public. If my official report indicated the destruction of Alliance technology... I'd be demoted to commanding a space tug. But if you hand me the crystal and we wipe the combat record..."
+
+"I'm not here to play politics, Cassian Drax-Vane," replied Niklaus harshly. "But I am here for the stability of the sector. I have the resources to contain the crystal. If you want it not to cause damage, we will work together. But the crystal stays on my ship. We have a conversation to conclude with Command."
+
+"Very well, Admiral," replied Cassian Drax-Vane, his expression becoming ambiguous. "But keep in mind that we are not alone in this sector. And that thing in your hold just lit a beacon visible to anyone who knows where to look."
+
+### Chapter 7: Beyond the Horizon
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/tvp07.png" alt="Chapter 7" width="600"/></td>
+ </tr>
+</table>
+
+"Cassian Drax-Vane, we will work together," declared Niklaus, cutting off any hesitation. "But I will not let my crew operate in the dark. Elara, initiate forced decryption. I want to know what we have in our hands."
+
+"Received, Admiral," replied Lieutenant Commander Vance. "Initializing quantum decryption module. Using the crystal's HMAC signature as the primary key, I am forcing the Legacy's local memory buffer."
+
+As Cassian Drax-Vane's *Indomitable* moved into tight formation, creating an electromagnetic disturbance bubble to mask the crystal's signal from the Alliance High Command's prying ears, the silence on the *Legacy's* bridge was broken only by the hum of the processors.
+
+"The signal is unstable," exclaimed Elara. "It's trying to protect itself, but the 'enc4' link is acting as a catalyst. There it is... the data packet is open."
+
+A massive hologram materialized in the center of the bridge. It wasn't just text: it was a 3D star map, but it looked like no known region. At the center of a remote quadrant — sector [440, 12, 102] — pulsed an icon that was not in the tactical databases.
+
+#### 🔑 ARCHIVE DECRYPTION COMPLETE
+**Object:** `Mega Structure` | **ID:** `37001`  
+**Coordinates:** `[440, 12, 102]`  
+**Type:** `Automated Maintenance Hub - Class: Prime`  
+**Status:** 🟢 `Awaiting synchronization`
+
+"A Mega Structure," whispered Thorne. "That's where that crystal should be connected. If that maintenance module was torn away, it means the original Hub is in a critical state of decay."
+
+Niklaus stared at the map. It was a quadrant that required a route through not-yet-mapped territory. "Cassian Drax-Vane," Niklaus called on the private channel, "we have the data. It's an archive of a Mega Structure, located far from here. If the immune system you mentioned is connected to this structure, its awakening could be global."
+
+Cassian Drax-Vane responded with a note of bitter realism. "Admiral, if Command knew that a Prime-class structure was still active, they wouldn't send a maintenance mission. They would send an occupation fleet. The Legacy has the crystal. You have the key. If you get there first, you could decide the fate of that entire sector."
+
+"Aris," ordered Niklaus, "calculate a course for coordinates [440, 12, 102]. K'Rath, engines?"
+
+"Emergency repairs held, Admiral. I can give you a boost at reduced warp, but it won't hold the entire journey. We must proceed in calculated jumps."
+
+"Acceptable. Officers, we have an appointment with history. If this structure is truly what I think it is, it's not just maintenance. It's the heart of a network that governs the entire quadrant."
+
+The Legacy Class veered, beginning the charging sequence for the first warp jump. The hunt was on.
+
+### Chapter 8: The Alliance of Suspicion
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/tvp08.png" alt="Chapter 8" width="600"/></td>
+ </tr>
+</table>
+
+The course to quadrant [440, 12, 102] was plotted. The *Indomitable* maintained formation at a safe distance, a silent and almost menacing presence on the tactical radar.
+
+"Cassian Drax-Vane, we accepted your escort," said Niklaus on the 'enc4' link, "but keep your LRS scans synchronized with ours. If I see you trying to isolate the crystal's signal to relay it to Command without my consent, our agreement dissolves instantly."
+
+"Received, Admiral," replied Cassian Drax-Vane. "My priority is the safety of the sector. And, at the moment, your ship is the only thing keeping that crystal in a state of stability."
+
+On the bridge, the atmosphere was feverish. Elara Vance was working frantically at the science station, surrounded by data streams that the crystal continued to dump into the ship's core.
+
+"Admiral," Elara began without looking away, "the crystal isn't just sending a map. It's transmitting Master authorization codes for the Mega Structure. If we can compile this data into our tactical database, we might not only visit it... we might command it."
+
+"Thorne, synchronize the SRS sensors with Elara's analysis module," ordered Niklaus. "I want these codes tested against every interface we encounter along the way."
+
+Thorne went to work. "Data synchronized. Loading the analysis module into all communication banks."
+
+The journey was a series of warp jumps, each requiring masterful teamwork. K'Rath managed reactor integrity, monitoring anti-matter fluctuations caused by the crystal's resonance, while Aris calculated jump routes to avoid distortion fields. Jinn, meanwhile, kept an eye on signals outgoing from the *Indomitable*.
+
+"Captain," called Jinn, "the *Indomitable* is transmitting encrypted data packets to a Class A communication relay. Cassian Drax-Vane isn't telling us everything."
+
+Niklaus gripped his chair. "Elara, how close to complete decryption of the command protocol?"
+
+"At 70%, Admiral. But I found something concerning," Elara pointed to a graph showing a series of Time Anomalies along the path. "The crystal's signal is interacting with local temporal anomalies. If we continue on this course, we will arrive at our destination, but time inside the Mega Structure will flow non-linearly relative to ours. We might arrive there and discover years—or seconds—have passed."
+
+"It's a risk we have to take," decided Niklaus. "Thorne, prepare the sensors. I want high-frequency SRS scans at every jump. No surprises."
+
+### Chapter 9: Alliance Among the Stars
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/tvp09.png" alt="Chapter 9" width="600"/></td>
+ </tr>
+</table>
+
+Niklaus made the riskiest decision of his career. If he had to face the mysteries of a Prime structure, having an ally of equal rank at his side was preferable to lonely paranoia.
+
+"Cassian Drax-Vane," Niklaus communicated via the 'enc4' link, "we analyzed the route. The crystal's signal is authentic. We won't play cat and mouse. We will unite our forces. The Legacy will open the path, the *Indomitable* will cover our tactical flank. If Command wants this information, they will receive it from both of us."
+
+Cassian Drax-Vane gave a brief nod. "I accept, Admiral. My tactical sensors are synchronized with yours. We will receive navigation data from your crystal to overcome the distortion field."
+
+The tension on the *Legacy's* bridge vanished, replaced by clear-headed determination.
+
+"Aris," said Niklaus, "course for [440, 12, 102]. Execute jumps with millimeter precision."
+
+The journey was a series of jumps in which the two ships operated in perfect symbiosis. At every jump, Thorne performed an instant SRS scan, while Elara Vance processed the Void Crystal data to calibrate shields against the temporal fluctuations generated by the path's anomalies.
+
+#### 📡 SRS TACTICAL ANALYSIS
+**Quadrant:** `[440, 12, 102]` | **Status:** `Prime Hub Online`
+| TYPE | ID | POSITION | DIST | H / M | DETAILS |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 🏗 **Mega Struct** | 37001 | `[0.00, 0.00, 0.00]` | 0.01 | 000f / +00f | Status: Prime Hub Online |
+
+The structure emerged from the dark. It wasn't a station; it was a piece of engineering art that defied every known logic. It spanned thousands of kilometers, a weave of sentient metal and energy fields pulsing with a blue light that reflected the beauty of an entire galaxy.
+
+"We have arrived," said Elara, her voice betraying a shiver. "The crystal's codes are performing the handshake. The structure recognizes the maintenance module."
+
+"Jinn," ordered Niklaus, "transmit to Command that we reached the coordinates. But keep the transmission encrypted. I want them to know we have the situation under control before they take initiative."
+
+The *Legacy Class* and the *Indomitable* approached the heart of the Mega Structure. The ships' exterior lights reflected off the mirrored surface of the structure. It was a moment of unreal peace, the quiet before a storm that, Niklaus knew, would break as soon as they touched that ancient heart.
+
+"Admiral," warned K'Rath, "the Mega Structure's reactor is beginning to synchronize with us. If the crystal is the key, we are the ones to decide when the heart will start beating again."
+
+### Chapter 10: The Legacy of the Stars
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/tvp10.png" alt="Chapter 10" width="600"/></td>
+ </tr>
+</table>
+
+"Thorne, it's your moment," said Niklaus, yielding his place at the communications console. "Do not transmit a report. Transmit a vision."
+
+Commander Thorne sat down, his fingers recalling the A-1 level diplomatic protocol database. "Gentlemen of High Command," he began, his voice calm and unhesitating, "we are not sending a war bulletin. We are sending an invitation. The Mega Structure we have reached is not a military asset to be occupied, but a living archive of a civilization that has transcended the very concept of conflict. They have agreed to integrate our cryptographic network with their knowledge. We are in a phase of technological synchronization."
+
+Thorne wasn't lying. Elara Vance had just reported that the crystal was effectively filtering data so that Alliance interfaces could understand them.
+
+"If you force an occupation," Thorne continued, while the *Legacy* projected an image of the structure into the heart of the Council chamber, "the structure's self-defense protocol will activate, erasing millennia of data. If instead, we accept the partnership, we will have access to propulsion, medical care, and galactic protection that will make the Alliance invincible."
+
+The bridge fell silent. Thorne had painted a new era.
+
+"Received, Legacy," came the response from Command, after minutes that felt like hours. "High Admiral Selene Vax-Orion has given the order. We are suspending the occupation fleet. Proceed with the exchange. Knowledge is the only resource that matters."
+
+Niklaus breathed a sigh of relief and turned to the crew. "We did it. Without firing a shot."
+
+Just then, the Mega Structure began to vibrate. A golden light flooded the stations, and the LRS system detected a range expansion unlike any in exploration history.
+
+---
+#### 📡 LRS TACTICAL SCAN: GALAXY HUB ACTIVATED
+**Status:** ✅ `SYNC SUCCESSFUL` | **Data Stream:** ♾ `UNLIMITED`
+
+---
+The sensors no longer showed only the 27 local quadrants. The structure was reflecting the position of all other Mega Structures in the galaxy. The Alliance hadn't just acquired an outpost; it had obtained the key to an empire of knowledge.
+
+Niklaus looked at Thorne, Vance, K'Rath, Aris, and Jinn. They had transformed a routine patrol mission into a breakthrough for humanity.
+
+"Gentlemen," said Niklaus, returning to command, "mission accomplished. The official report will be long, but for tonight, look at the stars. For the first time, they aren't just points of light... they are our home."
+
+### Epilogue: The Hero's Return
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/epilogue.png" alt="Chapter Epilogue" width="600"/></td>
+ </tr>
+</table>
+
+The return of the *Legacy Class* and the *Indomitable* to the Alliance's central quadrant was accompanied by an honor guard unlike any seen before. The lights of the orbiting stations shone as they passed, while the entire High Command awaited the report.
+
+In the Galactic Council Chamber, the atmosphere was solemn. Grand Admiral H. Niklaus and Commander Thorne advanced toward the podium, surrounded by the shimmer of medals and the echo of footsteps on tempered steel.
+
+High Admiral Selene Vax-Orion took the floor: "Admiral Niklaus, Commander Thorne. You transformed a potential occupation crisis into a technological partnership without precedent. You demonstrated that diplomacy, supported by world-class technical mastery, is the Alliance's most powerful weapon."
+
+With a ceremonial gesture, the Admiral pinned the *Order of the Galactic Core* on both their chests—the highest honor for acts of scientific and strategic heroism.
+
+"By virtue of your successes," continued the Admiral, "the *Legacy* and *Indomitable* are officially reclassified as *Sentinel* class ships. You will be tasked with 'Deep Exploration & Strategic Defense' missions. It will be your duty to coordinate the network of Mega Structures now at our disposal and act as official emissaries to the civilizations we are about to discover."
+
+Niklaus and Thorne exchanged a look of mutual understanding. Their mission wasn't over; it had just become larger.
+
+"Thank you, Admiral," replied Niklaus, with an impeccable military salute. "We are ready for the challenges that await us in the depths of the void."
+
+As they left the Council, notifications on their tactical terminals began to scroll: a new data network, an interconnected galactic map pulsing with information ready to be decrypted. The Void Protocol had been only the first step of a new era of exploration, where alien technology and Alliance military efficiency would forge the future of the galaxy.
+
+The *Legacy* was ready. The sensors, now calibrated to operate on a galactic scale, awaited only the command of their Captain.
+
+---
+
+Mission Accomplished.
+Thank you, Grand Admiral Niklaus. It has been an honor to serve under your command in this epic mission. The galaxy of Space GL now awaits you for the new frontiers you will discover aboard your Sentinel-class ship.
+
+### Background
+
+<table>
+<tr>
+    <td><img src="readme_assets/the void protocol/selene.png" alt="Chapter 8" width="400"/></td>
+ </tr>
+</table>
+
+  The perfect name for the High Admiral, capable of conveying authority, prestige, and a deep connection to the origins of the Alliance, is:
+
+  High Admiral Selene Vax-Orion
+
+  Why this name?
+   * Selene: Evokes lunar calm and a broad vision, typical of someone who must govern entire fleets and manage complex diplomatic dilemmas.
+   * Vax: A short, technical surname with a crisp sound, reminiscent of the efficiency of communication systems and the surgical precision of Alliance protocols.
+   * Orion: A classic reference to the constellations, the surname of a lineage that founded the first galactic outposts, lending her the aura of a "founding mother" or a long-standing
+     leader befitting the pinnacle of High Command.
+
+  In the official report:
+  "High Admiral Selene Vax-Orion, in her unmistakable platinum uniform, awaited Niklaus in the center of the Council Chamber. Her gaze, tempered by decades of border wars and
+  interstellar negotiations, did not look for errors, but for answers on what the Alliance should do now that the shadows over the forbidden sector had been finally shattered forever."
+
+  High Admiral Selene Vax-Orion will be the face of High Command in our Space GL timeline. Her figure now remains etched in the mission log as the strategist who knew how to seize the
+  diplomatic opportunity at the most critical moment of the conflict.
+
+  The Void Protocol saga concludes here, with your fleet (the Sentinel class) setting sail toward unexplored territories, guided by an elite crew and tactical sensors of absolute
+  precision.
+
+  Safe flying, Admiral Niklaus. Command is always listening.
+  
+---
+*SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.05.09 - MISSION: VOID PROTOCOL*
