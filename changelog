@@ -1,3 +1,11 @@
+* Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.01
+- [Sensors] Standardized Long Range Sensors (LRS) to scan the full 3x3x3 volumetric neighborhood (27 quadrants).
+- [Sensors] Integrated all 35 galactic entity categories into both SRS and LRS scans for comprehensive tactical coverage.
+- [Sensors] Implemented Z-depth color-coding for LRS: Green (Above), Yellow (Same Plane), Red (Below).
+- [Network] Migrated LRS to dynamic PacketLRSUpdate transmission for full data integrity and detail.
+- [Bugfix] Eliminated ghost entities (ID 0) and ensured strict active-filtering for all tactical data transmissions.
+- [UI] Standardized tactical output format and icon mapping between SRS and LRS for interface consistency.
+
 * Fri May 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.08.03
 - [Sensors] Expanded Short Range Sensors (SRS) to include all galactic object categories, including Subspace Anomalies, Pulsars, Quasars, Rifts, and Space Monsters.
 - [Sensors] Updated Long Range Sensors (LRS) and galaxy bitmask logic to correctly identify and display Subspace Anomalies (Symbol: 'A').

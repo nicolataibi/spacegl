@@ -22,6 +22,15 @@
 #define PKT_HANDSHAKE 6
 #define PKT_UPDATE_DELTA 7
 #define PKT_QUERY_KEY 8
+#define PKT_LRS_UPDATE 9
+
+typedef struct {
+    int32_t type;
+    int32_t q1, q2, q3;
+    int32_t z_offset;
+    int32_t object_count;
+    NetObject objects[MAX_NET_OBJECTS];
+} PacketLRSUpdate;
 
 /* Update Mask Bits for Delta Compression */
 #define UPD_TRANSFORM (1ULL << 0)

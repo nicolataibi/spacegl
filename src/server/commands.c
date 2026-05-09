@@ -28,6 +28,7 @@
 #include "game_config.h"
 #include "shared_state.h"
 #include "ui.h"
+#include <stddef.h>
 
 /* Helper macro to safely append to a buffer with length check (used in handle_srs) */
 #define SAFE_APPEND(buffer, max_len, format, ...) do { \
@@ -1245,6 +1246,16 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌟 %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Star %s\n", "Star", sid, st->x, st->y, st->z, d, h, m, status);
     }
 
+    /* Buoys */
+    for (int b_idx = 0; b_idx < local_q->buoy_count; b_idx++) {
+        NPCBuoy *bu = local_q->buoys[b_idx];
+        double dx = bu->x - s1; double dy = bu->y - s2; double dz = bu->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        int buid = bu->id + GALAXY_OBJECT_MIN_BUOY;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "📍 %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Buoy\n", "Buoy", buid, bu->x, bu->y, bu->z, d, h, m);
+    }
     /* 6. Anomalies (Black Holes, Nebulas, Pulsars, etc) */
     for (int h_idx = 0; h_idx < local_q->bh_count; h_idx++) {
         NPCBlackHole *bh = local_q->black_holes[h_idx];
@@ -1303,7 +1314,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "👾  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Space Monster (Organic Entity)\n", "Monster", mo->id + GALAXY_OBJECT_MIN_MONSTER, mo->x, mo->y, mo->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "👾  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Space Monster\n", "Monster", mo->id + GALAXY_OBJECT_MIN_MONSTER, mo->x, mo->y, mo->z, d, h, m);
     }
     for (int s_idx = 0; s_idx < local_q->subspace_anomaly_count; s_idx++) {
         NPCSubspaceAnomaly *sa = local_q->subspace_anomalies[s_idx];
@@ -1311,8 +1322,137 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💥  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Subspace Anomaly\n", "S-Anomaly", sa->id + GALAXY_OBJECT_MIN_SUBSPACE_ANOM, sa->x, sa->y, sa->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💥  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Subspace Anomaly\n", "Anomaly", sa->id + GALAXY_OBJECT_MIN_SUBSPACE_ANOM, sa->x, sa->y, sa->z, d, h, m);
     }
+    for (int i=0; i<local_q->void_crystal_count; i++) {
+        NPCVoidCrystal *vc = local_q->void_crystals[i];
+        double dx = vc->x - s1; double dy = vc->y - s2; double dz = vc->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💎  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Void Crystal\n", "Crystal", vc->id + GALAXY_OBJECT_MIN_VOID_CRYSTAL, vc->x, vc->y, vc->z, d, h, m);
+    }
+    for (int i=0; i<local_q->dyson_count; i++) {
+        NPCDyson *dy = local_q->dysons[i];
+        double dx = dy->x - s1; double dy_ = dy->y - s2; double dz = dy->z - s3;
+        double d = sqrt(dx*dx + dy_*dy_ + dz*dz);
+        double h = atan2(dx, -dy_) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🏗️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Dyson Fragment\n", "Dyson", dy->id + GALAXY_OBJECT_MIN_DYSON, dy->x, dy->y, dy->z, d, h, m);
+    }
+    for (int i=0; i<local_q->hub_count; i++) {
+        NPCHub *hu = local_q->hubs[i];
+        double dx = hu->x - s1; double dy = hu->y - s2; double dz = hu->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌐  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Galactic Hub\n", "Hub", hu->id + GALAXY_OBJECT_MIN_HUB, hu->x, hu->y, hu->z, d, h, m);
+    }
+    for (int i=0; i<local_q->relic_count; i++) {
+        NPCRelic *re = local_q->relics[i];
+        double dx = re->x - s1; double dy = re->y - s2; double dz = re->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "📜  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Relic\n", "Relic", re->id + GALAXY_OBJECT_MIN_RELIC, re->x, re->y, re->z, d, h, m);
+    }
+    for (int i=0; i<local_q->rupture_count; i++) {
+        NPCRupture *ru = local_q->ruptures[i];
+        double dx = ru->x - s1; double dy = ru->y - s2; double dz = ru->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🔪  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Spacetime Rupture\n", "Rupture", ru->id + GALAXY_OBJECT_MIN_RUPTURE, ru->x, ru->y, ru->z, d, h, m);
+    }
+    for (int i=0; i<local_q->satellite_count; i++) {
+        NPCSatellite *sa = local_q->satellites[i];
+        double dx = sa->x - s1; double dy = sa->y - s2; double dz = sa->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "📡  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Satellite\n", "Sat", sa->id + GALAXY_OBJECT_MIN_SATELLITE, sa->x, sa->y, sa->z, d, h, m);
+    }
+    for (int i=0; i<local_q->storm_count; i++) {
+        NPCStorm *st = local_q->storms[i];
+        double dx = st->x - s1; double dy = st->y - s2; double dz = st->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⛈️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Ion Storm\n", "Storm", st->id + GALAXY_OBJECT_MIN_STORM, st->x, st->y, st->z, d, h, m);
+    }
+    for (int i=0; i<local_q->artifact_count; i++) {
+        NPCArtifact *ar = local_q->artifacts[i];
+        double dx = ar->x - s1; double dy = ar->y - s2; double dz = ar->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🏺  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Artifact\n", "Artifact", ar->id + GALAXY_OBJECT_MIN_ARTIFACT, ar->x, ar->y, ar->z, d, h, m);
+    }
+    for (int i=0; i<local_q->warp_gate_count; i++) {
+        NPCWarpGate *wg = local_q->warp_gates[i];
+        double dx = wg->x - s1; double dy = wg->y - s2; double dz = wg->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌌  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Warp Gate\n", "WarpGate", wg->id + GALAXY_OBJECT_MIN_WARP_GATE, wg->x, wg->y, wg->z, d, h, m);
+    }
+    for (int i=0; i<local_q->neutron_star_count; i++) {
+        NPCNeutronStar *ns = local_q->neutron_stars[i];
+        double dx = ns->x - s1; double dy = ns->y - s2; double dz = ns->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌟  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Neutron Star\n", "Neutron", ns->id + GALAXY_OBJECT_MIN_NEUTRON_STAR, ns->x, ns->y, ns->z, d, h, m);
+    }
+    for (int i=0; i<local_q->mega_struct_count; i++) {
+        NPCMegaStructure *ms = local_q->mega_structs[i];
+        double dx = ms->x - s1; double dy = ms->y - s2; double dz = ms->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🏛️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Mega Structure\n", "Mega", ms->id + GALAXY_OBJECT_MIN_MEGA_STRUCT, ms->x, ms->y, ms->z, d, h, m);
+    }
+    for (int i=0; i<local_q->dark_cloud_count; i++) {
+        NPCDarkCloud *dc = local_q->dark_clouds[i];
+        double dx = dc->x - s1; double dy = dc->y - s2; double dz = dc->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌑  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Dark Cloud\n", "Cloud", dc->id + GALAXY_OBJECT_MIN_DARK_CLOUD, dc->x, dc->y, dc->z, d, h, m);
+    }
+    for (int i=0; i<local_q->singularity_count; i++) {
+        NPCSingularity *si = local_q->singularities[i];
+        double dx = si->x - s1; double dy = si->y - s2; double dz = si->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🔮  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Singularity\n", "Sing", si->id + GALAXY_OBJECT_MIN_SINGULARITY, si->x, si->y, si->z, d, h, m);
+    }
+    for (int i=0; i<local_q->plasma_storm_count; i++) {
+        NPCPlasmaStorm *ps = local_q->plasma_storms[i];
+        double dx = ps->x - s1; double dy = ps->y - s2; double dz = ps->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⚡  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Plasma Storm\n", "Plasma", ps->id + GALAXY_OBJECT_MIN_PLASMA_STORM, ps->x, ps->y, ps->z, d, h, m);
+    }
+    for (int i=0; i<local_q->orbital_ring_count; i++) {
+        NPCOrbitalRing *or = local_q->orbital_rings[i];
+        double dx = or->x - s1; double dy = or->y - s2; double dz = or->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💍  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Orbital Ring\n", "Ring", or->id + GALAXY_OBJECT_MIN_ORBITAL_RING, or->x, or->y, or->z, d, h, m);
+    }
+    for (int i=0; i<local_q->time_anomaly_count; i++) {
+        NPCTimeAnomaly *ta = local_q->time_anomalies[i];
+        double dx = ta->x - s1; double dy = ta->y - s2; double dz = ta->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⏳  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Time Anomaly\n", "T-Anom", ta->id + GALAXY_OBJECT_MIN_TIME_ANOMALY, ta->x, ta->y, ta->z, d, h, m);
+    }
+
 
     /* 7. Derelicts (Wrecks) */
     for (int d_idx = 0; d_idx < local_q->derelict_count; d_idx++) {
@@ -1322,16 +1462,30 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         double dz = de->z - s3;
         double d = sqrt(dx * dx + dy * dy + dz * dz);
         double h = atan2(dx, -dy) * 180 / M_PI;
-        if (h < 0) {
-            h += 360;
-        }
+        if (h < 0) h += 360;
         double m = (d > 0.001) ? asin(dz / d) * 180 / M_PI : 0;
         int deid = de->id + GALAXY_OBJECT_MIN_DERELICT;
         char status[64] = "";
-        if (deid == locked_id) {
-            strncpy(status, RED "[LOCKED]" RESET, 63);
-        }
+        if (deid == locked_id) strncpy(status, RED "[LOCKED]" RESET, 63);
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🏚️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     %s (%s Wreck) %s\n", "Wreck", deid, de->x, de->y, de->z, d, h, m, de->name, get_ship_class_name(de->ship_class), status);
+    }
+    /* 8. Mines */
+    for (int m_idx = 0; m_idx < local_q->mine_count; m_idx++) {
+        NPCMine *mi = local_q->mines[m_idx];
+        double dx = mi->x - s1; double dy = mi->y - s2; double dz = mi->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💣 %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Mine\n", "Mine", mi->id + GALAXY_OBJECT_MIN_MINE, mi->x, mi->y, mi->z, d, h, m);
+    }
+    /* 9. Platforms */
+    for (int p_idx = 0; p_idx < local_q->platform_count; p_idx++) {
+        NPCPlatform *pl = local_q->platforms[p_idx];
+        double dx = pl->x - s1; double dy = pl->y - s2; double dz = pl->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🏗️ %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Platform\n", "Platform", pl->id + GALAXY_OBJECT_MIN_PLATFORM, pl->x, pl->y, pl->z, d, h, m);
     }
 
     /* 8. Asteroids */
@@ -1372,129 +1526,74 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
     }
     players[i].state.energy -= (uint64_t)(COST_ACTION_MED / (uint64_t)RATIO_ENERGY_REDUCTION);
 
-    char *b = calloc(LARGE_DATA_BUFFER, sizeof(char));
-    if (!b) return;
-
-    int q1=players[i].state.q1, q2=players[i].state.q2, q3=players[i].state.q3;
-    snprintf(b, LARGE_DATA_BUFFER, B_CYAN "\n.--- LCARS LONG RANGE TACTICAL SENSORS --------------------------------------.\n" RESET);
-    if (players[i].state.system_health[2] < THRESHOLD_SYS_DEGRADED) {
-        strcat(b, YELLOW " WARNING: Sensor integrity degraded. Deep space telemetry unstable.\n" RESET);
-    }
-    char status[256];
-    sprintf(status, WHITE " POS: [%d,%d,%d] SECTOR: [%.2f,%.2f,%.2f] | HDG: %06.2f MRK: %+06.2f\n" RESET, 
-            q1, q2, q3, players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].state.van_h, players[i].state.van_m);
-    strcat(b, status);
-    strcat(b, B_CYAN "'------------------------------------------------------------------------------'\n" RESET);
-    strcat(b, " DATA: [ H:B-Hole P:Planet N:NPC B:Base S:Star ] Symbols: ~:*+#!M>QA\n\n");
-
-    bool sensor_boost = is_near_buoy(i);
-    int scan_range = sensor_boost ? 2 : 1;
-
-        for (int dq3 = scan_range; dq3 >= -scan_range; dq3--) {
-            int nq3 = q3 + dq3;
-            if (nq3 < 1 || nq3 > GALAXY_SIZE) continue;
-        char header[128];
-            const char* zone_col = (dq3 == 0) ? B_YELLOW : ((dq3 > 0) ? B_GREEN : B_RED);
-            sprintf(header, "%s[ DEPTH ZONE Z:%d ]" RESET "\n  QUADRANT      NAV (H/M/W)    OBJECTS [H P N B S]  ANOMALIES\n", zone_col, nq3);
-        strcat(b, header);
-
-        for (int dq2 = -scan_range; dq2 <= scan_range; dq2++) {
-            for (int dq1 = -scan_range; dq1 <= scan_range; dq1++) {
+    int q1 = players[i].state.q1, q2 = players[i].state.q2, q3 = players[i].state.q3;
+    
+    for (int dq3 = 1; dq3 >= -1; dq3--) {
+        int nq3 = q3 + dq3;
+        if (nq3 < 1 || nq3 > GALAXY_SIZE) continue;
+        
+        for (int dq2 = -1; dq2 <= 1; dq2++) {
+            for (int dq1 = -1; dq1 <= 1; dq1++) {
                 int nq1 = q1 + dq1, nq2 = q2 + dq2;
-                if (IS_Q_VALID(nq1, nq2, nq3)) {
-                    long long v = spacegl_master.g[nq1][nq2][nq3];
-                    double sensor_h = players[i].state.system_health[2];
-                    if (sensor_h < 50.0 && (rand()%100 > sensor_h)) v = (v / 10) + (rand()%9);
-
-                    int s = v % 10;
-                    int b_cnt = (v / 10) % 10;
-                    int k = (v / 100) % 10;
-                    int p = (v / 1000) % 10;
-                    int bh = (v / 10000) % 10;
-                    int neb = (v / 100000) % 10;
-                    int pul = (v / 1000000) % 10;
-                    int storm = (v / 10000000LL) % 10;
-                    int com = (v / 100000000) % 10;
-                    int ast = (v / 1000000000) % 10;
-                    int sub_anom = (v / 1000000000000000000LL) % 10;
-                    int mon = (v / 10000000000000000LL) % 10;
-                    int qsr = (v / 100000000000000000LL) % 10;
-                    int u = (v / 1000000000000000LL) % 10;
-                    int rift = (v / 100000000000000LL) % 10;
-                    int vessels = k + u;
-                    if (nq1 == q1 && nq2 == q2 && nq3 == q3 && vessels > 0) {
-                        vessels--;
-                    }
-
-                    double dx = (nq1 - q1) * QUADRANT_SIZE;
-                    double dy = (nq2 - q2) * QUADRANT_SIZE;
-                    double dz = (nq3 - q3) * QUADRANT_SIZE;
-                    double dist = sqrt(dx * dx + dy * dy + dz * dz);
-                    double h_v = 0;
-                    double m_v = 0;
-                    if (dist > 0.01) {
-                        h_v = atan2(dx, -dy) * 180.0 / M_PI;
-                        if (h_v < 0) {
-                            h_v += 360;
+                if (nq1 < 1 || nq1 > GALAXY_SIZE || nq2 < 1 || nq2 > GALAXY_SIZE) continue;
+                
+                PacketLRSUpdate pkt;
+                pkt.type = PKT_LRS_UPDATE;
+                pkt.q1 = nq1; pkt.q2 = nq2; pkt.q3 = nq3;
+                pkt.z_offset = dq3;
+                pkt.object_count = 0;
+                QuadrantIndex *lq = &spatial_index[nq1][nq2][nq3];
+                if (lq->star_count > 0 || lq->npc_count > 0) printf("DEBUG: Quadrant [%d,%d,%d] has %d stars, %d npcs\n", nq1, nq2, nq3, lq->star_count, lq->npc_count);
+                for (int i_n = 0; i_n < lq->npc_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->npcs[i_n]->active) if (lq->npcs[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->npcs[i_n]->x, .net_y = lq->npcs[i_n]->y, .net_z = lq->npcs[i_n]->z, .id = lq->npcs[i_n]->id + GALAXY_OBJECT_MIN_NPC, .active = 1};
+                for (int i_n = 0; i_n < lq->star_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->stars[i_n]->active) if (lq->stars[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->stars[i_n]->x, .net_y = lq->stars[i_n]->y, .net_z = lq->stars[i_n]->z, .id = lq->stars[i_n]->id + GALAXY_OBJECT_MIN_STAR, .active = 1};
+                for (int i_n = 0; i_n < lq->planet_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->planets[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->planets[i_n]->x, .net_y = lq->planets[i_n]->y, .net_z = lq->planets[i_n]->z, .id = lq->planets[i_n]->id + GALAXY_OBJECT_MIN_PLANET, .active = 1};
+                for (int i_n = 0; i_n < lq->base_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->bases[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->bases[i_n]->x, .net_y = lq->bases[i_n]->y, .net_z = lq->bases[i_n]->z, .id = lq->bases[i_n]->id + GALAXY_OBJECT_MIN_STARBASE, .active = 1};
+                for (int i_n = 0; i_n < lq->bh_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->black_holes[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->black_holes[i_n]->x, .net_y = lq->black_holes[i_n]->y, .net_z = lq->black_holes[i_n]->z, .id = lq->black_holes[i_n]->id + GALAXY_OBJECT_MIN_BLACKHOLE, .active = 1};
+                for (int i_n = 0; i_n < lq->nebula_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->nebulas[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->nebulas[i_n]->x, .net_y = lq->nebulas[i_n]->y, .net_z = lq->nebulas[i_n]->z, .id = lq->nebulas[i_n]->id + GALAXY_OBJECT_MIN_NEBULA, .active = 1};
+                for (int i_n = 0; i_n < lq->pulsar_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->pulsars[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->pulsars[i_n]->x, .net_y = lq->pulsars[i_n]->y, .net_z = lq->pulsars[i_n]->z, .id = lq->pulsars[i_n]->id + GALAXY_OBJECT_MIN_PULSAR, .active = 1};
+                for (int i_n = 0; i_n < lq->quasar_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->quasars[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->quasars[i_n]->x, .net_y = lq->quasars[i_n]->y, .net_z = lq->quasars[i_n]->z, .id = lq->quasars[i_n]->id + GALAXY_OBJECT_MIN_QUASAR, .active = 1};
+                for (int i_n = 0; i_n < lq->comet_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->comets[i_n]->x, .net_y = lq->comets[i_n]->y, .net_z = lq->comets[i_n]->z, .id = lq->comets[i_n]->id + GALAXY_OBJECT_MIN_COMET, .active = 1};
+                for (int i_n = 0; i_n < lq->asteroid_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->asteroids[i_n]->x, .net_y = lq->asteroids[i_n]->y, .net_z = lq->asteroids[i_n]->z, .id = lq->asteroids[i_n]->id + GALAXY_OBJECT_MIN_ASTEROID, .active = 1};
+                for (int i_n = 0; i_n < lq->derelict_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->derelicts[i_n]->x, .net_y = lq->derelicts[i_n]->y, .net_z = lq->derelicts[i_n]->z, .id = lq->derelicts[i_n]->id + GALAXY_OBJECT_MIN_DERELICT, .active = 1};
+                for (int i_n = 0; i_n < lq->void_crystal_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->void_crystals[i_n]->x, .net_y = lq->void_crystals[i_n]->y, .net_z = lq->void_crystals[i_n]->z, .id = lq->void_crystals[i_n]->id + GALAXY_OBJECT_MIN_VOID_CRYSTAL, .active = 1};
+                for (int i_n = 0; i_n < lq->time_anomaly_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->time_anomalies[i_n]->x, .net_y = lq->time_anomalies[i_n]->y, .net_z = lq->time_anomalies[i_n]->z, .id = lq->time_anomalies[i_n]->id + GALAXY_OBJECT_MIN_TIME_ANOMALY, .active = 1};
+                for (int i_n = 0; i_n < lq->subspace_anomaly_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->subspace_anomalies[i_n]->x, .net_y = lq->subspace_anomalies[i_n]->y, .net_z = lq->subspace_anomalies[i_n]->z, .id = lq->subspace_anomalies[i_n]->id + GALAXY_OBJECT_MIN_SUBSPACE_ANOM, .active = 1};
+                for (int i_n = 0; i_n < lq->dyson_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->dysons[i_n]->x, .net_y = lq->dysons[i_n]->y, .net_z = lq->dysons[i_n]->z, .id = lq->dysons[i_n]->id + GALAXY_OBJECT_MIN_DYSON, .active = 1};
+                for (int i_n = 0; i_n < lq->hub_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->hubs[i_n]->x, .net_y = lq->hubs[i_n]->y, .net_z = lq->hubs[i_n]->z, .id = lq->hubs[i_n]->id + GALAXY_OBJECT_MIN_HUB, .active = 1};
+                for (int i_n = 0; i_n < lq->relic_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->relics[i_n]->x, .net_y = lq->relics[i_n]->y, .net_z = lq->relics[i_n]->z, .id = lq->relics[i_n]->id + GALAXY_OBJECT_MIN_RELIC, .active = 1};
+                for (int i_n = 0; i_n < lq->rupture_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->ruptures[i_n]->x, .net_y = lq->ruptures[i_n]->y, .net_z = lq->ruptures[i_n]->z, .id = lq->ruptures[i_n]->id + GALAXY_OBJECT_MIN_RUPTURE, .active = 1};
+                for (int i_n = 0; i_n < lq->satellite_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->satellites[i_n]->x, .net_y = lq->satellites[i_n]->y, .net_z = lq->satellites[i_n]->z, .id = lq->satellites[i_n]->id + GALAXY_OBJECT_MIN_SATELLITE, .active = 1};
+                for (int i_n = 0; i_n < lq->storm_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->storms[i_n]->x, .net_y = lq->storms[i_n]->y, .net_z = lq->storms[i_n]->z, .id = lq->storms[i_n]->id + GALAXY_OBJECT_MIN_STORM, .active = 1};
+                for (int i_n = 0; i_n < lq->artifact_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->artifacts[i_n]->x, .net_y = lq->artifacts[i_n]->y, .net_z = lq->artifacts[i_n]->z, .id = lq->artifacts[i_n]->id + GALAXY_OBJECT_MIN_ARTIFACT, .active = 1};
+                for (int i_n = 0; i_n < lq->warp_gate_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->warp_gates[i_n]->x, .net_y = lq->warp_gates[i_n]->y, .net_z = lq->warp_gates[i_n]->z, .id = lq->warp_gates[i_n]->id + GALAXY_OBJECT_MIN_WARP_GATE, .active = 1};
+                for (int i_n = 0; i_n < lq->neutron_star_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->neutron_stars[i_n]->x, .net_y = lq->neutron_stars[i_n]->y, .net_z = lq->neutron_stars[i_n]->z, .id = lq->neutron_stars[i_n]->id + GALAXY_OBJECT_MIN_NEUTRON_STAR, .active = 1};
+                for (int i_n = 0; i_n < lq->mega_struct_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->mega_structs[i_n]->x, .net_y = lq->mega_structs[i_n]->y, .net_z = lq->mega_structs[i_n]->z, .id = lq->mega_structs[i_n]->id + GALAXY_OBJECT_MIN_MEGA_STRUCT, .active = 1};
+                for (int i_n = 0; i_n < lq->dark_cloud_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->dark_clouds[i_n]->x, .net_y = lq->dark_clouds[i_n]->y, .net_z = lq->dark_clouds[i_n]->z, .id = lq->dark_clouds[i_n]->id + GALAXY_OBJECT_MIN_DARK_CLOUD, .active = 1};
+                for (int i_n = 0; i_n < lq->singularity_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->singularities[i_n]->x, .net_y = lq->singularities[i_n]->y, .net_z = lq->singularities[i_n]->z, .id = lq->singularities[i_n]->id + GALAXY_OBJECT_MIN_SINGULARITY, .active = 1};
+                for (int i_n = 0; i_n < lq->plasma_storm_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->plasma_storms[i_n]->x, .net_y = lq->plasma_storms[i_n]->y, .net_z = lq->plasma_storms[i_n]->z, .id = lq->plasma_storms[i_n]->id + GALAXY_OBJECT_MIN_PLASMA_STORM, .active = 1};
+                for (int i_n = 0; i_n < lq->orbital_ring_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->orbital_rings[i_n]->x, .net_y = lq->orbital_rings[i_n]->y, .net_z = lq->orbital_rings[i_n]->z, .id = lq->orbital_rings[i_n]->id + GALAXY_OBJECT_MIN_ORBITAL_RING, .active = 1};
+                for (int i_n = 0; i_n < lq->player_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) {
+                    if (lq->players[i_n] != NULL && lq->players[i_n]->active) {
+                        int player_id = (int)(lq->players[i_n] - players) + 1;
+                        if (player_id > 0) {
+                            pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->players[i_n]->state.s1, .net_y = lq->players[i_n]->state.s2, .net_z = lq->players[i_n]->state.s3, .id = player_id, .active = 1};
                         }
-                        m_v = asin(dz / dist) * 180.0 / M_PI;
                     }
-
-                    char nav_info[64];
-                    char obj_info[128];
-                    char an_info[32] = "";
-                    if (nq1 == q1 && nq2 == q2 && nq3 == q3) {
-                        sprintf(nav_info, B_BLUE "[%2d,%2d,%d]" RESET "  *-CURRENT-* ", nq1, nq2, nq3);
-                    } else {
-                        sprintf(nav_info, WHITE "[%2d,%2d,%d]" RESET "  %03.0f/%+03.0f/W%.1f ", nq1, nq2, nq3, h_v, m_v, dist / QUADRANT_SIZE);
-                    }
-
-                    sprintf(obj_info, "[%s %s %s %s %s" RESET "]", 
-                        bh > 0 ? MAGENTA "H" : ".", 
-                        p > 0 ? CYAN "P" : ".", 
-                        vessels > 0 ? RED "N" : ".", 
-                        b_cnt > 0 ? GREEN "B" : ".", 
-                        s > 0 ? YELLOW "S" : ".");
-                    
-                    if (neb > 0) {
-                        strcat(an_info, "~");
-                    } 
-                    if (pul > 0) {
-                        strcat(an_info, "*");
-                    } 
-                    if (storm > 0) {
-                        strcat(an_info, "!");
-                    }
-                    if (com > 0) {
-                        strcat(an_info, "+");
-                    } 
-                    if (ast > 0) {
-                        strcat(an_info, "#");
-                    } 
-                    if (mon > 0) {
-                        strcat(an_info, "M");
-                    } 
-                    if (rift > 0) {
-                        strcat(an_info, ">");
-                    }
-                    if (qsr > 0) {
-                        strcat(an_info, "Q");
-                    }
-                    if (sub_anom > 0) {
-                        strcat(an_info, "A");
-                    }
-
-                    char row[256];
-                    sprintf(row, "  %s  %-18s  %-4s\n", nav_info, obj_info, an_info);
-                    strcat(b, row);
                 }
+                for (int i_n = 0; i_n < lq->mine_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->mines[i_n]->x, .net_y = lq->mines[i_n]->y, .net_z = lq->mines[i_n]->z, .id = lq->mines[i_n]->id + GALAXY_OBJECT_MIN_MINE, .active = 1};
+                for (int i_n = 0; i_n < lq->buoy_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->buoys[i_n]->x, .net_y = lq->buoys[i_n]->y, .net_z = lq->buoys[i_n]->z, .id = lq->buoys[i_n]->id + GALAXY_OBJECT_MIN_BUOY, .active = 1};
+                for (int i_n = 0; i_n < lq->platform_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->platforms[i_n]->x, .net_y = lq->platforms[i_n]->y, .net_z = lq->platforms[i_n]->z, .id = lq->platforms[i_n]->id + GALAXY_OBJECT_MIN_PLATFORM, .active = 1};
+                for (int i_n = 0; i_n < lq->rift_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->rifts[i_n]->x, .net_y = lq->rifts[i_n]->y, .net_z = lq->rifts[i_n]->z, .id = lq->rifts[i_n]->id + GALAXY_OBJECT_MIN_RIFT, .active = 1};
+                for (int i_n = 0; i_n < lq->monster_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->monsters[i_n]->x, .net_y = lq->monsters[i_n]->y, .net_z = lq->monsters[i_n]->z, .id = lq->monsters[i_n]->id + GALAXY_OBJECT_MIN_MONSTER, .active = 1};
+
+                size_t packet_size = offsetof(PacketLRSUpdate, objects) + (pkt.object_count * sizeof(NetObject));
+                pthread_mutex_lock(&players[i].socket_mutex);
+                if (players[i].socket != 0) write_all(players[i].socket, &pkt, packet_size);
+                pthread_mutex_unlock(&players[i].socket_mutex);
             }
         }
-        strcat(b, "\n");
     }
-    strcat(b, B_CYAN "'------------------------------------------------------------------------------'\n" RESET);
-    send_server_msg(i, "SCIENCE", b);
-    free(b);
+    send_server_msg(i, "SCIENCE", "LRS Scan complete.");
 }
 
 void handle_pha(int i, const char *params, bool *should_disconnect) {
@@ -1583,6 +1682,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
         int hit = (int)((e / dist) * (players[i].state.system_health[4] / (double)YIELD_HARVEST_MAX) * weapon_mult);
         
         /* VISUAL FX: Trigger reliable IPC beam event (Owner ID is player index+1, Extra is target ID) */
+        push_server_event(i, IPC_EV_BEAM, players[i].state.s1, players[i].state.s2, players[i].state.s3, tx, ty, tz, (int)tid);
         push_server_event(i, IPC_EV_BEAM, players[i].state.s1, players[i].state.s2, players[i].state.s3, tx, ty, tz, (int)tid);
         /* We also need to store the owner_id somewhere. Let's hijack the beam event struct if needed, 
            or just ensure the visualizer knows who 'i' is.

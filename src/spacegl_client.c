@@ -17,6 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+const char* get_lrs_object_name(int id);
 #define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -692,6 +693,56 @@ void *network_listener(void *arg) {
             }
             free(msg);
             reprint_prompt();
+        } else if (type == PKT_LRS_UPDATE) {
+            PacketLRSUpdate lrs_pkt;
+            memset(&lrs_pkt, 0, sizeof(PacketLRSUpdate));
+            lrs_pkt.type = type;
+
+            /* Read q1, q2, q3, z_offset, object_count */
+            size_t header_fields_size = sizeof(int32_t) * 5;
+            int r_head = read_all(sock, &lrs_pkt.q1, header_fields_size);
+            
+            if (r_head == (int)header_fields_size) {
+                if (lrs_pkt.object_count < 0) lrs_pkt.object_count = 0;
+                if (lrs_pkt.object_count > MAX_NET_OBJECTS) lrs_pkt.object_count = MAX_NET_OBJECTS;
+
+                if (lrs_pkt.object_count > 0) {
+                    read_all(sock, lrs_pkt.objects, lrs_pkt.object_count * sizeof(NetObject));
+                }
+                
+                const char *depth_color = (lrs_pkt.z_offset == 1) ? GREEN : ((lrs_pkt.z_offset == 0) ? YELLOW : RED);
+                printf("%s\n--- LRS TACTICAL SCAN: QUADRANT [%d,%d,%d] (Z-OFFSET: %d) ---\n" RESET, depth_color, lrs_pkt.q1, lrs_pkt.q2, lrs_pkt.q3, lrs_pkt.z_offset);
+                printf("TYPE       ID    POSITION            STATUS\n");
+                for (int n = 0; n < lrs_pkt.object_count; n++) {
+                    NetObject *obj = &lrs_pkt.objects[n];
+                    /* Icon Mapping consistent with SRS */
+                    const char *name = get_lrs_object_name(obj->id);
+                    const char *icon = "❓";
+                    if (strstr(name, "Player")) icon = "🚀";
+                    else if (strstr(name, "NPC")) icon = "⚔️ ";
+                    else if (strstr(name, "Starbase")) icon = "🛰️ ";
+                    else if (strstr(name, "Planet")) icon = "🪐";
+                    else if (strstr(name, "Star")) icon = "🌟";
+                    else if (strstr(name, "Black Hole")) icon = "🕳️ ";
+                    else if (strstr(name, "Nebula")) icon = "🌫️ ";
+                    else if (strstr(name, "Pulsar")) icon = "☄️ ";
+                    else if (strstr(name, "Quasar")) icon = "🎇 ";
+                    else if (strstr(name, "Rift")) icon = "🌀 ";
+                    else if (strstr(name, "Monster")) icon = "👾 ";
+                    else if (strstr(name, "Subspace Anomaly")) icon = "💥 ";
+                    else if (strstr(name, "Void Crystal")) icon = "💎 ";
+                    else if (strstr(name, "Buoy")) icon = "📍 ";
+                    else if (strstr(name, "Platform")) icon = "🏗️ ";
+                    else if (strstr(name, "Wreck")) icon = "🏚️ ";
+                    else if (strstr(name, "Mine")) icon = "💣 ";
+
+                    printf("%s %-10s %-5d [%.2f,%.2f,%.2f] %-10s\n", 
+                           icon, name, obj->id, obj->net_x, obj->net_y, obj->net_z, "Active");
+                }
+                printf("--------------------------------------------\n");
+            } else {
+                fprintf(stderr, "ERROR: Failed to read LRS header.\n");
+            }
         } else if (type == PKT_UPDATE || type == PKT_UPDATE_DELTA) {
             static PacketUpdate current_state;
             int current_pkt_size = sizeof(int32_t);
@@ -1728,7 +1779,44 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-
     close(sock);
     return 0;
+}
+const char* get_lrs_object_name(int id) {
+    if (id >= GALAXY_OBJECT_MIN_PLAYER && id <= GALAXY_OBJECT_MAX_PLAYER) return "Player";
+    if (id >= GALAXY_OBJECT_MIN_NPC && id <= GALAXY_OBJECT_MAX_NPC) return "NPC Ship";
+    if (id >= GALAXY_OBJECT_MIN_STARBASE && id <= GALAXY_OBJECT_MAX_STARBASE) return "Starbase";
+    if (id >= GALAXY_OBJECT_MIN_PLANET && id <= GALAXY_OBJECT_MAX_PLANET) return "Planet";
+    if (id >= GALAXY_OBJECT_MIN_STAR && id <= GALAXY_OBJECT_MAX_STAR) return "Star";
+    if (id >= GALAXY_OBJECT_MIN_BLACKHOLE && id <= GALAXY_OBJECT_MAX_BLACKHOLE) return "Black Hole";
+    if (id >= GALAXY_OBJECT_MIN_NEBULA && id <= GALAXY_OBJECT_MAX_NEBULA) return "Nebula";
+    if (id >= GALAXY_OBJECT_MIN_PULSAR && id <= GALAXY_OBJECT_MAX_PULSAR) return "Pulsar";
+    if (id >= GALAXY_OBJECT_MIN_COMET && id <= GALAXY_OBJECT_MAX_COMET) return "Comet";
+    if (id >= GALAXY_OBJECT_MIN_DERELICT && id <= GALAXY_OBJECT_MAX_DERELICT) return "Derelict";
+    if (id >= GALAXY_OBJECT_MIN_ASTEROID && id <= GALAXY_OBJECT_MAX_ASTEROID) return "Asteroid";
+    if (id >= GALAXY_OBJECT_MIN_MINE && id <= GALAXY_OBJECT_MAX_MINE) return "Mine";
+    if (id >= GALAXY_OBJECT_MIN_BUOY && id <= GALAXY_OBJECT_MAX_BUOY) return "Buoy";
+    if (id >= GALAXY_OBJECT_MIN_PLATFORM && id <= GALAXY_OBJECT_MAX_PLATFORM) return "Platform";
+    if (id >= GALAXY_OBJECT_MIN_RIFT && id <= GALAXY_OBJECT_MAX_RIFT) return "Rift";
+    if (id >= GALAXY_OBJECT_MIN_MONSTER && id <= GALAXY_OBJECT_MAX_MONSTER) return "Monster";
+    if (id >= GALAXY_OBJECT_MIN_PROBE && id <= GALAXY_OBJECT_MAX_PROBE) return "Probe";
+    if (id >= GALAXY_OBJECT_MIN_QUASAR && id <= GALAXY_OBJECT_MAX_QUASAR) return "Quasar";
+    if (id >= GALAXY_OBJECT_MIN_DYSON && id <= GALAXY_OBJECT_MAX_DYSON) return "Dyson";
+    if (id >= GALAXY_OBJECT_MIN_HUB && id <= GALAXY_OBJECT_MAX_HUB) return "Hub";
+    if (id >= GALAXY_OBJECT_MIN_RELIC && id <= GALAXY_OBJECT_MAX_RELIC) return "Relic";
+    if (id >= GALAXY_OBJECT_MIN_RUPTURE && id <= GALAXY_OBJECT_MAX_RUPTURE) return "Rupture";
+    if (id >= GALAXY_OBJECT_MIN_SATELLITE && id <= GALAXY_OBJECT_MAX_SATELLITE) return "Satellite";
+    if (id >= GALAXY_OBJECT_MIN_STORM && id <= GALAXY_OBJECT_MAX_STORM) return "Storm";
+    if (id >= GALAXY_OBJECT_MIN_ARTIFACT && id <= GALAXY_OBJECT_MAX_ARTIFACT) return "Artifact";
+    if (id >= GALAXY_OBJECT_MIN_WARP_GATE && id <= GALAXY_OBJECT_MAX_WARP_GATE) return "Warp Gate";
+    if (id >= GALAXY_OBJECT_MIN_NEUTRON_STAR && id <= GALAXY_OBJECT_MAX_NEUTRON_STAR) return "Neutron Star";
+    if (id >= GALAXY_OBJECT_MIN_MEGA_STRUCT && id <= GALAXY_OBJECT_MAX_MEGA_STRUCT) return "Mega Struct";
+    if (id >= GALAXY_OBJECT_MIN_DARK_CLOUD && id <= GALAXY_OBJECT_MAX_DARK_CLOUD) return "Dark Cloud";
+    if (id >= GALAXY_OBJECT_MIN_SINGULARITY && id <= GALAXY_OBJECT_MAX_SINGULARITY) return "Singularity";
+    if (id >= GALAXY_OBJECT_MIN_PLASMA_STORM && id <= GALAXY_OBJECT_MAX_PLASMA_STORM) return "Plasma Storm";
+    if (id >= GALAXY_OBJECT_MIN_ORBITAL_RING && id <= GALAXY_OBJECT_MAX_ORBITAL_RING) return "Orbital Ring";
+    if (id >= GALAXY_OBJECT_MIN_TIME_ANOMALY && id <= GALAXY_OBJECT_MAX_TIME_ANOMALY) return "Time Anomaly";
+    if (id >= GALAXY_OBJECT_MIN_VOID_CRYSTAL && id <= GALAXY_OBJECT_MAX_VOID_CRYSTAL) return "Void Crystal";
+    if (id >= GALAXY_OBJECT_MIN_SUBSPACE_ANOM && id <= GALAXY_OBJECT_MAX_SUBSPACE_ANOM) return "Subspace Anomaly";
+    return "Unknown";
 }

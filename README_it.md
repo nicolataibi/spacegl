@@ -25,7 +25,7 @@
 #### *“Questa collezione presenta asset generati dall'intelligenza artificiale, curati e ideati tramite prompt da Nicola Taibi, generati da Gemini (Google IA)”*
 **Persistent Galaxy Tactical Navigation & Combat Simulator**
 
-**OpenGL GLFW Screenshoots**
+**OpenGL GLFW Screenshots**
 
 <table>
   <tr>
@@ -50,7 +50,7 @@
   </tr>
 </table>
 
-**Vulkan Screenshoots**
+**Vulkan Screenshots**
 
 <table>
 <tr>
@@ -256,7 +256,7 @@ Il ponte di comando di una nave Space GL non usa semplici schermi. Il Comandante
 
 L'aggiornamento 2.9 trasforma il rollio da semplice effetto estetico a componente fondamentale della navigazione e del combattimento:
 *   **Supporto Rollio Longitudinale**: Le navi ora supportano l'orientamento completo a 3-DOF. Il **Rollio (Roll)** permette manovre cinematiche e un posizionamento tattico senza precedenti.
-*   **Suite AR Compass Solidale**: La bussola olografica `axs` è stata completamente riprogettata per essere solidale alla nave:
+*   **Suite AR Compass Solidale**: La bussola olografica `axs` è stata completamente riprogettata per essere solidale alla nave: 
     *   **Vettore "Top" (Blu)**: Un nuovo indicatore verticale che punta al soffitto della nave, permettendo di percepire istantaneamente l'inclinazione laterale.
     *   **Anello del Rollio Solidale**: Il cerchio trasversale giallo ruota ora in perfetta sincronia con heading, mark e rollio della nave.
     *   **Riallineamento Mark**: Il semianello del Mark è ora correttamente frontale alla prua, fornendo un riferimento di elevazione intuitivo.
