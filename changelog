@@ -1,3 +1,8 @@
+* Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.04
+- [Logic] Refactored dismantle (dis) event coordinates to use absolute local quadrant values, ensuring consistent rendering across boundary conditions.
+- [Logic] Implemented robust feedback for inactive targets in dis command, guiding users to scan for derelict IDs.
+- [Stability] Expanded IPC_EVENT_QUEUE_SIZE to 4096 and prioritized dismantle IPC events in the viewer for consistent visual delivery.
+
 * Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.03
 - [Logic] Stabilized dismantle (dis) visual effects by expanding IPC event buffer to 4096.
 - [Visuals] Implemented event prioritization in the 3D viewer to ensure dismantle explosion delivery under load.

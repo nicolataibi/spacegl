@@ -2567,10 +2567,10 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                 
                 if (sqrt(dx * dx + dy * dy + dz * dz) < DIST_DISMANTLE_MAX) {
                     players[i].state.energy -= COST_ACTION_EXTREME;
-                                        int yield = (int)((npcs[n_idx].energy / YIELD_BOARD_ENERGY_DIV) * transporter_mult);
-                                        if (yield < (int)THRESHOLD_SYS_CRITICAL) {
-                                            yield = (int)THRESHOLD_SYS_CRITICAL;
-                                        }
+                    int yield = (int)((npcs[n_idx].energy / YIELD_BOARD_ENERGY_DIV) * transporter_mult);
+                    if (yield < (int)THRESHOLD_SYS_CRITICAL) {
+                        yield = (int)THRESHOLD_SYS_CRITICAL;
+                    }
                     
                     players[i].state.inventory[2] += yield; /* Neo-Titanium */
                     players[i].state.inventory[5] += yield / 5; /* Synaptics */
@@ -2595,6 +2595,8 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                     send_server_msg(i, "COMPUTER", err_msg);
                     return;
                 }
+            } else {
+                send_server_msg(i, "COMPUTER", "Target inactive. Scan for derelict ID to dismantle.");
             }
         } 
         /* Case: Static Derelict Wreck (ID 15000+) */
@@ -2616,10 +2618,10 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                     players[i].state.inventory[5] += yield / 4; 
                     derelicts[d_idx].active = 0;
                     
-                    /* Visual FX - Correct mapping to NetDismantle struct */
-                    double rs1 = (tx - (players[i].state.q1 - 1) * QUADRANT_SIZE);
-                    double rs2 = (ty - (players[i].state.q2 - 1) * QUADRANT_SIZE);
-                    double rs3 = (tz - (players[i].state.q3 - 1) * QUADRANT_SIZE);
+                    /* Visual FX - Use local quadrant coordinates (0.0 - 40.0) for consistent rendering */
+                    double rs1 = derelicts[d_idx].x;
+                    double rs2 = derelicts[d_idx].y;
+                    double rs3 = derelicts[d_idx].z;
                     broadcast_server_event(players[i].state.q1, players[i].state.q2, players[i].state.q3, IPC_EV_DISMANTLE, rs1, rs2, rs3, 0, 0, 0, derelicts[d_idx].faction);
                     
                     char msg[128];
