@@ -404,6 +404,14 @@ void swap_buffers() {
 
 void push_ipc_event(int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra) {
     if (!g_shm) return;
+    
+    if (type == IPC_EV_DISMANTLE) {
+        g_shm->dismantle_telemetry.x = x1;
+        g_shm->dismantle_telemetry.y = y1;
+        g_shm->dismantle_telemetry.z = z1;
+        g_shm->dismantle_telemetry.count++;
+    }
+    
     int tail = atomic_load_explicit(&g_shm->event_tail, memory_order_relaxed);
     int head = atomic_load_explicit(&g_shm->event_head, memory_order_acquire);
     int next = (tail + 1) % IPC_EVENT_QUEUE_SIZE;

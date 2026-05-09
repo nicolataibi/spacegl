@@ -167,7 +167,7 @@ typedef struct {
     char cmd[128];
 } IPCCommand;
 
-#define IPC_EVENT_QUEUE_SIZE 1024
+#define IPC_EVENT_QUEUE_SIZE 4096
 #define IPC_EV_BEAM      1
 #define IPC_EV_BOOM      2
 #define IPC_EV_DISMANTLE 3
@@ -204,6 +204,13 @@ typedef struct {
     atomic_int cmd_head;
     atomic_int cmd_tail;
     IPCCommand cmd_queue[CMD_QUEUE_SIZE];
+
+    /* Telemetry Bridge for Validation */
+    struct {
+        double x, y, z;
+        int frame_id;
+        int count;
+    } dismantle_telemetry;
 
     /* Synchronization (Must match system alignment) */
     pthread_mutex_t mutex;

@@ -1,3 +1,8 @@
+* Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.03
+- [Logic] Stabilized dismantle (dis) visual effects by expanding IPC event buffer to 4096.
+- [Visuals] Implemented event prioritization in the 3D viewer to ensure dismantle explosion delivery under load.
+- [Telemetry] Added DISM-FX telemetry counter to the HUD, integrated with SharedIPC for real-time validation.
+
 * Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.02
 - [Story] Integrated narrative framework and background documentation for 'The Void Protocol' into the project documentation.
 

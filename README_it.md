@@ -1257,6 +1257,9 @@ Per eseguire operazioni complesse (estrazione, rifornimento, abbordaggio), segui
     *   `pha` / `tor` per **Nemici/Mostri/Piattaforme** (Combattimento).
 
 **Nota sulla Portata Inter-Settore**: Il comando `dis` (smantellamento) utilizza un sistema di risoluzione globale. Questo significa che puoi puntare e smantellare qualsiasi relitto visibile sul tuo HUD o identificato dai sensori, anche se si trova in un quadrante adiacente al tuo. Il comando `apr` (avvicinamento) è invece limitato agli oggetti presenti nel quadrante attuale per garantire la sicurezza della navigazione a corto raggio.
+    *   **Risoluzione dei problemi (Troubleshooting)**: Se l'effetto visivo di smantellamento (esplosione) non appare, controlla il contatore **`DISM-FX`** nella sezione [DEEP SPACE UPLINK] dell'HUD.
+        *   Se **`DISM-FX` aumenta**: L'evento di smantellamento è stato ricevuto dal client. La mancanza dell'effetto visivo suggerisce un problema di rendering locale (controlla il mapping delle coordinate o lo stato della GPU).
+        *   Se **`DISM-FX` non aumenta**: L'evento non è stato trasmesso dal server o è andato perso durante il transito di rete. Assicurati di puntare a un Relitto valido (`dis <ID>`) all'interno dello stesso quadrante.
 
 ### 📏 Tabella delle Distanze di Interazione
 Distanze espresse in unità di settore (0.0 - 40.0). Se la tua distanza è superiore al limite, il computer risponderà con "No [object] in range".

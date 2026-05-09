@@ -1186,6 +1186,9 @@ SpaceGL features a high-fidelity wreckage system designed to enhance immersion a
 *   **Combat Effects**: 
     *   **Snappy Phasers**: Ion beam pulses have been optimized for faster delivery and rapid fade-out, providing better visual feedback during intense combat.
     *   **Dismantle Feedback**: Successful dismantling of a wreck triggers a specialized particle disintegration effect, synchronized across the network.
+        *   **Troubleshooting**: If the visual dismantle effect (explosion) does not appear, check the **`DISM-FX`** counter in the HUD's [DEEP SPACE UPLINK] section.
+            *   If **`DISM-FX` increases**: The dismantle event was received by the client. The lack of visual suggests a local rendering issue (check coordinate mapping or GPU state).
+            *   If **`DISM-FX` does not increase**: The event was either not broadcast by the server or lost in network transit. Ensure you are targeting a valid Wreck (`dis <ID>`) within the same quadrant.
     *   **HUD Integration**: Active sensor probes are now dynamically listed in the **Short Range Sensors (SRS)** overlay, allowing for immediate tactical monitoring alongside other objects.
 
 ### ⚔️ Tactical Combat

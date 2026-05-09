@@ -762,19 +762,47 @@ void loadGameState() {
         exit(0);
     }
 
-    /* Process Persistent Event Queue (Transient Effects) - ALWAYS process even if state is unchanged */
+    /* Process Persistent Event Queue (Transient Effects) */
     if (g_shm) {
         int head = atomic_load_explicit(&g_shm->event_head, memory_order_acquire);
         int tail = atomic_load_explicit(&g_shm->event_tail, memory_order_acquire);
         
+        static int last_telemetry_count = 0;
+        if (g_shm->dismantle_telemetry.count > last_telemetry_count) {
+             /* Telemetry suggests an event WAS sent, check if we catch it */
+        }
+
         while (head != tail) {
             IPCEvent *ev = &g_shm->event_queue[head];
             
-            if (ev->type == IPC_EV_BEAM) {
+            if (ev->type == IPC_EV_DISMANTLE) {
+                last_telemetry_count = g_shm->dismantle_telemetry.count;
+                float dx = ev->x1 - (QUADRANT_SIZE / 2.0);
+                float dy = ev->z1 - (QUADRANT_SIZE / 2.0);
+                float dz = (QUADRANT_SIZE / 2.0) - ev->y1;
+                
+                /* VIBRANT MULTI-COLORED PIXEL EXPLOSION */
+                for(int i=0; i<800; i++) { 
+                    float speed = 0.8 + (rand()%200)/100.0;
+                    float theta = (rand()%360) * M_PI / 180.0;
+                    float phi = (rand()%180 - 90) * M_PI / 180.0;
+                    float vx = speed * cos(phi) * cos(theta);
+                    float vy = speed * sin(phi);
+                    float vz = speed * cos(phi) * sin(theta);
+                    float r = (rand()%100)/100.0; float g = (rand()%100)/100.0; float b = (rand()%100)/100.0;
+                    if (r < 0.3 && g < 0.3 && b < 0.3) { r += 0.5; g += 0.5; b += 0.5; }
+                    float p_size = 5.0 + (rand()%1500)/100.0;
+                    float p_life = 4.0 + (rand()%400)/100.0;
+                    spawnParticle(dx, dy, dz, vx, vy, vz, r, g, b, p_size, p_life);
+                }
+                for(int i=0; i<100; i++) {
+                    float vx = ((rand()%100)-50)/5.0; float vy = ((rand()%100)-50)/5.0; float vz = ((rand()%100)-50)/5.0;
+                    spawnParticle(dx, dy, dz, vx, vy, vz, 1.0, 1.0, 1.0, 15.0, 1.5);
+                }
+            } else if (ev->type == IPC_EV_BEAM) {
                 int slot = -1;
                 for(int j=0; j<64; j++) if(beams[j].alpha <= 0) { slot = j; break; }
                 if (slot == -1) slot = rand()%64;
-                /* Note: net_y is Viewer Z, net_z is Viewer Y */
                 beams[slot].sx = ev->x1 - (QUADRANT_SIZE / 2.0);
                 beams[slot].sy = ev->z1 - (QUADRANT_SIZE / 2.0);
                 beams[slot].sz = (QUADRANT_SIZE / 2.0) - ev->y1;
@@ -790,7 +818,6 @@ void loadGameState() {
                 g_booms[boom_idx].timer = (int)(2 * GAME_TICK_RATE / 3); 
                 int current_boom = boom_idx;
                 boom_idx = (boom_idx + 1) % 10;
-                /* Force kill nearest torpedo visual on impact */
                 for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) {
                     if (g_torps[s].active) {
                         double dxb = g_torps[s].x - g_booms[current_boom].x;
@@ -799,65 +826,20 @@ void loadGameState() {
                         if ((dxb*dxb + dyb*dyb + dzb*dzb) < 1.0) g_torps[s].active = 0;
                     }
                 }
-            } else if (ev->type == IPC_EV_DISMANTLE) {
-                float dx = ev->x1 - (QUADRANT_SIZE / 2.0);
-                float dy = ev->z1 - (QUADRANT_SIZE / 2.0);
-                float dz = (QUADRANT_SIZE / 2.0) - ev->y1;
-                
-                /* VIBRANT MULTI-COLORED PIXEL EXPLOSION - CALIBRATED FOR MAX LOAD */
-                /* Quota: 800 particles per dismantle. Max 16 players = 12,800 particles total. */
-                for(int i=0; i<800; i++) { 
-                    float speed = 0.8 + (rand()%200)/100.0;
-                    float theta = (rand()%360) * M_PI / 180.0;
-                    float phi = (rand()%180 - 90) * M_PI / 180.0;
-                    
-                    float vx = speed * cos(phi) * cos(theta);
-                    float vy = speed * sin(phi);
-                    float vz = speed * cos(phi) * sin(theta);
-                    
-                    /* Extreme vibrant colors */
-                    float r = (rand()%100)/100.0;
-                    float g = (rand()%100)/100.0;
-                    float b = (rand()%100)/100.0;
-                    
-                    /* Boost brightness */
-                    if (r < 0.3 && g < 0.3 && b < 0.3) {
-                        r += 0.5; g += 0.5; b += 0.5;
-                    }
-                    
-                    float p_size = 5.0 + (rand()%1500)/100.0; /* 5.0 to 20.0 */
-                    float p_life = 4.0 + (rand()%400)/100.0;  /* 4 to 8 seconds */
-                    
-                    spawnParticle(dx, dy, dz, vx, vy, vz, r, g, b, p_size, p_life);
-                }
-                
-                /* Central high-intensity flash (Fixed 100 particles) */
-                for(int i=0; i<100; i++) {
-                    float vx = ((rand()%100)-50)/5.0;
-                    float vy = ((rand()%100)-50)/5.0;
-                    float vz = ((rand()%100)-50)/5.0;
-                    spawnParticle(dx, dy, dz, vx, vy, vz, 1.0, 1.0, 1.0, 15.0, 1.5);
-                }
             } else if (ev->type == IPC_EV_RECOVERY) {
                 g_recovery_fx.x = ev->x1 - (QUADRANT_SIZE / 2.0);
                 g_recovery_fx.y = ev->z1 - (QUADRANT_SIZE / 2.0);
                 g_recovery_fx.z = (QUADRANT_SIZE / 2.0) - ev->y1;
                 g_recovery_fx.timer = (int)GAME_TICK_RATE;
             } else if (ev->type == IPC_EV_JUMP) {
-                /* ... (existing jump logic) ... */
-                float jx = ev->x1 - 20.0;
-                float jy = ev->z1 - 20.0;
-                float jz = 20.0 - ev->y1;
+                float jx = ev->x1 - 20.0; float jy = ev->z1 - 20.0; float jz = 20.0 - ev->y1;
                 g_jump_arrival.x = jx; g_jump_arrival.y = jy; g_jump_arrival.z = jz;
-                g_jump_arrival.h = state->shm_h; 
-                g_jump_arrival.m = state->shm_m;
-                g_jump_arrival.active = 1;
+                g_jump_arrival.h = state->shm_h; g_jump_arrival.m = state->shm_m; g_jump_arrival.active = 1;
                 g_jump_arrival.timer = (5 * GAME_TICK_RATE);
                 g_arrival_fx.x = jx; g_arrival_fx.y = jy; g_arrival_fx.z = jz;
                 g_arrival_fx.timer = (5 * GAME_TICK_RATE);
                 for(int i=0; i<150; i++) {
-                    float theta = (rand() % 360) * M_PI / 180.0;
-                    float phi = (rand() % 180 - 90) * M_PI / 180.0;
+                    float theta = (rand() % 360) * M_PI / 180.0; float phi = (rand() % 180 - 90) * M_PI / 180.0;
                     float dist = 3.0 + (rand() % 200) / 100.0;
                     g_arrival_fx.particles[i].x = g_arrival_fx.x + dist * cos(phi) * cos(theta);
                     g_arrival_fx.particles[i].y = g_arrival_fx.y + dist * sin(phi);
@@ -865,43 +847,25 @@ void loadGameState() {
                     g_arrival_fx.particles[i].vx = (g_arrival_fx.x - g_arrival_fx.particles[i].x) / 100.0;
                     g_arrival_fx.particles[i].vy = (g_arrival_fx.y - g_arrival_fx.particles[i].y) / 100.0;
                     g_arrival_fx.particles[i].vz = (g_arrival_fx.z - g_arrival_fx.particles[i].z) / 100.0;
-                    g_arrival_fx.particles[i].r = (rand() % 100) / 100.0;
-                    g_arrival_fx.particles[i].g = (rand() % 100) / 100.0;
-                    g_arrival_fx.particles[i].b = (rand() % 100) / 100.0;
+                    g_arrival_fx.particles[i].r = (rand() % 100) / 100.0; g_arrival_fx.particles[i].g = (rand() % 100) / 100.0; g_arrival_fx.particles[i].b = (rand() % 100) / 100.0;
                     g_arrival_fx.particles[i].active = 1;
                 }
             } else if (ev->type == IPC_EV_TORPEDO) {
-                /* Zero-Loss Projectile Tracking */
                 int tid = ev->extra;
-                float n_tx = ev->x1 - (QUADRANT_SIZE / 2.0);
-                float n_ty = ev->z1 - (QUADRANT_SIZE / 2.0);
-                float n_tz = (QUADRANT_SIZE / 2.0) - ev->y1;
-                
+                float n_tx = ev->x1 - (QUADRANT_SIZE / 2.0); float n_ty = ev->z1 - (QUADRANT_SIZE / 2.0); float n_tz = (QUADRANT_SIZE / 2.0) - ev->y1;
                 int found = -1;
-                for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) {
-                    if (g_torps[s].active && g_torps[s].timer == tid) { found = s; break; }
-                }
-                
+                for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) if (g_torps[s].active && g_torps[s].timer == tid) { found = s; break; }
                 if (found == -1) {
-                    /* New torpedo from Zero-Loss stream */
-                    for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) {
-                        if (!g_torps[s].active) { 
-                            found = s; 
-                            g_torps[s].x = n_tx; g_torps[s].y = n_ty; g_torps[s].z = n_tz;
-                            break; 
-                        }
+                    for(int s=0; s<MAX_VISIBLE_TORPEDOES; s++) if (!g_torps[s].active) { 
+                        found = s; g_torps[s].x = n_tx; g_torps[s].y = n_ty; g_torps[s].z = n_tz; break; 
                     }
                 }
-                
                 if (found != -1) {
                     g_torps[found].tx = n_tx; g_torps[found].ty = n_ty; g_torps[found].tz = n_tz;
                     g_torps[found].vx = ev->x2; g_torps[found].vy = ev->z2; g_torps[found].vz = -ev->y2;
-                    g_torps[found].active = 1;
-                    g_torps[found].timer = tid; /* Use timer field as persistent ID */
-                    g_torps[found].h = 10;      /* Internal TTL (Time to Live) frames */
+                    g_torps[found].active = 1; g_torps[found].timer = tid; g_torps[found].h = 10;
                 }
             }
-            
             head = (head + 1) % IPC_EVENT_QUEUE_SIZE;
             atomic_store_explicit(&g_shm->event_head, head, memory_order_release);
         }
