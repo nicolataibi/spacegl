@@ -72,6 +72,14 @@
     <td><img src="readme_assets/vulkan objects/pulsar0.png" alt="Comets and Asteroids" width="400"/></td>
     <td><img src="readme_assets/vulkan objects/quasar0.png" alt="Space Monster" width="400"/></td>
   </tr>
+  <tr>
+    <td><img src="readme_assets/vulkan objects/telemetry.png" alt="Comets and Asteroids" width="400"/></td>
+    <td><img src="readme_assets/vulkan objects/telemetrybh.png" alt="Space Monster" width="400"/></td>
+  </tr>
+  <tr>
+    <td><img src="readme_assets/vulkan objects/vulkanhud.png" alt="Comets and Asteroids" width="400"/></td>
+    <td><img src="readme_assets/vulkan objects/blackhole.png" alt="Space Monster" width="400"/></td>
+  </tr>
 </table>
 
 Space GL is a high-performance 3D multi-user client-server space flight and combat simulator. The engine features real-time galaxy state synchronization via shared memory (SHM), cryptographically signed data integrity (HMAC-SHA256), a dual-socket advanced telemetry subsystem for tactical oversight, and versatile visualization front-ends built on OpenGL and Vulkan.

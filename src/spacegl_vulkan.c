@@ -4125,6 +4125,7 @@ void mainLoop(VulkanApp* app) {
                         app->activeTorps[f].active = 600; /* Match server TIMER_TORP_TIMEOUT (10s) */
                     }
                 } else if (ev->type == IPC_EV_DISMANTLE) {
+                    if (app->shm) app->shm->dismantle_telemetry.vk_rcv_count++;
                     for(int i=0; i<MAX_ACTIVE_DISMANTLES; i++) if(app->activeDismantles[i].life <= 0){
                         app->activeDismantles[i].x = (float)ev->x1 - 20.0f;
                         app->activeDismantles[i].y = (float)ev->z1 - 20.0f;

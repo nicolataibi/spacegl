@@ -497,7 +497,7 @@ int main(int argc, char** argv) {
         mvprintw(bot_y + 2, 2, "BITRATE: %6.1f KBPS", st->net_kbps);
         mvprintw(bot_y + 3, 2, "LOSS   : %6.2f%%", 100.0 - st->net_integrity);
         mvprintw(bot_y + 4, 2, "PACKETS: %d", st->net_packet_count);
-        mvprintw(bot_y + 5, 2, "DISM-FX: %d", shm->dismantle_telemetry.count);
+        mvprintw(bot_y + 5, 2, "DISM-FX: %d (V:%d)", shm->dismantle_telemetry.count, shm->dismantle_telemetry.vk_rcv_count);
         mvprintw(bot_y + 6, 2, "JITTER : %6.3f ms", st->net_jitter);
         mvprintw(bot_y + 6, 2, "LINK   : %s", (st->net_integrity > 90)?"NOMINAL":"STORM");
 

@@ -1,3 +1,8 @@
+* Sun May 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.10.01
+- [Vulkan] Fixed particle rendering alignment and event handling consistency.
+- [HUD] Integrated telemetry monitors for real-time event delivery validation.
+- [Docs] Updated README.md and README_it.md with new Vulkan rendering reference screenshots.
+
 * Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.04
 - [Logic] Refactored dismantle (dis) event coordinates to use absolute local quadrant values, ensuring consistent rendering across boundary conditions.
 - [Logic] Implemented robust feedback for inactive targets in dis command, guiding users to scan for derelict IDs.
