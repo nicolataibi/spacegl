@@ -3,6 +3,21 @@
 <p>May 3, 2026</p>
 </div>
 
+Space GL is a high-performance 3D multi-user client-server space flight and combat simulator. The engine features real-time galaxy state synchronization via shared memory (SHM), cryptographically signed data integrity (HMAC-SHA256), a dual-socket advanced telemetry subsystem for tactical oversight, and versatile visualization front-ends built on OpenGL and Vulkan.
+---
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <img
+        src="readme_assets/logo/spacegllogo.png"
+        alt="SpaceGL Logo"
+        width="800"
+      />
+    </td>
+  </tr>
+</table>
+
 ![Version](https://img.shields.io/badge/Version-3.0-green)
 ![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
 ![Language](https://img.shields.io/badge/Language-C-blue)
@@ -82,7 +97,6 @@
   </tr>
 </table>
 
-Space GL is a high-performance 3D multi-user client-server space flight and combat simulator. The engine features real-time galaxy state synchronization via shared memory (SHM), cryptographically signed data integrity (HMAC-SHA256), a dual-socket advanced telemetry subsystem for tactical oversight, and versatile visualization front-ends built on OpenGL and Vulkan.
 ---
 
 ## 🚀 Version 3.1 Highlights (Rel. 2026.05.03 - The Omniscience Protocol)

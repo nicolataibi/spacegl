@@ -3,6 +3,22 @@
 <p>May 3, 2026</p>
 </div>
 
+Space GL è un simulatore di volo e combattimento spaziale 3D multi-utente ad alte prestazioni. Il motore include la sincronizzazione della galassia in tempo reale tramite memoria condivisa (SHM), l'integrità dei dati firmata crittograficamente (HMAC-SHA256), un sottosistema avanzato di telemetria dual-socket per la supervisione tattica e interfacce di visualizzazione versatili basate su OpenGL e Vulkan.
+---
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <img
+        src="readme_assets/logo/spacegllogo.png"
+        alt="SpaceGL Logo"
+        width="800"
+      />
+    </td>
+  </tr>
+</table>
+
+---
 ![Version](https://img.shields.io/badge/Version-3.0-green)
 ![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
 ![Language](https://img.shields.io/badge/Language-C-blue)
@@ -79,7 +95,6 @@
   </tr>
 </table>
 
-Space GL è un simulatore di volo e combattimento spaziale 3D multi-utente ad alte prestazioni. Il motore include la sincronizzazione della galassia in tempo reale tramite memoria condivisa (SHM), l'integrità dei dati firmata crittograficamente (HMAC-SHA256), un sottosistema avanzato di telemetria dual-socket per la supervisione tattica e interfacce di visualizzazione versatili basate su OpenGL e Vulkan.
 ---
 
 ## 🚀 Highlights della Versione 3.1 (Rel. 2026.05.03 - Il Protocollo Onniscienza)

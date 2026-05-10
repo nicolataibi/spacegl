@@ -1,3 +1,6 @@
+* Mon May 11 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.10.02
+- [Docs] Integrated the official game logo into README.md and README_it.md documentation files.
+
 * Sun May 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.10.01
 - [Vulkan] Fixed particle rendering alignment and event handling consistency.
 - [HUD] Integrated telemetry monitors for real-time event delivery validation.
