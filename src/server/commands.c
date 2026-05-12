@@ -564,7 +564,7 @@ void handle_apr(int i, const char *params, bool *should_disconnect) {
                         ty = (lq->bases[b]->q2 - 1) * QUADRANT_SIZE + lq->bases[b]->y;
                         tz = (lq->bases[b]->q3 - 1) * QUADRANT_SIZE + lq->bases[b]->z;
                         found = true;
-                        strcpy(target_name, "Starbase");
+                        sprintf(target_name, "%s Starbase", get_species_name(lq->bases[b]->faction));
                         break;
                     }
                 }
@@ -1203,7 +1203,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         if (baid == locked_id) {
             strcat(status, RED "[LOCKED]" RESET);
         }
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🛰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Alliance Starbase %s\n", "Starbase", baid, ba->x, ba->y, ba->z, d, h, m, status);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🛰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     %s Starbase %s\n", "Starbase", baid, ba->x, ba->y, ba->z, d, h, m, get_species_name(ba->faction), status);
     }
 
     /* 4. Planets */
@@ -2290,13 +2290,139 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                             (lq->monsters[m]->type == 30) ? "Crystalline Entity" : "Space Amoeba");
                     }
                 }
-            } else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM) {
+                            } else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM) {
                 for (int p = 0; p < lq->platform_count; p++) {
                     if (lq->platforms[p]->id + GALAXY_OBJECT_MIN_PLATFORM == tid) {
                         found = true;
-                                                sprintf(rep, CYAN "\n--- DEFENSE PLATFORM SCAN ---" RESET "\nENERGY: %" PRIu64 " units\nFACTION: %s\nSTATUS: ACTIVE\n",
-                                                    scrambled ? (uint64_t)0 : lq->platforms[p]->energy, get_species_name(lq->platforms[p]->faction));
-                        
+                        sprintf(rep, CYAN "\n--- DEFENSE PLATFORM SCAN ---" RESET "\nENERGY: %" PRIu64 " units\nFACTION: %s\nSTATUS: ACTIVE\n",
+                            scrambled ? (uint64_t)0 : lq->platforms[p]->energy, get_species_name(lq->platforms[p]->faction));
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_STARBASE && tid <= GALAXY_OBJECT_MAX_STARBASE) {
+                for (int b = 0; b < lq->base_count; b++) {
+                    if (lq->bases[b]->id + GALAXY_OBJECT_MIN_STARBASE == tid) {
+                        found = true;
+                        sprintf(rep, CYAN "\n--- STARBASE DEEP SCAN ---" RESET "\nID: %d\nFACTION: %s\nENERGY: %" PRIu64 " units\nSTATUS: ACTIVE\nADVISORY: Authorized docking available for allied vessels.\n", 
+                            tid, get_species_name(lq->bases[b]->faction), scrambled ? (uint64_t)0 : lq->bases[b]->energy);
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_DYSON && tid <= GALAXY_OBJECT_MAX_DYSON) {
+                for (int d = 0; d < lq->dyson_count; d++) {
+                    if (lq->dysons[d]->id + GALAXY_OBJECT_MIN_DYSON == tid) {
+                        found = true;
+                        sprintf(rep, YELLOW "\n--- MEGASTRUCTURE FRAGMENT ANALYSIS ---" RESET "\nTYPE: Dyson Shell Component\nSTATUS: INERT\nADVISORY: Massive energy readings within internal conduits.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_HUB && tid <= GALAXY_OBJECT_MAX_HUB) {
+                for (int h = 0; h < lq->hub_count; h++) {
+                    if (lq->hubs[h]->id + GALAXY_OBJECT_MIN_HUB == tid) {
+                        found = true;
+                        sprintf(rep, GREEN "\n--- INTERSTELLAR TRADING HUB ---" RESET "\nSTATUS: OPERATIONAL\nSERVICES: Logistics and Trade synchronization.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_RELIC && tid <= GALAXY_OBJECT_MAX_RELIC) {
+                for (int r = 0; r < lq->relic_count; r++) {
+                    if (lq->relics[r]->id + GALAXY_OBJECT_MIN_RELIC == tid) {
+                        found = true;
+                        sprintf(rep, WHITE "\n--- ANCIENT RELIC SCAN ---" RESET "\nORIGIN: PRE-EXPANSION\nSTATUS: DORMANT\nADVISORY: High-density data cores detected.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_RUPTURE && tid <= GALAXY_OBJECT_MAX_RUPTURE) {
+                for (int r = 0; r < lq->rupture_count; r++) {
+                    if (lq->ruptures[r]->id + GALAXY_OBJECT_MIN_RUPTURE == tid) {
+                        found = true;
+                        sprintf(rep, RED "\n--- SUBSPACE RUPTURE DETECTED ---" RESET "\nSTATUS: VOLATILE\nADVISORY: High risk of ship displacement or structural failure.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_SATELLITE && tid <= GALAXY_OBJECT_MAX_SATELLITE) {
+                for (int s = 0; s < lq->satellite_count; s++) {
+                    if (lq->satellites[s]->id + GALAXY_OBJECT_MIN_SATELLITE == tid) {
+                        found = true;
+                        sprintf(rep, CYAN "\n--- ORBITAL SATELLITE ANALYSIS ---" RESET "\nTYPE: Automated Relay\nSTATUS: ACTIVE\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_STORM && tid <= GALAXY_OBJECT_MAX_STORM) {
+                for (int s = 0; s < lq->storm_count; s++) {
+                    if (lq->storms[s]->id + GALAXY_OBJECT_MIN_STORM == tid) {
+                        found = true;
+                        sprintf(rep, BLUE "\n--- IONIC STORM ANALYSIS ---" RESET "\nTYPE: High-Energy Plasma Swirl\nADVISORY: Severe shield degradation expected upon entry.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_ARTIFACT && tid <= GALAXY_OBJECT_MAX_ARTIFACT) {
+                for (int a = 0; a < lq->artifact_count; a++) {
+                    if (lq->artifacts[a]->id + GALAXY_OBJECT_MIN_ARTIFACT == tid) {
+                        found = true;
+                        sprintf(rep, WHITE "\n--- ALIEN ARTIFACT SCAN ---" RESET "\nSTATUS: UNKNOWN\nADVISORY: Proximity research recommended.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_WARP_GATE && tid <= GALAXY_OBJECT_MAX_WARP_GATE) {
+                for (int w = 0; w < lq->warp_gate_count; w++) {
+                    if (lq->warp_gates[w]->id + GALAXY_OBJECT_MIN_WARP_GATE == tid) {
+                        found = true;
+                        sprintf(rep, MAGENTA "\n--- WARP GATE ARRAY ---" RESET "\nSTATUS: STANDBY\nADVISORY: Gateway synchronization required for transit.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_NEUTRON_STAR && tid <= GALAXY_OBJECT_MAX_NEUTRON_STAR) {
+                for (int n = 0; n < lq->neutron_star_count; n++) {
+                    if (lq->neutron_stars[n]->id + GALAXY_OBJECT_MIN_NEUTRON_STAR == tid) {
+                        found = true;
+                        sprintf(rep, YELLOW "\n--- NEUTRON STAR ANALYSIS ---" RESET "\nTYPE: Degenerate Stellar Core\nADVISORY: Intense gravity and radiation. Approach with caution.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_MEGA_STRUCT && tid <= GALAXY_OBJECT_MAX_MEGA_STRUCT) {
+                for (int m = 0; m < lq->mega_struct_count; m++) {
+                    if (lq->mega_structs[m]->id + GALAXY_OBJECT_MIN_MEGA_STRUCT == tid) {
+                        found = true;
+                        sprintf(rep, WHITE "\n--- MEGASTRUCTURE ANALYSIS ---" RESET "\nTYPE: Large-scale Habitability Ring or Array\nSTATUS: ACTIVE\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_DARK_CLOUD && tid <= GALAXY_OBJECT_MAX_DARK_CLOUD) {
+                for (int d = 0; d < lq->dark_cloud_count; d++) {
+                    if (lq->dark_clouds[d]->id + GALAXY_OBJECT_MIN_DARK_CLOUD == tid) {
+                        found = true;
+                        sprintf(rep, BLUE "\n--- DARK MATTER CLOUD ANALYSIS ---" RESET "\nTYPE: Non-baryonic accumulation\nADVISORY: Visual and sensor range reduced within cloud.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_SINGULARITY && tid <= GALAXY_OBJECT_MAX_SINGULARITY) {
+                for (int s = 0; s < lq->singularity_count; s++) {
+                    if (lq->singularities[s]->id + GALAXY_OBJECT_MIN_SINGULARITY == tid) {
+                        found = true;
+                        sprintf(rep, MAGENTA "\n--- QUANTUM SINGULARITY SCAN ---" RESET "\nTYPE: Stable Micro-Black Hole\nADVISORY: Potential source of energy or spatial distortion.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_PLASMA_STORM && tid <= GALAXY_OBJECT_MAX_PLASMA_STORM) {
+                for (int p = 0; p < lq->plasma_storm_count; p++) {
+                    if (lq->plasma_storms[p]->id + GALAXY_OBJECT_MIN_PLASMA_STORM == tid) {
+                        found = true;
+                        sprintf(rep, RED "\n--- PLASMA STORM ANALYSIS ---" RESET "\nTYPE: Superheated ionized gas\nADVISORY: Extreme thermal stress on hull.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_ORBITAL_RING && tid <= GALAXY_OBJECT_MAX_ORBITAL_RING) {
+                for (int r = 0; r < lq->orbital_ring_count; r++) {
+                    if (lq->orbital_rings[r]->id + GALAXY_OBJECT_MIN_ORBITAL_RING == tid) {
+                        found = true;
+                        sprintf(rep, WHITE "\n--- ORBITAL RING ARRAY ---" RESET "\nTYPE: Planetary Transit System\nSTATUS: OPERATIONAL\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_TIME_ANOMALY && tid <= GALAXY_OBJECT_MAX_TIME_ANOMALY) {
+                for (int t = 0; t < lq->time_anomaly_count; t++) {
+                    if (lq->time_anomalies[t]->id + GALAXY_OBJECT_MIN_TIME_ANOMALY == tid) {
+                        found = true;
+                        sprintf(rep, MAGENTA "\n--- TEMPORAL ANOMALY SCAN ---" RESET "\nTYPE: Localized Time Dialation Field\nADVISORY: Extreme risk of causal paradox or displacement.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_VOID_CRYSTAL && tid <= GALAXY_OBJECT_MAX_VOID_CRYSTAL) {
+                for (int v = 0; v < lq->void_crystal_count; v++) {
+                    if (lq->void_crystals[v]->id + GALAXY_OBJECT_MIN_VOID_CRYSTAL == tid) {
+                        found = true;
+                        sprintf(rep, CYAN "\n--- VOID CRYSTAL CLUSTER ---" RESET "\nTYPE: Subspace growth\nADVISORY: Resonates with warp fields.\n");
+                    }
+                }
+            } else if (tid >= GALAXY_OBJECT_MIN_SUBSPACE_ANOM && tid <= GALAXY_OBJECT_MAX_SUBSPACE_ANOM) {
+                for (int s = 0; s < lq->subspace_anomaly_count; s++) {
+                    if (lq->subspace_anomalies[s]->id + GALAXY_OBJECT_MIN_SUBSPACE_ANOM == tid) {
+                        found = true;
+                        sprintf(rep, BLUE "\n--- SUBSPACE ANOMALY ANALYSIS ---" RESET "\nTYPE: Spatial discontinuity\nADVISORY: Sensors reporting impossible physics readings.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_PROBE && tid <= GALAXY_OBJECT_MAX_PROBE) {
@@ -2878,7 +3004,9 @@ void handle_doc(int i, const char *params, bool *should_disconnect) {
             players[i].nav_timer = (int)TIMER_DOCKING_SEQ;
             players[i].hyper_speed = 0;
             players[i].pending_bor_target = base_idx + GALAXY_OBJECT_MIN_STARBASE;
-            send_server_msg(i, "STARBASE", "\033[31m*** RED ALERT: UNAUTHORIZED DOCKING ATTEMPT DETECTED! HOSTILE STARBASE DEFENSIVE BATTERIES ARE POWERING UP! ***\033[0m");
+            char alert[256];
+            sprintf(alert, "\033[31m*** RED ALERT: UNAUTHORIZED DOCKING ATTEMPT DETECTED! %s DEFENSIVE BATTERIES ARE POWERING UP! ***\033[0m", get_species_name(bases[base_idx].faction));
+            send_server_msg(i, "STARBASE", alert);
             return;
         }
 
@@ -2902,7 +3030,7 @@ void handle_doc(int i, const char *params, bool *should_disconnect) {
         /* Repurpose pending_bor_target to store base index during docking */
         players[i].pending_bor_target = base_idx + GALAXY_OBJECT_MIN_STARBASE; 
 
-        send_server_msg(i, "STARBASE", "Docking sequence initiated. Clamps engaging. Please hold position for 10 seconds.");
+        send_server_msg(i, get_species_name(bases[base_idx].faction), "Docking sequence initiated. Clamps engaging. Please hold position for 10 seconds.");
     } 
     else send_server_msg(i,"COMPUTER","No starbase in range.");
 }
@@ -3850,7 +3978,16 @@ void handle_und(int i, const char *params, bool *should_disconnect) {
 
     players[i].state.energy -= COST_ACTION_MED;
     players[i].is_docked = 0;
-    send_server_msg(i, "STARBASE", "Docking clamps retracted. Vessel is clear. Engines online.");
+
+    /* Find current base for message sender name */
+    const char *sender = "STARBASE";
+    for(int b=0; b<MAX_BASES; b++) {
+        if(bases[b].active && bases[b].q1==players[i].state.q1 && bases[b].q2==players[i].state.q2 && bases[b].q3==players[i].state.q3) {
+            double d=sqrt(pow(bases[b].x-players[i].state.s1,2)+pow(bases[b].y-players[i].state.s2,2)+pow(bases[b].z-players[i].state.s3,2)); 
+            if(d <= (DIST_DOCKING_MAX + (double)DIST_EPSILON)) { sender = get_species_name(bases[b].faction); break; } 
+        }
+    }
+    send_server_msg(i, sender, "Docking clamps retracted. Vessel is clear. Engines online.");
 }
 
 void handle_aux(int i, const char *params, bool *should_disconnect) {

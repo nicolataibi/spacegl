@@ -460,6 +460,7 @@ typedef struct {
     double y;
     double z; 
     int health;
+    uint64_t energy;
     int active;
     int fire_cooldown;
     int beam_count;

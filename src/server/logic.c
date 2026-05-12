@@ -1889,7 +1889,8 @@ void update_game_logic() {
                 }
                 players[i].is_docked = 1;
                 players[i].nav_state = NAV_STATE_IDLE;
-                send_server_msg(i, "STARBASE", "Docking complete. Systems replenished and repaired.");
+                const char *sender = (b_idx >= 0 && b_idx < MAX_BASES) ? get_species_name(bases[b_idx].faction) : "STARBASE";
+                send_server_msg(i, sender, "Docking complete. Systems replenished and repaired.");
             }
         } else if (players[i].nav_state == NAV_STATE_DRIFT) {
             players[i].gx += players[i].dx * players[i].hyper_speed;
@@ -2469,7 +2470,11 @@ void update_game_logic() {
         /* ... celestial objects ... */
         for(int s=0; s<lq->star_count && o_idx < MAX_NET_OBJECTS; s++) { NPCStar *st = lq->stars[s]; if(!st->active) continue; upd->objects[o_idx++] = (NetObject){st->x, st->y, st->z, 0, 0, 0, 4, 1, 1, 100, 0, 0, 100, 4, st->id + GALAXY_OBJECT_MIN_STAR, 0, "Star", 0,0,0}; }
         for(int p=0; p<lq->planet_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlanet *pl = lq->planets[p]; if(!pl->active) continue; upd->objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, 5, pl->resource_type, 1, 100, pl->amount, 0, 100, 5, pl->id + GALAXY_OBJECT_MIN_PLANET, 0, "Planet", 0,0,0}; }
-        for(int b=0; b<lq->base_count && o_idx < MAX_NET_OBJECTS; b++) { NPCBase *ba = lq->bases[b]; if(!ba->active) continue; upd->objects[o_idx++] = (NetObject){ba->x, ba->y, ba->z, 0, 0, 0, 3, 1, 1, (int)(ba->health/(COST_ACTION_MED * 2)), 0, 0, (int)(ba->health/(COST_ACTION_MED * 2)), ba->faction, ba->id + GALAXY_OBJECT_MIN_STARBASE, 0, "Starbase", 0,0,0}; }
+        for(int b=0; b<lq->base_count && o_idx < MAX_NET_OBJECTS; b++) { 
+            NPCBase *ba = lq->bases[b]; if(!ba->active) continue; 
+            upd->objects[o_idx] = (NetObject){ba->x, ba->y, ba->z, 0, 0, 0, 3, 1, 1, (int)(ba->health/(COST_ACTION_MED * 2)), 0, 0, (int)(ba->health/(COST_ACTION_MED * 2)), ba->faction, ba->id + GALAXY_OBJECT_MIN_STARBASE, 0, "", 0,0,0}; 
+            snprintf(upd->objects[o_idx].name, 64, "%s Starbase", get_species_name(ba->faction)); o_idx++;
+        }
         for(int h=0; h<lq->bh_count && o_idx < MAX_NET_OBJECTS; h++) { NPCBlackHole *bh = lq->black_holes[h]; if(!bh->active) continue; upd->objects[o_idx++] = (NetObject){bh->x, bh->y, bh->z, 0, 0, 0, 6, 0, 1, 100, 0, 0, 100, 6, bh->id + GALAXY_OBJECT_MIN_BLACKHOLE, 0, "Black Hole", 0,0,0}; }
         for(int n=0; n<lq->nebula_count && o_idx < MAX_NET_OBJECTS; n++) { NPCNebula *nb = lq->nebulas[n]; if(!nb->active) continue; upd->objects[o_idx++] = (NetObject){nb->x, nb->y, nb->z, 0, 0, 0, 7, nb->type, 1, 100, 0, 0, 100, 7, nb->id + GALAXY_OBJECT_MIN_NEBULA, 0, "Nebula", 0,0,0}; }
         for(int p=0; p<lq->pulsar_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPulsar *pu = lq->pulsars[p]; if(!pu->active) continue; upd->objects[o_idx++] = (NetObject){pu->x, pu->y, pu->z, 0, 0, 0, 8, pu->type, 1, 100, 0, 0, 100, 8, pu->id + GALAXY_OBJECT_MIN_PULSAR, 0, "Pulsar", 0,0,0}; }

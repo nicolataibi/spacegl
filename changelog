@@ -1,3 +1,9 @@
+* Tue May 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.12.04
+- [Commands] Expanded 'scan' command to support all 35+ galactic object types (Dyson, Hubs, Anomalies, etc.).
+- [Sensors] Corrected starbase faction identification in SRS/LRS scans and communications.
+- [Commands] Added Starbase deep scan support to 'scan' command.
+- [Telemetry/Docking] Fixed generic starbase labels in network telemetry and docking sequences.
+
 * Tue May 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.12.03
 - [Vulkan] Stabilized Ion Beam visualization by implementing real-time tracking with vertical emitter offsets.
 - [Vulkan] Implemented event deduplication logic for IPC beams to prevent multiple overlaying visual effects.
