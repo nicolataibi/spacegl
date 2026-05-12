@@ -1543,7 +1543,6 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
                 pkt.z_offset = dq3;
                 pkt.object_count = 0;
                 QuadrantIndex *lq = &spatial_index[nq1][nq2][nq3];
-                if (lq->star_count > 0 || lq->npc_count > 0) printf("DEBUG: Quadrant [%d,%d,%d] has %d stars, %d npcs\n", nq1, nq2, nq3, lq->star_count, lq->npc_count);
                 for (int i_n = 0; i_n < lq->npc_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->npcs[i_n]->active) if (lq->npcs[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->npcs[i_n]->x, .net_y = lq->npcs[i_n]->y, .net_z = lq->npcs[i_n]->z, .id = lq->npcs[i_n]->id + GALAXY_OBJECT_MIN_NPC, .active = 1};
                 for (int i_n = 0; i_n < lq->star_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->stars[i_n]->active) if (lq->stars[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->stars[i_n]->x, .net_y = lq->stars[i_n]->y, .net_z = lq->stars[i_n]->z, .id = lq->stars[i_n]->id + GALAXY_OBJECT_MIN_STAR, .active = 1};
                 for (int i_n = 0; i_n < lq->planet_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->planets[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->planets[i_n]->x, .net_y = lq->planets[i_n]->y, .net_z = lq->planets[i_n]->z, .id = lq->planets[i_n]->id + GALAXY_OBJECT_MIN_PLANET, .active = 1};
@@ -2557,7 +2556,9 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
         /* Case: NPC Ship Wreck (ID 1000-3999) */
         if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) {
             int n_idx = tid - GALAXY_OBJECT_MIN_NPC;
-            if (npcs[n_idx].active) {
+            /* Restriction: Only wrecks in the same quadrant can be dismantled */
+            if (npcs[n_idx].active && npcs[n_idx].q1 == players[i].state.q1 && 
+                npcs[n_idx].q2 == players[i].state.q2 && npcs[n_idx].q3 == players[i].state.q3) {
                 double tx = npcs[n_idx].gx;
                 double ty = npcs[n_idx].gy;
                 double tz = npcs[n_idx].gz;
@@ -2567,13 +2568,13 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                 
                 if (sqrt(dx * dx + dy * dy + dz * dz) < DIST_DISMANTLE_MAX) {
                     players[i].state.energy -= COST_ACTION_EXTREME;
-                    int yield = (int)((npcs[n_idx].energy / YIELD_BOARD_ENERGY_DIV) * transporter_mult);
-                    if (yield < (int)THRESHOLD_SYS_CRITICAL) {
-                        yield = (int)THRESHOLD_SYS_CRITICAL;
+                    uint64_t yield = (uint64_t)((npcs[n_idx].energy / YIELD_BOARD_ENERGY_DIV) * transporter_mult);
+                    if (yield < (uint64_t)THRESHOLD_SYS_CRITICAL) {
+                        yield = (uint64_t)THRESHOLD_SYS_CRITICAL;
                     }
                     
-                    players[i].state.inventory[2] += yield; /* Neo-Titanium */
-                    players[i].state.inventory[5] += yield / 5; /* Synaptics */
+                    players[i].state.inventory[2] += (int)yield; /* Neo-Titanium */
+                    players[i].state.inventory[5] += (int)(yield / 5); /* Synaptics */
                     npcs[n_idx].active = 0;
                     
                     /* Visual FX */
@@ -2583,16 +2584,19 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                     broadcast_server_event(players[i].state.q1, players[i].state.q2, players[i].state.q3, IPC_EV_DISMANTLE, rs1, rs2, rs3, 0, 0, 0, npcs[n_idx].faction);
                     
                     char msg[128];
-                    sprintf(msg, "Vessel dismantled. Recovered %d Neo-Titanium and %d Synaptics.", yield, yield / 5);
+                    sprintf(msg, "Vessel dismantled. Recovered %" PRIu64 " Neo-Titanium and %" PRIu64 " Synaptics.", yield, yield / 5);
                     send_server_msg(i, "ENGINEERING", msg);
+                    printf("[DISMANTLE] Player %d dismantled NPC %d (Yield: %" PRIu64 ")\n", i, tid, yield);
                     if (players[i].state.lock_target == tid) {
                         players[i].state.lock_target = 0;
                     }
                     done = true;
                 } else {
                     char err_msg[128];
-                    sprintf(err_msg, "Not in range for dismantling (Dist > %.1f).", DIST_DISMANTLE_MAX);
+                    double dist = sqrt(dx * dx + dy * dy + dz * dz);
+                    sprintf(err_msg, "Not in range for dismantling (Dist %.2f > %.1f).", dist, DIST_DISMANTLE_MAX);
                     send_server_msg(i, "COMPUTER", err_msg);
+                    printf("[DISMANTLE] Player %d failed NPC %d: Distance %.2f\n", i, tid, dist);
                     return;
                 }
             } else {
@@ -2602,7 +2606,9 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
         /* Case: Static Derelict Wreck (ID 15000+) */
         else if (tid >= GALAXY_OBJECT_MIN_DERELICT && tid <= GALAXY_OBJECT_MAX_DERELICT) {
             int d_idx = tid - GALAXY_OBJECT_MIN_DERELICT;
-            if (derelicts[d_idx].active) {
+            /* Restriction: Only derelicts in the same quadrant can be dismantled */
+            if (derelicts[d_idx].active && derelicts[d_idx].q1 == players[i].state.q1 && 
+                derelicts[d_idx].q2 == players[i].state.q2 && derelicts[d_idx].q3 == players[i].state.q3) {
                 double tx = (derelicts[d_idx].q1 - 1) * QUADRANT_SIZE + derelicts[d_idx].x;
                 double ty = (derelicts[d_idx].q2 - 1) * QUADRANT_SIZE + derelicts[d_idx].y;
                 double tz = (derelicts[d_idx].q3 - 1) * QUADRANT_SIZE + derelicts[d_idx].z;
@@ -2612,29 +2618,32 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                 
                 if (sqrt(dx * dx + dy * dy + dz * dz) < DIST_DISMANTLE_MAX) {
                     players[i].state.energy -= COST_ACTION_EXTREME;
-                                        int yield = (int)((YIELD_BOARD_NPC_MIN + rand() % YIELD_BOARD_NPC_RANGE) * transporter_mult);
+                    uint64_t yield = (uint64_t)((YIELD_BOARD_NPC_MIN + rand() % YIELD_BOARD_NPC_RANGE) * transporter_mult);
                      
-                    players[i].state.inventory[2] += yield; 
-                    players[i].state.inventory[5] += yield / 4; 
+                    players[i].state.inventory[2] += (int)yield; 
+                    players[i].state.inventory[5] += (int)(yield / 4); 
                     derelicts[d_idx].active = 0;
                     
-                    /* Visual FX - Use local quadrant coordinates (0.0 - 40.0) for consistent rendering */
+                    /* Visual FX - Use local quadrant coordinates (0.0 - 40.0) relative to player for consistent rendering */
                     double rs1 = derelicts[d_idx].x;
                     double rs2 = derelicts[d_idx].y;
                     double rs3 = derelicts[d_idx].z;
                     broadcast_server_event(players[i].state.q1, players[i].state.q2, players[i].state.q3, IPC_EV_DISMANTLE, rs1, rs2, rs3, 0, 0, 0, derelicts[d_idx].faction);
                     
                     char msg[128];
-                    sprintf(msg, "Ancient wreck dismantled. Recovered %d Neo-Titanium and %d Synaptics.", yield, yield / 4);
+                    sprintf(msg, "Ancient wreck dismantled. Recovered %" PRIu64 " Neo-Titanium and %" PRIu64 " Synaptics.", yield, yield / 4);
                     send_server_msg(i, "ENGINEERING", msg);
+                    printf("[DISMANTLE] Player %d dismantled Derelict %d (Yield: %" PRIu64 ")\n", i, tid, yield);
                     if (players[i].state.lock_target == tid) {
                         players[i].state.lock_target = 0;
                     }
                     done = true;
                 } else {
                     char err_msg[128];
-                    sprintf(err_msg, "Not in range for dismantling (Dist > %.1f).", DIST_DISMANTLE_MAX);
+                    double dist = sqrt(dx * dx + dy * dy + dz * dz);
+                    sprintf(err_msg, "Not in range for dismantling (Dist %.2f > %.1f).", dist, DIST_DISMANTLE_MAX);
                     send_server_msg(i, "COMPUTER", err_msg);
+                    printf("[DISMANTLE] Player %d failed Derelict %d: Distance %.2f\n", i, tid, dist);
                     return;
                 }
             }

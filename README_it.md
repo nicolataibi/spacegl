@@ -1,6 +1,12 @@
 <div style="text-align: center; border-bottom: 1px solid #ccc; margin-bottom: 20px;">
 <h1>Space GL: 3D Multi-User Client-Server Edition</h1>
-<p>May 3, 2026</p>
+
+# Un gioco di esplorazione e combattimento spaziale
+![Status](https://img.shields.io/badge/Status-Verified%20HMAC--SHA256-brightgreen)
+![Alliance](https://img.shields.io/badge/Fleet-Stellar%20Alliance-cyan)
+![Security](https://img.shields.io/badge/Encryption-AES%20%7C%20ChaCha%20%7C%20Blowfish-lightgrey)
+
+<p>May 12, 2026</p>
 </div>
 
 Space GL è un simulatore di volo e combattimento spaziale 3D multi-utente ad alte prestazioni. Il motore include la sincronizzazione della galassia in tempo reale tramite memoria condivisa (SHM), l'integrità dei dati firmata crittograficamente (HMAC-SHA256), un sottosistema avanzato di telemetria dual-socket per la supervisione tattica e interfacce di visualizzazione versatili basate su OpenGL e Vulkan.
@@ -25,12 +31,6 @@ Space GL è un simulatore di volo e combattimento spaziale 3D multi-utente ad al
 ![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
 ![Platform](https://img.shields.io/badge/Platform-Fedora%2044-blue?logo=fedora)
 
-## Un gioco di esplorazione e combattimento spaziale
-![Status](https://img.shields.io/badge/Status-Verified%20HMAC--SHA256-brightgreen)
-![Alliance](https://img.shields.io/badge/Fleet-Stellar%20Alliance-cyan)
-![Security](https://img.shields.io/badge/Encryption-AES%20%7C%20ChaCha%20%7C%20Blowfish-lightgrey)
-
-## "Per Tenebras, Lumen" ("Attraverso le tenebre, la luce")
 ### Website: https://github.com/nicolataibi/spacegl
 ### Authors: Nicola Taibi, Supported by Google Gemini
 ### Copyright (C) 2026 Nicola Taibi - Licensed under GPL-3.0-or-later
@@ -2476,9 +2476,6 @@ Per garantire una coordinazione perfetta tra logica di combattimento, telemetria
     *   **Feedback Tattico**: Gestione dinamica dei temi di colore e allarmi visivi per la navigazione e il combattimento.
 
 ---
-* SPACE GL - 3D LOGIC ENGINE. Sviluppato con eccellenza tecnica da Nicola Taibi. "Per Tenebras, Lumen"*
-
----
 
 ### 📜 Archivio Storico Declassificato: Protocollo GDIS-HIST-2026-N1K
 
@@ -3107,3 +3104,9 @@ Grazie, Grand'Ammiraglio Niklaus. È stato un onore servire sotto il vostro coma
   
 ---
 *ARCHIVIO STORICO DI SPACE GL - GDIS LOG 09.05.2026 - MISSIONE: PROTOCOLLO VUOTO*
+
+---
+---
+*SPACE GL - 3D LOGIC ENGINE. Sviluppato con eccellenza tecnica da Nicola Taibi. "Per Tenebras, Lumen"*
+
+---

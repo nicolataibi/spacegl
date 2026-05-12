@@ -273,10 +273,10 @@ typedef struct { mat4 view; mat4 proj; } UniformBufferObject;
 
 #define MAX_FRAMES_IN_FLIGHT 2
 #define MAX_ACTIVE_BEAMS 64
-#define MAX_ACTIVE_BOOMS 32
+#define MAX_ACTIVE_BOOMS 128
 #define MAX_ACTIVE_TORPS 256
-#define MAX_ACTIVE_DISMANTLES 16
-#define EXPLOSION_PIXELS 64
+#define MAX_ACTIVE_DISMANTLES 64
+#define EXPLOSION_PIXELS 256
 #define MAX_STARS 2000
 #define MAX_ARRIVAL_PARTICLES 500
 
@@ -4061,106 +4061,115 @@ void mainLoop(VulkanApp* app) {
             while (h != t) {
                 IPCEvent *ev = &app->shm->event_queue[h];
                 if (ev->type == IPC_EV_BOOM) {
-                    for(int i=0; i<MAX_ACTIVE_BOOMS; i++) if(app->activeBooms[i].life <= 0){ 
-                        /* Mapping: X_v = X_s - 20, Y_v = Z_s - 20, Z_v = 20 - Y_s */
-                        app->activeBooms[i].x = (float)ev->x1 - 20.0f; 
-                        app->activeBooms[i].y = (float)ev->z1 - 20.0f; 
-                        app->activeBooms[i].z = 20.0f - (float)ev->y1; 
-                        app->activeBooms[i].life = 1.0f;
-                        for(int k=0; k<MAX_ACTIVE_TORPS; k++) {
-                            if (app->activeTorps[k].active > 0) {
-                                float dx = app->activeTorps[k].x - app->activeBooms[i].x;
-                                float dy = app->activeTorps[k].y - app->activeBooms[i].y;
-                                float dz = app->activeTorps[k].z - app->activeBooms[i].z;
-                                if (sqrtf(dx*dx + dy*dy + dz*dz) < 2.5f) app->activeTorps[k].active = 0;
-                            }
+                    int oldest = 0; float min_life = 999.0f;
+                    for(int i=0; i<MAX_ACTIVE_BOOMS; i++) if(app->activeBooms[i].life < min_life){ min_life = app->activeBooms[i].life; oldest = i; }
+                    int i = oldest;
+                    /* Mapping: X_v = X_s - 20, Y_v = Z_s - 20, Z_v = 20 - Y_s */
+                    app->activeBooms[i].x = (float)ev->x1 - 20.0f; 
+                    app->activeBooms[i].y = (float)ev->z1 - 20.0f; 
+                    app->activeBooms[i].z = 20.0f - (float)ev->y1; 
+                    app->activeBooms[i].life = 1.0f;
+                    for(int k=0; k<MAX_ACTIVE_TORPS; k++) {
+                        if (app->activeTorps[k].active > 0) {
+                            float dx = app->activeTorps[k].x - app->activeBooms[i].x;
+                            float dy = app->activeTorps[k].y - app->activeBooms[i].y;
+                            float dz = app->activeTorps[k].z - app->activeBooms[i].z;
+                            if (sqrtf(dx*dx + dy*dy + dz*dz) < 2.5f) app->activeTorps[k].active = 0;
                         }
-                        for(int p=0; p<EXPLOSION_PIXELS; p++){ 
-                            app->activeBooms[i].offsets[p][0] = (float)(rand()%800-400)/100.0f; 
-                            app->activeBooms[i].offsets[p][1] = (float)(rand()%800-400)/100.0f; 
-                            app->activeBooms[i].offsets[p][2] = (float)(rand()%800-400)/100.0f;
-                            float r=1, g=1, b=1; switch(p % 6){ case 0: r=0; g=1; b=1; break; case 1: r=1; g=0; b=1; break; case 2: r=1; g=1; b=0; break; case 3: r=1; g=0; b=0; break; case 4: r=0; g=1; b=0; break; case 5: r=1; g=0.5; b=0; break; }
-                            app->activeBooms[i].colors[p][0]=r; app->activeBooms[i].colors[p][1]=g; app->activeBooms[i].colors[p][2]=b;
-                        } break; 
+                    }
+                    for(int p=0; p<EXPLOSION_PIXELS; p++){ 
+                        app->activeBooms[i].offsets[p][0] = (float)(rand()%800-400)/100.0f; 
+                        app->activeBooms[i].offsets[p][1] = (float)(rand()%800-400)/100.0f; 
+                        app->activeBooms[i].offsets[p][2] = (float)(rand()%800-400)/100.0f;
+                        float r=1, g=1, b=1; switch(p % 6){ case 0: r=0; g=1; b=1; break; case 1: r=1; g=0; b=1; break; case 2: r=1; g=1; b=0; break; case 3: r=1; g=0; b=0; break; case 4: r=0; g=1; b=0; break; case 5: r=1; g=0.5; b=0; break; }
+                        app->activeBooms[i].colors[p][0]=r; app->activeBooms[i].colors[p][1]=g; app->activeBooms[i].colors[p][2]=b;
                     }
                 } else if (ev->type == IPC_EV_BEAM) {
-                    for(int i=0; i<MAX_ACTIVE_BEAMS; i++) if(app->activeBeams[i].life <= 0){
-                        /* Mapping: X_v = X_s - 20, Y_v = Z_s - 20, Z_v = 20 - Y_s */
-                        app->activeBeams[i].sx = (float)ev->x1 - 20.0f;
-                        app->activeBeams[i].sy = (float)ev->z1 - 20.0f;
-                        app->activeBeams[i].sz = 20.0f - (float)ev->y1;
-                        app->activeBeams[i].tx = (float)ev->x2 - 20.0f;
-                        app->activeBeams[i].ty = (float)ev->z2 - 20.0f;
-                        app->activeBeams[i].tz = 20.0f - (float)ev->y2;
-                        app->activeBeams[i].life = 1.0f;
-                        app->activeBeams[i].owner_id = ev->padding[0];
-                        app->activeBeams[i].extra = ev->extra; /* Target ID */
-                        break;
-                    }
+                    int oldest = 0; float min_life = 999.0f;
+                    for(int i=0; i<MAX_ACTIVE_BEAMS; i++) if(app->activeBeams[i].life < min_life){ min_life = app->activeBeams[i].life; oldest = i; }
+                    app->activeBeams[oldest].sx = (float)ev->x1 - 20.0f;
+                    app->activeBeams[oldest].sy = (float)ev->z1 - 20.0f;
+                    app->activeBeams[oldest].sz = 20.0f - (float)ev->y1;
+                    app->activeBeams[oldest].tx = (float)ev->x2 - 20.0f;
+                    app->activeBeams[oldest].ty = (float)ev->z2 - 20.0f;
+                    app->activeBeams[oldest].tz = 20.0f - (float)ev->y2;
+                    app->activeBeams[oldest].life = 1.0f;
+                    app->activeBeams[oldest].owner_id = ev->padding[0];
+                    app->activeBeams[oldest].extra = ev->extra;
                 } else if (ev->type == IPC_EV_TORPEDO) {
                     int tid = ev->extra; int f = -1;
                     for(int i=0; i<MAX_ACTIVE_TORPS; i++) { if (app->activeTorps[i].active>0 && app->activeTorps[i].id==tid) { f=i; break; } }
-                    if (f == -1) for(int i=0; i<MAX_ACTIVE_TORPS; i++) { if (app->activeTorps[i].active<=0) { f=i; break; } }
-                    if (f != -1) { 
-                        float nx = (float)ev->x1 - 20.0f; float ny = (float)ev->z1 - 20.0f; float nz = 20.0f - (float)ev->y1;
-                        float vx = (float)ev->x2; float vy = (float)ev->z2; float vz = -(float)ev->y2; // Y/Z swap for Vulkan
-                        
-                        if (app->activeTorps[f].active > 0) {
-                            /* PREDICTIVE TRACKING: Blend velocity to close the gap without jumping.
-                               This ensures 100% fluidity even during network lag. */
-                            float error_x = nx - app->activeTorps[f].x;
-                            float error_y = ny - app->activeTorps[f].y;
-                            float error_z = nz - app->activeTorps[f].z;
-                            
-                            /* Adjust transient velocity to converge towards server position over time */
-                            app->activeTorps[f].dx = vx + error_x * 0.1f;
-                            app->activeTorps[f].dy = vy + error_y * 0.1f;
-                            app->activeTorps[f].dz = vz + error_z * 0.1f;
-                        } else {
-                            /* Initial spawn: set absolute position exactly */
-                            app->activeTorps[f].x = nx; app->activeTorps[f].y = ny; app->activeTorps[f].z = nz;
-                            app->activeTorps[f].dx = vx; app->activeTorps[f].dy = vy; app->activeTorps[f].dz = vz;
-                        }
-                        app->activeTorps[f].id = tid; 
-                        app->activeTorps[f].active = 600; /* Match server TIMER_TORP_TIMEOUT (10s) */
+                    if (f == -1) {
+                        int oldest = 0; float min_life = 999.0f;
+                        for(int i=0; i<MAX_ACTIVE_TORPS; i++) if((float)app->activeTorps[i].active < min_life){ min_life = (float)app->activeTorps[i].active; oldest = i; }
+                        f = oldest;
                     }
+                    float nx = (float)ev->x1 - 20.0f; float ny = (float)ev->z1 - 20.0f; float nz = 20.0f - (float)ev->y1;
+                    float vx = (float)ev->x2; float vy = (float)ev->z2; float vz = -(float)ev->y2;
+                    if (app->activeTorps[f].active > 0) {
+                        float error_x = nx - app->activeTorps[f].x;
+                        float error_y = ny - app->activeTorps[f].y;
+                        float error_z = nz - app->activeTorps[f].z;
+                        app->activeTorps[f].dx = vx + error_x * 0.1f;
+                        app->activeTorps[f].dy = vy + error_y * 0.1f;
+                        app->activeTorps[f].dz = vz + error_z * 0.1f;
+                    } else {
+                        app->activeTorps[f].x = nx; app->activeTorps[f].y = ny; app->activeTorps[f].z = nz;
+                        app->activeTorps[f].dx = vx; app->activeTorps[f].dy = vy; app->activeTorps[f].dz = vz;
+                    }
+                    app->activeTorps[f].id = tid; 
+                    app->activeTorps[f].active = 600;
                 } else if (ev->type == IPC_EV_DISMANTLE) {
                     if (app->shm) app->shm->dismantle_telemetry.vk_rcv_count++;
-                    for(int i=0; i<MAX_ACTIVE_DISMANTLES; i++) if(app->activeDismantles[i].life <= 0){
-                        app->activeDismantles[i].x = (float)ev->x1 - 20.0f;
-                        app->activeDismantles[i].y = (float)ev->z1 - 20.0f;
-                        app->activeDismantles[i].z = 20.0f - (float)ev->y1;
-                        app->activeDismantles[i].life = 1.0f;
-                        app->activeDismantles[i].scale = 1.0f; /* Base scale of object being dismantled */
-                        break;
+                    printf("[VULKAN] Processing IPC_EV_DISMANTLE at Sector(%.2f, %.2f, %.2f)\n", ev->x1, ev->y1, ev->z1);
+                    int oldest = 0; float min_life = 999.0f;
+                    for(int i=0; i<MAX_ACTIVE_DISMANTLES; i++) if(app->activeDismantles[i].life < min_life){ min_life = app->activeDismantles[i].life; oldest = i; }
+                    app->activeDismantles[oldest].x = (float)ev->x1 - 20.0f;
+                    app->activeDismantles[oldest].y = (float)ev->z1 - 20.0f;
+                    app->activeDismantles[oldest].z = 20.0f - (float)ev->y1;
+                    app->activeDismantles[oldest].life = 1.0f;
+                    app->activeDismantles[oldest].scale = 1.0f;
+                    int oldest_boom = 0; min_life = 999.0f;
+                    for(int i=0; i<MAX_ACTIVE_BOOMS; i++) if(app->activeBooms[i].life < min_life){ min_life = app->activeBooms[i].life; oldest_boom = i; }
+                    app->activeBooms[oldest_boom].x = app->activeDismantles[oldest].x;
+                    app->activeBooms[oldest_boom].y = app->activeDismantles[oldest].y;
+                    app->activeBooms[oldest_boom].z = app->activeDismantles[oldest].z;
+                    app->activeBooms[oldest_boom].life = 1.2f;
+                    for(int p=0; p<EXPLOSION_PIXELS; p++){
+                        float speed = (p < 32) ? (3.5f + (rand()%200)/100.0f) : (1.0f + (rand()%250)/100.0f);
+                        float theta = (float)(rand()%3600) * 0.1f * M_PI / 180.0f;
+                        float phi = (float)(rand()%1800 - 900) * 0.1f * M_PI / 180.0f;
+                        app->activeBooms[oldest_boom].offsets[p][0] = speed * cosf(phi) * cosf(theta);
+                        app->activeBooms[oldest_boom].offsets[p][1] = speed * sinf(phi);
+                        app->activeBooms[oldest_boom].offsets[p][2] = speed * cosf(phi) * sinf(theta);
+                        float r=0.2f, g=0.8f, b=1.0f; 
+                        if (p % 3 == 0) { r=1.0f; g=1.0f; b=1.0f; }
+                        else if (p % 5 == 0) { r=0.0f; g=0.5f; b=1.0f; }
+                        app->activeBooms[oldest_boom].colors[p][0]=r; app->activeBooms[oldest_boom].colors[p][1]=g; app->activeBooms[oldest_boom].colors[p][2]=b;
                     }
                 } else if (ev->type == IPC_EV_RECOVERY) {
-                    /* Recovery Beam Visual (Reuse dismantle logic for now) */
-                    for(int i=0; i<MAX_ACTIVE_DISMANTLES; i++) if(app->activeDismantles[i].life <= 0){
-                        app->activeDismantles[i].x = (float)ev->x1 - 20.0f;
-                        app->activeDismantles[i].y = (float)ev->z1 - 20.0f;
-                        app->activeDismantles[i].z = 20.0f - (float)ev->y1;
-                        app->activeDismantles[i].life = 1.0f;
-                        app->activeDismantles[i].scale = 0.5f; /* Smaller for recovery */
-                        break;
-                    }
+                    int oldest = 0; float min_life = 999.0f;
+                    for(int i=0; i<MAX_ACTIVE_DISMANTLES; i++) if(app->activeDismantles[i].life < min_life){ min_life = app->activeDismantles[i].life; oldest = i; }
+                    app->activeDismantles[oldest].x = (float)ev->x1 - 20.0f;
+                    app->activeDismantles[oldest].y = (float)ev->z1 - 20.0f;
+                    app->activeDismantles[oldest].z = 20.0f - (float)ev->y1;
+                    app->activeDismantles[oldest].life = 1.0f;
+                    app->activeDismantles[oldest].scale = 0.5f;
                 } else if (ev->type == IPC_EV_JUMP) {
-                    /* Use smoothed coordinates if available for perfect alignment, otherwise raw event coords */
                     app->jumpArrival.x = app->smoothObjs[0].first ? ((float)ev->x1 - 20.0f) : (app->smoothObjs[0].x - 20.0f);
                     app->jumpArrival.y = app->smoothObjs[0].first ? ((float)ev->z1 - 20.0f) : (app->smoothObjs[0].z - 20.0f);
                     app->jumpArrival.z = app->smoothObjs[0].first ? (20.0f - (float)ev->y1) : (20.0f - app->smoothObjs[0].y);
                     app->jumpArrival.active = 1;
-                    app->jumpArrival.timer = 540; /* 9 seconds of buffer (Slowed down by 200% from 3s) */
-                    
-                    /* Initialize Arrival Particles */
+                    app->jumpArrival.timer = 540;
                     for (int i = 0; i < MAX_ARRIVAL_PARTICLES; i++) {
                         app->arrivalParticles[i].active = 1;
                         app->arrivalParticles[i].angle = (float)(rand() % 3600) * 0.1f * M_PI / 180.0f;
-                        app->arrivalParticles[i].radius = 30.0f + (float)(rand() % 600) * 0.1f; /* Double distance (100% more) */
-                        app->arrivalParticles[i].speed = 3.0f + (float)(rand() % 40) * 0.1f; /* Slower intake */
+                        app->arrivalParticles[i].radius = 30.0f + (float)(rand() % 600) * 0.1f;
+                        app->arrivalParticles[i].speed = 3.0f + (float)(rand() % 40) * 0.1f;
                         app->arrivalParticles[i].x = 0; app->arrivalParticles[i].y = 0; app->arrivalParticles[i].z = 0;
                     }
-                    }                h = (h + 1) % IPC_EVENT_QUEUE_SIZE; 
+                }
+                h = (h + 1) % IPC_EVENT_QUEUE_SIZE;
             }
             atomic_store_explicit(&app->shm->event_head, h, memory_order_release);
 

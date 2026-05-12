@@ -43,6 +43,15 @@ void push_server_event(int p_idx, int type, double x1, double y1, double z1, dou
     }
 }
 
+void update_npc_local_coords(int n) {
+    npcs[n].q1 = get_q_from_g(npcs[n].gx);
+    npcs[n].q2 = get_q_from_g(npcs[n].gy);
+    npcs[n].q3 = get_q_from_g(npcs[n].gz);
+    npcs[n].x = npcs[n].gx - (npcs[n].q1 - 1) * QUADRANT_SIZE;
+    npcs[n].y = npcs[n].gy - (npcs[n].q2 - 1) * QUADRANT_SIZE;
+    npcs[n].z = npcs[n].gz - (npcs[n].q3 - 1) * QUADRANT_SIZE;
+}
+
 void broadcast_server_event(int q1, int q2, int q3, int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra) {
     if (!IS_Q_VALID(q1, q2, q3)) return;
     for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -2129,13 +2138,15 @@ void update_game_logic() {
         }
     }
 
-    #pragma omp parallel for schedule(dynamic, 10)
+#pragma omp parallel for schedule(dynamic, 10)
     for (int n = 0; n < MAX_NPC; n++) {
         if (npcs[n].active) {
             if (npcs[n].death_timer > 0) {
                 npcs[n].death_timer--;
                 if (npcs[n].death_timer <= 0) {
                     npcs[n].active = 0;
+                    /* Update local coordinates from global position before spawning wreck to ensure precise positioning */
+                    update_npc_local_coords(n);
                     spawn_derelict(npcs[n].q1, npcs[n].q2, npcs[n].q3, npcs[n].x, npcs[n].y, npcs[n].z, npcs[n].faction, npcs[n].ship_class, npcs[n].name);
                     #pragma omp critical
                     broadcast_server_event(npcs[n].q1, npcs[n].q2, npcs[n].q3, IPC_EV_BOOM, npcs[n].x, npcs[n].y, npcs[n].z, 0, 0, 0, 1);

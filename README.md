@@ -1,6 +1,12 @@
 <div style="text-align: center; border-bottom: 1px solid #ccc; margin-bottom: 20px;">
 <h1>Space GL: 3D Multi-User Client-Server Edition</h1>
-<p>May 3, 2026</p>
+
+## A space exploration & combat game
+![Status](https://img.shields.io/badge/Status-Verified%20HMAC--SHA256-brightgreen)
+![Alliance](https://img.shields.io/badge/Fleet-Stellar%20Alliance-cyan)
+![Security](https://img.shields.io/badge/Encryption-AES%20%7C%20ChaCha%20%7C%20Blowfish-lightgrey)
+
+<p>May 12, 2026</p>
 </div>
 
 Space GL is a high-performance 3D multi-user client-server space flight and combat simulator. The engine features real-time galaxy state synchronization via shared memory (SHM), cryptographically signed data integrity (HMAC-SHA256), a dual-socket advanced telemetry subsystem for tactical oversight, and versatile visualization front-ends built on OpenGL and Vulkan.
@@ -24,12 +30,6 @@ Space GL is a high-performance 3D multi-user client-server space flight and comb
 ![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
 ![Platform](https://img.shields.io/badge/Platform-Fedora%2044-blue?logo=fedora)
 
-## A space exploration & combat game
-![Status](https://img.shields.io/badge/Status-Verified%20HMAC--SHA256-brightgreen)
-![Alliance](https://img.shields.io/badge/Fleet-Stellar%20Alliance-cyan)
-![Security](https://img.shields.io/badge/Encryption-AES%20%7C%20ChaCha%20%7C%20Blowfish-lightgrey)
-
-## "Per Tenebras, Lumen" (Through darkness, light)
 ### Website: https://github.com/nicolataibi/spacegl
 ### Authors: Nicola Taibi, Supported by Google Gemini
 ### Copyright (C) 2026 Nicola Taibi - Licensed under GPL-3.0-or-later
@@ -2553,11 +2553,6 @@ To ensure perfect coordination between combat logic, HUD telemetry, and 3D visua
     *   **Tactical Feedback**: Dynamic management of color themes and visual alerts for navigation and combat.
 
 ---
-*SPACE GL - 3D LOGIC ENGINE. Developed with technical excellence by Nicola Taibi. "Per Tenebras, Lumen"*
-
----
-
----
 
 ### 📜 Declassified Historical Archive: Protocol GDIS-HIST-2026-N1K
 
@@ -3191,3 +3186,9 @@ Thank you, Grand Admiral Niklaus. It has been an honor to serve under your comma
   
 ---
 *SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.05.09 - MISSION: VOID PROTOCOL*
+
+---
+---
+*SPACE GL - 3D LOGIC ENGINE. Developed with technical excellence by Nicola Taibi. "Per Tenebras, Lumen"*
+
+---

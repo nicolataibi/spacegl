@@ -93,7 +93,8 @@ typedef struct {
 } NetEvent;
 #pragma pack(pop)
 
-#define MAX_NET_EVENTS 16
+#define MAX_NET_EVENTS 64
+
 
 #pragma pack(push, 1)
 typedef struct {

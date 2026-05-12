@@ -1,3 +1,10 @@
+* Tue May 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.12.01
+- [Logic] Synchronized NPC derelict spawning with current death coordinates, resolving the "teleporting wreck" issue and ensuring consistent visual alignment for the dismantle command.
+- [Logic] Upgraded dismantle yield and resource recovery calculations to uint64_t to prevent integer overflows with high energy values.
+- [Server] Implemented comprehensive server-side logging for dismantle operations, including precise distance and yield diagnostics.
+- [Vulkan/GLFW] Standardized client-side event processing with robust eviction and ring-buffer overwrite policies for visual effects, ensuring dismantle animations are never dropped under load.
+- [Telemetry] Integrated real-time dismantle reception logs into the Vulkan and GLFW console outputs for end-to-end event validation.
+
 * Mon May 11 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.10.02
 - [Docs] Integrated the official game logo into README.md and README_it.md documentation files.
 

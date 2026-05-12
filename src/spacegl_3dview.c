@@ -776,7 +776,9 @@ void loadGameState() {
             IPCEvent *ev = &g_shm->event_queue[head];
             
             if (ev->type == IPC_EV_DISMANTLE) {
-                last_telemetry_count = g_shm->dismantle_telemetry.count;
+                if (g_shm) g_shm->dismantle_telemetry.count++;
+                printf("[GLFW] Processing IPC_EV_DISMANTLE at Sector(%.2f, %.2f, %.2f)\n", ev->x1, ev->y1, ev->z1);
+                
                 float dx = ev->x1 - (QUADRANT_SIZE / 2.0);
                 float dy = ev->z1 - (QUADRANT_SIZE / 2.0);
                 float dz = (QUADRANT_SIZE / 2.0) - ev->y1;
@@ -3875,6 +3877,7 @@ void spawnParticle(double x, double y, double z, double vx, double vy, double vz
     static int last_spawn_idx = 0;
     int search_idx = last_spawn_idx;
 
+    bool found = false;
     for (int i = 0; i < MAX_PARTICLES; i++) {
         int idx = (search_idx + i) % MAX_PARTICLES;
         if (!fx_particles[idx].active) {
@@ -3886,8 +3889,22 @@ void spawnParticle(double x, double y, double z, double vx, double vy, double vz
             fx_particles[idx].life = life;
             fx_particles[idx].active = 1;
             last_spawn_idx = (idx + 1) % MAX_PARTICLES;
+            found = true;
             break;
         }
+    }
+    
+    /* Fallback: if buffer is full, force overwrite the oldest slot in the ring */
+    if (!found) {
+        int idx = last_spawn_idx;
+        fx_particles[idx].x = x; fx_particles[idx].y = y; fx_particles[idx].z = z;
+        fx_particles[idx].vx = vx; fx_particles[idx].vy = vy; fx_particles[idx].vz = vz;
+        fx_particles[idx].r = r; fx_particles[idx].g = g; fx_particles[idx].b = b;
+        fx_particles[idx].a = 1.0;
+        fx_particles[idx].size = size;
+        fx_particles[idx].life = life;
+        fx_particles[idx].active = 1;
+        last_spawn_idx = (idx + 1) % MAX_PARTICLES;
     }
 }
 

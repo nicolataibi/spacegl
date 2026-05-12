@@ -736,13 +736,30 @@ void *network_listener(void *arg) {
                     else if (strstr(name, "Pulsar")) icon = "☄️ ";
                     else if (strstr(name, "Quasar")) icon = "🎇 ";
                     else if (strstr(name, "Rift")) icon = "🌀 ";
+                    else if (strstr(name, "Comet")) icon = "☄️ ";
+                    else if (strstr(name, "Asteroid")) icon = "🪨 ";
                     else if (strstr(name, "Monster")) icon = "👾 ";
                     else if (strstr(name, "Subspace Anomaly")) icon = "💥 ";
-                    else if (strstr(name, "Void Crystal")) icon = "💎 ";
                     else if (strstr(name, "Buoy")) icon = "📍 ";
                     else if (strstr(name, "Platform")) icon = "🏗️ ";
-                    else if (strstr(name, "Wreck")) icon = "🏚️ ";
+                    else if (strstr(name, "Wreck") || strstr(name, "Derelict")) icon = "🏚️ ";
                     else if (strstr(name, "Mine")) icon = "💣 ";
+                    else if (strstr(name, "Artifact")) icon = "🏺 ";
+                    else if (strstr(name, "Warp Gate")) icon = "🌌 ";
+                    else if (strstr(name, "Neutron Star")) icon = "🌟 ";
+                    else if (strstr(name, "Mega Struct")) icon = "🏛️ ";
+                    else if (strstr(name, "Dark Cloud")) icon = "🌑 ";
+                    else if (strstr(name, "Singularity")) icon = "🔮 ";
+                    else if (strstr(name, "Plasma Storm")) icon = "⚡ ";
+                    else if (strstr(name, "Orbital Ring")) icon = "💍 ";
+                    else if (strstr(name, "Time Anomaly")) icon = "⏳ ";
+                    else if (strstr(name, "Void Crystal")) icon = "💎 ";
+                    else if (strstr(name, "Dyson")) icon = "🏗️ ";
+                    else if (strstr(name, "Hub")) icon = "🌐 ";
+                    else if (strstr(name, "Relic")) icon = "📜 ";
+                    else if (strstr(name, "Rupture")) icon = "🔪 ";
+                    else if (strstr(name, "Satellite")) icon = "📡 ";
+                    else if (strstr(name, "Storm")) icon = "⛈️ ";
 
                     printf("%s %-10s %-5d [%.2f,%.2f,%.2f] %-10s\n", 
                            icon, name, obj->id, obj->net_x, obj->net_y, obj->net_z, "Active");
