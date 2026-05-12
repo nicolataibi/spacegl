@@ -28,6 +28,7 @@
 #include "game_config.h"
 #include "server_internal.h"
 #include "shared_state.h" /* For IPC_EV_ types */
+#include "ui.h"
 
 void push_server_event(int p_idx, int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra) {
     if (p_idx < 0 || p_idx >= MAX_CLIENTS) return;
@@ -2407,8 +2408,6 @@ void update_game_logic() {
         }
     }
 
-    pthread_mutex_unlock(&game_mutex);
-
     /* 3. Send Updates to clients */
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (players[i].socket == 0 || !players[i].active) {
@@ -2540,6 +2539,18 @@ void update_game_logic() {
         int rq1 = rand() % GALAXY_SIZE + 1; int rq2 = rand() % GALAXY_SIZE + 1; int rq3 = rand() % GALAXY_SIZE + 1;
         upd->map_update_q2[0] = rq1; upd->map_update_q2[1] = rq2; upd->map_update_q2[2] = rq3; upd->map_update_val2 = spacegl_master.g[rq1][rq2][rq3];
 
+        /* Reset transient effects IMMEDIATELY after copying to update packet while holding the lock */
+        if (players[i].state.event_count > 0) {
+            for (int e = 0; e < players[i].state.event_count; e++) {
+                if (players[i].state.events[e].type == IPC_EV_DISMANTLE) {
+                    printf(B_CYAN "[NET] Event Broadcast: Player %d -> IPC_EV_DISMANTLE at [%.1f, %.1f, %.1f]\n" RESET, 
+                           i, players[i].state.events[e].x1, players[i].state.events[e].y1, players[i].state.events[e].z1);
+                }
+            }
+            players[i].state.event_count = 0;
+        }
+        players[i].state.beam_count = 0;
+
         send_optimized_update(i, upd);
         free(upd);
     }
@@ -2613,13 +2624,7 @@ void update_game_logic() {
 
     rebuild_spatial_index();
 
-    /* Reset transient effects after all updates have been sent */
-    for (int i = 0; i < MAX_CLIENTS; i++) {
-        if (players[i].active) {
-            players[i].state.beam_count = 0;
-            players[i].state.event_count = 0;
-        }
-    }
+    /* Reset transient effects for NPCs and other entities after all updates have been sent */
     for (int i = 0; i < MAX_NPC; i++) {
         if (npcs[i].active) {
             npcs[i].beam_count = 0;
