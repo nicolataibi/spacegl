@@ -1,3 +1,9 @@
+* Tue May 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.12.03
+- [Vulkan] Stabilized Ion Beam visualization by implementing real-time tracking with vertical emitter offsets.
+- [Vulkan] Implemented event deduplication logic for IPC beams to prevent multiple overlaying visual effects.
+- [Server] Optimized beam propagation by removing redundant IPC events and utilizing the synchronized NetUpdate state.
+- [Client] Enhanced event pipeline to correctly propagate emitter metadata for multi-beam tracking.
+
 * Tue May 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.12.02
 - [Server] Resolved a critical race condition in the logic thread that caused intermittent loss of transient events (dismantle effects).
 - [Server] Standardized mutex locking duration to cover the entire broadcast and transient-reset cycle, ensuring event atomicity.

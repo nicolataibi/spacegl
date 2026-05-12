@@ -1680,15 +1680,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
         double weapon_mult = RATIO_BASE_POWER + (players[i].state.power_dist[2] * RATIO_WEAPON_POWER);
         int hit = (int)((e / dist) * (players[i].state.system_health[4] / (double)YIELD_HARVEST_MAX) * weapon_mult);
         
-        /* VISUAL FX: Trigger reliable IPC beam event (Owner ID is player index+1, Extra is target ID) */
-        push_server_event(i, IPC_EV_BEAM, players[i].state.s1, players[i].state.s2, players[i].state.s3, tx, ty, tz, (int)tid);
-        push_server_event(i, IPC_EV_BEAM, players[i].state.s1, players[i].state.s2, players[i].state.s3, tx, ty, tz, (int)tid);
-        /* We also need to store the owner_id somewhere. Let's hijack the beam event struct if needed, 
-           or just ensure the visualizer knows who 'i' is.
-           In this architecture, 'i' is the sender. But push_server_event doesn't send the sender index to the queue?
-           Wait, push_server_event(i, ...) pushes to player i's queue.
-           The visualizer reads the queue. It knows it's the player's ship (Object 0).
-        */
+        /* VISUAL FX: Integrated via NetUpdate.beams for full tracking support */
 
         if (players[i].state.beam_count < MAX_NET_BEAMS - 1) {
             /* Beam 1: Top Emitter */
@@ -1713,7 +1705,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
                 tz, 
                 i + 1,
                 (int)tid,
-                1
+                2
             };
         }
         

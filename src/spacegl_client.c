@@ -1071,6 +1071,7 @@ void *network_listener(void *arg) {
                         int tail = atomic_load_explicit(&g_shm->event_tail, memory_order_acquire);
                         int prev_tail = (tail - 1 + IPC_EVENT_QUEUE_SIZE) % IPC_EVENT_QUEUE_SIZE;
                         g_shm->event_queue[prev_tail].padding[0] = current_state.beams[b].owner_id;
+                        g_shm->event_queue[prev_tail].padding[1] = current_state.beams[b].active; /* Emitter ID */
                     }
                     /* Reset local beam count after pushing to IPC queue */
                     current_state.beam_count = 0;

@@ -287,7 +287,7 @@ typedef struct { mat4 view; mat4 proj; } UniformBufferObject;
 
 #define STARFIELD_MODE STARFIELD_MODE_TWINKLE
 
-typedef struct { float sx, sy, sz, tx, ty, tz, life; int owner_id; int extra; } ActiveBeam;
+typedef struct { float sx, sy, sz, tx, ty, tz, life; int owner_id; int extra; int emitter_id; } ActiveBeam;
 typedef struct { float x, y, z, life; float offsets[EXPLOSION_PIXELS][3]; float colors[EXPLOSION_PIXELS][3]; } ActiveBoom;
 typedef struct { float x, y, z, life; float scale; } ActiveDismantle;
 typedef struct { float x, y, z; float dx, dy, dz; int active; int id; } ActiveTorp;
@@ -3602,10 +3602,14 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
 
                 /* Real-time Tracking: Snap beam endpoints to current smoothed model positions */
                 int owner_id = app->activeBeams[i].owner_id;
+                int emitter_id = app->activeBeams[i].emitter_id;
                 for (int o=0; o < st->object_count; o++) {
                     if (st->objects[o].active) {
                         if (st->objects[o].id == owner_id) {
-                            bsx = app->smoothObjs[o].x; bsy = app->smoothObjs[o].y; bsz = app->smoothObjs[o].z;
+                            float off_v = (emitter_id == 2) ? -0.12f : 0.12f;
+                            bsx = app->smoothObjs[o].x; 
+                            bsy = app->smoothObjs[o].y; 
+                            bsz = app->smoothObjs[o].z + off_v;
                         }
                         if (st->objects[o].id == target_id) {
                             btx = app->smoothObjs[o].x; bty = app->smoothObjs[o].y; btz = app->smoothObjs[o].z;
@@ -4085,17 +4089,35 @@ void mainLoop(VulkanApp* app) {
                         app->activeBooms[i].colors[p][0]=r; app->activeBooms[i].colors[p][1]=g; app->activeBooms[i].colors[p][2]=b;
                     }
                 } else if (ev->type == IPC_EV_BEAM) {
-                    int oldest = 0; float min_life = 999.0f;
-                    for(int i=0; i<MAX_ACTIVE_BEAMS; i++) if(app->activeBeams[i].life < min_life){ min_life = app->activeBeams[i].life; oldest = i; }
-                    app->activeBeams[oldest].sx = (float)ev->x1 - 20.0f;
-                    app->activeBeams[oldest].sy = (float)ev->z1 - 20.0f;
-                    app->activeBeams[oldest].sz = 20.0f - (float)ev->y1;
-                    app->activeBeams[oldest].tx = (float)ev->x2 - 20.0f;
-                    app->activeBeams[oldest].ty = (float)ev->z2 - 20.0f;
-                    app->activeBeams[oldest].tz = 20.0f - (float)ev->y2;
-                    app->activeBeams[oldest].life = 1.0f;
-                    app->activeBeams[oldest].owner_id = ev->padding[0];
-                    app->activeBeams[oldest].extra = ev->extra;
+                    int slot = -1;
+                    int owner_id = ev->padding[0];
+                    int target_id = ev->extra;
+                    int emitter_id = ev->padding[1];
+
+                    /* Deduplication: Refresh existing beam if found (matching owner, target, AND emitter) */
+                    for (int i=0; i<MAX_ACTIVE_BEAMS; i++) {
+                        if (app->activeBeams[i].life > 0 && 
+                            app->activeBeams[i].owner_id == owner_id && 
+                            app->activeBeams[i].extra == target_id &&
+                            app->activeBeams[i].emitter_id == emitter_id) {
+                            slot = i; break;
+                        }
+                    }
+                    if (slot == -1) {
+                        int oldest = 0; float min_life = 999.0f;
+                        for(int i=0; i<MAX_ACTIVE_BEAMS; i++) if(app->activeBeams[i].life < min_life){ min_life = app->activeBeams[i].life; oldest = i; }
+                        slot = oldest;
+                    }
+                    app->activeBeams[slot].sx = (float)ev->x1 - 20.0f;
+                    app->activeBeams[slot].sy = (float)ev->z1 - 20.0f;
+                    app->activeBeams[slot].sz = 20.0f - (float)ev->y1;
+                    app->activeBeams[slot].tx = (float)ev->x2 - 20.0f;
+                    app->activeBeams[slot].ty = (float)ev->z2 - 20.0f;
+                    app->activeBeams[slot].tz = 20.0f - (float)ev->y2;
+                    app->activeBeams[slot].life = 1.0f;
+                    app->activeBeams[slot].owner_id = owner_id;
+                    app->activeBeams[slot].extra = target_id;
+                    app->activeBeams[slot].emitter_id = emitter_id;
                 } else if (ev->type == IPC_EV_TORPEDO) {
                     int tid = ev->extra; int f = -1;
                     for(int i=0; i<MAX_ACTIVE_TORPS; i++) { if (app->activeTorps[i].active>0 && app->activeTorps[i].id==tid) { f=i; break; } }
