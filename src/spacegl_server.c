@@ -804,6 +804,11 @@ int main(int argc, char *argv[]) {
                                         
                                         players[slot].state.inventory[1] = 1000000ULL; /* Initial Aetherium for jumps */
                                                                             
+                                        /* Default Balanced Power Distribution */
+                                        players[slot].state.power_dist[0] = 0.333; /* Engines */
+                                        players[slot].state.power_dist[1] = 0.334; /* Shields */
+                                        players[slot].state.power_dist[2] = 0.333; /* Weapons */
+
                                         for (int s = 0; s < 6; s++) {
                                             players[slot].state.shields[s] = SHIELD_MAX_STRENGTH;
                                             players[slot].state.target_shields[s] = SHIELD_MAX_STRENGTH;
@@ -821,6 +826,14 @@ int main(int argc, char *argv[]) {
                                     } else {
                                         /* RETURNING CAPTAIN: sync name to the game state for visual consistency */
                                         strcpy(players[slot].state.captain_name, players[slot].name);
+                                        
+                                        /* Default Power if zero (old accounts or corruption) */
+                                        double p_total = players[slot].state.power_dist[0] + players[slot].state.power_dist[1] + players[slot].state.power_dist[2];
+                                        if (p_total < 0.01) {
+                                            players[slot].state.power_dist[0] = 0.333;
+                                            players[slot].state.power_dist[1] = 0.334;
+                                            players[slot].state.power_dist[2] = 0.333;
+                                        }
                                     }
                                     
                                     /* WELCOME PACKAGE: Ensure all captains (new or returning) have at least 10 Aetherium for Jumps */
@@ -835,7 +848,6 @@ int main(int argc, char *argv[]) {
                                     /* Derive Personal Algorithm keys for this Captain */
                                     derive_algo_keys(MASTER_SESSION_KEY, players[slot].name, players[slot].algo_keys);
                                     
-                                    for(int s=0; s<4; s++) players[slot].state.torps[s].active = 0;
                                     players[slot].state.beam_count = 0;
                                     players[slot].state.event_count = 0;
                                     players[slot].torp_active = false;

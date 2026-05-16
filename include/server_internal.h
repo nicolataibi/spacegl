@@ -99,6 +99,8 @@ typedef struct {
 
     int death_timer;        /* Ticks until final destruction explosion */
     
+    bool fire_requested_this_tick;
+
     /* Optimization State */
     PacketUpdate last_sent_state;
     int last_q1, last_q2, last_q3;
@@ -450,6 +452,46 @@ typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; i
 typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCVoidCrystal;
 typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCSubspaceAnomaly;
 
+/* New Cosmic Objects */
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCDiffuseNebula;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCDarkNebula;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCPlanetaryNebula;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCSNR;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCGMC;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCInterstellarFilament;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCInterstellarBubble;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCBokGlobule;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCClumpCore;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCAccretionDisk;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCRelativisticJet;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCShockWave;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCStellarBowShock;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCCosmicVoid;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCCosmicFilament;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCEventHorizon;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCKilonova;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCGravLens;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCGRB;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCGravWave;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCProtoplanetaryDisk;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCDebrisDisk;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCPlanetesimal;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCRoguePlanet;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCBrownDwarf;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCISO;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCMagReconn;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCCurrentSheet;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCHeliosphere;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCTermShock;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCMagnetosphere;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCCosmicString;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCDomainWall;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCDMHalo;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCIGM;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCCGM;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCLymanAlpha;
+typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCCMB;
+
 typedef struct { 
     int id;
     int faction;
@@ -521,6 +563,45 @@ typedef struct {
 #define MAX_VOID_CRYSTALS 1000
 #define MAX_SUBSPACE_ANOMALIES 1000
 
+#define MAX_DIFFUSE_NEBULAE 1000
+#define MAX_DARK_NEBULAE 1000
+#define MAX_PLANETARY_NEBULAE 1000
+#define MAX_SNR 1000
+#define MAX_GMC 1000
+#define MAX_INTERSTELLAR_FILAMENTS 1000
+#define MAX_INTERSTELLAR_BUBBLES 1000
+#define MAX_BOK_GLOBULES 1000
+#define MAX_CLUMP_CORES 1000
+#define MAX_ACCRETION_DISKS 1000
+#define MAX_RELATIVISTIC_JETS 1000
+#define MAX_SHOCK_WAVES 1000
+#define MAX_STELLAR_BOW_SHOCKS 1000
+#define MAX_COSMIC_VOIDS 200
+#define MAX_COSMIC_FILAMENTS 400
+#define MAX_EVENT_HORIZONS 1000
+#define MAX_KILONOVAE 1000
+#define MAX_GRAV_LENSES 1000
+#define MAX_GRB 1000
+#define MAX_GRAV_WAVES 1000
+#define MAX_PROTOPLANETARY_DISKS 1000
+#define MAX_DEBRIS_DISKS 1000
+#define MAX_PLANETESIMALS 1000
+#define MAX_ROGUE_PLANETS 1000
+#define MAX_BROWN_DWARFS 1000
+#define MAX_ISO 1000
+#define MAX_MAG_RECONN 1000
+#define MAX_CURRENT_SHEETS 1000
+#define MAX_HELIOSPHERES 1000
+#define MAX_TERM_SHOCKS 1000
+#define MAX_MAGNETOSPHERES 1000
+#define MAX_COSMIC_STRINGS 1000
+#define MAX_DOMAIN_WALLS 200
+#define MAX_DM_HALO 1000
+#define MAX_IGM 1000
+#define MAX_CGM 1000
+#define MAX_LYMAN_ALPHA 1000
+#define MAX_CMB 200
+
 /* Local Quadrant Limits for Spatial Index (Optimization) */
 #define MAX_Q_NPC 32
 #define MAX_Q_PLANETS 32
@@ -557,6 +638,44 @@ typedef struct {
 #define MAX_Q_TIME_ANOMALIES 4
 #define MAX_Q_VOID_CRYSTALS 4
 #define MAX_Q_SUBSPACE_ANOMALIES 4
+#define MAX_Q_DIFFUSE_NEBULA 4
+#define MAX_Q_DARK_NEBULA 4
+#define MAX_Q_PLANETARY_NEBULA 4
+#define MAX_Q_SNR 4
+#define MAX_Q_GMC 4
+#define MAX_Q_INTERSTELLAR_FILAMENT 4
+#define MAX_Q_INTERSTELLAR_BUBBLE 4
+#define MAX_Q_BOK_GLOBULE 4
+#define MAX_Q_CLUMP_CORE 4
+#define MAX_Q_ACCRETION_DISK 4
+#define MAX_Q_RELATIVISTIC_JET 4
+#define MAX_Q_SHOCK_WAVE 4
+#define MAX_Q_STELLAR_BOW_SHOCK 4
+#define MAX_Q_COSMIC_VOID 2
+#define MAX_Q_COSMIC_FILAMENT 4
+#define MAX_Q_EVENT_HORIZON 4
+#define MAX_Q_KILONOVA 2
+#define MAX_Q_GRAV_LENS 4
+#define MAX_Q_GRB 2
+#define MAX_Q_GRAV_WAVE 4
+#define MAX_Q_PROTOPLANETARY_DISK 4
+#define MAX_Q_DEBRIS_DISK 4
+#define MAX_Q_PLANETESIMAL 8
+#define MAX_Q_ROGUE_PLANET 4
+#define MAX_Q_BROWN_DWARF 4
+#define MAX_Q_ISO 4
+#define MAX_Q_MAG_RECONN 4
+#define MAX_Q_CURRENT_SHEET 4
+#define MAX_Q_HELIOSPHERE 4
+#define MAX_Q_TERM_SHOCK 4
+#define MAX_Q_MAGNETOSPHERE 4
+#define MAX_Q_COSMIC_STRING 4
+#define MAX_Q_DOMAIN_WALL 2
+#define MAX_Q_DM_HALO 4
+#define MAX_Q_IGM 4
+#define MAX_Q_CGM 4
+#define MAX_Q_LYMAN_ALPHA 4
+#define MAX_Q_CMB 2
 
 /* Global Data accessed by modules */
 extern NPCStar stars_data[MAX_STARS];
@@ -592,6 +711,46 @@ extern NPCOrbitalRing orbital_rings[MAX_ORBITAL_RINGS];
 extern NPCTimeAnomaly time_anomalies[MAX_TIME_ANOMALIES];
 extern NPCVoidCrystal void_crystals[MAX_VOID_CRYSTALS];
 extern NPCSubspaceAnomaly subspace_anomalies[MAX_SUBSPACE_ANOMALIES];
+
+extern NPCDiffuseNebula diffuse_nebulae[MAX_DIFFUSE_NEBULAE];
+extern NPCDarkNebula dark_nebulae[MAX_DARK_NEBULAE];
+extern NPCPlanetaryNebula planetary_nebulae[MAX_PLANETARY_NEBULAE];
+extern NPCSNR snrs[MAX_SNR];
+extern NPCGMC gmcs[MAX_GMC];
+extern NPCInterstellarFilament interstellar_filaments[MAX_INTERSTELLAR_FILAMENTS];
+extern NPCInterstellarBubble interstellar_bubbles[MAX_INTERSTELLAR_BUBBLES];
+extern NPCBokGlobule bok_globules[MAX_BOK_GLOBULES];
+extern NPCClumpCore clump_cores[MAX_CLUMP_CORES];
+extern NPCAccretionDisk accretion_disks[MAX_ACCRETION_DISKS];
+extern NPCRelativisticJet relativistic_jets[MAX_RELATIVISTIC_JETS];
+extern NPCShockWave shock_waves[MAX_SHOCK_WAVES];
+extern NPCStellarBowShock stellar_bow_shocks[MAX_STELLAR_BOW_SHOCKS];
+extern NPCCosmicVoid cosmic_voids[MAX_COSMIC_VOIDS];
+extern NPCCosmicFilament cosmic_filaments[MAX_COSMIC_FILAMENTS];
+extern NPCEventHorizon event_horizons[MAX_EVENT_HORIZONS];
+extern NPCKilonova kilonovae[MAX_KILONOVAE];
+extern NPCGravLens grav_lenses[MAX_GRAV_LENSES];
+extern NPCGRB grbs[MAX_GRB];
+extern NPCGravWave grav_waves[MAX_GRAV_WAVES];
+extern NPCProtoplanetaryDisk protoplanetary_disks[MAX_PROTOPLANETARY_DISKS];
+extern NPCDebrisDisk debris_disks[MAX_DEBRIS_DISKS];
+extern NPCPlanetesimal planetesimals[MAX_PLANETESIMALS];
+extern NPCRoguePlanet rogue_planets[MAX_ROGUE_PLANETS];
+extern NPCBrownDwarf brown_dwarfs[MAX_BROWN_DWARFS];
+extern NPCISO isos[MAX_ISO];
+extern NPCMagReconn mag_reconns[MAX_MAG_RECONN];
+extern NPCCurrentSheet current_sheets[MAX_CURRENT_SHEETS];
+extern NPCHeliosphere heliospheres[MAX_HELIOSPHERES];
+extern NPCTermShock term_shocks[MAX_TERM_SHOCKS];
+extern NPCMagnetosphere magnetospheres[MAX_MAGNETOSPHERES];
+extern NPCCosmicString cosmic_strings[MAX_COSMIC_STRINGS];
+extern NPCDomainWall domain_walls[MAX_DOMAIN_WALLS];
+extern NPCDMHalo dm_halos[MAX_DM_HALO];
+extern NPCIGM igms[MAX_IGM];
+extern NPCCGM cgms[MAX_CGM];
+extern NPCLymanAlpha lyman_alphas[MAX_LYMAN_ALPHA];
+extern NPCCMB cmbs[MAX_CMB];
+
 extern PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 extern ConnectedPlayer players[MAX_CLIENTS];
 extern SpaceGLGame spacegl_master;
@@ -679,6 +838,46 @@ typedef struct {
     NPCTimeAnomaly *time_anomalies[MAX_Q_TIME_ANOMALIES]; int time_anomaly_count;
     NPCVoidCrystal *void_crystals[MAX_Q_VOID_CRYSTALS]; int void_crystal_count;
     NPCSubspaceAnomaly *subspace_anomalies[MAX_Q_SUBSPACE_ANOMALIES]; int subspace_anomaly_count;
+
+    NPCDiffuseNebula *diffuse_nebulae[MAX_Q_DIFFUSE_NEBULA]; int diffuse_nebula_count;
+    NPCDarkNebula *dark_nebulae[MAX_Q_DARK_NEBULA]; int dark_nebula_count;
+    NPCPlanetaryNebula *planetary_nebulae[MAX_Q_PLANETARY_NEBULA]; int planetary_nebula_count;
+    NPCSNR *snrs[MAX_Q_SNR]; int snr_count;
+    NPCGMC *gmcs[MAX_Q_GMC]; int gmc_count;
+    NPCInterstellarFilament *interstellar_filaments[MAX_Q_INTERSTELLAR_FILAMENT]; int interstellar_filament_count;
+    NPCInterstellarBubble *interstellar_bubbles[MAX_Q_INTERSTELLAR_BUBBLE]; int interstellar_bubble_count;
+    NPCBokGlobule *bok_globules[MAX_Q_BOK_GLOBULE]; int bok_globule_count;
+    NPCClumpCore *clump_cores[MAX_Q_CLUMP_CORE]; int clump_core_count;
+    NPCAccretionDisk *accretion_disks[MAX_Q_ACCRETION_DISK]; int accretion_disk_count;
+    NPCRelativisticJet *relativistic_jets[MAX_Q_RELATIVISTIC_JET]; int relativistic_jet_count;
+    NPCShockWave *shock_waves[MAX_Q_SHOCK_WAVE]; int shock_wave_count;
+    NPCStellarBowShock *stellar_bow_shocks[MAX_Q_STELLAR_BOW_SHOCK]; int stellar_bow_shock_count;
+    NPCCosmicVoid *cosmic_voids[MAX_Q_COSMIC_VOID]; int cosmic_void_count;
+    NPCCosmicFilament *cosmic_filaments[MAX_Q_COSMIC_FILAMENT]; int cosmic_filament_count;
+    NPCEventHorizon *event_horizons[MAX_Q_EVENT_HORIZON]; int event_horizon_count;
+    NPCKilonova *kilonovae[MAX_Q_KILONOVA]; int kilonova_count;
+    NPCGravLens *grav_lenses[MAX_Q_GRAV_LENS]; int grav_lens_count;
+    NPCGRB *grbs[MAX_Q_GRB]; int grb_count;
+    NPCGravWave *grav_waves[MAX_Q_GRAV_WAVE]; int grav_wave_count;
+    NPCProtoplanetaryDisk *protoplanetary_disks[MAX_Q_PROTOPLANETARY_DISK]; int protoplanetary_disk_count;
+    NPCDebrisDisk *debris_disks[MAX_Q_DEBRIS_DISK]; int debris_disk_count;
+    NPCPlanetesimal *planetesimals[MAX_Q_PLANETESIMAL]; int planetesimal_count;
+    NPCRoguePlanet *rogue_planets[MAX_Q_ROGUE_PLANET]; int rogue_planet_count;
+    NPCBrownDwarf *brown_dwarfs[MAX_Q_BROWN_DWARF]; int brown_dwarf_count;
+    NPCISO *isos[MAX_Q_ISO]; int iso_count;
+    NPCMagReconn *mag_reconns[MAX_Q_MAG_RECONN]; int mag_reconn_count;
+    NPCCurrentSheet *current_sheets[MAX_Q_CURRENT_SHEET]; int current_sheet_count;
+    NPCHeliosphere *heliospheres[MAX_Q_HELIOSPHERE]; int heliosphere_count;
+    NPCTermShock *term_shocks[MAX_Q_TERM_SHOCK]; int term_shock_count;
+    NPCMagnetosphere *magnetospheres[MAX_Q_MAGNETOSPHERE]; int magnetosphere_count;
+    NPCCosmicString *cosmic_strings[MAX_Q_COSMIC_STRING]; int cosmic_string_count;
+    NPCDomainWall *domain_walls[MAX_Q_DOMAIN_WALL]; int domain_wall_count;
+    NPCDMHalo *dm_halos[MAX_Q_DM_HALO]; int dm_halo_count;
+    NPCIGM *igms[MAX_Q_IGM]; int igm_count;
+    NPCCGM *cgms[MAX_Q_CGM]; int cgm_count;
+    NPCLymanAlpha *lyman_alphas[MAX_Q_LYMAN_ALPHA]; int lyman_alpha_count;
+    NPCCMB *cmbs[MAX_Q_CMB]; int cmb_count;
+
     ConnectedPlayer *players[MAX_Q_PLAYERS];
     int player_count;
     PlayerTorpedo *torpedoes[MAX_Q_TORPEDOES];

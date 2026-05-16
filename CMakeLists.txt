@@ -100,7 +100,7 @@ add_executable(spacegl_client src/spacegl_client.c)
 target_link_libraries(spacegl_client ${COMMON_LIBS})
 
 # 3. spacegl_3dview
-add_executable(spacegl_3dview src/spacegl_3dview.c src/glut_compat.c)
+add_executable(spacegl_3dview src/spacegl_3dview.c src/glut_compat.c src/spacegl_extras_glfw.c)
 target_link_libraries(spacegl_3dview ${COMMON_LIBS} ${GLFW_LIBRARIES} ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES} GLU)
 
 # 4. spacegl_viewer

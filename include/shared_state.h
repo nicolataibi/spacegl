@@ -159,6 +159,8 @@ typedef struct {
     SharedPoint recovery_fx;
     SharedProbe probes[3];
     
+    char shm_captain_name[64];
+    int shm_target_shields[6];
     long long frame_id;
 } GameState;
 #pragma pack(pop)
@@ -174,6 +176,7 @@ typedef struct {
 #define IPC_EV_RECOVERY  4
 #define IPC_EV_JUMP      5
 #define IPC_EV_TORPEDO   6
+#define IPC_TORPEDO_ID_OFFSET 1000
 
 typedef struct {
     int type;

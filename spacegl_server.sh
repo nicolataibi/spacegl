@@ -56,5 +56,6 @@ echo -e "${GREEN}[SYSTEM]${NC} Master Key validated. Starting boot sequence..."
 echo -e "${BLUE}[INFO]${NC} Server listening on port 5000 (TCP/Binary)"
 echo ""
 
-# Server execution
+# Change directory to build to ensure assets/shaders are found and state is saved locally
+
 $SPACEGL_BIN "$@"

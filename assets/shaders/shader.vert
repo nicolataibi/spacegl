@@ -26,9 +26,11 @@ layout(location = 4) out flat int usePushColor;
 layout(location = 5) out float metallic;
 layout(location = 6) out float roughness;
 layout(location = 7) out float time;
+layout(location = 8) out vec3 localPos;
 
 void main() {
     vec3 pos = inPosition;
+    localPos = inPosition;
 
     /* MODE 6: Hyper-Warp Displacement (Twisting / Pulsing) */
     if (pc.usePushColor == 6) {

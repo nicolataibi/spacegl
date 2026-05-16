@@ -1,3 +1,11 @@
+* Sat May 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.16.01
+- [Build] Fixed compilation error in spacegl_extras_glfw.c by correctly using the glut_compat.h layer instead of system GLUT headers.
+- [Build] Added missing stdlib.h include for rand() and RAND_MAX in spacegl_extras_glfw.c.
+- [Galaxy] Integrated 38 new galactic object types to expand exploration depth.
+- [Sensors] Upgraded Short-Range (SRS) and Long-Range (LRS) sensor accuracy and data density.
+- [Combat] Fixed critical bugs in torpedo homing and shield depletion logic.
+- [Docs] Comprehensive update of technical and user documentation.
+
 * Tue May 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.12.04
 - [Commands] Expanded 'scan' command to support all 35+ galactic object types (Dyson, Hubs, Anomalies, etc.).
 - [Sensors] Corrected starbase faction identification in SRS/LRS scans and communications.

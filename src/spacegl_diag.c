@@ -20,7 +20,7 @@
 #include "network.h"
 #include "server_internal.h"
 
-#define MAX_PAGES 50
+#define MAX_PAGES 150
 #define sym_type(i) ((i) & 0xf)
 
 typedef enum {
@@ -29,7 +29,14 @@ typedef enum {
     CAT_DYSON, CAT_HUB, CAT_RELIC, CAT_RUPTURE, CAT_SATELLITE, CAT_STORM, CAT_TORPEDO,
     CAT_ARTIFACT, CAT_WARP_GATE, CAT_NEUTRON_STAR, CAT_MEGA_STRUCT, CAT_DARK_CLOUD,
     CAT_SINGULARITY, CAT_PLASMA_STORM, CAT_ORBITAL_RING, CAT_TIME_ANOMALY, CAT_VOID_CRYSTAL,
-    CAT_ANOMALY
+    CAT_ANOMALY, CAT_DIFFUSE_NEBULA, CAT_DARK_NEBULA, CAT_PLANETARY_NEBULA, CAT_SNR, CAT_GMC,
+    CAT_INTERSTELLAR_FILAMENT, CAT_INTERSTELLAR_BUBBLE, CAT_BOK_GLOBULE, CAT_CLUMP_CORE,
+    CAT_ACCRETION_DISK, CAT_RELATIVISTIC_JET, CAT_SHOCK_WAVE, CAT_STELLAR_BOW_SHOCK,
+    CAT_COSMIC_VOID, CAT_COSMIC_FILAMENT, CAT_EVENT_HORIZON, CAT_KILONOVA, CAT_GRAV_LENS,
+    CAT_GRB, CAT_GRAV_WAVE, CAT_PROTOPLANETARY_DISK, CAT_DEBRIS_DISK, CAT_PLANETESIMAL,
+    CAT_ROGUE_PLANET, CAT_BROWN_DWARF, CAT_ISO, CAT_MAG_RECONN, CAT_CURRENT_SHEET,
+    CAT_HELIOSPHERE, CAT_TERM_SHOCK, CAT_MAGNETOSPHERE, CAT_COSMIC_STRING, CAT_DOMAIN_WALL,
+    CAT_DM_HALO, CAT_IGM, CAT_CGM, CAT_LYMAN_ALPHA, CAT_CMB
 } DiagCat;
 
 typedef struct {
@@ -74,6 +81,44 @@ DiagPage pages[MAX_PAGES] = {
     {CAT_TIME_ANOMALY, 0, "TIME ANOMALIES"},
     {CAT_VOID_CRYSTAL, 0, "VOID CRYSTALS"},
     {CAT_ANOMALY, 0, "SUBSPACE ANOMALIES"},
+    {CAT_DIFFUSE_NEBULA, 0, "DIFFUSE NEBULA"},
+    {CAT_DARK_NEBULA, 0, "DARK NEBULA"},
+    {CAT_PLANETARY_NEBULA, 0, "PLANET NEB"},
+    {CAT_SNR, 0, "SNR"},
+    {CAT_GMC, 0, "GMC"},
+    {CAT_INTERSTELLAR_FILAMENT, 0, "INT FILAMENT"},
+    {CAT_INTERSTELLAR_BUBBLE, 0, "INT BUBBLE"},
+    {CAT_BOK_GLOBULE, 0, "BOK GLOBULE"},
+    {CAT_CLUMP_CORE, 0, "CLUMP/CORE"},
+    {CAT_ACCRETION_DISK, 0, "ACCRET DISK"},
+    {CAT_RELATIVISTIC_JET, 0, "RELATIV JET"},
+    {CAT_SHOCK_WAVE, 0, "SHOCK WAVE"},
+    {CAT_STELLAR_BOW_SHOCK, 0, "BOW SHOCK"},
+    {CAT_COSMIC_VOID, 0, "COSMIC VOID"},
+    {CAT_COSMIC_FILAMENT, 0, "COSMIC FIL"},
+    {CAT_EVENT_HORIZON, 0, "EVENT HORIZ"},
+    {CAT_KILONOVA, 0, "KILONOVA"},
+    {CAT_GRAV_LENS, 0, "GRAV LENS"},
+    {CAT_GRB, 0, "GRB"},
+    {CAT_GRAV_WAVE, 0, "GRAV WAVE"},
+    {CAT_PROTOPLANETARY_DISK, 0, "PROTOPLANET"},
+    {CAT_DEBRIS_DISK, 0, "DEBRIS DISK"},
+    {CAT_PLANETESIMAL, 0, "PLANETESIMAL"},
+    {CAT_ROGUE_PLANET, 0, "ROGUE PLANET"},
+    {CAT_BROWN_DWARF, 0, "BROWN DWARF"},
+    {CAT_ISO, 0, "INTERST OBJ"},
+    {CAT_MAG_RECONN, 0, "MAG RECONN"},
+    {CAT_CURRENT_SHEET, 0, "CUR SHEET"},
+    {CAT_HELIOSPHERE, 0, "HELIOSPHERE"},
+    {CAT_TERM_SHOCK, 0, "TERM SHOCK"},
+    {CAT_MAGNETOSPHERE, 0, "MAGNETOSPH"},
+    {CAT_COSMIC_STRING, 0, "COSM STRING"},
+    {CAT_DOMAIN_WALL, 0, "DOMAIN WALL"},
+    {CAT_DM_HALO, 0, "DM HALO"},
+    {CAT_IGM, 0, "IGM"},
+    {CAT_CGM, 0, "CGM"},
+    {CAT_LYMAN_ALPHA, 0, "LYMAN ALPHA"},
+    {CAT_CMB, 0, "CMB"},
     {CAT_SHIP, FACTION_ALLIANCE, "ALLIANCE (PLAYER)"},
     {CAT_SHIP, FACTION_KORTHIAN, "KORTHIAN EMPIRE"},
     {CAT_SHIP, FACTION_XYLARI,   "XYLARI HEGEMONY"},
@@ -218,6 +263,44 @@ int main(int argc, char** argv) {
     RESOLVE(relics); RESOLVE(ruptures); RESOLVE(satellites); RESOLVE(storms); RESOLVE(players_torpedoes);
     RESOLVE(artifacts); RESOLVE(warp_gates); RESOLVE(neutron_stars); RESOLVE(mega_structs); RESOLVE(dark_clouds);
     RESOLVE(singularities); RESOLVE(plasma_storms); RESOLVE(orbital_rings); RESOLVE(time_anomalies); RESOLVE(void_crystals); RESOLVE(subspace_anomalies);
+    RESOLVE(diffuse_nebulae);
+    RESOLVE(dark_nebulae);
+    RESOLVE(planetary_nebulae);
+    RESOLVE(snrs);
+    RESOLVE(gmcs);
+    RESOLVE(interstellar_filaments);
+    RESOLVE(interstellar_bubbles);
+    RESOLVE(bok_globules);
+    RESOLVE(clump_cores);
+    RESOLVE(accretion_disks);
+    RESOLVE(relativistic_jets);
+    RESOLVE(shock_waves);
+    RESOLVE(stellar_bow_shocks);
+    RESOLVE(cosmic_voids);
+    RESOLVE(cosmic_filaments);
+    RESOLVE(event_horizons);
+    RESOLVE(kilonovae);
+    RESOLVE(grav_lenses);
+    RESOLVE(grbs);
+    RESOLVE(grav_waves);
+    RESOLVE(protoplanetary_disks);
+    RESOLVE(debris_disks);
+    RESOLVE(planetesimals);
+    RESOLVE(rogue_planets);
+    RESOLVE(brown_dwarfs);
+    RESOLVE(isos);
+    RESOLVE(mag_reconns);
+    RESOLVE(current_sheets);
+    RESOLVE(heliospheres);
+    RESOLVE(term_shocks);
+    RESOLVE(magnetospheres);
+    RESOLVE(cosmic_strings);
+    RESOLVE(domain_walls);
+    RESOLVE(dm_halos);
+    RESOLVE(igms);
+    RESOLVE(cgms);
+    RESOLVE(lyman_alphas);
+    RESOLVE(cmbs);
 
     if (unresolved_count > 30) {
         printf("CRITICAL ERROR: Failed to resolve %d symbols. Ensure spacegl_server has symbols.\n", unresolved_count);
@@ -270,6 +353,44 @@ int main(int argc, char** argv) {
     NPCTimeAnomaly* tim_buf = calloc(MAX_TIME_ANOMALIES, sizeof(NPCTimeAnomaly));
     NPCVoidCrystal* voi_buf = calloc(MAX_VOID_CRYSTALS, sizeof(NPCVoidCrystal));
     NPCSubspaceAnomaly* sub_buf = calloc(MAX_SUBSPACE_ANOMALIES, sizeof(NPCSubspaceAnomaly));
+    NPCDiffuseNebula* dif_buf = calloc(MAX_DIFFUSE_NEBULAE, sizeof(NPCDiffuseNebula));
+    NPCDarkNebula* dar2_buf = calloc(MAX_DARK_NEBULAE, sizeof(NPCDarkNebula));
+    NPCPlanetaryNebula* pla2_buf = calloc(MAX_PLANETARY_NEBULAE, sizeof(NPCPlanetaryNebula));
+    NPCSNR* snr_buf = calloc(MAX_SNR, sizeof(NPCSNR));
+    NPCGMC* gmc_buf = calloc(MAX_GMC, sizeof(NPCGMC));
+    NPCInterstellarFilament* inf_buf = calloc(MAX_INTERSTELLAR_FILAMENTS, sizeof(NPCInterstellarFilament));
+    NPCInterstellarBubble* inb_buf = calloc(MAX_INTERSTELLAR_BUBBLES, sizeof(NPCInterstellarBubble));
+    NPCBokGlobule* bok_buf = calloc(MAX_BOK_GLOBULES, sizeof(NPCBokGlobule));
+    NPCClumpCore* clc_buf = calloc(MAX_CLUMP_CORES, sizeof(NPCClumpCore));
+    NPCAccretionDisk* acd_buf = calloc(MAX_ACCRETION_DISKS, sizeof(NPCAccretionDisk));
+    NPCRelativisticJet* rej_buf = calloc(MAX_RELATIVISTIC_JETS, sizeof(NPCRelativisticJet));
+    NPCShockWave* shw_buf = calloc(MAX_SHOCK_WAVES, sizeof(NPCShockWave));
+    NPCStellarBowShock* sbs_buf = calloc(MAX_STELLAR_BOW_SHOCKS, sizeof(NPCStellarBowShock));
+    NPCCosmicVoid* cov_buf = calloc(MAX_COSMIC_VOIDS, sizeof(NPCCosmicVoid));
+    NPCCosmicFilament* cof_buf = calloc(MAX_COSMIC_FILAMENTS, sizeof(NPCCosmicFilament));
+    NPCEventHorizon* evh_buf = calloc(MAX_EVENT_HORIZONS, sizeof(NPCEventHorizon));
+    NPCKilonova* kil_buf = calloc(MAX_KILONOVAE, sizeof(NPCKilonova));
+    NPCGravLens* grl_buf = calloc(MAX_GRAV_LENSES, sizeof(NPCGravLens));
+    NPCGRB* grb_buf = calloc(MAX_GRB, sizeof(NPCGRB));
+    NPCGravWave* grw_buf = calloc(MAX_GRAV_WAVES, sizeof(NPCGravWave));
+    NPCProtoplanetaryDisk* ppd_buf = calloc(MAX_PROTOPLANETARY_DISKS, sizeof(NPCProtoplanetaryDisk));
+    NPCDebrisDisk* ded_buf = calloc(MAX_DEBRIS_DISKS, sizeof(NPCDebrisDisk));
+    NPCPlanetesimal* ptm_buf = calloc(MAX_PLANETESIMALS, sizeof(NPCPlanetesimal));
+    NPCRoguePlanet* rop_buf = calloc(MAX_ROGUE_PLANETS, sizeof(NPCRoguePlanet));
+    NPCBrownDwarf* brd_buf = calloc(MAX_BROWN_DWARFS, sizeof(NPCBrownDwarf));
+    NPCISO* iso_buf = calloc(MAX_ISO, sizeof(NPCISO));
+    NPCMagReconn* mgr_buf = calloc(MAX_MAG_RECONN, sizeof(NPCMagReconn));
+    NPCCurrentSheet* cus_buf = calloc(MAX_CURRENT_SHEETS, sizeof(NPCCurrentSheet));
+    NPCHeliosphere* hel_buf = calloc(MAX_HELIOSPHERES, sizeof(NPCHeliosphere));
+    NPCTermShock* tes_buf = calloc(MAX_TERM_SHOCKS, sizeof(NPCTermShock));
+    NPCMagnetosphere* mgs_buf = calloc(MAX_MAGNETOSPHERES, sizeof(NPCMagnetosphere));
+    NPCCosmicString* cst_buf = calloc(MAX_COSMIC_STRINGS, sizeof(NPCCosmicString));
+    NPCDomainWall* dow_buf = calloc(MAX_DOMAIN_WALLS, sizeof(NPCDomainWall));
+    NPCDMHalo* dmh_buf = calloc(MAX_DM_HALO, sizeof(NPCDMHalo));
+    NPCIGM* igm_buf = calloc(MAX_IGM, sizeof(NPCIGM));
+    NPCCGM* cgm_buf = calloc(MAX_CGM, sizeof(NPCCGM));
+    NPCLymanAlpha* lya_buf = calloc(MAX_LYMAN_ALPHA, sizeof(NPCLymanAlpha));
+    NPCCMB* cmb_buf = calloc(MAX_CMB, sizeof(NPCCMB));
     PlayerTorpedo* torp_buf = calloc(MAX_GLOBAL_TORPEDOES, sizeof(PlayerTorpedo));
     RenderItem* render_list = malloc(sizeof(RenderItem) * 100000);
 
@@ -352,6 +473,44 @@ int main(int argc, char** argv) {
                 case CAT_TIME_ANOMALY: READ_CAT(tim_buf, a_time_anomalies, MAX_TIME_ANOMALIES, 38); break;
                 case CAT_VOID_CRYSTAL: READ_CAT(voi_buf, a_void_crystals, MAX_VOID_CRYSTALS, 39); break;
                 case CAT_ANOMALY: READ_CAT(sub_buf, a_subspace_anomalies, MAX_SUBSPACE_ANOMALIES, 50); break;
+                case CAT_DIFFUSE_NEBULA: READ_CAT(dif_buf, a_diffuse_nebulae, MAX_DIFFUSE_NEBULAE, 51); break;
+                case CAT_DARK_NEBULA: READ_CAT(dar2_buf, a_dark_nebulae, MAX_DARK_NEBULAE, 52); break;
+                case CAT_PLANETARY_NEBULA: READ_CAT(pla2_buf, a_planetary_nebulae, MAX_PLANETARY_NEBULAE, 53); break;
+                case CAT_SNR: READ_CAT(snr_buf, a_snrs, MAX_SNR, 54); break;
+                case CAT_GMC: READ_CAT(gmc_buf, a_gmcs, MAX_GMC, 55); break;
+                case CAT_INTERSTELLAR_FILAMENT: READ_CAT(inf_buf, a_interstellar_filaments, MAX_INTERSTELLAR_FILAMENTS, 56); break;
+                case CAT_INTERSTELLAR_BUBBLE: READ_CAT(inb_buf, a_interstellar_bubbles, MAX_INTERSTELLAR_BUBBLES, 57); break;
+                case CAT_BOK_GLOBULE: READ_CAT(bok_buf, a_bok_globules, MAX_BOK_GLOBULES, 58); break;
+                case CAT_CLUMP_CORE: READ_CAT(clc_buf, a_clump_cores, MAX_CLUMP_CORES, 59); break;
+                case CAT_ACCRETION_DISK: READ_CAT(acd_buf, a_accretion_disks, MAX_ACCRETION_DISKS, 60); break;
+                case CAT_RELATIVISTIC_JET: READ_CAT(rej_buf, a_relativistic_jets, MAX_RELATIVISTIC_JETS, 61); break;
+                case CAT_SHOCK_WAVE: READ_CAT(shw_buf, a_shock_waves, MAX_SHOCK_WAVES, 62); break;
+                case CAT_STELLAR_BOW_SHOCK: READ_CAT(sbs_buf, a_stellar_bow_shocks, MAX_STELLAR_BOW_SHOCKS, 63); break;
+                case CAT_COSMIC_VOID: READ_CAT(cov_buf, a_cosmic_voids, MAX_COSMIC_VOIDS, 64); break;
+                case CAT_COSMIC_FILAMENT: READ_CAT(cof_buf, a_cosmic_filaments, MAX_COSMIC_FILAMENTS, 65); break;
+                case CAT_EVENT_HORIZON: READ_CAT(evh_buf, a_event_horizons, MAX_EVENT_HORIZONS, 66); break;
+                case CAT_KILONOVA: READ_CAT(kil_buf, a_kilonovae, MAX_KILONOVAE, 67); break;
+                case CAT_GRAV_LENS: READ_CAT(grl_buf, a_grav_lenses, MAX_GRAV_LENSES, 68); break;
+                case CAT_GRB: READ_CAT(grb_buf, a_grbs, MAX_GRB, 69); break;
+                case CAT_GRAV_WAVE: READ_CAT(grw_buf, a_grav_waves, MAX_GRAV_WAVES, 70); break;
+                case CAT_PROTOPLANETARY_DISK: READ_CAT(ppd_buf, a_protoplanetary_disks, MAX_PROTOPLANETARY_DISKS, 71); break;
+                case CAT_DEBRIS_DISK: READ_CAT(ded_buf, a_debris_disks, MAX_DEBRIS_DISKS, 72); break;
+                case CAT_PLANETESIMAL: READ_CAT(ptm_buf, a_planetesimals, MAX_PLANETESIMALS, 73); break;
+                case CAT_ROGUE_PLANET: READ_CAT(rop_buf, a_rogue_planets, MAX_ROGUE_PLANETS, 74); break;
+                case CAT_BROWN_DWARF: READ_CAT(brd_buf, a_brown_dwarfs, MAX_BROWN_DWARFS, 75); break;
+                case CAT_ISO: READ_CAT(iso_buf, a_isos, MAX_ISO, 76); break;
+                case CAT_MAG_RECONN: READ_CAT(mgr_buf, a_mag_reconns, MAX_MAG_RECONN, 77); break;
+                case CAT_CURRENT_SHEET: READ_CAT(cus_buf, a_current_sheets, MAX_CURRENT_SHEETS, 78); break;
+                case CAT_HELIOSPHERE: READ_CAT(hel_buf, a_heliospheres, MAX_HELIOSPHERES, 79); break;
+                case CAT_TERM_SHOCK: READ_CAT(tes_buf, a_term_shocks, MAX_TERM_SHOCKS, 80); break;
+                case CAT_MAGNETOSPHERE: READ_CAT(mgs_buf, a_magnetospheres, MAX_MAGNETOSPHERES, 81); break;
+                case CAT_COSMIC_STRING: READ_CAT(cst_buf, a_cosmic_strings, MAX_COSMIC_STRINGS, 82); break;
+                case CAT_DOMAIN_WALL: READ_CAT(dow_buf, a_domain_walls, MAX_DOMAIN_WALLS, 83); break;
+                case CAT_DM_HALO: READ_CAT(dmh_buf, a_dm_halos, MAX_DM_HALO, 84); break;
+                case CAT_IGM: READ_CAT(igm_buf, a_igms, MAX_IGM, 85); break;
+                case CAT_CGM: READ_CAT(cgm_buf, a_cgms, MAX_CGM, 86); break;
+                case CAT_LYMAN_ALPHA: READ_CAT(lya_buf, a_lyman_alphas, MAX_LYMAN_ALPHA, 87); break;
+                case CAT_CMB: READ_CAT(cmb_buf, a_cmbs, MAX_CMB, 88); break;
                 default: break;
             }
         }
@@ -436,6 +595,44 @@ int main(int argc, char** argv) {
                     case 38: { NPCTimeAnomaly* t = &tim_buf[item.index]; cp=1; snprintf(sid, sizeof(sid), "TA%04d", t->id); snprintf(name, sizeof(name), "Time Anomaly"); snprintf(info, sizeof(info), "Temporal"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", t->q1, t->q2, t->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", t->x, t->y, t->z); } break;
                     case 39: { NPCVoidCrystal* v = &voi_buf[item.index]; cp=5; snprintf(sid, sizeof(sid), "VC%04d", v->id); snprintf(name, sizeof(name), "Void Crystal"); snprintf(info, sizeof(info), "Crystalline"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", v->q1, v->q2, v->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", v->x, v->y, v->z); } break;
                     case 50: { NPCSubspaceAnomaly* s = &sub_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "AN%04d", s->id); snprintf(name, sizeof(name), "Subspace Anom"); snprintf(info, sizeof(info), "Unstable"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 51: { NPCDiffuseNebula* s = &dif_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "DI%04d", s->id); snprintf(name, sizeof(name), "Diffuse Nebula"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 52: { NPCDarkNebula* s = &dar2_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "DA%04d", s->id); snprintf(name, sizeof(name), "Dark Nebula"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 53: { NPCPlanetaryNebula* s = &pla2_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "PL%04d", s->id); snprintf(name, sizeof(name), "Planet Neb"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 54: { NPCSNR* s = &snr_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "SN%04d", s->id); snprintf(name, sizeof(name), "SNR"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 55: { NPCGMC* s = &gmc_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "GM%04d", s->id); snprintf(name, sizeof(name), "GMC"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 56: { NPCInterstellarFilament* s = &inf_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "IN%04d", s->id); snprintf(name, sizeof(name), "Int Filament"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 57: { NPCInterstellarBubble* s = &inb_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "IN%04d", s->id); snprintf(name, sizeof(name), "Int Bubble"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 58: { NPCBokGlobule* s = &bok_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "BO%04d", s->id); snprintf(name, sizeof(name), "Bok Globule"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 59: { NPCClumpCore* s = &clc_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "CL%04d", s->id); snprintf(name, sizeof(name), "Clump/Core"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 60: { NPCAccretionDisk* s = &acd_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "AC%04d", s->id); snprintf(name, sizeof(name), "Accret Disk"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 61: { NPCRelativisticJet* s = &rej_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "RE%04d", s->id); snprintf(name, sizeof(name), "Relativ Jet"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 62: { NPCShockWave* s = &shw_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "SH%04d", s->id); snprintf(name, sizeof(name), "Shock Wave"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 63: { NPCStellarBowShock* s = &sbs_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "ST%04d", s->id); snprintf(name, sizeof(name), "Bow Shock"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 64: { NPCCosmicVoid* s = &cov_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "CO%04d", s->id); snprintf(name, sizeof(name), "Cosmic Void"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 65: { NPCCosmicFilament* s = &cof_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "CO%04d", s->id); snprintf(name, sizeof(name), "Cosmic Fil"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 66: { NPCEventHorizon* s = &evh_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "EV%04d", s->id); snprintf(name, sizeof(name), "Event Horiz"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 67: { NPCKilonova* s = &kil_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "KI%04d", s->id); snprintf(name, sizeof(name), "Kilonova"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 68: { NPCGravLens* s = &grl_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "GR%04d", s->id); snprintf(name, sizeof(name), "Grav Lens"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 69: { NPCGRB* s = &grb_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "GR%04d", s->id); snprintf(name, sizeof(name), "GRB"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 70: { NPCGravWave* s = &grw_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "GR%04d", s->id); snprintf(name, sizeof(name), "Grav Wave"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 71: { NPCProtoplanetaryDisk* s = &ppd_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "PR%04d", s->id); snprintf(name, sizeof(name), "Protoplanet"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 72: { NPCDebrisDisk* s = &ded_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "DE%04d", s->id); snprintf(name, sizeof(name), "Debris Disk"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 73: { NPCPlanetesimal* s = &ptm_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "PL%04d", s->id); snprintf(name, sizeof(name), "Planetesimal"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 74: { NPCRoguePlanet* s = &rop_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "RO%04d", s->id); snprintf(name, sizeof(name), "Rogue Planet"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 75: { NPCBrownDwarf* s = &brd_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "BR%04d", s->id); snprintf(name, sizeof(name), "Brown Dwarf"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 76: { NPCISO* s = &iso_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "IS%04d", s->id); snprintf(name, sizeof(name), "Interst Obj"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 77: { NPCMagReconn* s = &mgr_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "MA%04d", s->id); snprintf(name, sizeof(name), "Mag Reconn"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 78: { NPCCurrentSheet* s = &cus_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "CU%04d", s->id); snprintf(name, sizeof(name), "Cur Sheet"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 79: { NPCHeliosphere* s = &hel_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "HE%04d", s->id); snprintf(name, sizeof(name), "Heliosphere"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 80: { NPCTermShock* s = &tes_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "TE%04d", s->id); snprintf(name, sizeof(name), "Term Shock"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 81: { NPCMagnetosphere* s = &mgs_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "MA%04d", s->id); snprintf(name, sizeof(name), "Magnetosph"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 82: { NPCCosmicString* s = &cst_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "CO%04d", s->id); snprintf(name, sizeof(name), "Cosm String"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 83: { NPCDomainWall* s = &dow_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "DO%04d", s->id); snprintf(name, sizeof(name), "Domain Wall"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 84: { NPCDMHalo* s = &dmh_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "DM%04d", s->id); snprintf(name, sizeof(name), "DM Halo"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 85: { NPCIGM* s = &igm_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "IG%04d", s->id); snprintf(name, sizeof(name), "IGM"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 86: { NPCCGM* s = &cgm_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "CG%04d", s->id); snprintf(name, sizeof(name), "CGM"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 87: { NPCLymanAlpha* s = &lya_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "LY%04d", s->id); snprintf(name, sizeof(name), "Lyman Alpha"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 88: { NPCCMB* s = &cmb_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "CM%04d", s->id); snprintf(name, sizeof(name), "CMB"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
                     default: break;
                 }
 

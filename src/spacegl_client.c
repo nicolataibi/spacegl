@@ -705,6 +705,8 @@ void *network_listener(void *arg) {
             PacketLRSUpdate lrs_pkt;
             memset(&lrs_pkt, 0, sizeof(PacketLRSUpdate));
             lrs_pkt.type = type;
+            (void)type;
+            lrs_pkt.type &= 0x7FFF;
 
             /* Read q1, q2, q3, z_offset, object_count */
             size_t header_fields_size = sizeof(int32_t) * 5;
@@ -961,8 +963,13 @@ void *network_listener(void *arg) {
                 g_shared_state->shm_torpedoes = current_state.torpedoes;
                 g_shared_state->shm_cargo_energy = current_state.cargo_energy;
                 g_shared_state->shm_cargo_torpedoes = current_state.cargo_torpedoes;
-                for(int s=0; s<6; s++) g_shared_state->shm_shields[s] = current_state.shields[s];
+                for(int s=0; s<6; s++) {
+                    g_shared_state->shm_shields[s] = current_state.shields[s];
+                    g_shared_state->shm_target_shields[s] = current_state.target_shields[s];
+                }
                 for(int sys=0; sys<10; sys++) g_shared_state->shm_system_health[sys] = current_state.system_health[sys];
+                strncpy(g_shared_state->shm_captain_name, current_state.captain_name, 64);
+                g_shared_state->frame_id = current_state.frame_id;
                 for(int p=0; p<3; p++) g_shared_state->shm_power_dist[p] = current_state.power_dist[p];
                 g_shared_state->shm_life_support = current_state.life_support;
                 g_shared_state->shm_ion_beam_charge = current_state.ion_beam_charge;
@@ -1036,6 +1043,7 @@ void *network_listener(void *arg) {
                 }
 
                 g_shared_state->object_count = current_state.object_count;
+                g_shared_state->beam_count = current_state.beam_count; memcpy(g_shared_state->beams, current_state.beams, sizeof(NetBeam) * current_state.beam_count);
                 for (int o=0; o < current_state.object_count; o++) {
                     g_shared_state->objects[o].shm_x = current_state.objects[o].net_x;
                     g_shared_state->objects[o].shm_y = current_state.objects[o].net_y;
@@ -1844,5 +1852,43 @@ const char* get_lrs_object_name(int id) {
     if (id >= GALAXY_OBJECT_MIN_TIME_ANOMALY && id <= GALAXY_OBJECT_MAX_TIME_ANOMALY) return "Time Anomaly";
     if (id >= GALAXY_OBJECT_MIN_VOID_CRYSTAL && id <= GALAXY_OBJECT_MAX_VOID_CRYSTAL) return "Void Crystal";
     if (id >= GALAXY_OBJECT_MIN_SUBSPACE_ANOM && id <= GALAXY_OBJECT_MAX_SUBSPACE_ANOM) return "Subspace Anomaly";
+    if (id >= GALAXY_OBJECT_MIN_DIFFUSE_NEBULA && id <= GALAXY_OBJECT_MAX_DIFFUSE_NEBULA) return "Diffuse Nebula";
+    if (id >= GALAXY_OBJECT_MIN_DARK_NEBULA && id <= GALAXY_OBJECT_MAX_DARK_NEBULA) return "Dark Nebula";
+    if (id >= GALAXY_OBJECT_MIN_PLANETARY_NEBULA && id <= GALAXY_OBJECT_MAX_PLANETARY_NEBULA) return "Planetary Nebula";
+    if (id >= GALAXY_OBJECT_MIN_SNR && id <= GALAXY_OBJECT_MAX_SNR) return "SNR";
+    if (id >= GALAXY_OBJECT_MIN_GMC && id <= GALAXY_OBJECT_MAX_GMC) return "GMC";
+    if (id >= GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT && id <= GALAXY_OBJECT_MAX_INTERSTELLAR_FILAMENT) return "Interstellar Filament";
+    if (id >= GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE && id <= GALAXY_OBJECT_MAX_INTERSTELLAR_BUBBLE) return "Interstellar Bubble";
+    if (id >= GALAXY_OBJECT_MIN_BOK_GLOBULE && id <= GALAXY_OBJECT_MAX_BOK_GLOBULE) return "Bok Globule";
+    if (id >= GALAXY_OBJECT_MIN_CLUMP_CORE && id <= GALAXY_OBJECT_MAX_CLUMP_CORE) return "Clump Core";
+    if (id >= GALAXY_OBJECT_MIN_ACCRETION_DISK && id <= GALAXY_OBJECT_MAX_ACCRETION_DISK) return "Accretion Disk";
+    if (id >= GALAXY_OBJECT_MIN_RELATIVISTIC_JET && id <= GALAXY_OBJECT_MAX_RELATIVISTIC_JET) return "Relativistic Jet";
+    if (id >= GALAXY_OBJECT_MIN_SHOCK_WAVE && id <= GALAXY_OBJECT_MAX_SHOCK_WAVE) return "Shock Wave";
+    if (id >= GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK && id <= GALAXY_OBJECT_MAX_STELLAR_BOW_SHOCK) return "Stellar Bow Shock";
+    if (id >= GALAXY_OBJECT_MIN_COSMIC_VOID && id <= GALAXY_OBJECT_MAX_COSMIC_VOID) return "Cosmic Void";
+    if (id >= GALAXY_OBJECT_MIN_COSMIC_FILAMENT && id <= GALAXY_OBJECT_MAX_COSMIC_FILAMENT) return "Cosmic Filament";
+    if (id >= GALAXY_OBJECT_MIN_EVENT_HORIZON && id <= GALAXY_OBJECT_MAX_EVENT_HORIZON) return "Event Horizon";
+    if (id >= GALAXY_OBJECT_MIN_KILONOVA && id <= GALAXY_OBJECT_MAX_KILONOVA) return "Kilonova";
+    if (id >= GALAXY_OBJECT_MIN_GRAV_LENS && id <= GALAXY_OBJECT_MAX_GRAV_LENS) return "Gravitational Lens";
+    if (id >= GALAXY_OBJECT_MIN_GRB && id <= GALAXY_OBJECT_MAX_GRB) return "Gamma-Ray Burst";
+    if (id >= GALAXY_OBJECT_MIN_GRAV_WAVE && id <= GALAXY_OBJECT_MAX_GRAV_WAVE) return "Gravitational Wave";
+    if (id >= GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK && id <= GALAXY_OBJECT_MAX_PROTOPLANETARY_DISK) return "Protoplanetary Disk";
+    if (id >= GALAXY_OBJECT_MIN_DEBRIS_DISK && id <= GALAXY_OBJECT_MAX_DEBRIS_DISK) return "Debris Disk";
+    if (id >= GALAXY_OBJECT_MIN_PLANETESIMAL && id <= GALAXY_OBJECT_MAX_PLANETESIMAL) return "Planetesimal";
+    if (id >= GALAXY_OBJECT_MIN_ROGUE_PLANET && id <= GALAXY_OBJECT_MAX_ROGUE_PLANET) return "Rogue Planet";
+    if (id >= GALAXY_OBJECT_MIN_BROWN_DWARF && id <= GALAXY_OBJECT_MAX_BROWN_DWARF) return "Brown Dwarf";
+    if (id >= GALAXY_OBJECT_MIN_ISO && id <= GALAXY_OBJECT_MAX_ISO) return "Interstellar Object";
+    if (id >= GALAXY_OBJECT_MIN_MAG_RECONN && id <= GALAXY_OBJECT_MAX_MAG_RECONN) return "Magnetic Reconnection";
+    if (id >= GALAXY_OBJECT_MIN_CURRENT_SHEET && id <= GALAXY_OBJECT_MAX_CURRENT_SHEET) return "Current Sheet";
+    if (id >= GALAXY_OBJECT_MIN_HELIOSPHERE && id <= GALAXY_OBJECT_MAX_HELIOSPHERE) return "Heliosphere";
+    if (id >= GALAXY_OBJECT_MIN_TERM_SHOCK && id <= GALAXY_OBJECT_MAX_TERM_SHOCK) return "Termination Shock";
+    if (id >= GALAXY_OBJECT_MIN_MAGNETOSPHERE && id <= GALAXY_OBJECT_MAX_MAGNETOSPHERE) return "Magnetosphere";
+    if (id >= GALAXY_OBJECT_MIN_COSMIC_STRING && id <= GALAXY_OBJECT_MAX_COSMIC_STRING) return "Cosmic String";
+    if (id >= GALAXY_OBJECT_MIN_DOMAIN_WALL && id <= GALAXY_OBJECT_MAX_DOMAIN_WALL) return "Domain Wall";
+    if (id >= GALAXY_OBJECT_MIN_DM_HALO && id <= GALAXY_OBJECT_MAX_DM_HALO) return "Dark Matter Halo";
+    if (id >= GALAXY_OBJECT_MIN_IGM && id <= GALAXY_OBJECT_MAX_IGM) return "IGM";
+    if (id >= GALAXY_OBJECT_MIN_CGM && id <= GALAXY_OBJECT_MAX_CGM) return "CGM";
+    if (id >= GALAXY_OBJECT_MIN_LYMAN_ALPHA && id <= GALAXY_OBJECT_MAX_LYMAN_ALPHA) return "Lyman-Alpha Forest";
+    if (id >= GALAXY_OBJECT_MIN_CMB && id <= GALAXY_OBJECT_MAX_CMB) return "CMB";
     return "Unknown";
 }

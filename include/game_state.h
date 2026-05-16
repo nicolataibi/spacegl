@@ -25,7 +25,7 @@
 
 /* Header-wide packing removed in favor of individual blocks */
 
-#define MAX_NET_OBJECTS 256
+#define MAX_NET_OBJECTS 1024
 #define MAX_NET_BEAMS 64
 
 #pragma pack(push, 1)
@@ -181,7 +181,7 @@ typedef struct {
     NetObject objects[MAX_NET_OBJECTS];
     int32_t beam_count;
     NetBeam beams[MAX_NET_BEAMS];
-    NetPoint torps[4];
+    
     NetPoint wormhole;
     int32_t event_count;
     NetEvent events[MAX_NET_EVENTS];

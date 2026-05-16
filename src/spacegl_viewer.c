@@ -33,6 +33,44 @@ NPCShip npcs[MAX_NPC];
 NPCStar stars_data[MAX_STARS];
 NPCBlackHole black_holes[MAX_BH];
 NPCNebula nebulas[MAX_NEBULAS];
+NPCDiffuseNebula diffuse_nebulae[MAX_DIFFUSE_NEBULAE];
+NPCDarkNebula dark_nebulae[MAX_DARK_NEBULAE];
+NPCPlanetaryNebula planetary_nebulae[MAX_PLANETARY_NEBULAE];
+NPCSNR snrs[MAX_SNR];
+NPCGMC gmcs[MAX_GMC];
+NPCInterstellarFilament interstellar_filaments[MAX_INTERSTELLAR_FILAMENTS];
+NPCInterstellarBubble interstellar_bubbles[MAX_INTERSTELLAR_BUBBLES];
+NPCBokGlobule bok_globules[MAX_BOK_GLOBULES];
+NPCClumpCore clump_cores[MAX_CLUMP_CORES];
+NPCAccretionDisk accretion_disks[MAX_ACCRETION_DISKS];
+NPCRelativisticJet relativistic_jets[MAX_RELATIVISTIC_JETS];
+NPCShockWave shock_waves[MAX_SHOCK_WAVES];
+NPCStellarBowShock stellar_bow_shocks[MAX_STELLAR_BOW_SHOCKS];
+NPCCosmicVoid cosmic_voids[MAX_COSMIC_VOIDS];
+NPCCosmicFilament cosmic_filaments[MAX_COSMIC_FILAMENTS];
+NPCEventHorizon event_horizons[MAX_EVENT_HORIZONS];
+NPCKilonova kilonovae[MAX_KILONOVAE];
+NPCGravLens grav_lenses[MAX_GRAV_LENSES];
+NPCGRB grbs[MAX_GRB];
+NPCGravWave grav_waves[MAX_GRAV_WAVES];
+NPCProtoplanetaryDisk protoplanetary_disks[MAX_PROTOPLANETARY_DISKS];
+NPCDebrisDisk debris_disks[MAX_DEBRIS_DISKS];
+NPCPlanetesimal planetesimals[MAX_PLANETESIMALS];
+NPCRoguePlanet rogue_planets[MAX_ROGUE_PLANETS];
+NPCBrownDwarf brown_dwarfs[MAX_BROWN_DWARFS];
+NPCISO isos[MAX_ISO];
+NPCMagReconn mag_reconns[MAX_MAG_RECONN];
+NPCCurrentSheet current_sheets[MAX_CURRENT_SHEETS];
+NPCHeliosphere heliospheres[MAX_HELIOSPHERES];
+NPCTermShock term_shocks[MAX_TERM_SHOCKS];
+NPCMagnetosphere magnetospheres[MAX_MAGNETOSPHERES];
+NPCCosmicString cosmic_strings[MAX_COSMIC_STRINGS];
+NPCDomainWall domain_walls[MAX_DOMAIN_WALLS];
+NPCDMHalo dm_halos[MAX_DM_HALO];
+NPCIGM igms[MAX_IGM];
+NPCCGM cgms[MAX_CGM];
+NPCLymanAlpha lyman_alphas[MAX_LYMAN_ALPHA];
+NPCCMB cmbs[MAX_CMB];
 NPCPulsar pulsars[MAX_PULSARS];
 NPCQuasar quasars[MAX_QUASARS];
 NPCComet comets[MAX_COMETS];
@@ -78,6 +116,44 @@ const char* get_faction_name(int faction) {
         case 26: return "Spatial Rift";
         case 30: return "Crystalline Entity";
         case 31: return "Space Amoeba";
+        case 51: return "Diffuse Nebula";
+        case 52: return "Dark Nebula";
+        case 53: return "Planetary Nebula";
+        case 54: return "SNR";
+        case 55: return "GMC";
+        case 56: return "Interstellar Filament";
+        case 57: return "Interstellar Bubble";
+        case 58: return "Bok Globule";
+        case 59: return "Clump/Core";
+        case 60: return "Accretion Disk";
+        case 61: return "Relativistic Jet";
+        case 62: return "Shock Wave";
+        case 63: return "Stellar Bow Shock";
+        case 64: return "Cosmic Void";
+        case 65: return "Cosmic Filament";
+        case 66: return "Event Horizon";
+        case 67: return "Kilonova";
+        case 68: return "Gravitational Lens";
+        case 69: return "Gamma-Ray Burst";
+        case 70: return "Gravitational Wave";
+        case 71: return "Protoplanetary Disk";
+        case 72: return "Debris Disk";
+        case 73: return "Planetesimal";
+        case 74: return "Rogue Planet";
+        case 75: return "Brown Dwarf";
+        case 76: return "Interstellar Object";
+        case 77: return "Magnetic Reconnection";
+        case 78: return "Current Sheet";
+        case 79: return "Heliosphere";
+        case 80: return "Termination Shock";
+        case 81: return "Magnetosphere";
+        case 82: return "Cosmic String";
+        case 83: return "Domain Wall";
+        case 84: return "Dark Matter Halo";
+        case 85: return "IGM";
+        case 86: return "CGM";
+        case 87: return "Lyman-Alpha Forest";
+        case 88: return "CMB";
         default: return "Unknown";
     }
 }
@@ -239,6 +315,44 @@ int main(int argc, char *argv[]) {
                          (long)sizeof(NPCOrbitalRing) * MAX_ORBITAL_RINGS +
                          (long)sizeof(NPCTimeAnomaly) * MAX_TIME_ANOMALIES +
                          (long)sizeof(NPCVoidCrystal) * MAX_VOID_CRYSTALS +
+                         (long)sizeof(NPCDiffuseNebula) * MAX_DIFFUSE_NEBULAE +
+                         (long)sizeof(NPCDarkNebula) * MAX_DARK_NEBULAE +
+                         (long)sizeof(NPCPlanetaryNebula) * MAX_PLANETARY_NEBULAE +
+                         (long)sizeof(NPCSNR) * MAX_SNR +
+                         (long)sizeof(NPCGMC) * MAX_GMC +
+                         (long)sizeof(NPCInterstellarFilament) * MAX_INTERSTELLAR_FILAMENTS +
+                         (long)sizeof(NPCInterstellarBubble) * MAX_INTERSTELLAR_BUBBLES +
+                         (long)sizeof(NPCBokGlobule) * MAX_BOK_GLOBULES +
+                         (long)sizeof(NPCClumpCore) * MAX_CLUMP_CORES +
+                         (long)sizeof(NPCAccretionDisk) * MAX_ACCRETION_DISKS +
+                         (long)sizeof(NPCRelativisticJet) * MAX_RELATIVISTIC_JETS +
+                         (long)sizeof(NPCShockWave) * MAX_SHOCK_WAVES +
+                         (long)sizeof(NPCStellarBowShock) * MAX_STELLAR_BOW_SHOCKS +
+                         (long)sizeof(NPCCosmicVoid) * MAX_COSMIC_VOIDS +
+                         (long)sizeof(NPCCosmicFilament) * MAX_COSMIC_FILAMENTS +
+                         (long)sizeof(NPCEventHorizon) * MAX_EVENT_HORIZONS +
+                         (long)sizeof(NPCKilonova) * MAX_KILONOVAE +
+                         (long)sizeof(NPCGravLens) * MAX_GRAV_LENSES +
+                         (long)sizeof(NPCGRB) * MAX_GRB +
+                         (long)sizeof(NPCGravWave) * MAX_GRAV_WAVES +
+                         (long)sizeof(NPCProtoplanetaryDisk) * MAX_PROTOPLANETARY_DISKS +
+                         (long)sizeof(NPCDebrisDisk) * MAX_DEBRIS_DISKS +
+                         (long)sizeof(NPCPlanetesimal) * MAX_PLANETESIMALS +
+                         (long)sizeof(NPCRoguePlanet) * MAX_ROGUE_PLANETS +
+                         (long)sizeof(NPCBrownDwarf) * MAX_BROWN_DWARFS +
+                         (long)sizeof(NPCISO) * MAX_ISO +
+                         (long)sizeof(NPCMagReconn) * MAX_MAG_RECONN +
+                         (long)sizeof(NPCCurrentSheet) * MAX_CURRENT_SHEETS +
+                         (long)sizeof(NPCHeliosphere) * MAX_HELIOSPHERES +
+                         (long)sizeof(NPCTermShock) * MAX_TERM_SHOCKS +
+                         (long)sizeof(NPCMagnetosphere) * MAX_MAGNETOSPHERES +
+                         (long)sizeof(NPCCosmicString) * MAX_COSMIC_STRINGS +
+                         (long)sizeof(NPCDomainWall) * MAX_DOMAIN_WALLS +
+                         (long)sizeof(NPCDMHalo) * MAX_DM_HALO +
+                         (long)sizeof(NPCIGM) * MAX_IGM +
+                         (long)sizeof(NPCCGM) * MAX_CGM +
+                         (long)sizeof(NPCLymanAlpha) * MAX_LYMAN_ALPHA +
+                         (long)sizeof(NPCCMB) * MAX_CMB +
                          (long)sizeof(ConnectedPlayer) * MAX_CLIENTS;
     
     if (actual_size < expected_data + (long)sizeof(int)) {
@@ -285,6 +399,44 @@ int main(int argc, char *argv[]) {
     CHECK_READ(orbital_rings, sizeof(NPCOrbitalRing), MAX_ORBITAL_RINGS, f);
     CHECK_READ(time_anomalies, sizeof(NPCTimeAnomaly), MAX_TIME_ANOMALIES, f);
     CHECK_READ(void_crystals, sizeof(NPCVoidCrystal), MAX_VOID_CRYSTALS, f);
+    CHECK_READ(diffuse_nebulae, sizeof(NPCDiffuseNebula), MAX_DIFFUSE_NEBULAE, f);
+    CHECK_READ(dark_nebulae, sizeof(NPCDarkNebula), MAX_DARK_NEBULAE, f);
+    CHECK_READ(planetary_nebulae, sizeof(NPCPlanetaryNebula), MAX_PLANETARY_NEBULAE, f);
+    CHECK_READ(snrs, sizeof(NPCSNR), MAX_SNR, f);
+    CHECK_READ(gmcs, sizeof(NPCGMC), MAX_GMC, f);
+    CHECK_READ(interstellar_filaments, sizeof(NPCInterstellarFilament), MAX_INTERSTELLAR_FILAMENTS, f);
+    CHECK_READ(interstellar_bubbles, sizeof(NPCInterstellarBubble), MAX_INTERSTELLAR_BUBBLES, f);
+    CHECK_READ(bok_globules, sizeof(NPCBokGlobule), MAX_BOK_GLOBULES, f);
+    CHECK_READ(clump_cores, sizeof(NPCClumpCore), MAX_CLUMP_CORES, f);
+    CHECK_READ(accretion_disks, sizeof(NPCAccretionDisk), MAX_ACCRETION_DISKS, f);
+    CHECK_READ(relativistic_jets, sizeof(NPCRelativisticJet), MAX_RELATIVISTIC_JETS, f);
+    CHECK_READ(shock_waves, sizeof(NPCShockWave), MAX_SHOCK_WAVES, f);
+    CHECK_READ(stellar_bow_shocks, sizeof(NPCStellarBowShock), MAX_STELLAR_BOW_SHOCKS, f);
+    CHECK_READ(cosmic_voids, sizeof(NPCCosmicVoid), MAX_COSMIC_VOIDS, f);
+    CHECK_READ(cosmic_filaments, sizeof(NPCCosmicFilament), MAX_COSMIC_FILAMENTS, f);
+    CHECK_READ(event_horizons, sizeof(NPCEventHorizon), MAX_EVENT_HORIZONS, f);
+    CHECK_READ(kilonovae, sizeof(NPCKilonova), MAX_KILONOVAE, f);
+    CHECK_READ(grav_lenses, sizeof(NPCGravLens), MAX_GRAV_LENSES, f);
+    CHECK_READ(grbs, sizeof(NPCGRB), MAX_GRB, f);
+    CHECK_READ(grav_waves, sizeof(NPCGravWave), MAX_GRAV_WAVES, f);
+    CHECK_READ(protoplanetary_disks, sizeof(NPCProtoplanetaryDisk), MAX_PROTOPLANETARY_DISKS, f);
+    CHECK_READ(debris_disks, sizeof(NPCDebrisDisk), MAX_DEBRIS_DISKS, f);
+    CHECK_READ(planetesimals, sizeof(NPCPlanetesimal), MAX_PLANETESIMALS, f);
+    CHECK_READ(rogue_planets, sizeof(NPCRoguePlanet), MAX_ROGUE_PLANETS, f);
+    CHECK_READ(brown_dwarfs, sizeof(NPCBrownDwarf), MAX_BROWN_DWARFS, f);
+    CHECK_READ(isos, sizeof(NPCISO), MAX_ISO, f);
+    CHECK_READ(mag_reconns, sizeof(NPCMagReconn), MAX_MAG_RECONN, f);
+    CHECK_READ(current_sheets, sizeof(NPCCurrentSheet), MAX_CURRENT_SHEETS, f);
+    CHECK_READ(heliospheres, sizeof(NPCHeliosphere), MAX_HELIOSPHERES, f);
+    CHECK_READ(term_shocks, sizeof(NPCTermShock), MAX_TERM_SHOCKS, f);
+    CHECK_READ(magnetospheres, sizeof(NPCMagnetosphere), MAX_MAGNETOSPHERES, f);
+    CHECK_READ(cosmic_strings, sizeof(NPCCosmicString), MAX_COSMIC_STRINGS, f);
+    CHECK_READ(domain_walls, sizeof(NPCDomainWall), MAX_DOMAIN_WALLS, f);
+    CHECK_READ(dm_halos, sizeof(NPCDMHalo), MAX_DM_HALO, f);
+    CHECK_READ(igms, sizeof(NPCIGM), MAX_IGM, f);
+    CHECK_READ(cgms, sizeof(NPCCGM), MAX_CGM, f);
+    CHECK_READ(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
+    CHECK_READ(cmbs, sizeof(NPCCMB), MAX_CMB, f);
     CHECK_READ(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
 
@@ -326,6 +478,16 @@ int main(int argc, char *argv[]) {
         int orb_active = 0;
         int tim_active = 0;
         int voi_active = 0;
+        int diffuse_active = 0;
+        int dark_active = 0;
+        int snr_active = 0;
+        int gmc_active = 0;
+
+        for (int i = 0; i < MAX_VOID_CRYSTALS; i++) if (void_crystals[i].active) voi_active++;
+        for (int i = 0; i < MAX_DIFFUSE_NEBULAE; i++) if (diffuse_nebulae[i].active) diffuse_active++;
+        for (int i = 0; i < MAX_DARK_NEBULAE; i++) if (dark_nebulae[i].active) dark_active++;
+        for (int i = 0; i < MAX_SNR; i++) if (snrs[i].active) snr_active++;
+        for (int i = 0; i < MAX_GMC; i++) if (gmcs[i].active) gmc_active++;
         for (int i = 0; i < MAX_NPC; i++) {
             if (npcs[i].active) {
                 n_active++;
@@ -470,6 +632,10 @@ int main(int argc, char *argv[]) {
         printf("  Orbital Rings:     %d\n", orb_active);
         printf("  Time Anomalies:    %d\n", tim_active);
         printf("  Void Crystals:     %d\n", voi_active);
+        printf("  Diffuse Nebulae:   %d\n", diffuse_active);
+        printf("  Dark Nebulae:      %d\n", dark_active);
+        printf("  SNR:               %d\n", snr_active);
+        printf("  GMC:               %d\n", gmc_active);
 
         printf("\nFaction Counts (SpaceGL Master):\n");
         for (int i = 0; i <= 10; i++) {
@@ -702,7 +868,159 @@ int main(int argc, char *argv[]) {
             printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "V_CRYSTAL", void_crystals[i].id+GALAXY_OBJECT_MIN_VOID_CRYSTAL, void_crystals[i].q1, void_crystals[i].q2, void_crystals[i].q3, "None", "Void Crystal");
             counts[32]++;
         }
-        
+
+        for(int i=0; i<MAX_DIFFUSE_NEBULAE; i++) if(diffuse_nebulae[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "DIFFUSE_NE", diffuse_nebulae[i].id+GALAXY_OBJECT_MIN_DIFFUSE_NEBULA, diffuse_nebulae[i].q1, diffuse_nebulae[i].q2, diffuse_nebulae[i].q3, "None", "Diffuse Nebula");
+            counts[33]++;
+        }
+        for(int i=0; i<MAX_DARK_NEBULAE; i++) if(dark_nebulae[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "DARK_NEBUL", dark_nebulae[i].id+GALAXY_OBJECT_MIN_DARK_NEBULA, dark_nebulae[i].q1, dark_nebulae[i].q2, dark_nebulae[i].q3, "None", "Dark Nebula");
+            counts[34]++;
+        }
+        for(int i=0; i<MAX_PLANETARY_NEBULAE; i++) if(planetary_nebulae[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "PLANETARY_", planetary_nebulae[i].id+GALAXY_OBJECT_MIN_PLANETARY_NEBULA, planetary_nebulae[i].q1, planetary_nebulae[i].q2, planetary_nebulae[i].q3, "None", "Planetary Nebula");
+            counts[35]++;
+        }
+        for(int i=0; i<MAX_SNR; i++) if(snrs[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "SNR", snrs[i].id+GALAXY_OBJECT_MIN_SNR, snrs[i].q1, snrs[i].q2, snrs[i].q3, "None", "SNR");
+            counts[36]++;
+        }
+        for(int i=0; i<MAX_GMC; i++) if(gmcs[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "GMC", gmcs[i].id+GALAXY_OBJECT_MIN_GMC, gmcs[i].q1, gmcs[i].q2, gmcs[i].q3, "None", "GMC");
+            counts[37]++;
+        }
+        for(int i=0; i<MAX_INTERSTELLAR_FILAMENTS; i++) if(interstellar_filaments[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "INTERSTELL", interstellar_filaments[i].id+GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT, interstellar_filaments[i].q1, interstellar_filaments[i].q2, interstellar_filaments[i].q3, "None", "Int Filament");
+            counts[38]++;
+        }
+        for(int i=0; i<MAX_INTERSTELLAR_BUBBLES; i++) if(interstellar_bubbles[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "INTERSTELL", interstellar_bubbles[i].id+GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE, interstellar_bubbles[i].q1, interstellar_bubbles[i].q2, interstellar_bubbles[i].q3, "None", "Int Bubble");
+            counts[39]++;
+        }
+        for(int i=0; i<MAX_BOK_GLOBULES; i++) if(bok_globules[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "BOK_GLOBUL", bok_globules[i].id+GALAXY_OBJECT_MIN_BOK_GLOBULE, bok_globules[i].q1, bok_globules[i].q2, bok_globules[i].q3, "None", "Bok Globule");
+            counts[40]++;
+        }
+        for(int i=0; i<MAX_CLUMP_CORES; i++) if(clump_cores[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "CLUMP_CORE", clump_cores[i].id+GALAXY_OBJECT_MIN_CLUMP_CORE, clump_cores[i].q1, clump_cores[i].q2, clump_cores[i].q3, "None", "Clump/Core");
+            counts[41]++;
+        }
+        for(int i=0; i<MAX_ACCRETION_DISKS; i++) if(accretion_disks[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "ACCRETION_", accretion_disks[i].id+GALAXY_OBJECT_MIN_ACCRETION_DISK, accretion_disks[i].q1, accretion_disks[i].q2, accretion_disks[i].q3, "None", "Accretion Disk");
+            counts[42]++;
+        }
+        for(int i=0; i<MAX_RELATIVISTIC_JETS; i++) if(relativistic_jets[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "RELATIVIST", relativistic_jets[i].id+GALAXY_OBJECT_MIN_RELATIVISTIC_JET, relativistic_jets[i].q1, relativistic_jets[i].q2, relativistic_jets[i].q3, "None", "Relativistic Jet");
+            counts[43]++;
+        }
+        for(int i=0; i<MAX_SHOCK_WAVES; i++) if(shock_waves[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "SHOCK_WAVE", shock_waves[i].id+GALAXY_OBJECT_MIN_SHOCK_WAVE, shock_waves[i].q1, shock_waves[i].q2, shock_waves[i].q3, "None", "Shock Wave");
+            counts[44]++;
+        }
+        for(int i=0; i<MAX_STELLAR_BOW_SHOCKS; i++) if(stellar_bow_shocks[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "STELLAR_BO", stellar_bow_shocks[i].id+GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK, stellar_bow_shocks[i].q1, stellar_bow_shocks[i].q2, stellar_bow_shocks[i].q3, "None", "Stellar Bow Shock");
+            counts[45]++;
+        }
+        for(int i=0; i<MAX_COSMIC_VOIDS; i++) if(cosmic_voids[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "COSMIC_VOI", cosmic_voids[i].id+GALAXY_OBJECT_MIN_COSMIC_VOID, cosmic_voids[i].q1, cosmic_voids[i].q2, cosmic_voids[i].q3, "None", "Cosmic Void");
+            counts[46]++;
+        }
+        for(int i=0; i<MAX_COSMIC_FILAMENTS; i++) if(cosmic_filaments[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "COSMIC_FIL", cosmic_filaments[i].id+GALAXY_OBJECT_MIN_COSMIC_FILAMENT, cosmic_filaments[i].q1, cosmic_filaments[i].q2, cosmic_filaments[i].q3, "None", "Cosmic Filament");
+            counts[47]++;
+        }
+        for(int i=0; i<MAX_EVENT_HORIZONS; i++) if(event_horizons[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "EVENT_HORI", event_horizons[i].id+GALAXY_OBJECT_MIN_EVENT_HORIZON, event_horizons[i].q1, event_horizons[i].q2, event_horizons[i].q3, "None", "Event Horizon");
+            counts[48]++;
+        }
+        for(int i=0; i<MAX_KILONOVAE; i++) if(kilonovae[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "KILONOVA", kilonovae[i].id+GALAXY_OBJECT_MIN_KILONOVA, kilonovae[i].q1, kilonovae[i].q2, kilonovae[i].q3, "None", "Kilonova");
+            counts[49]++;
+        }
+        for(int i=0; i<MAX_GRAV_LENSES; i++) if(grav_lenses[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "GRAV_LENS", grav_lenses[i].id+GALAXY_OBJECT_MIN_GRAV_LENS, grav_lenses[i].q1, grav_lenses[i].q2, grav_lenses[i].q3, "None", "Grav Lens");
+            counts[50]++;
+        }
+        for(int i=0; i<MAX_GRB; i++) if(grbs[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "GRB", grbs[i].id+GALAXY_OBJECT_MIN_GRB, grbs[i].q1, grbs[i].q2, grbs[i].q3, "None", "Gamma-Ray Burst");
+            counts[51]++;
+        }
+        for(int i=0; i<MAX_GRAV_WAVES; i++) if(grav_waves[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "GRAV_WAVE", grav_waves[i].id+GALAXY_OBJECT_MIN_GRAV_WAVE, grav_waves[i].q1, grav_waves[i].q2, grav_waves[i].q3, "None", "Grav Wave");
+            counts[52]++;
+        }
+        for(int i=0; i<MAX_PROTOPLANETARY_DISKS; i++) if(protoplanetary_disks[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "PROTOPLANE", protoplanetary_disks[i].id+GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK, protoplanetary_disks[i].q1, protoplanetary_disks[i].q2, protoplanetary_disks[i].q3, "None", "Protoplanetary Disk");
+            counts[53]++;
+        }
+        for(int i=0; i<MAX_DEBRIS_DISKS; i++) if(debris_disks[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "DEBRIS_DIS", debris_disks[i].id+GALAXY_OBJECT_MIN_DEBRIS_DISK, debris_disks[i].q1, debris_disks[i].q2, debris_disks[i].q3, "None", "Debris Disk");
+            counts[54]++;
+        }
+        for(int i=0; i<MAX_PLANETESIMALS; i++) if(planetesimals[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "PLANETESIM", planetesimals[i].id+GALAXY_OBJECT_MIN_PLANETESIMAL, planetesimals[i].q1, planetesimals[i].q2, planetesimals[i].q3, "None", "Planetesimal");
+            counts[55]++;
+        }
+        for(int i=0; i<MAX_ROGUE_PLANETS; i++) if(rogue_planets[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "ROGUE_PLAN", rogue_planets[i].id+GALAXY_OBJECT_MIN_ROGUE_PLANET, rogue_planets[i].q1, rogue_planets[i].q2, rogue_planets[i].q3, "None", "Rogue Planet");
+            counts[56]++;
+        }
+        for(int i=0; i<MAX_BROWN_DWARFS; i++) if(brown_dwarfs[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "BROWN_DWAR", brown_dwarfs[i].id+GALAXY_OBJECT_MIN_BROWN_DWARF, brown_dwarfs[i].q1, brown_dwarfs[i].q2, brown_dwarfs[i].q3, "None", "Brown Dwarf");
+            counts[57]++;
+        }
+        for(int i=0; i<MAX_ISO; i++) if(isos[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "ISO", isos[i].id+GALAXY_OBJECT_MIN_ISO, isos[i].q1, isos[i].q2, isos[i].q3, "None", "Interstellar Obj");
+            counts[58]++;
+        }
+        for(int i=0; i<MAX_MAG_RECONN; i++) if(mag_reconns[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "MAG_RECONN", mag_reconns[i].id+GALAXY_OBJECT_MIN_MAG_RECONN, mag_reconns[i].q1, mag_reconns[i].q2, mag_reconns[i].q3, "None", "Magnetic Reconn");
+            counts[59]++;
+        }
+        for(int i=0; i<MAX_CURRENT_SHEETS; i++) if(current_sheets[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "CURRENT_SH", current_sheets[i].id+GALAXY_OBJECT_MIN_CURRENT_SHEET, current_sheets[i].q1, current_sheets[i].q2, current_sheets[i].q3, "None", "Current Sheet");
+            counts[60]++;
+        }
+        for(int i=0; i<MAX_HELIOSPHERES; i++) if(heliospheres[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "HELIOSPHER", heliospheres[i].id+GALAXY_OBJECT_MIN_HELIOSPHERE, heliospheres[i].q1, heliospheres[i].q2, heliospheres[i].q3, "None", "Heliosphere");
+            counts[61]++;
+        }
+        for(int i=0; i<MAX_TERM_SHOCKS; i++) if(term_shocks[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "TERM_SHOCK", term_shocks[i].id+GALAXY_OBJECT_MIN_TERM_SHOCK, term_shocks[i].q1, term_shocks[i].q2, term_shocks[i].q3, "None", "Termination Shock");
+            counts[62]++;
+        }
+        for(int i=0; i<MAX_MAGNETOSPHERES; i++) if(magnetospheres[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "MAGNETOSPH", magnetospheres[i].id+GALAXY_OBJECT_MIN_MAGNETOSPHERE, magnetospheres[i].q1, magnetospheres[i].q2, magnetospheres[i].q3, "None", "Magnetosphere");
+            counts[63]++;
+        }
+        for(int i=0; i<MAX_COSMIC_STRINGS; i++) if(cosmic_strings[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "COSMIC_STR", cosmic_strings[i].id+GALAXY_OBJECT_MIN_COSMIC_STRING, cosmic_strings[i].q1, cosmic_strings[i].q2, cosmic_strings[i].q3, "None", "Cosmic String");
+            counts[64]++;
+        }
+        for(int i=0; i<MAX_DOMAIN_WALLS; i++) if(domain_walls[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "DOMAIN_WAL", domain_walls[i].id+GALAXY_OBJECT_MIN_DOMAIN_WALL, domain_walls[i].q1, domain_walls[i].q2, domain_walls[i].q3, "None", "Domain Wall");
+            counts[65]++;
+        }
+        for(int i=0; i<MAX_DM_HALO; i++) if(dm_halos[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "DM_HALO", dm_halos[i].id+GALAXY_OBJECT_MIN_DM_HALO, dm_halos[i].q1, dm_halos[i].q2, dm_halos[i].q3, "None", "Dark Matter Halo");
+            counts[66]++;
+        }
+        for(int i=0; i<MAX_IGM; i++) if(igms[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "IGM", igms[i].id+GALAXY_OBJECT_MIN_IGM, igms[i].q1, igms[i].q2, igms[i].q3, "None", "Intergalactic Med");
+            counts[67]++;
+        }
+        for(int i=0; i<MAX_CGM; i++) if(cgms[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "CGM", cgms[i].id+GALAXY_OBJECT_MIN_CGM, cgms[i].q1, cgms[i].q2, cgms[i].q3, "None", "Circumgalactic Med");
+            counts[68]++;
+        }
+        for(int i=0; i<MAX_LYMAN_ALPHA; i++) if(lyman_alphas[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "LYMAN_ALPH", lyman_alphas[i].id+GALAXY_OBJECT_MIN_LYMAN_ALPHA, lyman_alphas[i].q1, lyman_alphas[i].q2, lyman_alphas[i].q3, "None", "Lyman-Alpha");
+            counts[69]++;
+        }
+        for(int i=0; i<MAX_CMB; i++) if(cmbs[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "CMB", cmbs[i].id+GALAXY_OBJECT_MIN_CMB, cmbs[i].q1, cmbs[i].q2, cmbs[i].q3, "None", "CMB");
+            counts[70]++;
+        }        
         printf("\n--- Summary ---\n");
         printf("Players: %d, NPCs: %d, Bases: %d, Planets: %d, Stars: %d\n", counts[0], counts[1], counts[2], counts[3], counts[4]);
         printf("BlackHoles: %d, Nebulas: %d, Pulsars: %d, Quasars: %d, Comets: %d, Asteroids: %d\n", counts[5], counts[6], counts[7], counts[16], counts[8], counts[9]);

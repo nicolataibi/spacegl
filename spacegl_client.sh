@@ -52,5 +52,6 @@ if [ -z "$SPACEGL_KEY" ]; then
     export SPACEGL_KEY="$key"
 fi
 
-# Pass all arguments (like gl or vk) directly to the client
+# Change directory to build to ensure shaders/assets are found
+
 $SPACEGL_BIN "$@"

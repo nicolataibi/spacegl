@@ -150,8 +150,6 @@ char fragment_shader_path[512] = "build/shaders/shader.frag.spv";
 void resolve_shader_paths() {
     if (access(vertex_shader_path, F_OK) != 0) {
         /* Fallback to system-wide installation path */
-        strcpy(vertex_shader_path, "/usr/share/spacegl/shaders/shader.vert.spv");
-        strcpy(fragment_shader_path, "/usr/share/spacegl/shaders/shader.frag.spv");
     }
 }
 
@@ -301,7 +299,7 @@ typedef struct VulkanApp {
     VkSurfaceKHR surface; VkSwapchainKHR swapChain; VkImage* swapChainImages; uint32_t swapChainImageCount;
     VkFormat swapChainImageFormat; VkExtent2D swapChainExtent; VkImageView* swapChainImageViews;
     VkRenderPass renderPass; VkDescriptorSetLayout descriptorSetLayout; VkPipelineLayout pipelineLayout;
-    VkPipeline graphicsPipeline; VkPipeline wireframePipeline; VkPipeline pointPipeline; VkPipeline glowPipeline;
+    VkPipeline graphicsPipeline; VkPipeline wireframePipeline; VkPipeline pointPipeline; VkPipeline glowPipeline; VkPipeline alphaPipeline;
     VkFramebuffer* swapChainFramebuffers;
     VkCommandPool commandPool; VkSampleCountFlagBits msaaSamples;
     VkImage colorImage; VkDeviceMemory colorImageMemory; VkImageView colorImageView;
@@ -361,7 +359,9 @@ typedef struct VulkanApp {
     int shm_inspector_page; /* 0=Off, 1=Energy/Status, 2=Galaxy/HMAC, 3=Networking */
 } VulkanApp;
 
-void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse, int faction) {
+#include "spacegl_vulkan_extras.inl"
+
+void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused)), int faction) {
     /* Faction-Specific Proprietary Starbases */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -604,7 +604,7 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
-void drawPulsar(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse, int type) {
+void drawPulsar(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused)), int type) {
     /* Pulsar: Fast Spinning Core + Dual Relativistic Jets */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -681,7 +681,7 @@ void drawPulsar(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale,
     }
 }
 
-void drawComet(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float h, float m, float tactScale, float pulse) {
+void drawComet(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float h, float m, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Comet: Nucleus + Pulsing Coma + Multi-Layer Trail */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -747,7 +747,7 @@ void drawComet(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float h, float m,
     }
 }
 
-void drawAsteroid(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float size, int resType, float tactScale, float pulse) {
+void drawAsteroid(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float size, int resType, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Asteroid: Irregular Rocky Body (Main Core + 4 Surface Nodes) */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -806,7 +806,7 @@ void drawAsteroid(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float size, in
     }
 }
 
-void drawMonster(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int type, float tactScale, float pulse) {
+void drawMonster(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int type, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Omega Class Entities: Crystalline Entity (30) and Space Amoeba (31) */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -893,7 +893,7 @@ void drawMonster(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int type, float
     }
 }
 
-void drawTradingHub(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawTradingHub(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Trading Hub: Vertical Spire + 3 Rotating Habitation Rings */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -977,7 +977,7 @@ void drawTradingHub(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSc
     vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
 }
 
-void drawMine(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawMine(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Space Mine: Explosive Core + 6 Kinetic Spikes + Proximity Beacon */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1038,7 +1038,7 @@ void drawMine(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, f
     vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
 }
 
-void drawCommBuoy(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawCommBuoy(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Comm Buoy: Satellite Body + Solar Panels + Signal Waves */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1120,7 +1120,7 @@ void drawCommBuoy(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
     vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
 }
 
-void drawPlatform(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int faction, float tactScale, float pulse) {
+void drawPlatform(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int faction, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Defense Platform: Hexagonal Armored Core + 4 Weapon Turrets */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1201,7 +1201,7 @@ void drawPlatform(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int faction, f
     vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
 }
 
-void drawRift(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawRift(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Spatial Rift: Event Horizon + 6 Rotating Energy Rings + Subspace Discharges */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1256,7 +1256,7 @@ void drawRift(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, f
     }
 }
 
-void drawAlienArtifact(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawAlienArtifact(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Alien Artifact: Crystalline Core + Orbiting Shards + Resonance Field */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1326,7 +1326,61 @@ void drawAlienArtifact(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
     }
 }
 
-void drawMegaStructure(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawNeutronStar(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+    /* Neutron Star: Ultra-Dense Spinning Core + High-Intensity Magnetic Shell */
+    VkDeviceSize off = 0;
+    PushConstants pc = {0};
+    pc.time = pulse;
+    
+    /* 1. ULTRA-DENSE CORE (Solid Sphere, Very fast spin) */
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+    mat4 S_core, R_core;
+    mat4_identity(R_core);
+    mat4_rotate(R_core, pulse * 15.0f, (vec3){0, 1, 0});
+    mat4_scale(S_core, (vec3){0.35f * tactScale, 0.35f * tactScale, 0.35f * tactScale});
+    mat4_multiply(S_core, R_core, pc.model);
+    mat4_multiply(pc.model, baseT, pc.model);
+    
+    pc.color[0]=0.8f; pc.color[1]=0.8f; pc.color[2]=1.0f; pc.color[3]=1.0f;
+    pc.usePushColor=5; /* PBR */
+    pc.metallic = 1.0f; pc.roughness = 0.05f;
+    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+    vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+
+    /* 2. MAGNETIC SHELL (Wireframe Sphere, Pulsing) */
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+    float shellPulse = 1.2f + 0.1f * sinf(pulse * 8.0f);
+    mat4 S_shell;
+    mat4_scale(S_shell, (vec3){0.35f * shellPulse * tactScale, 0.35f * shellPulse * tactScale, 0.35f * shellPulse * tactScale});
+    mat4_multiply(S_shell, R_core, pc.model);
+    mat4_multiply(pc.model, baseT, pc.model);
+    
+    pc.color[0]=0.5f; pc.color[1]=0.5f; pc.color[2]=1.0f; pc.color[3]=0.6f;
+    pc.usePushColor=1;
+    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+
+    /* 3. GAMMA RAYS (Expanding faint rings) */
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
+    vkCmdBindIndexBuffer(cb, app->circleIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    for (int i=0; i<2; i++) {
+        float r_pulse = fmodf(pulse * 1.5f + i * 0.75f, 1.0f);
+        float r_scale = (0.5f + r_pulse * 1.5f) * tactScale;
+        mat4 S_ring, R_ring;
+        mat4_identity(R_ring);
+        mat4_rotate(R_ring, M_PI/2.0f, (vec3){1, 0, 0});
+        mat4_scale(S_ring, (vec3){r_scale, r_scale, r_scale});
+        mat4_multiply(S_ring, R_ring, pc.model);
+        mat4_multiply(pc.model, baseT, pc.model);
+        pc.color[0]=0.8f; pc.color[1]=0.9f; pc.color[2]=1.0f; pc.color[3]=0.4f * (1.0f - r_pulse);
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        vkCmdDrawIndexed(cb, CIRCLE_SEGMENTS * 2, 1, 0, 0, 0);
+    }
+}
+
+void drawMegaStructure(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Mega Structure: Colossal Pylon + 4 Transversal Arms + Scaffolding */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1405,7 +1459,7 @@ void drawMegaStructure(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
     }
 }
 
-void drawVoidCrystal(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawVoidCrystal(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Void Crystal: Crystalline Cluster + Subspace Shell + Void Pulsar */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1460,7 +1514,7 @@ void drawVoidCrystal(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
 }
 
-void drawSatellite(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawSatellite(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Satellite: Core Body + Solar Wings + Scanning Dish */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1532,7 +1586,7 @@ void drawSatellite(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSca
     vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
 }
 
-void drawDysonFragment(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawDysonFragment(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Dyson Fragment: Exposed Structural Lattice + Tech Backbone + Power Nodes */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1596,7 +1650,47 @@ void drawDysonFragment(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
     }
 }
 
-void drawAncientRelic(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawInterstellarFilament(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
+    
+    /* Draw 3 overlapping, twisting elongated shapes to form a filament bundle */
+    for (int i=0; i<3; i++) {
+        PushConstants pc = {0};
+        pc.time = pulse + (float)i * 15.0f;
+        
+        mat4 S, R, T_offset;
+        mat4_identity(R);
+        /* Twist each strand slightly differently based on time and index */
+        vec3 axis = {sinf(i * 1.5f), cosf(i * 2.1f), sinf(i * 0.8f + 1.0f)};
+        float alen = sqrtf(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2]);
+        if (alen > 0.001f) { axis[0] /= alen; axis[1] /= alen; axis[2] /= alen; }
+        mat4_rotate(R, pulse * 0.05f + (float)i * 1.2f, axis);
+        
+        /* Make them very long and thin (like a plasma strand) */
+        mat4_scale(S, (vec3){0.4f * tactScale, 6.0f * tactScale, 0.4f * tactScale});
+        
+        /* Offset them slightly from the center */
+        mat4_translate(T_offset, (vec3){sinf(pulse*0.3f + i)*0.6f * tactScale, 0, cosf(pulse*0.4f + i)*0.6f * tactScale});
+        
+        mat4_multiply(S, R, pc.model);
+        mat4_multiply(pc.model, T_offset, pc.model);
+        mat4_multiply(pc.model, baseT, pc.model);
+        
+        /* Base hue for the filament */
+        pc.color[0] = 0.2f; pc.color[1] = 0.4f; pc.color[2] = 0.9f; pc.color[3] = 0.9f;
+        pc.usePushColor = 10; /* Electrical Discharges Mode */
+        
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+        VkDeviceSize off = 0;
+        vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+        vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    }
+    
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+}
+
+void drawAncientRelic(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Ancient Relic: Prismatic Silver Core + Emerald Glyphs + Energy Lattice */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1668,7 +1762,7 @@ void drawAncientRelic(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tact
     }
 }
 
-void drawSubspaceRupture(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawSubspaceRupture(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Subspace Rupture: Entropy Core + Reality Cracks + Expanding Rings */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1730,7 +1824,7 @@ void drawSubspaceRupture(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
     }
 }
 
-void drawDarkMatterCloud(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawDarkMatterCloud(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Dark Matter Cloud: Nebulous Mass + Gravitational Veins + Distortion Rings */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1789,7 +1883,7 @@ void drawDarkMatterCloud(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
     }
 }
 
-void drawSingularity(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawSingularity(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Singularity: Event Horizon + Accretion Disk + Polar Jets + Distortion Shells */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1878,7 +1972,7 @@ void drawSingularity(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     }
 }
 
-void drawIonStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse, int type) {
+void drawIonStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused)), int type) {
     /* Ion Storm: Pulsing Core + Randomized Lightning Arcs + Spatial Distortion Rings */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -1946,7 +2040,7 @@ void drawIonStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
-void drawPlasmaStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawPlasmaStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Plasma Storm: Fire Nucleus + Plasma Arcs + Turbulence Shells */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -2015,7 +2109,7 @@ void drawPlasmaStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     }
 }
 
-void drawTimeAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawTimeAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Time Anomaly: Chronos Core + Clockwork Rings + Temporal Ghosting + Chrono-Ripples */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -2100,7 +2194,7 @@ void drawTimeAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     }
 }
 
-void drawSubspaceAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
+void drawSubspaceAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
     /* Subspace Anomaly: Dimensional Core + Subspace Lattice + Quantum Pixels + Warp Shell */
     VkDeviceSize off = 0;
     PushConstants pc = {0};
@@ -2204,8 +2298,8 @@ VkImageView createImageView(VkDevice device, VkImage img, VkFormat fmt, VkImageA
     return view;
 }
 
-static char* readShaderFile(const char* filename, size_t* pSize) {
-    FILE* file = fopen(filename, "rb"); if (!file) return NULL;
+static char* readShaderFile(const char* filename, size_t* pSize) { FILE* file = fopen(filename, "rb");
+    if (!file) { printf("ERROR: Cannot open shader %s\n", filename); return NULL; }
     fseek(file, 0, SEEK_END); *pSize = ftell(file); fseek(file, 0, SEEK_SET);
     char* buffer = (char*)malloc(*pSize); if(fread(buffer, 1, *pSize, file) != *pSize) { free(buffer); fclose(file); return NULL; } fclose(file);
     return buffer;
@@ -2406,96 +2500,122 @@ void drawWormhole(VkCommandBuffer cb, VulkanApp* app, float x, float y, float z,
     }
 }
 
-void drawAccretionDisk(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float pulse, float tactScale) {
-    /* Uses Glow Pipeline for additive volumetric effect */
-    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
-    
-    /* We render multiple thin disks with different speeds and tilts to simulate lensing/swirl */
-    float layerScales[] = {4.5f, 5.5f, 7.0f};
-    float layerSpeeds[] = {3.0f, -2.2f, 1.5f};
-    float layerAlphas[] = {0.8f, 0.5f, 0.3f};
-    vec3 layerAxes[] = {{0,1,0}, {0.1f, 1, 0.1f}, {-0.1f, 1, 0.05f}};
+/* Accretion Disk drawing moved to spacegl_vulkan_extras.inl as drawAccretionDisk_Vulkan */
 
-    VkDeviceSize off = 0;
-    vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
-    vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-    for (int i = 0; i < 3; i++) {
-        PushConstants dpc = {0};
-        mat4 S_disk, R_disk;
-        mat4_identity(R_disk);
-        mat4_rotate(R_disk, pulse * layerSpeeds[i], layerAxes[i]);
-        
-        float s = layerScales[i] * tactScale;
-        /* Very thin flattened spheres to act as disks */
-        mat4_scale(S_disk, (vec3){s, 0.02f * tactScale, s}); 
-        
-        mat4_multiply(S_disk, R_disk, dpc.model);
-        mat4_multiply(dpc.model, baseT, dpc.model);
-        
-        dpc.color[3] = layerAlphas[i];
-        dpc.usePushColor = 8; /* NEW Mode 8: Gravitational Vortex */
-        dpc.time = pulse;
-        
-        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(dpc), &dpc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
-    }
-    
-    /* Restore pipeline */
-    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
-}
-
+void drawDiffuseNebula(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float pulse, float tactScale);
+void drawDarkNebula(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float pulse, float tactScale);
+void drawPlanetaryNebula(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float pulse, float tactScale);
 void drawNebula(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int subType, float pulse, float tactScale) {
     /* Volumetric Nebula Cloud (Size of ~4 Planets) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
     
     /* Nebula Colors based on Type */
     float r=0.5f, g=0.5f, b=0.5f;
-    if (subType == 0) { r=0.8f; g=0.8f; b=0.9f; } /* Standard (White/Blue) */
+    if (subType == 0) { r=0.55f; g=0.72f; b=1.0f; }  /* Diffuse (cool blue-white) */
     else if (subType == 1) { r=1.0f; g=0.4f; b=0.2f; } /* High-Energy (Orange) */
     else if (subType == 2) { r=0.2f; g=0.0f; b=0.4f; } /* Dark Matter (Dark Purple) */
     else if (subType == 3) { r=0.0f; g=1.0f; b=0.8f; } /* Ionic (Cyan) */
     else if (subType == 4) { r=0.2f; g=1.0f; b=0.2f; } /* Gravimetric (Green) */
     else { r=0.9f; g=0.2f; b=0.5f; } /* Temporal (Pink) */
 
-    /* Render multiple overlapping spheres to create irregular cloud shape */
-    for (int i=0; i<5; i++) {
-        PushConstants npc = {0};
-        mat4 S_cloud, R_cloud, T_offset;
-        
-        /* Random-ish offsets based on index and pulse to make it 'alive' */
-        float offset_scale = 3.0f * tactScale;
-        float ox = sinf(i * 2.0f + pulse * 0.1f) * offset_scale;
-        float oy = cosf(i * 3.0f + pulse * 0.1f) * offset_scale;
-        float oz = sinf(i * 4.0f + pulse * 0.1f) * offset_scale;
-        
-        mat4_translate(T_offset, (vec3){ox, oy, oz});
-        
-        /* Rotate slowly */
-        mat4_identity(R_cloud);
-        mat4_rotate(R_cloud, pulse * 0.05f * (i+1), (vec3){0, 1, 0});
-        
-        /* Scale: 4x Planet Scale (Planet is ~1.8, so Nebula ~7.2) */
-        float scale = (7.0f + sinf(pulse * 0.5f + i)) * tactScale;
-        mat4_scale(S_cloud, (vec3){scale, scale, scale});
-        
-        /* Order: Scale * Rotate * Translate * BasePosition */
-        mat4_multiply(S_cloud, R_cloud, npc.model);
-        mat4_multiply(npc.model, T_offset, npc.model);
-        mat4_multiply(npc.model, baseT, npc.model);
-        
-        npc.color[0] = r; npc.color[1] = g; npc.color[2] = b; 
-        npc.color[3] = 0.15f; /* Low alpha for accumulation */
-        npc.usePushColor = 6; /* Hyper-Warp for cloudy texture */
-        npc.time = pulse + i * 10.0f;
-        
-        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(npc), &npc);
-        VkDeviceSize off = 0;
-        vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
-        vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    if (subType == 0) {
+        /* === DIFFUSE NEBULA: Volumetric FBM multi-layer rendering === */
+        /* 8 overlapping spheres with varied sizes, offsets and hue tweaks */
+        /* to create lumpy, deep, realistic cloud appearance              */
+        static const float offsets[8][3] = {
+            { 0.0f,  0.0f,  0.0f},  /* Core: large and bright */
+            { 2.8f,  1.2f, -1.5f},
+            {-2.2f,  2.5f,  1.0f},
+            { 1.5f, -2.8f,  2.2f},
+            {-1.8f, -1.5f, -2.6f},
+            { 3.5f,  3.0f,  0.5f},
+            {-3.0f,  0.8f,  3.2f},
+            { 0.5f, -3.5f, -3.0f},
+        };
+        static const float scales[8]  = { 8.5f, 6.2f, 5.8f, 5.0f, 4.5f, 4.0f, 3.5f, 3.0f };
+        static const float alphas[8]  = { 0.55f, 0.45f, 0.42f, 0.38f, 0.35f, 0.30f, 0.28f, 0.25f };
+        /* Hue variation per layer: shift r/g/b slightly for subtle colour depth */
+        static const float hue_r[8] = {0.55f, 0.62f, 0.48f, 0.70f, 0.50f, 0.80f, 0.45f, 0.65f};
+        static const float hue_g[8] = {0.72f, 0.68f, 0.75f, 0.60f, 0.78f, 0.55f, 0.80f, 0.65f};
+        static const float hue_b[8] = {1.00f, 0.95f, 1.00f, 0.85f, 0.90f, 0.75f, 0.95f, 0.80f};
+
+        for (int i = 0; i < 8; i++) {
+            PushConstants npc = {0};
+            mat4 S_cloud, R_cloud, T_offset;
+
+            /* Slow organic drift: each layer drifts at slightly different rate */
+            float drift = pulse * 0.012f * (1.0f + i * 0.15f);
+            float ox = offsets[i][0] * tactScale + sinf(drift + i * 1.3f) * 0.4f * tactScale;
+            float oy = offsets[i][1] * tactScale + cosf(drift + i * 0.9f) * 0.3f * tactScale;
+            float oz = offsets[i][2] * tactScale + sinf(drift + i * 1.7f) * 0.35f * tactScale;
+
+            mat4_translate(T_offset, (vec3){ox, oy, oz});
+
+            /* Each layer rotates on a different axis for irregular tumbling */
+            mat4_identity(R_cloud);
+            vec3 axis = {sinf(i * 1.1f), cosf(i * 0.7f), sinf(i * 1.9f + 1.0f)};
+            float alen = sqrtf(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2]);
+            if (alen > 0.001f) { axis[0] /= alen; axis[1] /= alen; axis[2] /= alen; }
+            mat4_rotate(R_cloud, pulse * 0.004f * (i % 3 + 1), axis);
+
+            /* Slow breathing: size pulses at different frequencies per layer */
+            float breathe = 1.0f + 0.06f * sinf(pulse * 0.08f + i * 0.8f);
+            float scale = scales[i] * breathe * tactScale;
+            mat4_scale(S_cloud, (vec3){scale, scale * 0.88f, scale * 0.95f});
+
+            mat4_multiply(S_cloud, R_cloud, npc.model);
+            mat4_multiply(npc.model, T_offset, npc.model);
+            mat4_multiply(npc.model, baseT, npc.model);
+
+            npc.color[0] = hue_r[i];
+            npc.color[1] = hue_g[i];
+            npc.color[2] = hue_b[i];
+            npc.color[3] = alphas[i];
+            npc.usePushColor = 9; /* Volumetric Diffuse Nebula mode */
+            npc.time = pulse;
+
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(npc), &npc);
+            VkDeviceSize off = 0;
+            vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+            vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        }
+    } else {
+        /* === OTHER NEBULA TYPES: original 5-sphere Hyper-Warp glow === */
+        for (int i=0; i<5; i++) {
+            PushConstants npc = {0};
+            mat4 S_cloud, R_cloud, T_offset;
+
+            float offset_scale = 3.0f * tactScale;
+            float ox = sinf(i * 2.0f + pulse * 0.1f) * offset_scale;
+            float oy = cosf(i * 3.0f + pulse * 0.1f) * offset_scale;
+            float oz = sinf(i * 4.0f + pulse * 0.1f) * offset_scale;
+
+            mat4_translate(T_offset, (vec3){ox, oy, oz});
+
+            mat4_identity(R_cloud);
+            mat4_rotate(R_cloud, pulse * 0.05f * (i+1), (vec3){0, 1, 0});
+
+            float scale = (7.0f + sinf(pulse * 0.5f + i)) * tactScale;
+            mat4_scale(S_cloud, (vec3){scale, scale, scale});
+
+            mat4_multiply(S_cloud, R_cloud, npc.model);
+            mat4_multiply(npc.model, T_offset, npc.model);
+            mat4_multiply(npc.model, baseT, npc.model);
+
+            npc.color[0] = r; npc.color[1] = g; npc.color[2] = b;
+            npc.color[3] = 0.6f;
+            npc.usePushColor = 6; /* Hyper-Warp for cloudy texture */
+            npc.time = pulse + i * 10.0f;
+
+            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(npc), &npc);
+            VkDeviceSize off = 0;
+            vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+            vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        }
     }
-    
+
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -2751,7 +2871,6 @@ void createGraphicsPipeline(VulkanApp* app) {
     char* fC = readShaderFile(fragment_shader_path, &fSize);
     
     if (!vC || !fC) {
-        fprintf(stderr, "[VULKAN] Fatal: Could not load shaders from %s or %s\n", vertex_shader_path, fragment_shader_path);
         exit(1);
     }
     VkShaderModule vM = createShaderModule(app->device, vC, vSz), fM = createShaderModule(app->device, fC, fSize); 
@@ -2802,6 +2921,10 @@ void createGraphicsPipeline(VulkanApp* app) {
     depSt.depthWriteEnable = VK_FALSE; /* Disable depth write for transparent glows */
     if (vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &pInfo, NULL, &app->glowPipeline) != VK_SUCCESS) exit(1);
 
+    /* 5. Alpha Pipeline (Normal Transparency for Dark Clouds/Bok Globules) */
+    cBlAt.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; /* Alpha Blend */
+    if (vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &pInfo, NULL, &app->alphaPipeline) != VK_SUCCESS) exit(1);
+
     vkDestroyShaderModule(app->device, fM, NULL); vkDestroyShaderModule(app->device, vM, NULL);
 }
 
@@ -2824,6 +2947,25 @@ void drawShieldGlow(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float ra
 }
 
 void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tactScale, mat4 R_ship, mat4 T_ship) {
+    /* Shield Hit Detection & Synchronization (Standardized across engines) */
+    static int lastShieldsValHit[6] = {0};
+    static bool shieldsInit = false;
+    GameState* st = &app->shm->buffers[app->shm->read_index];
+
+    if (!shieldsInit && st->object_count > 0 && st->objects[0].active) {
+        for (int s = 0; s < 6; s++) lastShieldsValHit[s] = st->shm_shields[s];
+        shieldsInit = true;
+    }
+
+    if (shieldsInit) {
+        for (int s = 0; s < 6; s++) {
+            if (st->shm_shields[s] < lastShieldsValHit[s]) {
+                app->shieldHitTimers[s] = (int)GAME_TICK_RATE; 
+            }
+            lastShieldsValHit[s] = st->shm_shields[s];
+        }
+    }
+
     bool any_hit = false;
     for (int s = 0; s < 6; s++) if (app->shieldHitTimers[s] > 0) any_hit = true;
     if (!any_hit) return;
@@ -2860,12 +3002,12 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
         mat4_multiply(M_sec, R_ship, M_sec);
         mat4_multiply(M_sec, T_ship, M_sec);
 
-        /* 1. Shield Energy Grid (Wireframe layer to match 3DView look) */
-        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+        /* 1. Shield Energy Grid (Solid layer for visibility in Vulkan) */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
         PushConstants wpc = {0};
         memcpy(wpc.model, M_sec, sizeof(mat4));
-        wpc.color[0] = 0.0f; wpc.color[1] = 0.9f; wpc.color[2] = 1.0f; wpc.color[3] = alpha;
-        wpc.usePushColor = 1;
+        wpc.color[0] = 0.0f; wpc.color[1] = 0.8f; wpc.color[2] = 1.0f; wpc.color[3] = alpha * 0.8f;
+        wpc.usePushColor = 5; /* Standard color mode */
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(wpc), &wpc);
         VkDeviceSize off = 0;
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
@@ -2876,17 +3018,17 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
         PushConstants pc = {0};
         memcpy(pc.model, M_sec, sizeof(mat4));
-        pc.color[0] = 0.0f; pc.color[1] = 0.6f; pc.color[2] = 1.0f; pc.color[3] = alpha * 0.3f;
+        pc.color[0] = 0.0f; pc.color[1] = 0.6f; pc.color[2] = 1.0f; pc.color[3] = alpha * 0.6f;
         pc.usePushColor = 7; pc.time = pulse;
-        /* Pass local pulse to stabilize wave regardless of galactic position */
-        pc.metallic = pulse * 10.0f; 
+        pc.metallic = pulse * 15.0f; 
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
 
         /* 3. Outer Volumetric Glow Effect */
-        drawShieldGlow(cb, app, M_sec, 0.6f * scale, 0.0f, 0.5f, 1.0f, alpha * 0.7f, pulse);
+        drawShieldGlow(cb, app, M_sec, 0.7f * scale, 0.0f, 0.5f, 1.0f, alpha * 0.9f, pulse);
     }
 }
+
 void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,NULL,0,NULL}; vkBeginCommandBuffer(cb, &bi);
     VkClearValue cl[2] = {0}; cl[0].color = (VkClearColorValue){{0,0,0,1}}; cl[1].depthStencil = (VkClearDepthStencilValue){1,0};
@@ -3079,11 +3221,12 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         }
 
         /* Departure/Arrival Wormholes (Internal logic handles pipeline switching) */
-        if (app->departureWormhole.active && app->jumpArrival.timer <= 0) {
-            /* DEPARTURE: Only visible if arrival sequence hasn't started */
+        /* Departure wormhole: shown during entry phase, independent of arrival timer */
+        if (app->departureWormhole.active) {
             drawWormhole(cb, app, app->departureWormhole.x * tactScale, app->departureWormhole.y * tactScale, app->departureWormhole.z * tactScale, 
                          app->departureWormhole.h, app->departureWormhole.m, 0, pulse, tactScale, 1.0f);
         }
+        /* Arrival wormhole: shown after jump, fades out over timer */
         if (app->jumpArrival.active && app->jumpArrival.timer > 0) {
             /* Keep arrival wormhole centered on ship if ship is active */
             if (st->object_count > 0 && st->objects[0].active) {
@@ -3118,12 +3261,13 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         vkCmdBindIndexBuffer(cb, app->starfieldIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(cb, app->starfieldIndexCount, 1, 0, 0, 0);
 
-        /* Re-bind main graphics pipeline for objects */
-        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
-
+        /* Render individual tactical objects */
         for (int o=0; o<st->object_count; o++) {
             SharedObject* obj = &st->objects[o]; if (!obj->active) continue;
             
+            /* Re-bind main graphics pipeline for each object to prevent state leakage from specialized renderers */
+            vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+
             /* HIDE ALL OTHER OBJECTS DURING JUMP ARRIVAL to avoid lateral artifacts */
             if (app->jumpArrival.active && o != 0) continue;
 
@@ -3175,11 +3319,67 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 opc.usePushColor = 1;
             }
             
-            /* Specialized Rendering (Starbases, Torpedoes, etc.) */
-            if (obj->type == 50) {
-                drawSubspaceAnomaly(cb, app, T, tactScale, pulse);
+            /* Cosmic Objects Dispatcher (51-88) */
+            if (obj->type >= 51 && obj->type <= 53) { drawNebula(cb, app, T, obj->type - 51, pulse, tactScale); continue; }
+            if (obj->type == 54) { drawNebula(cb, app, T, 4, pulse, tactScale); continue; }
+            if (obj->type == 55) { drawNebula(cb, app, T, 5, pulse, tactScale); continue; }
+            if (obj->type == 56) { drawInterstellarFilament(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 57) { drawInterstellarBubble_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 58) { drawBokGlobule_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 59) { drawClumpCore_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 60) {
+                /* ACCRETION DISK (Type 60): Singularity Core + Volumetric Accretion Disk + Jets */
+                PushConstants apc = opc; 
+                mat4 M_core; mat4_scale(S, (vec3){1.5f * tactScale, 1.5f * tactScale, 1.5f * tactScale});
+                mat4_multiply(S, T, M_core);
+                memcpy(apc.model, M_core, sizeof(mat4));
+                /* Pure black core for the singularity */
+                apc.color[0] = 0.0f; apc.color[1] = 0.0f; apc.color[2] = 0.0f; apc.color[3] = 1.0f;
+                apc.usePushColor = 1;
+
+                /* 1. Core Sphere (Black Hole) */
+                vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(apc), &apc);
+                VkDeviceSize off = 0;
+                vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+                vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+
+                /* 2. Accretion Disk and Relativistic Jets */
+                drawAccretionDisk_Vulkan(cb, app, T, tactScale, pulse);
+                drawRelativisticJet_Vulkan(cb, app, T, tactScale, pulse);
                 continue;
             }
+            if (obj->type == 61) { drawRelativisticJet_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 62) { drawShockWave_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 63) { drawStellarBowShock_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 64) { drawCosmicVoid_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 65) { drawCosmicFilament_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 66) { drawEventHorizon_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 67) { drawKilonova_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 68) { drawGravLens_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 69) { drawGRB_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 70) { drawGravWave_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 71) { drawProtoplanetaryDisk_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 72) { drawDebrisDisk_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 73) { drawPlanetesimal_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 74) { drawRoguePlanet_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 75) { drawBrownDwarf_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 76) { drawISO_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 77) { drawMagReconn_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 78) { drawCurrentSheet_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 79) { drawHeliosphere_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 80) { drawTermShock_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 81) { drawMagnetosphere_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 82) { drawCosmicString_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 83) { drawDomainWall_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 84) { drawDMHalo_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 85) { drawIGM_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 86) { drawCGM_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 87) { drawLymanAlpha_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == 88) { drawCMB_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            /* Mapping all categories from telemetry */
+            
+            
 
             if (obj->type == 39) {
                 drawIonStorm(cb, app, T, tactScale, pulse, 0);
@@ -3196,10 +3396,6 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 continue;
             }
 
-            if (obj->type == 45) {
-                drawSingularity(cb, app, T, tactScale, pulse);
-                continue;
-            }
 
             if (obj->type == 44) {
                 drawDarkMatterCloud(cb, app, T, tactScale, pulse);
@@ -3238,6 +3434,21 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
 
             if (obj->type == 40) {
                 drawAlienArtifact(cb, app, T, tactScale, pulse);
+                continue;
+            }
+
+            if (obj->type == 45) {
+                drawSingularity(cb, app, T, tactScale, pulse);
+                continue;
+            }
+
+            if (obj->type == 50) {
+                drawSubspaceAnomaly(cb, app, T, tactScale, pulse);
+                continue;
+            }
+
+            if (obj->type == 42) {
+                drawNeutronStar(cb, app, T, tactScale, pulse);
                 continue;
             }
 
@@ -3291,43 +3502,22 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 continue;
             }
 
-            /* PBR Parameters based on object type */
-            if (obj->type == 1 || obj->type >= 10) { // Ships
-                opc.metallic = 0.9f; opc.roughness = 0.25f;
-            } else if (obj->type == 21) { // Asteroids
-                opc.metallic = 0.1f; opc.roughness = 0.8f;
-            } else if (obj->type == 4) { // Star
-                opc.metallic = 0.0f; opc.roughness = 1.0f; opc.usePushColor = 6; /* Hyper-Warp for surface plasma */
-                /* Spectral Types: 0:Blue, 1:White, 2:Yellow, 3:Orange, 4:Red */
-                if (obj->ship_class == 0) { opc.color[0]=0.4f; opc.color[1]=0.6f; opc.color[2]=1.0f; }
-                else if (obj->ship_class == 1) { opc.color[0]=0.9f; opc.color[1]=0.9f; opc.color[2]=1.0f; }
-                else if (obj->ship_class == 2) { opc.color[0]=1.0f; opc.color[1]=1.0f; opc.color[2]=0.4f; }
-                else if (obj->ship_class == 3) { opc.color[0]=1.0f; opc.color[1]=0.7f; opc.color[2]=0.2f; }
-                else { opc.color[0]=1.0f; opc.color[1]=0.3f; opc.color[2]=0.2f; }
-            } else if (obj->type == 5) { // Planet
-                opc.metallic = 0.0f; opc.roughness = 0.9f;
-                /* Planet Classes: 0:Terrestrial, 1:Gas Giant, 2:Ice, 3:Molten, 4:Desert */
-                if (obj->ship_class == 0) { opc.color[0]=0.2f; opc.color[1]=0.5f; opc.color[2]=1.0f; } /* Earth-like */
-                else if (obj->ship_class == 1) { opc.color[0]=0.8f; opc.color[1]=0.6f; opc.color[2]=0.4f; } /* Jupiter-like */
-                else if (obj->ship_class == 2) { opc.color[0]=0.7f; opc.color[1]=0.9f; opc.color[2]=1.0f; } /* Ice */
-                else if (obj->ship_class == 3) { opc.color[0]=0.8f; opc.color[1]=0.2f; opc.color[2]=0.1f; } /* Molten */
-                else { opc.color[0]=0.8f; opc.color[1]=0.7f; opc.color[2]=0.5f; } /* Desert */
-            } else if (obj->type == 6) { // Black Hole
-                opc.metallic = 0.0f; opc.roughness = 0.0f;
-                opc.color[0]=0.0f; opc.color[1]=0.0f; opc.color[2]=0.0f; /* Pitch Black Event Horizon */
-            } else if (obj->type == 7) { // Nebula
-                /* Nebulas are rendered via drawNebula, this is just for the core/marker if needed */
-                /* Actually, we should skip drawing the solid sphere for nebulas and let drawNebula handle it completely */
-            } else if (obj->type == 27) { // Torpedo
-                opc.metallic = 0.8f; opc.roughness = 0.1f;
-            } else {
-                opc.metallic = 0.5f; opc.roughness = 0.5f;
+            if (obj->type == 6) {
+                /* Draw Black Hole Event Horizon (Black Sphere) */
+                vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(opc), &opc);
+                VkBuffer vb = app->sphereVertexBuffer; VkBuffer ib = app->sphereIndexBuffer; uint32_t cnt = SPHERE_LATS * SPHERE_LONGS * 6;
+                vkCmdBindVertexBuffers(cb, 0, 1, &vb, &off); vkCmdBindIndexBuffer(cb, ib, 0, VK_INDEX_TYPE_UINT32); vkCmdDrawIndexed(cb, cnt, 1, 0, 0, 0);
+                /* Draw Accretion Disk */
+                drawAccretionDisk_Vulkan(cb, app, T, tactScale, pulse);
+                continue;
             }
 
-            if (o == 0 && app->jumpArrival.timer > 360) {
-                float progress = 1.0f - (float)(app->jumpArrival.timer - 360) / 180.0f;
-                float glow = 1.0f - progress;
-                opc.color[0] = 0.8f + glow * 0.2f; opc.color[1] = 0.8f + glow * 0.2f; opc.color[2] = 1.0f;
+            if (obj->type == 7) {
+                /* Draw Volumetric Nebula (Hidden during the arrival sequence to eliminate green cloud artifacts) */
+                if (!app->jumpArrival.active) {
+                    drawNebula(cb, app, T, obj->ship_class, pulse, tactScale);
+                }
+                continue;
             }
 
             if (obj->type == 29) {
@@ -3368,25 +3558,49 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 PushConstants dpc = qpc; memcpy(dpc.model, M_disk, sizeof(mat4)); dpc.color[3]=0.5f;
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(dpc), &dpc);
                 vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
-                
-                /* Polar jets segments REMOVED as requested */
-            } else if (obj->faction == 12 && (obj->type == 1 || obj->type >= 10)) {
-                drawSwarmCube(cb, app, opc.model, pulse);
-            } else if (obj->type == 6) {
-                /* Draw Black Hole Event Horizon (Black Sphere) */
-                vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(opc), &opc);
-                VkBuffer vb = app->sphereVertexBuffer; VkBuffer ib = app->sphereIndexBuffer; uint32_t cnt = SPHERE_LATS * SPHERE_LONGS * 6;
-                vkCmdBindVertexBuffers(cb, 0, 1, &vb, &off); vkCmdBindIndexBuffer(cb, ib, 0, VK_INDEX_TYPE_UINT32); vkCmdDrawIndexed(cb, cnt, 1, 0, 0, 0);
-                /* Draw Accretion Disk */
-                drawAccretionDisk(cb, app, T, pulse, tactScale);
-            } else if (obj->type == 7) {
-                /* Draw Volumetric Nebula (Hidden during the arrival sequence to eliminate green cloud artifacts) */
-                if (!app->jumpArrival.active) {
-                    drawNebula(cb, app, T, obj->ship_class, pulse, tactScale);
-                }
+                continue;
+            }
+
+            /* PBR Parameters based on object type */
+            if (obj->type == 1 || obj->type >= 10) { // Ships
+                opc.metallic = 0.9f; opc.roughness = 0.25f;
+            } else if (obj->type == 4) { // Star
+                opc.metallic = 0.0f; opc.roughness = 1.0f; opc.usePushColor = 6; /* Hyper-Warp for surface plasma */
+                /* Spectral Types: 0:Blue, 1:White, 2:Yellow, 3:Orange, 4:Red */
+                if (obj->ship_class == 0) { opc.color[0]=0.4f; opc.color[1]=0.6f; opc.color[2]=1.0f; }
+                else if (obj->ship_class == 1) { opc.color[0]=0.9f; opc.color[1]=0.9f; opc.color[2]=1.0f; }
+                else if (obj->ship_class == 2) { opc.color[0]=1.0f; opc.color[1]=1.0f; opc.color[2]=0.4f; }
+                else if (obj->ship_class == 3) { opc.color[0]=1.0f; opc.color[1]=0.7f; opc.color[2]=0.2f; }
+                else { opc.color[0]=1.0f; opc.color[1]=0.3f; opc.color[2]=0.2f; }
+            } else if (obj->type == 5) { // Planet
+                opc.metallic = 0.0f; opc.roughness = 0.9f;
+                /* Planet Classes: 0:Terrestrial, 1:Gas Giant, 2:Ice, 3:Molten, 4:Desert */
+                if (obj->ship_class == 0) { opc.color[0]=0.2f; opc.color[1]=0.5f; opc.color[2]=1.0f; } /* Earth-like */
+                else if (obj->ship_class == 1) { opc.color[0]=0.8f; opc.color[1]=0.6f; opc.color[2]=0.4f; } /* Jupiter-like */
+                else if (obj->ship_class == 2) { opc.color[0]=0.7f; opc.color[1]=0.9f; opc.color[2]=1.0f; } /* Ice */
+                else if (obj->ship_class == 3) { opc.color[0]=0.8f; opc.color[1]=0.2f; opc.color[2]=0.1f; } /* Molten */
+                else { opc.color[0]=0.8f; opc.color[1]=0.7f; opc.color[2]=0.5f; } /* Desert */
+            } else if (obj->type == 27) { // Torpedo
+                opc.metallic = 0.8f; opc.roughness = 0.1f;
             } else {
-                /* Draw Standard Object (Ship, Base, Planet, Star, Asteroid, etc.) */
-                PushConstants ship_opc = opc;
+                opc.metallic = 0.5f; opc.roughness = 0.5f;
+            }
+
+            if (o == 0 && app->jumpArrival.timer > 360) {
+                float progress = 1.0f - (float)(app->jumpArrival.timer - 360) / 180.0f;
+                float glow = 1.0f - progress;
+                opc.color[0] = 0.8f + glow * 0.2f; opc.color[1] = 0.8f + glow * 0.2f; opc.color[2] = 1.0f;
+            }
+
+
+
+            if (obj->faction == 12 && (obj->type == 1 || obj->type >= 10)) {
+                drawSwarmCube(cb, app, opc.model, pulse);
+                continue;
+            }
+
+            /* Draw Standard Object (Ship, Base, Planet, Star, Asteroid, etc.) */
+            PushConstants ship_opc = opc;
                 if (obj->type == 1 || obj->type >= 10) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
                     float shipScale = 0.55f * tactScale;
@@ -3405,7 +3619,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 } else if (obj->type == 36) { // Ancient Relic (WIREFRAME)
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
                     ship_opc.color[0]=0; ship_opc.color[1]=1; ship_opc.color[2]=0.8f;
-                } else if (obj->type >= 40 && obj->type <= 49) {
+                } else if (obj->type >= 40 && obj->type <= 49 && obj->type != 45 && obj->type != 46) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
                     ship_opc.usePushColor = 1;
                     if (obj->type == 40) { ship_opc.color[0]=1.0f; ship_opc.color[1]=0.5f; ship_opc.color[2]=0.0f; } // Artifact
@@ -3413,8 +3627,6 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     else if (obj->type == 42) { ship_opc.color[0]=0.8f; ship_opc.color[1]=0.8f; ship_opc.color[2]=1.0f; } // Neutron Star
                     else if (obj->type == 43) { ship_opc.color[0]=0.5f; ship_opc.color[1]=0.5f; ship_opc.color[2]=0.5f; } // Mega Struct
                     else if (obj->type == 44) { ship_opc.color[0]=0.2f; ship_opc.color[1]=0.0f; ship_opc.color[2]=0.4f; } // Dark Cloud
-                    else if (obj->type == 45) { ship_opc.color[0]=0.1f; ship_opc.color[1]=0.1f; ship_opc.color[2]=0.1f; } // Singularity
-                    else if (obj->type == 46) { ship_opc.color[0]=1.0f; ship_opc.color[1]=0.2f; ship_opc.color[2]=0.6f; } // Plasma Storm
                     else if (obj->type == 47) { ship_opc.color[0]=0.7f; ship_opc.color[1]=0.7f; ship_opc.color[2]=0.0f; } // Orbital Ring
                     else if (obj->type == 48) { ship_opc.color[0]=0.0f; ship_opc.color[1]=1.0f; ship_opc.color[2]=0.5f; } // Time Anomaly
                     else if (obj->type == 49) { ship_opc.color[0]=0.9f; ship_opc.color[1]=0.0f; ship_opc.color[2]=0.9f; } // Void Crystal
@@ -3428,14 +3640,10 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     vb = app->torpVertexBuffer;
                     ib = app->torpIndexBuffer;
                     cnt = sizeof(torpIndices)/4;
-                } else if (obj->type == 4 || obj->type == 5 || obj->type == 6 || obj->type == 34 || obj->type == 36 || obj->type == 37 || obj->type == 39 || obj->type == 42 || obj->type == 44 || obj->type == 45 || obj->type == 46 || obj->type == 48 || obj->type == 50) {
+                } else if (obj->type == 4 || obj->type == 5) {
                     vb = app->sphereVertexBuffer;
                     ib = app->sphereIndexBuffer;
                     cnt = SPHERE_LATS * SPHERE_LONGS * 6;
-                } else if (obj->type == 3 || obj->type == 21 || obj->type == 38 || obj->type == 40 || obj->type == 43 || obj->type == 49) {
-                    vb = app->cubeVertexBuffer;
-                    ib = app->cubeIndexBuffer;
-                    cnt = sizeof(cubeIndices)/4;
                 } else if (obj->type == 41 || obj->type == 47) {
                     vb = app->circleVertexBuffer;
                     ib = app->circleIndexBuffer;
@@ -3521,7 +3729,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
                 }
             }
-        }
+
 
         /* Particles/Torps/Booms (Solid) */
         for (int i=0; i<MAX_ACTIVE_TORPS; i++) {
@@ -3736,28 +3944,55 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             if (pulse - last_dbg > 0.5f) {
                 last_dbg = pulse;
                 /* Clear Screen and print telemetry */
-                printf("\033[H\033[J"); 
-                printf("=== [ SPACE GL - SHARED MEMORY INSPECTOR ] ===\n");
-                printf("PAGE: %d / 3 | FRAME: %lld\n", app->shm_inspector_page, (long long)st->frame_id);
-                printf("----------------------------------------------\n");
+                printf("\033[2J\033[H");
+                printf("================================================================================\n");
+                printf(" SPACE GL - VULKAN SHARED MEMORY INSPECTOR (Page %d/3) - [n/p: Nav, m: Toggle]\n", app->shm_inspector_page);
+                printf("================================================================================\n");
+                
+                GameState* st = &app->shm->buffers[app->shm->read_index];
+
                 if (app->shm_inspector_page == 1) {
-                    printf("SHIP ENERGY:  %15" PRIu64 "\n", st->shm_energy);
-                    printf("CARGO ENERGY: %15" PRIu64 "\n", st->shm_cargo_energy);
-                    printf("INTEGRITY:    %15.2f%%\n", st->shm_hull_integrity);
-                    printf("ALLOCATION:   %15s\n", st->shm_red_alert ? "RED ALERT" : "NOMINAL");
+                    /* Page 1: SHIP VITALS */
+                    printf(" [SHIP STATUS: %-15s]  FRAME: %-10lld\n", st->shm_captain_name, (long long)st->frame_id);
+                    printf("--------------------------------------------------------------------------------\n");
+                    printf(" ENERGY:    %-15lu  | CARGO E:  %-15lu\n", (unsigned long)st->shm_energy, (unsigned long)st->shm_cargo_energy);
+                    printf(" HULL:      %-15.2f  | CREW:     %-5d  | PRISON: %-5d\n", st->shm_hull_integrity, st->shm_crew, st->shm_prison_unit);
+                    printf(" PLATING:   %-5d             | L-SUPP:   %-15.2f\n", st->shm_composite_plating, st->shm_life_support);
+                    printf("--------------------------------------------------------------------------------\n");
+                    printf(" SHIELDS:   F: %-5d  RE: %-5d  T: %-5d  B: %-5d  L: %-5d  RI: %-5d\n",
+                           st->shm_shields[0], st->shm_shields[1], st->shm_shields[2],
+                           st->shm_shields[3], st->shm_shields[4], st->shm_shields[5]);
+                    printf(" TARGETS:   F: %-5d  RE: %-5d  T: %-5d  B: %-5d  L: %-5d  RI: %-5d\n",
+                           st->shm_target_shields[0], st->shm_target_shields[1], st->shm_target_shields[2],
+                           st->shm_target_shields[3], st->shm_target_shields[4], st->shm_target_shields[5]);
                 } else if (app->shm_inspector_page == 2) {
-                    printf("GALAXY CRYPTOGRAPHIC TELEMETRY (HMAC-SHA256)\n");
-                    printf("SIG_HEAD:     "); for(int i=0; i<8; i++) printf("%02x", st->shm_server_signature[i]); printf("...\n");
-                    printf("GALAXY_ID:    %d x %d x %d\n", 41, 41, 41);
-                    printf("AUTH_STATE:   VERIFIED\n");
+                    /* Page 2: TACTICAL & NAVIGATION */
+                    printf(" [NAVIGATION & TACTICAL]       POS: [%d,%d,%d] / [%.2f, %.2f, %.2f]\n", 
+                           st->shm_q[0], st->shm_q[1], st->shm_q[2], st->shm_s[0], st->shm_s[1], st->shm_s[2]);
+                    printf("--------------------------------------------------------------------------------\n");
+                    printf(" LOCK TARGET:  %-5d          | ION CHARGE: %-15.2f\n", st->shm_lock_target, st->shm_ion_beam_charge);
+                    printf(" TUBE STATE:   %-5d          | CLOAKED:    %-5s  | ALERT: %-5s\n", 
+                           st->shm_tube_state, st->is_cloaked ? "YES" : "NO", st->shm_red_alert ? "RED" : "NORMAL");
+                    printf("--------------------------------------------------------------------------------\n");
+                    printf(" TUBE ETAS:    1:%-5d  2:%-5d  3:%-5d  4:%-5d\n",
+                           st->tube_torpedo_etas[0], st->tube_torpedo_etas[1], st->tube_torpedo_etas[2], st->tube_torpedo_etas[3]);
+                    printf(" POWER DIST:   ENG: %-5.2f  SHL: %-5.2f  WEP: %-5.2f\n", 
+                           st->shm_power_dist[0], st->shm_power_dist[1], st->shm_power_dist[2]);
                 } else {
-                    printf("NET_BW:       %15.2f KB/s\n", st->net_kbps);
-                    printf("NET_EFF:      %15.1f%%\n", st->net_efficiency);
-                    printf("JITTER:       %15.2f ms\n", st->net_jitter);
-                    printf("STATUS:       ON-LINE\n");
+                    /* Page 3: NETWORK & PIPELINE */
+                    printf(" [IPC & VULKAN PIPELINE]\n");
+                    printf("--------------------------------------------------------------------------------\n");
+                    printf(" SHM SEGMENT:  %-15s | READ IDX:  %-5d | WRITE IDX: %-5d\n", 
+                           SHM_NAME, atomic_load(&app->shm->read_index), atomic_load(&app->shm->write_index));
+                    printf(" OBJECT COUNT: %-5d           | BEAM COUNT: %-5d | TORP COUNT: %-5d\n", 
+                           st->object_count, st->beam_count, st->torpedo_count);
+                    printf(" CRYPTO:       0x%02X          | FLAGS:      0x%08X\n", 
+                           st->shm_crypto_algo, st->shm_encryption_flags);
+                    printf("--------------------------------------------------------------------------------\n");
+                    printf(" APP CAMERA:   DIST: %-10.2f | ROT: [%.2f, %.2f]\n", 
+                           app->cameraDist, app->angleX, app->angleY);
                 }
-                printf("----------------------------------------------\n");
-                printf("[n/p] Navigate Pages | [m] Toggle Overlay\n");
+                printf("================================================================================\n");
                 fflush(stdout);
             }
         }
@@ -3917,12 +4152,10 @@ void mainLoop(VulkanApp* app) {
     while (!glfwWindowShouldClose(app->window)) {
         if (app->shm) {
             if (atomic_load(&app->shm->force_shutdown)) {
-                printf("[VULKAN] GLOBAL EMERGENCY SHUTDOWN SIGNAL RECEIVED. CLEAN EXIT.\n");
                 break;
             }
             int r_idx = atomic_load(&app->shm->read_index);
             if (app->shm->buffers[r_idx].shm_force_shutdown) {
-                printf("[VULKAN] EMERGENCY SHUTDOWN SIGNAL RECEIVED (xxx). CLEAN EXIT.\n");
                 break;
             }
         }
@@ -4046,6 +4279,7 @@ void mainLoop(VulkanApp* app) {
                         app->smoothObjs[o].vz = (float)obj->vz;
                     }
                 }
+                /* Torpedo State Sampling: Legacy path removed in favor of Zero-Loss event queue */
             }
 
             struct timespec ts;
@@ -4075,6 +4309,12 @@ void mainLoop(VulkanApp* app) {
                     app->activeBooms[i].life = 1.0f;
                     for(int k=0; k<MAX_ACTIVE_TORPS; k++) {
                         if (app->activeTorps[k].active > 0) {
+                            /* Prioritize ID matching for precise de-allocation (using IPC_TORPEDO_ID_OFFSET) */
+                            if (ev->extra >= IPC_TORPEDO_ID_OFFSET && app->activeTorps[k].id == ev->extra) {
+                                app->activeTorps[k].active = 0;
+                                continue;
+                            }
+                            /* Fallback: Proximity check */
                             float dx = app->activeTorps[k].x - app->activeBooms[i].x;
                             float dy = app->activeTorps[k].y - app->activeBooms[i].y;
                             float dz = app->activeTorps[k].z - app->activeBooms[i].z;
@@ -4129,21 +4369,23 @@ void mainLoop(VulkanApp* app) {
                     float nx = (float)ev->x1 - 20.0f; float ny = (float)ev->z1 - 20.0f; float nz = 20.0f - (float)ev->y1;
                     float vx = (float)ev->x2; float vy = (float)ev->z2; float vz = -(float)ev->y2;
                     if (app->activeTorps[f].active > 0) {
-                        float error_x = nx - app->activeTorps[f].x;
-                        float error_y = ny - app->activeTorps[f].y;
-                        float error_z = nz - app->activeTorps[f].z;
-                        app->activeTorps[f].dx = vx + error_x * 0.1f;
-                        app->activeTorps[f].dy = vy + error_y * 0.1f;
-                        app->activeTorps[f].dz = vz + error_z * 0.1f;
+                        /* Converge local position towards server position to eliminate drift */
+                        /* Incremental correction to fix drift while avoiding jumps */
+                        app->activeTorps[f].x = app->activeTorps[f].x * 0.85f + nx * 0.15f;
+                        app->activeTorps[f].y = app->activeTorps[f].y * 0.85f + ny * 0.15f;
+                        app->activeTorps[f].z = app->activeTorps[f].z * 0.85f + nz * 0.15f;
+                        /* Use server velocity directly */
+                        app->activeTorps[f].dx = vx;
+                        app->activeTorps[f].dy = vy;
+                        app->activeTorps[f].dz = vz;
                     } else {
                         app->activeTorps[f].x = nx; app->activeTorps[f].y = ny; app->activeTorps[f].z = nz;
                         app->activeTorps[f].dx = vx; app->activeTorps[f].dy = vy; app->activeTorps[f].dz = vz;
                     }
                     app->activeTorps[f].id = tid; 
-                    app->activeTorps[f].active = 600;
+                    app->activeTorps[f].active = 2000;
                 } else if (ev->type == IPC_EV_DISMANTLE) {
                     if (app->shm) app->shm->dismantle_telemetry.vk_rcv_count++;
-                    printf("[VULKAN] Processing IPC_EV_DISMANTLE at Sector(%.2f, %.2f, %.2f)\n", ev->x1, ev->y1, ev->z1);
                     int oldest = 0; float min_life = 999.0f;
                     for(int i=0; i<MAX_ACTIVE_DISMANTLES; i++) if(app->activeDismantles[i].life < min_life){ min_life = app->activeDismantles[i].life; oldest = i; }
                     app->activeDismantles[oldest].x = (float)ev->x1 - 20.0f;
@@ -4198,22 +4440,7 @@ void mainLoop(VulkanApp* app) {
             /* Sync Map State */
             app->mapFilter = st->shm_map_filter;
             
-            /* --- SHIELD HIT DETECTION --- */
-            if (st->object_count > 0 && st->objects[0].active) {
-                if (!app->shieldsInitialized) {
-                    for (int s = 0; s < 6; s++) app->lastShieldsValHit[s] = st->shm_shields[s];
-                    app->shieldsInitialized = true;
-                } else {
-                    for (int s = 0; s < 6; s++) {
-                        if (st->shm_shields[s] < app->lastShieldsValHit[s]) {
-                            app->shieldHitTimers[s] = 80; /* Duration in frames (~1.3s at 60fps) */
-                        }
-                        app->lastShieldsValHit[s] = st->shm_shields[s];
-                    }
-                }
-            } else {
-                app->shieldsInitialized = false;
-            }
+            /* Shield hit detection moved to drawShieldEffect() for engine consistency */
 
             if (st->shm_show_map) {
                 if (app->mapAnim < 1.0f) app->mapAnim += 0.04f;
@@ -4288,18 +4515,36 @@ void mainLoop(VulkanApp* app) {
                 app->activeTorps[i].x += app->activeTorps[i].dx * speedScale;
                 app->activeTorps[i].y += app->activeTorps[i].dy * speedScale;
                 app->activeTorps[i].z += app->activeTorps[i].dz * speedScale;
+
+                /* Boundary check: Deactivate torpedo if it leaves the quadrant ([-20, 20] range) 
+                   Matching server's 0.1 margin: 20.0 - 0.1 = 19.9. But we allow 20.1 for visual tolerance */
+                if (fabsf(app->activeTorps[i].x) > 20.1f || 
+                    fabsf(app->activeTorps[i].y) > 20.1f || 
+                    fabsf(app->activeTorps[i].z) > 20.1f) {
+                    app->activeTorps[i].active = 0;
+                }
             }
         }
 
-        app->departureWormhole.active = st->wormhole.active;
-            if (app->departureWormhole.active) {
+        /* Update departure wormhole only when it becomes newly active (freeze position once set) */
+        if (st->wormhole.active) {
+            if (!app->departureWormhole.active) {
+                /* First activation: latch position and orientation */
                 app->departureWormhole.x = (float)st->wormhole.shm_x - 20.0f;
                 app->departureWormhole.y = (float)st->wormhole.shm_z - 20.0f;
                 app->departureWormhole.z = 20.0f - (float)st->wormhole.shm_y;
                 app->departureWormhole.h = st->shm_h;
                 app->departureWormhole.m = st->shm_m;
             }
-            app->jumpArrival.h = st->shm_h; app->jumpArrival.m = st->shm_m;
+            app->departureWormhole.active = 1;
+        } else {
+            app->departureWormhole.active = 0;
+        }
+        /* Only update arrival orientation when arrival is not active (preserve locked orientation) */
+        if (!app->jumpArrival.active) {
+            app->jumpArrival.h = st->shm_h;
+            app->jumpArrival.m = st->shm_m;
+        }
 
             /* Sincronizzazione dello stato della Vista Bridge */
             app->showBridge = st->shm_show_bridge;
@@ -4611,6 +4856,8 @@ void cleanup(VulkanApp* app) {
     vkDestroyPipeline(app->device, app->graphicsPipeline, NULL); 
     vkDestroyPipeline(app->device, app->wireframePipeline, NULL); 
     vkDestroyPipeline(app->device, app->pointPipeline, NULL);
+    vkDestroyPipeline(app->device, app->glowPipeline, NULL);
+    vkDestroyPipeline(app->device, app->alphaPipeline, NULL);
     vkDestroyPipelineLayout(app->device, app->pipelineLayout, NULL); 
     vkDestroyRenderPass(app->device, app->renderPass, NULL);
     for (uint32_t i=0; i<app->swapChainImageCount; i++) vkDestroyImageView(app->device, app->swapChainImageViews[i], NULL);
@@ -4671,7 +4918,6 @@ int main(int argc, char** argv) {
     
     VulkanApp* app = malloc(sizeof(VulkanApp));
     if (!app) {
-        fprintf(stderr, "Failed to allocate memory for VulkanApp\n");
         return 1;
     }
     memset(app, 0, sizeof(VulkanApp));

@@ -1,6 +1,12 @@
 <div style="text-align: center; border-bottom: 1px solid #ccc; margin-bottom: 20px;">
 <h1>Space GL: 3D Multi-User Client-Server Edition</h1>
 
+![Version](https://img.shields.io/badge/Version-3.0-green)
+![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
+![Language](https://img.shields.io/badge/Language-C-blue)
+![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
+![Platform](https://img.shields.io/badge/Platform-Fedora%2044-blue?logo=fedora)
+
 # Un gioco di esplorazione e combattimento spaziale
 ![Status](https://img.shields.io/badge/Status-Verified%20HMAC--SHA256-brightgreen)
 ![Alliance](https://img.shields.io/badge/Fleet-Stellar%20Alliance-cyan)
@@ -25,11 +31,6 @@ Space GL è un simulatore di volo e combattimento spaziale 3D multi-utente ad al
 </table>
 
 ---
-![Version](https://img.shields.io/badge/Version-3.0-green)
-![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
-![Language](https://img.shields.io/badge/Language-C-blue)
-![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
-![Platform](https://img.shields.io/badge/Platform-Fedora%2044-blue?logo=fedora)
 
 ### Website: https://github.com/nicolataibi/spacegl
 ### Authors: Nicola Taibi, Supported by Google Gemini
@@ -727,68 +728,75 @@ Il visualizzatore 3D è un motore di rendering standalone basato su **OpenGL e G
 <table>
   <tr><th>ID</th><th>Oggetto</th><th>Descrizione</th><th>Immagine</th></tr>
   <tr><td>1</td><td>🚀 Giocatore</td><td>La tua nave</td><td><img src="readme_assets/galactic_objects/0🚀 Player (Cyan): Your vessel.png" width="150"></td></tr>
-
-  <tr><td>1</td><td>☀️ Star</td><td>Spectral Class Variable</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
-
-  <tr><td>2</td><td>🪐 Planet</td><td>Resource rich planet</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
-
-  <tr><td>3</td><td>🛰️ Starbase</td><td>Alliance safe harbor for repairs</td><td><img src="readme_assets/galactic_objects/3🛰️%20Starbase%20(Green):%20Alliance%20safe%20harbor%20for%20repairs.png" width="150"></td></tr>
-
-  <tr><td>4</td><td>🕳️ Black Hole</td><td>Extreme gravitational singularity</td><td><img src="readme_assets/galactic_objects/4🕳️%20Black%20Hole%20(Purple):%20Extreme%20gravitational%20singularity.png" width="150"></td></tr>
-
-  <tr><td>5</td><td>🌫️ Nebula</td><td>Vast gas cloud with sensor interference</td><td><img src="readme_assets/galactic_objects/5🌫️%20Nebula%20(Grey):%20Vast%20gas%20cloud%20with%20sensor%20interference.png" width="150"></td></tr>
-
-  <tr><td>6</td><td>✴️ Pulsar</td><td>High-radiation neutron star</td><td><img src="readme_assets/galactic_objects/6✴️%20Pulsar%20(Orange):%20High-radiation%20neutron%20star.png" width="150"></td></tr>
-
-  <tr><td>7</td><td>🔯 Quasar</td><td>Ultra-luminous active galactic nucleus</td><td><img src="readme_assets/galactic_objects/7🔯%20Quasar%20(Magenta):%20Ultra-luminous%20active%20galactic%20nucleus.png" width="150"></td></tr>
-
-  <tr><td>8</td><td>☄️ Comet</td><td>Icy body in eccentric orbit</td><td><img src="readme_assets/galactic_objects/8☄️%20Comet%20(Light%20Blue):%20Icy%20body%20in%20eccentric%20orbit.png" width="150"></td></tr>
-
-  <tr><td>9</td><td>🪨 Asteroid</td><td>Navigable debris field</td><td><img src="readme_assets/galactic_objects/9🪨%20Asteroid%20(Brown):%20Navigable%20debris%20field.png" width="150"></td></tr>
-
-  <tr><td>10</td><td>🛸 Derelict</td><td>Abandoned ship ready for dismantling</td><td><img src="readme_assets/galactic_objects/10🛸%20Derelict%20(Dark%20Grey):%20Abandoned%20ship%20ready%20for%20dismantling.png" width="150"></td></tr>
-
-  <tr><td>11</td><td>💣 Mine</td><td>Active proximity explosive</td><td><img src="readme_assets/galactic_objects/11💣%20Mine%20(Red):%20Active%20proximity%20explosive.png" width="150"></td></tr>
-
-  <tr><td>12</td><td>📍 Buoy</td><td>Navigation transponder</td><td><img src="readme_assets/galactic_objects/12📍%20Buoy%20(Blue):%20Navigation%20transponder.png" width="150"></td></tr>
-
-  <tr><td>13</td><td>🛡️ Platform</td><td>Automated static defense</td><td><img src="readme_assets/galactic_objects/13🛡️%20Platform%20(Dark%20Orange):%20Automated%20static%20defense.png" width="150"></td></tr>
-
-  <tr><td>14</td><td>🌀 Rift</td><td (Cyan)>Unstable spatial anomaly (teleport)</td><td><img src="readme_assets/galactic_objects/14🌀%20Rift%20(Cyan):%20Unstable%20spatial%20anomaly%20(teleport).png" width="150"></td></tr>
-
-  <tr><td>15</td><td>👾 Space Monster</td><td>Omega-class threat</td><td><img src="readme_assets/galactic_objects/15👾%20Space%20Monster%20(Pulsing%20White):%20Omega-class%20threat.png" width="150"></td></tr>
-
-  <tr><td>16</td><td>🏛️ Dyson Fragment</td><td>Ancient energy shell fragments</td><td><img src="readme_assets/galactic_objects/16🏛️%20Dyson%20Fragment%20(Orange⁄Yellow):%20Ancient%20energy%20shell%20fragments.png" width="150"></td></tr>
-
-  <tr><td>17</td><td>🏢 Trading Hub</td><td>Neutral commercial station</td><td><img src="readme_assets/galactic_objects/17🏢%20Trading%20Hub%20(Blue⁄Grey):%20Neutral%20commercial%20station.png" width="150"></td></tr>
-
-  <tr><td>18</td><td>🏺 Ancient Relic</td><td>Ancient technological artifact</td><td><img src="readme_assets/galactic_objects/18🏺%20Ancient%20Relic%20(Cyan%20Wireframe):%20Ancient%20technological%20artifact.png" width="150"></td></tr>
-
-  <tr><td>20</td><td>📡 Satellite</td><td>Monitoring or relay station</td><td><img src="readme_assets/galactic_objects/20📡%20Satellite%20(Grey⁄Red):%20Monitoring%20or%20relay%20station.png" width="150"></td></tr>
-
-  <tr><td>21</td><td>⚡ Ion Storm</td><td>Local energy disturbance</td><td><img src="readme_assets/galactic_objects/21⚡%20Ion%20Storm%20(White%20Wireframe):%20Local%20energy%20disturbance.png" width="150"></td></tr>
-
-   <tr><td>40</td><td>👽 Alien Artifact</td><td>Ancient exotic technology</td><td><img src="readme_assets/galactic_objects/40👽 Alien Artifact (Gold): Ancient exotic: Ancient exotic technology.png" width="150"></td></tr>
-
-  <tr><td>41</td><td>🌀 Warp Gate</td><td>Stable FTL gateway</td><td><img src="readme_assets/galactic_objects/41🌀 Warp Gate (Blue): FTL gateway: Stable FTL gateway.png" width="150"></td></tr>
-
-  <tr><td>42</td><td>⭐ Neutron Star</td><td>Dense stellar remnant</td><td><img src="readme_assets/galactic_objects/42⭐ Neutron Star (White): Dense stellar: Dense stellar remnant.png" width="150"></td></tr>
-
-  <tr><td>43</td><td>🏢 Mega Structure</td><td>Massive orbital facility</td><td><img src="readme_assets/galactic_objects/43🏢 Mega Structure (Steel): Massive orbital: Massive orbital facility.png" width="150"></td></tr>
-
-  <tr><td>44</td><td>☁️ Dark Matter Cloud</td><td>Obscured matter field</td><td><img src="readme_assets/galactic_objects/44☁ Dark Cloud (Black): Obscured matter: Obscured matter field.png" width="150"></td></tr>
-
-  <tr><td>45</td><td>🕳️ Singularity</td><td>Quantum space distortion</td><td><img src="readme_assets/galactic_objects/45🕳 Singularity (Green): Quantum space: Quantum space distortion.png" width="150"></td></tr>
-
-  <tr><td>46</td><td>⚡ Plasma Storm</td><td>Unstable energy storm</td><td><img src="readme_assets/galactic_objects/46⚡ Plasma Storm (Purple): Unstable energy: Unstable energy storm.png" width="150"></td></tr>
-
-  <tr><td>47</td><td>💍 Orbital Ring</td><td>Planetary orbital ring</td><td><img src="readme_assets/galactic_objects/47💍 Orbital Ring (Yellow): Planetary ring: Planetary orbital ring.png" width="150"></td></tr>
-
-  <tr><td>48</td><td>⏳ Time Anomaly</td><td>Temporal distortion field</td><td><img src="readme_assets/galactic_objects/48⏳ Time Anomaly (Aqua): Temporal distortion: Temporal distortion field.png" width="150"></td></tr>
-
-  <tr><td>49</td><td>💎 Void Crystal</td><td>Crystalline energy source</td><td><img src="readme_assets/galactic_objects/49💎 Void Crystal (Dark Violet): Crystalline energy: Crystalline energy source.png" width="150"></td></tr>
-
-  <tr><td>50</td><td>🌀 Subspace Anomaly</td><td>Unstable subspace anomaly</td><td><img src="readme_assets/galactic_objects/50🌀 Subspace Anom (Seafoam): Unstable anomaly: Unstable subspace anomaly.png" width="150"></td></tr>
+  <tr><td>1</td><td>☀️ Stella</td><td>Classe spettrale variabile</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+  <tr><td>2</td><td>🪐 Pianeta</td><td>Pianeta ricco di risorse</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+  <tr><td>3</td><td>🛰️ Base Stellare</td><td>Porto sicuro dell'Alleanza per riparazioni</td><td><img src="readme_assets/galactic_objects/3🛰️%20Starbase%20(Green):%20Alliance%20safe%20harbor%20for%20repairs.png" width="150"></td></tr>
+  <tr><td>4</td><td>🕳️ Buco Nero</td><td>Singolarità gravitazionale estrema</td><td><img src="readme_assets/galactic_objects/4🕳️%20Black%20Hole%20(Purple):%20Extreme%20gravitational%20singularity.png" width="150"></td></tr>
+  <tr><td>5</td><td>🌫️ Nebulosa</td><td>Vasta nube di gas con interferenza sensori</td><td><img src="readme_assets/galactic_objects/5🌫️%20Nebula%20(Grey):%20Vast%20gas%20cloud%20with%20sensor%20interference.png" width="150"></td></tr>
+  <tr><td>6</td><td>✴️ Pulsar</td><td>Stella di neutroni ad alta radiazione</td><td><img src="readme_assets/galactic_objects/6✴️%20Pulsar%20(Orange):%20High-radiation%20neutron%20star.png" width="150"></td></tr>
+  <tr><td>7</td><td>🔯 Quasar</td><td>Nucleo galattico attivo ultra-luminoso</td><td><img src="readme_assets/galactic_objects/7🔯%20Quasar%20(Magenta):%20Ultra-luminous%20active%20galactic%20nucleus.png" width="150"></td></tr>
+  <tr><td>8</td><td>☄️ Cometa</td><td>Corpo ghiacciato in orbita eccentrica</td><td><img src="readme_assets/galactic_objects/8☄️%20Comet%20(Light%20Blue):%20Icy%20body%20in%20eccentric%20orbit.png" width="150"></td></tr>
+  <tr><td>9</td><td>🪨 Asteroide</td><td>Campo di detriti navigabile</td><td><img src="readme_assets/galactic_objects/9🪨%20Asteroid%20(Brown):%20Navigable%20debris%20field.png" width="150"></td></tr>
+  <tr><td>10</td><td>🛸 Relitto</td><td>Nave abbandonata pronta per lo smantellamento</td><td><img src="readme_assets/galactic_objects/10🛸%20Derelict%20(Dark%20Grey):%20Abandoned%20ship%20ready%20for%20dismantling.png" width="150"></td></tr>
+  <tr><td>11</td><td>💣 Mina</td><td>Esplosivo di prossimità attivo</td><td><img src="readme_assets/galactic_objects/11💣%20Mine%20(Red):%20Active%20proximity%20explosive.png" width="150"></td></tr>
+  <tr><td>12</td><td>📍 Boa</td><td>Transponder di navigazione</td><td><img src="readme_assets/galactic_objects/12📍%20Buoy%20(Blue):%20Navigation%20transponder.png" width="150"></td></tr>
+  <tr><td>13</td><td>🛡️ Piattaforma</td><td>Difesa statica automatizzata</td><td><img src="readme_assets/galactic_objects/13🛡️%20Platform%20(Dark%20Orange):%20Automated%20static%20defense.png" width="150"></td></tr>
+  <tr><td>14</td><td>🌀 Faglia</td><td>Anomalia spaziale instabile (teletrasporto)</td><td><img src="readme_assets/galactic_objects/14🌀%20Rift%20(Cyan):%20Unstable%20spatial%20anomaly%20(teleport).png" width="150"></td></tr>
+  <tr><td>15</td><td>👾 Mostro Spaziale</td><td>Minaccia di Classe-Omega</td><td><img src="readme_assets/galactic_objects/15👾%20Space%20Monster%20(Pulsing%20White):%20Omega-class%20threat.png" width="150"></td></tr>
+  <tr><td>16</td><td>🏛️ Frammento di Dyson</td><td>Frammenti di antiche sfere energetiche</td><td><img src="readme_assets/galactic_objects/16🏛️%20Dyson%20Fragment%20(Orange⁄Yellow):%20Ancient%20energy%20shell%20fragments.png" width="150"></td></tr>
+  <tr><td>17</td><td>🏢 Hub Commerciale</td><td>Stazione commerciale neutrale</td><td><img src="readme_assets/galactic_objects/17🏢%20Trading%20Hub%20(Blue⁄Grey):%20Neutral%20commercial%20station.png" width="150"></td></tr>
+  <tr><td>18</td><td>🏺 Reliquia Antica</td><td>Manufatto tecnologico antico</td><td><img src="readme_assets/galactic_objects/18🏺%20Ancient%20Relic%20(Cyan%20Wireframe):%20Ancient%20technological%20artifact.png" width="150"></td></tr>
+  <tr><td>20</td><td>📡 Satellite</td><td>Stazione di monitoraggio o relay</td><td><img src="readme_assets/galactic_objects/20📡%20Satellite%20(Grey⁄Red):%20Monitoring%20or%20relay%20station.png" width="150"></td></tr>
+  <tr><td>21</td><td>⚡ Tempesta Ionica</td><td>Disturbo energetico locale</td><td><img src="readme_assets/galactic_objects/21⚡%20Ion%20Storm%20(White%20Wireframe):%20Local%20energy%20disturbance.png" width="150"></td></tr>
+  <tr><td>40</td><td>👽 Artefatto Alieno</td><td>Antica tecnologia esotica</td><td><img src="readme_assets/galactic_objects/40👽 Alien Artifact (Gold): Ancient exotic: Ancient exotic technology.png" width="150"></td></tr>
+  <tr><td>41</td><td>🌀 Warp Gate</td><td>Gateway FTL stabile</td><td><img src="readme_assets/galactic_objects/41🌀 Warp Gate (Blue): FTL gateway: Stable FTL gateway.png" width="150"></td></tr>
+  <tr><td>42</td><td>⭐ Stella di Neutroni</td><td>Denso rimasuglio stellare</td><td><img src="readme_assets/galactic_objects/42⭐ Neutron Star (White): Dense stellar: Dense stellar remnant.png" width="150"></td></tr>
+  <tr><td>43</td><td>🏢 Mega Struttura</td><td>Massiccia struttura orbitale</td><td><img src="readme_assets/galactic_objects/43🏢 Mega Structure (Steel): Massive orbital: Massive orbital facility.png" width="150"></td></tr>
+  <tr><td>44</td><td>☁️ Nube Materia Oscura</td><td>Campo di materia oscurata</td><td><img src="readme_assets/galactic_objects/44☁ Dark Cloud (Black): Obscured matter: Obscured matter field.png" width="150"></td></tr>
+  <tr><td>45</td><td>🕳️ Singolarità</td><td>Distorsione spazio-temporale quantistica</td><td><img src="readme_assets/galactic_objects/45🕳 Singularity (Green): Quantum space: Quantum space distortion.png" width="150"></td></tr>
+  <tr><td>46</td><td>⚡ Tempesta di Plasma</td><td>Tempesta energetica instabile</td><td><img src="readme_assets/galactic_objects/46⚡ Plasma Storm (Purple): Unstable energy: Unstable energy storm.png" width="150"></td></tr>
+  <tr><td>47</td><td>💍 Anello Orbitale</td><td>Anello orbitale planetario</td><td><img src="readme_assets/galactic_objects/47💍 Orbital Ring (Yellow): Planetary ring: Planetary orbital ring.png" width="150"></td></tr>
+  <tr><td>48</td><td>⏳ Anomalia Temporale</td><td>Campo di distorsione temporale</td><td><img src="readme_assets/galactic_objects/48⏳ Time Anomaly (Aqua): Temporal distortion: Temporal distortion field.png" width="150"></td></tr>
+  <tr><td>49</td><td>💎 Cristallo del Vuoto</td><td>Fonte di energia cristallina</td><td><img src="readme_assets/galactic_objects/49💎 Void Crystal (Dark Violet): Crystalline energy: Crystalline energy source.png" width="150"></td></tr>
+  <tr><td>50</td><td>🌀 Anomalia Subspazio</td><td>Anomalia del subspazio instabile</td><td><img src="readme_assets/galactic_objects/50🌀 Subspace Anom (Seafoam): Unstable anomaly: Unstable subspace anomaly.png" width="150"></td></tr>
+  <tr><td>51</td><td>🌌 Nebulosa Diffusa</td><td>Nube di gas blu-bianca fredda</td><td><img src="readme_assets/galactic_objects/51🌌 Diffuse Nebula, Cool blue-white gas cloud.png" width="150"></td></tr>
+  <tr><td>52</td><td>🔥 Nebulosa Alta Ener.</td><td>Nube di gas vibrante arancione</td><td><img src="readme_assets/galactic_objects/52🔥 High-Energy Nebula, Orange vibrant gas cloud.png" width="150"></td></tr>
+  <tr><td>53</td><td>⚛️ Nebulosa Mat. Oscura</td><td>Nube misteriosa viola scuro</td><td><img src="readme_assets/galactic_objects/53⚛️Dark%20Matter%20Nebula,%20Dark,%20purple%20mysterious%20cloud.png" width="150"></td></tr>
+  <tr><td>54</td><td>🟢 Nebulosa Gravimet.</td><td>Nube di gas verde ad alta gravità</td><td><img src="readme_assets/galactic_objects/54🟢Gravimetric%20Nebula,%20Green%20high-gravity%20gas%20cloud.png" width="150"></td></tr>
+  <tr><td>55</td><td>💗 Nebulosa Temporale</td><td>Nube di gas rosa a distorsione temporale</td><td><img src="readme_assets/galactic_objects/55💗Temporal%20Nebula,%20Pink%20time-distortion%20gas%20cloud.png" width="150"></td></tr>
+  <tr><td>56</td><td>🧵 Filamento Interstell.</td><td>Struttura lunga e sottile di gas e polvere</td><td><img src="readme_assets/galactic_objects/56🧵Interstellar%20Filament,%20Long,%20thin%20structure%20of%20gas%20and%20dust.png" width="150"></td></tr>
+  <tr><td>57</td><td>🫧 Bolla Interstellare</td><td>Guscio in espansione di gas caldo</td><td><img src="readme_assets/galactic_objects/57🫧Interstellar%20Bubble,%20Expanding%20shell%20of%20hot%20gas.png" width="150"></td></tr>
+  <tr><td>58</td><td>🌑 Globulo di Bok</td><td>Nube densa e oscura di polvere e gas</td><td><img src="readme_assets/galactic_objects/58🌑Bok%20Globule,%20Dense,%20dark%20cloud%20of%20dust%20and%20gas.png" width="150"></td></tr>
+  <tr><td>59</td><td>☄️ Core di Ammasso</td><td>Regione densa di formazione stellare</td><td><img src="readme_assets/galactic_objects/59☄️Clump%20Core,%20Dense%20region%20of%20star%20formation.png" width="150"></td></tr>
+  <tr><td>60</td><td>🥏 Disco Accrescimento</td><td>Materiale orbitale attorno a una massa centrale</td><td><img src="readme_assets/galactic_objects/60🥏Accretion%20Disk,%20Orbital%20material%20around%20a%20central%20mass.png" width="150"></td></tr>
+  <tr><td>61</td><td>🏹 Jet Relativistico</td><td>Potente fascio di materia ionizzata</td><td><img src="readme_assets/galactic_objects/61🏹Relativistic%20Jet,%20Powerful%20beam%20of%20ionized%20matter.png" width="150"></td></tr>
+  <tr><td>62</td><td>🌊 Onda d'Urto</td><td>Disturbo ad alta velocità nello spazio</td><td><img src="readme_assets/galactic_objects/62🌊Shock%20Wave,%20High-speed%20disturbance%20in%20space.png" width="150"></td></tr>
+  <tr><td>63</td><td>🏹 Bow Shock Stellare</td><td>Confine tra vento stellare e ISM</td><td><img src="readme_assets/galactic_objects/63🏹 Stellar Bow Shock, Boundary between stellar wind and ISM.png" width="150"></td></tr>
+  <tr><td>64</td><td>🕳️ Vuoto Cosmico</td><td>Vasto spazio contenente poche galassie</td><td><img src="readme_assets/galactic_objects/64🕳️Cosmic%20Void,%20Vast%20space%20containing%20few%20galaxies.png" width="150"></td></tr>
+  <tr><td>65</td><td>🧵 Filamento Cosmico</td><td>Grande struttura della tela cosmica</td><td><img src="readme_assets/galactic_objects/65🧵Cosmic%20Filament,%20Large%20structure%20of%20the%20cosmic%20web.png" width="150"></td></tr>
+  <tr><td>66</td><td>🌑 Orizzonte Eventi</td><td>Confine attorno a un buco nero</td><td><img src="readme_assets/galactic_objects/66🌑Event%20Horizon,%20Boundary%20around%20a%20black%20hole.png" width="150"></td></tr>
+  <tr><td>67</td><td>💥 Kilonova</td><td>Detonazione da fusione di oggetti compatti</td><td><img src="readme_assets/galactic_objects/67💥Kilonova,%20Detonation%20from%20merging%20compact%20objects.png" width="150"></td></tr>
+  <tr><td>68</td><td>🔍 Lente Gravitazionale</td><td>Distribuzione di materia che piega la luce</td><td><img src="readme_assets/galactic_objects/68🔍Gravitational%20Lens,%20Matter%20distribution%20bending%20light.png" width="150"></td></tr>
+  <tr><td>69</td><td>🔦 Gamma Ray Burst</td><td>Esplosione estremamente energetica</td><td><img src="readme_assets/galactic_objects/69🔦Gamma%20Ray%20Burst,%20Extremely%20energetic%20explosion.png" width="150"></td></tr>
+  <tr><td>70</td><td>🌊 Onda Gravitazionale</td><td>Increspatura nel tessuto dello spazio-tempo</td><td><img src="readme_assets/galactic_objects/70🌊Gravitational%20Wave,%20Ripple%20in%20the%20fabric%20of%20space-time.png" width="150"></td></tr>
+  <tr><td>71</td><td>🪐 Disco Protoplanet.</td><td>Disco rotante attorno a una stella giovane</td><td><img src="readme_assets/galactic_objects/71🪐Protoplanetary%20Disk,%20Rotating%20disk%20around%20a%20young%20star.png" width="150"></td></tr>
+  <tr><td>72</td><td>🪐 Disco di Detriti</td><td>Anello di detriti rocciosi e polverosi</td><td><img src="readme_assets/galactic_objects/72🪐Debris%20Disk,%20Ring%20of%20rocky%20and%20dusty%20debris.png" width="150"></td></tr>
+  <tr><td>73</td><td>🌑 Planetesimo</td><td>Oggetto solido in un disco planetario</td><td><img src="readme_assets/galactic_objects/73🌑Planetesimal,%20Solid%20object%20in%20a%20planetary%20disk.png" width="150"></td></tr>
+  <tr><td>74</td><td>🌑 Pianeta Errante</td><td>Oggetto di massa planetaria vagante</td><td><img src="readme_assets/galactic_objects/74🌑Rogue%20Planet,%20Planet-mass%20object%20orbiting%20the%20galaxy.png" width="150"></td></tr>
+  <tr><td>75</td><td>🌑 Nana Bruna</td><td>Corpo substellare tra pianeta e stella</td><td><img src="readme_assets/galactic_objects/75🌑Brown%20Dwarf,%20Substellar%20body%20between%20planet%20and%20star.png" width="150"></td></tr>
+  <tr><td>76</td><td>☄️ Oggetto Interstell.</td><td>Oggetto non legato ad alcuna stella</td><td><img src="readme_assets/galactic_objects/76☄️Interstellar%20Object,%20Object%20not%20bound%20to%20any%20star.png" width="150"></td></tr>
+  <tr><td>77</td><td>⚡ Riconnessione Mag.</td><td>Rilascio improvviso di energia magnetica</td><td><img src="readme_assets/galactic_objects/77⚡Magnetic%20Reconnection,%20Sudden%20release%20of%20magnetic%20energy.png" width="150"></td></tr>
+  <tr><td>78</td><td>📄 Current Sheet</td><td>Regione di alta densità di corrente elettrica</td><td><img src="readme_assets/galactic_objects/78📄Current%20Sheet,%20Region%20of%20high%20electric%20current%20density.png" width="150"></td></tr>
+  <tr><td>79</td><td>🛡️ Eliosfera</td><td>Bolla protettiva del sistema stellare</td><td><img src="readme_assets/galactic_objects/79🛡️Heliosphere,%20Solar%20system's%20protective%20bubble.png" width="150"></td></tr>
+  <tr><td>80</td><td>🌊 Shock Terminazione</td><td>Confine del rallentamento del vento solare</td><td><img src="readme_assets/galactic_objects/80🌊Termination%20Shock,%20Boundary%20of%20slowing%20solar%20wind.png" width="150"></td></tr>
+  <tr><td>81</td><td>🛡️ Magnetosfera</td><td>Regione dominata da campi magnetici</td><td><img src="readme_assets/galactic_objects/81🛡️Magnetosphere,%20Region%20dominated%20by%20magnetic%20fields.png" width="150"></td></tr>
+  <tr><td>82</td><td>🧵 Stringa Cosmica</td><td>Difetto topologico 1D nello spazio</td><td><img src="readme_assets/galactic_objects/82🧵Cosmic%20String,%201D%20topological%20defect%20in%20space.png" width="150"></td></tr>
+  <tr><td>83</td><td>🧱 Domain Wall</td><td>Difetto topologico 2D nello spazio</td><td><img src="readme_assets/galactic_objects/83🧱Domain%20Wall,%202D%20topological%20defect%20in%20space.png" width="150"></td></tr>
+  <tr><td>84</td><td>☁️ Alone Mat. Oscura</td><td>Componente galattica ipotetica</td><td><img src="readme_assets/galactic_objects/84☁️Dark%20Matter%20Halo,%20Hypothetical%20galactic%20component.png" width="150"></td></tr>
+  <tr><td>85</td><td>🌫️ Mezzo Intergalat.</td><td>Materia tra le galassie</td><td><img src="readme_assets/galactic_objects/85🌫️Intergalactic%20Medium,%20Matter%20between%20galaxies.png" width="150"></td></tr>
+  <tr><td>86</td><td>🌫️ Mezzo Circumgalattico</td><td>Gas che circonda una galassia</td><td><img src="readme_assets/galactic_objects/86🌫️Circumgalactic%20Medium,%20Gas%20surrounding%20a%20galaxy.png" width="150"></td></tr>
+  <tr><td>87</td><td>🌳 Foresta Lyman Alpha</td><td>Linee di assorbimento dall'idrogeno distante</td><td><img src="readme_assets/galactic_objects/87🌳Lyman%20Alpha%20Forest,%20Absorption%20lines%20from%20distant%20hydrogen.png" width="150"></td></tr>
+  <tr><td>88</td><td>📺 Fondo Cosmico Micro.</td><td>Radiazione residua dal Big Bang</td><td><img src="readme_assets/galactic_objects/88📺Cosmic%20Microwave%20Background,%20Remnant%20radiation%20from%20the%20Big%20Bang.png" width="150"></td></tr>
 
 </table>
 
@@ -936,6 +944,16 @@ L'universo di Space GL è un ecosistema dinamico popolato da 17 classi di entit�
 *   **Pulsar**: Stelle di neutroni che emettono radiazioni letali. Navigare troppo vicino danneggia i sistemi e l'equipaggio.
 *   **Comete (Comets)**: Oggetti in movimento veloce con code volumetriche. Possono essere analizzate per raccogliere gas rari.
 *   **Faglie Spaziali (Spatial Rifts)**: Strappi nel tessuto spaziotemporale. Fungono da teletrasporti naturali che proiettano la nave in un punto casuale della galassia.
+*   **Quasar e Nuclei Attivi**: Nuclei galattici estremamente luminosi alimentati da buchi neri supermassicci.
+*   **Kilonovae e GRB**: Esplosioni energetiche colossali derivanti dalla collisione di stelle di neutroni, fonti di elementi pesanti rari.
+*   **Dischi Protoplanetari e di Detriti**: Anelli di polvere e gas attorno a stelle giovani o morenti, ricchi di risorse e vivai planetari.
+*   **Frammenti di Dyson**: Resti mastodontici di antica ingegneria stellare, capaci di induzione energetica wireless.
+*   **Nebulose Avanzate (Diffuse, Oscure, Planetarie)**: Nubi di gas multi-spettrali che offrono vari livelli di copertura tattica e disturbo sensori.
+*   **Resti di Supernova (SNR)**: Gusci radioattivi di gas e polvere derivanti da esplosioni stellari, ricchi di metalli pesanti.
+*   **Tela Cosmica (Vuoti e Filamenti)**: I componenti strutturali primari dell'universo che ancorano la distribuzione della materia.
+*   **Fondo Cosmico a Microonde (CMB)**: La radiazione fossile del Big Bang, percepita come un campo di fondo universale.
+*   **Fenomeni Magnetici (Magnetosfere, Eliosfere, Current Sheets)**: Strutture magnetiche complesse che proteggono pianeti e stelle, interagendo con i venti solari.
+*   **Visitatori Interstellari (ISO e Pianeti Erranti)**: Oggetti transienti e pianeti vagabondi che viaggiano tra i sistemi stellari.
 
 ### 🚩 Fazioni e Potenze Galattiche
 
@@ -1262,6 +1280,44 @@ Per interagire con gli oggetti galattici usando i comandi `lock`, `scan`, `pha`,
 | **Anomalie Temporali**| 42.000 - 42.999 | `lock 42000` | Ricerca distorsioni temporali |
 | **Cristalli del Vuoto**| 43.000 - 43.999 | `lock 43000` | Fonte energia ad alta densità |
 | **Anomalie Subspazio**| 44.000 - 44.999 | `lock 44000` | Studio instabilità subspazio |
+| **Nebulose Diffuse**  | 45.000 - 45.999 | `lock 45000` | Rilevamento scientifico nubi di gas |
+| **Nebulose Oscure**   | 46.000 - 46.999 | `lock 46000` | Manovre tattiche furtive |
+| **Nebulose Planetarie**| 47.000 - 47.999 | `lock 47000` | Raccolta materia esotica |
+| **SNR (Resti Supernova)**| 48.000 - 48.999 | `lock 48000` | Navigazione campi ad alta energia |
+| **GMC (Nubi Molecolari)**| 49.000 - 49.999 | `lock 49000` | Ricerca massiva di risorse |
+| **Filamenti Interstellari**| 50.000 - 50.999 | `lock 50000` | Analisi strutturale spazio profondo |
+| **Bolle Interstellari**| 51.000 - 51.999 | `lock 51000` | Raccolta particelle rare |
+| **Globuli di Bok**    | 52.000 - 52.999 | `lock 52000` | Ricerca vivai protostellari |
+| **Core di Ammassi**   | 53.000 - 53.999 | `lock 53000` | Estrazione in core ad alta densità |
+| **Dischi Accrescimento**| 54.000 - 54.999 | `lock 54000` | Raccolta energia gravitazionale |
+| **Jet Relativistici** | 55.000 - 55.999 | `lock 55000` | Navigazione a velocità estreme |
+| **Onde d'Urto**       | 56.000 - 56.999 | `lock 56000` | Misurazione forze d'impatto |
+| **Bow Shocks Stellari**| 57.000 - 57.999 | `lock 57000` | Monitoraggio venti stellari |
+| **Vuoti Cosmici**     | 58.000 - 58.999 | `lock 58000` | Studio materia a densità zero |
+| **Filamenti Cosmici** | 59.000 - 59.999 | `lock 59000` | Mappatura strutture a grande scala |
+| **Orizzonti Eventi**  | 60.000 - 60.999 | `lock 60000` | Analisi relativistica estrema |
+| **Kilonovae**         | 61.000 - 61.999 | `lock 61000` | Acquisizione elementi pesanti |
+| **Lenti Gravitazionali**| 62.000 - 62.999 | `lock 62000` | Rilevamento lensing profondo |
+| **GRB (Gamma-Ray Burst)**| 63.000 - 63.999 | `lock 63000` | Ricerca burst ad alta energia |
+| **Onde Gravitazionali**| 64.000 - 64.999 | `lock 64000` | Rilevamento increspature spazio-tempo|
+| **Dischi Protoplanetari**| 65.000 - 65.999 | `lock 65000` | Osservazione nascita pianeti |
+| **Dischi di Detriti** | 66.000 - 66.999 | `lock 66000` | Recupero e raccolta polveri |
+| **Planetesimi**       | 67.000 - 67.999 | `lock 67000` | Studio formazione planetaria |
+| **Pianeti Erranti**   | 68.000 - 68.999 | `lock 68000` | Rilevamento pianeti interstellari |
+| **Nane Brune**        | 69.000 - 69.999 | `lock 69000` | Ricerca masse sub-stellari |
+| **ISO (Oggetti Interst.)**| 70.000 - 70.999 | `lock 70000` | Analisi visitatori transienti |
+| **Riconnessione Mag.**| 71.000 - 71.999 | `lock 71000` | Studio fisica del plasma |
+| **Current Sheets**    | 72.000 - 72.999 | `lock 72000` | Monitoraggio campi magnetici |
+| **Eliosfere**         | 73.000 - 73.999 | `lock 73000` | Analisi bolle stellari |
+| **Shock di Terminaz.**| 74.000 - 74.999 | `lock 74000` | Studio confini vento solare |
+| **Magnetosfere**      | 75.000 - 75.999 | `lock 75000` | Difesa magnetica planetaria |
+| **Stringhe Cosmiche** | 76.000 - 76.999 | `lock 76000` | Ricerca difetti topologici |
+| **Domain Walls**      | 77.000 - 77.999 | `lock 77000` | Studio confini spazio-tempo |
+| **Aloni Materia Oscura**| 78.000 - 78.999 | `lock 78000` | Mappatura massa non barionica |
+| **IGM (Mezzo Intergal.)**| 79.000 - 79.999 | `lock 79000` | Rilevamento gas spazio profondo |
+| **CGM (Mezzo Circungal.)**| 80.000 - 80.999 | `lock 80000` | Studio gas aloni galattici |
+| **Lyman-Alpha Blobs** | 81.000 - 81.999 | `lock 81000` | Ricerca gas primordiale |
+| **CMB (Fondo Microonde)**| 82.000 - 82.999 | `lock 82000` | Monitoraggio radiazione fossile |
 
 **Nota**: L'aggancio e l'autopilota (`apr`) funzionano **esclusivamente** se l'oggetto è nel tuo quadrante attuale. Se l'ID esiste ma è lontano, il computer indicherà le coordinate `Q[x,y,z]` del bersaglio. Questo vincolo garantisce che l'autopilota operi solo su bersagli effettivamente rilevabili dai sensori a corto raggio.
 
@@ -1322,20 +1378,6 @@ Il comando `apr <ID> <DIST>` ti permette di avvicinarti automaticamente a qualsi
 | **Stelle** | 7000 - 10999 | `sco`, `scan` | **< 3.1** | Solo quadrante attuale |
 | **Buchi Neri** | 11000 - 11999 | `har`, `scan` | **< 3.1** | Solo quadrante attuale |
 | **Nebulose** | 12000 - 12999 | `scan` | - | Solo quadrante attuale |
-| **Pulsar** | 13000 - 13999 | `scan` | - | Solo quadrante attuale |
-| **Comete** | 14000 - 14999 | `cha`, `scan` | **< 0.6** (Gas) | Solo quadrante attuale |
-| **Relitti** | 15000 - 17999 | `bor`, `dis`, `scan` | **< 1.5** | Solo quadrante attuale |
-| **Asteroidi** | 18000 - 20499 | `min`, `scan` | **< 3.1** | Solo quadrante attuale |
-| **Mine** | 20500 - 21999 | `scan` | - | Solo quadrante attuale |
-| **Boe Comm.** | 22000 - 22999 | `scan` | **< 1.2** | Solo quadrante attuale |
-| **Piattaforme Difesa** | 23000 - 23999 | `pha`, `tor`, `scan` | - | Solo quadrante attuale |
-| **Rift Spaziali** | 24000 - 24999 | `scan` | - | Solo quadrante attuale |
-| **Mostri Spaziali** | 25000 - 25999 | `pha`, `tor`, `scan` | **< 1.5** | Solo quadrante attuale |
-| **Sonde** | 26000 - 26999 | `scan` | - | Solo quadrante attuale |
-| **Quasar** | 27000 - 27999 | `orb`, `scan` | **< 1.0** | Solo quadrante attuale |
-| **Frammenti Dyson** | 28000 - 28999 | `har`, `scan` | **< 3.1** | Induzione energetica |
-| **Hub Commerciali** | 29000 - 29999 | `doc`, `scan` | **< 3.1** | Commercio e rifornimento |
-| **Antichi Reliquari** | 30000 - 30999 | `bor`, `scan` | **< 1.0** | Riparazione hardware |
 | **Warp Gates** | 35000 - 35999 | `doc`, `scan` | **< 3.1** | Transito gateway FTL |
 | **Stelle Neutroni** | 36000 - 36999 | `sco`, `scan` | **< 3.1** | Monitoraggio gravità |
 | **Mega Strutture** | 37000 - 37999 | `doc`, `scan` | **< 3.1** | Struttura orbitale |
@@ -1344,6 +1386,44 @@ Il comando `apr <ID> <DIST>` ti permette di avvicinarti automaticamente a qualsi
 | **Anomalie Temporali**| 42000 - 42999 | `scan` | - | Ricerca temporale |
 | **Cristalli Vuoto** | 43000 - 43999 | `min`, `scan` | **< 3.1** | Raccolta energetica |
 | **Anomalie Subspazio**| 44000 - 44999 | `scan` | - | Instabilità subspazio |
+| **Nebulose Diffuse**  | 45000 - 45999 | `scan` | - | Analisi gas |
+| **Nebulose Oscure**   | 46000 - 46999 | `scan` | - | Copertura tattica |
+| **Nebulose Planet.**  | 47000 - 47999 | `scan` | - | Raccolta materia |
+| **SNR (Resti SN)**    | 48000 - 48999 | `scan` | - | Navigazione energetica |
+| **GMC (Nubi Molec.)**  | 49000 - 49999 | `scan`, `min` | **< 3.1** | Ricerca risorse |
+| **Filamenti Interst.** | 50000 - 50999 | `scan` | - | Struttura spazio |
+| **Bolle Interstell.** | 51000 - 51999 | `scan` | - | Raccolta particelle |
+| **Globuli di Bok**    | 52000 - 52999 | `scan` | - | Vivai stellari |
+| **Core di Ammassi**   | 53000 - 53999 | `min`, `scan` | **< 3.1** | Estrazione densa |
+| **Dischi Accresc.**   | 54000 - 54999 | `har`, `scan` | **< 3.1** | Energia gravità |
+| **Jet Relativist.**   | 55000 - 55999 | `scan` | - | Navigazione estrema |
+| **Onde d'Urto**       | 56000 - 56999 | `scan` | - | Forze d'impatto |
+| **Bow Shocks Stell.** | 57000 - 57999 | `scan` | - | Venti stellari |
+| **Vuoti Cosmici**     | 58000 - 58999 | `scan` | - | Densità zero |
+| **Filamenti Cosmici** | 59000 - 59999 | `scan` | - | Mappatura scala |
+| **Orizzonti Eventi**  | 60000 - 60999 | `scan` | - | Analisi relativistica |
+| **Kilonovae**         | 61000 - 61999 | `scan` | - | Elementi pesanti |
+| **Lenti Gravitaz.**   | 62000 - 62999 | `scan` | - | Lensing profondo |
+| **GRB (Gamma Burst)** | 63000 - 63999 | `scan` | - | Burst alta energia |
+| **Onde Gravitaz.**    | 64000 - 64999 | `scan` | - | Increspature S-T |
+| **Dischi Protoplan.** | 65000 - 65999 | `scan` | - | Nascita pianeti |
+| **Dischi di Detriti** | 66000 - 66999 | `scan` | - | Raccolta polveri |
+| **Planetesimi**       | 67000 - 67999 | `scan` | - | Formazione planetaria |
+| **Pianeti Erranti**   | 68000 - 68999 | `scan` | - | Pianeti interstellari |
+| **Nane Brune**        | 69000 - 69999 | `scan` | - | Masse sub-stellari |
+| **ISO (Oggetti Int.)**| 70000 - 70999 | `cha`, `scan` | **< 0.6** | Visitatori transienti |
+| **Riconnessione Mag.**| 71000 - 71999 | `scan` | - | Fisica del plasma |
+| **Current Sheets**    | 72000 - 72999 | `scan` | - | Campi magnetici |
+| **Eliosfere**         | 73000 - 73999 | `scan` | - | Bolle stellari |
+| **Shock Terminaz.**   | 74000 - 74999 | `scan` | - | Vento solare |
+| **Magnetosfere**      | 75000 - 75999 | `scan` | - | Difesa magnetica |
+| **Stringhe Cosmiche** | 76000 - 76999 | `scan` | - | Difetti topologici |
+| **Domain Walls**      | 77000 - 77999 | `scan` | - | Confini S-T |
+| **Aloni Mat. Oscura** | 78000 - 78999 | `scan` | - | Massa non barionica |
+| **IGM (Mezzo Interg.)**| 79000 - 79999 | `scan` | - | Gas spazio profondo |
+| **CGM (Mezzo Circg.)**| 80000 - 80999 | `scan` | - | Gas aloni galattici |
+| **Lyman-Alpha Blobs** | 81000 - 81999 | `scan` | - | Gas primordiale |
+| **CMB (Fondo Micro.)**| 82000 - 82999 | `scan` | - | Radiazione fossile |
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Configurazione Scudi**. Distribuisce l'energia ai 6 scudi.
     *   **Requisiti**: Minimo 10% di integrità del sistema Scudi (ID 8).
@@ -1778,6 +1858,15 @@ Il quadrante è disseminato di fenomeni naturali rilevabili sia dai sensori che 
 *   **Singolarità / Buchi Neri (ID 11xxx)**:
     *   **Slingshot Stress**: Durante una manovra di fionda gravitazionale (`NAV_STATE_SLINGSHOT`), velocità superiori a **1.5** causano stress strutturale con danni periodici allo scafo.
     *   **Raccolta Pericolosa**: L'estrazione di antimateria (`har`) senza protezione degli scudi danneggia direttamente lo scafo a causa delle forze di marea.
+*   **Mega Strutture (ID 37xxx)**: Massicce strutture orbitali come Frammenti di Dyson o Hub Commerciali. È possibile interagire tramite `doc` o `har` a seconda della tipologia.
+*   **Anomalie Temporali (ID 42xxx)**: Distorsioni temporali localizzate. Avvicinarsi può causare spostamenti imprevedibili nel tempo galattico locale (variazione dei tick).
+*   **Quasar (ID 27xxx)**: Nuclei galattici luminosi alimentati da buchi neri supermassicci. Emissione energetica estremamente elevata, pericolosa per sensori e scudi a corto raggio.
+*   **Kilonovae e GRB (ID 61xxx, 63xxx)**: Esplosioni di energia cataclismatiche e di breve durata. L'approccio a questi siti fornisce accesso a rari elementi pesanti ma richiede la massima integrità degli scudi.
+*   **Dischi Protoplanetari e di Detriti (ID 65xxx, 66xxx)**: Regioni dense di gas e polvere. Offrono un'eccellente copertura per i sensori, ma la navigazione a velocità d'impulso elevate causa continui danni abrasivi.
+*   **Tela Cosmica (Vuoti e Filamenti) (ID 58xxx, 59xxx)**: Le più grandi strutture dell'universo. Navigare attraverso i Filamenti offre campi di gas ad alta densità, mentre i Vuoti sono completamente deserti, ideali per il transito ad alta velocità.
+*   **Fenomeni Magnetici (ID 73xxx, 75xxx)**: Eliosfere e Magnetosfere creano bolle protettive attorno a stelle e pianeti, influenzando la guida dei siluri e la risoluzione dei sensori.
+*   **Singolarità e Orizzonti degli Eventi (ID 39xxx, 60xxx)**: Trappole gravitazionali estreme. Oltre l'orizzonte degli eventi, la fuga è impossibile senza un salto stabilizzato via wormhole (`jum`).
+*   **Oggetti Interstellari (ISO) (ID 70xxx)**: Corpi transienti come 'Oumuamua. Viaggiano a velocità relative estremamente elevate e richiedono manovre di precisione con `cha` per l'intercettazione.
 
 ### 🛠️ Manutenzione e Riparazioni
 **Nota Importante**: L'integrità dello scafo **non si rigenera mai autonomamente**. 

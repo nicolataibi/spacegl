@@ -235,7 +235,37 @@ void update_npc_ai(int n) {
         }
 
         if (npcs[n].fire_cooldown <= 0) {
-            if (npcs[n].beam_count < 4) {
+            /* Alliance ships fire real homing torpedoes instead of instant beams */
+            if (npcs[n].faction == FACTION_ALLIANCE) {
+                int t_idx = -1;
+                for (int i = 0; i < MAX_GLOBAL_TORPEDOES; i++) {
+                    if (!players_torpedoes[i].active) { t_idx = i; break; }
+                }
+                if (t_idx != -1) {
+                    PlayerTorpedo *pt = &players_torpedoes[t_idx];
+                    pt->id = t_idx + 30000;
+                    pt->owner_idx = n + GALAXY_OBJECT_MIN_NPC;
+                    pt->faction = FACTION_ALLIANCE;
+                    pt->active = true;
+                    pt->timeout = TIMER_TORP_TIMEOUT;
+                    pt->target_id = closest_p + 1;
+                    pt->gx = npcs[n].gx; pt->gy = npcs[n].gy; pt->gz = npcs[n].gz;
+                    
+                    double tdx = target->gx - npcs[n].gx;
+                    double tdy = target->gy - npcs[n].gy;
+                    double tdz = target->gz - npcs[n].gz;
+                    double tdist = sqrt(tdx*tdx + tdy*tdy + tdz*tdz);
+                    if (tdist > 0.01) {
+                        pt->dx = tdx / tdist; pt->dy = tdy / tdist; pt->dz = tdz / tdist;
+                    } else {
+                        pt->dx = 0; pt->dy = -1; pt->dz = 0;
+                    }
+                    pt->q1 = npcs[n].q1; pt->q2 = npcs[n].q2; pt->q3 = npcs[n].q3;
+                    pt->x = npcs[n].x; pt->y = npcs[n].y; pt->z = npcs[n].z;
+                    
+                    broadcast_server_event(pt->q1, pt->q2, pt->q3, IPC_EV_TORPEDO, pt->x, pt->y, pt->z, pt->dx * SPEED_TORPEDO, pt->dy * SPEED_TORPEDO, pt->dz * SPEED_TORPEDO, IPC_TORPEDO_ID_OFFSET + t_idx);
+                }
+            } else if (npcs[n].beam_count < 4) {
                 npcs[n].beams[npcs[n].beam_count++] = (NetBeam){
                     npcs[n].x, npcs[n].y, npcs[n].z, 
                     target->state.s1, target->state.s2, target->state.s3, 
@@ -450,7 +480,7 @@ void update_game_logic() {
                     players[i].torp_active = false;
                     for(int s=0; s<4; s++) {
                         players[i].torp_slots[s].active = false;
-                        players[i].state.torps[s].active = 0;
+/* Removed obsolete torpedo state reset */
                     }
                     
                     send_server_msg(i, "COMMAND", "EMERGENCY REENTRY: Your hull was critical. Transferred to escape vessel and relocated to safe sector.");
@@ -553,7 +583,6 @@ void update_game_logic() {
                 players[i].torp_active = false;
                 for(int s=0; s<4; s++) {
                     players[i].torp_slots[s].active = false;
-                    players[i].state.torps[s].active = 0;
                 }
 
                 send_server_msg(i, "COMMAND", "EMERGENCY REENTRY: Crew casualties critical. Escape vessel engaged and relocated to safe sector.");
@@ -639,7 +668,11 @@ void update_game_logic() {
                     if (players[i].state.shields[s] < SHIELD_MAX_STRENGTH) {
                         // Apply regeneration only if below max strength and not actively changing
                         if (players[i].state.shields[s] < players[i].state.target_shields[s] || players[i].state.target_shields[s] == 0) {
-                             players[i].state.shields[s] += (int)regen_rate;
+                             /* Fix: Ensure at least 1 unit recharges if regen_rate > 0 to avoid int truncation stalling */
+                             int actual_regen = (int)regen_rate;
+                             if (actual_regen == 0 && regen_rate > 0.001) actual_regen = 1;
+                             
+                             players[i].state.shields[s] += actual_regen;
                              if (players[i].state.shields[s] > SHIELD_MAX_STRENGTH) {
                                  players[i].state.shields[s] = SHIELD_MAX_STRENGTH;
                              }
@@ -675,15 +708,7 @@ void update_game_logic() {
             players[i].torp_load_timer--;
         }
 
-        if (players[i].state.system_health[5] <= THRESHOLD_SYS_DEGRADED) {
-            players[i].state.tube_state = 3;
-        } else if (players[i].torp_active) {
-            players[i].state.tube_state = 1;
-        } else if (players[i].tube_load_timers[players[i].current_tube] > 0) {
-            players[i].state.tube_state = 2;
-        } else {
-            players[i].state.tube_state = 0;
-        }
+        /* tube_state will be updated in the Late Sync loop below for perfect accuracy */
 
         if (players[i].state.lock_target > 0) {
             int tid = players[i].state.lock_target;
@@ -1701,7 +1726,8 @@ void update_game_logic() {
                 players[i].state.s1 = (players[i].gx - (players[i].state.q1 - 1) * QUADRANT_SIZE);
                 players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * QUADRANT_SIZE);
                 players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * QUADRANT_SIZE);
-            } else {
+            } else if (players[i].nav_timer < (TIMER_WORMHOLE_SEQ / 2) - 10) {
+                /* Keep active for ~10 ticks after jump to avoid race with IPC_EV_JUMP delivery */
                 players[i].state.wormhole.active = 0;
             }
 
@@ -1907,10 +1933,7 @@ void update_game_logic() {
             players[i].gz = (players[i].state.q3 - 1) * QUADRANT_SIZE + players[i].state.s3;
         }
 
-        /* Set torp_active based on global torpedo check for this player */
-        bool has_active_torp = false;
-        for(int t=0; t<MAX_GLOBAL_TORPEDOES; t++) if(players_torpedoes[t].active && players_torpedoes[t].owner_idx == i) { has_active_torp = true; break; }
-        players[i].torp_active = has_active_torp;
+        /* torp_active will be updated in the Late Sync loop below for better accuracy */
 
         players[i].vx = players[i].gx - old_gx;
         players[i].vy = players[i].gy - old_gy;
@@ -1933,6 +1956,18 @@ void update_game_logic() {
                 target_gx = players[tid-1].gx; target_gy = players[tid-1].gy; target_gz = players[tid-1].gz; 
             } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC && npcs[tid-GALAXY_OBJECT_MIN_NPC].active) { 
                 target_gx = npcs[tid-GALAXY_OBJECT_MIN_NPC].gx; target_gy = npcs[tid-GALAXY_OBJECT_MIN_NPC].gy; target_gz = npcs[tid-GALAXY_OBJECT_MIN_NPC].gz; 
+            } else if (tid >= GALAXY_OBJECT_MIN_STARBASE && tid <= GALAXY_OBJECT_MAX_STARBASE && bases[tid-GALAXY_OBJECT_MIN_STARBASE].active) { 
+                target_gx = (bases[tid-GALAXY_OBJECT_MIN_STARBASE].q1-1)*QUADRANT_SIZE + bases[tid-GALAXY_OBJECT_MIN_STARBASE].x; 
+                target_gy = (bases[tid-GALAXY_OBJECT_MIN_STARBASE].q2-1)*QUADRANT_SIZE + bases[tid-GALAXY_OBJECT_MIN_STARBASE].y; 
+                target_gz = (bases[tid-GALAXY_OBJECT_MIN_STARBASE].q3-1)*QUADRANT_SIZE + bases[tid-GALAXY_OBJECT_MIN_STARBASE].z; 
+            } else if (tid >= GALAXY_OBJECT_MIN_PLANET && tid <= GALAXY_OBJECT_MAX_PLANET && planets[tid-GALAXY_OBJECT_MIN_PLANET].active) { 
+                target_gx = (planets[tid-GALAXY_OBJECT_MIN_PLANET].q1-1)*QUADRANT_SIZE + planets[tid-GALAXY_OBJECT_MIN_PLANET].x; 
+                target_gy = (planets[tid-GALAXY_OBJECT_MIN_PLANET].q2-1)*QUADRANT_SIZE + planets[tid-GALAXY_OBJECT_MIN_PLANET].y; 
+                target_gz = (planets[tid-GALAXY_OBJECT_MIN_PLANET].q3-1)*QUADRANT_SIZE + planets[tid-GALAXY_OBJECT_MIN_PLANET].z; 
+            } else if (tid >= GALAXY_OBJECT_MIN_STAR && tid <= GALAXY_OBJECT_MAX_STAR && stars_data[tid-GALAXY_OBJECT_MIN_STAR].active) { 
+                target_gx = (stars_data[tid-GALAXY_OBJECT_MIN_STAR].q1-1)*QUADRANT_SIZE + stars_data[tid-GALAXY_OBJECT_MIN_STAR].x; 
+                target_gy = (stars_data[tid-GALAXY_OBJECT_MIN_STAR].q2-1)*QUADRANT_SIZE + stars_data[tid-GALAXY_OBJECT_MIN_STAR].y; 
+                target_gz = (stars_data[tid-GALAXY_OBJECT_MIN_STAR].q3-1)*QUADRANT_SIZE + stars_data[tid-GALAXY_OBJECT_MIN_STAR].z; 
             } else if (tid >= GALAXY_OBJECT_MIN_COMET && tid <= GALAXY_OBJECT_MAX_COMET && comets[tid-GALAXY_OBJECT_MIN_COMET].active) { 
                 target_gx = (comets[tid-GALAXY_OBJECT_MIN_COMET].q1-1)*QUADRANT_SIZE + comets[tid-GALAXY_OBJECT_MIN_COMET].x; 
                 target_gy = (comets[tid-GALAXY_OBJECT_MIN_COMET].q2-1)*QUADRANT_SIZE + comets[tid-GALAXY_OBJECT_MIN_COMET].y; 
@@ -1984,7 +2019,7 @@ void update_game_logic() {
                 double bx = lx; if(bx<0) bx=0; if(bx>QUADRANT_SIZE) bx=QUADRANT_SIZE;
                 double by = ly; if(by<0) by=0; if(by>QUADRANT_SIZE) by=QUADRANT_SIZE;
                 double bz = lz; if(bz<0) bz=0; if(bz>QUADRANT_SIZE) bz=QUADRANT_SIZE;
-                broadcast_server_event(pt->q1, pt->q2, pt->q3, IPC_EV_BOOM, bx, by, bz, 0, 0, 0, 1);
+                broadcast_server_event(pt->q1, pt->q2, pt->q3, IPC_EV_BOOM, bx, by, bz, 0, 0, 0, IPC_TORPEDO_ID_OFFSET + t);
             }
             pt->active = false;
             continue;
@@ -2057,7 +2092,7 @@ void update_game_logic() {
                     npcs[hit_target - GALAXY_OBJECT_MIN_NPC].health -= (DMG_TORPEDO / YIELD_HARVEST_MAX);
                     if (npcs[hit_target - GALAXY_OBJECT_MIN_NPC].health <= 0) npcs[hit_target - GALAXY_OBJECT_MIN_NPC].death_timer = GAME_TICK_RATE;
                 }
-                broadcast_server_event(pt->q1, pt->q2, pt->q3, IPC_EV_BOOM, pt->x, pt->y, pt->z, 0, 0, 0, 1); 
+                broadcast_server_event(pt->q1, pt->q2, pt->q3, IPC_EV_BOOM, pt->x, pt->y, pt->z, 0, 0, 0, IPC_TORPEDO_ID_OFFSET + t); 
             }
             pt->active = false;
         }
@@ -2065,22 +2100,27 @@ void update_game_logic() {
         if (pt->gx < 0 || pt->gx > GALAXY_SIZE*QUADRANT_SIZE || pt->gy < 0 || pt->gy > GALAXY_SIZE*QUADRANT_SIZE || pt->gz < 0 || pt->gz > GALAXY_SIZE*QUADRANT_SIZE) pt->active = false;
     }
 
-    /* Prepare Global Visible Torpedoes for Networking */
-    NetVisibleTorpedo global_vt_list[MAX_GLOBAL_TORPEDOES];
-    int global_vt_count = 0;
-    for(int t=0; t<MAX_GLOBAL_TORPEDOES; t++) {
-        if (players_torpedoes[t].active) {
-            global_vt_list[global_vt_count++] = (NetVisibleTorpedo){players_torpedoes[t].gx, players_torpedoes[t].gy, players_torpedoes[t].gz, (float)players_torpedoes[t].faction, (uint32_t)players_torpedoes[t].id, players_torpedoes[t].dx * SPEED_TORPEDO, players_torpedoes[t].dy * SPEED_TORPEDO, players_torpedoes[t].dz * SPEED_TORPEDO};
+    /* 4. Homing Torpedo Trajectory Sync: Continuous broadcast for active homing projectiles */
+    for (int t = 0; t < MAX_GLOBAL_TORPEDOES; t++) {
+        if (players_torpedoes[t].active && players_torpedoes[t].target_id > 0) {
+            broadcast_server_event(players_torpedoes[t].q1, players_torpedoes[t].q2, players_torpedoes[t].q3, 
+                                   IPC_EV_TORPEDO, players_torpedoes[t].x, players_torpedoes[t].y, players_torpedoes[t].z, 
+                                   players_torpedoes[t].dx * SPEED_TORPEDO, players_torpedoes[t].dy * SPEED_TORPEDO, players_torpedoes[t].dz * SPEED_TORPEDO, IPC_TORPEDO_ID_OFFSET + t);
         }
     }
 
+    /* NetVisibleTorpedo list generation removed as IPC_EV_TORPEDO handles client sync */
     /* Late Sync: Torpedo ETA calculation AFTER physical updates */
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (!players[i].active) continue;
+        bool has_active_torp = false;
         for (int t = 0; t < 4; t++) {
             int found_eta = 0;
+            players[i].torp_slots[t].active = false;
             for (int gt = 0; gt < MAX_GLOBAL_TORPEDOES; gt++) {
                 if (players_torpedoes[gt].active && players_torpedoes[gt].owner_idx == i && players_torpedoes[gt].origin_tube == t) {
+                    players[i].torp_slots[t].active = true;
+                    has_active_torp = true;
                     found_eta = players_torpedoes[gt].timeout;
                     int tid = players_torpedoes[gt].target_id;
                     if (tid > 0) {
@@ -2119,6 +2159,21 @@ void update_game_logic() {
                 }
             }
             players[i].tube_torpedo_etas[t] = found_eta;
+        }
+        players[i].torp_active = has_active_torp;
+
+        /* Perfect HUD Sync: Update tube_state using the verified slot status */
+        int ct = players[i].current_tube;
+        if (players[i].state.system_health[5] <= THRESHOLD_SYS_DEGRADED) {
+            players[i].state.tube_state = 3; /* OFFLINE */
+        } else if (players[i].tube_load_timers[ct] > 180) {
+            players[i].state.tube_state = 1; /* FIRING (Initial 0.5s) */
+        } else if (players[i].tube_load_timers[ct] > 0) {
+            players[i].state.tube_state = 2; /* LOADING (Next 3.0s) */
+        } else if (players[i].torp_slots[ct].active) {
+            players[i].state.tube_state = 1; /* BUSY (In Flight) */
+        } else {
+            players[i].state.tube_state = 0; /* READY */
         }
     }
 
@@ -2430,7 +2485,12 @@ void update_game_logic() {
         upd->torpedoes = players[i].state.torpedoes; upd->cargo_energy = players[i].state.cargo_energy;
         upd->cargo_torpedoes = players[i].state.cargo_torpedoes; upd->crew_count = players[i].state.crew_count;
         upd->prison_unit = players[i].state.prison_unit; upd->composite_plating = players[i].state.composite_plating;
-        for(int s=0; s<6; s++) upd->shields[s] = players[i].state.shields[s];
+        for(int s=0; s<6; s++) {
+            upd->shields[s] = players[i].state.shields[s];
+            upd->target_shields[s] = players[i].state.target_shields[s];
+        }
+        strncpy(upd->captain_name, players[i].state.captain_name, 63);
+        upd->captain_name[63] = '\0';
         for(int inv=0; inv<10; inv++) upd->inventory[inv] = players[i].state.inventory[inv];
         for(int sys=0; sys < MAX_SYSTEMS; sys++) upd->system_health[sys] = players[i].state.system_health[sys];
         for(int p=0; p<3; p++) upd->power_dist[p] = players[i].state.power_dist[p];
@@ -2504,24 +2564,50 @@ void update_game_logic() {
         for(int p=0; p<lq->platform_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlatform *pl = lq->platforms[p]; if(!pl->active) continue; upd->objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, 25, 0, 1, (int)(pl->health/(COST_ACTION_MED * 2)), 0, 0, (int)(pl->health/(COST_ACTION_MED * 2)), pl->faction, pl->id + GALAXY_OBJECT_MIN_PLATFORM, 0, "Defense Platform", 0,0,0}; }
         for(int r=0; r<lq->rift_count && o_idx < MAX_NET_OBJECTS; r++) { NPCRift *ri = lq->rifts[r]; if(!ri->active) continue; upd->objects[o_idx++] = (NetObject){ri->x, ri->y, ri->z, 0, 0, 0, 26, 0, 1, 100, 0, 0, 100, 26, ri->id + GALAXY_OBJECT_MIN_RIFT, 0, "Spatial Rift", 0,0,0}; }
         for(int m=0; m<lq->monster_count && o_idx < MAX_NET_OBJECTS; m++) { NPCMonster *mo = lq->monsters[m]; if(!mo->active) continue; upd->objects[o_idx] = (NetObject){mo->x, mo->y, mo->z, 0, 0, 0, mo->type, 0, 1, (int)(mo->health/MAX_TORPEDO_CAPACITY), 0, 0, (int)(mo->health/MAX_TORPEDO_CAPACITY), 30, mo->id + GALAXY_OBJECT_MIN_MONSTER, 0, "", 0,0,0}; snprintf(upd->objects[o_idx].name, 64, "%s", (mo->type==30)?"Crystalline Entity":"Space Amoeba"); o_idx++; }
+        for(int i_n = 0; i_n < lq->diffuse_nebula_count && o_idx < MAX_NET_OBJECTS; i_n++) if (lq->diffuse_nebulae[i_n]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->diffuse_nebulae[i_n]->x, .net_y = lq->diffuse_nebulae[i_n]->y, .net_z = lq->diffuse_nebulae[i_n]->z, .type = 51, .id = lq->diffuse_nebulae[i_n]->id + GALAXY_OBJECT_MIN_DIFFUSE_NEBULA, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Diffuse Neb"); o_idx++; }
+        for(int i_n = 0; i_n < lq->dark_nebula_count && o_idx < MAX_NET_OBJECTS; i_n++) if (lq->dark_nebulae[i_n]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->dark_nebulae[i_n]->x, .net_y = lq->dark_nebulae[i_n]->y, .net_z = lq->dark_nebulae[i_n]->z, .type = 52, .id = lq->dark_nebulae[i_n]->id + GALAXY_OBJECT_MIN_DARK_NEBULA, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Dark Nebula"); o_idx++; }
+        for(int i_n = 0; i_n < lq->planetary_nebula_count && o_idx < MAX_NET_OBJECTS; i_n++) if (lq->planetary_nebulae[i_n]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->planetary_nebulae[i_n]->x, .net_y = lq->planetary_nebulae[i_n]->y, .net_z = lq->planetary_nebulae[i_n]->z, .type = 53, .id = lq->planetary_nebulae[i_n]->id + GALAXY_OBJECT_MIN_PLANETARY_NEBULA, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Planetary Neb"); o_idx++; }
+        for(int i_n = 0; i_n < lq->snr_count && o_idx < MAX_NET_OBJECTS; i_n++) if (lq->snrs[i_n]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->snrs[i_n]->x, .net_y = lq->snrs[i_n]->y, .net_z = lq->snrs[i_n]->z, .type = 54, .id = lq->snrs[i_n]->id + GALAXY_OBJECT_MIN_SNR, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "SNR"); o_idx++; }
+        for(int i_n = 0; i_n < lq->gmc_count && o_idx < MAX_NET_OBJECTS; i_n++) if (lq->gmcs[i_n]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->gmcs[i_n]->x, .net_y = lq->gmcs[i_n]->y, .net_z = lq->gmcs[i_n]->z, .type = 55, .id = lq->gmcs[i_n]->id + GALAXY_OBJECT_MIN_GMC, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Giant Cloud"); o_idx++; }
+        /* Adding remaining cosmic environments */
+        for(int i_n = 0; i_n < lq->interstellar_filament_count && o_idx < MAX_NET_OBJECTS; i_n++) if (lq->interstellar_filaments[i_n]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->interstellar_filaments[i_n]->x, .net_y = lq->interstellar_filaments[i_n]->y, .net_z = lq->interstellar_filaments[i_n]->z, .type = 56, .id = lq->interstellar_filaments[i_n]->id + GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Int. Filament"); o_idx++; }
+        for(int i_n = 0; i_n < lq->interstellar_bubble_count && o_idx < MAX_NET_OBJECTS; i_n++) if (lq->interstellar_bubbles[i_n]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->interstellar_bubbles[i_n]->x, .net_y = lq->interstellar_bubbles[i_n]->y, .net_z = lq->interstellar_bubbles[i_n]->z, .type = 57, .id = lq->interstellar_bubbles[i_n]->id + GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Int. Bubble"); o_idx++; }
+        for(int i_n = 0; i_n < lq->bok_globule_count && o_idx < MAX_NET_OBJECTS; i_n++) if (lq->bok_globules[i_n]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->bok_globules[i_n]->x, .net_y = lq->bok_globules[i_n]->y, .net_z = lq->bok_globules[i_n]->z, .type = 58, .id = lq->bok_globules[i_n]->id + GALAXY_OBJECT_MIN_BOK_GLOBULE, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Bok Globule"); o_idx++; }
+        for(int i_n = 0; i_n < lq->clump_core_count && o_idx < MAX_NET_OBJECTS; i_n++) if (lq->clump_cores[i_n]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->clump_cores[i_n]->x, .net_y = lq->clump_cores[i_n]->y, .net_z = lq->clump_cores[i_n]->z, .type = 59, .id = lq->clump_cores[i_n]->id + GALAXY_OBJECT_MIN_CLUMP_CORE, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Clump Core"); o_idx++; }
+        for(int i = 0; i < lq->accretion_disk_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->accretion_disks[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->accretion_disks[i]->x, .net_y = lq->accretion_disks[i]->y, .net_z = lq->accretion_disks[i]->z, .type = 60, .id = lq->accretion_disks[i]->id + GALAXY_OBJECT_MIN_ACCRETION_DISK, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Accretion Disk"); o_idx++; }
+        for(int i = 0; i < lq->relativistic_jet_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->relativistic_jets[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->relativistic_jets[i]->x, .net_y = lq->relativistic_jets[i]->y, .net_z = lq->relativistic_jets[i]->z, .type = 61, .id = lq->relativistic_jets[i]->id + GALAXY_OBJECT_MIN_RELATIVISTIC_JET, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Relativist Jet"); o_idx++; }
+        for(int i = 0; i < lq->shock_wave_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->shock_waves[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->shock_waves[i]->x, .net_y = lq->shock_waves[i]->y, .net_z = lq->shock_waves[i]->z, .type = 62, .id = lq->shock_waves[i]->id + GALAXY_OBJECT_MIN_SHOCK_WAVE, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Shock Wave"); o_idx++; }
+        for(int i = 0; i < lq->stellar_bow_shock_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->stellar_bow_shocks[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->stellar_bow_shocks[i]->x, .net_y = lq->stellar_bow_shocks[i]->y, .net_z = lq->stellar_bow_shocks[i]->z, .type = 63, .id = lq->stellar_bow_shocks[i]->id + GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Stellar Bow"); o_idx++; }
+        for(int i = 0; i < lq->cosmic_void_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->cosmic_voids[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->cosmic_voids[i]->x, .net_y = lq->cosmic_voids[i]->y, .net_z = lq->cosmic_voids[i]->z, .type = 64, .id = lq->cosmic_voids[i]->id + GALAXY_OBJECT_MIN_COSMIC_VOID, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Cosmic Void"); o_idx++; }
+        for(int i = 0; i < lq->cosmic_filament_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->cosmic_filaments[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->cosmic_filaments[i]->x, .net_y = lq->cosmic_filaments[i]->y, .net_z = lq->cosmic_filaments[i]->z, .type = 65, .id = lq->cosmic_filaments[i]->id + GALAXY_OBJECT_MIN_COSMIC_FILAMENT, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Cosm Filament"); o_idx++; }
+        for(int i = 0; i < lq->event_horizon_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->event_horizons[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->event_horizons[i]->x, .net_y = lq->event_horizons[i]->y, .net_z = lq->event_horizons[i]->z, .type = 66, .id = lq->event_horizons[i]->id + GALAXY_OBJECT_MIN_EVENT_HORIZON, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Event Horizon"); o_idx++; }
+        for(int i = 0; i < lq->kilonova_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->kilonovae[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->kilonovae[i]->x, .net_y = lq->kilonovae[i]->y, .net_z = lq->kilonovae[i]->z, .type = 67, .id = lq->kilonovae[i]->id + GALAXY_OBJECT_MIN_KILONOVA, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Kilonova"); o_idx++; }
+        for(int i = 0; i < lq->grav_lens_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->grav_lenses[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->grav_lenses[i]->x, .net_y = lq->grav_lenses[i]->y, .net_z = lq->grav_lenses[i]->z, .type = 68, .id = lq->grav_lenses[i]->id + GALAXY_OBJECT_MIN_GRAV_LENS, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Grav Lens"); o_idx++; }
+        for(int i = 0; i < lq->grb_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->grbs[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->grbs[i]->x, .net_y = lq->grbs[i]->y, .net_z = lq->grbs[i]->z, .type = 69, .id = lq->grbs[i]->id + GALAXY_OBJECT_MIN_GRB, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Gamma Ray B."); o_idx++; }
+        for(int i = 0; i < lq->grav_wave_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->grav_waves[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->grav_waves[i]->x, .net_y = lq->grav_waves[i]->y, .net_z = lq->grav_waves[i]->z, .type = 70, .id = lq->grav_waves[i]->id + GALAXY_OBJECT_MIN_GRAV_WAVE, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Grav Wave"); o_idx++; }
+        for(int i = 0; i < lq->protoplanetary_disk_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->protoplanetary_disks[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->protoplanetary_disks[i]->x, .net_y = lq->protoplanetary_disks[i]->y, .net_z = lq->protoplanetary_disks[i]->z, .type = 71, .id = lq->protoplanetary_disks[i]->id + GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Protoplan Disk"); o_idx++; }
+        for(int i = 0; i < lq->debris_disk_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->debris_disks[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->debris_disks[i]->x, .net_y = lq->debris_disks[i]->y, .net_z = lq->debris_disks[i]->z, .type = 72, .id = lq->debris_disks[i]->id + GALAXY_OBJECT_MIN_DEBRIS_DISK, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Debris Disk"); o_idx++; }
+        for(int i = 0; i < lq->planetesimal_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->planetesimals[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->planetesimals[i]->x, .net_y = lq->planetesimals[i]->y, .net_z = lq->planetesimals[i]->z, .type = 73, .id = lq->planetesimals[i]->id + GALAXY_OBJECT_MIN_PLANETESIMAL, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Planetesimal"); o_idx++; }
+        for(int i = 0; i < lq->rogue_planet_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->rogue_planets[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->rogue_planets[i]->x, .net_y = lq->rogue_planets[i]->y, .net_z = lq->rogue_planets[i]->z, .type = 74, .id = lq->rogue_planets[i]->id + GALAXY_OBJECT_MIN_ROGUE_PLANET, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Rogue Planet"); o_idx++; }
+        for(int i = 0; i < lq->brown_dwarf_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->brown_dwarfs[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->brown_dwarfs[i]->x, .net_y = lq->brown_dwarfs[i]->y, .net_z = lq->brown_dwarfs[i]->z, .type = 75, .id = lq->brown_dwarfs[i]->id + GALAXY_OBJECT_MIN_BROWN_DWARF, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Brown Dwarf"); o_idx++; }
+        for(int i = 0; i < lq->iso_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->isos[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->isos[i]->x, .net_y = lq->isos[i]->y, .net_z = lq->isos[i]->z, .type = 76, .id = lq->isos[i]->id + GALAXY_OBJECT_MIN_ISO, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Int.St. Obj"); o_idx++; }
+        for(int i = 0; i < lq->mag_reconn_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->mag_reconns[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->mag_reconns[i]->x, .net_y = lq->mag_reconns[i]->y, .net_z = lq->mag_reconns[i]->z, .type = 77, .id = lq->mag_reconns[i]->id + GALAXY_OBJECT_MIN_MAG_RECONN, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Mag Reconn"); o_idx++; }
+        for(int i = 0; i < lq->current_sheet_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->current_sheets[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->current_sheets[i]->x, .net_y = lq->current_sheets[i]->y, .net_z = lq->current_sheets[i]->z, .type = 78, .id = lq->current_sheets[i]->id + GALAXY_OBJECT_MIN_CURRENT_SHEET, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Current Sheet"); o_idx++; }
+        for(int i = 0; i < lq->heliosphere_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->heliospheres[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->heliospheres[i]->x, .net_y = lq->heliospheres[i]->y, .net_z = lq->heliospheres[i]->z, .type = 79, .id = lq->heliospheres[i]->id + GALAXY_OBJECT_MIN_HELIOSPHERE, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Heliosphere"); o_idx++; }
+        for(int i = 0; i < lq->term_shock_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->term_shocks[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->term_shocks[i]->x, .net_y = lq->term_shocks[i]->y, .net_z = lq->term_shocks[i]->z, .type = 80, .id = lq->term_shocks[i]->id + GALAXY_OBJECT_MIN_TERM_SHOCK, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Term Shock"); o_idx++; }
+        for(int i = 0; i < lq->magnetosphere_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->magnetospheres[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->magnetospheres[i]->x, .net_y = lq->magnetospheres[i]->y, .net_z = lq->magnetospheres[i]->z, .type = 81, .id = lq->magnetospheres[i]->id + GALAXY_OBJECT_MIN_MAGNETOSPHERE, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Magnetosphere"); o_idx++; }
+        for(int i = 0; i < lq->cosmic_string_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->cosmic_strings[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->cosmic_strings[i]->x, .net_y = lq->cosmic_strings[i]->y, .net_z = lq->cosmic_strings[i]->z, .type = 82, .id = lq->cosmic_strings[i]->id + GALAXY_OBJECT_MIN_COSMIC_STRING, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Cosm String"); o_idx++; }
+        for(int i = 0; i < lq->domain_wall_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->domain_walls[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->domain_walls[i]->x, .net_y = lq->domain_walls[i]->y, .net_z = lq->domain_walls[i]->z, .type = 83, .id = lq->domain_walls[i]->id + GALAXY_OBJECT_MIN_DOMAIN_WALL, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Domain Wall"); o_idx++; }
+        for(int i = 0; i < lq->dm_halo_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->dm_halos[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->dm_halos[i]->x, .net_y = lq->dm_halos[i]->y, .net_z = lq->dm_halos[i]->z, .type = 84, .id = lq->dm_halos[i]->id + GALAXY_OBJECT_MIN_DM_HALO, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "DM Halo"); o_idx++; }
+        for(int i = 0; i < lq->igm_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->igms[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->igms[i]->x, .net_y = lq->igms[i]->y, .net_z = lq->igms[i]->z, .type = 85, .id = lq->igms[i]->id + GALAXY_OBJECT_MIN_IGM, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "IGM"); o_idx++; }
+        for(int i = 0; i < lq->cgm_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->cgms[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->cgms[i]->x, .net_y = lq->cgms[i]->y, .net_z = lq->cgms[i]->z, .type = 86, .id = lq->cgms[i]->id + GALAXY_OBJECT_MIN_CGM, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "CGM"); o_idx++; }
+        for(int i = 0; i < lq->lyman_alpha_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->lyman_alphas[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->lyman_alphas[i]->x, .net_y = lq->lyman_alphas[i]->y, .net_z = lq->lyman_alphas[i]->z, .type = 87, .id = lq->lyman_alphas[i]->id + GALAXY_OBJECT_MIN_LYMAN_ALPHA, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Lyman Alpha"); o_idx++; }
+        for(int i = 0; i < lq->cmb_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->cmbs[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->cmbs[i]->x, .net_y = lq->cmbs[i]->y, .net_z = lq->cmbs[i]->z, .type = 88, .id = lq->cmbs[i]->id + GALAXY_OBJECT_MIN_CMB, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "CMB"); o_idx++; }
 
         upd->object_count = o_idx;
-        for(int s=0; s<4; s++) upd->torps[s] = players[i].state.torps[s];
         
         /* Torpedo Streaming - Aggregated Zero-Loss FX approach */
-        double qbx = (players[i].state.q1 - 1) * QUADRANT_SIZE;
-        double qby = (players[i].state.q2 - 1) * QUADRANT_SIZE;
-        double qbz = (players[i].state.q3 - 1) * QUADRANT_SIZE;
-
-        for (int gt = 0; gt < global_vt_count; gt++) {
-            double rtx = global_vt_list[gt].x - qbx;
-            double rty = global_vt_list[gt].y - qby;
-            double rtz = global_vt_list[gt].z - qbz;
-            /* Visibility check: Only if within range */
-            if (rtx >= -10.0 && rtx <= (QUADRANT_SIZE + 10.0) && rty >= -10.0 && rty <= (QUADRANT_SIZE + 10.0) && rtz >= -10.0 && rtz <= (QUADRANT_SIZE + 10.0)) {
-                push_server_event(i, IPC_EV_TORPEDO, rtx, rty, rtz, global_vt_list[gt].vx, global_vt_list[gt].vy, global_vt_list[gt].vz, (int)global_vt_list[gt].id);
-            }
-        }
+        /* IPC_EV_TORPEDO is now correctly sent once upon firing in commands.c */
         upd->torpedo_count = 0; /* Standard stream disabled, using Zero-Loss queue instead */
 
         upd->event_count = players[i].state.event_count;
@@ -2548,13 +2634,13 @@ void update_game_logic() {
         if (players[i].state.event_count > 0) {
             for (int e = 0; e < players[i].state.event_count; e++) {
                 if (players[i].state.events[e].type == IPC_EV_DISMANTLE) {
-                    printf(B_CYAN "[NET] Event Broadcast: Player %d -> IPC_EV_DISMANTLE at [%.1f, %.1f, %.1f]\n" RESET, 
-                           i, players[i].state.events[e].x1, players[i].state.events[e].y1, players[i].state.events[e].z1);
+                    /* Log disabled to reduce noise */
                 }
             }
             players[i].state.event_count = 0;
         }
         players[i].state.beam_count = 0;
+        players[i].fire_requested_this_tick = false;
 
         send_optimized_update(i, upd);
         free(upd);

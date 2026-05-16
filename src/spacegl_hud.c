@@ -98,6 +98,7 @@ typedef enum {
 } HudMode;
 
 int current_color_idx = 0;
+static int tactical_scroll_offset = 0;
 short COLOR_AMBER = 8; /* Custom color index */
 short hud_colors[] = {COLOR_GREEN, COLOR_BLUE, 8, COLOR_WHITE, COLOR_RED}; 
 
@@ -318,7 +319,13 @@ int main(int argc, char** argv) {
             if (mode == MODE_HUD) mode = MODE_INSPECTOR_MENU;
             else if (mode == MODE_INSPECTOR_PAGE) mode = MODE_INSPECTOR_MENU;
             else mode = MODE_HUD;
+            tactical_scroll_offset = 0;
             erase();
+        }
+
+        if (mode == MODE_HUD) {
+            if (ch == 'n') tactical_scroll_offset++;
+            if (ch == 'p' && tactical_scroll_offset > 0) tactical_scroll_offset--;
         }
 
         if (mode == MODE_INSPECTOR_MENU) {
@@ -472,16 +479,44 @@ int main(int argc, char** argv) {
         }
         
         attron(COLOR_PAIR(6)); mvprintw(9, 77, "ID     | NAME       | TYPE | FACTION    | DIST | HULL"); attroff(COLOR_PAIR(6));
-        for (int o = 0; o < st->object_count && o < 16; o++) {
+        
+        int max_scroll = (st->object_count > 16) ? (st->object_count - 16) : 0;
+        if (tactical_scroll_offset > max_scroll) tactical_scroll_offset = max_scroll;
+
+        for (int i = 0; i < 16; i++) {
+            int o = i + tactical_scroll_offset;
+            if (o >= st->object_count) break;
+
             SharedObject *obj = &st->objects[o];
             double d = sqrt(pow(obj->shm_x - st->shm_s[0], 2) + pow(obj->shm_y - st->shm_s[1], 2) + pow(obj->shm_z - st->shm_s[2], 2));
             int col = (obj->id == st->shm_lock_target)?7:(obj->type == 1?1:(obj->type >= 10?3:2));
 
-            const char* type_n = (obj->type==1)?"SHIP":(obj->type==3?"BASE":(obj->type==4?"STAR":(obj->type==5?"PLAN":(obj->type==6?"BHOL":(obj->type==21?"ASTE":(obj->type==27?"TORP":"UNKN"))))));
-
+            const char* type_n = "UNKN";
+            if (obj->type == 1) type_n = "SHIP";
+            else if (obj->type == 3) type_n = "BASE";
+            else if (obj->type == 4) type_n = "STAR";
+            else if (obj->type == 5) type_n = "PLAN";
+            else if (obj->type == 6) type_n = "BHOL";
+            else if (obj->type == 21) type_n = "ASTE";
+            else if (obj->type == 27) type_n = "TORP";
+            else if (obj->type == 51) type_n = "DNEB";
+            else if (obj->type == 52) type_n = "DRKN";
+            else if (obj->type == 53) type_n = "PNEB";
+            else if (obj->type == 54) type_n = "SNRA";
+            else if (obj->type == 55) type_n = "GMC ";
+            else if (obj->type == 56) type_n = "IFIL";
+            else if (obj->type == 57) type_n = "IBUB";
+            else if (obj->type == 58) type_n = "BOKG";
+            else if (obj->type == 59) type_n = "CLMP";
+            else if (obj->type >= 51 && obj->type <= 63) type_n = "COSM";
+            else if (obj->type >= 64 && obj->type <= 88) type_n = "ENVM";
+            
             attron(COLOR_PAIR(col));
-            mvprintw(10 + o, 77, "%6d | %-10.10s | %-4.4s | %-10.10s | %4.1f | %3d%%", obj->id, obj->shm_name[0]?obj->shm_name:"Alien", type_n, get_faction_name(obj->faction), d, obj->health_pct);
+            mvprintw(10 + i, 77, "%6d | %-10.10s | %-4.4s | %-10.10s | %4.1f | %3d%%", obj->id, obj->shm_name[0]?obj->shm_name:"Alien", type_n, get_faction_name(obj->faction), d, obj->health_pct);
             attroff(COLOR_PAIR(col));
+        }
+        if (st->object_count > 16) {
+            mvprintw(26, 77, "[ SCROLL: %d/%d (N/P) ]", tactical_scroll_offset, max_scroll);
         }
         // --- BOTTOM DIAGNOSTICS (FOUR BOXES AT TERMINAL BOTTOM) ---
         int bot_y = 29;

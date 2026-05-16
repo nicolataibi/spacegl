@@ -44,8 +44,7 @@ fi
 
 echo "Targeting Server PID: $SERVER_PID"
 
-# 2. Determine which diagnostic tool to use
-# The legacy diag_shm has been removed, using spacegl_diag
+# Binary verification with build folder priority
 if [ -f "./build/spacegl_diag" ]; then
     DIAG_BIN="./build/spacegl_diag"
 elif [ -f "./spacegl_diag" ]; then

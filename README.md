@@ -1,6 +1,12 @@
 <div style="text-align: center; border-bottom: 1px solid #ccc; margin-bottom: 20px;">
 <h1>Space GL: 3D Multi-User Client-Server Edition</h1>
 
+![Version](https://img.shields.io/badge/Version-3.0-green)
+![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
+![Language](https://img.shields.io/badge/Language-C-blue)
+![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
+![Platform](https://img.shields.io/badge/Platform-Fedora%2044-blue?logo=fedora)
+
 ## A space exploration & combat game
 ![Status](https://img.shields.io/badge/Status-Verified%20HMAC--SHA256-brightgreen)
 ![Alliance](https://img.shields.io/badge/Fleet-Stellar%20Alliance-cyan)
@@ -23,12 +29,6 @@ Space GL is a high-performance 3D multi-user client-server space flight and comb
     </td>
   </tr>
 </table>
-
-![Version](https://img.shields.io/badge/Version-3.0-green)
-![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
-![Language](https://img.shields.io/badge/Language-C-blue)
-![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
-![Platform](https://img.shields.io/badge/Platform-Fedora%2044-blue?logo=fedora)
 
 ### Website: https://github.com/nicolataibi/spacegl
 ### Authors: Nicola Taibi, Supported by Google Gemini
@@ -831,7 +831,79 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
   <tr><td>49</td><td>💎 Void Crystal</td><td>Crystalline energy source</td><td><img src="readme_assets/galactic_objects/49💎 Void Crystal (Dark Violet): Crystalline energy: Crystalline energy source.png" width="150"></td></tr>
 
   <tr><td>50</td><td>🌀 Subspace Anomaly</td><td>Unstable subspace anomaly</td><td><img src="readme_assets/galactic_objects/50🌀 Subspace Anom (Seafoam): Unstable anomaly: Unstable subspace anomaly.png" width="150"></td></tr>
-</table>
+
+   <tr><td>51</td><td>🌌 Diffuse Nebula</td><td>Cool blue-white gas cloud</td><td><img src="readme_assets/galactic_objects/51🌌 Diffuse Nebula, Cool blue-white gas cloud.png" width="150"></td></tr>
+ 
+   <tr><td>52</td><td>🔥 High-Energy Nebula</td><td>Orange vibrant gas cloud</td><td><img src="readme_assets/galactic_objects/52🔥 High-Energy Nebula, Orange vibrant gas cloud.png" width="150"></td></tr>
+ 
+   <tr><td>53</td><td>⚛️ Dark Matter Nebula</td><td>Dark purple mysterious cloud</td><td><img src="readme_assets/galactic_objects/53⚛️Dark%20Matter%20Nebula,%20Dark,%20purple%20mysterious%20cloud.png" width="150"></td></tr>
+ 
+   <tr><td>54</td><td>🟢 Gravimetric Nebula</td><td>Green high-gravity gas cloud</td><td><img src="readme_assets/galactic_objects/54🟢Gravimetric%20Nebula,%20Green%20high-gravity%20gas%20cloud.png" width="150"></td></tr>
+ 
+   <tr><td>55</td><td>💗 Temporal Nebula</td><td>Pink time-distortion gas cloud</td><td><img src="readme_assets/galactic_objects/55💗Temporal%20Nebula,%20Pink%20time-distortion%20gas%20cloud.png" width="150"></td></tr>
+ 
+   <tr><td>56</td><td>🧵 Interstellar Filament</td><td>Long, thin structure of gas and dust</td><td><img src="readme_assets/galactic_objects/56🧵Interstellar%20Filament,%20Long,%20thin%20structure%20of%20gas%20and%20dust.png" width="150"></td></tr>
+ 
+   <tr><td>57</td><td>🫧 Interstellar Bubble</td><td>Expanding shell of hot gas</td><td><img src="readme_assets/galactic_objects/57🫧Interstellar%20Bubble,%20Expanding%20shell%20of%20hot%20gas.png" width="150"></td></tr>
+ 
+   <tr><td>58</td><td>🌑 Bok Globule</td><td>Dense, dark cloud of dust and gas</td><td><img src="readme_assets/galactic_objects/58🌑Bok%20Globule,%20Dense,%20dark%20cloud%20of%20dust%20and%20gas.png" width="150"></td></tr>
+ 
+   <tr><td>59</td><td>☄️ Clump Core</td><td>Dense region of star formation</td><td><img src="readme_assets/galactic_objects/59☄️Clump%20Core,%20Dense%20region%20of%20star%20formation.png" width="150"></td></tr>
+ 
+   <tr><td>60</td><td>🥏 Accretion Disk</td><td>Orbital material around a central mass</td><td><img src="readme_assets/galactic_objects/60🥏Accretion%20Disk,%20Orbital%20material%20around%20a%20central%20mass.png" width="150"></td></tr>
+   <tr><td>61</td><td>🏹 Relativistic Jet</td><td>Powerful beam of ionized matter</td><td><img src="readme_assets/galactic_objects/61🏹Relativistic%20Jet,%20Powerful%20beam%20of%20ionized%20matter.png" width="150"></td></tr>
+ 
+   <tr><td>62</td><td>🌊 Shock Wave</td><td>High-speed disturbance in space</td><td><img src="readme_assets/galactic_objects/62🌊Shock%20Wave,%20High-speed%20disturbance%20in%20space.png" width="150"></td></tr>
+ 
+   <tr><td>63</td><td>🏹 Stellar Bow Shock</td><td>Boundary between stellar wind and ISM</td><td><img src="readme_assets/galactic_objects/63🏹 Stellar Bow Shock, Boundary between stellar wind and ISM.png" width="150"></td></tr>
+ 
+   <tr><td>64</td><td>🕳️ Cosmic Void</td><td>Vast space containing few galaxies</td><td><img src="readme_assets/galactic_objects/64🕳️Cosmic%20Void,%20Vast%20space%20containing%20few%20galaxies.png" width="150"></td></tr>
+ 
+   <tr><td>65</td><td>🧵 Cosmic Filament</td><td>Large structure of the cosmic web</td><td><img src="readme_assets/galactic_objects/65🧵Cosmic%20Filament,%20Large%20structure%20of%20the%20cosmic%20web.png" width="150"></td></tr>
+ 
+   <tr><td>66</td><td>🌑 Event Horizon</td><td>Boundary around a black hole</td><td><img src="readme_assets/galactic_objects/66🌑Event%20Horizon,%20Boundary%20around%20a%20black%20hole.png" width="150"></td></tr>
+ 
+   <tr><td>67</td><td>💥 Kilonova</td><td>Detonation from merging compact objects</td><td><img src="readme_assets/galactic_objects/67💥Kilonova,%20Detonation%20from%20merging%20compact%20objects.png" width="150"></td></tr>
+ 
+   <tr><td>68</td><td>🔍 Gravitational Lens</td><td>Matter distribution bending light</td><td><img src="readme_assets/galactic_objects/68🔍Gravitational%20Lens,%20Matter%20distribution%20bending%20light.png" width="150"></td></tr>
+ 
+   <tr><td>69</td><td>🔦 Gamma Ray Burst</td><td>Extremely energetic explosion</td><td><img src="readme_assets/galactic_objects/69🔦Gamma%20Ray%20Burst,%20Extremely%20energetic%20explosion.png" width="150"></td></tr>
+ 
+   <tr><td>70</td><td>🌊 Gravitational Wave</td><td>Ripple in the fabric of space-time</td><td><img src="readme_assets/galactic_objects/70🌊Gravitational%20Wave,%20Ripple%20in%20the%20fabric%20of%20space-time.png" width="150"></td></tr>
+   <tr><td>71</td><td>🪐 Protoplanetary Disk</td><td>Rotating disk around a young star</td><td><img src="readme_assets/galactic_objects/71🪐Protoplanetary%20Disk,%20Rotating%20disk%20around%20a%20young%20star.png" width="150"></td></tr>
+ 
+   <tr><td>72</td><td>🪐 Debris Disk</td><td>Ring of rocky and dusty debris</td><td><img src="readme_assets/galactic_objects/72🪐Debris%20Disk,%20Ring%20of%20rocky%20and%20dusty%20debris.png" width="150"></td></tr>
+ 
+   <tr><td>73</td><td>🌑 Planetesimal</td><td>Solid object in a planetary disk</td><td><img src="readme_assets/galactic_objects/73🌑Planetesimal,%20Solid%20object%20in%20a%20planetary%20disk.png" width="150"></td></tr>
+ 
+   <tr><td>74</td><td>🌑 Rogue Planet</td><td>Planet-mass object orbiting the galaxy</td><td><img src="readme_assets/galactic_objects/74🌑Rogue%20Planet,%20Planet-mass%20object%20orbiting%20the%20galaxy.png" width="150"></td></tr>
+ 
+   <tr><td>75</td><td>🌑 Brown Dwarf</td><td>Substellar body between planet and star</td><td><img src="readme_assets/galactic_objects/75🌑Brown%20Dwarf,%20Substellar%20body%20between%20planet%20and%20star.png" width="150"></td></tr>
+ 
+   <tr><td>76</td><td>☄️ Interstellar Object</td><td>Object not bound to any star</td><td><img src="readme_assets/galactic_objects/76☄️Interstellar Object, Object not bound to any star.png" width="150"></td></tr>
+ 
+   <tr><td>77</td><td>⚡ Magnetic Reconnection</td><td>Sudden release of magnetic energy</td><td><img src="readme_assets/galactic_objects/77⚡Magnetic%20Reconnection,%20Sudden%20release%20of%20magnetic%20energy.png" width="150"></td></tr>
+ 
+   <tr><td>78</td><td>📄 Current Sheet</td><td>Region of high electric current density</td><td><img src="readme_assets/galactic_objects/78📄Current%20Sheet,%20Region%20of%20high%20electric%20current%20density.png" width="150"></td></tr>
+ 
+   <tr><td>79</td><td>🛡️ Heliosphere</td><td>Solar system's protective bubble</td><td><img src="readme_assets/galactic_objects/79🛡️Heliosphere,%20Solar%20system's%20protective%20bubble.png" width="150"></td></tr>
+ 
+   <tr><td>80</td><td>🌊 Termination Shock</td><td>Boundary of slowing solar wind</td><td><img src="readme_assets/galactic_objects/80🌊Termination%20Shock,%20Boundary%20of%20slowing%20solar%20wind.png" width="150"></td></tr>
+   <tr><td>81</td><td>🛡️ Magnetosphere</td><td>Region dominated by magnetic fields</td><td><img src="readme_assets/galactic_objects/81🛡️Magnetosphere,%20Region%20dominated%20by%20magnetic%20fields.png" width="150"></td></tr>
+ 
+   <tr><td>82</td><td>🧵 Cosmic String</td><td>1D topological defect in space</td><td><img src="readme_assets/galactic_objects/82🧵Cosmic%20String,%201D%20topological%20defect%20in%20space.png" width="150"></td></tr>
+ 
+   <tr><td>83</td><td>🧱 Domain Wall</td><td>2D topological defect in space</td><td><img src="readme_assets/galactic_objects/83🧱Domain%20Wall,%202D%20topological%20defect%20in%20space.png" width="150"></td></tr>
+   <tr><td>84</td><td>☁️ Dark Matter Halo</td><td>Hypothetical galactic component</td><td><img src="readme_assets/galactic_objects/84☁️Dark Matter Halo, Hypothetical galactic component.png" width="150"></td></tr>
+ 
+   <tr><td>85</td><td>🌫️ Intergalactic Medium</td><td>Matter between galaxies</td><td><img src="readme_assets/galactic_objects/85🌫️Intergalactic Medium, Matter between galaxies.png" width="150"></td></tr>
+ 
+   <tr><td>86</td><td>🌫️ Circumgalactic Medium</td><td>Gas surrounding a galaxy</td><td><img src="readme_assets/galactic_objects/86🌫️Circumgalactic Medium, Gas surrounding a galaxy.png" width="150"></td></tr>
+ 
+   <tr><td>87</td><td>🌳 Lyman Alpha Forest</td><td>Absorption lines from distant hydrogen</td><td><img src="readme_assets/galactic_objects/87🌳Lyman Alpha Forest, Absorption lines from distant hydrogen.png" width="150"></td></tr>
+ 
+   <tr><td>88</td><td>📺 Cosmic Microwave Background</td><td>Remnant radiation from the Big Bang</td><td><img src="readme_assets/galactic_objects/88📺Cosmic%20Microwave%20Background,%20Remnant%20radiation%20from%20the%20Big%20Bang.png" width="150"></td></tr>
+  </table>
  
 *   **Dynamic Tactical HUD**: Implements a 2D-on-3D projection (via `gluProject`) to anchor labels, health bars, and IDs directly above vessels.
     *   **Ship Status Indicators**: The HUD now displays real-time operational states:
@@ -976,6 +1048,16 @@ The Space GL universe is a dynamic ecosystem populated by 17 classes of entities
 *   **Pulsars**: Neutron stars emitting deadly radiation. Navigating too close damages systems and crew.
 *   **Comets**: Fast-moving objects with volumetric tails. They can be analyzed to collect rare gases.
 *   **Spatial Rifts**: Tears in the spacetime fabric. They act as natural teleporters that project the ship to a random point in the galaxy.
+*   **Quasars & Active Nuclei**: Extremely luminous galactic cores powered by supermassive black holes.
+*   **Kilonovae & GRBs**: Massive energy bursts from colliding neutron stars or collapsing cores, yielding rare heavy elements.
+*   **Protoplanetary & Debris Disks**: Dust and gas rings around young or dying stars, serving as resource-rich planetary nurseries.
+*   **Dyson Fragments**: Colossal remnants of ancient stellar engineering, capable of wireless energy induction.
+*   **Advanced Nebulae (Diffuse, Dark, Planetary)**: Multi-spectral gas clouds offering varying levels of tactical cover and sensor disruption.
+*   **Supernova Remnants (SNR)**: Radioactive shells of gas and dust from stellar explosions, rich in heavy metals.
+*   **Large-Scale Web (Cosmic Voids & Filaments)**: The primary structural components of the universe, anchoring the distribution of matter.
+*   **Cosmic Microwave Background (CMB)**: The relic radiation of the Big Bang, appearing as a universal background field.
+*   **Magnetic Phenomena (Magnetospheres, Heliospheres, Current Sheets)**: Complex magnetic structures that protect planets and stars, interacting with solar winds.
+*   **Interstellar Visitors (ISO & Rogue Planets)**: Transient objects and planet-sized wanderers traveling between star systems.
 
 ### 🚩 Factions and Galactic Powers
 
@@ -1317,6 +1399,44 @@ To interact with galactic objects using the `lock`, `scan`, `pha`, `tor`, `bor`,
 | **Time Anomalies** | 42,000 - 42,999 | `lock 42000` | Temporal distortion research |
 | **Void Crystals** | 43,000 - 43,999 | `lock 43000` | High-density energy source |
 | **Subspace Anomalies** | 44,000 - 44,999 | `lock 44000` | Subspace instability study |
+| **Diffuse Nebulae** | 45,000 - 45,999 | `lock 45000` | Gas cloud scientific survey |
+| **Dark Nebulae** | 46,000 - 46,999 | `lock 46000` | Stealth tactical maneuvering |
+| **Planetary Nebulae** | 47,000 - 47,999 | `lock 47000` | Exotic matter collection |
+| **SNR (Supernova Remnants)** | 48,000 - 48,999 | `lock 48000` | High-energy field navigation |
+| **GMC (Giant Molecular Clouds)** | 49,000 - 49,999 | `lock 49000` | Massive resource survey |
+| **Interstellar Filaments** | 50,000 - 50,999 | `lock 50000` | Deep space structural analysis |
+| **Interstellar Bubbles** | 51,000 - 51,999 | `lock 51000` | Rare particle collection |
+| **Bok Globules** | 52,000 - 52,999 | `lock 52000` | Protostellar nursery research |
+| **Clump Cores** | 53,000 - 53,999 | `lock 53000` | High-density core mining |
+| **Accretion Disks** | 54,000 - 54,999 | `lock 54000` | Gravitational energy harvesting |
+| **Relativistic Jets** | 55,000 - 55,999 | `lock 55000` | Extreme velocity navigation |
+| **Shock Waves** | 56,000 - 56,999 | `lock 56000` | Impact force measurements |
+| **Stellar Bow Shocks** | 57,000 - 57,999 | `lock 57000` | Stellar wind monitoring |
+| **Cosmic Voids** | 58,000 - 58,999 | `lock 58000` | Zero-density matter study |
+| **Cosmic Filaments** | 59,000 - 59,999 | `lock 59000` | Large-scale structure mapping |
+| **Event Horizons** | 60,000 - 60,999 | `lock 60000` | Extreme relativistic analysis |
+| **Kilonovae** | 61,000 - 61,999 | `lock 61000` | Heavy element acquisition |
+| **Gravitational Lenses** | 62,000 - 62,999 | `lock 62000` | Deep space lensing surveys |
+| **GRB (Gamma-Ray Bursts)** | 63,000 - 63,999 | `lock 63000` | High-energy burst research |
+| **Gravitational Waves** | 64,000 - 64,999 | `lock 64000` | Spacetime ripple detection |
+| **Protoplanetary Disks** | 65,000 - 65,999 | `lock 65000` | Planetary birth observation |
+| **Debris Disks** | 66,000 - 66,999 | `lock 66000` | Salvage and dust collection |
+| **Planetesimals** | 67,000 - 67,999 | `lock 67000` | Early planet formation study |
+| **Rogue Planets** | 68,000 - 68,999 | `lock 68000` | Deep space planet survey |
+| **Brown Dwarfs** | 69,000 - 69,999 | `lock 69000` | Sub-stellar mass research |
+| **ISO (Interstellar Objects)** | 70,000 - 70,999 | `lock 70000` | Transient visitor analysis |
+| **Magnetic Reconnection** | 71,000 - 71,999 | `lock 71000` | Plasma physics study |
+| **Current Sheets** | 72,000 - 72,999 | `lock 72000` | Magnetic field monitoring |
+| **Heliospheres** | 73,000 - 73,999 | `lock 73000` | Stellar bubble analysis |
+| **Termination Shocks** | 74,000 - 74,999 | `lock 74000` | Solar wind boundary study |
+| **Magnetospheres** | 75,000 - 75,999 | `lock 75000` | Planetary magnetic defense |
+| **Cosmic Strings** | 76,000 - 76,999 | `lock 76000` | Topological defect research |
+| **Domain Walls** | 77,000 - 77,999 | `lock 77000` | Space-time boundary study |
+| **Dark Matter Halos** | 78,000 - 78,999 | `lock 78000` | Non-baryonic mass mapping |
+| **IGM (Intergalactic Medium)** | 79,000 - 79,999 | `lock 79000` | Deep space gas survey |
+| **CGM (Circumgalactic Medium)** | 80,000 - 80,999 | `lock 80000` | Galactic halo gas study |
+| **Lyman-Alpha Blobs** | 81,000 - 81,999 | `lock 81000` | Primordial gas research |
+| **CMB (Cosmic Microwave Background)** | 82,000 - 82,999 | `lock 82000` | Relic radiation monitoring |
 
 **Note**: Locking and autopilot (`apr`) only work if the object is in your current quadrant. If the ID exists but is far away, the computer will indicate the target's `Q[x,y,z]` coordinates.
 
@@ -1389,6 +1509,44 @@ The `apr <ID> <DIST>` command allows you to automatically approach any object de
 | **Time Anomalies** | 42000 - 42999 | `scan` | - | Temporal research |
 | **Void Crystals** | 43000 - 43999 | `min`, `scan` | **< 3.1** | Crystalline harvesting |
 | **Subspace Anomalies**| 44000 - 44999 | `scan` | - | Unstable subspace |
+| **Diffuse Nebulae**  | 45000 - 45999 | `scan` | - | Gas cloud survey |
+| **Dark Nebulae**     | 46000 - 46999 | `scan` | - | Tactical cover |
+| **Planetary Nebulae** | 47000 - 47999 | `scan` | - | Exotic matter collection |
+| **SNR (SN Remnants)** | 48000 - 48999 | `scan` | - | High-energy navigation |
+| **GMC (Mol. Clouds)** | 49000 - 49999 | `scan`, `min` | **< 3.1** | Resource survey |
+| **Interstell. Filam.**| 50000 - 50999 | `scan` | - | Structural analysis |
+| **Interstell. Bubbl.**| 51000 - 51999 | `scan` | - | Rare particle collection |
+| **Bok Globules**     | 52000 - 52999 | `scan` | - | Protostellar nurseries |
+| **Clump Cores**      | 53000 - 53999 | `min`, `scan` | **< 3.1** | High-density mining |
+| **Accretion Disks**  | 54000 - 54999 | `har`, `scan` | **< 3.1** | Gravity harvesting |
+| **Relativistic Jets**| 55000 - 55999 | `scan` | - | Extreme navigation |
+| **Shock Waves**      | 56000 - 56999 | `scan` | - | Impact force study |
+| **Stellar Bow Shocks**| 57000 - 57999 | `scan` | - | Stellar wind monitoring |
+| **Cosmic Voids**     | 58000 - 58999 | `scan` | - | Zero-density study |
+| **Cosmic Filaments** | 59000 - 59999 | `scan` | - | Large-scale mapping |
+| **Event Horizons**   | 60000 - 60999 | `scan` | - | Relativistic analysis |
+| **Kilonovae**        | 61000 - 61999 | `scan` | - | Heavy element mining |
+| **Gravit. Lenses**   | 62000 - 62999 | `scan` | - | Deep space lensing |
+| **GRB (Gamma Burst)**| 63000 - 63999 | `scan` | - | High-energy burst study |
+| **Gravit. Waves**    | 64000 - 64999 | `scan` | - | Spacetime ripple study |
+| **Protoplanet. Disks**| 65000 - 65999 | `scan` | - | Planetary birth study |
+| **Debris Disks**     | 66000 - 66999 | `scan` | - | Dust and salvage |
+| **Planetesimals**    | 67000 - 67999 | `scan` | - | Formation research |
+| **Rogue Planets**    | 68000 - 68999 | `scan` | - | Deep space planet survey |
+| **Brown Dwarfs**     | 69000 - 69999 | `scan` | - | Sub-stellar research |
+| **ISO (Interst. Obj)**| 70000 - 70999 | `cha`, `scan` | **< 0.6** | Transient visitors |
+| **Mag. Reconnect.**  | 71000 - 71999 | `scan` | - | Plasma physics study |
+| **Current Sheets**   | 72000 - 72999 | `scan` | - | Magnetic field study |
+| **Heliospheres**     | 73000 - 73999 | `scan` | - | Stellar bubble study |
+| **Termination Shock**| 74000 - 74999 | `scan` | - | Solar wind boundary |
+| **Magnetospheres**   | 75000 - 75999 | `scan` | - | Magnetic defense study |
+| **Cosmic Strings**   | 76000 - 76999 | `scan` | - | Topological defects |
+| **Domain Walls**     | 77000 - 77999 | `scan` | - | Boundary research |
+| **Dark Matter Halos**| 78000 - 78999 | `scan` | - | Non-baryonic mapping |
+| **IGM (Intergal. M.)**| 79000 - 79999 | `scan` | - | Deep space gas survey |
+| **CGM (Circumgal. M)**| 80000 - 80999 | `scan` | - | Halo gas study |
+| **Lyman-Alpha Blobs**| 81000 - 81999 | `scan` | - | Primordial gas study |
+| **CMB (Microwave B.)**| 82000 - 82999 | `scan` | - | Relic radiation study |
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Shield Configuration**. Distributes energy to the 6 shields.
     *   **Requirements**: Minimum 10% Shield system integrity (ID 8).
@@ -1854,6 +2012,13 @@ The quadrant is scattered with natural phenomena detectable by both sensors and 
     *   **Dangerous Harvesting**: Extracting antimatter (`har`) without shield protection directly damages the hull due to tidal forces.
 *   **Mega Structures (ID 37xxx)**: Massive orbital facilities like Dyson Fragments or Trading Hubs. Can be interacted with via `doc` or `har` depending on the type.
 *   **Time Anomalies (ID 42xxx)**: Localized temporal distortions. Approaching them can cause unpredictable shifts in local galactic time (tick variation).
+*   **Quasars (ID 27xxx)**: Luminous galactic cores powered by supermassive black holes. Extremely high energy output, hazardous to sensors and shields at close range.
+*   **Kilonovae & GRBs (ID 61xxx, 63xxx)**: Short-lived but cataclysmic bursts of energy. Approaching these sites provides access to rare heavy elements but requires maximum shield integrity.
+*   **Protoplanetary & Debris Disks (ID 65xxx, 66xxx)**: Dense regions of gas and dust. They offer excellent sensor cover but navigating at high impulse speeds causes continuous abrasive damage.
+*   **Cosmic Web (Voids & Filaments) (ID 58xxx, 59xxx)**: The largest structures in the universe. Navigating through Filaments offers high-density gas fields, while Voids are completely empty, ideal for high-speed transit.
+*   **Magnetic Phenomena (ID 73xxx, 75xxx)**: Heliospheres and Magnetospheres create protective bubbles around stars and planets, affecting torpedo guidance and sensor resolution.
+*   **Singularities & Event Horizons (ID 39xxx, 60xxx)**: Extreme gravitational traps. Beyond the event horizon, escape is impossible without a stabilized wormhole jump (`jum`).
+*   **Interstellar Objects (ISO) (ID 70xxx)**: Transient bodies like 'Oumuamua. They travel at extremely high relative velocities and require precise `cha` maneuvers to intercept.
 
 ### 🛠️ Maintenance and Repairs
 **Important Note**: Hull integrity **never regenerates autonomously**.

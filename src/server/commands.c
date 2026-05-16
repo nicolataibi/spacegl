@@ -18,6 +18,7 @@
  */
 
 #include <stdio.h>
+#include "../../include/telemetry.h"
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
@@ -934,6 +935,386 @@ void handle_apr(int i, const char *params, bool *should_disconnect) {
                         tz = (lq->subspace_anomalies[n]->q3 - 1) * QUADRANT_SIZE + lq->subspace_anomalies[n]->z;
                         found = true; strcpy(target_name, "Subspace Anomaly"); break;
                     }
+            if (!found && tid >= GALAXY_OBJECT_MIN_DIFFUSE_NEBULA && tid <= GALAXY_OBJECT_MAX_DIFFUSE_NEBULA) {
+                for (int n = 0; n < lq->diffuse_nebula_count; n++) {
+                    if (lq->diffuse_nebulae[n]->id + GALAXY_OBJECT_MIN_DIFFUSE_NEBULA == tid) {
+                        tx = (lq->diffuse_nebulae[n]->q1 - 1) * QUADRANT_SIZE + lq->diffuse_nebulae[n]->x;
+                        ty = (lq->diffuse_nebulae[n]->q2 - 1) * QUADRANT_SIZE + lq->diffuse_nebulae[n]->y;
+                        tz = (lq->diffuse_nebulae[n]->q3 - 1) * QUADRANT_SIZE + lq->diffuse_nebulae[n]->z;
+                        found = true; strcpy(target_name, "Diffuse Nebula"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_DARK_NEBULA && tid <= GALAXY_OBJECT_MAX_DARK_NEBULA) {
+                for (int n = 0; n < lq->dark_nebula_count; n++) {
+                    if (lq->dark_nebulae[n]->id + GALAXY_OBJECT_MIN_DARK_NEBULA == tid) {
+                        tx = (lq->dark_nebulae[n]->q1 - 1) * QUADRANT_SIZE + lq->dark_nebulae[n]->x;
+                        ty = (lq->dark_nebulae[n]->q2 - 1) * QUADRANT_SIZE + lq->dark_nebulae[n]->y;
+                        tz = (lq->dark_nebulae[n]->q3 - 1) * QUADRANT_SIZE + lq->dark_nebulae[n]->z;
+                        found = true; strcpy(target_name, "Dark Nebula"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_PLANETARY_NEBULA && tid <= GALAXY_OBJECT_MAX_PLANETARY_NEBULA) {
+                for (int n = 0; n < lq->planetary_nebula_count; n++) {
+                    if (lq->planetary_nebulae[n]->id + GALAXY_OBJECT_MIN_PLANETARY_NEBULA == tid) {
+                        tx = (lq->planetary_nebulae[n]->q1 - 1) * QUADRANT_SIZE + lq->planetary_nebulae[n]->x;
+                        ty = (lq->planetary_nebulae[n]->q2 - 1) * QUADRANT_SIZE + lq->planetary_nebulae[n]->y;
+                        tz = (lq->planetary_nebulae[n]->q3 - 1) * QUADRANT_SIZE + lq->planetary_nebulae[n]->z;
+                        found = true; strcpy(target_name, "Planetary Neb"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_SNR && tid <= GALAXY_OBJECT_MAX_SNR) {
+                for (int n = 0; n < lq->snr_count; n++) {
+                    if (lq->snrs[n]->id + GALAXY_OBJECT_MIN_SNR == tid) {
+                        tx = (lq->snrs[n]->q1 - 1) * QUADRANT_SIZE + lq->snrs[n]->x;
+                        ty = (lq->snrs[n]->q2 - 1) * QUADRANT_SIZE + lq->snrs[n]->y;
+                        tz = (lq->snrs[n]->q3 - 1) * QUADRANT_SIZE + lq->snrs[n]->z;
+                        found = true; strcpy(target_name, "SNR"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_GMC && tid <= GALAXY_OBJECT_MAX_GMC) {
+                for (int n = 0; n < lq->gmc_count; n++) {
+                    if (lq->gmcs[n]->id + GALAXY_OBJECT_MIN_GMC == tid) {
+                        tx = (lq->gmcs[n]->q1 - 1) * QUADRANT_SIZE + lq->gmcs[n]->x;
+                        ty = (lq->gmcs[n]->q2 - 1) * QUADRANT_SIZE + lq->gmcs[n]->y;
+                        tz = (lq->gmcs[n]->q3 - 1) * QUADRANT_SIZE + lq->gmcs[n]->z;
+                        found = true; strcpy(target_name, "GMC"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT && tid <= GALAXY_OBJECT_MAX_INTERSTELLAR_FILAMENT) {
+                for (int n = 0; n < lq->interstellar_filament_count; n++) {
+                    if (lq->interstellar_filaments[n]->id + GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT == tid) {
+                        tx = (lq->interstellar_filaments[n]->q1 - 1) * QUADRANT_SIZE + lq->interstellar_filaments[n]->x;
+                        ty = (lq->interstellar_filaments[n]->q2 - 1) * QUADRANT_SIZE + lq->interstellar_filaments[n]->y;
+                        tz = (lq->interstellar_filaments[n]->q3 - 1) * QUADRANT_SIZE + lq->interstellar_filaments[n]->z;
+                        found = true; strcpy(target_name, "Int Filament"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE && tid <= GALAXY_OBJECT_MAX_INTERSTELLAR_BUBBLE) {
+                for (int n = 0; n < lq->interstellar_bubble_count; n++) {
+                    if (lq->interstellar_bubbles[n]->id + GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE == tid) {
+                        tx = (lq->interstellar_bubbles[n]->q1 - 1) * QUADRANT_SIZE + lq->interstellar_bubbles[n]->x;
+                        ty = (lq->interstellar_bubbles[n]->q2 - 1) * QUADRANT_SIZE + lq->interstellar_bubbles[n]->y;
+                        tz = (lq->interstellar_bubbles[n]->q3 - 1) * QUADRANT_SIZE + lq->interstellar_bubbles[n]->z;
+                        found = true; strcpy(target_name, "Int Bubble"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_BOK_GLOBULE && tid <= GALAXY_OBJECT_MAX_BOK_GLOBULE) {
+                for (int n = 0; n < lq->bok_globule_count; n++) {
+                    if (lq->bok_globules[n]->id + GALAXY_OBJECT_MIN_BOK_GLOBULE == tid) {
+                        tx = (lq->bok_globules[n]->q1 - 1) * QUADRANT_SIZE + lq->bok_globules[n]->x;
+                        ty = (lq->bok_globules[n]->q2 - 1) * QUADRANT_SIZE + lq->bok_globules[n]->y;
+                        tz = (lq->bok_globules[n]->q3 - 1) * QUADRANT_SIZE + lq->bok_globules[n]->z;
+                        found = true; strcpy(target_name, "Bok Globule"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_CLUMP_CORE && tid <= GALAXY_OBJECT_MAX_CLUMP_CORE) {
+                for (int n = 0; n < lq->clump_core_count; n++) {
+                    if (lq->clump_cores[n]->id + GALAXY_OBJECT_MIN_CLUMP_CORE == tid) {
+                        tx = (lq->clump_cores[n]->q1 - 1) * QUADRANT_SIZE + lq->clump_cores[n]->x;
+                        ty = (lq->clump_cores[n]->q2 - 1) * QUADRANT_SIZE + lq->clump_cores[n]->y;
+                        tz = (lq->clump_cores[n]->q3 - 1) * QUADRANT_SIZE + lq->clump_cores[n]->z;
+                        found = true; strcpy(target_name, "Clump/Core"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_ACCRETION_DISK && tid <= GALAXY_OBJECT_MAX_ACCRETION_DISK) {
+                for (int n = 0; n < lq->accretion_disk_count; n++) {
+                    if (lq->accretion_disks[n]->id + GALAXY_OBJECT_MIN_ACCRETION_DISK == tid) {
+                        tx = (lq->accretion_disks[n]->q1 - 1) * QUADRANT_SIZE + lq->accretion_disks[n]->x;
+                        ty = (lq->accretion_disks[n]->q2 - 1) * QUADRANT_SIZE + lq->accretion_disks[n]->y;
+                        tz = (lq->accretion_disks[n]->q3 - 1) * QUADRANT_SIZE + lq->accretion_disks[n]->z;
+                        found = true; strcpy(target_name, "Accretion Disk"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_RELATIVISTIC_JET && tid <= GALAXY_OBJECT_MAX_RELATIVISTIC_JET) {
+                for (int n = 0; n < lq->relativistic_jet_count; n++) {
+                    if (lq->relativistic_jets[n]->id + GALAXY_OBJECT_MIN_RELATIVISTIC_JET == tid) {
+                        tx = (lq->relativistic_jets[n]->q1 - 1) * QUADRANT_SIZE + lq->relativistic_jets[n]->x;
+                        ty = (lq->relativistic_jets[n]->q2 - 1) * QUADRANT_SIZE + lq->relativistic_jets[n]->y;
+                        tz = (lq->relativistic_jets[n]->q3 - 1) * QUADRANT_SIZE + lq->relativistic_jets[n]->z;
+                        found = true; strcpy(target_name, "Relativ Jet"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_SHOCK_WAVE && tid <= GALAXY_OBJECT_MAX_SHOCK_WAVE) {
+                for (int n = 0; n < lq->shock_wave_count; n++) {
+                    if (lq->shock_waves[n]->id + GALAXY_OBJECT_MIN_SHOCK_WAVE == tid) {
+                        tx = (lq->shock_waves[n]->q1 - 1) * QUADRANT_SIZE + lq->shock_waves[n]->x;
+                        ty = (lq->shock_waves[n]->q2 - 1) * QUADRANT_SIZE + lq->shock_waves[n]->y;
+                        tz = (lq->shock_waves[n]->q3 - 1) * QUADRANT_SIZE + lq->shock_waves[n]->z;
+                        found = true; strcpy(target_name, "Shock Wave"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK && tid <= GALAXY_OBJECT_MAX_STELLAR_BOW_SHOCK) {
+                for (int n = 0; n < lq->stellar_bow_shock_count; n++) {
+                    if (lq->stellar_bow_shocks[n]->id + GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK == tid) {
+                        tx = (lq->stellar_bow_shocks[n]->q1 - 1) * QUADRANT_SIZE + lq->stellar_bow_shocks[n]->x;
+                        ty = (lq->stellar_bow_shocks[n]->q2 - 1) * QUADRANT_SIZE + lq->stellar_bow_shocks[n]->y;
+                        tz = (lq->stellar_bow_shocks[n]->q3 - 1) * QUADRANT_SIZE + lq->stellar_bow_shocks[n]->z;
+                        found = true; strcpy(target_name, "Bow Shock"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_COSMIC_VOID && tid <= GALAXY_OBJECT_MAX_COSMIC_VOID) {
+                for (int n = 0; n < lq->cosmic_void_count; n++) {
+                    if (lq->cosmic_voids[n]->id + GALAXY_OBJECT_MIN_COSMIC_VOID == tid) {
+                        tx = (lq->cosmic_voids[n]->q1 - 1) * QUADRANT_SIZE + lq->cosmic_voids[n]->x;
+                        ty = (lq->cosmic_voids[n]->q2 - 1) * QUADRANT_SIZE + lq->cosmic_voids[n]->y;
+                        tz = (lq->cosmic_voids[n]->q3 - 1) * QUADRANT_SIZE + lq->cosmic_voids[n]->z;
+                        found = true; strcpy(target_name, "Cosmic Void"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_COSMIC_FILAMENT && tid <= GALAXY_OBJECT_MAX_COSMIC_FILAMENT) {
+                for (int n = 0; n < lq->cosmic_filament_count; n++) {
+                    if (lq->cosmic_filaments[n]->id + GALAXY_OBJECT_MIN_COSMIC_FILAMENT == tid) {
+                        tx = (lq->cosmic_filaments[n]->q1 - 1) * QUADRANT_SIZE + lq->cosmic_filaments[n]->x;
+                        ty = (lq->cosmic_filaments[n]->q2 - 1) * QUADRANT_SIZE + lq->cosmic_filaments[n]->y;
+                        tz = (lq->cosmic_filaments[n]->q3 - 1) * QUADRANT_SIZE + lq->cosmic_filaments[n]->z;
+                        found = true; strcpy(target_name, "Cosmic Fil"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_EVENT_HORIZON && tid <= GALAXY_OBJECT_MAX_EVENT_HORIZON) {
+                for (int n = 0; n < lq->event_horizon_count; n++) {
+                    if (lq->event_horizons[n]->id + GALAXY_OBJECT_MIN_EVENT_HORIZON == tid) {
+                        tx = (lq->event_horizons[n]->q1 - 1) * QUADRANT_SIZE + lq->event_horizons[n]->x;
+                        ty = (lq->event_horizons[n]->q2 - 1) * QUADRANT_SIZE + lq->event_horizons[n]->y;
+                        tz = (lq->event_horizons[n]->q3 - 1) * QUADRANT_SIZE + lq->event_horizons[n]->z;
+                        found = true; strcpy(target_name, "Event Horizon"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_KILONOVA && tid <= GALAXY_OBJECT_MAX_KILONOVA) {
+                for (int n = 0; n < lq->kilonova_count; n++) {
+                    if (lq->kilonovae[n]->id + GALAXY_OBJECT_MIN_KILONOVA == tid) {
+                        tx = (lq->kilonovae[n]->q1 - 1) * QUADRANT_SIZE + lq->kilonovae[n]->x;
+                        ty = (lq->kilonovae[n]->q2 - 1) * QUADRANT_SIZE + lq->kilonovae[n]->y;
+                        tz = (lq->kilonovae[n]->q3 - 1) * QUADRANT_SIZE + lq->kilonovae[n]->z;
+                        found = true; strcpy(target_name, "Kilonova"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_GRAV_LENS && tid <= GALAXY_OBJECT_MAX_GRAV_LENS) {
+                for (int n = 0; n < lq->grav_lens_count; n++) {
+                    if (lq->grav_lenses[n]->id + GALAXY_OBJECT_MIN_GRAV_LENS == tid) {
+                        tx = (lq->grav_lenses[n]->q1 - 1) * QUADRANT_SIZE + lq->grav_lenses[n]->x;
+                        ty = (lq->grav_lenses[n]->q2 - 1) * QUADRANT_SIZE + lq->grav_lenses[n]->y;
+                        tz = (lq->grav_lenses[n]->q3 - 1) * QUADRANT_SIZE + lq->grav_lenses[n]->z;
+                        found = true; strcpy(target_name, "Grav Lens"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_GRB && tid <= GALAXY_OBJECT_MAX_GRB) {
+                for (int n = 0; n < lq->grb_count; n++) {
+                    if (lq->grbs[n]->id + GALAXY_OBJECT_MIN_GRB == tid) {
+                        tx = (lq->grbs[n]->q1 - 1) * QUADRANT_SIZE + lq->grbs[n]->x;
+                        ty = (lq->grbs[n]->q2 - 1) * QUADRANT_SIZE + lq->grbs[n]->y;
+                        tz = (lq->grbs[n]->q3 - 1) * QUADRANT_SIZE + lq->grbs[n]->z;
+                        found = true; strcpy(target_name, "GRB"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_GRAV_WAVE && tid <= GALAXY_OBJECT_MAX_GRAV_WAVE) {
+                for (int n = 0; n < lq->grav_wave_count; n++) {
+                    if (lq->grav_waves[n]->id + GALAXY_OBJECT_MIN_GRAV_WAVE == tid) {
+                        tx = (lq->grav_waves[n]->q1 - 1) * QUADRANT_SIZE + lq->grav_waves[n]->x;
+                        ty = (lq->grav_waves[n]->q2 - 1) * QUADRANT_SIZE + lq->grav_waves[n]->y;
+                        tz = (lq->grav_waves[n]->q3 - 1) * QUADRANT_SIZE + lq->grav_waves[n]->z;
+                        found = true; strcpy(target_name, "Grav Wave"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK && tid <= GALAXY_OBJECT_MAX_PROTOPLANETARY_DISK) {
+                for (int n = 0; n < lq->protoplanetary_disk_count; n++) {
+                    if (lq->protoplanetary_disks[n]->id + GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK == tid) {
+                        tx = (lq->protoplanetary_disks[n]->q1 - 1) * QUADRANT_SIZE + lq->protoplanetary_disks[n]->x;
+                        ty = (lq->protoplanetary_disks[n]->q2 - 1) * QUADRANT_SIZE + lq->protoplanetary_disks[n]->y;
+                        tz = (lq->protoplanetary_disks[n]->q3 - 1) * QUADRANT_SIZE + lq->protoplanetary_disks[n]->z;
+                        found = true; strcpy(target_name, "Protoplanetary"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_DEBRIS_DISK && tid <= GALAXY_OBJECT_MAX_DEBRIS_DISK) {
+                for (int n = 0; n < lq->debris_disk_count; n++) {
+                    if (lq->debris_disks[n]->id + GALAXY_OBJECT_MIN_DEBRIS_DISK == tid) {
+                        tx = (lq->debris_disks[n]->q1 - 1) * QUADRANT_SIZE + lq->debris_disks[n]->x;
+                        ty = (lq->debris_disks[n]->q2 - 1) * QUADRANT_SIZE + lq->debris_disks[n]->y;
+                        tz = (lq->debris_disks[n]->q3 - 1) * QUADRANT_SIZE + lq->debris_disks[n]->z;
+                        found = true; strcpy(target_name, "Debris Disk"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_PLANETESIMAL && tid <= GALAXY_OBJECT_MAX_PLANETESIMAL) {
+                for (int n = 0; n < lq->planetesimal_count; n++) {
+                    if (lq->planetesimals[n]->id + GALAXY_OBJECT_MIN_PLANETESIMAL == tid) {
+                        tx = (lq->planetesimals[n]->q1 - 1) * QUADRANT_SIZE + lq->planetesimals[n]->x;
+                        ty = (lq->planetesimals[n]->q2 - 1) * QUADRANT_SIZE + lq->planetesimals[n]->y;
+                        tz = (lq->planetesimals[n]->q3 - 1) * QUADRANT_SIZE + lq->planetesimals[n]->z;
+                        found = true; strcpy(target_name, "Planetesimal"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_ROGUE_PLANET && tid <= GALAXY_OBJECT_MAX_ROGUE_PLANET) {
+                for (int n = 0; n < lq->rogue_planet_count; n++) {
+                    if (lq->rogue_planets[n]->id + GALAXY_OBJECT_MIN_ROGUE_PLANET == tid) {
+                        tx = (lq->rogue_planets[n]->q1 - 1) * QUADRANT_SIZE + lq->rogue_planets[n]->x;
+                        ty = (lq->rogue_planets[n]->q2 - 1) * QUADRANT_SIZE + lq->rogue_planets[n]->y;
+                        tz = (lq->rogue_planets[n]->q3 - 1) * QUADRANT_SIZE + lq->rogue_planets[n]->z;
+                        found = true; strcpy(target_name, "Rogue Planet"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_BROWN_DWARF && tid <= GALAXY_OBJECT_MAX_BROWN_DWARF) {
+                for (int n = 0; n < lq->brown_dwarf_count; n++) {
+                    if (lq->brown_dwarfs[n]->id + GALAXY_OBJECT_MIN_BROWN_DWARF == tid) {
+                        tx = (lq->brown_dwarfs[n]->q1 - 1) * QUADRANT_SIZE + lq->brown_dwarfs[n]->x;
+                        ty = (lq->brown_dwarfs[n]->q2 - 1) * QUADRANT_SIZE + lq->brown_dwarfs[n]->y;
+                        tz = (lq->brown_dwarfs[n]->q3 - 1) * QUADRANT_SIZE + lq->brown_dwarfs[n]->z;
+                        found = true; strcpy(target_name, "Brown Dwarf"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_ISO && tid <= GALAXY_OBJECT_MAX_ISO) {
+                for (int n = 0; n < lq->iso_count; n++) {
+                    if (lq->isos[n]->id + GALAXY_OBJECT_MIN_ISO == tid) {
+                        tx = (lq->isos[n]->q1 - 1) * QUADRANT_SIZE + lq->isos[n]->x;
+                        ty = (lq->isos[n]->q2 - 1) * QUADRANT_SIZE + lq->isos[n]->y;
+                        tz = (lq->isos[n]->q3 - 1) * QUADRANT_SIZE + lq->isos[n]->z;
+                        found = true; strcpy(target_name, "Interst Obj"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_MAG_RECONN && tid <= GALAXY_OBJECT_MAX_MAG_RECONN) {
+                for (int n = 0; n < lq->mag_reconn_count; n++) {
+                    if (lq->mag_reconns[n]->id + GALAXY_OBJECT_MIN_MAG_RECONN == tid) {
+                        tx = (lq->mag_reconns[n]->q1 - 1) * QUADRANT_SIZE + lq->mag_reconns[n]->x;
+                        ty = (lq->mag_reconns[n]->q2 - 1) * QUADRANT_SIZE + lq->mag_reconns[n]->y;
+                        tz = (lq->mag_reconns[n]->q3 - 1) * QUADRANT_SIZE + lq->mag_reconns[n]->z;
+                        found = true; strcpy(target_name, "Mag Reconn"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_CURRENT_SHEET && tid <= GALAXY_OBJECT_MAX_CURRENT_SHEET) {
+                for (int n = 0; n < lq->current_sheet_count; n++) {
+                    if (lq->current_sheets[n]->id + GALAXY_OBJECT_MIN_CURRENT_SHEET == tid) {
+                        tx = (lq->current_sheets[n]->q1 - 1) * QUADRANT_SIZE + lq->current_sheets[n]->x;
+                        ty = (lq->current_sheets[n]->q2 - 1) * QUADRANT_SIZE + lq->current_sheets[n]->y;
+                        tz = (lq->current_sheets[n]->q3 - 1) * QUADRANT_SIZE + lq->current_sheets[n]->z;
+                        found = true; strcpy(target_name, "Cur Sheet"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_HELIOSPHERE && tid <= GALAXY_OBJECT_MAX_HELIOSPHERE) {
+                for (int n = 0; n < lq->heliosphere_count; n++) {
+                    if (lq->heliospheres[n]->id + GALAXY_OBJECT_MIN_HELIOSPHERE == tid) {
+                        tx = (lq->heliospheres[n]->q1 - 1) * QUADRANT_SIZE + lq->heliospheres[n]->x;
+                        ty = (lq->heliospheres[n]->q2 - 1) * QUADRANT_SIZE + lq->heliospheres[n]->y;
+                        tz = (lq->heliospheres[n]->q3 - 1) * QUADRANT_SIZE + lq->heliospheres[n]->z;
+                        found = true; strcpy(target_name, "Heliosphere"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_TERM_SHOCK && tid <= GALAXY_OBJECT_MAX_TERM_SHOCK) {
+                for (int n = 0; n < lq->term_shock_count; n++) {
+                    if (lq->term_shocks[n]->id + GALAXY_OBJECT_MIN_TERM_SHOCK == tid) {
+                        tx = (lq->term_shocks[n]->q1 - 1) * QUADRANT_SIZE + lq->term_shocks[n]->x;
+                        ty = (lq->term_shocks[n]->q2 - 1) * QUADRANT_SIZE + lq->term_shocks[n]->y;
+                        tz = (lq->term_shocks[n]->q3 - 1) * QUADRANT_SIZE + lq->term_shocks[n]->z;
+                        found = true; strcpy(target_name, "Term Shock"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_MAGNETOSPHERE && tid <= GALAXY_OBJECT_MAX_MAGNETOSPHERE) {
+                for (int n = 0; n < lq->magnetosphere_count; n++) {
+                    if (lq->magnetospheres[n]->id + GALAXY_OBJECT_MIN_MAGNETOSPHERE == tid) {
+                        tx = (lq->magnetospheres[n]->q1 - 1) * QUADRANT_SIZE + lq->magnetospheres[n]->x;
+                        ty = (lq->magnetospheres[n]->q2 - 1) * QUADRANT_SIZE + lq->magnetospheres[n]->y;
+                        tz = (lq->magnetospheres[n]->q3 - 1) * QUADRANT_SIZE + lq->magnetospheres[n]->z;
+                        found = true; strcpy(target_name, "Magnetosphere"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_COSMIC_STRING && tid <= GALAXY_OBJECT_MAX_COSMIC_STRING) {
+                for (int n = 0; n < lq->cosmic_string_count; n++) {
+                    if (lq->cosmic_strings[n]->id + GALAXY_OBJECT_MIN_COSMIC_STRING == tid) {
+                        tx = (lq->cosmic_strings[n]->q1 - 1) * QUADRANT_SIZE + lq->cosmic_strings[n]->x;
+                        ty = (lq->cosmic_strings[n]->q2 - 1) * QUADRANT_SIZE + lq->cosmic_strings[n]->y;
+                        tz = (lq->cosmic_strings[n]->q3 - 1) * QUADRANT_SIZE + lq->cosmic_strings[n]->z;
+                        found = true; strcpy(target_name, "Cosmic String"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_DOMAIN_WALL && tid <= GALAXY_OBJECT_MAX_DOMAIN_WALL) {
+                for (int n = 0; n < lq->domain_wall_count; n++) {
+                    if (lq->domain_walls[n]->id + GALAXY_OBJECT_MIN_DOMAIN_WALL == tid) {
+                        tx = (lq->domain_walls[n]->q1 - 1) * QUADRANT_SIZE + lq->domain_walls[n]->x;
+                        ty = (lq->domain_walls[n]->q2 - 1) * QUADRANT_SIZE + lq->domain_walls[n]->y;
+                        tz = (lq->domain_walls[n]->q3 - 1) * QUADRANT_SIZE + lq->domain_walls[n]->z;
+                        found = true; strcpy(target_name, "Domain Wall"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_DM_HALO && tid <= GALAXY_OBJECT_MAX_DM_HALO) {
+                for (int n = 0; n < lq->dm_halo_count; n++) {
+                    if (lq->dm_halos[n]->id + GALAXY_OBJECT_MIN_DM_HALO == tid) {
+                        tx = (lq->dm_halos[n]->q1 - 1) * QUADRANT_SIZE + lq->dm_halos[n]->x;
+                        ty = (lq->dm_halos[n]->q2 - 1) * QUADRANT_SIZE + lq->dm_halos[n]->y;
+                        tz = (lq->dm_halos[n]->q3 - 1) * QUADRANT_SIZE + lq->dm_halos[n]->z;
+                        found = true; strcpy(target_name, "DM Halo"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_IGM && tid <= GALAXY_OBJECT_MAX_IGM) {
+                for (int n = 0; n < lq->igm_count; n++) {
+                    if (lq->igms[n]->id + GALAXY_OBJECT_MIN_IGM == tid) {
+                        tx = (lq->igms[n]->q1 - 1) * QUADRANT_SIZE + lq->igms[n]->x;
+                        ty = (lq->igms[n]->q2 - 1) * QUADRANT_SIZE + lq->igms[n]->y;
+                        tz = (lq->igms[n]->q3 - 1) * QUADRANT_SIZE + lq->igms[n]->z;
+                        found = true; strcpy(target_name, "IGM"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_CGM && tid <= GALAXY_OBJECT_MAX_CGM) {
+                for (int n = 0; n < lq->cgm_count; n++) {
+                    if (lq->cgms[n]->id + GALAXY_OBJECT_MIN_CGM == tid) {
+                        tx = (lq->cgms[n]->q1 - 1) * QUADRANT_SIZE + lq->cgms[n]->x;
+                        ty = (lq->cgms[n]->q2 - 1) * QUADRANT_SIZE + lq->cgms[n]->y;
+                        tz = (lq->cgms[n]->q3 - 1) * QUADRANT_SIZE + lq->cgms[n]->z;
+                        found = true; strcpy(target_name, "CGM"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_LYMAN_ALPHA && tid <= GALAXY_OBJECT_MAX_LYMAN_ALPHA) {
+                for (int n = 0; n < lq->lyman_alpha_count; n++) {
+                    if (lq->lyman_alphas[n]->id + GALAXY_OBJECT_MIN_LYMAN_ALPHA == tid) {
+                        tx = (lq->lyman_alphas[n]->q1 - 1) * QUADRANT_SIZE + lq->lyman_alphas[n]->x;
+                        ty = (lq->lyman_alphas[n]->q2 - 1) * QUADRANT_SIZE + lq->lyman_alphas[n]->y;
+                        tz = (lq->lyman_alphas[n]->q3 - 1) * QUADRANT_SIZE + lq->lyman_alphas[n]->z;
+                        found = true; strcpy(target_name, "Lyman Alpha"); break;
+                    }
+                }
+            }
+            if (!found && tid >= GALAXY_OBJECT_MIN_CMB && tid <= GALAXY_OBJECT_MAX_CMB) {
+                for (int n = 0; n < lq->cmb_count; n++) {
+                    if (lq->cmbs[n]->id + GALAXY_OBJECT_MIN_CMB == tid) {
+                        tx = (lq->cmbs[n]->q1 - 1) * QUADRANT_SIZE + lq->cmbs[n]->x;
+                        ty = (lq->cmbs[n]->q2 - 1) * QUADRANT_SIZE + lq->cmbs[n]->y;
+                        tz = (lq->cmbs[n]->q3 - 1) * QUADRANT_SIZE + lq->cmbs[n]->z;
+                        found = true; strcpy(target_name, "CMB"); break;
+                    }
+                }
+            }
                 }
             }
         }
@@ -1037,7 +1418,7 @@ void handle_xxx(int i, const char *params, bool *should_disconnect) {
     players[i].is_docked = 0;
     players[i].torp_active = false;
     for(int s=0; s<4; s++) {
-        players[i].state.torps[s].active = 0;
+/* Removed obsolete torpedo reset */
         players[i].torp_slots[s].active = false;
     }
     players[i].death_timer = 0;
@@ -1452,6 +1833,272 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "⏳  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Time Anomaly\n", "T-Anom", ta->id + GALAXY_OBJECT_MIN_TIME_ANOMALY, ta->x, ta->y, ta->z, d, h, m);
     }
+    for (int i=0; i<local_q->diffuse_nebula_count; i++) {
+        double dx = local_q->diffuse_nebulae[i]->x - s1; double dy = local_q->diffuse_nebulae[i]->y - s2; double dz = local_q->diffuse_nebulae[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "☁️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Diffuse Nebula\n", "Diffuse Ne", local_q->diffuse_nebulae[i]->id + GALAXY_OBJECT_MIN_DIFFUSE_NEBULA, local_q->diffuse_nebulae[i]->x, local_q->diffuse_nebulae[i]->y, local_q->diffuse_nebulae[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->dark_nebula_count; i++) {
+        double dx = local_q->dark_nebulae[i]->x - s1; double dy = local_q->dark_nebulae[i]->y - s2; double dz = local_q->dark_nebulae[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌌  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Dark Nebula\n", "Dark Nebul", local_q->dark_nebulae[i]->id + GALAXY_OBJECT_MIN_DARK_NEBULA, local_q->dark_nebulae[i]->x, local_q->dark_nebulae[i]->y, local_q->dark_nebulae[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->planetary_nebula_count; i++) {
+        double dx = local_q->planetary_nebulae[i]->x - s1; double dy = local_q->planetary_nebulae[i]->y - s2; double dz = local_q->planetary_nebulae[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🎆  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Planetary Neb\n", "Planetary ", local_q->planetary_nebulae[i]->id + GALAXY_OBJECT_MIN_PLANETARY_NEBULA, local_q->planetary_nebulae[i]->x, local_q->planetary_nebulae[i]->y, local_q->planetary_nebulae[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->snr_count; i++) {
+        double dx = local_q->snrs[i]->x - s1; double dy = local_q->snrs[i]->y - s2; double dz = local_q->snrs[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💥  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     SNR\n", "SNR", local_q->snrs[i]->id + GALAXY_OBJECT_MIN_SNR, local_q->snrs[i]->x, local_q->snrs[i]->y, local_q->snrs[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->gmc_count; i++) {
+        double dx = local_q->gmcs[i]->x - s1; double dy = local_q->gmcs[i]->y - s2; double dz = local_q->gmcs[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌁  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     GMC\n", "GMC", local_q->gmcs[i]->id + GALAXY_OBJECT_MIN_GMC, local_q->gmcs[i]->x, local_q->gmcs[i]->y, local_q->gmcs[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->interstellar_filament_count; i++) {
+        double dx = local_q->interstellar_filaments[i]->x - s1; double dy = local_q->interstellar_filaments[i]->y - s2; double dz = local_q->interstellar_filaments[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Int Filament\n", "Int Filame", local_q->interstellar_filaments[i]->id + GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT, local_q->interstellar_filaments[i]->x, local_q->interstellar_filaments[i]->y, local_q->interstellar_filaments[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->interstellar_bubble_count; i++) {
+        double dx = local_q->interstellar_bubbles[i]->x - s1; double dy = local_q->interstellar_bubbles[i]->y - s2; double dz = local_q->interstellar_bubbles[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🫧  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Int Bubble\n", "Int Bubble", local_q->interstellar_bubbles[i]->id + GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE, local_q->interstellar_bubbles[i]->x, local_q->interstellar_bubbles[i]->y, local_q->interstellar_bubbles[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->bok_globule_count; i++) {
+        double dx = local_q->bok_globules[i]->x - s1; double dy = local_q->bok_globules[i]->y - s2; double dz = local_q->bok_globules[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⚫  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Bok Globule\n", "Bok Globul", local_q->bok_globules[i]->id + GALAXY_OBJECT_MIN_BOK_GLOBULE, local_q->bok_globules[i]->x, local_q->bok_globules[i]->y, local_q->bok_globules[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->clump_core_count; i++) {
+        double dx = local_q->clump_cores[i]->x - s1; double dy = local_q->clump_cores[i]->y - s2; double dz = local_q->clump_cores[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪨  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Clump/Core\n", "Clump/Core", local_q->clump_cores[i]->id + GALAXY_OBJECT_MIN_CLUMP_CORE, local_q->clump_cores[i]->x, local_q->clump_cores[i]->y, local_q->clump_cores[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->accretion_disk_count; i++) {
+        double dx = local_q->accretion_disks[i]->x - s1; double dy = local_q->accretion_disks[i]->y - s2; double dz = local_q->accretion_disks[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💿  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Accretion Disk\n", "Accretion ", local_q->accretion_disks[i]->id + GALAXY_OBJECT_MIN_ACCRETION_DISK, local_q->accretion_disks[i]->x, local_q->accretion_disks[i]->y, local_q->accretion_disks[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->relativistic_jet_count; i++) {
+        double dx = local_q->relativistic_jets[i]->x - s1; double dy = local_q->relativistic_jets[i]->y - s2; double dz = local_q->relativistic_jets[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "☄️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Relativ Jet\n", "Relativ Je", local_q->relativistic_jets[i]->id + GALAXY_OBJECT_MIN_RELATIVISTIC_JET, local_q->relativistic_jets[i]->x, local_q->relativistic_jets[i]->y, local_q->relativistic_jets[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->shock_wave_count; i++) {
+        double dx = local_q->shock_waves[i]->x - s1; double dy = local_q->shock_waves[i]->y - s2; double dz = local_q->shock_waves[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Shock Wave\n", "Shock Wave", local_q->shock_waves[i]->id + GALAXY_OBJECT_MIN_SHOCK_WAVE, local_q->shock_waves[i]->x, local_q->shock_waves[i]->y, local_q->shock_waves[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->stellar_bow_shock_count; i++) {
+        double dx = local_q->stellar_bow_shocks[i]->x - s1; double dy = local_q->stellar_bow_shocks[i]->y - s2; double dz = local_q->stellar_bow_shocks[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌊  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Bow Shock\n", "Bow Shock", local_q->stellar_bow_shocks[i]->id + GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK, local_q->stellar_bow_shocks[i]->x, local_q->stellar_bow_shocks[i]->y, local_q->stellar_bow_shocks[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->cosmic_void_count; i++) {
+        double dx = local_q->cosmic_voids[i]->x - s1; double dy = local_q->cosmic_voids[i]->y - s2; double dz = local_q->cosmic_voids[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⬛  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cosmic Void\n", "Cosmic Voi", local_q->cosmic_voids[i]->id + GALAXY_OBJECT_MIN_COSMIC_VOID, local_q->cosmic_voids[i]->x, local_q->cosmic_voids[i]->y, local_q->cosmic_voids[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->cosmic_filament_count; i++) {
+        double dx = local_q->cosmic_filaments[i]->x - s1; double dy = local_q->cosmic_filaments[i]->y - s2; double dz = local_q->cosmic_filaments[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🕸️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cosmic Fil\n", "Cosmic Fil", local_q->cosmic_filaments[i]->id + GALAXY_OBJECT_MIN_COSMIC_FILAMENT, local_q->cosmic_filaments[i]->x, local_q->cosmic_filaments[i]->y, local_q->cosmic_filaments[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->event_horizon_count; i++) {
+        double dx = local_q->event_horizons[i]->x - s1; double dy = local_q->event_horizons[i]->y - s2; double dz = local_q->event_horizons[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🕳️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Event Horizon\n", "Event Hori", local_q->event_horizons[i]->id + GALAXY_OBJECT_MIN_EVENT_HORIZON, local_q->event_horizons[i]->x, local_q->event_horizons[i]->y, local_q->event_horizons[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->kilonova_count; i++) {
+        double dx = local_q->kilonovae[i]->x - s1; double dy = local_q->kilonovae[i]->y - s2; double dz = local_q->kilonovae[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "✨  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Kilonova\n", "Kilonova", local_q->kilonovae[i]->id + GALAXY_OBJECT_MIN_KILONOVA, local_q->kilonovae[i]->x, local_q->kilonovae[i]->y, local_q->kilonovae[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->grav_lens_count; i++) {
+        double dx = local_q->grav_lenses[i]->x - s1; double dy = local_q->grav_lenses[i]->y - s2; double dz = local_q->grav_lenses[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🔎  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Grav Lens\n", "Grav Lens", local_q->grav_lenses[i]->id + GALAXY_OBJECT_MIN_GRAV_LENS, local_q->grav_lenses[i]->x, local_q->grav_lenses[i]->y, local_q->grav_lenses[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->grb_count; i++) {
+        double dx = local_q->grbs[i]->x - s1; double dy = local_q->grbs[i]->y - s2; double dz = local_q->grbs[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🎇  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     GRB\n", "GRB", local_q->grbs[i]->id + GALAXY_OBJECT_MIN_GRB, local_q->grbs[i]->x, local_q->grbs[i]->y, local_q->grbs[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->grav_wave_count; i++) {
+        double dx = local_q->grav_waves[i]->x - s1; double dy = local_q->grav_waves[i]->y - s2; double dz = local_q->grav_waves[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Grav Wave\n", "Grav Wave", local_q->grav_waves[i]->id + GALAXY_OBJECT_MIN_GRAV_WAVE, local_q->grav_waves[i]->x, local_q->grav_waves[i]->y, local_q->grav_waves[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->protoplanetary_disk_count; i++) {
+        double dx = local_q->protoplanetary_disks[i]->x - s1; double dy = local_q->protoplanetary_disks[i]->y - s2; double dz = local_q->protoplanetary_disks[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪐  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Protoplanetary\n", "Protoplane", local_q->protoplanetary_disks[i]->id + GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK, local_q->protoplanetary_disks[i]->x, local_q->protoplanetary_disks[i]->y, local_q->protoplanetary_disks[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->debris_disk_count; i++) {
+        double dx = local_q->debris_disks[i]->x - s1; double dy = local_q->debris_disks[i]->y - s2; double dz = local_q->debris_disks[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💫  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Debris Disk\n", "Debris Dis", local_q->debris_disks[i]->id + GALAXY_OBJECT_MIN_DEBRIS_DISK, local_q->debris_disks[i]->x, local_q->debris_disks[i]->y, local_q->debris_disks[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->planetesimal_count; i++) {
+        double dx = local_q->planetesimals[i]->x - s1; double dy = local_q->planetesimals[i]->y - s2; double dz = local_q->planetesimals[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪨  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Planetesimal\n", "Planetesim", local_q->planetesimals[i]->id + GALAXY_OBJECT_MIN_PLANETESIMAL, local_q->planetesimals[i]->x, local_q->planetesimals[i]->y, local_q->planetesimals[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->rogue_planet_count; i++) {
+        double dx = local_q->rogue_planets[i]->x - s1; double dy = local_q->rogue_planets[i]->y - s2; double dz = local_q->rogue_planets[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌑  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Rogue Planet\n", "Rogue Plan", local_q->rogue_planets[i]->id + GALAXY_OBJECT_MIN_ROGUE_PLANET, local_q->rogue_planets[i]->x, local_q->rogue_planets[i]->y, local_q->rogue_planets[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->brown_dwarf_count; i++) {
+        double dx = local_q->brown_dwarfs[i]->x - s1; double dy = local_q->brown_dwarfs[i]->y - s2; double dz = local_q->brown_dwarfs[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🟤  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Brown Dwarf\n", "Brown Dwar", local_q->brown_dwarfs[i]->id + GALAXY_OBJECT_MIN_BROWN_DWARF, local_q->brown_dwarfs[i]->x, local_q->brown_dwarfs[i]->y, local_q->brown_dwarfs[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->iso_count; i++) {
+        double dx = local_q->isos[i]->x - s1; double dy = local_q->isos[i]->y - s2; double dz = local_q->isos[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "☄️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Interst Obj\n", "Interst Ob", local_q->isos[i]->id + GALAXY_OBJECT_MIN_ISO, local_q->isos[i]->x, local_q->isos[i]->y, local_q->isos[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->mag_reconn_count; i++) {
+        double dx = local_q->mag_reconns[i]->x - s1; double dy = local_q->mag_reconns[i]->y - s2; double dz = local_q->mag_reconns[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⚡  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Mag Reconn\n", "Mag Reconn", local_q->mag_reconns[i]->id + GALAXY_OBJECT_MIN_MAG_RECONN, local_q->mag_reconns[i]->x, local_q->mag_reconns[i]->y, local_q->mag_reconns[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->current_sheet_count; i++) {
+        double dx = local_q->current_sheets[i]->x - s1; double dy = local_q->current_sheets[i]->y - s2; double dz = local_q->current_sheets[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cur Sheet\n", "Cur Sheet", local_q->current_sheets[i]->id + GALAXY_OBJECT_MIN_CURRENT_SHEET, local_q->current_sheets[i]->x, local_q->current_sheets[i]->y, local_q->current_sheets[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->heliosphere_count; i++) {
+        double dx = local_q->heliospheres[i]->x - s1; double dy = local_q->heliospheres[i]->y - s2; double dz = local_q->heliospheres[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌞  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Heliosphere\n", "Heliospher", local_q->heliospheres[i]->id + GALAXY_OBJECT_MIN_HELIOSPHERE, local_q->heliospheres[i]->x, local_q->heliospheres[i]->y, local_q->heliospheres[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->term_shock_count; i++) {
+        double dx = local_q->term_shocks[i]->x - s1; double dy = local_q->term_shocks[i]->y - s2; double dz = local_q->term_shocks[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌊  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Term Shock\n", "Term Shock", local_q->term_shocks[i]->id + GALAXY_OBJECT_MIN_TERM_SHOCK, local_q->term_shocks[i]->x, local_q->term_shocks[i]->y, local_q->term_shocks[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->magnetosphere_count; i++) {
+        double dx = local_q->magnetospheres[i]->x - s1; double dy = local_q->magnetospheres[i]->y - s2; double dz = local_q->magnetospheres[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🧲  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Magnetosphere\n", "Magnetosph", local_q->magnetospheres[i]->id + GALAXY_OBJECT_MIN_MAGNETOSPHERE, local_q->magnetospheres[i]->x, local_q->magnetospheres[i]->y, local_q->magnetospheres[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->cosmic_string_count; i++) {
+        double dx = local_q->cosmic_strings[i]->x - s1; double dy = local_q->cosmic_strings[i]->y - s2; double dz = local_q->cosmic_strings[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🧵  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cosmic String\n", "Cosmic Str", local_q->cosmic_strings[i]->id + GALAXY_OBJECT_MIN_COSMIC_STRING, local_q->cosmic_strings[i]->x, local_q->cosmic_strings[i]->y, local_q->cosmic_strings[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->domain_wall_count; i++) {
+        double dx = local_q->domain_walls[i]->x - s1; double dy = local_q->domain_walls[i]->y - s2; double dz = local_q->domain_walls[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🧱  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Domain Wall\n", "Domain Wal", local_q->domain_walls[i]->id + GALAXY_OBJECT_MIN_DOMAIN_WALL, local_q->domain_walls[i]->x, local_q->domain_walls[i]->y, local_q->domain_walls[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->dm_halo_count; i++) {
+        double dx = local_q->dm_halos[i]->x - s1; double dy = local_q->dm_halos[i]->y - s2; double dz = local_q->dm_halos[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "👻  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     DM Halo\n", "DM Halo", local_q->dm_halos[i]->id + GALAXY_OBJECT_MIN_DM_HALO, local_q->dm_halos[i]->x, local_q->dm_halos[i]->y, local_q->dm_halos[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->igm_count; i++) {
+        double dx = local_q->igms[i]->x - s1; double dy = local_q->igms[i]->y - s2; double dz = local_q->igms[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌫️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     IGM\n", "IGM", local_q->igms[i]->id + GALAXY_OBJECT_MIN_IGM, local_q->igms[i]->x, local_q->igms[i]->y, local_q->igms[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->cgm_count; i++) {
+        double dx = local_q->cgms[i]->x - s1; double dy = local_q->cgms[i]->y - s2; double dz = local_q->cgms[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌫️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     CGM\n", "CGM", local_q->cgms[i]->id + GALAXY_OBJECT_MIN_CGM, local_q->cgms[i]->x, local_q->cgms[i]->y, local_q->cgms[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->lyman_alpha_count; i++) {
+        double dx = local_q->lyman_alphas[i]->x - s1; double dy = local_q->lyman_alphas[i]->y - s2; double dz = local_q->lyman_alphas[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌲  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Lyman Alpha\n", "Lyman Alph", local_q->lyman_alphas[i]->id + GALAXY_OBJECT_MIN_LYMAN_ALPHA, local_q->lyman_alphas[i]->x, local_q->lyman_alphas[i]->y, local_q->lyman_alphas[i]->z, d, h, m);
+    }
+    for (int i=0; i<local_q->cmb_count; i++) {
+        double dx = local_q->cmbs[i]->x - s1; double dy = local_q->cmbs[i]->y - s2; double dz = local_q->cmbs[i]->z - s3;
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
+        double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "📺  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     CMB\n", "CMB", local_q->cmbs[i]->id + GALAXY_OBJECT_MIN_CMB, local_q->cmbs[i]->x, local_q->cmbs[i]->y, local_q->cmbs[i]->z, d, h, m);
+    }
 
 
     /* 7. Derelicts (Wrecks) */
@@ -1537,64 +2184,96 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
                 int nq1 = q1 + dq1, nq2 = q2 + dq2;
                 if (nq1 < 1 || nq1 > GALAXY_SIZE || nq2 < 1 || nq2 > GALAXY_SIZE) continue;
                 
-                PacketLRSUpdate pkt;
-                pkt.type = PKT_LRS_UPDATE;
-                pkt.q1 = nq1; pkt.q2 = nq2; pkt.q3 = nq3;
-                pkt.z_offset = dq3;
-                pkt.object_count = 0;
                 QuadrantIndex *lq = &spatial_index[nq1][nq2][nq3];
-                for (int i_n = 0; i_n < lq->npc_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->npcs[i_n]->active) if (lq->npcs[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->npcs[i_n]->x, .net_y = lq->npcs[i_n]->y, .net_z = lq->npcs[i_n]->z, .id = lq->npcs[i_n]->id + GALAXY_OBJECT_MIN_NPC, .active = 1};
-                for (int i_n = 0; i_n < lq->star_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->stars[i_n]->active) if (lq->stars[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->stars[i_n]->x, .net_y = lq->stars[i_n]->y, .net_z = lq->stars[i_n]->z, .id = lq->stars[i_n]->id + GALAXY_OBJECT_MIN_STAR, .active = 1};
-                for (int i_n = 0; i_n < lq->planet_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->planets[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->planets[i_n]->x, .net_y = lq->planets[i_n]->y, .net_z = lq->planets[i_n]->z, .id = lq->planets[i_n]->id + GALAXY_OBJECT_MIN_PLANET, .active = 1};
-                for (int i_n = 0; i_n < lq->base_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->bases[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->bases[i_n]->x, .net_y = lq->bases[i_n]->y, .net_z = lq->bases[i_n]->z, .id = lq->bases[i_n]->id + GALAXY_OBJECT_MIN_STARBASE, .active = 1};
-                for (int i_n = 0; i_n < lq->bh_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->black_holes[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->black_holes[i_n]->x, .net_y = lq->black_holes[i_n]->y, .net_z = lq->black_holes[i_n]->z, .id = lq->black_holes[i_n]->id + GALAXY_OBJECT_MIN_BLACKHOLE, .active = 1};
-                for (int i_n = 0; i_n < lq->nebula_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->nebulas[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->nebulas[i_n]->x, .net_y = lq->nebulas[i_n]->y, .net_z = lq->nebulas[i_n]->z, .id = lq->nebulas[i_n]->id + GALAXY_OBJECT_MIN_NEBULA, .active = 1};
-                for (int i_n = 0; i_n < lq->pulsar_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->pulsars[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->pulsars[i_n]->x, .net_y = lq->pulsars[i_n]->y, .net_z = lq->pulsars[i_n]->z, .id = lq->pulsars[i_n]->id + GALAXY_OBJECT_MIN_PULSAR, .active = 1};
-                for (int i_n = 0; i_n < lq->quasar_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) if (lq->quasars[i_n]->active) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->quasars[i_n]->x, .net_y = lq->quasars[i_n]->y, .net_z = lq->quasars[i_n]->z, .id = lq->quasars[i_n]->id + GALAXY_OBJECT_MIN_QUASAR, .active = 1};
-                for (int i_n = 0; i_n < lq->comet_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->comets[i_n]->x, .net_y = lq->comets[i_n]->y, .net_z = lq->comets[i_n]->z, .id = lq->comets[i_n]->id + GALAXY_OBJECT_MIN_COMET, .active = 1};
-                for (int i_n = 0; i_n < lq->asteroid_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->asteroids[i_n]->x, .net_y = lq->asteroids[i_n]->y, .net_z = lq->asteroids[i_n]->z, .id = lq->asteroids[i_n]->id + GALAXY_OBJECT_MIN_ASTEROID, .active = 1};
-                for (int i_n = 0; i_n < lq->derelict_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->derelicts[i_n]->x, .net_y = lq->derelicts[i_n]->y, .net_z = lq->derelicts[i_n]->z, .id = lq->derelicts[i_n]->id + GALAXY_OBJECT_MIN_DERELICT, .active = 1};
-                for (int i_n = 0; i_n < lq->void_crystal_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->void_crystals[i_n]->x, .net_y = lq->void_crystals[i_n]->y, .net_z = lq->void_crystals[i_n]->z, .id = lq->void_crystals[i_n]->id + GALAXY_OBJECT_MIN_VOID_CRYSTAL, .active = 1};
-                for (int i_n = 0; i_n < lq->time_anomaly_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->time_anomalies[i_n]->x, .net_y = lq->time_anomalies[i_n]->y, .net_z = lq->time_anomalies[i_n]->z, .id = lq->time_anomalies[i_n]->id + GALAXY_OBJECT_MIN_TIME_ANOMALY, .active = 1};
-                for (int i_n = 0; i_n < lq->subspace_anomaly_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->subspace_anomalies[i_n]->x, .net_y = lq->subspace_anomalies[i_n]->y, .net_z = lq->subspace_anomalies[i_n]->z, .id = lq->subspace_anomalies[i_n]->id + GALAXY_OBJECT_MIN_SUBSPACE_ANOM, .active = 1};
-                for (int i_n = 0; i_n < lq->dyson_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->dysons[i_n]->x, .net_y = lq->dysons[i_n]->y, .net_z = lq->dysons[i_n]->z, .id = lq->dysons[i_n]->id + GALAXY_OBJECT_MIN_DYSON, .active = 1};
-                for (int i_n = 0; i_n < lq->hub_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->hubs[i_n]->x, .net_y = lq->hubs[i_n]->y, .net_z = lq->hubs[i_n]->z, .id = lq->hubs[i_n]->id + GALAXY_OBJECT_MIN_HUB, .active = 1};
-                for (int i_n = 0; i_n < lq->relic_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->relics[i_n]->x, .net_y = lq->relics[i_n]->y, .net_z = lq->relics[i_n]->z, .id = lq->relics[i_n]->id + GALAXY_OBJECT_MIN_RELIC, .active = 1};
-                for (int i_n = 0; i_n < lq->rupture_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->ruptures[i_n]->x, .net_y = lq->ruptures[i_n]->y, .net_z = lq->ruptures[i_n]->z, .id = lq->ruptures[i_n]->id + GALAXY_OBJECT_MIN_RUPTURE, .active = 1};
-                for (int i_n = 0; i_n < lq->satellite_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->satellites[i_n]->x, .net_y = lq->satellites[i_n]->y, .net_z = lq->satellites[i_n]->z, .id = lq->satellites[i_n]->id + GALAXY_OBJECT_MIN_SATELLITE, .active = 1};
-                for (int i_n = 0; i_n < lq->storm_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->storms[i_n]->x, .net_y = lq->storms[i_n]->y, .net_z = lq->storms[i_n]->z, .id = lq->storms[i_n]->id + GALAXY_OBJECT_MIN_STORM, .active = 1};
-                for (int i_n = 0; i_n < lq->artifact_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->artifacts[i_n]->x, .net_y = lq->artifacts[i_n]->y, .net_z = lq->artifacts[i_n]->z, .id = lq->artifacts[i_n]->id + GALAXY_OBJECT_MIN_ARTIFACT, .active = 1};
-                for (int i_n = 0; i_n < lq->warp_gate_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->warp_gates[i_n]->x, .net_y = lq->warp_gates[i_n]->y, .net_z = lq->warp_gates[i_n]->z, .id = lq->warp_gates[i_n]->id + GALAXY_OBJECT_MIN_WARP_GATE, .active = 1};
-                for (int i_n = 0; i_n < lq->neutron_star_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->neutron_stars[i_n]->x, .net_y = lq->neutron_stars[i_n]->y, .net_z = lq->neutron_stars[i_n]->z, .id = lq->neutron_stars[i_n]->id + GALAXY_OBJECT_MIN_NEUTRON_STAR, .active = 1};
-                for (int i_n = 0; i_n < lq->mega_struct_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->mega_structs[i_n]->x, .net_y = lq->mega_structs[i_n]->y, .net_z = lq->mega_structs[i_n]->z, .id = lq->mega_structs[i_n]->id + GALAXY_OBJECT_MIN_MEGA_STRUCT, .active = 1};
-                for (int i_n = 0; i_n < lq->dark_cloud_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->dark_clouds[i_n]->x, .net_y = lq->dark_clouds[i_n]->y, .net_z = lq->dark_clouds[i_n]->z, .id = lq->dark_clouds[i_n]->id + GALAXY_OBJECT_MIN_DARK_CLOUD, .active = 1};
-                for (int i_n = 0; i_n < lq->singularity_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->singularities[i_n]->x, .net_y = lq->singularities[i_n]->y, .net_z = lq->singularities[i_n]->z, .id = lq->singularities[i_n]->id + GALAXY_OBJECT_MIN_SINGULARITY, .active = 1};
-                for (int i_n = 0; i_n < lq->plasma_storm_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->plasma_storms[i_n]->x, .net_y = lq->plasma_storms[i_n]->y, .net_z = lq->plasma_storms[i_n]->z, .id = lq->plasma_storms[i_n]->id + GALAXY_OBJECT_MIN_PLASMA_STORM, .active = 1};
-                for (int i_n = 0; i_n < lq->orbital_ring_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->orbital_rings[i_n]->x, .net_y = lq->orbital_rings[i_n]->y, .net_z = lq->orbital_rings[i_n]->z, .id = lq->orbital_rings[i_n]->id + GALAXY_OBJECT_MIN_ORBITAL_RING, .active = 1};
-                for (int i_n = 0; i_n < lq->player_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) {
-                    if (lq->players[i_n] != NULL && lq->players[i_n]->active) {
-                        int player_id = (int)(lq->players[i_n] - players) + 1;
-                        if (player_id > 0) {
-                            pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->players[i_n]->state.s1, .net_y = lq->players[i_n]->state.s2, .net_z = lq->players[i_n]->state.s3, .id = player_id, .active = 1};
-                        }
-                    }
-                }
-                for (int i_n = 0; i_n < lq->mine_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->mines[i_n]->x, .net_y = lq->mines[i_n]->y, .net_z = lq->mines[i_n]->z, .id = lq->mines[i_n]->id + GALAXY_OBJECT_MIN_MINE, .active = 1};
-                for (int i_n = 0; i_n < lq->buoy_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->buoys[i_n]->x, .net_y = lq->buoys[i_n]->y, .net_z = lq->buoys[i_n]->z, .id = lq->buoys[i_n]->id + GALAXY_OBJECT_MIN_BUOY, .active = 1};
-                for (int i_n = 0; i_n < lq->platform_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->platforms[i_n]->x, .net_y = lq->platforms[i_n]->y, .net_z = lq->platforms[i_n]->z, .id = lq->platforms[i_n]->id + GALAXY_OBJECT_MIN_PLATFORM, .active = 1};
-                for (int i_n = 0; i_n < lq->rift_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->rifts[i_n]->x, .net_y = lq->rifts[i_n]->y, .net_z = lq->rifts[i_n]->z, .id = lq->rifts[i_n]->id + GALAXY_OBJECT_MIN_RIFT, .active = 1};
-                for (int i_n = 0; i_n < lq->monster_count && pkt.object_count < MAX_NET_OBJECTS; i_n++) pkt.objects[pkt.object_count++] = (NetObject){.net_x = lq->monsters[i_n]->x, .net_y = lq->monsters[i_n]->y, .net_z = lq->monsters[i_n]->z, .id = lq->monsters[i_n]->id + GALAXY_OBJECT_MIN_MONSTER, .active = 1};
+                
+                /* Temporary large buffer for ALL objects in quadrant */
+                NetObject *all_objs = malloc(sizeof(NetObject) * 16384); 
+                int total_count = 0;
 
-                size_t packet_size = offsetof(PacketLRSUpdate, objects) + (pkt.object_count * sizeof(NetObject));
-                pthread_mutex_lock(&players[i].socket_mutex);
-                if (players[i].socket != 0) write_all(players[i].socket, &pkt, packet_size);
-                pthread_mutex_unlock(&players[i].socket_mutex);
+                #define ADD_LRS_OBJ(arr, count, min_id, t_val)                     for(int n=0; n<count && total_count < 16384; n++) {                         if(arr[n]->active) {                             all_objs[total_count++] = (NetObject){.net_x = arr[n]->x, .net_y = arr[n]->y, .net_z = arr[n]->z, .type = t_val, .id = arr[n]->id + min_id, .active = 1};                         }                     }
+
+                ADD_LRS_OBJ(lq->npcs, lq->npc_count, GALAXY_OBJECT_MIN_NPC, 10);
+                ADD_LRS_OBJ(lq->stars, lq->star_count, GALAXY_OBJECT_MIN_STAR, 4);
+                ADD_LRS_OBJ(lq->planets, lq->planet_count, GALAXY_OBJECT_MIN_PLANET, 5);
+                ADD_LRS_OBJ(lq->bases, lq->base_count, GALAXY_OBJECT_MIN_STARBASE, 3);
+                ADD_LRS_OBJ(lq->black_holes, lq->bh_count, GALAXY_OBJECT_MIN_BLACKHOLE, 6);
+                ADD_LRS_OBJ(lq->nebulas, lq->nebula_count, GALAXY_OBJECT_MIN_NEBULA, 50);
+                ADD_LRS_OBJ(lq->pulsars, lq->pulsar_count, GALAXY_OBJECT_MIN_PULSAR, 28);
+                ADD_LRS_OBJ(lq->quasars, lq->quasar_count, GALAXY_OBJECT_MIN_QUASAR, 29);
+                ADD_LRS_OBJ(lq->comets, lq->comet_count, GALAXY_OBJECT_MIN_COMET, 20);
+                ADD_LRS_OBJ(lq->asteroids, lq->asteroid_count, GALAXY_OBJECT_MIN_ASTEROID, 21);
+                ADD_LRS_OBJ(lq->derelicts, lq->derelict_count, GALAXY_OBJECT_MIN_DERELICT, 10);
+                ADD_LRS_OBJ(lq->void_crystals, lq->void_crystal_count, GALAXY_OBJECT_MIN_VOID_CRYSTAL, 49);
+                ADD_LRS_OBJ(lq->diffuse_nebulae, lq->diffuse_nebula_count, GALAXY_OBJECT_MIN_DIFFUSE_NEBULA, 51);
+                ADD_LRS_OBJ(lq->dark_nebulae, lq->dark_nebula_count, GALAXY_OBJECT_MIN_DARK_NEBULA, 52);
+                ADD_LRS_OBJ(lq->planetary_nebulae, lq->planetary_nebula_count, GALAXY_OBJECT_MIN_PLANETARY_NEBULA, 53);
+                ADD_LRS_OBJ(lq->snrs, lq->snr_count, GALAXY_OBJECT_MIN_SNR, 54);
+                ADD_LRS_OBJ(lq->gmcs, lq->gmc_count, GALAXY_OBJECT_MIN_GMC, 55);
+                ADD_LRS_OBJ(lq->interstellar_filaments, lq->interstellar_filament_count, GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT, 56);
+                ADD_LRS_OBJ(lq->interstellar_bubbles, lq->interstellar_bubble_count, GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE, 57);
+                ADD_LRS_OBJ(lq->bok_globules, lq->bok_globule_count, GALAXY_OBJECT_MIN_BOK_GLOBULE, 58);
+                ADD_LRS_OBJ(lq->clump_cores, lq->clump_core_count, GALAXY_OBJECT_MIN_CLUMP_CORE, 59);
+                ADD_LRS_OBJ(lq->accretion_disks, lq->accretion_disk_count, GALAXY_OBJECT_MIN_ACCRETION_DISK, 60);
+                ADD_LRS_OBJ(lq->relativistic_jets, lq->relativistic_jet_count, GALAXY_OBJECT_MIN_RELATIVISTIC_JET, 61);
+                ADD_LRS_OBJ(lq->shock_waves, lq->shock_wave_count, GALAXY_OBJECT_MIN_SHOCK_WAVE, 62);
+                ADD_LRS_OBJ(lq->stellar_bow_shocks, lq->stellar_bow_shock_count, GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK, 63);
+                ADD_LRS_OBJ(lq->cosmic_voids, lq->cosmic_void_count, GALAXY_OBJECT_MIN_COSMIC_VOID, 64);
+                ADD_LRS_OBJ(lq->cosmic_filaments, lq->cosmic_filament_count, GALAXY_OBJECT_MIN_COSMIC_FILAMENT, 65);
+                ADD_LRS_OBJ(lq->event_horizons, lq->event_horizon_count, GALAXY_OBJECT_MIN_EVENT_HORIZON, 66);
+                ADD_LRS_OBJ(lq->kilonovae, lq->kilonova_count, GALAXY_OBJECT_MIN_KILONOVA, 67);
+                ADD_LRS_OBJ(lq->grav_lenses, lq->grav_lens_count, GALAXY_OBJECT_MIN_GRAV_LENS, 68);
+                ADD_LRS_OBJ(lq->grbs, lq->grb_count, GALAXY_OBJECT_MIN_GRB, 69);
+                ADD_LRS_OBJ(lq->grav_waves, lq->grav_wave_count, GALAXY_OBJECT_MIN_GRAV_WAVE, 70);
+                ADD_LRS_OBJ(lq->protoplanetary_disks, lq->protoplanetary_disk_count, GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK, 71);
+                ADD_LRS_OBJ(lq->debris_disks, lq->debris_disk_count, GALAXY_OBJECT_MIN_DEBRIS_DISK, 72);
+                ADD_LRS_OBJ(lq->planetesimals, lq->planetesimal_count, GALAXY_OBJECT_MIN_PLANETESIMAL, 73);
+                ADD_LRS_OBJ(lq->rogue_planets, lq->rogue_planet_count, GALAXY_OBJECT_MIN_ROGUE_PLANET, 74);
+                ADD_LRS_OBJ(lq->brown_dwarfs, lq->brown_dwarf_count, GALAXY_OBJECT_MIN_BROWN_DWARF, 75);
+                ADD_LRS_OBJ(lq->isos, lq->iso_count, GALAXY_OBJECT_MIN_ISO, 76);
+                ADD_LRS_OBJ(lq->mag_reconns, lq->mag_reconn_count, GALAXY_OBJECT_MIN_MAG_RECONN, 77);
+                ADD_LRS_OBJ(lq->current_sheets, lq->current_sheet_count, GALAXY_OBJECT_MIN_CURRENT_SHEET, 78);
+                ADD_LRS_OBJ(lq->heliospheres, lq->heliosphere_count, GALAXY_OBJECT_MIN_HELIOSPHERE, 79);
+                ADD_LRS_OBJ(lq->term_shocks, lq->term_shock_count, GALAXY_OBJECT_MIN_TERM_SHOCK, 80);
+                ADD_LRS_OBJ(lq->magnetospheres, lq->magnetosphere_count, GALAXY_OBJECT_MIN_MAGNETOSPHERE, 81);
+                ADD_LRS_OBJ(lq->cosmic_strings, lq->cosmic_string_count, GALAXY_OBJECT_MIN_COSMIC_STRING, 82);
+                ADD_LRS_OBJ(lq->domain_walls, lq->domain_wall_count, GALAXY_OBJECT_MIN_DOMAIN_WALL, 83);
+                ADD_LRS_OBJ(lq->dm_halos, lq->dm_halo_count, GALAXY_OBJECT_MIN_DM_HALO, 84);
+                ADD_LRS_OBJ(lq->igms, lq->igm_count, GALAXY_OBJECT_MIN_IGM, 85);
+                ADD_LRS_OBJ(lq->cgms, lq->cgm_count, GALAXY_OBJECT_MIN_CGM, 86);
+                ADD_LRS_OBJ(lq->lyman_alphas, lq->lyman_alpha_count, GALAXY_OBJECT_MIN_LYMAN_ALPHA, 87);
+                ADD_LRS_OBJ(lq->cmbs, lq->cmb_count, GALAXY_OBJECT_MIN_CMB, 88);
+
+                /* Send in chunks of MAX_NET_OBJECTS */
+                int sent = 0;
+                do {
+                    PacketLRSUpdate pkt;
+                    pkt.type = PKT_LRS_UPDATE;
+                    pkt.q1 = nq1; pkt.q2 = nq2; pkt.q3 = nq3;
+                    pkt.z_offset = dq3;
+                    
+                    int to_send = total_count - sent;
+                    if(to_send > MAX_NET_OBJECTS) to_send = MAX_NET_OBJECTS;
+                    
+                    pkt.object_count = to_send;
+                    if(to_send > 0) {
+                        memcpy(pkt.objects, &all_objs[sent], to_send * sizeof(NetObject));
+                    }
+                    
+                    sent += to_send;
+                    
+                    size_t packet_size = offsetof(PacketLRSUpdate, objects) + (pkt.object_count * sizeof(NetObject));
+                    pthread_mutex_lock(&players[i].socket_mutex);
+                    if (players[i].socket != 0) write_all(players[i].socket, &pkt, packet_size);
+                    pthread_mutex_unlock(&players[i].socket_mutex);
+                    
+                } while(sent < total_count && total_count > 0);
+                
+                free(all_objs);
             }
         }
     }
     send_server_msg(i, "SCIENCE", "LRS Scan complete.");
 }
-
 void handle_pha(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     int e, tid; 
@@ -1868,10 +2547,9 @@ void handle_tor(int i, const char *params, bool *should_disconnect) {
             m = players[i].state.van_m;
         }
 
-        players[i].state.energy -= COST_ACTION_VERY_HIGH;
-        players[i].state.torpedoes--;
-        
-        /* Initialize the specific torpedo in the global array */
+        if (players[i].fire_requested_this_tick) return;
+
+        /* Find a slot in the global torpedo array BEFORE consuming resources */
         int g_torp_idx = -1;
         for (int t_idx = 0; t_idx < MAX_GLOBAL_TORPEDOES; t_idx++) {
             if (!players_torpedoes[t_idx].active) {
@@ -1880,39 +2558,58 @@ void handle_tor(int i, const char *params, bool *should_disconnect) {
             }
         }
 
-        if (g_torp_idx != -1) {
-            PlayerTorpedo *pt = &players_torpedoes[g_torp_idx];
-            pt->id = g_torp_idx + 30000;
-            pt->owner_idx = i;
-            pt->faction = players[i].faction;
-            pt->origin_tube = tube;
-            pt->active = true;
-            pt->timeout = TIMER_TORP_TIMEOUT;
-            pt->target_id = manual ? 0 : players[i].state.lock_target;
-            
-            double rad_h = h * M_PI / 180.0;
-            double rad_m = m * M_PI / 180.0;
-            pt->gx = players[i].gx;
-            pt->gy = players[i].gy;
-            pt->gz = players[i].gz;
-            pt->dx = cos(rad_m) * sin(rad_h);
-            pt->dy = cos(rad_m) * -cos(rad_h);
-            pt->dz = sin(rad_m);
-            pt->q1 = get_q_from_g(pt->gx);
-            pt->q2 = get_q_from_g(pt->gy);
-            pt->q3 = get_q_from_g(pt->gz);
-            pt->x = pt->gx - (pt->q1 - 1) * QUADRANT_SIZE;
-            pt->y = pt->gy - (pt->q2 - 1) * QUADRANT_SIZE;
-            pt->z = pt->gz - (pt->q3 - 1) * QUADRANT_SIZE;
+        if (g_torp_idx == -1) {
+            send_server_msg(i, "TACTICAL", "ERROR: Tactical computer at capacity. Cannot track more projectiles.");
+            return;
         }
 
-        /* Set global flags for HUD/State backward compatibility */
+        /* Resources verified and slot found: Commit to firing */
+        players[i].state.energy -= COST_ACTION_VERY_HIGH;
+        players[i].state.torpedoes--;
+        players[i].fire_requested_this_tick = true;
+
+        PlayerTorpedo *pt = &players_torpedoes[g_torp_idx];
+        pt->id = g_torp_idx + 30000;
+        pt->owner_idx = i;
+        pt->faction = players[i].faction;
+        pt->origin_tube = tube;
+        pt->active = true;
+        pt->timeout = TIMER_TORP_TIMEOUT;
+        pt->target_id = manual ? 0 : players[i].state.lock_target;
+        
+        double rad_h = h * M_PI / 180.0;
+        double rad_m = m * M_PI / 180.0;
+        pt->gx = players[i].gx;
+        pt->gy = players[i].gy;
+        pt->gz = players[i].gz;
+        pt->dx = cos(rad_m) * sin(rad_h);
+        pt->dy = cos(rad_m) * -cos(rad_h);
+        pt->dz = sin(rad_m);
+        pt->q1 = get_q_from_g(pt->gx);
+        pt->q2 = get_q_from_g(pt->gy);
+        pt->q3 = get_q_from_g(pt->gz);
+        pt->x = pt->gx - (pt->q1 - 1) * QUADRANT_SIZE;
+        pt->y = pt->gy - (pt->q2 - 1) * QUADRANT_SIZE;
+        pt->z = pt->gz - (pt->q3 - 1) * QUADRANT_SIZE;
+
+        /* Synchronize the specific tube slot to block it until impact/timeout */
+        players[i].torp_slots[tube].active = true;
+        players[i].torp_slots[tube].target = pt->target_id;
+        players[i].torp_slots[tube].timeout = pt->timeout;
+
+        /* Set legacy global flag for HUD backward compatibility */
         players[i].torp_active = true;
+
+        /* Broadcast visual event to all players in the quadrant */
+        broadcast_server_event(pt->q1, pt->q2, pt->q3, IPC_EV_TORPEDO, 
+                               pt->x, pt->y, pt->z, 
+                               pt->dx * SPEED_TORPEDO, pt->dy * SPEED_TORPEDO, pt->dz * SPEED_TORPEDO, 
+                               IPC_TORPEDO_ID_OFFSET + g_torp_idx);
 
         /* Reloading starts immediately with a 0.5s (30 ticks) FIRING phase delay */
         players[i].tube_load_timers[tube] = TIMER_TORP_LOAD + 30;
-        players[i].tube_torpedo_etas[tube] = TIMER_TORP_TIMEOUT; /* Start ETA countdown (10s) */
-        players[i].current_tube = (tube + 1) % 4; /* Rotate to next tube */
+        players[i].tube_torpedo_etas[tube] = TIMER_TORP_TIMEOUT; 
+        players[i].current_tube = (tube + 1) % 4;
         send_server_msg(i, "TACTICAL", manual ? "Torpedo away (Manual)." : (players[i].state.lock_target > 0 ? "Torpedo away (Locked)." : "Torpedo away (Boresight)."));
     } else {
         send_server_msg(i, "TACTICAL", "Insufficient torpedoes.");

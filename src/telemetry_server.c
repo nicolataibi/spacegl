@@ -45,7 +45,15 @@ const char* cat_names_diag[] = {
     "QUASARS", "COMETS", "ASTEROIDS", "DERELICTS", "MINES", "BUOYS", "PLATFORMS", "RIFTS",
     "MONSTERS", "DYSON", "HUBS", "RELICS", "RUPTURES", "SATELLITES", "STORMS", "TORPEDOES",
     "ARTIFACTS", "WARP GATES", "NEUTRON STARS", "MEGA STRUCTS", "DARK CLOUDS", "SINGULARITIES",
-    "PLASMA STORMS", "ORBITAL RINGS", "TIME ANOMALIES", "VOID CRYSTALS", "ANOMALIES"
+    "PLASMA STORMS", "ORBITAL RINGS", "TIME ANOMALIES", "VOID CRYSTALS", "ANOMALIES",
+    "DIFFUSE NEBULAE", "DARK NEBULAE", "PLANETARY NEBULAE", "SNR", "GMC",
+    "INTERSTELLAR FILAMENTS", "INTERSTELLAR BUBBLES", "BOK GLOBULES", "CLUMPS AND CORES", "ACCRETION DISKS",
+    "RELATIVISTIC JETS", "SHOCK WAVES", "STELLAR BOW SHOCKS", "COSMIC VOIDS", "COSMIC FILAMENTS",
+    "EVENT HORIZONS", "KILONOVAE", "GRAVITATIONAL LENSES", "GAMMA-RAY BURSTS", "GRAVITATIONAL WAVES",
+    "PROTOPLANETARY DISKS", "DEBRIS DISKS", "PLANETESIMALS", "ROGUE PLANETS", "BROWN DWARFS",
+    "INTERSTELLAR OBJECTS", "MAGNETIC RECONNECTION", "CURRENT SHEETS", "HELIOSPHERES", "TERMINATION SHOCKS",
+    "MAGNETOSPHERES", "COSMIC STRINGS", "DOMAIN WALLS", "DARK MATTER HALOS", "IGM",
+    "CGM", "LYMAN-ALPHA FOREST", "CMB"
 };
 
 static pthread_mutex_t cat_mutexes[TEL_CAT_COUNT];
@@ -301,6 +309,44 @@ void telemetry_init() {
                     case TEL_CAT_TIME_ANOMALY: COUNT_CAT(time_anomalies, MAX_TIME_ANOMALIES); break;
                     case TEL_CAT_VOID_CRYSTAL: COUNT_CAT(void_crystals, MAX_VOID_CRYSTALS); break;
                     case TEL_CAT_ANOMALY:   COUNT_CAT(subspace_anomalies, MAX_SUBSPACE_ANOMALIES); break;
+                    case TEL_CAT_DIFFUSE_NEBULA: COUNT_CAT(diffuse_nebulae, MAX_DIFFUSE_NEBULAE); break;
+                    case TEL_CAT_DARK_NEBULA: COUNT_CAT(dark_nebulae, MAX_DARK_NEBULAE); break;
+                    case TEL_CAT_PLANETARY_NEBULA: COUNT_CAT(planetary_nebulae, MAX_PLANETARY_NEBULAE); break;
+                    case TEL_CAT_SNR: COUNT_CAT(snrs, MAX_SNR); break;
+                    case TEL_CAT_GMC: COUNT_CAT(gmcs, MAX_GMC); break;
+                    case TEL_CAT_INTERSTELLAR_FILAMENT: COUNT_CAT(interstellar_filaments, MAX_INTERSTELLAR_FILAMENTS); break;
+                    case TEL_CAT_INTERSTELLAR_BUBBLE: COUNT_CAT(interstellar_bubbles, MAX_INTERSTELLAR_BUBBLES); break;
+                    case TEL_CAT_BOK_GLOBULE: COUNT_CAT(bok_globules, MAX_BOK_GLOBULES); break;
+                    case TEL_CAT_CLUMP_CORE: COUNT_CAT(clump_cores, MAX_CLUMP_CORES); break;
+                    case TEL_CAT_ACCRETION_DISK: COUNT_CAT(accretion_disks, MAX_ACCRETION_DISKS); break;
+                    case TEL_CAT_RELATIVISTIC_JET: COUNT_CAT(relativistic_jets, MAX_RELATIVISTIC_JETS); break;
+                    case TEL_CAT_SHOCK_WAVE: COUNT_CAT(shock_waves, MAX_SHOCK_WAVES); break;
+                    case TEL_CAT_STELLAR_BOW_SHOCK: COUNT_CAT(stellar_bow_shocks, MAX_STELLAR_BOW_SHOCKS); break;
+                    case TEL_CAT_COSMIC_VOID: COUNT_CAT(cosmic_voids, MAX_COSMIC_VOIDS); break;
+                    case TEL_CAT_COSMIC_FILAMENT: COUNT_CAT(cosmic_filaments, MAX_COSMIC_FILAMENTS); break;
+                    case TEL_CAT_EVENT_HORIZON: COUNT_CAT(event_horizons, MAX_EVENT_HORIZONS); break;
+                    case TEL_CAT_KILONOVA: COUNT_CAT(kilonovae, MAX_KILONOVAE); break;
+                    case TEL_CAT_GRAV_LENS: COUNT_CAT(grav_lenses, MAX_GRAV_LENSES); break;
+                    case TEL_CAT_GRB: COUNT_CAT(grbs, MAX_GRB); break;
+                    case TEL_CAT_GRAV_WAVE: COUNT_CAT(grav_waves, MAX_GRAV_WAVES); break;
+                    case TEL_CAT_PROTOPLANETARY_DISK: COUNT_CAT(protoplanetary_disks, MAX_PROTOPLANETARY_DISKS); break;
+                    case TEL_CAT_DEBRIS_DISK: COUNT_CAT(debris_disks, MAX_DEBRIS_DISKS); break;
+                    case TEL_CAT_PLANETESIMAL: COUNT_CAT(planetesimals, MAX_PLANETESIMALS); break;
+                    case TEL_CAT_ROGUE_PLANET: COUNT_CAT(rogue_planets, MAX_ROGUE_PLANETS); break;
+                    case TEL_CAT_BROWN_DWARF: COUNT_CAT(brown_dwarfs, MAX_BROWN_DWARFS); break;
+                    case TEL_CAT_ISO: COUNT_CAT(isos, MAX_ISO); break;
+                    case TEL_CAT_MAG_RECONN: COUNT_CAT(mag_reconns, MAX_MAG_RECONN); break;
+                    case TEL_CAT_CURRENT_SHEET: COUNT_CAT(current_sheets, MAX_CURRENT_SHEETS); break;
+                    case TEL_CAT_HELIOSPHERE: COUNT_CAT(heliospheres, MAX_HELIOSPHERES); break;
+                    case TEL_CAT_TERM_SHOCK: COUNT_CAT(term_shocks, MAX_TERM_SHOCKS); break;
+                    case TEL_CAT_MAGNETOSPHERE: COUNT_CAT(magnetospheres, MAX_MAGNETOSPHERES); break;
+                    case TEL_CAT_COSMIC_STRING: COUNT_CAT(cosmic_strings, MAX_COSMIC_STRINGS); break;
+                    case TEL_CAT_DOMAIN_WALL: COUNT_CAT(domain_walls, MAX_DOMAIN_WALLS); break;
+                    case TEL_CAT_DM_HALO: COUNT_CAT(dm_halos, MAX_DM_HALO); break;
+                    case TEL_CAT_IGM: COUNT_CAT(igms, MAX_IGM); break;
+                    case TEL_CAT_CGM: COUNT_CAT(cgms, MAX_CGM); break;
+                    case TEL_CAT_LYMAN_ALPHA: COUNT_CAT(lyman_alphas, MAX_LYMAN_ALPHA); break;
+                    case TEL_CAT_CMB: COUNT_CAT(cmbs, MAX_CMB); break;
                 }
             }
             printf(" %-23s | \033[1;32mREADY\033[0m   | %-15d\n", cat_names_diag[c], count);
@@ -726,6 +772,424 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     to->color_pair = 3;
                 }
             } break;
+            case TEL_CAT_DIFFUSE_NEBULA: {
+                if (idx >= 0 && idx < MAX_DIFFUSE_NEBULAE) {
+                    NPCDiffuseNebula* o = &diffuse_nebulae[idx];
+                    snprintf(to->id, sizeof(to->id), "DF%04d", o->id);
+                    strncpy(to->name, "Diff Nebula", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_DARK_NEBULA: {
+                if (idx >= 0 && idx < MAX_DARK_NEBULAE) {
+                    NPCDarkNebula* o = &dark_nebulae[idx];
+                    snprintf(to->id, sizeof(to->id), "DN%04d", o->id);
+                    strncpy(to->name, "Dark Nebula", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_PLANETARY_NEBULA: {
+                if (idx >= 0 && idx < MAX_PLANETARY_NEBULAE) {
+                    NPCPlanetaryNebula* o = &planetary_nebulae[idx];
+                    snprintf(to->id, sizeof(to->id), "PN%04d", o->id);
+                    strncpy(to->name, "Planet Neb", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 1;
+                }
+            } break;
+            case TEL_CAT_SNR: {
+                if (idx >= 0 && idx < MAX_SNR) {
+                    NPCSNR* o = &snrs[idx];
+                    snprintf(to->id, sizeof(to->id), "SR%04d", o->id);
+                    strncpy(to->name, "SNR", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_GMC: {
+                if (idx >= 0 && idx < MAX_GMC) {
+                    NPCGMC* o = &gmcs[idx];
+                    snprintf(to->id, sizeof(to->id), "GM%04d", o->id);
+                    strncpy(to->name, "GMC", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_INTERSTELLAR_FILAMENT: {
+                if (idx >= 0 && idx < MAX_INTERSTELLAR_FILAMENTS) {
+                    NPCInterstellarFilament* o = &interstellar_filaments[idx];
+                    snprintf(to->id, sizeof(to->id), "IF%04d", o->id);
+                    strncpy(to->name, "Int Filament", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_INTERSTELLAR_BUBBLE: {
+                if (idx >= 0 && idx < MAX_INTERSTELLAR_BUBBLES) {
+                    NPCInterstellarBubble* o = &interstellar_bubbles[idx];
+                    snprintf(to->id, sizeof(to->id), "IB%04d", o->id);
+                    strncpy(to->name, "Int Bubble", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 1;
+                }
+            } break;
+            case TEL_CAT_BOK_GLOBULE: {
+                if (idx >= 0 && idx < MAX_BOK_GLOBULES) {
+                    NPCBokGlobule* o = &bok_globules[idx];
+                    snprintf(to->id, sizeof(to->id), "BG%04d", o->id);
+                    strncpy(to->name, "Bok Globule", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_CLUMP_CORE: {
+                if (idx >= 0 && idx < MAX_CLUMP_CORES) {
+                    NPCClumpCore* o = &clump_cores[idx];
+                    snprintf(to->id, sizeof(to->id), "CC%04d", o->id);
+                    strncpy(to->name, "Clump/Core", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_ACCRETION_DISK: {
+                if (idx >= 0 && idx < MAX_ACCRETION_DISKS) {
+                    NPCAccretionDisk* o = &accretion_disks[idx];
+                    snprintf(to->id, sizeof(to->id), "AD%04d", o->id);
+                    strncpy(to->name, "Accret Disk", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_RELATIVISTIC_JET: {
+                if (idx >= 0 && idx < MAX_RELATIVISTIC_JETS) {
+                    NPCRelativisticJet* o = &relativistic_jets[idx];
+                    snprintf(to->id, sizeof(to->id), "RJ%04d", o->id);
+                    strncpy(to->name, "Relativ Jet", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 1;
+                }
+            } break;
+            case TEL_CAT_SHOCK_WAVE: {
+                if (idx >= 0 && idx < MAX_SHOCK_WAVES) {
+                    NPCShockWave* o = &shock_waves[idx];
+                    snprintf(to->id, sizeof(to->id), "SW%04d", o->id);
+                    strncpy(to->name, "Shock Wave", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_STELLAR_BOW_SHOCK: {
+                if (idx >= 0 && idx < MAX_STELLAR_BOW_SHOCKS) {
+                    NPCStellarBowShock* o = &stellar_bow_shocks[idx];
+                    snprintf(to->id, sizeof(to->id), "BS%04d", o->id);
+                    strncpy(to->name, "Bow Shock", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_COSMIC_VOID: {
+                if (idx >= 0 && idx < MAX_COSMIC_VOIDS) {
+                    NPCCosmicVoid* o = &cosmic_voids[idx];
+                    snprintf(to->id, sizeof(to->id), "CV%04d", o->id);
+                    strncpy(to->name, "Cosmic Void", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_COSMIC_FILAMENT: {
+                if (idx >= 0 && idx < MAX_COSMIC_FILAMENTS) {
+                    NPCCosmicFilament* o = &cosmic_filaments[idx];
+                    snprintf(to->id, sizeof(to->id), "CF%04d", o->id);
+                    strncpy(to->name, "Cosmic Fil", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 1;
+                }
+            } break;
+            case TEL_CAT_EVENT_HORIZON: {
+                if (idx >= 0 && idx < MAX_EVENT_HORIZONS) {
+                    NPCEventHorizon* o = &event_horizons[idx];
+                    snprintf(to->id, sizeof(to->id), "EH%04d", o->id);
+                    strncpy(to->name, "Event Horiz", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_KILONOVA: {
+                if (idx >= 0 && idx < MAX_KILONOVAE) {
+                    NPCKilonova* o = &kilonovae[idx];
+                    snprintf(to->id, sizeof(to->id), "KN%04d", o->id);
+                    strncpy(to->name, "Kilonova", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_GRAV_LENS: {
+                if (idx >= 0 && idx < MAX_GRAV_LENSES) {
+                    NPCGravLens* o = &grav_lenses[idx];
+                    snprintf(to->id, sizeof(to->id), "GL%04d", o->id);
+                    strncpy(to->name, "Grav Lens", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_GRB: {
+                if (idx >= 0 && idx < MAX_GRB) {
+                    NPCGRB* o = &grbs[idx];
+                    snprintf(to->id, sizeof(to->id), "GB%04d", o->id);
+                    strncpy(to->name, "GRB", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 1;
+                }
+            } break;
+            case TEL_CAT_GRAV_WAVE: {
+                if (idx >= 0 && idx < MAX_GRAV_WAVES) {
+                    NPCGravWave* o = &grav_waves[idx];
+                    snprintf(to->id, sizeof(to->id), "GW%04d", o->id);
+                    strncpy(to->name, "Grav Wave", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_PROTOPLANETARY_DISK: {
+                if (idx >= 0 && idx < MAX_PROTOPLANETARY_DISKS) {
+                    NPCProtoplanetaryDisk* o = &protoplanetary_disks[idx];
+                    snprintf(to->id, sizeof(to->id), "PD%04d", o->id);
+                    strncpy(to->name, "Protoplanet", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_DEBRIS_DISK: {
+                if (idx >= 0 && idx < MAX_DEBRIS_DISKS) {
+                    NPCDebrisDisk* o = &debris_disks[idx];
+                    snprintf(to->id, sizeof(to->id), "DD%04d", o->id);
+                    strncpy(to->name, "Debris Disk", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_PLANETESIMAL: {
+                if (idx >= 0 && idx < MAX_PLANETESIMALS) {
+                    NPCPlanetesimal* o = &planetesimals[idx];
+                    snprintf(to->id, sizeof(to->id), "PT%04d", o->id);
+                    strncpy(to->name, "Planetesimal", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 1;
+                }
+            } break;
+            case TEL_CAT_ROGUE_PLANET: {
+                if (idx >= 0 && idx < MAX_ROGUE_PLANETS) {
+                    NPCRoguePlanet* o = &rogue_planets[idx];
+                    snprintf(to->id, sizeof(to->id), "RP%04d", o->id);
+                    strncpy(to->name, "Rogue Planet", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_BROWN_DWARF: {
+                if (idx >= 0 && idx < MAX_BROWN_DWARFS) {
+                    NPCBrownDwarf* o = &brown_dwarfs[idx];
+                    snprintf(to->id, sizeof(to->id), "BD%04d", o->id);
+                    strncpy(to->name, "Brown Dwarf", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_ISO: {
+                if (idx >= 0 && idx < MAX_ISO) {
+                    NPCISO* o = &isos[idx];
+                    snprintf(to->id, sizeof(to->id), "IS%04d", o->id);
+                    strncpy(to->name, "Intst Obj", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_MAG_RECONN: {
+                if (idx >= 0 && idx < MAX_MAG_RECONN) {
+                    NPCMagReconn* o = &mag_reconns[idx];
+                    snprintf(to->id, sizeof(to->id), "MR%04d", o->id);
+                    strncpy(to->name, "Mag Reconn", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 1;
+                }
+            } break;
+            case TEL_CAT_CURRENT_SHEET: {
+                if (idx >= 0 && idx < MAX_CURRENT_SHEETS) {
+                    NPCCurrentSheet* o = &current_sheets[idx];
+                    snprintf(to->id, sizeof(to->id), "CS%04d", o->id);
+                    strncpy(to->name, "Curr Sheet", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_HELIOSPHERE: {
+                if (idx >= 0 && idx < MAX_HELIOSPHERES) {
+                    NPCHeliosphere* o = &heliospheres[idx];
+                    snprintf(to->id, sizeof(to->id), "HS%04d", o->id);
+                    strncpy(to->name, "Heliosphere", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_TERM_SHOCK: {
+                if (idx >= 0 && idx < MAX_TERM_SHOCKS) {
+                    NPCTermShock* o = &term_shocks[idx];
+                    snprintf(to->id, sizeof(to->id), "TS%04d", o->id);
+                    strncpy(to->name, "Term Shock", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_MAGNETOSPHERE: {
+                if (idx >= 0 && idx < MAX_MAGNETOSPHERES) {
+                    NPCMagnetosphere* o = &magnetospheres[idx];
+                    snprintf(to->id, sizeof(to->id), "MS%04d", o->id);
+                    strncpy(to->name, "Magnetosph", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 1;
+                }
+            } break;
+            case TEL_CAT_COSMIC_STRING: {
+                if (idx >= 0 && idx < MAX_COSMIC_STRINGS) {
+                    NPCCosmicString* o = &cosmic_strings[idx];
+                    snprintf(to->id, sizeof(to->id), "CX%04d", o->id);
+                    strncpy(to->name, "Cosm String", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_DOMAIN_WALL: {
+                if (idx >= 0 && idx < MAX_DOMAIN_WALLS) {
+                    NPCDomainWall* o = &domain_walls[idx];
+                    snprintf(to->id, sizeof(to->id), "DW%04d", o->id);
+                    strncpy(to->name, "Domain Wall", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_DM_HALO: {
+                if (idx >= 0 && idx < MAX_DM_HALO) {
+                    NPCDMHalo* o = &dm_halos[idx];
+                    snprintf(to->id, sizeof(to->id), "DH%04d", o->id);
+                    strncpy(to->name, "DM Halo", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_IGM: {
+                if (idx >= 0 && idx < MAX_IGM) {
+                    NPCIGM* o = &igms[idx];
+                    snprintf(to->id, sizeof(to->id), "IG%04d", o->id);
+                    strncpy(to->name, "IGM", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 1;
+                }
+            } break;
+            case TEL_CAT_CGM: {
+                if (idx >= 0 && idx < MAX_CGM) {
+                    NPCCGM* o = &cgms[idx];
+                    snprintf(to->id, sizeof(to->id), "CG%04d", o->id);
+                    strncpy(to->name, "CGM", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 2;
+                }
+            } break;
+            case TEL_CAT_LYMAN_ALPHA: {
+                if (idx >= 0 && idx < MAX_LYMAN_ALPHA) {
+                    NPCLymanAlpha* o = &lyman_alphas[idx];
+                    snprintf(to->id, sizeof(to->id), "LA%04d", o->id);
+                    strncpy(to->name, "Lyman Alpha", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_CMB: {
+                if (idx >= 0 && idx < MAX_CMB) {
+                    NPCCMB* o = &cmbs[idx];
+                    snprintf(to->id, sizeof(to->id), "CB%04d", o->id);
+                    strncpy(to->name, "CMB", sizeof(to->name)-1);
+                    strncpy(to->info, "Cosmic", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 4;
+                }
+            } break;
             default: break;
         }
     }
@@ -795,6 +1259,44 @@ static void update_category_cache(int cat) {
             case TEL_CAT_TIME_ANOMALY: FILL_CACHE_CAT(time_anomalies, MAX_TIME_ANOMALIES); break;
             case TEL_CAT_VOID_CRYSTAL: FILL_CACHE_CAT(void_crystals, MAX_VOID_CRYSTALS); break;
             case TEL_CAT_ANOMALY:   FILL_CACHE_CAT(subspace_anomalies, MAX_SUBSPACE_ANOMALIES); break;
+            case TEL_CAT_DIFFUSE_NEBULA: FILL_CACHE_CAT(diffuse_nebulae, MAX_DIFFUSE_NEBULAE); break;
+            case TEL_CAT_DARK_NEBULA: FILL_CACHE_CAT(dark_nebulae, MAX_DARK_NEBULAE); break;
+            case TEL_CAT_PLANETARY_NEBULA: FILL_CACHE_CAT(planetary_nebulae, MAX_PLANETARY_NEBULAE); break;
+            case TEL_CAT_SNR: FILL_CACHE_CAT(snrs, MAX_SNR); break;
+            case TEL_CAT_GMC: FILL_CACHE_CAT(gmcs, MAX_GMC); break;
+            case TEL_CAT_INTERSTELLAR_FILAMENT: FILL_CACHE_CAT(interstellar_filaments, MAX_INTERSTELLAR_FILAMENTS); break;
+            case TEL_CAT_INTERSTELLAR_BUBBLE: FILL_CACHE_CAT(interstellar_bubbles, MAX_INTERSTELLAR_BUBBLES); break;
+            case TEL_CAT_BOK_GLOBULE: FILL_CACHE_CAT(bok_globules, MAX_BOK_GLOBULES); break;
+            case TEL_CAT_CLUMP_CORE: FILL_CACHE_CAT(clump_cores, MAX_CLUMP_CORES); break;
+            case TEL_CAT_ACCRETION_DISK: FILL_CACHE_CAT(accretion_disks, MAX_ACCRETION_DISKS); break;
+            case TEL_CAT_RELATIVISTIC_JET: FILL_CACHE_CAT(relativistic_jets, MAX_RELATIVISTIC_JETS); break;
+            case TEL_CAT_SHOCK_WAVE: FILL_CACHE_CAT(shock_waves, MAX_SHOCK_WAVES); break;
+            case TEL_CAT_STELLAR_BOW_SHOCK: FILL_CACHE_CAT(stellar_bow_shocks, MAX_STELLAR_BOW_SHOCKS); break;
+            case TEL_CAT_COSMIC_VOID: FILL_CACHE_CAT(cosmic_voids, MAX_COSMIC_VOIDS); break;
+            case TEL_CAT_COSMIC_FILAMENT: FILL_CACHE_CAT(cosmic_filaments, MAX_COSMIC_FILAMENTS); break;
+            case TEL_CAT_EVENT_HORIZON: FILL_CACHE_CAT(event_horizons, MAX_EVENT_HORIZONS); break;
+            case TEL_CAT_KILONOVA: FILL_CACHE_CAT(kilonovae, MAX_KILONOVAE); break;
+            case TEL_CAT_GRAV_LENS: FILL_CACHE_CAT(grav_lenses, MAX_GRAV_LENSES); break;
+            case TEL_CAT_GRB: FILL_CACHE_CAT(grbs, MAX_GRB); break;
+            case TEL_CAT_GRAV_WAVE: FILL_CACHE_CAT(grav_waves, MAX_GRAV_WAVES); break;
+            case TEL_CAT_PROTOPLANETARY_DISK: FILL_CACHE_CAT(protoplanetary_disks, MAX_PROTOPLANETARY_DISKS); break;
+            case TEL_CAT_DEBRIS_DISK: FILL_CACHE_CAT(debris_disks, MAX_DEBRIS_DISKS); break;
+            case TEL_CAT_PLANETESIMAL: FILL_CACHE_CAT(planetesimals, MAX_PLANETESIMALS); break;
+            case TEL_CAT_ROGUE_PLANET: FILL_CACHE_CAT(rogue_planets, MAX_ROGUE_PLANETS); break;
+            case TEL_CAT_BROWN_DWARF: FILL_CACHE_CAT(brown_dwarfs, MAX_BROWN_DWARFS); break;
+            case TEL_CAT_ISO: FILL_CACHE_CAT(isos, MAX_ISO); break;
+            case TEL_CAT_MAG_RECONN: FILL_CACHE_CAT(mag_reconns, MAX_MAG_RECONN); break;
+            case TEL_CAT_CURRENT_SHEET: FILL_CACHE_CAT(current_sheets, MAX_CURRENT_SHEETS); break;
+            case TEL_CAT_HELIOSPHERE: FILL_CACHE_CAT(heliospheres, MAX_HELIOSPHERES); break;
+            case TEL_CAT_TERM_SHOCK: FILL_CACHE_CAT(term_shocks, MAX_TERM_SHOCKS); break;
+            case TEL_CAT_MAGNETOSPHERE: FILL_CACHE_CAT(magnetospheres, MAX_MAGNETOSPHERES); break;
+            case TEL_CAT_COSMIC_STRING: FILL_CACHE_CAT(cosmic_strings, MAX_COSMIC_STRINGS); break;
+            case TEL_CAT_DOMAIN_WALL: FILL_CACHE_CAT(domain_walls, MAX_DOMAIN_WALLS); break;
+            case TEL_CAT_DM_HALO: FILL_CACHE_CAT(dm_halos, MAX_DM_HALO); break;
+            case TEL_CAT_IGM: FILL_CACHE_CAT(igms, MAX_IGM); break;
+            case TEL_CAT_CGM: FILL_CACHE_CAT(cgms, MAX_CGM); break;
+            case TEL_CAT_LYMAN_ALPHA: FILL_CACHE_CAT(lyman_alphas, MAX_LYMAN_ALPHA); break;
+            case TEL_CAT_CMB: FILL_CACHE_CAT(cmbs, MAX_CMB); break;
         }
     }
     cat_cache_count[cat] = count;

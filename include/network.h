@@ -44,6 +44,7 @@ typedef struct {
 #define UPD_PROBES    (1ULL << 8)
 #define UPD_OBJECTS   (1ULL << 9)
 #define UPD_MAP       (1ULL << 10)
+#define UPD_CONTINUE  (1ULL << 11)
 #define UPD_FULL      (0xFFFFFFFFFFFFFFFFULL)
 
 /* Delta Compression Blocks */
@@ -276,6 +277,8 @@ typedef struct {
     double power_dist[3];
     double life_support;
     int32_t anti_matter_count;
+    int32_t target_shields[6];
+    char captain_name[64];
     int32_t lock_target;
     int32_t tube_state;
     int32_t tube_load_timers[4];
