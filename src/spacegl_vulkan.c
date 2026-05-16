@@ -144,12 +144,13 @@ void getObjectColor(int type, int faction, float* r, float* g, float* b);
 const int WIDTH = VIEW_WINDOW_WIDTH;
 const int HEIGHT = VIEW_WINDOW_HEIGHT;
 
-char vertex_shader_path[512] = "build/shaders/shader.vert.spv";
-char fragment_shader_path[512] = "build/shaders/shader.frag.spv";
+char vertex_shader_path[512] = "/usr/share/spacegl/shaders/shader.vert.spv";
+char fragment_shader_path[512] = "/usr/share/spacegl/shaders/shader.frag.spv";
 
 void resolve_shader_paths() {
     if (access(vertex_shader_path, F_OK) != 0) {
-        /* Fallback to system-wide installation path */
+        strcpy(vertex_shader_path, "build/shaders/shader.vert.spv");
+        strcpy(fragment_shader_path, "build/shaders/shader.frag.spv");
     }
 }
 

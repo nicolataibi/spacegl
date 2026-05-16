@@ -1,3 +1,6 @@
+* Sat May 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.16.02
+- [Vulkan] Implemented dynamic shader path resolution: added fallback logic to prioritize /usr/share/spacegl/shaders/ and default to the build directory, ensuring compatibility for installed COPR packages.
+
 * Sat May 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.16.01
 - [Build] Fixed compilation error in spacegl_extras_glfw.c by correctly using the glut_compat.h layer instead of system GLUT headers.
 - [Build] Added missing stdlib.h include for rand() and RAND_MAX in spacegl_extras_glfw.c.
