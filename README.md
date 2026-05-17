@@ -66,7 +66,36 @@ Space GL is a high-performance 3D multi-user client-server space flight and comb
     <td><img src="readme_assets/wormhole-enter.jpg" alt="Wormhole Entry" width="400"/></td>
     <td><img src="readme_assets/wormhole-exit.jpg" alt="Wormhole Exit" width="400"/></td>
   </tr>
+  <tr>
 </table>
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/StellarAlliance-SentinelClass.jpg" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 1/a:</b> "Alliance-Class Sentinel Ship"</em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/alliance sentinel.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 1/b:</b> "Alliance-Class Sentinel Ship"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
 
 **Vulkan Screenshots**
 
@@ -183,20 +212,17 @@ Unlike traditional polling, the server uses a **Push** model:
 *   The server pushes updates at the end of every logic tick.
 *   Dedicated multithreaded management via `epoll` to handle up to 32 simultaneous clients.
 
-### 🔍 Instrumented Categories (35/35)
+### 🔍 Instrumented Categories (88/88)
 The subsystem covers the entire spectrum of galactic entities:
 
-| Category | Description | Monitored Parameters |
-| :--- | :--- | :--- |
-| **SHIPS** | Player and NPC vessels | ID, Integrity, Energy, Coordinates, Faction |
-| **STARS / PULSARS** | Stellar bodies | Spectral class, Emission type |
-| **PLANETS** | Planetary bodies | Resource type, Available quantity |
-| **BASES / HUBS** | Installations | Defensive status, Health, Affiliation |
-| **BLACK HOLES** | Singularities | Position and gravitational strength |
-| **ANOMALIES** | Subspace phenomena | Type (Temporal, Quantum, Void) |
-| **TACTICAL** | Mines, Torpedoes, Buoys | Timeout timers, Target lock, Active status |
-| **EXOTIC** | Dyson, Relics, Artifacts | Ancient technological signatures |
-| **THREATS** | Monsters (Amoeba/Crystal) | Biological integrity, OMEGA behavior |
+| Category | Description |
+| :--- | :--- |
+| **Astronomical** | Star, Pulsar, Quasar, Neutron Star, Brown Dwarf, Planet, Rogue Planet, Planetesimal, Asteroid, Comet, Protoplanetary Disk, Debris Disk, Accretion Disk |
+| **Nebulae** | Nebula, Diffuse Nebula, High-Energy Nebula, Dark Matter Nebula, Gravimetric Nebula, Temporal Nebula, Interstellar Filament, Interstellar Bubble, Bok Globule, Clump Core |
+| **Astrophysical** | Black Hole, Singularity, Event Horizon, Gravitational Wave, Gravitational Lens, Ion Storm, Plasma Storm, Relativistic Jet, Gamma Ray Burst, Magnetic Reconnection, Current Sheet, Shock Wave, Stellar Bow Shock, Kilonova |
+| **Artificial** | Starbase, Trading Hub, Mega Structure, Orbital Ring, Satellite, Mine, Platform, Derelict, Dyson Fragment, Ancient Relic, Alien Artifact, Warp Gate |
+| **Cosmological** | Cosmic Void, Cosmic Filament, Cosmic String, Domain Wall, Dark Matter Halo, Intergalactic Medium, Circumgalactic Medium, Lyman Alpha Forest, Cosmic Microwave Background, Heliosphere, Termination Shock, Magnetosphere, Interstellar Object, Time Anomaly, Void Crystal, Subspace Anom |
+| **Active/Units** | Player, Space Monster |
 
 #### 🖥️ Using the Telemetry Client
 The `spacegl_telemetry` client offers an interactive `ncurses` interface to navigate data streams:
@@ -536,8 +562,9 @@ La gestione dell'equipaggio in Space GL è un sistema vitale e punitivo, stretta
 
 #### 1. Dimensioni Iniziali
 Il numero di membri dell'equipaggio dipende esclusivamente dalla classe della nave scelta all'inizio:
-*   **Explorer (Aegis-D)**: 1012 membri (il massimo standard).
 *   **Carrier**: 1200 membri.
+*   **Explorer (Aegis-D)**: 1012 membri (il massimo standard).
+*   **Sentinel**: 950 membri.
 *   **Flagship**: 850 membri.
 *   **Heavy Cruiser**: 750 membri.
 *   **Scout**: ~30 membri (molto vulnerabile).
@@ -2943,7 +2970,7 @@ The ship groaned as energy flowed through the circuits. On the LRS display, the 
 </tr>
 </table>
 <p align="center">
-<em><b>Fig. 1:</b> Spectrographic analysis of the Dyson sector and Lt. Cmdr. Elara Vance's neural readings..</em>
+<em><b>Fig. 2:</b> Spectrographic analysis of the Dyson sector and Lt. Cmdr. Elara Vance's neural readings..</em>
 </p>
 
 Here is how Grand Admiral H. Niklaus manages the energy crisis, orchestrating his command bridge in a perfect dance of engineering and strategy.

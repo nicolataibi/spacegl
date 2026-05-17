@@ -61,6 +61,7 @@ typedef struct {
 typedef struct {
     double net_x, net_y, net_z;
     int32_t active;
+    int32_t extra;
 } NetPoint;
 #pragma pack(pop)
 

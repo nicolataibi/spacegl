@@ -1717,7 +1717,7 @@ void update_game_logic() {
                 double rwx = (players[i].wx - (players[i].state.q1 - 1) * QUADRANT_SIZE);
                 double rwy = (players[i].wy - (players[i].state.q2 - 1) * QUADRANT_SIZE);
                 double rwz = (players[i].wz - (players[i].state.q3 - 1) * QUADRANT_SIZE);
-                players[i].state.wormhole = (NetPoint){rwx, rwy, rwz, 1};
+                players[i].state.wormhole = (NetPoint){rwx, rwy, rwz, 1, players[i].jump_type};
                 
                 /* Move ship INTO the wormhole during the entry phase */
                 players[i].gx += (players[i].wx - players[i].gx) * 0.05;
@@ -1755,7 +1755,7 @@ void update_game_logic() {
                 players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * QUADRANT_SIZE);
                 
                 /* Register the arrival wormhole at this starting position (Pass H/M as x2/y2 for orientation) */
-                push_server_event(i, IPC_EV_JUMP, players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].state.van_h, players[i].state.van_m, 0, 1);
+                push_server_event(i, IPC_EV_JUMP, players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].state.van_h, players[i].state.van_m, 0, players[i].jump_type);
                 players[i].state.wormhole.active = 0;
             }
 

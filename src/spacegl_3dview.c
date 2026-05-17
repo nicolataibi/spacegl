@@ -328,6 +328,7 @@ void initShaders() {
         "    vTexCoord = gl_MultiTexCoord0.xy;\n"
         "    vScreenPos = gl_ModelViewProjectionMatrix * gl_Vertex;\n"
         "    pos = gl_Vertex.xyz;\n"
+        "    gl_FrontColor = gl_Color;\n"
         "    gl_Position = vScreenPos;\n"
         "}";
     bhShaderProgram = linkProgram(compileShader(bhVert, GL_VERTEX_SHADER), compileShader(bhFrag, GL_FRAGMENT_SHADER));
@@ -654,7 +655,7 @@ typedef struct { float sx, sy, sz, tx, ty, tz, alpha; } IonBeam;
 IonBeam beams[MAX_BEAMS];
 int beamCount = 0;
 
-typedef struct { float x, y, z, tx, ty, tz, vx, vy, vz, h, m, x_init, y_init, z_init; int active; int timer; int q1, q2, q3; int id; } ViewPoint;
+typedef struct { float x, y, z, tx, ty, tz, vx, vy, vz, h, m, x_init, y_init, z_init; int active; int timer; int q1, q2, q3; int id; int jump_type; } ViewPoint;
 ViewPoint g_torps[MAX_VISIBLE_TORPEDOES];
 int g_torpedo_count = 0;
 ViewPoint g_booms[10];
@@ -857,6 +858,7 @@ void loadGameState() {
                 float jx = ev->x1 - 20.0; float jy = ev->z1 - 20.0; float jz = 20.0 - ev->y1;
                 g_jump_arrival.x = jx; g_jump_arrival.y = jy; g_jump_arrival.z = jz;
                 g_jump_arrival.h = state->shm_h; g_jump_arrival.m = state->shm_m; g_jump_arrival.active = 1;
+                g_jump_arrival.jump_type = ev->extra;
                 g_jump_arrival.timer = (5 * GAME_TICK_RATE);
                 g_arrival_fx.x = jx; g_arrival_fx.y = jy; g_arrival_fx.z = jz;
                 g_arrival_fx.timer = (5 * GAME_TICK_RATE);
@@ -1198,10 +1200,11 @@ void loadGameState() {
             g_wormhole.x = state->wormhole.shm_x - (QUADRANT_SIZE / 2.0);
             g_wormhole.y = state->wormhole.shm_z - (QUADRANT_SIZE / 2.0);
             g_wormhole.z = (QUADRANT_SIZE / 2.0) - state->wormhole.shm_y;
-            g_wormhole.h = state->shm_h; 
+            g_wormhole.h = state->shm_h;
             g_wormhole.m = state->shm_m;
+            g_wormhole.active = 1;
+            g_wormhole.jump_type = state->wormhole.extra;
         }
-        g_wormhole.active = 1;
     } else {
         g_wormhole.active = 0;
     }
@@ -1298,6 +1301,7 @@ const char* getClassName(int c) {
         case SHIP_CLASS_DIPLOMATIC:   return "Diplomatic Cruiser";
         case SHIP_CLASS_RESEARCH:       return "Research Vessel";
         case SHIP_CLASS_FRIGATE:  return "Frigate Class";
+        case SHIP_CLASS_SENTINEL: return "Sentinel Class";
         case SHIP_CLASS_GENERIC_ALIEN: return "Vessel";
         default:                      return "Vessel";
     }
@@ -1582,7 +1586,9 @@ void drawCompass() {
 }
 
 void drawGlow(double radius, double r, double g, double b, double alpha) {
-    if (g_is_cloaked_rendering) return;
+    if (g_is_cloaked_rendering) {
+        return;
+    }
     glPushAttrib(GL_ALL_ATTRIB_BITS);
     glDisable(GL_LIGHTING);
     for (int i = 1; i <= 5; i++) {
@@ -1593,10 +1599,88 @@ void drawGlow(double radius, double r, double g, double b, double alpha) {
     glPopAttrib();
 }
 
+void drawSentinelQuantumCore(float radius_base, float r, float g, float b) {
+    if (g_is_cloaked_rendering) {
+        return;
+    }
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    for (int r_idx = 0; r_idx < 3; r_idx++) {
+        glPushMatrix();
+        /* Specific Sentinel Rotation Pattern: inverted and faster */
+        glRotatef(pulse * (60.0 + r_idx * 20.0), 1, 0, 0); 
+        glRotatef(pulse * -20.0, 0, 1, 0);
+        glColor4f(r, g, b, 0.7f - (r_idx * 0.15f));
+        /* Robust rings for Heavy Escort */
+        glutWireTorus(0.03, radius_base + (r_idx * 0.18), 12, 36);
+        glPopMatrix();
+    }
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+}
+
 void glutSolidSphere_wrapper_module() { glutSolidSphere(0.5, 64, 64); }
 void glutSolidSphere_wrapper_hull() { glutSolidSphere(0.15, 48, 48); }
 void glutSolidSphere_wrapper_escort() { glutSolidSphere(0.35, 48, 48); }
 void glutSolidCube_wrapper() { glutSolidCube(0.5); }
+
+void glutOctagonalCylinder_wrapper() {
+    double radius = 0.16;
+    double height = 0.48;
+    glBegin(GL_QUAD_STRIP);
+    for (int i = 0; i <= 8; i++) {
+        double theta = (double)i * 2.0 * 3.14159265358979323846 / 8.0;
+        double c = cos(theta);
+        double s = sin(theta);
+        glNormal3f(c, s, 0.0);
+        glVertex3f(radius * c, radius * s, 0.0);
+        glVertex3f(radius * c, radius * s, height);
+    }
+    glEnd();
+    glBegin(GL_TRIANGLE_FAN);
+    glNormal3f(0.0, 0.0, -1.0);
+    glVertex3f(0.0, 0.0, 0.0);
+    for (int i = 8; i >= 0; i--) {
+        double theta = (double)i * 2.0 * 3.14159265358979323846 / 8.0;
+        glVertex3f(radius * cos(theta), radius * sin(theta), 0.0);
+    }
+    glEnd();
+    glBegin(GL_TRIANGLE_FAN);
+    glNormal3f(0.0, 0.0, 1.0);
+    glVertex3f(0.0, 0.0, height);
+    for (int i = 0; i <= 8; i++) {
+        double theta = (double)i * 2.0 * 3.14159265358979323846 / 8.0;
+        glVertex3f(radius * cos(theta), radius * sin(theta), height);
+    }
+    glEnd();
+}
+
+void glutOctagonalCone_wrapper() {
+    double radius = 0.16;
+    double height = 0.28;
+    glBegin(GL_TRIANGLE_FAN);
+    glNormal3f(0.0, 0.0, 1.0);
+    glVertex3f(0.0, 0.0, height);
+    for (int i = 0; i <= 8; i++) {
+        double theta = (double)i * 2.0 * 3.14159265358979323846 / 8.0;
+        double c = cos(theta);
+        double s = sin(theta);
+        double nz = radius / height;
+        double len = sqrt(c*c + s*s + nz*nz);
+        glNormal3f(c/len, s/len, nz/len);
+        glVertex3f(radius * c, radius * s, 0.0);
+    }
+    glEnd();
+    glBegin(GL_TRIANGLE_FAN);
+    glNormal3f(0.0, 0.0, -1.0);
+    glVertex3f(0.0, 0.0, 0.0);
+    for (int i = 8; i >= 0; i--) {
+        double theta = (double)i * 2.0 * 3.14159265358979323846 / 8.0;
+        glVertex3f(radius * cos(theta), radius * sin(theta), 0.0);
+    }
+    glEnd();
+}
 
 void drawHullDetail(void (*drawFunc)(void), double r, double g, double b) {
     glShadeModel(GL_SMOOTH);
@@ -1654,8 +1738,13 @@ void drawNacelle(double len, double width, double r, double g, double b) {
 }
 
 void drawDeflector(double r, double g, double b) {
-    if (g_is_cloaked_rendering) return;
-    glDisable(GL_LIGHTING); glColor3f(r, g, b); glutSolidSphere(0.12, 16, 16); glEnable(GL_LIGHTING);
+    if (g_is_cloaked_rendering) {
+        return;
+    }
+    glDisable(GL_LIGHTING);
+    glColor3f(r, g, b);
+    glutSolidSphere(0.12, 16, 16);
+    glEnable(GL_LIGHTING);
 }
 
 void drawCommandModule(double sx, double sy, double sz) {
@@ -1673,52 +1762,53 @@ void drawCommandModule(double sx, double sy, double sz) {
 }
 
 void drawLegacy() {
-    glShadeModel(GL_SMOOTH);
-    glEnable(GL_LIGHTING);
-
     /* --- [ NOMENCLATURE: LEGACY CLASS ] --- */
-
+    
     /* 1. Primary Hull (Command Saucer) */
     drawCommandModule(1.0, 0.15, 1.0);
     
     /* 2. Bridge Module (Tactical Hub) */
-    glDisable(GL_LIGHTING); glColor3f(0.0, 0.5, 1.0); glPushMatrix(); glTranslatef(0, 0.1, 0); glutSolidSphere(0.08, 12, 12); drawGlow(0.06, 0, 0.5, 1, 0.4); glPopMatrix(); glEnable(GL_LIGHTING);
+    glDisable(GL_LIGHTING); 
+    glColor3f(0.0, 0.5, 1.0); 
+    glPushMatrix(); 
+    glTranslatef(0, 0.1, 0); 
+    glutSolidSphere(0.08, 12, 12); 
+    drawGlow(0.06, 0, 0.5, 1, 0.4); 
+    glPopMatrix(); 
+    glEnable(GL_LIGHTING);
     
-    /* 3. Secondary Hull (Engineering Section) - Extended & Widened & Lengthened */
+    /* 3. Secondary Hull (Engineering Section) */
     glPushMatrix(); 
     glTranslatef(-0.6, 0.0, 0); 
     glRotatef(180, 0, 1, 0);
-    glScalef(2.16, 1.2, 1.2); /* Lengthened by 20% (1.8 -> 2.16) */
+    glScalef(2.16, 1.2, 1.2); 
     drawHullDetail(glutSolidSphere_wrapper_hull, 0.8, 0.8, 0.85); 
     glPopMatrix();
 
-    /* 3.5 Stabilizing Rudder (Aetherium Fin) - Vertical & Rear-Mounted */
+    /* 3.5 Stabilizing Rudder (Aetherium Fin) */
     glPushMatrix();
-    /* Lowered position by 20% (0.15 -> 0.12) */
     glTranslatef(-0.9, 0.12, 0); 
     glScalef(0.65, 0.45, 0.03); 
     glColor3f(0.8, 0.8, 0.85);
     glutSolidSphere(0.5, 32, 16);
     glPopMatrix();
 
-    /* 4. Main Deflector Array (Tail End) - Moved 10% closer */
+    /* 4. Main Deflector Array & Propulsion Rings */
     glPushMatrix(); 
     glTranslatef(-1.44, 0.0, 0); 
-    glScalef(0.25, 0.25, 0.25); /* Applied 50% reduction to the previous 0.5 scale */
+    glScalef(0.25, 0.25, 0.25); 
     drawDeflector(1.0, 0.4, 0.0); 
     drawGlow(0.1, 1.0, 0.3, 0.0, 0.5); 
     
-    /* Futuristic Propulsion Rings (3 Rotating Rings - Removed 4th) */
+    /* Original Legacy Rings Design */
     glDisable(GL_LIGHTING);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-    for(int r=0; r<3; r++) {
+    for (int r = 0; r < 3; r++) {
         glPushMatrix();
-        /* Each ring rotates at a different speed */
         glRotatef(pulse * (40.0 + r * 15.0), 1, 0, 0); 
         glRotatef(pulse * 10.0, 0, 1, 0);
-        glColor4f(0.0, 0.6, 1.0, 0.6 - (r * 0.1));
-        /* Thin wire torus for the ring effect */
+        glColor4f(0.0, 0.6, 1.0, 0.6f - (r * 0.1f));
         glutWireTorus(0.01, 0.35 + (r * 0.12), 8, 32);
         glPopMatrix();
     }
@@ -1726,20 +1816,17 @@ void drawLegacy() {
     glEnable(GL_LIGHTING);
     glPopMatrix();
 
-    for(int side=-1; side<=1; side+=2) {
-        /* 5. Structural Pylons (Support Arms) - Position Unchanged */
+    /* 5. Nacelles and Pylons */
+    for (int side = -1; side <= 1; side += 2) {
         glPushMatrix(); 
-        /* Shifted backward to -0.918, nacelles remain at -1.275 */
         glTranslatef(-0.918, 0.0, side * 0.30); 
-        glRotatef(side*90, 1, 0, 0); 
+        glRotatef(side * 90, 1, 0, 0); 
         glScalef(0.38, 0.76, 0.076); 
         glColor3f(0.8, 0.8, 0.85); 
         glutSolidSphere(0.5, 24, 16); 
         glPopMatrix();
 
-        /* 6. Hyperdrive Nacelles (FTL Units) - Moved 20% forward */
         glPushMatrix(); 
-        /* Shifted forward to -1.02, pylons remain at -0.918 */
         glTranslatef(-1.02, 0.0, side * 0.65); 
         drawNacelle(4.8, 0.28, 0.2, 0.5, 1.0); 
         glPopMatrix();
@@ -1748,10 +1835,23 @@ void drawLegacy() {
 
 void drawScout() { 
     drawCommandModule(1.2, 0.18, 1.1);
-    glPushMatrix(); glTranslatef(-0.1, 0.0, 0); glScalef(0.3, 0.5, 0.9); glColor3f(0.75, 0.75, 0.8); glutSolidCube(0.5); glPopMatrix();
-    for(int side=-1; side<=1; side+=2) {
-        glPushMatrix(); glTranslatef(-0.1, 0.0, side * 0.3); glScalef(0.1, 0.4, 0.1); glutSolidCube(1.0); glPopMatrix();
-        glPushMatrix(); glTranslatef(-0.2, 0.0, side * 0.45); drawNacelle(3.8, 0.4, 0.3, 0.4, 0.8); glPopMatrix();
+    glPushMatrix(); 
+    glTranslatef(-0.1, 0.0, 0); 
+    glScalef(0.3, 0.5, 0.9); 
+    glColor3f(0.75, 0.75, 0.8); 
+    glutSolidCube(0.5); 
+    glPopMatrix();
+    for (int side = -1; side <= 1; side += 2) {
+        glPushMatrix(); 
+        glTranslatef(-0.1, 0.0, side * 0.3); 
+        glScalef(0.1, 0.4, 0.1); 
+        glutSolidCube(1.0); 
+        glPopMatrix();
+        
+        glPushMatrix(); 
+        glTranslatef(-0.2, 0.0, side * 0.45); 
+        drawNacelle(3.8, 0.4, 0.3, 0.4, 0.8); 
+        glPopMatrix();
     }
 }
 
@@ -1773,25 +1873,47 @@ void drawHeavyCruiser() {
     drawGlow(0.1, 0.2, 0.7, 1.0, 0.4); 
     glPopMatrix();
 
-    for(int side=-1; side<=1; side+=2) {
-        glPushMatrix(); glTranslatef(-0.5, 0.0, side * 0.35); drawNacelle(5.5, 0.25, 0.2, 0.6, 1.0); glPopMatrix();
+    for (int side = -1; side <= 1; side += 2) {
+        glPushMatrix(); 
+        glTranslatef(-0.5, 0.0, side * 0.35); 
+        drawNacelle(5.5, 0.25, 0.2, 0.6, 1.0); 
+        glPopMatrix();
     }
 }
 
 void drawMultiEngine() {
-    glPushMatrix(); glScalef(1.2, 0.4, 0.9); drawHullDetail(glutSolidCube_wrapper, 0.75, 0.75, 0.8); glPopMatrix();
-    for(int updown=-1; updown<=1; updown+=2) {
-        for(int side=-1; side<=1; side+=2) {
-            glPushMatrix(); glTranslatef(-0.1, updown * 0.1, side * 0.35); drawNacelle(3.5, 0.3, 0.5, 0.5, 0.6); glPopMatrix();
+    glPushMatrix(); 
+    glScalef(1.2, 0.4, 0.9); 
+    drawHullDetail(glutSolidCube_wrapper, 0.75, 0.75, 0.8); 
+    glPopMatrix();
+    for (int updown = -1; updown <= 1; updown += 2) {
+        for (int side = -1; side <= 1; side += 2) {
+            glPushMatrix(); 
+            glTranslatef(-0.1, updown * 0.1, side * 0.35); 
+            drawNacelle(3.5, 0.3, 0.5, 0.5, 0.6); 
+            glPopMatrix();
         }
     }
 }
 
 void drawEscort() {
-    glPushMatrix(); glTranslatef(0.1, 0, 0); glScalef(0.5, 0.4, 0.4); drawDeflector(1.0, 0.3, 0.0); drawGlow(0.15, 1.0, 0.2, 0.0, 0.4); glPopMatrix();
-    glPushMatrix(); glScalef(1.5, 0.5, 1.8); drawHullDetail(glutSolidSphere_wrapper_escort, 0.6, 0.6, 0.65); glPopMatrix();
-    for(int side=-1; side<=1; side+=2) {
-        glPushMatrix(); glTranslatef(-0.1, 0.0, side * 0.4); drawNacelle(2.5, 0.6, 0.2, 0.3, 0.7); glPopMatrix();
+    glPushMatrix(); 
+    glTranslatef(0.1, 0, 0); 
+    glScalef(0.5, 0.4, 0.4); 
+    drawDeflector(1.0, 0.3, 0.0); 
+    drawGlow(0.15, 1.0, 0.2, 0.0, 0.4); 
+    glPopMatrix();
+    
+    glPushMatrix(); 
+    glScalef(1.5, 0.5, 1.8); 
+    drawHullDetail(glutSolidSphere_wrapper_escort, 0.6, 0.6, 0.65); 
+    glPopMatrix();
+    
+    for (int side = -1; side <= 1; side += 2) {
+        glPushMatrix(); 
+        glTranslatef(-0.1, 0.0, side * 0.4); 
+        drawNacelle(2.5, 0.6, 0.2, 0.3, 0.7); 
+        glPopMatrix();
     }
 }
 
@@ -1948,27 +2070,133 @@ void drawFrigate() {
     }
 }
 
-void drawAllianceShip(int class, double h, double m, double r) {
-    if (!g_is_cloaked_rendering) glUseProgram(hullShaderProgram);
+void drawSentinel() {
+    /* --- [ NOMENCLATURE: SENTINEL CLASS ] --- */
+    /* Heavy Defensive Escort - Octagonal tapered design with Quad-Propulsion */
+    
+    glPushMatrix();
+    glRotatef(90.0, 1.0, 0.0, 0.0); /* Rotate the entire ship 90 degrees around X-axis */
+
+    /* 1. Main Command Hull (Octagonal Cylinder) */
+    glPushMatrix();
+    glTranslatef(-0.48, 0.0, 0.0); /* Original -0.32 * 1.5 for lengthening */
+    glScalef(1.5, 0.5, 0.5);       /* Lengthen by 50% (1.5), Thin by 50% (0.5) */
+    glRotatef(90.0, 0.0, 1.0, 0.0);
+    drawHullDetail(glutOctagonalCylinder_wrapper, 0.65, 0.65, 0.72);
+    glPopMatrix();
+    
+    /* 1.5 Tapered Front Hull (Octagonal Cone) */
+    glPushMatrix();
+    glTranslatef(0.24, 0.0, 0.0); /* Original 0.16 * 1.5 for lengthening */
+    glScalef(1.5, 0.5, 0.5);      /* Lengthen by 50% (1.5), Thin by 50% (0.5) */
+    glRotatef(90.0, 0.0, 1.0, 0.0);
+    drawHullDetail(glutOctagonalCone_wrapper, 0.7, 0.7, 0.77);
+    glPopMatrix();
+    
+    /* 2. Tactical Bridges (Dual Redundant) - REMOVED per request */
+    
+    /* 3. Quad Propulsion System & Angled Pylons */
+    for (int side = -1; side <= 1; side += 2) {
+        for (int updown = -1; updown <= 1; updown += 2) {
+            /* Perpendicular pylons (90 degrees to hull) pointing to target positions */
+            glPushMatrix();
+            /* Align X with nacelle (-0.3) */
+            glTranslatef(-0.3, 0.0, 0.0);
+            
+            /* Keep pylons pointing to original target (updown*0.12, side*0.28) */
+            double angle_rad = atan2(side * 0.28, updown * 0.12);
+            double angle_deg = angle_rad * 180.0 / 3.1415926535;
+            
+            glRotatef(angle_deg, 1.0, 0.0, 0.0); /* Rotate in YZ plane to target */
+            glRotatef(90.0, 0.0, 1.0, 0.0);      /* Rotate to point outward (perpendicular to X) */
+            
+            /* Move outward to bridge the gap */
+            glTranslatef(0.19, 0.0, 0.0); 
+            
+            /* Scale reduced by 20% (1.2 -> 0.96) */
+            glScalef(0.96, 0.06, 0.06); 
+            drawHullDetail(glutSolidSphere_wrapper_hull, 0.55, 0.55, 0.6);
+            glPopMatrix();
+
+            /* The 4 separate Engine Nacelles (Rotated 90 degrees around hull axis) */
+            glPushMatrix();
+            /* Swap coordinates to achieve 90 deg rotation: (updown*0.12, side*0.28) rotated 90 deg */
+            /* Using (side*0.28, -updown*0.12) or similar to match the pylon's target intersection */
+            glTranslatef(-0.3, side * 0.28, -updown * 0.12);
+            drawNacelle(3.2, 0.60, 0.0, 0.8, 1.0); /* Reduced length by 60% from 8.0 to 3.2 */
+            glPopMatrix();
+        }
+    }
+    
+    /* 4. Quantum Propulsion Core (Rear Mounted) */
+    glPushMatrix();
+    glTranslatef(-0.6, 0.0, 0.0);
+    drawDeflector(0.0, 1.0, 1.0);
+    drawSentinelQuantumCore(0.22, 0.0, 0.8, 1.0);
+    glPopMatrix();
+
+    glPopMatrix(); /* End of global ship rotation */
+}
+
+void drawAllianceShip(int class_idx, double h, double m, double r) {
+    if (class_idx < 0 || class_idx > 13) {
+        class_idx = 0;
+    }
+    if (!g_is_cloaked_rendering) {
+        glUseProgram(hullShaderProgram);
+    }
+    glPushMatrix();
     glRotatef(h - 90.0, 0, 1, 0);
     glRotatef(m, 0, 0, 1);
     glRotatef(r, 1, 0, 0); /* Longitudinal Roll */
-    switch(class) {
-        case SHIP_CLASS_LEGACY: drawLegacy(); break;
-        case SHIP_CLASS_SCOUT:      drawScout(); break;
-        case SHIP_CLASS_HEAVY_CRUISER:    drawHeavyCruiser(); break;
-        case SHIP_CLASS_MULTI_ENGINE: drawMultiEngine(); break;
-        case SHIP_CLASS_ESCORT:      drawEscort(); break;
-        case SHIP_CLASS_EXPLORER:       drawExplorer(); break;
-        case SHIP_CLASS_FLAGSHIP:    drawFlagship(); break;
-        case SHIP_CLASS_SCIENCE:     drawScience(); break;
-        case SHIP_CLASS_CARRIER:        drawCarrier(); break;
-        case SHIP_CLASS_TACTICAL:       drawTactical(); break;
-        case SHIP_CLASS_DIPLOMATIC:   drawDiplomatic(); break;
-        case SHIP_CLASS_RESEARCH:       drawResearch(); break;
-        case SHIP_CLASS_FRIGATE:  drawFrigate(); break;
-        default:                      drawLegacy(); break;
+    switch (class_idx) {
+        case SHIP_CLASS_LEGACY:
+            drawLegacy();
+            break;
+        case SHIP_CLASS_SCOUT:
+            drawScout();
+            break;
+        case SHIP_CLASS_HEAVY_CRUISER:
+            drawHeavyCruiser();
+            break;
+        case SHIP_CLASS_MULTI_ENGINE:
+            drawMultiEngine();
+            break;
+        case SHIP_CLASS_ESCORT:
+            drawEscort();
+            break;
+        case SHIP_CLASS_EXPLORER:
+            drawExplorer();
+            break;
+        case SHIP_CLASS_FLAGSHIP:
+            drawFlagship();
+            break;
+        case SHIP_CLASS_SCIENCE:
+            drawScience();
+            break;
+        case SHIP_CLASS_CARRIER:
+            drawCarrier();
+            break;
+        case SHIP_CLASS_TACTICAL:
+            drawTactical();
+            break;
+        case SHIP_CLASS_DIPLOMATIC:
+            drawDiplomatic();
+            break;
+        case SHIP_CLASS_RESEARCH:
+            drawResearch();
+            break;
+        case SHIP_CLASS_FRIGATE:
+            drawFrigate();
+            break;
+        case SHIP_CLASS_SENTINEL:
+            drawSentinel();
+            break;
+        default:
+            drawLegacy();
+            break;
     }
+    glPopMatrix();
     glUseProgram(0);
 }
 
@@ -2191,7 +2419,107 @@ void drawPlanet(double x, double y, double z) { (void)x; (void)y; (void)z;
     glDisable(GL_BLEND);
 }
 
-void drawWormhole(double x, double y, double z, double h, double m, int type) {
+void drawWormhole_v1(double x, double y, double z, double h, double m, int type) {
+    glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glPushMatrix();
+    glTranslatef(x, y, z);
+    glRotatef(h - 90.0, 0, 1, 0);
+    glRotatef(m, 0, 0, 1);
+    glRotatef(90, 0, 1, 0); /* Align longitudinal axis with ship forward */
+
+    /* 1. Draw the central 3D sphere with material properties */
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_TEXTURE_2D);
+    
+    if (type == 0) {
+        /* DEPARTURE: Dark charcoal with metallic specularity */
+        float mat_amb[] = {0.0, 0.0, 0.0, 1.0};
+        float mat_diff[] = {0.02, 0.02, 0.02, 1.0};
+        float mat_spec[] = {0.6, 0.6, 0.6, 1.0};
+        glMaterialfv(GL_FRONT, GL_AMBIENT, mat_amb);
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diff);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, mat_spec);
+        glMaterialf(GL_FRONT, GL_SHININESS, 100.0);
+        glColor3f(0.05, 0.05, 0.05);
+    } else {
+        /* ARRIVAL: Brilliant White/Blue Singularity */
+        float mat_amb[] = {0.8, 0.8, 1.0, 1.0};
+        float mat_diff[] = {1.0, 1.0, 1.0, 1.0};
+        float mat_spec[] = {1.0, 1.0, 1.0, 1.0};
+        glMaterialfv(GL_FRONT, GL_AMBIENT, mat_amb);
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diff);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, mat_spec);
+        glMaterialf(GL_FRONT, GL_SHININESS, 128.0);
+        glColor3f(1.0, 1.0, 1.0);
+    }
+    
+    glutSolidSphere(0.35, 32, 32);
+    glDisable(GL_LIGHTING);
+
+    /* 2. Activate shader for the external energy cones */
+    if (whShaderProgram) {
+        glUseProgram(whShaderProgram);
+        glUniform1f(glGetUniformLocation(whShaderProgram, "time"), pulse);
+    }
+
+    glRotatef(pulse * 25.0, 0, 0, 1);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE); 
+    glDisable(GL_DEPTH_TEST); 
+    
+    double rs = 0.45;
+    double rmax = 1.6;
+    int Nr = 15;
+    int Nt = 30;
+    double dr = (rmax - rs) / Nr;
+    double dth = 2.0 * M_PI / Nt;
+
+    for (int side = -1; side <= 1; side += 2) {
+        for(int i=0; i<Nr; i++){
+            double r = rs + i * dr;
+            double base_z = 0.35 + 2.0 * sqrt(rs * (r - rs));
+            double zz = (type != 0) ? (2.39 - base_z) : base_z;
+            
+            double fade = 1.0 - (double)i/Nr;
+            if (type == 0) {
+                glColor4f(0.3*fade, 0.0, 1.0*fade, 0.8*fade); 
+            } else {
+                glColor4f(1.0*fade, 0.8*fade, 0.2*fade, 0.8*fade);      
+            }
+            glBegin(GL_LINE_LOOP);
+            for(int j=0; j<=Nt; j++){
+                double th = (double)j * dth;
+                glVertex3f(r * cos(th), r * sin(th), side * zz);
+            }
+            glEnd();
+        }
+        for(int j=0; j<Nt; j++){
+            double th = (double)j * dth;
+            glBegin(GL_LINE_STRIP);
+            for(int i=0; i<Nr; i++){
+                double r = rs + i * dr;
+                double base_z = 0.35 + 2.0 * sqrt(rs * (r - rs));
+                double zz = (type != 0) ? (2.39 - base_z) : base_z;
+                
+                double fade = 1.0 - (double)i/Nr;
+                if (type == 0) {
+                    glColor4f(0.2*fade, 0.0, 0.6*fade, 0.6*fade);
+                } else {
+                    glColor4f(0.8*fade, 0.6*fade, 0.2*fade, 0.6*fade);
+                }
+                glVertex3f(r * cos(th), r * sin(th), side * zz);
+            }
+            glEnd();
+        }
+    }
+    glPopAttrib();
+    glPopMatrix();
+    glUseProgram(0);
+}
+
+void drawWormhole_v2(double x, double y, double z, double h, double m, int type) {
     glPushAttrib(GL_ALL_ATTRIB_BITS);
     glPushMatrix();
     glTranslatef(x, y, z);
@@ -2364,6 +2692,11 @@ void drawWormhole(double x, double y, double z, double h, double m, int type) {
     glPopAttrib();
     glPopMatrix();
     glUseProgram(0);
+}
+
+void drawWormhole(double x, double y, double z, double h, double m, int type, int ver) {
+    if (ver == 1) drawWormhole_v1(x, y, z, h, m, type);
+    else drawWormhole_v2(x, y, z, h, m, type);
 }
 
 void drawBlackHole(double x, double y, double z) {
@@ -3539,7 +3872,7 @@ void drawExplosion() {
     glPopAttrib();
 }
 
-void drawJumpArrival() {
+void drawJumpArrival_v1() {
     if (g_jump_arrival.timer <= 0) return;
     
     glPushMatrix();
@@ -3550,7 +3883,7 @@ void drawJumpArrival() {
     
     glPushMatrix();
     glScalef(wh_scale, wh_scale, wh_scale);
-    drawWormhole(0, 0, 0, g_jump_arrival.h, g_jump_arrival.m, 1); /* Type 1: Arrival (White) */
+    drawWormhole(0, 0, 0, g_jump_arrival.h, g_jump_arrival.m, 1, 1); /* Type 1: Arrival (White), Ver 1: Legacy */
     glPopMatrix();
     
     /* Phase 3: Final Flash - Starts at 180 */
@@ -3624,6 +3957,98 @@ void drawJumpArrival() {
     }
 
     glPopMatrix();
+}
+
+void drawJumpArrival_v2() {
+    if (g_jump_arrival.timer <= 0) return;
+    
+    glPushMatrix();
+    glTranslatef(g_jump_arrival.x, g_jump_arrival.y, g_jump_arrival.z);
+    
+    /* Phase 1: Brilliant White Wormhole - Starts closing at 180 */
+    double wh_scale = (g_jump_arrival.timer < 180) ? (g_jump_arrival.timer / 180.0) : 1.0;
+    
+    glPushMatrix();
+    glScalef(wh_scale, wh_scale, wh_scale);
+    drawWormhole(0, 0, 0, g_jump_arrival.h, g_jump_arrival.m, 1, 2); /* Type 1: Arrival (White), Ver 2: Current */
+    glPopMatrix();
+    
+    /* Phase 3: Final Flash - Starts at 180 */
+    if (g_jump_arrival.timer < 180) {
+        double flash_t = 1.0 - (g_jump_arrival.timer / 180.0);
+        double alpha = (1.0 - flash_t) * 0.9;
+        double base_r = flash_t * 0.5; /* Base for 2 sectors diameter */
+        
+        glPushAttrib(GL_ALL_ATTRIB_BITS);
+        glDisable(GL_LIGHTING);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        glDepthMask(GL_FALSE);
+
+        /* 1. Chromatic Volumetric Glow */
+        struct { double r, g, b, a, scale; } layers[] = {
+            {1.0, 1.0, 1.0, 1.0, 0.4},  /* Core: Pure White */
+            {0.0, 1.0, 1.0, 0.8, 0.8},  /* Inner: Bright Cyan */
+            {0.0, 0.4, 1.0, 0.6, 1.2},  /* Middle: Electric Blue */
+            {0.3, 0.0, 0.8, 0.4, 1.6},  /* Outer: Deep Purple */
+            {0.1, 0.0, 0.4, 0.2, 2.0}   /* Aura: Dark Violet */
+        };
+        for(int i=0; i<5; i++) {
+            glColor4f(layers[i].r, layers[i].g, layers[i].b, alpha * layers[i].a);
+            glutSolidSphere(base_r * layers[i].scale, 16, 16);
+        }
+
+        /* 2. Converging Arrival Particles */
+        glPointSize(3.0);
+        glBegin(GL_POINTS);
+        for(int i=0; i<150; i++) {
+            if (g_arrival_fx.particles[i].active) {
+                double p_alpha = alpha * (g_jump_arrival.timer / 180.0);
+                glColor4f(g_arrival_fx.particles[i].r, g_arrival_fx.particles[i].g, g_arrival_fx.particles[i].b, p_alpha);
+                glVertex3f(g_arrival_fx.particles[i].x - g_jump_arrival.x, 
+                           g_arrival_fx.particles[i].y - g_jump_arrival.y, 
+                           g_arrival_fx.particles[i].z - g_jump_arrival.z);
+            }
+        }
+        glEnd();
+        
+        /* 3. 3D Volumetric details */
+        for(int i=0; i<2; i++) {
+            if (i == 0) glColor4f(0.0, 1.0, 1.0, alpha * 0.5); 
+            else glColor4f(0.8, 0.0, 1.0, alpha * 0.4);
+            
+            glPushMatrix();
+            glRotatef(pulse * (40.0 + i*20.0), 0, 1, 0);
+            glRotatef(pulse * (30.0 - i*15.0), 1, 0, 0);
+            glutWireSphere(base_r * (1.2 + i*0.4), 12, 12);
+            glPopMatrix();
+        }
+        
+        glLineWidth(2.5);
+        for(int axis=0; axis<3; axis++) {
+            glPushMatrix();
+            if(axis==1) glRotatef(90, 0, 1, 0);
+            if(axis==2) glRotatef(90, 1, 0, 0);
+            glRotatef(pulse * 150.0, 0, 0, 1);
+            glBegin(GL_LINES);
+            double len = base_r * 2.0;
+            for(int j=0; j<4; j++) {
+                double ang = j * (M_PI / 2.0);
+                glColor4f(1.0, 1.0, 1.0, alpha); glVertex3f(0, 0, 0);
+                glColor4f(0.0, 0.2, 1.0, 0.0); glVertex3f(cos(ang)*len, sin(ang)*len, 0);
+            }
+            glEnd();
+            glPopMatrix();
+        }
+        glPopAttrib();
+    }
+
+    glPopMatrix();
+}
+
+void drawJumpArrival() {
+    if (g_jump_arrival.jump_type == 1) drawJumpArrival_v1();
+    else drawJumpArrival_v2();
 }
 
 /* Personal Probe HUD Data Sync Only (Rendering is now universal via drawObject Type 27) */
@@ -4751,7 +5176,7 @@ void display() {
         }
 
         updateProbeHUD();
-        if (g_wormhole.active) drawWormhole(g_wormhole.x, g_wormhole.y, g_wormhole.z, g_wormhole.h, g_wormhole.m, 0);
+        if (g_wormhole.active) drawWormhole(g_wormhole.x, g_wormhole.y, g_wormhole.z, g_wormhole.h, g_wormhole.m, 0, g_wormhole.jump_type);
         drawRecoveryEffect();
 
 

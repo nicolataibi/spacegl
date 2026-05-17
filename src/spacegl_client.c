@@ -1112,6 +1112,7 @@ void *network_listener(void *arg) {
                 g_shared_state->wormhole.shm_y = current_state.wormhole.net_y;
                 g_shared_state->wormhole.shm_z = current_state.wormhole.net_z;
                 g_shared_state->wormhole.active = current_state.wormhole.active;
+                g_shared_state->wormhole.extra = current_state.wormhole.extra;
 
                 g_shared_state->supernova_pos.shm_x = current_state.supernova_pos.net_x;
                 g_shared_state->supernova_pos.shm_y = current_state.supernova_pos.net_y;
@@ -1400,7 +1401,7 @@ int main(int argc, char *argv[]) {
         
         if (my_faction == FACTION_ALLIANCE) {
             printf("\n" B_WHITE "--- SELECT YOUR CLASS ---" RESET "\n");
-            printf(" 0: Legacy Class\n 1: Scout Class\n 2: Heavy Cruiser\n 3: Multi-Engine Cruiser\n 4: Escort Class\n 5: Explorer Class\n 6: Flagship Class\n 7: Science Vessel\n 8: Carrier Class\n 9: Tactical Cruiser\n 10: Diplomatic Cruiser\n 11: Research Vessel\n 12: Frigate Class\nSelection: ");
+            printf(" 0: Legacy Class\n 1: Scout Class\n 2: Heavy Cruiser\n 3: Multi-Engine Cruiser\n 4: Escort Class\n 5: Explorer Class\n 6: Flagship Class\n 7: Science Vessel\n 8: Carrier Class\n 9: Tactical Cruiser\n 10: Diplomatic Cruiser\n 11: Research Vessel\n 12: Frigate Class\n 13: Sentinel Class\nSelection: ");
             fflush(stdout);
             if (scanf("%d", &my_ship_class) != 1) { my_ship_class = 0; }
         } else {

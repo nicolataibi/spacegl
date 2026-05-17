@@ -213,6 +213,7 @@ const char* get_ship_class_name(int ship_class) {
         case SHIP_CLASS_DIPLOMATIC:   return "Diplomatic Cruiser";
         case SHIP_CLASS_RESEARCH:       return "Research Vessel";
         case SHIP_CLASS_FRIGATE:  return "Frigate Class";
+        case SHIP_CLASS_SENTINEL: return "Sentinel Class";
         case SHIP_CLASS_GENERIC_ALIEN: return "Vessel";
         default: return "Unknown";
     }

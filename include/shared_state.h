@@ -67,6 +67,7 @@ typedef struct {
 typedef struct {
     double shm_x, shm_y, shm_z;
     int active;
+    int extra;
 } SharedPoint;
 
 typedef struct {

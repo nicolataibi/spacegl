@@ -67,6 +67,33 @@ Space GL è un simulatore di volo e combattimento spaziale 3D multi-utente ad al
   </tr>
 </table>
 
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/StellarAlliance-SentinelClass.jpg" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 1/a:</b> "Alliance-Class Sentinel Ship"</em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/alliance sentinel.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 1/b:</b> "Alliance-Class Sentinel Ship"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
 **Vulkan Screenshots**
 
 <table>
@@ -182,20 +209,17 @@ A differenza del polling tradizionale, il server utilizza un modello **Push**:
 *   Il server spinge gli aggiornamenti al termine di ogni tick logico.
 *   Gestione multithread dedicata tramite `epoll` per gestire fino a 32 client simultanei.
 
-### 🔍 Categorie Monitorate (35/35 Instrumented)
+### 🔍 Categorie Monitorate (88/88)
 Il sottosistema copre l'intero spettro delle entità galattiche:
 
-| Categoria | Descrizione | Parametri Monitorati |
-| :--- | :--- | :--- |
-| **SHIPS** | Navi Player e NPC | ID, Integrità, Energia, Coordinate, Fazione |
-| **STARS / PULSARS** | Corpi Stellari | Classe spettrale, Tipo di emissione |
-| **PLANETS** | Corpi Planetari | Tipo di risorsa, Quantità disponibile |
-| **BASES / HUBS** | Installazioni | Stato difensivo, Salute, Affiliation |
-| **BLACK HOLES** | Singolarità | Posizione e forza gravitazionale |
-| **ANOMALIES** | Fenomeni Subspaziali | Tipo (Temporale, Quantistica, Vuoto) |
-| **TACTICAL** | Mine, Siluri, Boe | Timer di timeout, Target lock, Stato attivo |
-| **EXOTIC** | Dyson, Relics, Artifacts | Firme tecnologiche antiche |
-| **THREATS** | Monsters (Amoeba/Crystal) | Integrità biologica, Comportamento OMEGA |
+| Categoria | Descrizione |
+| :--- | :--- |
+| **Astronomiche** | Stella, Pulsar, Quasar, Stella di Neutroni, Nana Bruna, Pianeta, Pianeta Errante, Planetesimo, Asteroide, Cometa, Disco Protoplanetario, Disco di Detriti, Disco di Accrescimento |
+| **Nebulose** | Nebulosa, Nebulosa Diffusa, Nebulosa Alta Energia, Nebulosa Materia Oscura, Nebulosa Gravimetrica, Nebulosa Temporale, Filamento Interstellare, Bolla Interstellare, Globulo di Bok, Core di Ammasso |
+| **Astrofisiche** | Buco Nero, Singolarità, Orizzonte Eventi, Onda Gravitazionale, Lente Gravitazionale, Tempesta Ionica, Tempesta di Plasma, Jet Relativistico, Gamma Ray Burst, Riconnessione Magnetica, Current Sheet, Onda d'Urto, Bow Shock Stellare, Kilonova |
+| **Artificiali** | Base Stellare, Hub Commerciale, Mega Struttura, Anello Orbitale, Satellite, Mina, Piattaforma, Relitto, Frammento di Dyson, Reliquia Antica, Artefatto Alieno, Warp Gate |
+| **Cosmologiche** | Vuoto Cosmico, Filamento Cosmico, Stringa Cosmica, Domain Wall, Alone Materia Oscura, Mezzo Intergalattico, Mezzo Circumgalattico, Foresta Lyman Alpha, Fondo Cosmico Microonde, Eliosfera, Shock di Terminazione, Magnetosfera, Oggetto Interstellare, Anomalia Temporale, Cristallo del Vuoto, Anomalia Subspazio |
+| **Attive/Unità** | Giocatore, Mostro Spaziale |
 
 #### 🖥️ Utilizzo del Client di Telemetria
 Il client `spacegl_telemetry` offre un'interfaccia interattiva `ncurses` per navigare tra i flussi di dati:
@@ -499,8 +523,9 @@ La gestione dell'equipaggio in Space GL è un sistema vitale e punitivo, stretta
 
 #### 1. Dimensioni Iniziali
 Il numero di membri dell'equipaggio dipende esclusivamente dalla classe della nave scelta all'inizio:
-*   **Explorer (Aegis-D)**: 1012 membri (il massimo standard).
 *   **Carrier**: 1200 membri.
+*   **Explorer (Aegis-D)**: 1012 membri (il massimo standard).
+*   **Sentinel**: 950 membri.
 *   **Flagship**: 850 membri.
 *   **Heavy Cruiser**: 750 membri.
 *   **Scout**: ~30 membri (molto vulnerabile).
@@ -2789,7 +2814,7 @@ La nave gemette mentre l'energia fluiva attraverso i circuiti. Sul display LRS, 
 </tr>
 </table>
 <p align="center">
-<em><b>Fig. 1:</b> Analisi spettrografica del settore Dyson e letture neurali del Lt. Cmdr. Elara Vance.</em>
+<em><b>Fig. 2:</b> Analisi spettrografica del settore Dyson e letture neurali del Lt. Cmdr. Elara Vance.</em>
 </p>
 
 Ecco come il Grand'Ammiraglio H. Niklaus gestisce la crisi energetica, orchestrando il suo ponte di comando in una danza perfetta di ingegneria e strategia.

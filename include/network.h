@@ -207,6 +207,7 @@ typedef enum {
     SHIP_CLASS_DIPLOMATIC,      /* Aegis-C style */
     SHIP_CLASS_RESEARCH,          /* Small Science Ship */
     SHIP_CLASS_FRIGATE,     /* Specialized Escort */
+    SHIP_CLASS_SENTINEL,    /* Heavy Defensive Escort */
     SHIP_CLASS_GENERIC_ALIEN
 } ShipClass;
 

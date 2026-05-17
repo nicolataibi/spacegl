@@ -787,6 +787,7 @@ int main(int argc, char *argv[]) {
                                             case SHIP_CLASS_TACTICAL:    crew = 800; break;
                                             case SHIP_CLASS_DIPLOMATIC:  crew = (MAX_CREW_EXPLORER / 3); break;
                                             case SHIP_CLASS_FRIGATE:     crew = 250; break;
+                                            case SHIP_CLASS_SENTINEL:    crew = 950; break;
                                             default: crew = (MAX_CREW_EXPLORER / 5); break;
                                         }
                                         players[slot].state.crew_count = crew;
@@ -844,6 +845,7 @@ int main(int argc, char *argv[]) {
                                     /* SESSION INITIALIZATION: Reset transient event flags and force full sync */
                                     players[slot].renegade_timer = 0;
                                     players[slot].radio_lock_target = 0;
+                                    players[slot].jump_type = 2;
                                     
                                     /* Derive Personal Algorithm keys for this Captain */
                                     derive_algo_keys(MASTER_SESSION_KEY, players[slot].name, players[slot].algo_keys);

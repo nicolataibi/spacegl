@@ -292,8 +292,8 @@ typedef struct { float x, y, z, life; float scale; } ActiveDismantle;
 typedef struct { float x, y, z; float dx, dy, dz; int active; int id; } ActiveTorp;
 typedef struct { float x, y, z; float angle; float radius; float speed; int active; } ArrivalParticle;
 
-typedef struct { float x, y, z; double h, m; int active; int timer; } JumpState;
-typedef struct { float x, y, z; double h, m; int active; } WormholeState;
+typedef struct { float x, y, z; double h, m; int active; int timer; int jump_type; } JumpState;
+typedef struct { float x, y, z; double h, m; int active; int jump_type; } WormholeState;
 
 typedef struct VulkanApp {
     GLFWwindow* window; VkInstance instance; VkPhysicalDevice physicalDevice; VkDevice device; VkQueue graphicsQueue;
@@ -321,7 +321,7 @@ typedef struct VulkanApp {
     VkBuffer vectorVertexBuffer; VkDeviceMemory vectorVertexBufferMemory; VkBuffer vectorIndexBuffer; VkDeviceMemory vectorIndexBufferMemory;
     VkBuffer sphereVertexBuffer; VkDeviceMemory sphereVertexBufferMemory; VkBuffer sphereIndexBuffer; VkDeviceMemory sphereIndexBufferMemory;
     VkBuffer whVertexBuffer; VkDeviceMemory whVertexBufferMemory; VkBuffer whIndexBuffer; VkDeviceMemory whIndexBufferMemory; uint32_t whIndexCount;
-    VkBuffer coreVB[13]; VkDeviceMemory coreVBM[13]; VkBuffer coreIB[13]; VkDeviceMemory coreIBM[13]; uint32_t coreICount[13];
+    VkBuffer coreVB[14]; VkDeviceMemory coreVBM[14]; VkBuffer coreIB[14]; VkDeviceMemory coreIBM[14]; uint32_t coreICount[14];
     VkBuffer starfieldVertexBuffer; VkDeviceMemory starfieldVertexBufferMemory; VkBuffer starfieldIndexBuffer; VkDeviceMemory starfieldIndexBufferMemory;
     uint64_t gridVertexCount; uint64_t starfieldIndexCount;
     VkBuffer uniformBuffers[MAX_FRAMES_IN_FLIGHT]; VkDeviceMemory uniformBuffersMemory[MAX_FRAMES_IN_FLIGHT];
@@ -2343,7 +2343,27 @@ void getObjectColor(int type, int faction, float* r, float* g, float* b) {
     else if (type == 50) { *r = 0.0f; *g = 1.0f; *b = 0.5f; }
 }
 
-void drawWormholeCore(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse, int type) {
+void drawWormholeCore_v1(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse, int type) {
+    VkDeviceSize off = 0;
+    mat4 R_rot; mat4_identity(R_rot);
+    mat4_rotate(R_rot, pulse * 10.0f * M_PI / 180.0f, (vec3){0, 0, 1});
+    mat4 M_rot; mat4_multiply(R_rot, modelBase, M_rot);
+
+    /* 1. Singularity Sphere (Legacy size 0.35) */
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+    PushConstants pc = {0}; mat4 S_core; mat4_scale(S_core, (vec3){0.35f, 0.35f, 0.35f});
+    mat4_multiply(S_core, M_rot, pc.model);
+    if (type == 1) { pc.color[0]=1.0f; pc.color[1]=1.0f; pc.color[2]=1.0f; }
+    else { pc.color[0]=0.05f; pc.color[1]=0.05f; pc.color[2]=0.05f; }
+    pc.color[3]=1.0f; pc.usePushColor=1;
+    pc.metallic = 1.0f; pc.roughness = 0.1f;
+    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+    vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+}
+
+void drawWormholeCore_v2(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse, int type) {
     VkDeviceSize off = 0;
     mat4 R_rot; mat4_identity(R_rot);
     mat4_rotate(R_rot, pulse * 5.0f * M_PI / 180.0f, (vec3){1, 1, 1});
@@ -2370,6 +2390,11 @@ void drawWormholeCore(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float 
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
     vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+}
+
+void drawWormholeCore(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse, int type, int ver) {
+    if (ver == 1) drawWormholeCore_v1(cb, app, modelBase, pulse, type);
+    else drawWormholeCore_v2(cb, app, modelBase, pulse, type);
 }
 
 void drawSwarmCube(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse) {
@@ -2406,7 +2431,62 @@ void drawSwarmCube(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pul
     vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
 }
 
-void drawWormhole(VkCommandBuffer cb, VulkanApp* app, float x, float y, float z, double h, double m, int type, float pulse, float tactScale, float closingScale) {
+void drawWormhole_v1(VkCommandBuffer cb, VulkanApp* app, float x, float y, float z, double h, double m, int type, float pulse, float tactScale, float closingScale) {
+    mat4 T, R, S_base;
+    mat4_translate(T, (vec3){x, y, z});
+    mat4_identity(R);
+    mat4_rotate(R, -h * M_PI / 180.0f, (vec3){0, 1, 0});
+    float h_rad = h * M_PI / 180.0f;
+    mat4_rotate(R, m * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
+
+    /* 2. Central Singularity - Legacy Scale 1.0 */
+    float finalScale = 1.0f * tactScale * closingScale;
+    mat4 M_base;
+    mat4_scale(S_base, (vec3){finalScale, finalScale, finalScale}); 
+    mat4_multiply(S_base, R, M_base);
+    mat4_multiply(M_base, T, M_base);
+    drawWormholeCore(cb, app, M_base, pulse, type, 1);
+
+    /* 3. Energy Funnels - Legacy Colors */
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+    mat4 RR; mat4_identity(RR);
+    mat4_rotate(RR, pulse * 5.0f, (vec3){0, 0, 1}); 
+    
+    mat4 S_funnel;
+    float fs = tactScale * closingScale * 0.8f;
+    mat4_scale(S_funnel, (vec3){fs, fs, fs});
+
+    VkDeviceSize off = 0;
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->whVertexBuffer, &off);
+    vkCmdBindIndexBuffer(cb, app->whIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+    for (int side = -1; side <= 1; side += 2) {
+        if (side == 0) continue;
+        PushConstants fpc = {0};
+        /* Legacy Colors: Departure=Cyan/Blue, Arrival=Orange/Yellow */
+        if (type == 0) { fpc.color[0]=0.0f; fpc.color[1]=0.8f; fpc.color[2]=1.0f; }
+        else { fpc.color[0]=1.0f; fpc.color[1]=0.5f; fpc.color[2]=0.0f; }
+        fpc.color[3] = 0.8f; 
+        fpc.usePushColor = 1;
+        fpc.time = pulse;
+
+        mat4 R_side, T_offset;
+        mat4_identity(R_side);
+        if (side == -1) mat4_rotate(R_side, M_PI, (vec3){0, 1, 0});
+        mat4_translate(T_offset, (vec3){0, 0, 0});
+        
+        mat4_multiply(S_funnel, RR, fpc.model);
+        mat4_multiply(fpc.model, R_side, fpc.model);
+        mat4_multiply(fpc.model, T_offset, fpc.model);
+        mat4_multiply(fpc.model, R, fpc.model);
+        mat4_multiply(fpc.model, T, fpc.model);
+        
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(fpc), &fpc);
+        vkCmdDrawIndexed(cb, app->whIndexCount, 1, 0, 0, 0);
+    }
+}
+
+void drawWormhole_v2(VkCommandBuffer cb, VulkanApp* app, float x, float y, float z, double h, double m, int type, float pulse, float tactScale, float closingScale) {
     mat4 T, R, S_base;
     mat4_translate(T, (vec3){x, y, z});
     mat4_identity(R);
@@ -2458,7 +2538,7 @@ void drawWormhole(VkCommandBuffer cb, VulkanApp* app, float x, float y, float z,
     mat4_multiply(S_base, R, M_base);
     mat4_multiply(M_base, T, M_base);
     
-    drawWormholeCore(cb, app, M_base, pulse, type);
+    drawWormholeCore(cb, app, M_base, pulse, type, 2);
 
     /* 3. Energy Funnels (Imbuti energetici del Wormhole) - Disegnati simmetricamente ai poli */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -2499,6 +2579,11 @@ void drawWormhole(VkCommandBuffer cb, VulkanApp* app, float x, float y, float z,
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(fpc), &fpc);
         vkCmdDrawIndexed(cb, app->whIndexCount, 1, 0, 0, 0);
     }
+}
+
+void drawWormhole(VkCommandBuffer cb, VulkanApp* app, float x, float y, float z, double h, double m, int type, float pulse, float tactScale, float closingScale, int ver) {
+    if (ver == 1) drawWormhole_v1(cb, app, x, y, z, h, m, type, pulse, tactScale, closingScale);
+    else drawWormhole_v2(cb, app, x, y, z, h, m, type, pulse, tactScale, closingScale);
 }
 
 /* Accretion Disk drawing moved to spacegl_vulkan_extras.inl as drawAccretionDisk_Vulkan */
@@ -3225,7 +3310,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         /* Departure wormhole: shown during entry phase, independent of arrival timer */
         if (app->departureWormhole.active) {
             drawWormhole(cb, app, app->departureWormhole.x * tactScale, app->departureWormhole.y * tactScale, app->departureWormhole.z * tactScale, 
-                         app->departureWormhole.h, app->departureWormhole.m, 0, pulse, tactScale, 1.0f);
+                         app->departureWormhole.h, app->departureWormhole.m, 0, pulse, tactScale, 1.0f, app->departureWormhole.jump_type);
         }
         /* Arrival wormhole: shown after jump, fades out over timer */
         if (app->jumpArrival.active && app->jumpArrival.timer > 0) {
@@ -3237,7 +3322,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             }
             float closingScale = (app->jumpArrival.timer < 540) ? ((float)app->jumpArrival.timer / 540.0f) : 1.0f;
             drawWormhole(cb, app, app->jumpArrival.x * tactScale, app->jumpArrival.y * tactScale, app->jumpArrival.z * tactScale, 
-                         app->jumpArrival.h, app->jumpArrival.m, 1, pulse, tactScale, closingScale);
+                         app->jumpArrival.h, app->jumpArrival.m, 1, pulse, tactScale, closingScale, app->jumpArrival.jump_type);
         }
 
         /* --- SOLID PASS --- */
@@ -3677,7 +3762,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     mat4 S_q; mat4_scale(S_q, (vec3){coreSize, coreSize, coreSize});
                     
                     int cl = obj->ship_class;
-                    if (cl < 0 || cl > 12) cl = 12;
+                    if (cl < 0 || cl > 13) cl = 13;
                     
                     /* Rotation speed based on class: Legacy (0) rotates faster */
                     mat4 R_q; mat4_identity(R_q);
@@ -4421,10 +4506,13 @@ void mainLoop(VulkanApp* app) {
                     app->activeDismantles[oldest].life = 1.0f;
                     app->activeDismantles[oldest].scale = 0.5f;
                 } else if (ev->type == IPC_EV_JUMP) {
-                    app->jumpArrival.x = app->smoothObjs[0].first ? ((float)ev->x1 - 20.0f) : (app->smoothObjs[0].x - 20.0f);
-                    app->jumpArrival.y = app->smoothObjs[0].first ? ((float)ev->z1 - 20.0f) : (app->smoothObjs[0].z - 20.0f);
-                    app->jumpArrival.z = app->smoothObjs[0].first ? (20.0f - (float)ev->y1) : (20.0f - app->smoothObjs[0].y);
+                    app->jumpArrival.x = (float)ev->x1 - 20.0f;
+                    app->jumpArrival.y = (float)ev->z1 - 20.0f;
+                    app->jumpArrival.z = 20.0f - (float)ev->y1;
+                    app->jumpArrival.h = ev->x2;
+                    app->jumpArrival.m = ev->y2;
                     app->jumpArrival.active = 1;
+                    app->jumpArrival.jump_type = ev->extra;
                     app->jumpArrival.timer = 540;
                     for (int i = 0; i < MAX_ARRIVAL_PARTICLES; i++) {
                         app->arrivalParticles[i].active = 1;
@@ -4536,6 +4624,7 @@ void mainLoop(VulkanApp* app) {
                 app->departureWormhole.z = 20.0f - (float)st->wormhole.shm_y;
                 app->departureWormhole.h = st->shm_h;
                 app->departureWormhole.m = st->shm_m;
+                app->departureWormhole.jump_type = st->wormhole.extra;
             }
             app->departureWormhole.active = 1;
         } else {
@@ -4805,10 +4894,10 @@ void initVulkan(VulkanApp* app) {
     createBuffer(app, totalWhInds * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->whIndexBuffer, &app->whIndexBufferMemory); vkMapMemory(app->device, app->whIndexBufferMemory, 0, totalWhInds * sizeof(uint32_t), 0, &d); memcpy(d, whInds, totalWhInds * sizeof(uint32_t)); vkUnmapMemory(app->device, app->whIndexBufferMemory);
     app->whIndexCount = totalWhInds;
     
-    /* Procedural Quantum Cores for Alliance Classes (0 to 12) */
-    for (int cl = 0; cl <= 12; cl++) {
-        /* Formula aggressiva per differenziare: 0=75 lati (Legacy), 12=3 lati (Frigate) */
-        int eq_sides = 3 + (12 - cl) * 6;
+    /* Procedural Quantum Cores for Alliance Classes (0 to 13) */
+    for (int cl = 0; cl <= 13; cl++) {
+        /* Formula aggressiva per differenziare: 0=81 lati (Legacy), 13=3 lati (Sentinel) */
+        int eq_sides = 3 + (13 - cl) * 6;
         int num_vertices = eq_sides + 2;
         int num_indices = eq_sides * 6;
         
@@ -4825,17 +4914,24 @@ void initVulkan(VulkanApp* app) {
         for (int e = 0; e < eq_sides; e++) {
             int next_e = (e + 1) % eq_sides;
             /* Top edge */
-            cInds[idx++] = 0; cInds[idx++] = 2 + e;
+            cInds[idx++] = 0;
+            cInds[idx++] = 2 + e;
             /* Bottom edge */
-            cInds[idx++] = 1; cInds[idx++] = 2 + e;
+            cInds[idx++] = 1;
+            cInds[idx++] = 2 + e;
             /* Equator edge */
-            cInds[idx++] = 2 + e; cInds[idx++] = 2 + next_e;
+            cInds[idx++] = 2 + e;
+            cInds[idx++] = 2 + next_e;
         }
         app->coreICount[cl] = num_indices;
         createBuffer(app, num_vertices * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->coreVB[cl], &app->coreVBM[cl]);
-        vkMapMemory(app->device, app->coreVBM[cl], 0, num_vertices * sizeof(Vertex), 0, &d); memcpy(d, cVerts, num_vertices * sizeof(Vertex)); vkUnmapMemory(app->device, app->coreVBM[cl]);
+        vkMapMemory(app->device, app->coreVBM[cl], 0, num_vertices * sizeof(Vertex), 0, &d);
+        memcpy(d, cVerts, num_vertices * sizeof(Vertex));
+        vkUnmapMemory(app->device, app->coreVBM[cl]);
         createBuffer(app, num_indices * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->coreIB[cl], &app->coreIBM[cl]);
-        vkMapMemory(app->device, app->coreIBM[cl], 0, num_indices * sizeof(uint32_t), 0, &d); memcpy(d, cInds, num_indices * sizeof(uint32_t)); vkUnmapMemory(app->device, app->coreIBM[cl]);
+        vkMapMemory(app->device, app->coreIBM[cl], 0, num_indices * sizeof(uint32_t), 0, &d);
+        memcpy(d, cInds, num_indices * sizeof(uint32_t));
+        vkUnmapMemory(app->device, app->coreIBM[cl]);
     }
 
     for(int i=0; i<MAX_FRAMES_IN_FLIGHT; i++) createBuffer(app, sizeof(UniformBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->uniformBuffers[i], &app->uniformBuffersMemory[i]);
@@ -4865,7 +4961,7 @@ void cleanup(VulkanApp* app) {
     vkDestroySwapchainKHR(app->device, app->swapChain, NULL);
     vkDestroyBuffer(app->device, app->whIndexBuffer, NULL); vkFreeMemory(app->device, app->whIndexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->whVertexBuffer, NULL); vkFreeMemory(app->device, app->whVertexBufferMemory, NULL);
-    for (int cl = 0; cl <= 12; ++cl) {
+    for (int cl = 0; cl <= 13; ++cl) {
         vkDestroyBuffer(app->device, app->coreIB[cl], NULL); vkFreeMemory(app->device, app->coreIBM[cl], NULL);
         vkDestroyBuffer(app->device, app->coreVB[cl], NULL); vkFreeMemory(app->device, app->coreVBM[cl], NULL);
     }

@@ -1467,6 +1467,7 @@ const char* get_ship_class_name(int ship_class) {
         case SHIP_CLASS_DIPLOMATIC:   return "Diplomatic Cruiser";
         case SHIP_CLASS_RESEARCH:       return "Research Vessel";
         case SHIP_CLASS_FRIGATE:  return "Frigate Class";
+        case SHIP_CLASS_SENTINEL: return "Sentinel Class";
         case SHIP_CLASS_GENERIC_ALIEN: return "Vessel";
         default: return "Unknown";
     }
@@ -4347,7 +4348,21 @@ void handle_who(int i, const char *params, bool *should_disconnect) {
 void handle_jum(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     int qx, qy, qz;
-    if (sscanf(params, "%d %d %d", &qx, &qy, &qz) == 3) {
+    int type = 2;
+    bool valid = false;
+
+    if (sscanf(params, "%d %d %d %d", &type, &qx, &qy, &qz) == 4) {
+        if (type < 1 || type > 2) {
+            send_server_msg(i, "COMPUTER", "Invalid jump sequence type (1 or 2).");
+            return;
+        }
+        valid = true;
+    } else if (sscanf(params, "%d %d %d", &qx, &qy, &qz) == 3) {
+        type = 2;
+        valid = true;
+    }
+
+    if (valid) {
         if (!IS_Q_VALID(qx, qy, qz)) {
             send_server_msg(i, "COMPUTER", "Invalid quadrant coordinates.");
             return;
@@ -4373,6 +4388,7 @@ void handle_jum(int i, const char *params, bool *should_disconnect) {
              return;
         }
 
+        players[i].jump_type = type;
         players[i].state.energy -= COST_WORMHOLE_INIT;
         players[i].state.inventory[1] -= 1;
 
@@ -4420,7 +4436,7 @@ void handle_jum(int i, const char *params, bool *should_disconnect) {
                players[i].name, qx, qy, qz, time_jum);
 
         send_server_msg(i, "HELMSMAN", "Initiating trans-quadrant jump. Structural stress detected.");
-    } else send_server_msg(i, "COMPUTER", "Usage: jum <Q1> <Q2> <Q3>");
+    } else send_server_msg(i, "COMPUTER", "Usage: jum [type] <Q1> <Q2> <Q3> (type 1:legacy, 2:current)");
 }
 
 void handle_psy(int i, const char *params, bool *should_disconnect) {
@@ -4891,7 +4907,7 @@ static const CommandDef command_registry[] = {
     {"nav", handle_nav, "Hyperdrive Navigation (H 0-359, M -90/90, W Dist, F Factor 1-9.9)"},
     {"imp", handle_imp, "Impulse Drive (H, M, Speed 0.0-1.0). imp 0 0 0 to stop."},
     {"pos", handle_pos, "Position Ship (Align orientation without movement)"},
-    {"jum", handle_jum, "Wormhole Jump (Instant travel, costs 5000 En + 1 Aetherium)"},
+    {"jum", handle_jum, "Wormhole Jump (Usage: jum [type] q1 q2 q3)"},
     {"apr", handle_apr, "Approach target autopilot (ID DIST). Works on Lock."},
     {"cha",  handle_cha, "Chase locked target (Inter-sector aware)"},
     {"srs",  handle_srs, "Short Range Sensors (Current Quadrant View)"},

@@ -16,7 +16,7 @@
 
 SPACEGL_KEY="thisisasecretkeyforencryption" ./spacegl_server.sh
 
-#With Freeglut 3d
+#With GLFW 3d
 SPACEGL_KEY="thisisasecretkeyforencryption" ./spacegl_client.sh gl
 
 #With Vulkan 3d

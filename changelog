@@ -1,3 +1,9 @@
+* Sun May 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.17.01
+- [Visuals] Implemented high-fidelity 3D rendering for the Alliance Sentinel-class ship in both Vulkan and GLFW engines.
+- [Visuals] Added cinematic dual-stage wormhole transit sequences for Vulkan and GLFW visualization front-ends.
+- [Docs] Completed comprehensive documentation of all 88 galactic objects in README.md and README_it.md.
+- [Docs] Updated HOWTO.txt with new technical specifications and engine operational procedures.
+
 * Sat May 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.16.02
 - [Vulkan] Implemented dynamic shader path resolution: added fallback logic to prioritize /usr/share/spacegl/shaders/ and default to the build directory, ensuring compatibility for installed COPR packages.
 

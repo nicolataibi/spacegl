@@ -87,6 +87,7 @@ typedef struct {
     
     /* Jump Visuals */
     double wx, wy, wz;      /* Wormhole entrance coords */
+    int jump_type;          /* 1: Legacy, 2: Current */
     int is_docked;          /* Persistent docking state */
     int shield_regen_delay;
     int renegade_timer;     /* Ticks until faction forgives friendly fire */
