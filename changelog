@@ -1,3 +1,6 @@
+* Mon May 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.18.01
+- [Docs] Integrated "The Dawn of Digital Adventure" section in README.md, providing historical context and a tribute to early text-based space simulations.
+
 * Sun May 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.17.01
 - [Visuals] Implemented high-fidelity 3D rendering for the Alliance Sentinel-class ship in both Vulkan and GLFW engines.
 - [Visuals] Added cinematic dual-stage wormhole transit sequences for Vulkan and GLFW visualization front-ends.

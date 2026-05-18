@@ -127,6 +127,44 @@ Space GL is a high-performance 3D multi-user client-server space flight and comb
 </table>
 
 ---
+---
+
+## 🌌 The Dawn of Digital Adventure
+
+**In the years when computers occupied entire rooms and screens displayed only green characters against black backgrounds, a form of adventure was born that would forever change how we imagine video games.**
+
+There were no 3D graphics, textures, or digital sound effects: there were only words, numbers, and imagination.
+
+### 🛠 The Architecture of Imagination
+
+Between universities, military laboratories, and terminals linked to massive mainframes, programmers and students began creating the first interactive universes using languages such as BASIC, FORTRAN, COBOL, and Assembly. 
+
+>A few lines of code were all it took to transform a terminal into a starship command bridge, an uncharted galaxy, or an interplanetary war.
+
+### 🛸 Tactical Command & Simulation
+
+It was during this era that legendary games like Star Trek appeared, text-based space simulations where the player commanded a starship through galactic quadrants populated by enemies, starbases, and cosmic anomalies. Every command was typed manually: 
+
+“NAV”, “PHASERS”, “SCAN”. 
+
+Every mistake could mean the destruction of the ship. Every choice sparked the imagination more than any image ever could.
+
+### 🔬 Pioneering Interaction
+
+Those games were more than just pastimes; they were pioneering experiments in human-machine interaction. In an age without the modern internet, without graphics engines, and without abundant memory, developers managed to build entire worlds with just a few kilobytes of code and extraordinary inventiveness.
+
+### 🏛 A Modern Tribute
+
+This project was born as a tribute to that era. It is a return to the times when the mystery of space was evoked by ASCII characters, stellar coordinates, and blinking messages on remote terminals. 
+
+A client-server experience that recaptures the spirit of 1970s command-line games: 
+
+essential, cold, technical… and incredibly immersive.
+
+**Because before photorealistic graphics, there was imagination. And a blinking cursor was all you needed to begin a journey among the stars.**
+
+---
+---
 
 ## 🚀 Version 3.1 Highlights (Rel. 2026.05.03 - The Omniscience Protocol)
 
@@ -134,7 +172,7 @@ Update 3.1 introduces a revolutionary telemetry architecture, granting Commander
 *   **Advanced Telemetry Subsystem**:
     *   **Dual-Socket Architecture**: Simultaneous support for **Unix Domain Sockets** (ultra-low latency local monitoring) and **TCP Sockets** (remote multi-server dashboarding).
     *   **Server Streaming (Push Model)**: Eliminated polling overhead. The server now "pushes" tactical data to clients at the end of every tick, ensuring zero-latency awareness.
-    *   **Full Spectrum Coverage**: All 35 categories of galactic entities are now instrumented, from standard ships to exotic Dyson fragments and subspace anomalies.
+    *   **Full Spectrum Coverage**: All 88 categories of galactic entities are now instrumented, from standard ships to exotic Dyson fragments and subspace anomalies.
 *   **Tactical Telemetry Client (`spacegl_telemetry`)**:
     *   A new high-performance diagnostic tool featuring an interactive `ncurses` interface.
     *   Supports dynamic category switching and remote uplink capabilities via `--tcp`.
@@ -2688,14 +2726,24 @@ Space GL implements enterprise-grade security for galactic state synchronization
 *   **Cryptographic HUD**: Real-time visualization of encryption flags, signature status, and active protocol parameters directly in the tactical interface.
 *   **Cache-Line Alignment (64-byte)**: Core data structures utilize `__attribute__((aligned(64)))` to prevent *False Sharing* during massive parallel processing, ensuring peak CPU throughput and 64-bit memory continuity for all `uint64_t` resource fields.
 
-### ⚙️ System Requirements & Dependencies
-To compile and run the SPACE GL suite, ensure the following libraries are installed:
-*   **FreeGLUT / OpenGL**: Core rendering engine and window management.
-*   **GLEW**: OpenGL Extension Wrangler for advanced shader support.
-*   **Vulkan / GLFW**: Next-gen rendering backend (`libvulkan`, `libglfw`, SPIR-V shaders via `glslc`).
-*   **ncurses**: Terminal HUD interface for `spacegl_hud` (`libncurses`).
-*   **OpenSSL**: Required for the complete cryptographic suite (AES, HMAC, etc.).
-*   **POSIX Threads & RT**: Managed via `lpthread` and `lrt` for shared memory and synchronization.
+### ⚙ System Requirements & Dependencies
+To compile and run the SPACE GL suite, ensure the following libraries and tools are installed:
+* **GLFW / OpenGL**: Core rendering engine and window management.
+* **GLEW**: OpenGL Extension Wrangler for advanced shader support.
+* **Vulkan SDK**: Next-gen rendering backend (requires libvulkan, libglfw, and the glslc compiler for SPIR-V shaders).
+* **OpenMP**: (Crucial) Required for multi-threaded physics processing and high-performance particle systems (libomp).
+* **ncurses**: Terminal-based HUD interfaces for spacegl_hud, spacegl_diag, and spacegl_telemetry (libncurses).
+* **OpenSSL**: Mandatory for the cryptographic suite (AES encryption, HMAC-SHA256 galaxy signing, and Ed25519 identity verification).
+* **POSIX Threads & RT**: Used for high-precision timing, synchronization, and Shared Memory IPC (lpthread, lrt).
+* **Math Library (libm)**: Required for vector calculus, 3-DOF rotations, and orbital mechanics.
+
+Compilation & Build Notes:
+* **C Standard**: The project is built using the C11 standard. Ensure your compiler (GCC 7+ or Clang) is up to date.
+* **Shader Compilation**: For the Vulkan backend, the glslc utility (part of the Vulkan SDK) must be available in your system path to generate .spv binary shaders.
+* **Parallelism**: The server logic utilizes OpenMP dynamic scheduling to handle thousands of concurrent entities and collision checks across multiple CPU cores.
+* **Zero-Latency IPC**: The suite uses a Direct Bridge (SDB) architecture based on POSIX Shared Memory (shm_open) to synchronize the 3D Viewer and the Client HUD
+  without network overhead.
+
 
 ### ⚡ High-Performance Compute Engine (Version 2.4+)
 

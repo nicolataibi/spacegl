@@ -124,6 +124,40 @@ Space GL è un simulatore di volo e combattimento spaziale 3D multi-utente ad al
 </table>
 
 ---
+---
+
+## 🌌 L'Alba dell'Avventura Digitale
+
+**Negli anni in cui i computer occupavano intere stanze e gli schermi mostravano soltanto caratteri verdi su sfondi neri, nacque una forma di avventura che avrebbe cambiato per sempre  il modo di immaginare il videogioco.**
+
+Non esistevano grafica 3D, texture o effetti sonori digitali: esistevano soltanto parole, numeri e immaginazione.
+
+### 🛠 L'Architettura dell'Immaginazione
+Tra università, laboratori militari e terminali collegati a giganteschi mainframe, programmatori e studenti iniziarono a creare i primi universi interattivi usando linguaggi come BASIC, FORTRAN, COBOL e assembly. 
+
+> “Bastavano poche righe di codice per trasformare un terminale in un ponte di comando stellare, una galassia sconosciuta o una guerra interplanetaria.”
+
+### 🛸 Simulazione e Comando Tattico
+Fu in quell’epoca che apparvero giochi leggendari come Star Trek, simulazioni spaziali testuali dove il giocatore comandava un’astronave attraverso quadranti galattici popolati da nemici, basi stellari e anomalie cosmiche. Ogni comando veniva digitato manualmente: 
+
+“NAV” • “PHASERS” • “SCAN”
+
+Ogni errore poteva significare la distruzione della nave. Ogni scelta accendeva l’immaginazione più di qualsiasi immagine.
+
+### 🔬 Esperimenti Pionieristici
+Quei giochi non erano soltanto passatempo: erano esperimenti pionieristici di interazione uomo-macchina. In un’epoca senza internet moderno, senza motori grafici e senza memoria abbondante, gli sviluppatori riuscivano a costruire mondi interi con poche kilobyte di codice e una straordinaria inventiva.
+
+### 🏛 Un Omaggio Moderno
+Questo progetto nasce come omaggio a quell’era. Un ritorno ai tempi in cui il mistero dello spazio veniva evocato da caratteri ASCII, coordinate stellari e messaggi lampeggianti su terminali remoti. 
+
+Un'esperienza client-server che recupera lo spirito dei giochi a riga di comando degli anni ’70: 
+
+essenziali • freddi • tecnici… • e incredibilmente immersivi
+
+**Perché prima della grafica fotorealistica, c’era l’immaginazione. E bastava un cursore lampeggiante per iniziare un viaggio tra le stelle.**
+
+---
+---
 
 ## 🚀 Highlights della Versione 3.1 (Rel. 2026.05.03 - Il Protocollo Onniscienza)
 
@@ -131,7 +165,7 @@ L'aggiornamento 3.1 introduce una rivoluzionaria architettura di telemetria, gar
 *   **Sottosistema di Telemetria Avanzato**:
     *   **Architettura Dual-Socket**: Supporto simultaneo per **Unix Domain Sockets** (monitoraggio locale a bassissima latenza) e **TCP Sockets** (dashboarding remoto multi-server).
     *   **Server Streaming (Modello Push)**: Eliminato l'overhead del polling. Il server ora "spinge" i dati tattici ai client alla fine di ogni tick, garantendo una consapevolezza a latenza zero.
-    *   **Copertura Totale dello Spettro**: Tutte le 35 categorie di entità galattiche sono ora instrumentate, dai vascelli standard ai frammenti esotici di Dyson e alle anomalie subspaziali.
+    *   **Copertura Totale dello Spettro**: Tutte le 88 categorie di entità galattiche sono ora instrumentate, dai vascelli standard ai frammenti esotici di Dyson e alle anomalie subspaziali.
 *   **Client di Telemetria Tattica (`spacegl_telemetry`)**:
     *   Un nuovo strumento diagnostico ad alte prestazioni con interfaccia `ncurses` interattiva.
     *   Supporta il cambio dinamico di categoria e funzionalità di uplink remoto tramite `--tcp`.
@@ -2533,14 +2567,21 @@ Space GL implementa la sicurezza di livello enterprise per la sincronizzazione d
 *   **HUD Crittografico**: Visualizzazione in tempo reale dei flag di crittografia, dello stato della firma e dei parametri del protocollo attivo direttamente nell'interfaccia tattica.
 *   **Allineamento Cache-Line (64-byte)**: Le strutture dati core utilizzano `__attribute__((aligned(64)))` per prevenire il *False Sharing* durante l'elaborazione massiccia in parallelo, garantendo il massimo throughput CPU e la continuità di memoria a 64-bit per tutti i campi `uint64_t`.
 
-### ⚙️ Requisiti di Sistema e Dipendenze
-Per compilare ed eseguire la suite SPACE GL, assicurarsi che le seguenti librerie siano installate:
-*   **FreeGLUT / OpenGL**: Motore di rendering principale e gestione delle finestre.
-*   **GLEW**: OpenGL Extension Wrangler per il supporto avanzato degli shader.
-*   **Vulkan / GLFW**: Backend di rendering di nuova generazione (`libvulkan`, `libglfw`, shader SPIR-V tramite `glslc`).
-*   **ncurses**: Interfaccia HUD testuale per `spacegl_hud` (`libncurses`).
-*   **OpenSSL**: Richiesto per la suite crittografica completa (AES, HMAC, ecc.).
-*   **POSIX Threads & RT**: Gestiti tramite `lpthread` e `lrt` per la memoria condivisa e la sincronizzazione.
+### ⚙ System Requirements & Dependencies
+To compile and run the SPACE GL suite, ensure the following libraries are installed:
+* **GLFW / OpenGL**: Core rendering engine and window management.
+* **GLEW**: OpenGL Extension Wrangler for advanced shader support.
+* **Vulkan SDK**: Next-gen rendering backend (libvulkan, libglfw, SPIR-V shaders via glslc).
+* **OpenMP**: (Mancante nel tuo elenco) Fondamentale per il calcolo parallelo della logica fisica del server e del sistema particellare nel visore 3D (libomp).
+* **ncurses**: Terminal HUD interface for spacegl_hud, spacegl_diag, and spacegl_telemetry (libncurses).
+* **OpenSSL**: Required for the complete cryptographic suite (AES, HMAC-SHA256, Ed25519 signatures, etc.).
+* **POSIX Threads & RT**: Managed via lpthread and lrt for shared memory (IPC) and high-precision synchronization.
+* **Math Library (libm)**: Utilizzata per tutti i calcoli vettoriali e le rotazioni 3-DOF.
+
+Note aggiuntive per la compilazione:
+* **C Standard**: Il progetto richiede un compilatore compatibile con lo standard C11.
+* **Shader Compiler**: Per la parte Vulkan è strettamente necessario lo strumento glslc (incluso nel Vulkan SDK) per la compilazione degli shader in formato binario
+  SPIR-V.
 
 ### ⚡ Motore di Calcolo ad Alte Prestazioni (Versione 2.4+)
 
