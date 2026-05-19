@@ -213,15 +213,15 @@ In the secret laboratories of the Aegis research station, technicians began mapp
 
 "We must go further," Niklaus ordered. "I want Alliance command on Earth Prime to see what I see, in real-time, across thousands of light-years." Engineers opened the "TCP Pulsar," a remote uplink on frequency 5001. The signal, encrypted with PQC algorithms, began to flow through space, carrying the vital status of every single entity. Remote monitoring was no longer a dream, but an unstoppable binary stream.
 
-### Chapter 4: The 35 Sentinels
+### Chapter 4: The 88 Sentinels
 
 <table>
 <tr>
-    <td><img src="readme_assets/telemetry/telemetry4.png" alt="Black jump" width="200"/></td>
+    <td><img src="readme_assets/telemetry/telemetry4.png" alt="Black jump" width="500"/></td>
   </tr>
 </table>
 
-The system came to life. Thirty-five categories of objects were instrumented. Not just ships and stars, but also Dyson sphere fragments, void crystals, and temporal anomalies. Every entity began transmitting its own signature: integrity, energy, exact coordinates. The galaxy, once dark and mysterious, became an open book. The server's efficiency report marked 100%: 35 out of 35 categories were under watch.
+The system came to life. Eighty-eight categories of objects were instrumented. Not just ships and stars, but also Dyson sphere fragments, void crystals, and temporal anomalies. Every entity began transmitting its own signature: integrity, energy, exact coordinates. The galaxy, once dark and mysterious, became an open book. The server's efficiency report marked 100%: 88 out of 88 categories were under watch.
 
 ### Chapter 5: Galactic Omniscience
 

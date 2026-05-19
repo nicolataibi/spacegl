@@ -43,7 +43,7 @@ typedef struct {
     double net_x, net_y, net_z;
     double h, m, r;
     int32_t type;       /* 1=Player, 3=Base, 4=Star, 5=Planet, etc */
-    int32_t ship_class; /* Specifica il modello 3D (es. Galaxy, Constitution) */
+    int32_t ship_class; /* Specifies the 3D model (e.g., Galaxy, Constitution) */
     int32_t active;
     int32_t health_pct; /* 0-100% Health/Energy status for HUD */
     uint64_t energy;     /* Remaining energy units */

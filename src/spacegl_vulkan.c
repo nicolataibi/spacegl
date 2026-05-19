@@ -2540,7 +2540,7 @@ void drawWormhole_v2(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
     
     drawWormholeCore(cb, app, M_base, pulse, type, 2);
 
-    /* 3. Energy Funnels (Imbuti energetici del Wormhole) - Disegnati simmetricamente ai poli */
+    /* 3. Energy Funnels (Wormhole Energy Funnels) - Drawn symmetrically at the poles */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
     mat4 RR; mat4_identity(RR);
     mat4_rotate(RR, pulse * 2.5f, (vec3){0, 0, 1}); 
@@ -2567,7 +2567,7 @@ void drawWormhole_v2(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
         if (side == -1) mat4_rotate(R_side, M_PI, (vec3){0, 1, 0});
         
         /* Offset funnels along local Z so they emerge from the sphere (Using the symmetry macro) */
-        /* la seguente riga non deve essere modificata perche' interviene sul posizionamente della sfera all'interno del wormhole */
+        /* the following line must not be modified because it affects the positioning of the sphere inside the wormhole */
         mat4_translate(T_offset, (vec3){0, 0, 0});
         
         mat4_multiply(S_funnel, RR, fpc.model);
@@ -3143,7 +3143,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
             mat4_identity(app->playerR); mat4_identity(app->playerT);
 
-            /* 0. Cubo Tattico (Bounding Box) */
+            /* 0. Tactical Cube (Bounding Box) */
             PushConstants pc = {0}; mat4_identity(pc.model); pc.usePushColor = 4; /* Unlit Vertex Colors */
             mat4 S_tact; mat4_scale(S_tact, (vec3){tactScale, tactScale, tactScale});
             memcpy(pc.model, S_tact, sizeof(mat4));
@@ -3747,7 +3747,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 }
 
                 /* --- QUANTUM CORE (Sphere + 3 Orbiting Rings) --- */
-                /* Solo per le navi dell'Alleanza (faction == 0 o faction == 1) */
+                /* Only for Alliance ships (faction == 0 or faction == 1) */
                 int is_alliance = 0;
                 if (obj->faction == 0 || obj->faction == 1) is_alliance = 1;
 
@@ -4095,27 +4095,27 @@ void drawFrame(VulkanApp* app) {
     UniformBufferObject ubo; 
     mat4 view; mat4_identity(view);
     
-    /* 1. Vista Orbitale Standard (Tattica) */
+    /* 1. Standard Orbital View (Tactical) */
     mat4 m_std; mat4_identity(m_std);
     mat4_rotate(m_std, app->angleY * M_PI / 180.0f, (vec3){0, 1, 0});
     mat4_rotate(m_std, app->angleX * M_PI / 180.0f, (vec3){1, 0, 0});
     mat4 T_cam; mat4_translate(T_cam, (vec3){0, 0, -app->cameraDist});
     mat4_multiply(m_std, T_cam, m_std);
 
-    /* 2. Vista Bridge (Prima Persona) */
+    /* 2. Bridge View (First Person) */
     mat4 m_brg; mat4_identity(m_brg);
     if (app->bridgeAnim > 0.001f) {
         float tactScale = 1.0f - app->mapAnim;
-        /* Coordinate smooth della nave (Oggetto 0) nel sistema Vulkan (Mapping SHIP: X, Z, -Y) */
+        /* Smooth coordinates of the ship (Object 0) in the Vulkan system (Mapping SHIP: X, Z, -Y) */
         float px = (app->smoothObjs[0].x - 20.0f) * tactScale;
         float py = (app->smoothObjs[0].z - 20.0f) * tactScale;
         float pz = (20.0f - app->smoothObjs[0].y) * tactScale;
         float ph = app->smoothObjs[0].h;
         float pm = app->smoothObjs[0].m;
 
-        /* Matrice di Rotazione della Nave (Sincronizzata con recordCommandBuffer) */
+        /* Ship Rotation Matrix (Synchronized with recordCommandBuffer) */
         mat4 R_ship; mat4_identity(R_ship);
-        /* Allineamento modello: +X -> +Z (South) */
+        /* Model alignment: +X -> +Z (South) */
         mat4_rotate(R_ship, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
         /* Heading */
         mat4_rotate(R_ship, -ph * M_PI / 180.0f, (vec3){0, 1, 0});
@@ -4148,7 +4148,7 @@ void drawFrame(VulkanApp* app) {
 
         mat4_multiply(R_base, R_ship, R_cam_world);
 
-        /* Matrice di Vista = inv(T_world) * inv(R_cam_world) 
+        /* View Matrix = inv(T_world) * inv(R_cam_world)
            In Row-Major: v * T_inv * R_inv = (v - pos) * R_inv */
         mat4 R_inv; mat4_identity(R_inv);
         for(int i=0; i<3; i++) for(int j=0; j<3; j++) R_inv[i][j] = R_cam_world[j][i];
@@ -4156,13 +4156,13 @@ void drawFrame(VulkanApp* app) {
         mat4 T_inv; mat4_translate(T_inv, (vec3){-wx, -wy, -wz});
         mat4_multiply(T_inv, R_inv, m_brg);
         }
-    /* 3. Interpolazione Finale della Vista */
+    /* 3. Final View Interpolation */
     if (app->bridgeAnim <= 0.001f) {
         memcpy(view, m_std, sizeof(mat4));
     } else if (app->bridgeAnim >= 0.999f) {
         memcpy(view, m_brg, sizeof(mat4));
     } else {
-        /* Interpolazione lineare tra le componenti delle matrici */
+        /* Linear interpolation between matrix components */
         for (int i=0; i<4; i++) {
             for (int j=0; j<4; j++) {
                 view[i][j] = m_std[i][j] * (1.0f - app->bridgeAnim) + m_brg[i][j] * app->bridgeAnim;
@@ -4172,7 +4172,7 @@ void drawFrame(VulkanApp* app) {
     
     memcpy(ubo.view, view, sizeof(mat4));
     
-    /* 4. FOV Dinamico: 45.0 (Tattico) -> 65.0 (Bridge) */
+    /* 4. Dynamic FOV: 45.0 (Tactical) -> 65.0 (Bridge) */
     float current_fov = 45.0f * (1.0f - app->bridgeAnim) + 65.0f * app->bridgeAnim;
     mat4_perspective(current_fov * M_PI / 180.0f, WIDTH/(float)HEIGHT, 0.1f, 1000.0f, ubo.proj); ubo.proj[1][1] *= -1;
     
@@ -4636,14 +4636,14 @@ void mainLoop(VulkanApp* app) {
             app->jumpArrival.m = st->shm_m;
         }
 
-            /* Sincronizzazione dello stato della Vista Bridge */
+            /* Bridge View state synchronization */
             app->showBridge = st->shm_show_bridge;
             if (app->showBridge) {
-                /* Transizione verso la vista bridge (0.0 -> 1.0) */
+                /* Transition towards bridge view (0.0 -> 1.0) */
                 if (app->bridgeAnim < 1.0f) app->bridgeAnim += 0.03f;
                 if (app->bridgeAnim > 1.0f) app->bridgeAnim = 1.0f;
             } else {
-                /* Ritorno alla vista orbitale (1.0 -> 0.0) */
+                /* Return to orbital view (1.0 -> 0.0) */
                 if (app->bridgeAnim > 0.0f) app->bridgeAnim -= 0.03f;
                 if (app->bridgeAnim < 0.0f) app->bridgeAnim = 0.0f;
             }
@@ -4868,7 +4868,7 @@ void initVulkan(VulkanApp* app) {
     float wh_rs = 0.45f, wh_rmax = 1.6f;
     for (int i = 0; i < WH_NR; i++) {
         float r = wh_rs + i * (wh_rmax - wh_rs) / (WH_NR - 1);
-        /* base_z: Distanza di simmetria tra i due funnels (imbuti) */
+        /* base_z: Symmetry distance between the two funnels (funnels) */
         float base_z = DISTANZA_SIMMETRIA_FUNNELS_WORMHOLES + 2.0f * sqrtf(wh_rs * (r - wh_rs)); 
         for (int j = 0; j < WH_NT; j++) {
             float th = 2.0f * M_PI * j / WH_NT;
@@ -4896,7 +4896,7 @@ void initVulkan(VulkanApp* app) {
     
     /* Procedural Quantum Cores for Alliance Classes (0 to 13) */
     for (int cl = 0; cl <= 13; cl++) {
-        /* Formula aggressiva per differenziare: 0=81 lati (Legacy), 13=3 lati (Sentinel) */
+        /* Aggressive formula to differentiate: 0=81 sides (Legacy), 13=3 sides (Sentinel) */
         int eq_sides = 3 + (13 - cl) * 6;
         int num_vertices = eq_sides + 2;
         int num_indices = eq_sides * 6;

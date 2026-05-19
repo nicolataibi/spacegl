@@ -650,7 +650,7 @@ ViewProbe g_local_probes[3];
 ArrivalEffect g_arrival_fx = {0};
 RecoveryFX g_recovery_fx = {0};
 
-/* Rimosse variabili globali scia singola per scia universale */
+/* Removed global variables for single trail for universal trail */
 typedef struct { float sx, sy, sz, tx, ty, tz, alpha; } IonBeam;
 IonBeam beams[MAX_BEAMS];
 int beamCount = 0;
@@ -1752,11 +1752,11 @@ void drawCommandModule(double sx, double sy, double sz) {
     
     if (g_is_cloaked_rendering) return;
 
-    /* Luci di posizione superiori */
+    /* Upper navigation lights */
     glDisable(GL_LIGHTING);
-    glColor3f(1.0, 0.0, 0.0); /* Rosso (Port) */
+    glColor3f(1.0, 0.0, 0.0); /* Red (Port) */
     glPushMatrix(); glTranslatef(0, 0.12, 0.2); glutSolidSphere(0.02, 8, 8); glPopMatrix();
-    glColor3f(0.0, 1.0, 0.0); /* Verde (Starboard) */
+    glColor3f(0.0, 1.0, 0.0); /* Green (Starboard) */
     glPushMatrix(); glTranslatef(0, 0.12, -0.2); glutSolidSphere(0.02, 8, 8); glPopMatrix();
     glEnable(GL_LIGHTING);
 }
@@ -6035,12 +6035,12 @@ void timer(int v) { (void)v;
             }
         }
         
-        /* Interpolazione fluida per la posizione (Velocita' Dead Reckoning con DeltaTime) */
+        /* Smooth position interpolation (Dead Reckoning speed with DeltaTime) */
         objects[i].x += objects[i].vx * deltaTime;
         objects[i].y += objects[i].vy * deltaTime;
         objects[i].z += objects[i].vz * deltaTime;
         
-        /* Sincronizzazione Camera/Player per evitare vibrazioni visive */
+        /* Camera/Player synchronization to avoid visual jitter */
         if (i == 0) {
             PlayerX = objects[0].x;
             PlayerY = objects[0].y;
@@ -6055,13 +6055,13 @@ void timer(int v) { (void)v;
             objects[i].y = objects[i].ty;
             objects[i].z = objects[i].tz;
         } else {
-            /* Convergenza morbida verso il bersaglio per cancellare lo stutter avanti e indietro */
+            /* Smooth convergence towards the target to eliminate back-and-forth stutter */
             objects[i].x += dx_err * INTERP_SPEED_OBJECT * deltaTime;
             objects[i].y += dy_err * INTERP_SPEED_OBJECT * deltaTime;
             objects[i].z += dz_err * INTERP_SPEED_OBJECT * deltaTime;
         }
         
-        /* Interpolazione fluida per l'orientamento (Heading/Mark/Roll) */
+        /* Smooth orientation interpolation (Heading/Mark/Roll) */
         double dh = objects[i].th - objects[i].h;
         if (dh > 180.0) dh -= 360.0;
         if (dh < -180.0) dh += 360.0;
@@ -6079,7 +6079,7 @@ void timer(int v) { (void)v;
                 double lastY = objects[i].trail[(objects[i].trail_ptr - 1 + MAX_TRAIL) % MAX_TRAIL][1];
                 double lastZ = objects[i].trail[(objects[i].trail_ptr - 1 + MAX_TRAIL) % MAX_TRAIL][2];
 
-                /* Rilevamento salto (cambio quadrante o teletrasporto) */
+                /* Jump detection (quadrant change or teleport) */
                 double dx = objects[i].x - lastX;
                 double dy = objects[i].y - lastY;
                 double dz = objects[i].z - lastZ;
