@@ -1,0 +1,1000 @@
+src/server/commands.c:/*
+src/server/commands.c: * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+src/server/commands.c:/* Helper macro to safely append to a buffer with length check (used in handle_srs) */
+src/server/commands.c:/* Prototypes to avoid 'undeclared' errors */
+src/server/commands.c:/* Helper to check if a player is near a communication buoy (< DIST_BUOY_BOOST) */
+src/server/commands.c:/* Type definition for command handlers */
+src/server/commands.c:/* --- Command Handlers --- */
+src/server/commands.c:            /* enc3 uses target but doesn't hard-lock radio */
+src/server/commands.c:        /* Clear previous level flags, keep signature 0x01 */
+src/server/commands.c:            /* Fallback generic algo detection for others */
+src/server/commands.c:        /* Server-side logging of frequency shift */
+src/server/commands.c:                /* 3. Reliability logic (Computer 10-50% health) */
+src/server/commands.c:                    players[i].state.energy -= (COST_ACTION_MED / (uint64_t)RATIO_ENERGY_REDUCTION); /* Partial energy loss even on failure */
+src/server/commands.c:/* Helper to calculate hyperdrive speed: Factor 9.9 calibrated for 
+src/server/commands.c:    /* Calculated using COEFF_HYPER_DIVISOR defined in game_config.h */
+src/server/commands.c:        players[i].target_gx = -1.0; /* Reset target on manual speed change */
+src/server/commands.c:            /* Update vectors based on CURRENT heading/mark */
+src/server/commands.c:            /* No distance provided: unlimited cruise */
+src/server/commands.c:    /* 1. Integrity Check: Impulse (ID 1) and Computer (ID 6) */
+src/server/commands.c:        if (tid < 100) { /* Treat as distance for locked target */
+src/server/commands.c:        } else { /* Treat as ID with default distance */
+src/server/commands.c:                /* 3. Cloak check */
+src/server/commands.c:            /* 1. Local objects check (current quadrant only) */
+src/server/commands.c:            /* Check NPCs in this quadrant */
+src/server/commands.c:                players[i].pending_bor_type = (int)GAME_TICK_RATE; /* Store initial timer for smooth LERP */
+src/server/commands.c:                /* 4. Improved Feedback */
+src/server/commands.c:    /* permanent deletion of commander profile */
+src/server/commands.c:    /* TRANSFER HULL TO DERELICTS */
+src/server/commands.c:    /* CLEAR DATA FROM MEMORY */
+src/server/commands.c:    /* Disconnect socket if exists */
+src/server/commands.c:        /* Note: socket closure might be handled by the main loop when it detects active=0 or name empty */
+src/server/commands.c:    /* Trigger permanent save to galaxy.dat */
+src/server/commands.c:    /* Formal greeting to the captain */
+src/server/commands.c:    /* TRANSFER HULL TO DERELICTS */
+src/server/commands.c:    /* EMERGENCY REENTRY PROTOCOL */
+src/server/commands.c:/* Removed obsolete torpedo reset */
+src/server/commands.c:        players[i].hyper_speed = 0; /* Reset speed to prevent initial overshoot */
+src/server/commands.c:/* Helper to get sensor error based on system health */
+src/server/commands.c:    if (is_near_buoy(p_idx)) return 0.0; /* Buoy provides perfect sensor calibration */
+src/server/commands.c:    /* Noise increases exponentially as health drops */
+src/server/commands.c:    /* Improved Feedback: Nebula and Ion Storm detection */
+src/server/commands.c:    /* 1. Players */
+src/server/commands.c:    /* 2. NPC Ships */
+src/server/commands.c:    /* 3. Starbases */
+src/server/commands.c:    /* 4. Planets */
+src/server/commands.c:    /* 5. Stars */
+src/server/commands.c:    /* Buoys */
+src/server/commands.c:    /* 6. Anomalies (Black Holes, Nebulas, Pulsars, etc) */
+src/server/commands.c:    /* 7. Derelicts (Wrecks) */
+src/server/commands.c:    /* 8. Mines */
+src/server/commands.c:    /* 9. Platforms */
+src/server/commands.c:    /* 8. Asteroids */
+src/server/commands.c:                /* Temporary large buffer for ALL objects in quadrant */
+src/server/commands.c:                /* Send in chunks of MAX_NET_OBJECTS */
+src/server/commands.c:    /* 1. Minimum Integrity Check (ID 4) */
+src/server/commands.c:    /* 2. Miss Probability based on Sensor health (ID 2) */
+src/server/commands.c:    /* 3. Overheating Risk */
+src/server/commands.c:            /* Check if probe is in the same quadrant */
+src/server/commands.c:        /* VISUAL FX: Integrated via NetUpdate.beams for full tracking support */
+src/server/commands.c:            /* Beam 1: Top Emitter */
+src/server/commands.c:            /* Beam 2: Bottom Emitter */
+src/server/commands.c:                /* Chance to damage internal systems (Engines) */
+src/server/commands.c:    /* Check specifically if a tube is ready and doesn't have an active torpedo in flight */
+src/server/commands.c:    /* This allows the next tube in rotation to fire immediately if Tube 0 is still in flight */
+src/server/commands.c:        /* Misfire risk (Integrity 50-75%) */
+src/server/commands.c:        /* Find a slot in the global torpedo array BEFORE consuming resources */
+src/server/commands.c:        /* Resources verified and slot found: Commit to firing */
+src/server/commands.c:        /* Synchronize the specific tube slot to block it until impact/timeout */
+src/server/commands.c:        /* Set legacy global flag for HUD backward compatibility */
+src/server/commands.c:        /* Broadcast visual event to all players in the quadrant */
+src/server/commands.c:        /* Reloading starts immediately with a 0.5s (30 ticks) FIRING phase delay */
+src/server/commands.c:        /* 1. Integrity Check (Shield System ID 8) */
+src/server/commands.c:        /* 2. Basic cost and input cleaning */
+src/server/commands.c:        /* 3. Cap values at SHIELD_MAX_STRENGTH */
+src/server/commands.c:        /* 4. Reactor Consumption/Balance */
+src/server/commands.c:            /* Adding energy to shields */
+src/server/commands.c:            /* Removing energy from shields: return 80% to reactor, 20% lost in flux */
+src/server/commands.c:        // Store target shield values (0:F, 1:R, 2:T, 3:B, 4:L, 5:RI)
+src/server/commands.c:        // Set the timer for progressive shield change
+src/server/commands.c:        // For simplicity, a fixed duration for any change.
+src/server/commands.c:        /* 1. Integrity Check (Sensors ID 2) */
+src/server/commands.c:        /* 2. Energy Cost */
+src/server/commands.c:        /* 3. Validation of Target Visibility and Range */
+src/server/commands.c:            /* Player Target */
+src/server/commands.c:            /* NPC Target - Inter-sector aware */
+src/server/commands.c:            /* Check static objects in current quadrant or globally for IDs */
+src/server/commands.c:    /* Fallback to autopilot target if no lock/param */
+src/server/commands.c:        /* 1. Integrity check for engagement (Auxiliary ID 9) */
+src/server/commands.c:        /* 2. Activation Cost */
+src/server/commands.c:        /* 3. Reliability logic (15-50% health) */
+src/server/commands.c:            players[i].state.energy -= (COST_CLOAK_INIT / 5); /* Partial loss */
+src/server/commands.c:    /* Fallback to autopilot target if no lock/param */
+src/server/commands.c:        /* 1. Hardware Requirement: Transporters (ID 3) >= 20% */
+src/server/commands.c:        /* 2. Energy Cost Check: 5000 units */
+src/server/commands.c:        /* Resolve target position and validity (Use ABSOLUTE GALACTIC coordinates for distance) */
+src/server/commands.c:                /* 3. Success probability base (halved failure chance: 60% to 80% success) */
+src/server/commands.c:                /* Handle Player Boarding via Interactive Menu */
+src/server/commands.c:                        players[i].pending_bor_type = 1; /* Ally */
+src/server/commands.c:                        players[i].pending_bor_type = 2; /* Enemy */
+src/server/commands.c:                /* Handle other targets with probability logic */
+src/server/commands.c:                        /* Requirement: Target must be disabled (Engines < 50% OR Hull < 50%) */
+src/server/commands.c:                        players[i].pending_bor_type = 2; /* Enemy */
+src/server/commands.c:                        /* NPC success reward */
+src/server/commands.c:    /* Fallback to autopilot target if no lock/param */
+src/server/commands.c:        /* 1. Hardware Requirement: Transporters (ID 3) >= 15% */
+src/server/commands.c:        /* 2. Energy Cost Check */
+src/server/commands.c:        /* 4. Yield scaling based on Transporter integrity (0.7 to 1.0 multiplier) */
+src/server/commands.c:        /* Case: NPC Ship Wreck (ID 1000-3999) */
+src/server/commands.c:            /* Restriction: Only wrecks in the same quadrant can be dismantled */
+src/server/commands.c:                    players[i].state.inventory[2] += (int)yield; /* Neo-Titanium */
+src/server/commands.c:                    players[i].state.inventory[5] += (int)(yield / 5); /* Synaptics */
+src/server/commands.c:                    /* Visual FX */
+src/server/commands.c:        /* Case: Static Derelict Wreck (ID 15000+) */
+src/server/commands.c:            /* Restriction: Only derelicts in the same quadrant can be dismantled */
+src/server/commands.c:                    /* Visual FX - Use local quadrant coordinates (0.0 - 40.0) relative to player for consistent rendering */
+src/server/commands.c:    /* 1. Hardware Requirement: Transporters (ID 3) >= 15% */
+src/server/commands.c:    /* 2. Energy Cost: 250 units */
+src/server/commands.c:    int target_type = -1; /* 0: Asteroid, 1: Planet */
+src/server/commands.c:    double min_dist = DIST_INTERACTION_MAX; /* Interaction range */
+src/server/commands.c:    /* Search for mineable target (locked or closest) */
+src/server/commands.c:    /* If no valid target, find closest */
+src/server/commands.c:        /* 3. Yield scaling based on Transporter integrity (0.8 to 1.0 multiplier) */
+src/server/commands.c:        /* 4. Improved Feedback */
+src/server/commands.c:    /* 1. Hardware Requirement: Auxiliary (ID 9) >= 15% */
+src/server/commands.c:    /* 2. Operational Cost */
+src/server/commands.c:        /* 3. Variable Yield based on Auxiliary health (0.8 to 1.0 multiplier) */
+src/server/commands.c:        /* 4. Shield and Structural Damage */
+src/server/commands.c:            /* Heat bypasses shields */
+src/server/commands.c:            players[i].state.system_health[7] -= (THRESHOLD_SYS_CRITICAL / 2.0); /* Life Support damage (ID 7) */
+src/server/commands.c:    /* 1. Hardware Requirement: Auxiliary (ID 9) >= 25% (Higher than sco) */
+src/server/commands.c:    /* 2. Operational Cost */
+src/server/commands.c:        /* 3. Variable Yield based on Auxiliary health (0.6 to 1.0 multiplier) */
+src/server/commands.c:        /* 4. Shield, Hull and System Damage (Radiation and Gravity) */
+src/server/commands.c:            /* Event horizon shear bypasses weak shields */
+src/server/commands.c:            /* Heavy damage to critical systems: Sensors(2), Computer(6), Life Support(7) */
+src/server/commands.c:            /* Allow sequence to start so defense AI can engage, but warn immediately */
+src/server/commands.c:        /* Integrity Checks: Impulse (ID 1) and Auxiliary (ID 9) */
+src/server/commands.c:        /* Start Docking Sequence (10 seconds) */
+src/server/commands.c:        players[i].hyper_speed = 0; /* Stop ship movement */
+src/server/commands.c:        /* Repurpose pending_bor_target to store base index during docking */
+src/server/commands.c:    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+src/server/commands.c:    /* 2. Energy Cost: 100 units */
+src/server/commands.c:    /* 3. Efficiency based on Auxiliary health (70% - 100%) */
+src/server/commands.c:    if (type == 1) { /* Aetherium -> Energy x10 */
+src/server/commands.c:    } else if (type == 2) { /* Neo-Titanium -> Energy x2 */
+src/server/commands.c:    } else if (type == 3) { /* Void-Essence -> Torpedoes (1/20) */
+src/server/commands.c:    } else if (type == 6) { /* Gas -> Energy x5 */
+src/server/commands.c:    } else if (type == 7) { /* Composite -> Energy x4 */
+src/server/commands.c:    } else if (type == 8) { /* Dark-Matter -> Energy x25 */
+src/server/commands.c:        players[i].state.energy += COST_ACTION_HIGH; /* Refund */
+src/server/commands.c:    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+src/server/commands.c:        /* 2. Energy Cost: 25 units */
+src/server/commands.c:        if (type == 1) { /* Load Energy */
+src/server/commands.c:        else if (type == 2) { /* Load Torpedoes */
+src/server/commands.c:            /* 1. Support System Check: Req Computer (ID 6) OR Auxiliary (ID 9) */
+src/server/commands.c:            /* 2. Energy Cost Check */
+src/server/commands.c:            /* 3. Resource Check: 50 Neo-Ti, 10 Synaptics */
+src/server/commands.c:                /* 4. Improved Feedback */
+src/server/commands.c:        /* List all systems with health status */
+src/server/commands.c:    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+src/server/commands.c:    /* Check Hull Limit: Max 80% for field repairs */
+src/server/commands.c:    /* Check Resources: 50 Graphene (inv[4]), 20 Neo-Titanium (inv[2]) */
+src/server/commands.c:    /* 2. Energy Cost Check */
+src/server/commands.c:    /* 3. Efficiency scaling based on Auxiliary health: base 10% + up to 10% bonus */
+src/server/commands.c:    /* 4. Improved Feedback */
+src/server/commands.c:    /* 1. Hardware Requirement: Computer (ID 6) */
+src/server/commands.c:    /* 2. Energy Cost Check */
+src/server/commands.c:    /* 3. Data Scrambling Logic (< 30%) */
+src/server/commands.c:    /* 4. Inclusion of all 10 systems (0-9) */
+src/server/commands.c:    /* 1. Hardware Requirement: Computer (ID 6) */
+src/server/commands.c:    /* 2. Energy Cost Check */
+src/server/commands.c:    /* 1. Hardware Requirement: Computer (ID 6) */
+src/server/commands.c:    /* 2. Energy Cost Check */
+src/server/commands.c:    /* 3. Inclusion of all 10 systems (0-9) */
+src/server/commands.c:                /* Real Time Calculation (60Hz Synchronized): 
+src/server/commands.c:    /* 1. Hardware Requirement: Computer (ID 6) */
+src/server/commands.c:    /* 2. Energy Cost */
+src/server/commands.c:        /* 3. Data Reliability logic: Scrambling if integrity < 50% */
+src/server/commands.c:        /* 4. ETA Calculation based on ACTUAL logic in src/server/logic.c */
+src/server/commands.c:        /* eta = distance / (speed_per_second) -> speed_per_second = speed_per_tick * GAME_TICK_RATE */
+src/server/commands.c:    /* 1. Hardware Requirement: Computer (ID 6) */
+src/server/commands.c:    /* 2. Energy Cost Check */
+src/server/commands.c:            /* 3. Scrambling for distant targets if computer is damaged (< 40%) */
+src/server/commands.c:        /* 1. Integrity requirements (Hyperdrive ID 0, Sensors ID 2) */
+src/server/commands.c:        /* 2. Malfunction risk (Hyperdrive 50-75% health) */
+src/server/commands.c:        /* 3. Stress damage (1-3% hull) */
+src/server/commands.c:        /* 4. Positional Uncertainty based on sensor damage */
+src/server/commands.c:            double noise = ((double)YIELD_HARVEST_MAX - players[i].state.system_health[2]) / 20.0; /* Up to 2.5 units off */
+src/server/commands.c:        /* Random arrival point within the destination quadrant (40x40x40) */
+src/server/commands.c:        /* Calculate entry wormhole position: 4 units in front of ship (Galactic Absolute) */
+src/server/commands.c:        /* Server-side logging of the jump initiation */
+src/server/commands.c:    /* 1. Hardware Requirement: Computer (ID 6) >= 20% */
+src/server/commands.c:    /* 4. Resource Check */
+src/server/commands.c:    /* 2. Energy Cost: 500 units */
+src/server/commands.c:        /* 3. Success: NPCs flee */
+src/server/commands.c:            lq->npcs[n]->energy += (uint64_t)COST_HYPERDRIVE_INIT; /* Panic boost */
+src/server/commands.c:        /* 3. Failure: NPCs become aggressive */
+src/server/commands.c:    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+src/server/commands.c:    /* 3. Plating Limit: 5000 units */
+src/server/commands.c:    /* Check Resources: 100 Composite (inventory[7]) */
+src/server/commands.c:    /* 2. Energy Cost Check: 1000 units */
+src/server/commands.c:    /* 4. Improved Feedback */
+src/server/commands.c:        /* Default toggle */
+src/server/commands.c:        /* Generic Toggle */
+src/server/commands.c:        /* Filtered Display - use strncmp for robustness against trailing spaces */
+src/server/commands.c:    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+src/server/commands.c:    /* 2. Energy Cost Check */
+src/server/commands.c:    /* Find current base for message sender name */
+src/server/commands.c:    /* 1. Hardware Requirement: Auxiliary (ID 9) */
+src/server/commands.c:        /* 2. Jettison Energy Cost */
+src/server/commands.c:        players[i].state.system_health[0] = 0.0; /* Hyperdrive destroyed */
+src/server/commands.c:        /* Massive damage to the ship */
+src/server/commands.c:        apply_hull_damage(i, 40.0); /* 40% hull damage + random system damage */
+src/server/commands.c:        /* Visual FX */
+src/server/commands.c:        /* Skip 'probe' word and spaces */
+src/server/commands.c:        /* 3. Probe Hardware Requirements (Sensors ID 2, Computer ID 6) */
+src/server/commands.c:            /* Detailed Anomaly Breakdown */
+src/server/commands.c:            /* Recovery Range Check */
+src/server/commands.c:/* --- Command Registry Table --- */
+src/server/commands.c:    /* Server-side logging of tactical status */
+src/server/commands.c:    /* 1. Intercept numeric input for pending boarding actions */
+src/server/commands.c:            /* Resolve target position */
+src/server/commands.c:            /* Verify distance again during choice */
+src/server/commands.c:                if (players[i].pending_bor_type == 1) { /* ALLY PLAYER */
+src/server/commands.c:                } else if (players[i].pending_bor_type == 2) { /* ENEMY PLAYER / NPC */
+src/server/commands.c:                        /* NPC Sabotage Effects */
+src/server/commands.c:                            if (target_npc->health < p) p = target_npc->health; /* For NPCs we use health as a crew approximation */
+src/server/commands.c:                } else if (players[i].pending_bor_type == 3) { /* PLATFORM */
+src/server/commands.c:                } else if (players[i].pending_bor_type == 4) { /* DERELICT WRECK */
+src/server/commands.c:                    /* 1. Choice Specific Reward */
+src/server/commands.c:                    if (choice == 1) { /* Salvage extra resources */
+src/server/commands.c:                    else if (choice == 2) { /* Recover Map Data */
+src/server/commands.c:                    else if (choice == 3) { /* Emergency Field Repairs */
+src/server/commands.c:                    else if (choice == 4) { /* Crew Rescue (Survivors) / Take Prisoners */
+src/server/commands.c:                    /* 2. Removed automatic dismantling / collapse logic as requested.
+src/server/commands.c:    /* 1.5 Hull/Crew Integrity Check: Block most commands if hull or crew is 0 or less */
+src/server/commands.c:        } else if (strncmp(cmd, "rad", 3) == 0) { /* rad, rad ... */
+src/server/commands.c:    /* 2. Docking Restrictions Logic */
+src/server/commands.c:        /* Any movement command will undock the ship */
+src/server/commands.c:            /* Check for exact match or followed by space */
+src/server/galaxy.c:/*
+src/server/galaxy.c: * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+src/server/galaxy.c:/* Optimization: Tracking only quadrants that contain dynamic objects to avoid triple-loop resets */
+src/server/galaxy.c:                /* Torpedoes contribute to tactical signal noise in LRS */
+src/server/galaxy.c:                                          + (long long)c_tor * 1000000000000000LL /* Combine torps with user activity for LRS */
+src/server/galaxy.c:    /* Populating new types in spatial index */
+src/server/galaxy.c:    /* ... existing loops ... */
+src/server/galaxy.c:        /* Fallback if pool not ready */
+src/server/galaxy.c:        /* Preserve the name for login recognition, but initialize the mutex */
+src/server/galaxy.c:    int star_spectral_counts[7] = {0}; /* O, B, A, F, G, K, M */
+src/server/galaxy.c:    int nebula_type_counts[6] = {0};   /* Standard, High-Energy, Dark Matter, Ionic, Gravimetric, Temporal */
+src/server/galaxy.c:    int pulsar_type_counts[3] = {0};   /* Rotation-Powered, Accretion-Powered, Magnetar */
+src/server/galaxy.c:    int quasar_type_counts[7] = {0};   /* Radio-loud, Radio-quiet, BAL, Type 2, Red, OVV, Weak-Em */
+src/server/galaxy.c:    int monster_type_counts[2] = {0};  /* Crystalline, Amoeba */
+src/server/galaxy.c:    int planet_type_counts[9] = {0};   /* None, Aetherium, Neo-Ti, Void-E, Graphene, Synaptics, Gas, Composite, Dark-Matter */
+src/server/galaxy.c:    int asteroid_type_counts[9] = {0}; /* Same resources as planets */
+src/server/galaxy.c:    /* New objects generation counts */
+src/server/galaxy.c:        /* Types: 0:Radio-loud, 1:Radio-quiet, 2:BAL, 3:Type 2, 4:Red, 5:OVV, 6:Weak emission */
+src/server/galaxy.c:                /* New objects generation */
+src/server/logic.c:/*
+src/server/logic.c: * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+src/server/logic.c:#include "shared_state.h" /* For IPC_EV_ types */
+src/server/logic.c:            /* Pick a random direction and move 3 units in that direction */
+src/server/logic.c:            /* Keep within quadrant boundaries if possible, or just let it fly */
+src/server/logic.c:            npcs[n].nav_timer = (int)(2.5 * GAME_TICK_RATE); /* Reduced safety timeout */
+src/server/logic.c:        /* MOBILE FIRE: Attack while running if within range */
+src/server/logic.c:                    /* Reduced mobile damage to balance higher frequency */
+src/server/logic.c:                npcs[n].fire_cooldown = (20 + (rand() % 40)); /* Very fast mobile firing */
+src/server/logic.c:            /* Save persistent direction for fast physics ticks */
+src/server/logic.c:            npcs[n].nav_timer = (int)(1.5 * GAME_TICK_RATE); /* Shorter stationary phase */
+src/server/logic.c:            /* Alliance ships fire real homing torpedoes instead of instant beams */
+src/server/logic.c:            npcs[n].fire_cooldown = (40 + (rand() % 40)); /* Faster stationary firing */
+src/server/logic.c:    /* global_tick is already incremented in the calling thread loop */
+src/server/logic.c:    /* Autosave every 60 seconds */
+src/server/logic.c:    /* Refresh LRS Grid once per second */
+src/server/logic.c:    /* High-Energy Nebula Antimatter Refill */
+src/server/logic.c:            if (nb->type == 1) { /* High-Energy Nebula */
+src/server/logic.c:                    /* TRANSFER HULL TO DERELICTS */
+src/server/logic.c:                    /* EMERGENCY REENTRY PROTOCOL: Instead of setting active=0, reset the ship to a safe state */
+src/server/logic.c:                    players[i].state.energy = MAX_ENERGY_CAPACITY; /* Standard capacity */
+src/server/logic.c:                    players[i].state.torpedoes = (MAX_TORPEDO_CAPACITY / 10);   /* Emergency reload */
+src/server/logic.c:/* Removed obsolete torpedo state reset */
+src/server/logic.c:        /* DEAD SHIP LOGIC: Hull at or below zero */
+src/server/logic.c:            /* Shields collapse completely */
+src/server/logic.c:            /* Trigger death sequence if not already counting down */
+src/server/logic.c:                    /* Server-side logging of ship destruction */
+src/server/logic.c:                    players[i].death_timer = SHIELD_REGEN_DELAY; /* 2.5 seconds until derelict spawn */
+src/server/logic.c:            /* Periodic alert during countdown */
+src/server/logic.c:            continue; /* Skip normal updates for dead ship */
+src/server/logic.c:                /* TRANSFER HULL TO DERELICTS */
+src/server/logic.c:                /* EMERGENCY REENTRY PROTOCOL */
+src/server/logic.c:                players[i].state.crew_count = (MAX_CREW_EXPLORER / 10); /* Minimum crew for escape vessel */
+src/server/logic.c:        /* --- BASE ENERGY DRAIN (Life Support & Systems) --- */
+src/server/logic.c:        int base_drain = (global_tick % (GAME_TICK_RATE / 30) == 0) ? 1 : 0; /* Effectively 0.5 per tick, GAME_TICK_RATE/2 per sec */
+src/server/logic.c:        if (players[i].state.red_alert) base_drain += (GAME_TICK_RATE / 60); /* Effectively 1.5 per tick, 1.5*GAME_TICK_RATE per sec */
+src/server/logic.c:                        /* Gradually recover life support if energy is present (RATE_LS_REGEN per tick) */
+src/server/logic.c:            /* Life support failure if no energy (RATE_LS_DRAIN per tick) */
+src/server/logic.c:        /* Crew casualties if life support is zero */
+src/server/logic.c:        // --- PROGRESSIVE SHIELD CHARGING/DRAINING ---
+src/server/logic.c:                    // Charge shields
+src/server/logic.c:                    // Drain shields
+src/server/logic.c:            if (global_tick % GAME_TICK_RATE == 0) { // Send update message once per second during change
+src/server/logic.c:            // --- NORMAL SHIELD REGENERATION (if no progressive change is active) ---
+src/server/logic.c:                        // Apply regeneration only if below max strength and not actively changing
+src/server/logic.c:                             /* Fix: Ensure at least 1 unit recharges if regen_rate > 0 to avoid int truncation stalling */
+src/server/logic.c:        /* Sync Torpedo ETA with actual active torpedoes - MOVED BELOW PHYSICAL UPDATES */
+src/server/logic.c:        /* tube_state will be updated in the Late Sync loop below for perfect accuracy */
+src/server/logic.c:            /* Check if player ship has moved quadrant since last check */
+src/server/logic.c:                /* Quadrant change: release lock automatically */
+src/server/logic.c:                    /* Check if probe is in the same quadrant */
+src/server/logic.c:                    /* Probe en route */
+src/server/logic.c:                    /* Update current probe quadrant for 3D view filtering */
+src/server/logic.c:                        players[i].state.probes[p].status = 1; /* Arrived */
+src/server/logic.c:            /* Safety: Keep absolute coordinates synced while turning */
+src/server/logic.c:            /* Reset ETA when idle */
+src/server/logic.c:            if (hyper_h < 1.0) hyper_h = 1.0; /* Safety floor */
+src/server/logic.c:            /* Constant speed as requested: Factor 9.9 = Galaxy Diagonal in 10s */
+src/server/logic.c:            /* ETA Calculation */
+src/server/logic.c:            /* Galactic Boundary Enforcement: Stop and Invert on edge contact */
+src/server/logic.c:            /* Realistic Hyperdrive consumption: Linear with factor, Inverse with integrity */
+src/server/logic.c:            /* Impulse speed affected by integrity */
+src/server/logic.c:                /* ETA Calculation */
+src/server/logic.c:                players[i].eta = 0; /* No target, no ETA */
+src/server/logic.c:            /* Derive Quadrant and Sector from High-Precision Global Coordinates */
+src/server/logic.c:            /* Galactic Boundary Enforcement: Stop and Invert on edge contact */
+src/server/logic.c:            /* Realistic Impulse consumption: Linear with speed, Inverse with integrity */
+src/server/logic.c:            /* Safety: Keep absolute coordinates synced while turning */
+src/server/logic.c:            /* Standardized target resolution for all ID ranges */
+src/server/logic.c:                /* 1. Local objects check (Fast path) */
+src/server/logic.c:                /* 2. Global fallback (Cross-quadrant tracking) */
+src/server/logic.c:                    /* Deceleration phase: slow down when approaching target distance */
+src/server/logic.c:                        speed *= (RATIO_DECEL_MIN + RATIO_DECEL_SLOPE * delta_d); /* Linear ramp down to 20% speed */
+src/server/logic.c:                    /* Smooth Orientation Tracking (Avoid wild spinning) */
+src/server/logic.c:                    /* Arrival: Snap to exact approach position to prevent oscillation */
+src/server/logic.c:            /* Sci-Fi Message Sequence (Adjusted for 900 tick / 15s sequence) */
+src/server/logic.c:            /* Update Wormhole visual position in packet (Only before jump at half sequence) */
+src/server/logic.c:                /* Relativize to CURRENT quadrant so it renders correctly even if in adjacent Q */
+src/server/logic.c:                /* Move ship INTO the wormhole during the entry phase */
+src/server/logic.c:                /* Keep active for ~10 ticks after jump to avoid race with IPC_EV_JUMP delivery */
+src/server/logic.c:            /* EXECUTE JUMP at mid-sequence (T=450 for 900 total) */
+src/server/logic.c:                /* Place ship at the wormhole mouth (4 units behind final target) */
+src/server/logic.c:                /* Register the arrival wormhole at this starting position (Pass H/M as x2/y2 for orientation) */
+src/server/logic.c:            /* Move ship during emerging phase (450 -> 300) */
+src/server/logic.c:                /* Travel 4 units in 150 ticks = 0.0266 per tick */
+src/server/logic.c:                /* Snap to final target destination precisely */
+src/server/logic.c:                double target_dist = 2.0; /* Default chase distance */
+src/server/logic.c:                    target_dist = 0.5; /* Harvesting range for comets */
+src/server/logic.c:                    target_dist = 2.5; /* Safety distance for monsters */
+src/server/logic.c:            players[i].hyper_speed *= 0.995; /* Slow down gradually */
+src/server/logic.c:            /* Safety Anchor: ONLY when completely idle or in a state not handled above */
+src/server/logic.c:        /* torp_active will be updated in the Late Sync loop below for better accuracy */
+src/server/logic.c:    /* Global Torpedo System Update Loop - High Performance Spatial Filtering */
+src/server/logic.c:        /* 1. Homing Logic */
+src/server/logic.c:        /* Tactical Boundary Enforcement: Torpedoes MUST stay within their origin quadrant */
+src/server/logic.c:        /* Also check local coordinate limits for safety */
+src/server/logic.c:                /* Clamp for visual explosion on the wall */
+src/server/logic.c:                    int total_torpedo_damage = DMG_TORPEDO; // Use the full DMG_TORPEDO
+src/server/logic.c:                        // Apply remaining damage to hull and energy
+src/server/logic.c:                        double hull_dmg = (double)dmg_rem / (double)MAX_TORPEDO_CAPACITY; // Use DMG_TORPEDO for this scaling
+src/server/logic.c:    /* 4. Homing Torpedo Trajectory Sync: Continuous broadcast for active homing projectiles */
+src/server/logic.c:    /* NetVisibleTorpedo list generation removed as IPC_EV_TORPEDO handles client sync */
+src/server/logic.c:    /* Late Sync: Torpedo ETA calculation AFTER physical updates */
+src/server/logic.c:        /* Perfect HUD Sync: Update tube_state using the verified slot status */
+src/server/logic.c:            players[i].state.tube_state = 3; /* OFFLINE */
+src/server/logic.c:            players[i].state.tube_state = 1; /* FIRING (Initial 0.5s) */
+src/server/logic.c:            players[i].state.tube_state = 2; /* LOADING (Next 3.0s) */
+src/server/logic.c:            players[i].state.tube_state = 1; /* BUSY (In Flight) */
+src/server/logic.c:            players[i].state.tube_state = 0; /* READY */
+src/server/logic.c:                    /* Update local coordinates from global position before spawning wreck to ensure precise positioning */
+src/server/logic.c:            /* Optimization: Only update NPC AI every 3 ticks to save CPU at 60Hz, 
+src/server/logic.c:                /* Fast physics update: bypass complex AI scans, just move along DX/DY/DZ */
+src/server/logic.c:            double r = comets[c].a * (1.0 - 0.5 * 0.5) / (1.0 + 0.5 * cos(comets[c].angle)); /* Use eccentricity 0.5 for ellipses */
+src/server/logic.c:            /* Doubled monster speed for more pressure */
+src/server/logic.c:            /* Increased attack frequency: TIMER_MONSTER_PULSE / 3 (every 40 ticks ~ 0.6s) */
+src/server/logic.c:    /* --- NEW GALACTIC OBJECTS PROXIMITY EFFECTS --- */
+src/server/logic.c:        /* 1. Dyson Fragments: Massive energy recharge if very close */
+src/server/logic.c:        /* 2. Subspace Ruptures: Severe hull damage and energy drain */
+src/server/logic.c:        /* 3. Ancient Relics: Shield boost and system repairs */
+src/server/logic.c:        /* 4. Ion Storms: Heavy shield drain and sensor interference */
+src/server/logic.c:    /* 3. Send Updates to clients */
+src/server/logic.c:        /* ... celestial objects ... */
+src/server/logic.c:        /* Adding remaining cosmic environments */
+src/server/logic.c:        /* Torpedo Streaming - Aggregated Zero-Loss FX approach */
+src/server/logic.c:        /* IPC_EV_TORPEDO is now correctly sent once upon firing in commands.c */
+src/server/logic.c:        upd->torpedo_count = 0; /* Standard stream disabled, using Zero-Loss queue instead */
+src/server/logic.c:        /* ... beam aggregation (already fast but could be pre-aggregated too if needed) ... */
+src/server/logic.c:        /* Reset transient effects IMMEDIATELY after copying to update packet while holding the lock */
+src/server/logic.c:                    /* Log disabled to reduce noise */
+src/server/logic.c:    /* === STARBASE FACTION DEFENSE: fire at players docking into hostile bases === */
+src/server/logic.c:    /* Rate: 3 shots/s at 60 Hz  =>  cooldown = 20 ticks */
+src/server/logic.c:#define BASE_FIRE_RANGE           3.5   /* same as DIST_DOCKING_MAX */
+src/server/logic.c:#define BASE_FIRE_DAMAGE          8.0   /* hull % per shot */
+src/server/logic.c:            /* Only target players who are in docking sequence with THIS base */
+src/server/logic.c:            /* Skip same faction */
+src/server/logic.c:            /* Distance check: player must be within firing range */
+src/server/logic.c:                /* Abort the docking sequence */
+src/server/logic.c:                /* Visual beam from base to player */
+src/server/logic.c:                /* Damage player shields and hull */
+src/server/logic.c:    /* Reset transient effects for NPCs and other entities after all updates have been sent */
+src/server/logic.c:    /* Random system damage (1-5% per hit) */
+src/server/logic.c:    /* Build Local Basis Matrix (Ship Orientation) */
+src/server/logic.c:    /* Basis F (Forward): Standard Spherical to Cartesian */
+src/server/logic.c:    /* Initial Right (R0) and Up (U0) without roll */
+src/server/logic.c:    /* Apply Roll (r) around Forward (f) axis */
+src/server/logic.c:    /* Project hit vector into this local orthonormal basis */
+src/server/logic.c:    /* Sector Mapping (Standard: 0:F, 1:B, 2:T, 3:B, 4:L, 5:R) */
+src/server/logic.c:    if (v_ang > 45.0) return 2;  /* TOP */
+src/server/logic.c:    if (v_ang < -45.0) return 3; /* BOTTOM */
+src/server/logic.c:    if (h_ang > -45.0 && h_ang <= 45.0) return 0;   /* FRONT */
+src/server/logic.c:    if (h_ang > 45.0 && h_ang <= 135.0) return 5;   /* RIGHT (Index 5) */
+src/server/logic.c:    if (h_ang > 135.0 || h_ang <= -135.0) return 1;  /* REAR */
+src/server/logic.c:    return 4; /* LEFT (Index 4) */
+src/server/net.c:/*
+src/server/net.c: * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+src/server/net.c:    /* 1. CLASSIFY AND VALIDATE */
+src/server/net.c:            /* PRIVACY ENFORCEMENT: We don't touch these. We relay the encrypted blob. */
+src/server/net.c:            /* Level A (Fleet): Server must decrypt to allow cross-algorithm talk and cleartext fallback */
+src/server/net.c:                /* Decryption failed */
+src/server/net.c:        /* Cleartext message */
+src/server/net.c:    /* 2. BROADCAST LOOP */
+src/server/net.c:            /* LEVEL D: EXCLUSIVE MODE HARD-LOCK */
+src/server/net.c:                /* Resolve destination: Priority 1: Packet target_id, Priority 2: Sender Lock, Priority 3: Reciprocity */
+src/server/net.c:                /* Deliver ONLY to sender (loopback) and resolved target */
+src/server/net.c:                /* STANDARD FILTERS (only for non-exclusive messages) */
+src/server/net.c:                /* Recipient-side Exclusive Lock: if recipient is in enc4, they only hear their partner */
+src/server/net.c:            /* RELAY EXECUTION */
+src/server/net.c:                /* STRICT RELAY: No one gets cleartext if they are not the intended recipient with the key.
+src/server/net.c:                /* ADAPTIVE RELAY: Translate for recipient or send cleartext */
+src/server/net.c:                    /* Recipient wants encryption: encrypt the validated plaintext */
+src/server/net.c:                    /* Fallback to player's key if it exists */
+src/server/net.c:                    /* Recipient wants cleartext */
+src/server/net.c:        /* Broadcast system message to all */
+src/server/net.c:    /* 1. Determine what changed */
+src/server/net.c:        /* Append beams if any */
+src/server/threadpool.c:/*
+src/server/threadpool.c:        /* Pop task from queue */
+src/server/threadpool.c:    /* Add to end of queue */
+src/server/threadpool.c:    /* Clean remaining tasks */
+src/glut_compat.c:    // No-op: we swap buffers in the main GLFW loop
+src/glut_compat.c:/* 8x8 Font Data (ASCII 32-126) */
+src/glut_compat.c:    [32] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}, // Space
+src/glut_compat.c:    [33] = {0x18,0x3c,0x3c,0x18,0x18,0x00,0x18,0x00}, // !
+src/glut_compat.c:    [34] = {0x6c,0x6c,0x6c,0x00,0x00,0x00,0x00,0x00}, // "
+src/glut_compat.c:    [35] = {0x6c,0x6c,0xfe,0x6c,0xfe,0x6c,0x6c,0x00}, // #
+src/glut_compat.c:    [36] = {0x18,0x3e,0x60,0x3c,0x06,0x7c,0x18,0x00}, // $
+src/glut_compat.c:    [37] = {0x00,0xc6,0xcc,0x18,0x30,0x66,0xc6,0x00}, // %
+src/glut_compat.c:    [38] = {0x38,0x6c,0x38,0x76,0xdc,0xcc,0x76,0x00}, // &
+src/glut_compat.c:    [39] = {0x30,0x30,0x60,0x00,0x00,0x00,0x00,0x00}, // '
+src/glut_compat.c:    [40] = {0x0c,0x18,0x30,0x30,0x30,0x18,0x0c,0x00}, // (
+src/glut_compat.c:    [41] = {0x30,0x18,0x0c,0x0c,0x0c,0x18,0x30,0x00}, // )
+src/glut_compat.c:    [42] = {0x00,0x66,0x3c,0xff,0x3c,0x66,0x00,0x00}, // *
+src/glut_compat.c:    [43] = {0x00,0x18,0x18,0x7e,0x18,0x18,0x00,0x00}, // +
+src/glut_compat.c:    [44] = {0x00,0x00,0x00,0x00,0x00,0x18,0x18,0x30}, // ,
+src/glut_compat.c:    [45] = {0x00,0x00,0x00,0x7e,0x00,0x00,0x00,0x00}, // -
+src/glut_compat.c:    [46] = {0x00,0x00,0x00,0x00,0x00,0x18,0x18,0x00}, // .
+src/glut_compat.c:    [47] = {0x02,0x06,0x0c,0x18,0x30,0x60,0x40,0x00}, // /
+src/glut_compat.c:    [48] = {0x3c,0x66,0x6e,0x76,0x66,0x66,0x3c,0x00}, // 0
+src/glut_compat.c:    [49] = {0x18,0x38,0x18,0x18,0x18,0x18,0x7e,0x00}, // 1
+src/glut_compat.c:    [50] = {0x3c,0x66,0x06,0x0c,0x18,0x30,0x7e,0x00}, // 2
+src/glut_compat.c:    [51] = {0x3c,0x66,0x06,0x1c,0x06,0x66,0x3c,0x00}, // 3
+src/glut_compat.c:    [52] = {0x1c,0x3c,0x6c,0xcc,0xfe,0x0c,0x1e,0x00}, // 4
+src/glut_compat.c:    [53] = {0x7e,0x60,0x7c,0x06,0x06,0x66,0x3c,0x00}, // 5
+src/glut_compat.c:    [54] = {0x3c,0x66,0x60,0x7c,0x66,0x66,0x3c,0x00}, // 6
+src/glut_compat.c:    [55] = {0x7e,0x66,0x06,0x0c,0x18,0x18,0x18,0x00}, // 7
+src/glut_compat.c:    [56] = {0x3c,0x66,0x66,0x3c,0x66,0x66,0x3c,0x00}, // 8
+src/glut_compat.c:    [57] = {0x3c,0x66,0x66,0x3e,0x06,0x66,0x3c,0x00}, // 9
+src/glut_compat.c:    [58] = {0x00,0x18,0x18,0x00,0x18,0x18,0x00,0x00}, // :
+src/glut_compat.c:    [59] = {0x00,0x18,0x18,0x00,0x18,0x18,0x30,0x00}, // ;
+src/glut_compat.c:    [60] = {0x00,0x0c,0x18,0x30,0x18,0x0c,0x00,0x00}, // <
+src/glut_compat.c:    [61] = {0x00,0x00,0x7e,0x00,0x7e,0x00,0x00,0x00}, // =
+src/glut_compat.c:    [62] = {0x00,0x30,0x18,0x0c,0x18,0x30,0x00,0x00}, // >
+src/glut_compat.c:    [63] = {0x3c,0x66,0x06,0x0c,0x18,0x00,0x18,0x00}, // ?
+src/glut_compat.c:    [64] = {0x3c,0x66,0x6e,0x6e,0x60,0x62,0x3c,0x00}, // @
+src/glut_compat.c:    [65] = {0x18,0x3c,0x66,0x66,0x7e,0x66,0x66,0x00}, // A
+src/glut_compat.c:    [66] = {0x7c,0x66,0x66,0x7c,0x66,0x66,0x7c,0x00}, // B
+src/glut_compat.c:    [67] = {0x3c,0x66,0x60,0x60,0x60,0x66,0x3c,0x00}, // C
+src/glut_compat.c:    [68] = {0x78,0x6c,0x66,0x66,0x66,0x6c,0x78,0x00}, // D
+src/glut_compat.c:    [69] = {0x7e,0x60,0x60,0x78,0x60,0x60,0x7e,0x00}, // E
+src/glut_compat.c:    [70] = {0x7e,0x60,0x60,0x78,0x60,0x60,0x60,0x00}, // F
+src/glut_compat.c:    [71] = {0x3c,0x66,0x60,0x6e,0x66,0x66,0x3c,0x00}, // G
+src/glut_compat.c:    [72] = {0x66,0x66,0x66,0x7e,0x66,0x66,0x66,0x00}, // H
+src/glut_compat.c:    [73] = {0x3c,0x18,0x18,0x18,0x18,0x18,0x3c,0x00}, // I
+src/glut_compat.c:    [74] = {0x1e,0x0c,0x0c,0x0c,0x0c,0x6c,0x38,0x00}, // J
+src/glut_compat.c:    [75] = {0x66,0x6c,0x78,0x70,0x78,0x6c,0x66,0x00}, // K
+src/glut_compat.c:    [76] = {0x60,0x60,0x60,0x60,0x60,0x60,0x7e,0x00}, // L
+src/glut_compat.c:    [77] = {0x63,0x77,0x7f,0x6b,0x63,0x63,0x63,0x00}, // M
+src/glut_compat.c:    [78] = {0x66,0x66,0x76,0x7e,0x6e,0x66,0x66,0x00}, // N
+src/glut_compat.c:    [79] = {0x3c,0x66,0x66,0x66,0x66,0x66,0x3c,0x00}, // O
+src/glut_compat.c:    [80] = {0x7c,0x66,0x66,0x7c,0x60,0x60,0x60,0x00}, // P
+src/glut_compat.c:    [81] = {0x3c,0x66,0x66,0x66,0x66,0x6c,0x36,0x00}, // Q
+src/glut_compat.c:    [82] = {0x7c,0x66,0x66,0x7c,0x6c,0x66,0x66,0x00}, // R
+src/glut_compat.c:    [83] = {0x3c,0x66,0x60,0x3c,0x06,0x66,0x3c,0x00}, // S
+src/glut_compat.c:    [84] = {0x7e,0x18,0x18,0x18,0x18,0x18,0x18,0x00}, // T
+src/glut_compat.c:    [85] = {0x66,0x66,0x66,0x66,0x66,0x66,0x3c,0x00}, // U
+src/glut_compat.c:    [86] = {0x66,0x66,0x66,0x66,0x66,0x3c,0x18,0x00}, // V
+src/glut_compat.c:    [87] = {0x63,0x63,0x63,0x6b,0x7f,0x77,0x63,0x00}, // W
+src/glut_compat.c:    [88] = {0x66,0x66,0x3c,0x18,0x3c,0x66,0x66,0x00}, // X
+src/glut_compat.c:    [89] = {0x66,0x66,0x66,0x3c,0x18,0x18,0x18,0x00}, // Y
+src/glut_compat.c:    [90] = {0x7e,0x06,0x0c,0x18,0x30,0x60,0x7e,0x00}, // Z
+src/glut_compat.c:    [91] = {0x1c,0x10,0x10,0x10,0x10,0x10,0x1c,0x00}, // [
+src/glut_compat.c:    [92] = {0x40,0x60,0x30,0x18,0x0c,0x06,0x02,0x00}, // Backslash
+src/glut_compat.c:    [93] = {0x1c,0x04,0x04,0x04,0x04,0x04,0x1c,0x00}, // ]
+src/glut_compat.c:    [94] = {0x10,0x38,0x6c,0x00,0x00,0x00,0x00,0x00}, // ^
+src/glut_compat.c:    [95] = {0x00,0x00,0x00,0x00,0x00,0x00,0xff,0x00}, // _
+src/glut_compat.c:    [96] = {0x30,0x30,0x18,0x00,0x00,0x00,0x00,0x00}, // `
+src/glut_compat.c:    [97] = {0x00,0x00,0x3c,0x06,0x3e,0x66,0x3e,0x00}, // a
+src/glut_compat.c:    [98] = {0x60,0x60,0x7c,0x66,0x66,0x66,0x7c,0x00}, // b
+src/glut_compat.c:    [99] = {0x00,0x00,0x3c,0x60,0x60,0x66,0x3c,0x00}, // c
+src/glut_compat.c:    [100] = {0x06,0x06,0x3e,0x66,0x66,0x66,0x3e,0x00}, // d
+src/glut_compat.c:    [101] = {0x00,0x00,0x3c,0x66,0x7e,0x60,0x3c,0x00}, // e
+src/glut_compat.c:    [102] = {0x1c,0x30,0x78,0x30,0x30,0x30,0x30,0x00}, // f
+src/glut_compat.c:    [103] = {0x00,0x00,0x3e,0x66,0x66,0x3e,0x06,0x3c}, // g
+src/glut_compat.c:    [104] = {0x60,0x60,0x7c,0x66,0x66,0x66,0x66,0x00}, // h
+src/glut_compat.c:    [105] = {0x18,0x00,0x38,0x18,0x18,0x18,0x3c,0x00}, // i
+src/glut_compat.c:    [106] = {0x06,0x00,0x06,0x06,0x06,0x66,0x3c,0x00}, // j
+src/glut_compat.c:    [107] = {0x60,0x66,0x6c,0x78,0x70,0x6c,0x66,0x00}, // k
+src/glut_compat.c:    [108] = {0x38,0x18,0x18,0x18,0x18,0x18,0x3c,0x00}, // l
+src/glut_compat.c:    [109] = {0x00,0x00,0x66,0x7f,0x7f,0x6b,0x63,0x00}, // m
+src/glut_compat.c:    [110] = {0x00,0x00,0x7c,0x66,0x66,0x66,0x66,0x00}, // n
+src/glut_compat.c:    [111] = {0x00,0x00,0x3c,0x66,0x66,0x66,0x3c,0x00}, // o
+src/glut_compat.c:    [112] = {0x00,0x00,0x7c,0x66,0x66,0x7c,0x60,0x60}, // p
+src/glut_compat.c:    [113] = {0x00,0x00,0x3e,0x66,0x66,0x3e,0x06,0x06}, // q
+src/glut_compat.c:    [114] = {0x00,0x00,0x7c,0x66,0x60,0x60,0x60,0x00}, // r
+src/glut_compat.c:    [115] = {0x00,0x00,0x3e,0x60,0x3c,0x06,0x7c,0x00}, // s
+src/glut_compat.c:    [116] = {0x30,0x30,0x78,0x30,0x30,0x30,0x1c,0x00}, // t
+src/glut_compat.c:    [117] = {0x00,0x00,0x66,0x66,0x66,0x66,0x3e,0x00}, // u
+src/glut_compat.c:    [118] = {0x00,0x00,0x66,0x66,0x66,0x3c,0x18,0x00}, // v
+src/glut_compat.c:    [119] = {0x00,0x00,0x63,0x6b,0x7f,0x7f,0x36,0x00}, // w
+src/glut_compat.c:    [120] = {0x00,0x00,0x66,0x3c,0x18,0x3c,0x66,0x00}, // x
+src/glut_compat.c:    [121] = {0x00,0x00,0x66,0x66,0x66,0x3e,0x06,0x3c}, // y
+src/glut_compat.c:    [122] = {0x00,0x00,0x7e,0x0c,0x18,0x30,0x7e,0x00}, // z
+src/glut_compat.c:    [123] = {0x0c,0x18,0x18,0x30,0x18,0x18,0x0c,0x00}, // {
+src/glut_compat.c:    [124] = {0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x00}, // |
+src/glut_compat.c:    [125] = {0x30,0x18,0x18,0x0c,0x18,0x18,0x30,0x00}, // }
+src/glut_compat.c:    [126] = {0x00,0x00,0x3b,0x6e,0x00,0x00,0x00,0x00}, // ~
+src/glut_compat.c:    // glBitmap expects the bitmap to be flipped vertically (bottom-to-top)
+src/glut_compat.c:    // Set pixel store mode to avoid noise/corruption due to alignment
+src/glut_compat.c:    // Draw the bitmap and advance the raster position by 8 pixels
+src/spacegl_3dview.c:/*
+src/spacegl_3dview.c: * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+src/spacegl_3dview.c:/* VBO Globals */
+src/spacegl_3dview.c:/* Bloom FBO Globals */
+src/spacegl_3dview.c:/* Shader Globals */
+src/spacegl_3dview.c:/* Asteroid Instancing Shader */
+src/spacegl_3dview.c:    /* SKYBOX: Procedural Nebula Shader */
+src/spacegl_3dview.c:        "/* Pseudo-random noise function */\n"
+src/spacegl_3dview.c:        "    /* Color palette: Deep purple and blue */\n"
+src/spacegl_3dview.c:        "    /* Add some brighter gas patches */\n"
+src/spacegl_3dview.c:    /* HULL: Procedural Plating with Triplanar Mapping */
+src/spacegl_3dview.c:        "    /* Triplanar blending weights */\n"
+src/spacegl_3dview.c:        "    /* Generate hull panels */\n"
+src/spacegl_3dview.c:        "    /* Dynamic Lighting */\n"
+src/spacegl_3dview.c:        "    /* Apply Red Hit Pulse */\n"
+src/spacegl_3dview.c:        "    /* Specular highlight */\n"
+src/spacegl_3dview.c:    /* PARTICLES: Glowing Sprites */
+src/spacegl_3dview.c:        "    /* Sharp fragments: dynamic size based on distance */\n"
+src/spacegl_3dview.c:        "    /* Solid particle with no glow for debris look */\n"
+src/spacegl_3dview.c:        "    /* DISCARD outside the effect area to eliminate the square edges */\n"
+src/spacegl_3dview.c:        "    /* 1. GRAVITATIONAL LENSING */\n"
+src/spacegl_3dview.c:        "    /* 2. EVENT HORIZON */\n"
+src/spacegl_3dview.c:        "    /* 3. ACCRETION DISK Logic */\n"
+src/spacegl_3dview.c:        "    /* Final composition */\n"
+src/spacegl_3dview.c:        "    /* Bright Plasma Ring */\n"
+src/spacegl_3dview.c:    /* Wormhole Shader — respects vertex color (gl_Color) set by glColor4f */
+src/spacegl_3dview.c:        "  /* Specular highlight uses same hue as vertex color, not a fixed blue */\n"
+src/spacegl_3dview.c:    /* Cloak Shader (Blue Pulsing) */
+src/spacegl_3dview.c:    /* Initialize Asteroid VBO (Low-poly dodecahedron style cube) */
+src/spacegl_3dview.c:    /* BLOOM: Simple Quad Vertex Shader */
+src/spacegl_3dview.c:    /* BLOOM: Blur Fragment Shader (Two-Pass Gaussian) */
+src/spacegl_3dview.c:    /* BLOOM: Final Combination Shader */
+src/spacegl_3dview.c:        "    /* Simple additive mixing as originally intended */\n"
+src/spacegl_3dview.c:            /* pos (2) */
+src/spacegl_3dview.c:    /* 1. MSAA Framebuffer (Initial Render Target) */
+src/spacegl_3dview.c:    /* 2. Scene FBO (Resolve Target for MSAA) */
+src/spacegl_3dview.c:    /* 3. Ping-Pong FBOs for Blur */
+src/spacegl_3dview.c:GameState *g_shared_state = NULL; /* Current read buffer */
+src/spacegl_3dview.c:            /* Update read buffer pointer atomicaly */
+src/spacegl_3dview.c:int g_show_hud = 1; /* Default HUD ON */
+src/spacegl_3dview.c:int g_show_nebulas = 1; /* Default Nebulae ON */
+src/spacegl_3dview.c:    float tx, ty, tz; /* Interpolation targets */
+src/spacegl_3dview.c:    float th, tm, tr;     /* Target heading, mark and roll */
+src/spacegl_3dview.c:    int health_pct;   /* HUD */
+src/spacegl_3dview.c:    uint64_t energy;       /* HUD */
+src/spacegl_3dview.c:        int plating;       /* HUD */
+src/spacegl_3dview.c:        int hull_integrity; /* HUD */
+src/spacegl_3dview.c:        int faction;       /* HUD */
+src/spacegl_3dview.c:        int id;           /* HUD */
+src/spacegl_3dview.c:        int is_cloaked;   /* Cloaking Device status */
+src/spacegl_3dview.c:        char name[64];    /* HUD Name */
+src/spacegl_3dview.c:/* Removed global variables for single trail for universal trail */
+src/spacegl_3dview.c:/* Prototypes */
+src/spacegl_3dview.c:    /* Initialize Particle VBO */
+src/spacegl_3dview.c:    /* Process Persistent Event Queue (Transient Effects) */
+src/spacegl_3dview.c:             /* Telemetry suggests an event WAS sent, check if we catch it */
+src/spacegl_3dview.c:                /* VIBRANT MULTI-COLORED PIXEL EXPLOSION */
+src/spacegl_3dview.c:                /* Explosion matches server physics instantly */
+src/spacegl_3dview.c:                g_booms[current_boom].timer = 60; /* 1 second visual lifespan */
+src/spacegl_3dview.c:                /* Instantly despawn the specific torpedo or any very close ones */
+src/spacegl_3dview.c:                        /* Prioritize ID matching from server (using IPC_TORPEDO_ID_OFFSET) */
+src/spacegl_3dview.c:                        /* Fallback: Proximity check */
+src/spacegl_3dview.c:                            /* Snap to explosion point for visual consistency before deactivating */
+src/spacegl_3dview.c:                /* Check if this specific torpedo ID is already active */
+src/spacegl_3dview.c:                /* If not found, look for an empty slot to spawn a new one */
+src/spacegl_3dview.c:                    /* Position correction: Blend current local position with server-authoritative position 
+src/spacegl_3dview.c:                        /* Incremental correction to fix drift */
+src/spacegl_3dview.c:                    /* Always update target and velocity */
+src/spacegl_3dview.c:                    /* True velocity matching server physics */
+src/spacegl_3dview.c:                    /* Dynamic Lifecycle: Allow it to fly until boundary impact or timeout */
+src/spacegl_3dview.c:                        /* Strict margin (1.2x travel time) to avoid overshooting after server-authoritative death */
+src/spacegl_3dview.c:                        g_torps[found].timer = 1200; /* 20 seconds fallback */
+src/spacegl_3dview.c:    /* Shield Hit Timers are now updated in drawShieldEffect to ensure perfect sync with rendering */
+src/spacegl_3dview.c:            /* Detect Direct Hull Hit: if hull decreased */
+src/spacegl_3dview.c:                g_hull_hit_timer = (GAME_TICK_RATE / 3); /* Red pulse duration */
+src/spacegl_3dview.c:                /* Spawn fast solid metallic fragments on impact */
+src/spacegl_3dview.c:            /* Varied colors: Steel, Copper, Spark, White */
+src/spacegl_3dview.c:            if (type == 0) { r=0.7; g=0.7; b=0.8; }      /* Steel */
+src/spacegl_3dview.c:            else if (type == 1) { r=0.9; g=0.5; b=0.2; } /* Copper/Bronze */
+src/spacegl_3dview.c:            else if (type == 2) { r=1.0; g=0.8; b=0.1; } /* Hot Spark */
+src/spacegl_3dview.c:            else { r=1.0; g=1.0; b=1.0; }                /* White hot */
+src/spacegl_3dview.c:    /* Torpedo State Sampling: Disabled in favor of Zero-Loss IPC Events */
+src/spacegl_3dview.c:    /* All torpedo activation and lifecycle logic is now handled in IPC_EV_TORPEDO handler */
+src/spacegl_3dview.c:        /* Cleanup local visual effects on sector jump,
+src/spacegl_3dview.c:    /* Global PlayerX/Y/Z are now synchronized smoothly inside the timer loop via objects[0] */
+src/spacegl_3dview.c:    /* 1. FORCE player ship at index 0 for consistent HUD/Camera behavior */
+src/spacegl_3dview.c:        obj->vy = (float)state->objects[0].vz; // Mapping: Stellar Z -> Viewer Y
+src/spacegl_3dview.c:        obj->vz = -(float)state->objects[0].vy; // Mapping: Stellar Y -> -Viewer Z
+src/spacegl_3dview.c:    /* 2. Process remaining objects starting from index 1 */
+src/spacegl_3dview.c:        /* Find existing object by ID (skip index 0) */
+src/spacegl_3dview.c:        /* If not found, find an empty slot (skip index 0) */
+src/spacegl_3dview.c:            obj->vy = (float)state->objects[i].vz; // Mapping: Stellar Z -> Viewer Y
+src/spacegl_3dview.c:            obj->vz = -(float)state->objects[i].vy; // Mapping: Stellar Y -> -Viewer Z
+src/spacegl_3dview.c:    /* Clear stale objects not present in the latest update */
+src/spacegl_3dview.c:    /* Torpedo State Sampling (IPC-driven: TTL managed in main loop) */
+src/spacegl_3dview.c:        /* IPC handles TTL independently, so we don't mess with it here. */
+src/spacegl_3dview.c:    /* Update departure wormhole only when it becomes newly active (freeze position once set) */
+src/spacegl_3dview.c:    /* Only update arrival orientation when arrival is not active (preserve locked orientation) */
+src/spacegl_3dview.c:    /* Supernova epicenter */
+src/spacegl_3dview.c:    *r = 1.0; *g = 1.0; *b = 1.0; /* Default White */
+src/spacegl_3dview.c:        case 0:  *r = 0.4; *g = 0.7; *b = 1.0; break; /* Alliance Blue */
+src/spacegl_3dview.c:        case 10: *r = 1.0; *g = 0.1; *b = 0.0; break; /* Korthian Red */
+src/spacegl_3dview.c:        case 11: *r = 0.0; *g = 1.0; *b = 0.2; break; /* Xylari Green */
+src/spacegl_3dview.c:        case 12: *r = 0.0; *g = 0.8; *b = 0.8; break; /* Swarm Cyan */
+src/spacegl_3dview.c:        case 13: *r = 1.0; *g = 0.8; *b = 0.0; break; /* Vesperian Gold */
+src/spacegl_3dview.c:        case 14: *r = 0.8; *g = 0.0; *b = 1.0; break; /* Ascendant Purple */
+src/spacegl_3dview.c:        case 15: *r = 0.5; *g = 0.5; *b = 1.0; break; /* Quarzite Blue */
+src/spacegl_3dview.c:        case 16: *r = 0.8; *g = 0.4; *b = 0.0; break; /* Saurian Orange */
+src/spacegl_3dview.c:        case 17: *r = 1.0; *g = 1.0; *b = 0.0; break; /* Gilded Yellow */
+src/spacegl_3dview.c:        case 18: *r = 0.3; *g = 1.0; *b = 0.3; break; /* Fluidic Green */
+src/spacegl_3dview.c:        case 19: *r = 0.0; *g = 0.5; *b = 1.0; break; /* Cryos Deep Blue */
+src/spacegl_3dview.c:        case 20: *r = 1.0; *g = 0.5; *b = 0.5; break; /* Apex Salmon */
+src/spacegl_3dview.c:    if (obj->type == 28) return; /* Skip HUD labels for Torpedoes */
+src/spacegl_3dview.c:    /* Project slightly above the ship (Y is height in viewer) */
+src/spacegl_3dview.c:        /* Check if behind camera or too close to clip plane */
+src/spacegl_3dview.c:        /* Draw Name/ID - Use a fixed offset from winY to keep it above health bar */
+src/spacegl_3dview.c:            /* Player: Faction - Class (Captain) */
+src/spacegl_3dview.c:            if (obj->faction == 0) { // FACTION_ALLIANCE
+src/spacegl_3dview.c:            glColor3f(0.0, 1.0, 1.0); /* Cyan for player */
+src/spacegl_3dview.c:            /* NPC: Species [ID] */
+src/spacegl_3dview.c:            if (type == 12) { /* Swarm Special */
+src/spacegl_3dview.c:                glColor3f(0.0, 1.0, 0.0); /* Green for Swarm */
+src/spacegl_3dview.c:                glColor3f(1.0, 0.3, 0.3); /* Redish for NPCs */
+src/spacegl_3dview.c:            /* Other: Name based on type */
+src/spacegl_3dview.c:                /* Skip generic formatting */
+src/spacegl_3dview.c:        /* Draw Health Bar (Ships, Bases, Platforms, Monsters) */
+src/spacegl_3dview.c:            /* Border */
+src/spacegl_3dview.c:            /* Fill */
+src/spacegl_3dview.c:            /* Hull Integrity Text */
+src/spacegl_3dview.c:            /* Plating indicator if present */
+src/spacegl_3dview.c:                glColor3f(1.0, 0.8, 0.0); /* Yellow for Composite */
+src/spacegl_3dview.c:    /* 1. Heading Ring (Horizontal plane XZ in OpenGL) */
+src/spacegl_3dview.c:    /* 2. Heading Labels (every 45 degrees) */
+src/spacegl_3dview.c:    /* Fixed Horizontal Compass - White */
+src/spacegl_3dview.c:    /* Outer Ring */
+src/spacegl_3dview.c:    /* Inner Ticks and Labels */
+src/spacegl_3dview.c:            const char* nsew[] = {"N", "E", "S", "W"}; /* Simplified N=0, E=90, S=180, W=270 */
+src/spacegl_3dview.c:    /* 3. Mark Arc (Longitudinal Vertical plane - Aligned with ship nose) */
+src/spacegl_3dview.c:    /* 4. Mark Labels */
+src/spacegl_3dview.c:    /* 5. Roll Circle (Transversal Vertical plane - Perpendicular to nose) */
+src/spacegl_3dview.c:    /* 6. Roll Labels */
+src/spacegl_3dview.c:    glRotatef(-objects[0].m, 0, 0, 1); /* Pitch rotation (elevation) */
+src/spacegl_3dview.c:        /* Specific Sentinel Rotation Pattern: inverted and faster */
+src/spacegl_3dview.c:        /* Robust rings for Heavy Escort */
+src/spacegl_3dview.c:    /* Wireframe overlay removed to ensure homogeneous surface */
+src/spacegl_3dview.c:    /* Nacelle Body (Shaded - High tessellation for smooth look) */
+src/spacegl_3dview.c:    /* Blue Hyperdrive Field Grille (Emissive) */
+src/spacegl_3dview.c:    /* Bussard Collector (Front Red Tip) - UNLIT for maximum brightness */
+src/spacegl_3dview.c:    glColor3f(1.0, 0.0, 0.0); /* Solid Bright Red */
+src/spacegl_3dview.c:    /* Extra Glow Layer */
+src/spacegl_3dview.c:    /* Upper navigation lights */
+src/spacegl_3dview.c:    glColor3f(1.0, 0.0, 0.0); /* Red (Port) */
+src/spacegl_3dview.c:    glColor3f(0.0, 1.0, 0.0); /* Green (Starboard) */
+src/spacegl_3dview.c:    /* --- [ NOMENCLATURE: LEGACY CLASS ] --- */
+src/spacegl_3dview.c:    /* 1. Primary Hull (Command Saucer) */
+src/spacegl_3dview.c:    /* 2. Bridge Module (Tactical Hub) */
+src/spacegl_3dview.c:    /* 3. Secondary Hull (Engineering Section) */
+src/spacegl_3dview.c:    /* 3.5 Stabilizing Rudder (Aetherium Fin) */
+src/spacegl_3dview.c:    /* 4. Main Deflector Array & Propulsion Rings */
+src/spacegl_3dview.c:    /* Original Legacy Rings Design */
+src/spacegl_3dview.c:    /* 5. Nacelles and Pylons */
+src/spacegl_3dview.c:    /* Secondary Hull - Integrated */
+src/spacegl_3dview.c:    /* Deflector Dish */
+src/spacegl_3dview.c:    /* --- [ NOMENCLATURE: EXPLORER CLASS ] --- */
+src/spacegl_3dview.c:    /* 1. Primary Hull (Command Saucer) - Main Command Deck */
+src/spacegl_3dview.c:        /* 2. Bridge Module (Command Hub) */
+src/spacegl_3dview.c:        /* 3. External Window Grid */
+src/spacegl_3dview.c:        /* 4. Multi-Spectral Sensor Probes */
+src/spacegl_3dview.c:    /* 5. Structural Neck (REMOVED for integrated design) */
+src/spacegl_3dview.c:    /* 6. Secondary Hull (Engineering) - Integrated & Inverted & Widened & Lengthened */
+src/spacegl_3dview.c:    glScalef(2.64, 1.2, 1.35); /* Lengthened by 20% (2.2 -> 2.64) */
+src/spacegl_3dview.c:    /* 7. Advanced Main Deflector Dish */
+src/spacegl_3dview.c:        /* Deflector Housing */
+src/spacegl_3dview.c:        /* Resonance Dish */
+src/spacegl_3dview.c:        /* Deflector Core (GDIS Data Stream) */
+src/spacegl_3dview.c:    /* 8. Nacelle Pylons (Structural Support) */
+src/spacegl_3dview.c:        /* 9. Hyperdrive Nacelles (FTL Propulsion) */
+src/spacegl_3dview.c:    /* --- [ NOMENCLATURE: SENTINEL CLASS ] --- */
+src/spacegl_3dview.c:    /* Heavy Defensive Escort - Octagonal tapered design with Quad-Propulsion */
+src/spacegl_3dview.c:    glRotatef(90.0, 1.0, 0.0, 0.0); /* Rotate the entire ship 90 degrees around X-axis */
+src/spacegl_3dview.c:    /* 1. Main Command Hull (Octagonal Cylinder) */
+src/spacegl_3dview.c:    glTranslatef(-0.48, 0.0, 0.0); /* Original -0.32 * 1.5 for lengthening */
+src/spacegl_3dview.c:    glScalef(1.5, 0.5, 0.5);       /* Lengthen by 50% (1.5), Thin by 50% (0.5) */
+src/spacegl_3dview.c:    /* 1.5 Tapered Front Hull (Octagonal Cone) */
+src/spacegl_3dview.c:    glTranslatef(0.24, 0.0, 0.0); /* Original 0.16 * 1.5 for lengthening */
+src/spacegl_3dview.c:    glScalef(1.5, 0.5, 0.5);      /* Lengthen by 50% (1.5), Thin by 50% (0.5) */
+src/spacegl_3dview.c:    /* 2. Tactical Bridges (Dual Redundant) - REMOVED per request */
+src/spacegl_3dview.c:    /* 3. Quad Propulsion System & Angled Pylons */
+src/spacegl_3dview.c:            /* Perpendicular pylons (90 degrees to hull) pointing to target positions */
+src/spacegl_3dview.c:            /* Align X with nacelle (-0.3) */
+src/spacegl_3dview.c:            /* Keep pylons pointing to original target (updown*0.12, side*0.28) */
+src/spacegl_3dview.c:            glRotatef(angle_deg, 1.0, 0.0, 0.0); /* Rotate in YZ plane to target */
+src/spacegl_3dview.c:            glRotatef(90.0, 0.0, 1.0, 0.0);      /* Rotate to point outward (perpendicular to X) */
+src/spacegl_3dview.c:            /* Move outward to bridge the gap */
+src/spacegl_3dview.c:            /* Scale reduced by 20% (1.2 -> 0.96) */
+src/spacegl_3dview.c:            /* The 4 separate Engine Nacelles (Rotated 90 degrees around hull axis) */
+src/spacegl_3dview.c:            /* Swap coordinates to achieve 90 deg rotation: (updown*0.12, side*0.28) rotated 90 deg */
+src/spacegl_3dview.c:            /* Using (side*0.28, -updown*0.12) or similar to match the pylon's target intersection */
+src/spacegl_3dview.c:            drawNacelle(3.2, 0.60, 0.0, 0.8, 1.0); /* Reduced length by 60% from 8.0 to 3.2 */
+src/spacegl_3dview.c:    /* 4. Quantum Propulsion Core (Rear Mounted) */
+src/spacegl_3dview.c:    glPopMatrix(); /* End of global ship rotation */
+src/spacegl_3dview.c:    glRotatef(r, 1, 0, 0); /* Longitudinal Roll */
+src/spacegl_3dview.c:    if (faction == 10) { /* Korthian */
+src/spacegl_3dview.c:    } else if (faction == 11) { /* Xylari */
+src/spacegl_3dview.c:    } else if (faction == 12) { /* Swarm */
+src/spacegl_3dview.c:    } else if (faction == 13) { /* Vesperian */
+src/spacegl_3dview.c:    } else if (faction == 14) { /* Ascendant */
+src/spacegl_3dview.c:    } else if (faction == 15) { /* Quarzite */
+src/spacegl_3dview.c:    } else if (faction == 16) { /* Saurian */
+src/spacegl_3dview.c:    } else if (faction == 17) { /* Gilded */
+src/spacegl_3dview.c:    } else if (faction == 18) { /* Fluidic Void */
+src/spacegl_3dview.c:    } else if (faction == 19) { /* Cryos */
+src/spacegl_3dview.c:    } else if (faction == 20) { /* Apex */
+src/spacegl_3dview.c:    } else { /* Default / Alliance */
+src/spacegl_3dview.c:    /* Spectral Class Color based on ID */
+src/spacegl_3dview.c:    if (type == 0) { r=0.4; g=0.6; b=1.0; }      /* Class O - Blue */
+src/spacegl_3dview.c:    else if (type == 1) { r=0.7; g=0.8; b=1.0; } /* Class B - Light Blue */
+src/spacegl_3dview.c:    else if (type == 2) { r=1.0; g=1.0; b=1.0; } /* Class A - White */
+src/spacegl_3dview.c:    else if (type == 3) { r=1.0; g=1.0; b=0.7; } /* Class F - Yellow-White */
+src/spacegl_3dview.c:    else if (type == 4) { r=1.0; g=0.9; b=0.1; } /* Class G - Yellow (Sol) */
+src/spacegl_3dview.c:    else if (type == 5) { r=1.0; g=0.6; b=0.2; } /* Class K - Orange */
+src/spacegl_3dview.c:                        else { r=1.0; g=0.2; b=0.1; }                /* Class H - Red */
+src/spacegl_3dview.c:    /* 3. Core */
+src/spacegl_3dview.c:    /* Violent pulsation if this is the supernova star */
+src/spacegl_3dview.c:    /* Check using the world coordinates passed to the function AND global quadrant */
+src/spacegl_3dview.c:        double sn_factor = 1.0 - (g_sn_pos.timer / 1800.0); /* 0 to 1 as it nears explosion */
+src/spacegl_3dview.c:        glColor3f(1.0, 1.0, 1.0); /* Turning white hot */
+src/spacegl_3dview.c:    /* 2. ATMOSPHERIC LAYERS (Corona): Semi-transparent and glowing */
+src/spacegl_3dview.c:    glBlendFunc(GL_SRC_ALPHA, GL_ONE); /* Additive glow */
+src/spacegl_3dview.c:    glDepthMask(GL_FALSE); /* Aura doesn't block depth */
+src/spacegl_3dview.c:    /* 3. Solar Flares (Prominences) */
+src/spacegl_3dview.c:    /* Atmosphere */
+src/spacegl_3dview.c:    glRotatef(90, 0, 1, 0); /* Align longitudinal axis with ship forward */
+src/spacegl_3dview.c:    /* 1. Draw the central 3D sphere with material properties */
+src/spacegl_3dview.c:        /* DEPARTURE: Dark charcoal with metallic specularity */
+src/spacegl_3dview.c:        /* ARRIVAL: Brilliant White/Blue Singularity */
+src/spacegl_3dview.c:    /* 2. Activate shader for the external energy cones */
+src/spacegl_3dview.c:    /* World orientation — same convention as ship directional vector:
+src/spacegl_3dview.c:    /* --- Cinematic cyclic funnel colors --- */
+src/spacegl_3dview.c:    /* Use three out-of-phase oscillators for rich hue cycling */
+src/spacegl_3dview.c:    float g_c = 0.5f + 0.5f * sinf(pulse * 1.3f + 2.094f); /* +120 deg */
+src/spacegl_3dview.c:    float b_c = 0.5f + 0.5f * sinf(pulse * 1.3f + 4.189f); /* +240 deg */
+src/spacegl_3dview.c:    /* === PART 1: ROTATING WIREFRAME CUBE OUTER SHELL === */
+src/spacegl_3dview.c:    /* === PART 2: CENTRAL SINGULARITY SPHERE === */
+src/spacegl_3dview.c:        /* Arrival: Brilliant White — use emission so it glows under any lighting */
+src/spacegl_3dview.c:        /* Departure: Solid Black — zero everything including emission */
+src/spacegl_3dview.c:    /* Reset emission after drawing sphere */
+src/spacegl_3dview.c:    /* === PART 3: ARRIVAL — EXTRA VOLUMETRIC GLOW === */
+src/spacegl_3dview.c:    /* === PART 4: ENERGY FUNNELS (fixed-function, no shader) === */
+src/spacegl_3dview.c:    glUseProgram(0); /* Ensure no shader overrides glColor4f */
+src/spacegl_3dview.c:    /* Rotate the funnels on the longitudinal axis */
+src/spacegl_3dview.c:    double rs   = 0.7;  /* Start at sphere surface */
+src/spacegl_3dview.c:    double rmax = 2.2;  /* Max funnel radius */
+src/spacegl_3dview.c:        /* Funnel cyclic color */
+src/spacegl_3dview.c:            /* Departure: Purple/Blue cycle */
+src/spacegl_3dview.c:            /* Arrival: Cyan/White cycle */
+src/spacegl_3dview.c:        /* Ring segments */
+src/spacegl_3dview.c:                /* Departure: warm cycle — red/orange/violet/magenta */
+src/spacegl_3dview.c:                /* Arrival: cool cycle — electric blue/cyan/gold */
+src/spacegl_3dview.c:        /* Spoke segments */
+src/spacegl_3dview.c:                    /* Departure spokes: darker warm tones */
+src/spacegl_3dview.c:                    /* Arrival spokes: cool tones */
+src/spacegl_3dview.c:    glPopMatrix(); /* funnel rotation */
+src/spacegl_3dview.c:    glDepthMask(GL_FALSE); /* Don't write to depth buffer to avoid square artifacts */
+src/spacegl_3dview.c:    /* Billboard logic: face the camera */
+src/spacegl_3dview.c:    /* Draw full-size quad for the shader to work on */
+src/spacegl_3dview.c:    /* Multilayered gas cloud */
+src/spacegl_3dview.c:        if (type == 1) { /* High-Energy: Yellowish-Orange */
+src/spacegl_3dview.c:        } else if (type == 2) { /* Dark Matter: Dark Grey/Black with faint Purple */
+src/spacegl_3dview.c:        } else if (type == 3) { /* Diffuse: White/Blue */
+src/spacegl_3dview.c:        } else if (type == 4) { /* Planetary/SNR: Green-Cyan */
+src/spacegl_3dview.c:        } else if (type == 5) { /* GMC: Orange/Rust */
+src/spacegl_3dview.c:        } else { /* Standard (Default): Purple and Blue */
+src/spacegl_3dview.c:    /* Small pulsing effect - tripled base size (0.15) */
+src/spacegl_3dview.c:    /* Glowing core */
+src/spacegl_3dview.c:    /* Central Sphere */
+src/spacegl_3dview.c:    /* 3 Rotating Rings */
+src/spacegl_3dview.c:    /* Central Sphere */
+src/spacegl_3dview.c:    /* 3 Rotating Squares (Wireframe Cubes) */
+src/spacegl_3dview.c:    /* Draw twisting electrical lines */
+src/spacegl_3dview.c:    /* Core */
+src/spacegl_3dview.c:    /* Beams */
+src/spacegl_3dview.c:    /* Irregular Nucleus */
+src/spacegl_3dview.c:    /* Coma (Glow) */
+src/spacegl_3dview.c:    /* Volumetric Tail (Multiple cones/layers) */
+src/spacegl_3dview.c:    /* Point tail in negative X direction (opposite to movement) */
+src/spacegl_3dview.c:    glColor3f(0.5, 0.35, 0.25); /* Brownish */
+src/spacegl_3dview.c:    /* Main rocky body (Irregular composition) */
+src/spacegl_3dview.c:    /* Random bumps for a more 3D asteroid look */
+src/spacegl_3dview.c:    /* Slow drifting rotation */
+src/spacegl_3dview.c:    /* Dark hull, no emissive lights */
+src/spacegl_3dview.c:    if (faction == 0) { // FACTION_ALLIANCE
+src/spacegl_3dview.c:        /* Use Faction model for alien derelicts */
+src/spacegl_3dview.c:    /* Core */
+src/spacegl_3dview.c:    /* Spikes */
+src/spacegl_3dview.c:    /* Pulsing Light */
+src/spacegl_3dview.c:    /* Main body */
+src/spacegl_3dview.c:    /* Lattice structure */
+src/spacegl_3dview.c:    /* Rotating Antenna */
+src/spacegl_3dview.c:    /* Blue Signal Rings (Pulse) */
+src/spacegl_3dview.c:    /* Main Hexagonal Body */
+src/spacegl_3dview.c:    /* Ion Beam Banks (Top/Bottom) */
+src/spacegl_3dview.c:    /* Energy Core */
+src/spacegl_3dview.c:    glBlendFunc(GL_SRC_ALPHA, GL_ONE); /* Additive blending */
+src/spacegl_3dview.c:    /* Rotating energy rings */
+src/spacegl_3dview.c:    /* Inner crackle */
+src/spacegl_3dview.c:    if (type == 30) { /* Crystalline Entity */
+src/spacegl_3dview.c:    } else if (type == 31) { /* Space Amoeba */
+src/spacegl_3dview.c:        /* Nucleus */
+src/spacegl_3dview.c:    /* Large fragmented shell */
+src/spacegl_3dview.c:    /* Inner energy core */
+src/spacegl_3dview.c:    /* Radial energy spikes */
+src/spacegl_3dview.c:    /* Central Spire */
+src/spacegl_3dview.c:    /* Rotating Rings */
+src/spacegl_3dview.c:        /* Docking pads on rings */
+src/spacegl_3dview.c:    /* Beacon Light */
+src/spacegl_3dview.c:    /* Strange geometric form */
+src/spacegl_3dview.c:    /* Inner glowing lattice */
+src/spacegl_3dview.c:    /* Floating orbiting shards */
+src/spacegl_3dview.c:    /* Violent purple/red energy distortion */
+src/spacegl_3dview.c:    /* Core void */
+src/spacegl_3dview.c:    /* Body */
+src/spacegl_3dview.c:    /* Solar Panels */
+src/spacegl_3dview.c:    /* Antenna */
+src/spacegl_3dview.c:    /* Blinking LED */
+src/spacegl_3dview.c:    /* Large electrical clouds */
+src/spacegl_3dview.c:    /* Electrical discharges */
+src/spacegl_3dview.c:    glRotatef(pulse * 100.0, 0, 1, 0); // Very fast spin
+src/spacegl_3dview.c:    glutSolidSphere(0.3, 24, 24); // Pitch black core
+src/spacegl_3dview.c:    glutWireTeapot(0.5); // Abstract shape for anomaly
+src/spacegl_3dview.c:    glColor3f(0.0, 1.0, 0.5); /* Seafoam Green */
+src/spacegl_3dview.c:    /* Position the compass at the top center, aligned with the vertical axis */
+src/spacegl_3dview.c:    /* Z-Axis (0/180 Degrees) - Blue */
+src/spacegl_3dview.c:    /* X-Axis (90/270 Degrees) - Red */
+src/spacegl_3dview.c:    /* Y-Axis (Mark) - Green */
+src/spacegl_3dview.c:    /* Draw full grid frame */
+src/spacegl_3dview.c:    /* Draw Vertex Coordinates for orientation */
+src/spacegl_3dview.c:                double pz = offset + ((double)GALAXY_SIZE + 0.5 - cy) * gap; /* Inverted Y for map display consistency */
+src/spacegl_3dview.c:                /* Use absolute value for digit extraction to handle supernova (negative) quadrants */
+src/spacegl_3dview.c:                /* Color coding based on Q|M|U|R|T|B|M|D|A|C|S|Pu|N|BH|P|K|B|S (18 digits) */
+src/spacegl_3dview.c:                /* Apply Filter */
+src/spacegl_3dview.c:                    /* Highlight current quadrant: Pulsing White + Label */
+src/spacegl_3dview.c:                    /* Directional Vector (Heading Needle) - Tensor Style */
+src/spacegl_3dview.c:                    /* Map axes to screen coordinates */
+src/spacegl_3dview.c:                    glColor3f(1.0, 1.0, 0.0); /* Bright Yellow Line */
+src/spacegl_3dview.c:                    /* Pointer head - Red Cone Tip */
+src/spacegl_3dview.c:                    /* Rotate cone to point in the same direction as the vector */
+src/spacegl_3dview.c:                    glColor3f(1.0, 0.0, 0.0); /* Red Pointer */
+src/spacegl_3dview.c:                    /* Supernova Warning - Red Pulsing (Global Broadcast) */
+src/spacegl_3dview.c:                    /* Ion Storm: Large Transparent White Wireframe Shell - Enhanced visibility */
+src/spacegl_3dview.c:                    /* If a filter is active, force the color of the filtered object */
+src/spacegl_3dview.c:                    /* If no filter, we use the default priority chain, 
+src/spacegl_3dview.c:                    if (effective_filter == 17 || (effective_filter == 0 && quasar > 0)) glColor3f(1.0, 0.0, 1.0); /* Magenta - Quasar */
+src/spacegl_3dview.c:                    else if (effective_filter == 16 || (effective_filter == 0 && monster > 0)) glColor3f(1.0, 1.0, 1.0); /* White - Monster */
+src/spacegl_3dview.c:                    else if (effective_filter == 15 || (effective_filter == 0 && rift > 0)) glColor3f(0.0, 1.0, 1.0); /* Cyan - Rift */
+src/spacegl_3dview.c:                    else if (effective_filter == 14 || (effective_filter == 0 && platform > 0)) glColor3f(0.8, 0.4, 0.0); /* Dark Orange - Platform */
+src/spacegl_3dview.c:                    else if (effective_filter == 13 || (effective_filter == 0 && buoy > 0)) glColor3f(0.0, 0.5, 1.0); /* Blue - Buoy */
+src/spacegl_3dview.c:                    else if (effective_filter == 12 || (effective_filter == 0 && mine > 0)) glColor3f(1.0, 0.0, 0.0); /* Bright Red - Mine */
+src/spacegl_3dview.c:                    else if (effective_filter == 11 || (effective_filter == 0 && derelict > 0)) glColor3f(0.3, 0.3, 0.3); /* Dark Grey - Derelict */
+src/spacegl_3dview.c:                    else if (effective_filter == 10 || (effective_filter == 0 && asteroid > 0)) glColor3f(0.5, 0.3, 0.1); /* Brown - Asteroid */
+src/spacegl_3dview.c:                    else if (effective_filter == 9 || (effective_filter == 0 && comet > 0)) glColor3f(0.5, 0.8, 1.0); /* Light Blue - Comet */
+src/spacegl_3dview.c:                    else if (effective_filter == 8 || (effective_filter == 0 && storm > 0)) glColor3f(1.0, 1.0, 1.0); /* White - Ion Storm */
+src/spacegl_3dview.c:                    else if (effective_filter == 7 || (effective_filter == 0 && pul > 0)) glColor3f(1.0, 0.5, 0); /* Orange - Pulsar */
+src/spacegl_3dview.c:                    else if (effective_filter == 6 || (effective_filter == 0 && neb > 0)) glColor3f(0.7, 0.7, 0.7); /* Grey - Nebula */
+src/spacegl_3dview.c:                    else if (effective_filter == 5 || (effective_filter == 0 && bh > 0)) glColor3f(0.6, 0, 1.0); /* Purple - Black Hole */
+src/spacegl_3dview.c:                    else if (effective_filter == 4 || (effective_filter == 0 && (en > 0 || player > 0))) glColor3f(1, 0, 0); /* Red - Hostile/Vessel */
+src/spacegl_3dview.c:                    else if (effective_filter == 3 || (effective_filter == 0 && bs > 0)) glColor3f(0, 1, 0); /* Green - Base */
+src/spacegl_3dview.c:                    else if (effective_filter == 2 || (effective_filter == 0 && pl > 0)) glColor3f(0, 0.8, 1); /* Cyan - Planet */
+src/spacegl_3dview.c:                    else if (effective_filter == 1 || (effective_filter == 0 && st > 0)) glColor3f(1, 1, 0); /* Yellow - Star */
+src/spacegl_3dview.c:                    else glColor3f(0.4, 0.4, 0.4); /* Dark gray fallback */
+src/spacegl_3dview.c:                    if (quasar > 0) base_s = 0.2 + sin(pulse*15.0)*0.08; /* Fast violent pulse */
+src/spacegl_3dview.c:                    if (pul > 0) base_s += sin(pulse*8.0)*0.05; /* Pulsar heartbeat */
+src/spacegl_3dview.c:    double r=0.4, g=0.7, b=1.0; /* Default Alliance Command Blue */
+src/spacegl_3dview.c:    if (objects[obj_idx].type == 10) { r=1.0; g=0.1; b=0.0; } /* Korthian Red */
+src/spacegl_3dview.c:    if (objects[obj_idx].type == 11) { r=0.0; g=1.0; b=0.2; } /* Xylari Green */
+src/spacegl_3dview.c:    if (objects[obj_idx].type == 12) { r=0.0; g=0.8; b=0.8; } /* Swarm Cyan */
+src/spacegl_3dview.c:        /* Spawn a subtle engine particle occasionally at the latest trail point */
+src/spacegl_3dview.c:        /* Spawn particles on first frame of this explosion */
+src/spacegl_3dview.c:        /* Pulsing expansion limited to max radius 1.0 (2 sectors total volume) */
+src/spacegl_3dview.c:        /* Secondary inner glow */
+src/spacegl_3dview.c:    /* Phase 1: Brilliant White Wormhole - Starts closing at 180 */
+src/spacegl_3dview.c:    drawWormhole(0, 0, 0, g_jump_arrival.h, g_jump_arrival.m, 1, 1); /* Type 1: Arrival (White), Ver 1: Legacy */
+src/spacegl_3dview.c:    /* Phase 3: Final Flash - Starts at 180 */
+src/spacegl_3dview.c:        double base_r = flash_t * 0.5; /* Base for 2 sectors diameter */
+src/spacegl_3dview.c:        /* 1. Chromatic Volumetric Glow */
+src/spacegl_3dview.c:            {1.0, 1.0, 1.0, 1.0, 0.4},  /* Core: Pure White */
+src/spacegl_3dview.c:            {0.0, 1.0, 1.0, 0.8, 0.8},  /* Inner: Bright Cyan */
+src/spacegl_3dview.c:            {0.0, 0.4, 1.0, 0.6, 1.2},  /* Middle: Electric Blue */
+src/spacegl_3dview.c:            {0.3, 0.0, 0.8, 0.4, 1.6},  /* Outer: Deep Purple */
+src/spacegl_3dview.c:            {0.1, 0.0, 0.4, 0.2, 2.0}   /* Aura: Dark Violet */
+src/spacegl_3dview.c:        /* 2. Converging Arrival Particles */
+src/spacegl_3dview.c:        /* 3. 3D Volumetric details */
+src/spacegl_3dview.c:    /* Phase 1: Brilliant White Wormhole - Starts closing at 180 */
+src/spacegl_3dview.c:    drawWormhole(0, 0, 0, g_jump_arrival.h, g_jump_arrival.m, 1, 2); /* Type 1: Arrival (White), Ver 2: Current */
+src/spacegl_3dview.c:    /* Phase 3: Final Flash - Starts at 180 */
+src/spacegl_3dview.c:        double base_r = flash_t * 0.5; /* Base for 2 sectors diameter */
+src/spacegl_3dview.c:        /* 1. Chromatic Volumetric Glow */
+src/spacegl_3dview.c:            {1.0, 1.0, 1.0, 1.0, 0.4},  /* Core: Pure White */
+src/spacegl_3dview.c:            {0.0, 1.0, 1.0, 0.8, 0.8},  /* Inner: Bright Cyan */
+src/spacegl_3dview.c:            {0.0, 0.4, 1.0, 0.6, 1.2},  /* Middle: Electric Blue */
+src/spacegl_3dview.c:            {0.3, 0.0, 0.8, 0.4, 1.6},  /* Outer: Deep Purple */
+src/spacegl_3dview.c:            {0.1, 0.0, 0.4, 0.2, 2.0}   /* Aura: Dark Violet */
+src/spacegl_3dview.c:        /* 2. Converging Arrival Particles */
+src/spacegl_3dview.c:        /* 3. 3D Volumetric details */
+src/spacegl_3dview.c:/* Personal Probe HUD Data Sync Only (Rendering is now universal via drawObject Type 27) */
+src/spacegl_3dview.c:    /* No 3D rendering here anymore */
+src/spacegl_3dview.c:    /* Position and basic alignment */
+src/spacegl_3dview.c:    /* Quasars are celestial monsters, they dominate the view */
+src/spacegl_3dview.c:    /* Seed for procedural variation based on position */
+src/spacegl_3dview.c:    /* CONFIGURATION BASED ON TYPE */
+src/spacegl_3dview.c:    float r=1, g=1, b=1;     /* Core Color */
+src/spacegl_3dview.c:    float jr=1, jg=1, jb=1;  /* Jet Color */
+src/spacegl_3dview.c:        case 0: /* Radio-loud: Classic Blue, Massive Jets */
+src/spacegl_3dview.c:        case 1: /* Radio-quiet: Gold/White, Huge Disk, Tiny Jets */
+src/spacegl_3dview.c:        case 2: /* BAL (Broad Absorption): Emerald/Acid, Turbulent Winds */
+src/spacegl_3dview.c:        case 3: /* Type 2: Obscured, Orange/Rust, Dark Dust Torus */
+src/spacegl_3dview.c:        case 4: /* Red Quasar: Crimson, Heavy, Slow Pulse */
+src/spacegl_3dview.c:        case 5: /* OVV (Optically Violent): Violet/White, Stroboscopic */
+src/spacegl_3dview.c:        case 6: /* Weak emission: Pale Cyan, Ghostly, Thin */
+src/spacegl_3dview.c:        default: /* Fallback */
+src/spacegl_3dview.c:    /* Calculation of dynamic pulsation */
+src/spacegl_3dview.c:    if (is_violent) p_factor += (rand()%100)/500.0; /* Jitter for OVV */
+src/spacegl_3dview.c:    /* Global Rotation */
+src/spacegl_3dview.c:    glRotatef(pulse * 2.0 + seed, 0, 1, 0); /* Orbit rotation */
+src/spacegl_3dview.c:    /* Tilt the quasar to show the disk */
+src/spacegl_3dview.c:    /* --- 1. THE RELATIVISTIC JETS --- */
+src/spacegl_3dview.c:            /* Inner Beam (Solid energy) */
+src/spacegl_3dview.c:            /* Outer Sheath (Diffuse glow) */
+src/spacegl_3dview.c:            /* Shockwaves (Rings traveling up the jet) - Only for high energy ones */
+src/spacegl_3dview.c:    /* --- 2. ACCRETION DISK --- */
+src/spacegl_3dview.c:    /* Rotate disk texture */
+src/spacegl_3dview.c:    glScalef(1.0, 0.05, 1.0); /* Flatten */
+src/spacegl_3dview.c:    /* Main glowing disk */
+src/spacegl_3dview.c:    /* Inner hot ring */
+src/spacegl_3dview.c:    /* --- 3. SPECIAL FEATURES --- */
+src/spacegl_3dview.c:        /* Type 2 Obscuring Torus */
+src/spacegl_3dview.c:        glBlendFunc(GL_SRC_ALPHA, GL_ONE); /* Solid/Dark blending */
+src/spacegl_3dview.c:        glColor4f(0.1, 0.05, 0.0, 0.9); /* Dark Dust */
+src/spacegl_3dview.c:        glBlendFunc(GL_SRC_ALPHA, GL_ONE); /* Back to additive */
+src/spacegl_3dview.c:        /* BAL Quasar Wind - Particles orbiting */
+src/spacegl_3dview.c:    /* --- 4. THE CORE --- */
+src/spacegl_3dview.c:    /* Blindingly bright center */
+src/spacegl_3dview.c:    /* Halo */
+src/spacegl_3dview.c:    /* 3. Solid Core (Robust Sphere for visibility) */
+src/spacegl_3dview.c:    glColor3f(1.0, 1.0, 0.0); /* Bright Yellow */
+src/spacegl_3dview.c:            /* Enhanced Red Glow/Core Logic */
+src/spacegl_3dview.c:            /* 1. Enhanced Red Halo */
+src/spacegl_3dview.c:            /* 2. Luminous Red/Yellow Star Rays */
+src/spacegl_3dview.c:            /* 3. Solid Icosahedron Core */
+src/spacegl_3dview.c:            glColor3f(1.0, 0.5, 0.0); /* Orange-Red glow core */
+src/spacegl_3dview.c:    /* 1. Golden Transporter Beam (Vertical) - Radius reduced to 0.12 */
+src/spacegl_3dview.c:    /* 2. Swirling Sparkles - Increased visibility and count */
+src/spacegl_3dview.c:        double r = 0.15; /* Slightly wider than the beam */
+src/spacegl_3dview.c:        /* Vertical distribution centered around the probe */
+src/spacegl_3dview.c:        glutSolidSphere(0.025, 4, 4); /* Made them larger */
+src/spacegl_3dview.c:        { 20.5, 0, 0, {q1+1, q2, q3} },   /* Right (X+) */
+src/spacegl_3dview.c:        {-20.5, 0, 0, {q1-1, q2, q3} },   /* Left (X-) */
+src/spacegl_3dview.c:        { 0, 20.5, 0, {q1, q2, q3+1} },   /* Top (Z+) -> Y+ in viewer */
+src/spacegl_3dview.c:        { 0,-20.5, 0, {q1, q2, q3-1} },   /* Down (Z-) -> Y- in viewer */
+src/spacegl_3dview.c:        { 0, 0,-20.5, {q1, q2+1, q3} },   /* Fore (Y+) -> Z- in viewer */
+src/spacegl_3dview.c:        { 0, 0, 20.5, {q1, q2-1, q3} }    /* Aft (Y-) -> Z+ in viewer */
+src/spacegl_3dview.c:            glColor3f(0.0, 0.8, 0.8); /* Cyan-ish LCARS */

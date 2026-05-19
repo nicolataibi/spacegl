@@ -303,7 +303,7 @@ void enable_raw_mode() {
     atexit(disable_raw_mode);
     struct termios raw = orig_termios;
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN);
-    /* Lasciamo ISIG attivo per permettere Ctrl+C */
+    /* Leave ISIG active to allow Ctrl+C */
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 1;
@@ -681,7 +681,7 @@ void *network_listener(void *arg) {
                 }
             }
 
-            printf("\r\033[K"); /* Pulisce la riga di input attuale */
+            printf("\r\033[K"); /* Clears the current input line */
             if (strcmp(msg->from, "SERVER") == 0 || strcmp(msg->from, "COMPUTER") == 0 || 
                 strcmp(msg->from, "SCIENCE") == 0 || strcmp(msg->from, "TACTICAL") == 0 ||
                 strcmp(msg->from, "ENGINEERING") == 0 || strcmp(msg->from, "HELMSMAN") == 0 ||
@@ -954,7 +954,7 @@ void *network_listener(void *arg) {
             if (g_shared_state) {
                 if (current_state.object_count > MAX_OBJECTS) current_state.object_count = MAX_OBJECTS;
 
-                /* Sincronizziamo lo stato locale con i dati ottimizzati dal server */
+                /* Synchronize the local state with the optimized data from the server */
                 g_shared_state->shm_energy = current_state.energy;
                 g_shared_state->shm_composite_plating = current_state.composite_plating;
                 g_shared_state->shm_hull_integrity = current_state.hull_integrity;
@@ -1809,8 +1809,8 @@ int main(int argc, char *argv[]) {
                 g_input_buf[g_input_ptr++] = c;
                 g_input_buf[g_input_ptr] = 0;
                 reprint_prompt();
-            } else if (c == 27) { /* ESC o sequenze speciali */
-                /* Potremmo gestire le frecce qui, ma per ora lo ignoriamo */
+            } else if (c == 27) { /* ESC or special sequences */
+                /* We could handle the arrows here, but for now we ignore them */
             }
         }
     }

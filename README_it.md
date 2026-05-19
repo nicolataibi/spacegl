@@ -206,15 +206,15 @@ Nei laboratori segreti della stazione di ricerca Aegis, i tecnici iniziarono a m
 
 "Dobbiamo andare oltre," ordinò Niklaus. "Voglio che il comando dell'Alleanza su Terra Prima veda ciò che vedo io, in tempo reale, attraverso migliaia di anni luce." Gli ingegneri aprirono il "Pulsar TCP", un uplink remoto sulla frequenza 5001. Il segnale, criptato con algoritmi PQC, iniziò a fluire attraverso lo spazio, trasportando lo stato vitale di ogni singola entità. Il monitoraggio remoto non era più un sogno, ma un flusso binario inarrestabile.
 
-### Capitolo 4: Le 35 Sentinelle
+### Capitolo 4: Le 88 Sentinelle
 
 <table>
 <tr>
-    <td><img src="readme_assets/telemetry/telemetry4.png" alt="Black jump" width="200"/></td>
+    <td><img src="readme_assets/telemetry/telemetry4.png" alt="Black jump" width="500"/></td>
   </tr>
 </table>
 
-Il sistema prese vita. Trentacinque categorie di oggetti vennero instrumentate. Non solo navi e stelle, ma anche frammenti di sfere di Dyson, cristalli del vuoto e anomalie temporali. Ogni entità iniziò a trasmettere la propria firma: integrità, energia, coordinate esatte. La galassia, un tempo buia e misteriosa, divenne un libro aperto. Il report di efficienza del server segnò il 100%: 35 su 35 categorie erano sotto scacco.
+Il sistema prese vita. Ottantotto categorie di oggetti vennero instrumentate. Non solo navi e stelle, ma anche frammenti di sfere di Dyson, cristalli del vuoto e anomalie temporali. Ogni entità iniziò a trasmettere la propria firma: integrità, energia, coordinate esatte. La galassia, un tempo buia e misteriosa, divenne un libro aperto. Il report di efficienza del server segnò il 100%: 88 su 88 categorie erano sotto scacco.
 
 ### Capitolo 5: Onniscienza Galattica
 

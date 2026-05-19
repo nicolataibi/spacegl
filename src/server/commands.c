@@ -5144,7 +5144,7 @@ bool process_command(int i, const char *cmd) {
                         else if (choice == 2) { players[i].state.inventory[1 + rand()%(MAX_RESOURCE_TYPES - 1)] += COST_ACTION_MED; send_server_msg(i, "BOARDING", "Raid successful. Secured NPC cargo."); }
                         else { 
                             int p = YIELD_BOARD_NPC_MIN + rand()%YIELD_BOARD_NPC_RANGE; 
-                            if (target_npc->health < p) p = target_npc->health; /* Per NPC usiamo health come approssimazione crew */
+                            if (target_npc->health < p) p = target_npc->health; /* For NPCs we use health as a crew approximation */
                             target_npc->health -= p;
                             players[i].state.prison_unit += p; 
                             send_server_msg(i, "SECURITY", "Captured enemy personnel."); 
