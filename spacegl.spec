@@ -3,7 +3,7 @@
 %global autorelease_version 1
 
 Name:           spacegl
-Version:        2026.05.19.01
+Version:        2026.05.20.01
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 

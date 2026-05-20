@@ -41,6 +41,7 @@ Space GL is a high-performance 3D multi-user client-server space flight and comb
 **Persistent Galaxy Tactical Navigation & Combat Simulator**
 
 **OpenGL GLFW Screenshots**
+
 <table>
 <tr>
     <td><img src="readme_assets/Screenshot_2vk-players-1gl-player.jpg" alt="Stellar Alliance" width="400"/></td>
@@ -66,7 +67,6 @@ Space GL is a high-performance 3D multi-user client-server space flight and comb
     <td><img src="readme_assets/wormhole-enter.jpg" alt="Wormhole Entry" width="400"/></td>
     <td><img src="readme_assets/wormhole-exit.jpg" alt="Wormhole Exit" width="400"/></td>
   </tr>
-  <tr>
 </table>
 
 <table>
@@ -595,39 +595,39 @@ Simulation realism is ensured by a dynamic energy consumption system that never 
 *   **Docking Safe Mode:** Energy consumption is completely suspended when the ship is connected to a Starbase (external power).
 *   **Energy Emergency:** If reserves drop to zero, **Life Support** begins to degrade by **0.1% per tick**. At **0%**, **crew casualties** will occur (1 member per second). Restoring energy will automatically recharge life support.
 
-### 3. Gestione dell'Equipaggio (Crew Management)
-La gestione dell'equipaggio in Space GL è un sistema vitale e punitivo, strettamente legato all'energia e al supporto vitale. Ecco i pilastri del funzionamento:
+### 3. Crew Management
+Crew management in Space GL is a vital and punishing system, strictly tied to energy and life support. Here are the core mechanics:
 
-#### 1. Dimensioni Iniziali
-Il numero di membri dell'equipaggio dipende esclusivamente dalla classe della nave scelta all'inizio:
-*   **Carrier**: 1200 membri.
-*   **Explorer (Aegis-D)**: 1012 membri (il massimo standard).
-*   **Sentinel**: 950 membri.
-*   **Flagship**: 850 membri.
-*   **Heavy Cruiser**: 750 membri.
-*   **Scout**: ~30 membri (molto vulnerabile).
+#### 1. Initial Size
+The number of crew members depends exclusively on the chosen ship class at the start:
+*   **Carrier**: 1200 members.
+*   **Explorer (Aegis-D)**: 1012 members (the standard maximum).
+*   **Sentinel**: 950 members.
+*   **Flagship**: 850 members.
+*   **Heavy Cruiser**: 750 members.
+*   **Scout**: ~30 members (highly vulnerable).
 
-#### 2. Sopravvivenza e Supporto Vitale (Vital Integrity)
-L'equipaggio dipende dal sistema di Life Support:
-*   **Consumo Energia**: La nave consuma costantemente una piccola quantità di energia per mantenere attivo il supporto vitale. In stato di Red Alert, questo consumo aumenta drasticamente.
-*   **Emergenza Energia**: Se le riserve di energia scendono a zero, il supporto vitale inizia a degradarsi (0.1% per tick).
-*   **Vittime periodiche**: Se l'integrità del supporto vitale scende a 0%, l'equipaggio inizia a morire al ritmo di 1 membro al secondo.
-*   **Danni da Combattimento**: Quando la nave subisce danni allo scafo (Hull Integrity), una parte dell'equipaggio viene persa proporzionalmente alla gravità del colpo.
+#### 2. Survival and Vital Integrity
+The crew depends on the Life Support system:
+*   **Energy Consumption**: The ship constantly consumes a small amount of energy to keep life support active. During Red Alert, this consumption increases drastically.
+*   **Energy Emergency**: If energy reserves drop to zero, life support begins to degrade (0.1% per tick).
+*   **Periodic Casualties**: If vital integrity drops to 0%, the crew begins to die at a rate of 1 member per second.
+*   **Combat Damage**: When the ship suffers hull damage (Hull Integrity), a portion of the crew is lost proportionally to the severity of the hit.
 
-#### 3. Pericoli Ambientali (Pulsar e Radiazioni)
-Navigare troppo vicino a una Pulsar (Distanza < 2.5) espone la nave a radiazioni letali che uccidono rapidamente l'equipaggio, indipendentemente dallo stato degli scudi.
+#### 3. Environmental Hazards (Pulsars and Radiation)
+Navigating too close to a Pulsar (Distance < 2.5) exposes the ship to lethal radiation that quickly kills the crew, regardless of shield status.
 
-#### 4. Mission Failure (Perdita della Nave)
-L'equipaggio è la risorsa definitiva. Se il conteggio arriva a zero:
-1.  **Distruzione istantanea**: La nave viene dichiarata persa e lascia un relitto permanente (derelict) nella galassia, che altri giocatori possono smantellare.
-2.  **Emergency Reentry**: Il giocatore viene teletrasportato in un settore sicuro della galassia a bordo di una "navetta di salvataggio" con sistemi minimi, energia carica e un equipaggio ridotto al 10% (circa 101 membri per un'Explorer).
+#### 4. Mission Failure (Ship Loss)
+The crew is the ultimate resource. If the count reaches zero:
+1.  **Instant Destruction**: The ship is declared lost and leaves a permanent wreck (derelict) in the galaxy, which other players can dismantle.
+2.  **Emergency Reentry**: The player is teleported to a safe sector of the galaxy aboard an "escape pod" with minimal systems, fully charged energy, and a crew reduced to 10% (about 101 members for an Explorer).
 
-#### 5. Recupero e Operazioni Speciali
-*   **Starbase**: Attraccando (doc) a una base stellare, l'equipaggio viene ripristinato e stabilizzato.
-*   **Squadre di Ricerca**: Esplorando i relitti, è possibile trovare sopravvissuti in stasi che vengono integrati nell'equipaggio corrente.
-*   **Prison Unit**: Durante le operazioni di abbordaggio, i membri dell'equipaggio nemico catturati non diventano parte della tua flotta ma vengono confinati nella Prison Unit, pronti per essere consegnati al comando per dei bonus.
+#### 5. Recovery and Special Operations
+*   **Starbase**: By docking (`doc`) at a starbase, the crew is restored and stabilized.
+*   **Search Teams**: By exploring wrecks, it is possible to find survivors in stasis who are integrated into the current crew.
+*   **Prison Unit**: During boarding operations, captured enemy crew members do not become part of your fleet but are confined in the Prison Unit, ready to be turned over to command for bonuses.
 
-In sintesi, l'equipaggio funge da "barra della vita" finale: puoi riparare i sistemi e lo scafo, ma una volta perso l'equipaggio, la missione finisce inevitabilmente.
+In summary, the crew acts as the final "health bar": you can repair systems and the hull, but once the crew is lost, the mission inevitably ends.
 
 ### 4. Advanced Navigation (GDIS Standard)
 The navigation system has been overhauled for mathematical precision and visual fluidity:
