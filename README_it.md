@@ -2870,8 +2870,23 @@ Le cinque stazioni chiave della Legacy Class erano presidiate dalle menti più b
 1. Comandante Tattico (Cmdr. Thorne): Sensori, puntamento, contromisure.
 2. Ufficiale Scientifico (Lt. Cmdr. Elara Vance): Telemetria, fisica dei buchi neri.
 3. Capo Ingegnere (Lt. Cmdr. K'Rath): Flusso di antimateria, integrità del reattore.
+<table>
+<tr>
+        <td><img src="readme_assets/the void protocol/Lt. Cmdr. K'Rath.png" alt="Chapter 2-II" width="300"/></td>
+</tr>
+</table>
 4. Ufficiale di Navigazione (Lt. Aris): Calcoli di traiettoria inerziale, rotte a curvatura.
+<table>
+<tr>
+        <td><img src="readme_assets/the void protocol/Lt. Aris.png" alt="Chapter 2-II" width="300"/></td>
+</tr>
+</table>
 5. Ufficiale alle Comunicazioni e Sicurezza (Lt. Jinn): Firewall crittografico, modulazione degli scudi.
+<table>
+<tr>
+        <td><img src="readme_assets/the void protocol/Lt. Jinn.png" alt="Chapter 2-II" width="300"/></td>
+</tr>
+</table>
 
 "Ammiraglio, l'A-MAT sta crollando al 60%!" gridò K'Rath, la mano ferma sulla leva di controllo del reattore. "Le bobine di contenimento stanno soffrendo per l'interferenza della singolarità!"
 

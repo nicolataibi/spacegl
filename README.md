@@ -3026,11 +3026,34 @@ Here is how Grand Admiral H. Niklaus manages the energy crisis, orchestrating hi
 The Command Bridge: The "Brain" of the Legacy Class
 
 The five key stations of the Legacy Class were manned by the fleet's brightest minds:
+
 1. Tactical Commander (Cmdr. Thorne): Sensors, targeting, countermeasures.
+
 2. Science Officer (Lt. Cmdr. Elara Vance): Telemetry, black hole physics.
 3. Chief Engineer (Lt. Cmdr. K'Rath): Anti-matter flow, reactor integrity.
+
+<table>
+<tr>
+        <td><img src="readme_assets/the void protocol/Lt. Cmdr. K'Rath.png" alt="Chapter 2-II" width="300"/></td>
+</tr>
+</table>
+
 4. Navigation Officer (Lt. Aris): Inertial trajectory calculations, warp routes.
+
+<table>
+<tr>
+        <td><img src="readme_assets/the void protocol/Lt. Aris.png" alt="Chapter 2-II" width="300"/></td>
+</tr>
+</table>
+
 5. Communications and Security Officer (Lt. Jinn): Cryptographic firewall, shield modulation.
+
+
+<table>
+<tr>
+        <td><img src="readme_assets/the void protocol/Lt. Jinn.png" alt="Chapter 2-II" width="300"/></td>
+</tr>
+</table>
 
 "Admiral, A-MAT is collapsing to 60%!" shouted K'Rath, his hand firm on the reactor control lever. "The containment coils are suffering from the singularity's interference!"
 
