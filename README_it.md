@@ -3280,6 +3280,612 @@ Grazie, Grand'Ammiraglio Niklaus. È stato un onore servire sotto il vostro coma
 *ARCHIVIO STORICO DI SPACE GL - GDIS LOG 09.05.2026 - MISSIONE: PROTOCOLLO VUOTO*
 
 ---
+*ARCHIVIO STORICO DI SPACE GL - GDIS LOG 22.05.2026 - MISSIONE: L'Eco del Vuoto*
+
+# Space GL: L'Eco del Vuoto
+
+## Capitolo 1: Sussurri nell'Astrometria
+Tutto iniziò con una distorsione gravitazionale intercettata ai confini del *Cosmic Microwave Background*. Nel buio sferico del laboratorio di Astrometria, il **Lt. Solari** raddrizzò un fascio di luce distorta dalla materia oscura sul suo tablet olografico. "Sensori a lungo raggio allineati," mormorò, estraendo le coordinate `q1, q2, q3`. A pochi ponti di distanza, la **Lt. Ramata** analizzava il feed di una dozzina di unità `NetProbe` appena lanciate nel vuoto. "Ricezione dati confermata, Solari. I frammenti di un *Dyson Fragment* locale mostrano un picco termico inaspettato," disse lei, accarezzando con lo sguardo i display. C'era un'impronta ostile laggiù, e non era un miraggio.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt1.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 1/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Lieutenant Ramata.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 1/b:</b> "Lieutenant Ramata"</em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Lieutenant Solari.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 1/c:</b> "Lieutenant Solari"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 2: La Chiave e la Simbiosi
+Nel suo caveau di sicurezza rialzato, il **Capt. Sterling "Iron" Kibo** osservava i 21 prismi olografici delle chiavi crittografiche che ruotavano attorno a lui. "Verifica della variabile `server_signature` tramite HMAC-SHA256 completata. Latenza zero," dichiarò con voce profonda. L'integrità del sistema era assoluta. Questa perfezione permise all'**Ens. Jax** di stabilizzare il collegamento neurale. Le onde cerebrali del capitano fluirono intrecciandosi ai dati digitali della *Legacy*. "Simbiosi perfetta, *Shared Memory* allineata," sussurrò Jax, avvertendo i 1024 *NetObjects* indicizzati prendere vita nella mente della nave ammiraglia.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt2.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 2/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Capt. Sterling (Iron) Kibo.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 2/b:</b> "Capt. Sterling (Iron) Kibo"</em>
+         </figcaption>
+       </figure>
+     </td>
+      <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Ensign Jax.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 2/b:</b> "Ensign Jax"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 3: Il Fantasma in Wireframe
+Con la minaccia di Incrociatori Furtivi Nemici in agguato per un vantaggio tattico, la nave doveva sparire. Nel silenzio del suo angolo in penombra, l'**Ens. Slar** commutò la variabile `is_cloaked` a 1. Immediatamente, l'intera visuale 3D si tramutò in uno straordinario *wireframe* blu elettrico incandescente. La *Legacy* divenne un fantasma invisibile ai radar ostili. Slar sapeva bene che, sotto occultamento, i cannoni a ioni erano disabilitati e il `tube_state` bloccato; ogni watt doveva andare all'ombra. Alle sue spalle, la **Lt. Vrell** posò le mani ferme sui joystick di cristallo, guidando la nave senza emettere propulsione termica, sfiorando una vicina Anomalia Quantica.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt3.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 3/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Ensign Slar.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 3/b:</b> "Ensign Slar"</em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Lieutenant Vrell.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 3/c:</b> "Lieutenant Vrell"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 4: Architetture Zero-Trust
+"Traccia nemica crittografata rilevata nel *Galaxy Cube* `g[41][41][41]`," annunciò l'**Ens. Kira**. Le lenti computazionali davanti ai suoi occhi riflettevano blocchi perfetti di dati. Sfruttando le firme dell'algoritmo impostato su `shm_crypto_algo`, smantellò il codice d'intercettazione pezzo per pezzo. Contemporaneamente, l'**Ens. Loskene**, il cui occhio cibernetico pulsava di verde smeraldo, commutò `is_jammed` al massimo. Il suo pacchetto dati inviò un rumore bianco ai sensori nemici azzerando i loro vettori d'attacco, rendendo la *Legacy* un vero e proprio buco nero digitale.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt4.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 4/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Ensign Kira.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 4/b:</b> "Ensign Kira"</em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Ensign Loskene.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 4/c:</b> "Lieutenant Solari"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 5: Il Calcolo del Vuoto
+Per preparare una traiettoria di tiro perfetta non appena l'occultamento fosse caduto, la **Lt. Aris** danzava letteralmente all'interno della mappa galattica. "Le matrici interne del motore sono *Row-Major*," spiegò. "Calcolo le trasformazioni di traslazione nel fondo invertendo la moltiplicazione in `S * R * T`. Il renderer Vulkan le riceverà nel corretto formato *Column-Major* `T * R * S` senza colli di bottiglia." Nel frattempo, il **Cmdr. Madred** e la **Lt. Cmdr. Elara Vance** esaminavano la `species_counts`: le navi che si avvicinavano non erano guidate; l'intelligenza artificiale confermava una minaccia di "Classe Omega", antichi guardiani scaturiti dai Frammenti di Dyson.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt5.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 5/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Lieutenant Aris.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 5/b:</b> "Lieutenant Ramata"</em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Cmdr. Madred.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 5/c:</b> "Lieutenant Solari"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 6: Pressione e Respiro
+Con l'allarme rosso `red_alert = 1` pulsante in plancia, il **Lt. Idrin Karr** controllò gli inventari. "Le riserve energetiche ausiliarie sono al sicuro. Il nuovo mapping `uint64_t` ci permette di accumulare *cargo_energy* a livelli mai visti. Zero rischio di underflow, stabili fino a 999 miliardi di unità." Dall'altra parte, l'**Ens. Myra** guardava i monitor ambientali. "Variabile `life_support` al 100%. L'ossigenazione è al picco," disse con un sorriso sereno, assicurando che l'equipaggio respirasse aria purissima anche mentre la pressione strutturale aumentava.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt6.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 6/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Lieutenant Idrin Karr.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 6/b:</b> "Lieutenant Idrin Karr"</em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Ensign Myra.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 6/c:</b> "Ensign Myra"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 7: Caduta del Velo
+"Disattivare mantello wireframe. Armi online," ordinò con voce ferma il Grand'Ammiraglio. La struttura blu svanì, rivelando il *composite_plating* metallico, e l'HUD si riempì di *NetObjects* rossi nel settore ravvicinato. Il **Cmdr. Leandros Thorne Jr.** attivò la variabile `lock_target`: "Bersagli agganciati. Protocollo offensivo attivo!" Al suo fianco, l'**Ens. Nodo** tese i muscoli possenti per resistere al contraccolpo idraulico della plancia. "Variabile `ion_beam_charge` al picco," ruggì, innescando una devastante scarica azzurra che spazzò via le sentinelle automatizzate nemiche in un lampo di luce.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt7.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 7/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Ensign Nodo.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 7/b:</b> "Ensign Nodo"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 8: L'Equilibrio della Potenza
+La ritorsione nemica fu spietata, con sciami di *VisibleTorpedoes* che investirono la nave. Il **Lt. Pran** incrociò le braccia smistando il vettore `power_dist[3]` con agilità sovrumana, iniettando energia negli scudi frontali senza sottrarre corrente alle armi. La **Lt. Jinn**, con dita da pianista, modulò l'array `shields[6]` calcolando un *shield_change_rate* su frequenze sinusoidali inverse per deflettere i colpi cinetici dei droni nemici, evitando che la temperatura salisse oltre le soglie critiche.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt8.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 8/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Lieutenant Pran.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 8/b:</b> "Lieutenant Pran"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 9: Fuoco Primordiale
+Nelle viscere della nave, il nucleo gravitazionale gemeva. Il Chief Engineer **Lt. Cmdr. K'Rath** manteneva la calma in un mare di vapore e scintille olografiche monitorando l'array `system_health`. L'**Ens. Tog**, con i giganteschi occhi violetti illuminati dai lampi UV, monitorava implacabile l'`anti_matter_count`. "Fluttuazione al millisecondo stabilizzata. Posso garantirvi un altro rilascio massiccio per il cannone a ioni, ma dovremo assorbire un contraccolpo termico di tre milioni di gradi."
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt9.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 9/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Lieutenant Ramata.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 9/b:</b> "Lieutenant Ramata"</em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Lieutenant Solari.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 9/c:</b> "Lieutenant Solari"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 10: I Guardiani dello Scafo
+Nonostante gli scudi, uno sciame riuscì a perforare l'armatura di babordo, causando un rapido calo di `hull_integrity`. La **Lt. Khor** era pronta. Dal suo terminale, dispiegò il modulo `NetDismantle` adattato per le riparazioni: un raggio ricostruttivo e uno sciame di nanodroni. I sensori HUD visualizzarono le zone di danno in rosso pulsante. Nel vuoto cosmico, la tecnologia di micro-saldatura sigillò la corazza composita, prevenendo l'esposizione al vuoto glaciale e restituendo stabilità allo scafo in pochi drammatici istanti.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt10.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 10/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Lieutenant Khor.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 10/b:</b> "Lieutenant Khor"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 11: Il Battito della Legacy
+Nel caos della furia elettromagnetica della *Plasma Storm* circostante, il ponte mantenne un ordine glaciale grazie alla **Capt. Nia Kibo**. "L'Incudine" analizzò e gestì la risorsa `crew_count`, distribuendo i danni e re-indirizzando gli equipaggi con spietata efficienza. A supporto della stabilità galattica, il Second Officer **Cmdr. Soren Korth** mantenne la sincronizzazione dei *NetEvents*, copiando i dati vitali in tempo reale con le altre navi amiche dell'Alleanza tramite protocolli ridondanti che eludevano qualsiasi tentativo di hacking.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt11.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 11/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Capt. Nia Kibo.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 11/b:</b> "Capt. Nia Kibo"</em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Cmdr. Soren Korth.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 11/c:</b> "Cmdr. Soren Korth"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 12: Raggi Traenti nel Buio
+Durante le estreme manovre evasive (`vx, vy, vz`), una navetta logistica locale fu colpita da un'onda d'urto kilonova secondaria. L'**Ens. Varek**, dal ponte di volo, analizzò il caotico traffico dei `NetBeams`. Con la sua voce rassicurante e la cuffia a conduzione ossea, emise un raggio traente stabilizzato (aggiornando i `target_id` e `owner_id`), attirando la piccola imbarcazione al sicuro fuori dal raggio della devastazione gravitazionale senza un solo brivido di esitazione.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt12.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 12/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/Ensign Varek.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 12/b:</b> "Ensign Varek"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 13: Il Peso della Scelta
+Le entità di Classe Omega tentarono un assalto coordinato finale verso il motore warp. Il **Cmdre. Leandros Thorne Sr.**, valutando le posizioni su mappa (`q1, q2, q3`), propose all'Alto Comando una mossa disperata. "Convergere al centro dell'Anomalia Temporale. Attirerà i detriti contro di loro." Il **Grand Admiral Hyperion Niklaus**, in piedi e imponente, approvò. Da un server di comando distante, l'**High Admiral Selene Vax-Orion** ridistribuì la flotta esterna dell'Alleanza a blocco delle rotte di fuga in avvicinamento.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt13.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 13/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 14: L'Ispettore della Memoria Condivisa
+Per sincronizzare la detonazione perfetta di tutti i tubi lanciasiluri (`tube_torpedo_etas`), ogni vascello doveva colpire l'obiettivo contemporaneamente. Il Grand'Ammiraglio sfiorò il comando '`m`'. Sull'HUD si dispiegò l'*Ispettore di Memoria Condivisa* (SHM) paginato. Premendo `n` e `p`, passò in rassegna tutte le firme digitali (`server_pubkey`), confermando l'energia e i `target_shields` di ogni nave. "Firme HMAC-SHA256 allineate e autenticate. Sincronia della Flotta perfetta."
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt14.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 14/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+## Capitolo 15: Sincronizzazione Galattica
+L'ordine venne eseguito. Il fuoco concentrato generò un picco di collisioni quantistiche che travolse le navi ostili Omega, che svanirono in polvere di *Dark Matter Halo*. I bersagli si spensero dall'array `NetObjects`. Sulla plancia della *Legacy*, l'energia si stabilizzò. Grazie alle menti e al lavoro instancabile dei 24 ufficiali, i protocolli crittografici di *Space GL* avevano resistito, le moltiplicazioni matriciali avevano scardinato l'anomalia, e il coraggio umano (e alieno) aveva dimostrato ancora una volta che la vera grandezza siede nei calcoli perfetti e in chi ha l'animo di eseguirli nel buio assoluto.
+
+<table>
+  <tr>
+     <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/command bridges/cpt15.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 15/a</b> </em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+---
+
+## Cast:
+
+🏛 LIVELLO 0: COMANDO STRATEGICO (The Strategy Tier)
+Deck: Command Dais (Il Trono)
+
+* 🔴 1. Grand Admiral Hyperion Niklaus
+    * Ruolo: Autorità Suprema della Flotta.
+* 🔴 2. Commodore Leandros Thorne, Sr.
+    * Ruolo: Senior Tactical Advisor. Ex-eroe di guerra, supervisore delle strategie di flotta.
+
+---
+
+🛡 LIVELLO 1: DIREZIONE ESECUTIVA (The Executive Tier)
+Deck: Executive Row (Il Cuore Decisionale)
+
+* ⚪ 3. Captain Nia "The Anvil" Kibo (First Officer - XO)
+    * Ruolo: Gestione operativa e comando dell'equipaggio.
+* ⚪ 4. Captain Sterling "Iron" Kibo (Director of Sovereign Security)
+    * Ruolo: Custode delle Chiavi algo_*.key e dell'integrità del ponte.
+* ⚪ 5. Commander Soren "The Pulse" Korth (Second Officer)
+    * Ruolo: Ridondanza dei dati SHM e sincronizzazione con la flotta.
+
+---
+
+⚔ LIVELLO 2: DIPARTIMENTO TATTICO (The Sword & Shield)
+Deck: Tactical Pit (La Trincea)
+
+* 🟠 6. Commander Leandros Thorne, Jr. (Tactical Commander)
+    * Ruolo: Coordinamento bellico e aggancio bersagli.
+* 🟠 7. Lieutenant Jinn (Shield Modulation Officer)
+    * Ruolo: Gestione frequenze e bilanciamento dei 6 banchi di scudi.
+* 🟠 8. Ensign Nodo (Heavy Weapons Specialist)
+    * Ruolo: Operatore del Cannone a Ioni e siluri plasma.
+* 🟠 9. Ensign Slar (Stealth & Infiltration Expert)
+    * Ruolo: Gestione del dispositivo di occultamento (is_cloaked).
+* 🟠 10. Ensign Loskene (Electronic Warfare Specialist)
+    * Ruolo: Sentinella digitale contro il disturbo radar nemico.
+
+---
+
+🗺 LIVELLO 3: NAVIGAZIONE E OPERAZIONI (The Compass)
+Deck: Navigation Arch (L'Arco di Navigazione)
+
+* 🟡 11. Lieutenant Aris (Navigation Officer)
+    * Ruolo: Calcolo delle rotte di salto e coordinate galattiche.
+* 🟡 12. Lieutenant T’Vrell (Helmsman / Pilota)
+    * Ruolo: Esecuzione fisica delle manovre e gestione velocità.
+* 🟡 13. Lieutenant Idrin Karr (Logistics & Quartermaster)
+    * Ruolo: Gestione energia cargo, inventario e risorse.
+* 🟡 14. Lieutenant Ramata (Deep Space Reconnaissance)
+    * Ruolo: Gestione delle sonde NetProbe e analisi settori lontani.
+* 🟡 15. Ensign Varek (Flight Deck Controller)
+    * Ruolo: Coordinamento navette e oggetti nel settore.
+
+---
+
+⚙ LIVELLO 4: INGEGNERIA E AMBIENTE (The Heart)
+Deck: Engineering Alcoves (Il Cuore Meccanico)
+
+* 🟢 16. Lt. Cmdr. K’Rath (Chief Engineer)
+    * Ruolo: Integrità del reattore ad anti-materia.
+* 🟢 17. Lieutenant Pran (Energy Distribution Architect)
+    * Ruolo: Ottimizzazione della distribuzione di potenza (power_dist).
+* 🟢 18. Lieutenant Khor (Structural Integrity Officer)
+    * Ruolo: Monitoraggio scafo e corazzatura composita.
+* 🟢 19. Ensign Myra (Environmental Systems Chief)
+    * Ruolo: Gestione del supporto vitale e filtraggio virus bio-digitali.
+* 🟢 20. Ensign Tog (Anti-Matter Analyst)
+    * Ruolo: Calcolo decadimento energia e stabilità nucleo.
+
+---
+
+🔬 LIVELLO 5: SCIENZA E INTELLIGENCE (The Eye)
+Deck: Science Stations (Le Stazioni di Analisi)
+
+* 🔵 21. Lt. Cmdr. Elara Vance (Science Officer)
+    * Ruolo: Analisi spettrografica e fisica delle singolarità.
+* 🔵 22. Commander Madred (Xenobiology & Liaison Officer)
+    * Ruolo: Traduzione universale e contatti diplomatici alieni.
+* 🔵 23. Lieutenant Solari (Astrometrics Specialist)
+    * Ruolo: Cartografia e correzione parallasse materia oscura.
+* 🔵 24. Ensign Kira (Cryptography Specialist)
+    * Ruolo: Architetto della sicurezza dei dati e firme SHA256.
+* 🔵 25. Ensign Jax (Neural Link Technician)
+    * Ruolo: Calibrazione interfaccia uomo-macchina per il Capitano.
+
+---
+
+🛰 COLLEGAMENTO ESTERNO
+* 📡 High Admiral Selene Vax-Orion (High Command Base - Orion Prime)
+    * Ruolo: Autorità Politica e Strategica. Fornisce gli obiettivi di missione alla Legacy tramite canali criptati a lungo raggio.
+
+---
+*ARCHIVIO STORICO DI SPACE GL - GDIS LOG 22.05.2026 - MISSIONE: L'Eco del Vuoto*
+
 ---
 *SPACE GL - 3D LOGIC ENGINE. Sviluppato con eccellenza tecnica da Nicola Taibi. "Per Tenebras, Lumen"*
 
