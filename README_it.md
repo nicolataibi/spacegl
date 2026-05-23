@@ -15,7 +15,7 @@
 <p>May 12, 2026</p>
 </div>
 
-Space GL è un simulatore di volo e combattimento spaziale 3D multi-utente ad alte prestazioni. Il motore include la sincronizzazione della galassia in tempo reale tramite memoria condivisa (SHM), l'integrità dei dati firmata crittograficamente (HMAC-SHA256), un sottosistema avanzato di telemetria dual-socket per la supervisione tattica e interfacce di visualizzazione versatili basate su OpenGL e Vulkan.
+Space GL è un simulatore di volo e combattimento spaziale 3D multi-utente ad alte prestazioni. Il motore include la sincronizzazione della galassia in tempo reale tramite memoria condivisa (SHM), l'integrità dei dati firmata in modo sicuro (HMAC-SHA256), un sottosistema avanzato di telemetria dual-socket per la supervisione tattica e interfacce di visualizzazione versatili basate su OpenGL e Vulkan.
 ---
 
 <table align="center">
@@ -3918,5 +3918,23 @@ Deck: Science Stations (Le Stazioni di Analisi)
 
 ---
 *SPACE GL - 3D LOGIC ENGINE. Sviluppato con eccellenza tecnica da Nicola Taibi. "Per Tenebras, Lumen"*
+
+---
+
+## 🚀 Analisi delle Prestazioni e Considerazioni Personali
+
+### Benchmarking e Hardware
+Durante lo sviluppo di Space GL, ho avuto modo di testare approfonditamente il motore grafico su diverse architetture. Pur non potendo fornire dati riguardanti l'hardware **NVIDIA** (non avendone il possesso per test diretti), desidero elogiare le prestazioni ottenute con i driver **amdgpu**. Su configurazioni AMD, il gioco offre un'esperienza fantastica: la fluidità è assoluta, con un frame rate costante che rende ogni manovra di volo un vero piacere. Al contrario, l'esecuzione su architetture **i915/Xe (Intel)** ha evidenziato svariati lag e stuttering che purtroppo compromettono l'interesse del gioco.
+
+**Motivazioni Tecniche:**
+Questa disparità è legata principalmente alla differente maturità degli stack software. L'architettura `amdgpu` beneficia di driver (come RADV in ambiente Linux) estremamente maturi, raffinati in anni di sviluppo e ottimizzazioni specifiche per Vulkan, che permettono una gestione impeccabile dei buffer e delle pipeline grafiche. Al contrario, lo stack Intel `Xe` (specialmente per le GPU discrete più recenti come la serie Arc), pur disponendo di hardware potente e generosa VRAM (come i 16GB della **Intel Arc A770**), soffre ancora di una relativa giovinezza dei driver. Le criticità riscontrate derivano da colli di bottiglia nel compilatore di shader e in una gestione delle code di esecuzione meno efficiente, che non riesce ancora a sfruttare appieno la potenza del silicio, causando quegli stuttering che mancano del tutto sulla controparte AMD.
+
+### Considerazioni Personali e Origini
+Programmare Space GL è stata per me una gioia immensa. Mi ha permesso di fare un salto nel passato, catapultandomi virtualmente negli anni '70, un'epoca in cui sognare giochi di questa portata era quasi pura fantascienza. In questo viaggio nostalgico, è impossibile non ricordare il leggendario **Spacewar!**, sviluppato nel 1962 da Steve Russell e dal suo team al MIT per il **Digital Equipment Corp. PDP-1**.
+
+**Storiografia di Spacewar!:**
+Creato in un'epoca in cui i computer erano grandi quanto intere stanze, Spacewar! è considerato uno dei primi videogiochi digitali della storia. Girando sul PDP-1, permetteva a due giocatori di sfidarsi in un duello orbitale attorno a una stella centrale ("The Star"), introducendo concetti rivoluzionari come l'inerzia, la gestione limitata del carburante e la forza di gravità. Riproporre quelle atmosfere, seppur con la potenza del moderno Vulkan, è stato un onore e un divertimento unico.
+
+Un ringraziamento speciale va al team di **Bugzilla** per le loro pazienti e meticolose revisioni, che hanno permesso di affinare questo progetto versione dopo versione. :)
 
 ---

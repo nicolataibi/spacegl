@@ -3,7 +3,7 @@
 %global autorelease_version 1
 
 Name:           spacegl
-Version:        2026.05.23.01
+Version:        2026.05.23.02
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
@@ -32,7 +32,7 @@ Requires:       %{name}-data = %{version}-%{release}
 %description
 Space GL is a high-performance 3D multi-user client-server space flight and
 combat simulator. The engine features real-time galaxy state synchronization
-using shared memory (SHM), cryptographically signed data integrity
+using shared memory (SHM), securely signed data integrity
 (HMAC-SHA256), a dual-socket advanced telemetry subsystem for tactical
 oversight, and versatile visualization front-ends built on OpenGL and Vulkan.
 
