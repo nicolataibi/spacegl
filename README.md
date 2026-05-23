@@ -3018,7 +3018,7 @@ The ship groaned as energy flowed through the circuits. On the LRS display, the 
 </tr>
 </table>
 <p align="center">
-<em><b>Fig. 2:</b> Spectrographic analysis of the Dyson sector and Lt. Cmdr. Elara Vance's neural readings..</em>
+<em><b>Fig. 2:</b> Spectrographic analysis of the Dyson sector and Lt. Cmdr. Elara Vance's neural readings.</em>
 </p>
 
 Here is how Grand Admiral H. Niklaus manages the energy crisis, orchestrating his command bridge in a perfect dance of engineering and strategy.
