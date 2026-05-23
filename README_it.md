@@ -3609,22 +3609,11 @@ Nelle viscere della nave, il nucleo gravitazionale gemeva. Il Chief Engineer **L
      <td align="center">
        <figure style="margin: 0;">
          <img 
-           src="readme_assets/command bridges/Lieutenant Ramata.png" 
+           src="readme_assets/command bridges/Ensign Tog.png" 
            alt="Stellar Alliance Sentinel Class" 
            width="400"/>
          <figcaption>
-           <em><b>Fig. 9/b:</b> "Lieutenant Ramata"</em>
-         </figcaption>
-       </figure>
-     </td>
-     <td align="center">
-       <figure style="margin: 0;">
-         <img 
-           src="readme_assets/command bridges/Lieutenant Solari.png" 
-           alt="Stellar Alliance Sentinel Class" 
-           width="400"/>
-         <figcaption>
-           <em><b>Fig. 9/c:</b> "Lieutenant Solari"</em>
+           <em><b>Fig. 9/b:</b> "Ensign Tog"</em>
          </figcaption>
        </figure>
      </td>
@@ -3788,6 +3777,47 @@ L'ordine venne eseguito. Il fuoco concentrato generò un picco di collisioni qua
      </td>
   </tr>
 </table>
+
+---
+
+## 🎖️ Albo d'Oro e Meriti del Personale di Plancia
+
+*Questa sezione celebra le eccellenze tecniche e il coraggio dimostrato dagli ufficiali della flotta nello sviluppo e nel mantenimento del protocollo Space GL.*
+
+### 🏛️ LIVELLO 0 & 1: COMANDO E DIREZIONE
+*   **Grand Admiral Hyperion Niklaus**: Autorità suprema della flotta. Ha unificato i protocolli di sincronizzazione galattica durante la crisi dei Xylari, implementando lo standard di sicurezza basato su firme HMAC-SHA256 che protegge l'intera rete dell'Alleanza.
+*   **Commodore Leandros Thorne, Sr. (Senior Tactical Advisor)**: Veterano decorato, apporta decenni di esperienza diplomatica e militare. Agisce come mediatore critico tra l'audacia tattica e la necessità di preservare l'integrità strutturale della nave, garantendo una disciplina impeccabile sul ponte.
+*   **Captain Nia "The Anvil" Kibo (First Officer - XO)**: Nota per la sua "calma d'acciaio", ha guadagnato il suo soprannome durante la Difesa del Varco di Magellano. Dopo la neutralizzazione dello stato maggiore, coordinò manualmente la distribuzione dell'energia (`power_dist`) per deviare i colpi nemici su sezioni non vitali, salvando 2.000 vite.
+*   **Captain Sterling "Iron" Kibo (Director of Sovereign Security)**: Custode delle chiavi `algo_*.key`. Durante la "Grande Crisi di Decrittazione", protesse fisicamente il database delle chiavi con il proprio corpo e la propria interfaccia neurale mentre l'area era inondata di radiazioni, impedendo il collasso dell'intera griglia di comando dell'Alleanza.
+*   **Commander Soren "The Pulse" Korth (Second Officer)**: Responsabile della ridondanza operativa. Durante l'attacco al Settore 9, quando la CPU centrale fu colpita da un virus, mantenne l'intera operatività della nave tramite il suo "Mirror Protocol", un collegamento neurale diretto con i server di riserva.
+
+### ⚔️ LIVELLO 2: DIPARTIMENTO TATTICO E DIFESA
+*   **Commander Leandros Thorne, Jr. (Tactical Commander)**: Creatore del protocollo Blowfish e maestro della guerra silenziosa. È sopravvissuto a un fallimento critico del generatore di occultamento durante una missione segreta, esperienza che ha trasformato in una capacità predatoria di aggancio bersagli senza pari.
+*   **Lieutenant Jinn (Shield Modulation Officer)**: Esperta in modulazione energetica. Ha ideato la frequenza sinusoidale inversa che rende i 6 banchi di scudi impenetrabili alle radiazioni delle singolarità, permettendo alla Legacy di operare in ambienti gravitazionali estremi.
+*   **Ensign Nodo (Heavy Weapons Specialist)**: Specialista Sauriano della Divisione Armamenti. Detiene il record leggendario di aver colpito un nucleo nemico a 50.000 km di distanza con un singolo colpo di cannone a ioni, compensando manualmente il rinculo dei siluri e le vibrazioni dello scafo.
+*   **Ensign Slar (Stealth & Infiltration Expert)**: Specialista del dispositivo di occultamento (`is_cloaked`). È riuscito a mantenere la nave invisibile per 48 ore consecutive all'interno di una corona solare, operando in condizioni di calore estremo per minimizzare ogni traccia radar e termica.
+*   **Ensign Loskene (Electronic Warfare Specialist)**: Sentinella digitale dotata di potenziamenti cibernetici d'élite. Ha messo in ginocchio un'intera flotta d'invasione Xylari inviando un singolo, perfetto pacchetto dati crittografico che ha causato il crash totale dei loro sistemi di puntamento.
+
+### 🗺️ LIVELLO 3: NAVIGAZIONE E OPERAZIONI
+*   **Lieutenant Aris (Navigation Officer)**: Navigatrice instancabile dotata di un'intuizione spaziale sovrumana. Ha tracciato la prima rotta sicura attraverso il "Settore del Vuoto", una zona priva di stelle o boe di salto, guidando la flotta basandosi esclusivamente su calcoli di parallasse e micro-variazioni gravitazionali.
+*   **Lieutenant T’Vrell (Helmsman / Pilota)**: Pilota dalla logica glaciale e dalle "mani che non tremano mai". Ha eseguito una manovra di "drift" gravitazionale attorno a un buco nero per sfuggire all'onda d'urto di una supernova, mantenendo la stabilità della nave al limite del collasso strutturale.
+*   **Lieutenant Idrin Karr (Logistics & Quartermaster)**: Custode instancabile delle risorse. Durante tre anni di isolamento totale in territorio ostile, ha gestito l'inventario e il `cargo_energy` con tale precisione da non permettere mai al sistema di scendere sotto la soglia critica del 10%.
+*   **Lieutenant Ramata (Deep Space Reconnaissance)**: Specialista in droni sonda (`NetProbe`). Ha scoperto il "Pianeta di Cristallo" operando in una zona di interferenza totale, riuscendo a decodificare i dati grezzi dei sensori che ogni altro ufficiale aveva scartato come rumore di fondo.
+*   **Ensign Varek (Flight Deck Controller)**: Direttore del traffico stellare dalla voce imperturbabile. Ha coordinato l'attracco di 20 navette di salvataggio in mezzo a un campo di asteroidi in fiamme, utilizzando raggi traenti stabilizzati per guidare ogni pilota attraverso rotte sicure.
+
+### ⚙️ LIVELLO 4: INGEGNERIA E AMBIENTE
+*   **Lt. Cmdr. K’Rath (Chief Engineer)**: Il cuore meccanico della nave. Durante un sovraccarico critico del reattore, ha tenuto insieme il nucleo di anti-materia tramite un campo di forza manuale e un intervento diretto sulle valvole olografiche, prevenendo l'annichilazione del vascello.
+*   **Lieutenant Pran (Energy Distribution Architect)**: Chirurgo della potenza elettrica. Ha ottimizzato il protocollo `power_dist` per permettere l'uso simultaneo di scudi al 100% e del cannone a ioni a piena potenza, sfidando le leggi della termodinamica navale durante l'assedio di Orion.
+*   **Lieutenant Khor (Structural Integrity Officer)**: Specialista in metallurgia spaziale. Ha riparato una falla critica nello scafo in pieno combattimento, coordinando uno sciame di 500 droni nanometrici per "tessere" nuove piastre di corazza composita sotto il fuoco nemico.
+*   **Ensign Myra (Environmental Systems Chief)**: Responsabile della bio-telemetria e del supporto vitale. Ha isolato un virus bio-digitale letale nei condotti di aerazione, impedendo l'asfissia dell'intero equipaggio e purificando l'atmosfera della nave in pochi secondi.
+*   **Ensign Tog (Anti-Matter Analyst)**: Analista dalla precisione millimetrica. Ha calcolato il tasso di decadimento dell'anti-materia corretta al millisecondo, permettendo un salto Warp di emergenza che ha sottratto la nave a una singolarità in espansione.
+
+### 🔬 LIVELLO 5: SCIENZA E INTELLIGENCE
+*   **Lt. Cmdr. Elara Vance (Science Officer)**: Mente enciclopedica della flotta. Ha decodificato le letture neurali del Settore Dyson, portando alla luce l'esistenza di forme di vita senzienti all'interno delle singolarità gravitazionali, cambiando per sempre la nostra comprensione del multiverso.
+*   **Commander Madred (Xenobiology & Liaison Officer)**: Il ponte linguistico della Galassia. Parla correntemente oltre 50 lingue aliene e ha mediato la pace tra l'Alleanza e l'Egemonia Xylari durante la "Notte dei Soli Neri", risolvendo un conflitto millenario con la diplomazia.
+*   **Lieutenant Solari (Astrometrics Specialist)**: Cartografo dell'invisibile. Ha corretto gli errori di parallasse dell'intera flotta causati dalle distorsioni della materia oscura, permettendo puntamenti a lungo raggio che hanno eliminato minacce invisibili ai sensori standard.
+*   **Ensign Kira (Cryptography Specialist)**: Architetto della sicurezza "Zero-Trust". Ha progettato il motore di firma HMAC-SHA256 a bassa latenza che protegge il flusso di memoria condivisa (SHM), rendendo la Legacy immune a intrusioni e manipolazioni di dati falsi.
+*   **Ensign Jax (Neural Link Technician)**: Specialista in simbiosi uomo-macchina. Ha calibrato il primo collegamento neurale stabile e sicuro tra la coscienza del Capitano e il computer centrale, permettendo un controllo della nave fluido come un battito cardiaco.
 
 ---
 

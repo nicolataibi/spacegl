@@ -3785,22 +3785,11 @@ In the ship's bowels, the gravitational core groaned. Chief Engineer **Lt. Cmdr.
      <td align="center">
        <figure style="margin: 0;">
          <img 
-           src="readme_assets/command bridges/Lieutenant Ramata.png" 
+           src="readme_assets/command bridges/Ensign Tog.png" 
            alt="Stellar Alliance Sentinel Class" 
            width="400"/>
          <figcaption>
-           <em><b>Fig. 9/b:</b> "Lieutenant Ramata"</em>
-         </figcaption>
-       </figure>
-     </td>
-     <td align="center">
-       <figure style="margin: 0;">
-         <img 
-           src="readme_assets/command bridges/Lieutenant Solari.png" 
-           alt="Stellar Alliance Sentinel Class" 
-           width="400"/>
-         <figcaption>
-           <em><b>Fig. 9/c:</b> "Lieutenant Solari"</em>
+           <em><b>Fig. 9/b:</b> "Ensign Tog"</em>
          </figcaption>
        </figure>
      </td>
@@ -3964,6 +3953,47 @@ The order was executed. Concentrated fire generated a peak of quantum collisions
      </td>
   </tr>
 </table>
+
+---
+
+## 🎖️ Hall of Fame and Personnel Merits
+
+*This section celebrates the technical excellence and courage demonstrated by fleet officers in the development and maintenance of the Space GL protocol.*
+
+### 🏛️ LEVEL 0 & 1: COMMAND AND DIRECTION
+*   **Grand Admiral Hyperion Niklaus**: Supreme Fleet Authority. He unified galactic synchronization protocols during the Xylari crisis, implementing the HMAC-SHA256 signature security standard that protects the entire Alliance network.
+*   **Commodore Leandros Thorne, Sr. (Senior Tactical Advisor)**: Decorated veteran, bringing decades of diplomatic and military experience. He acts as a critical mediator between tactical audacity and the need to preserve the ship's structural integrity, ensuring impeccable discipline on the bridge.
+*   **Captain Nia "The Anvil" Kibo (First Officer - XO)**: Known for her "iron calm," she earned her nickname during the Defense of the Magellan Gap. After the command staff was neutralized, she manually coordinated power distribution (`power_dist`) to divert enemy fire to non-vital sections, saving 2,000 lives.
+*   **Captain Sterling "Iron" Kibo (Director of Sovereign Security)**: Guardian of the `algo_*.key` keys. During the "Great Decryption Crisis," he physically protected the key database with his own body and neural interface while the area was flooded with radiation, preventing the collapse of the entire Alliance command grid.
+*   **Commander Soren "The Pulse" Korth (Second Officer)**: Responsible for operational redundancy. During the attack on Sector 9, when the central CPU was hit by a virus, he maintained full ship operability through his "Mirror Protocol," a direct neural link to backup servers.
+
+### ⚔️ LEVEL 2: TACTICAL DEPARTMENT AND DEFENSE
+*   **Commander Leandros Thorne, Jr. (Tactical Commander)**: Creator of the Blowfish protocol and master of silent warfare. He survived a critical failure of the cloaking generator during a secret mission, an experience he transformed into an unparalleled predatory target-locking capability.
+*   **Lieutenant Jinn (Shield Modulation Officer)**: Expert in energy modulation. She devised the inverse sine frequency that makes the 6 shield banks impenetrable to singularity radiation, allowing the Legacy to operate in extreme gravitational environments.
+*   **Ensign Nodo (Heavy Weapons Specialist)**: Saurian specialist of the Armaments Division. He holds the legendary record of hitting an enemy core 50,000 km away with a single ion beam shot, manually compensating for torpedo recoil and hull vibrations.
+*   **Ensign Slar (Stealth & Infiltration Expert)**: Specialist for the cloaking device (`is_cloaked`). He managed to keep the ship invisible for 48 consecutive hours inside a solar corona, operating under extreme heat conditions to minimize any radar and thermal signature.
+*   **Ensign Loskene (Electronic Warfare Specialist)**: Digital sentinel equipped with elite cybernetic enhancements. He brought an entire Xylari invasion fleet to its knees by sending a single, perfect cryptographic data packet that caused a total crash of their targeting systems.
+
+### 🗺️ LEVEL 3: NAVIGATION AND OPERATIONS
+*   **Lieutenant Aris (Navigation Officer)**: Tireless navigator with superhuman spatial intuition. She charted the first safe route through the "Void Sector," an area devoid of stars or jump buoys, guiding the fleet based solely on parallax calculations and micro-gravitational variations.
+*   **Lieutenant T’Vrell (Helmsman / Pilot)**: Pilot with icy logic and "hands that never shake." She executed a gravitational "drift" maneuver around a black hole to escape a supernova shockwave, maintaining ship stability at the edge of structural collapse.
+*   **Lieutenant Idrin Karr (Logistics & Quartermaster)**: Tireless guardian of resources. During three years of total isolation in hostile territory, he managed inventory and `cargo_energy` with such precision that the system never dropped below the critical 10% threshold.
+*   **Lieutenant Ramata (Deep Space Reconnaissance)**: Specialist in probe drones (`NetProbe`). She discovered the "Crystal Planet" while operating in a zone of total interference, successfully decoding raw sensor data that every other officer had dismissed as background noise.
+*   **Ensign Varek (Flight Deck Controller)**: Star traffic director with an imperturbable voice. He coordinated the docking of 20 rescue shuttles in the middle of a burning asteroid field, using stabilized tractor beams to guide every pilot through safe routes.
+
+### ⚙️ LEVEL 4: ENGINEERING AND ENVIRONMENT
+*   **Lt. Cmdr. K’Rath (Chief Engineer)**: The mechanical heart of the ship. During a critical reactor overload, he held the anti-matter core together with a manual force field and direct intervention on holographic valves, preventing the vessel's annihilation.
+*   **Lieutenant Pran (Energy Distribution Architect)**: Electrical power surgeon. He optimized the `power_dist` protocol to allow the simultaneous use of 100% shields and the ion beam at full power, defying naval thermodynamics laws during the Siege of Orion.
+*   **Lieutenant Khor (Structural Integrity Officer)**: Space metallurgy specialist. She repaired a critical hull breach in the heat of battle, coordinating a swarm of 500 nanometric drones to "weave" new composite armor plates under enemy fire.
+*   **Ensign Myra (Environmental Systems Chief)**: Responsible for bio-telemetry and life support. She isolated a lethal bio-digital virus in the ventilation ducts, preventing the asphyxiation of the entire crew and purifying the ship's atmosphere in seconds.
+*   **Ensign Tog (Anti-Matter Analyst)**: Analyst with millimetric precision. He calculated the anti-matter decay rate corrected to the millisecond, allowing an emergency Warp jump that pulled the ship away from an expanding singularity.
+
+### 🔬 LEVEL 5: SCIENCE AND INTELLIGENCE
+*   **Lt. Cmdr. Elara Vance (Science Officer)**: Encyclopedic mind of the fleet. She decoded the neural readings of the Dyson Sector, revealing the existence of sentient life forms within gravitational singularities, forever changing our understanding of the multiverse.
+*   **Commander Madred (Xenobiology & Liaison Officer)**: The linguistic bridge of the Galaxy. He is fluent in over 50 alien languages and mediated peace between the Alliance and the Xylari Hegemony during the "Night of the Black Suns," resolving a millennium-long conflict with diplomacy.
+*   **Lieutenant Solari (Astrometrics Specialist)**: Cartographer of the invisible. He corrected the entire fleet's parallax errors caused by dark matter distortions, allowing long-range targeting that eliminated threats invisible to standard sensors.
+*   **Ensign Kira (Cryptography Specialist)**: "Zero-Trust" security architect. She designed the low-latency HMAC-SHA256 signature engine that protects the Shared Memory (SHM) flow, making the Legacy immune to intrusions and false data manipulations.
+*   **Ensign Jax (Neural Link Technician)**: Human-machine symbiosis specialist. They calibrated the first stable and secure neural link between the Captain's consciousness and the central computer, allowing ship control as fluid as a heartbeat.
 
 ---
 
