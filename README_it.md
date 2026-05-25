@@ -471,13 +471,13 @@ Lo script `local_check.sh` verifica che tutte le dipendenze siano soddisfatte e 
 ### 4. Avvio del Server
 Lancia lo script di avvio dalla root del progetto. Ti verrà chiesto di impostare una **Master Key**:
 ```bash
-./spacegl_server.sh
+./spacegl-server
 ```
 
 ### 5. Avvio del Client
 Lancia il client dalla root del progetto:
 ```bash
-./spacegl_client.sh gl|vk
+./spacegl-client gl|vk
 ```
 **Flusso di accesso:**
 1.  **Server IP:** Inserisci l'indirizzo del server.

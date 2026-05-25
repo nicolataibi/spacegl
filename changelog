@@ -1,3 +1,9 @@
+* Tue May 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.26.01
+- Address review comments: cleanup unused macros, remove %check, switch to pkgconfig()
+- Rename wrapper scripts and man pages (remove .sh extension)
+- Enable granular stripping exclusion for spacegl_diag
+- Update documentation and build system
+
 * Sat May 23 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.23.02
 - [Docs] Added final sections to README.md and README_it.md including Performance Analysis (driver maturity focus for amdgpu vs i915/Xe) and Personal Reflections.
 - [Docs] Integrated the "Hall of Fame and Personnel Merits" section, providing a comprehensive mapping between game logic and the narrative background of all 25 bridge officers.

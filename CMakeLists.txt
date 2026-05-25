@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(SpaceGL VERSION 2026.04.12 LANGUAGES C)
 
 # --- Standard C e Opzioni di Compilazione ---
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # Default to Release build if not specified
@@ -127,7 +127,7 @@ include(GNUInstallDirs)
 install(TARGETS spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_hud spacegl_vulkan spacegl_diag spacegl_telemetry
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-install(PROGRAMS spacegl_server.sh spacegl_client.sh spacegl_diag.sh
+install(PROGRAMS spacegl-server spacegl-client spacegl-diag
         DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 install(FILES ${SHADER_SPV_FILES}
@@ -142,7 +142,7 @@ install(FILES
     man/man1/spacegl_hud.1
     man/man1/spacegl_diag.1
     man/man1/spacegl_telemetry.1
-    man/man1/spacegl_server.sh.1
-    man/man1/spacegl_client.sh.1
-    man/man1/spacegl_diag.sh.1
+    man/man1/spacegl-server.1
+    man/man1/spacegl-client.1
+    man/man1/spacegl-diag.1
     DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
