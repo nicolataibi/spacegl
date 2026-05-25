@@ -1,0 +1,40 @@
+.TH SPACEGL_CLIENT.SH 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.SH NAME
+spacegl_client.sh \- SpaceGL tactical bridge launcher script
+.SH SYNOPSIS
+.B spacegl_client.sh
+.RI [ OPTIONS ]
+.RI [ gl | vk ]
+.SH DESCRIPTION
+.B spacegl_client.sh
+is a Bash wrapper script that provides an interactive startup interface
+for the SpaceGL game client. It displays the SpaceGL banner, handles
+master key authentication interactively when the
+.B SPACEGL_KEY
+environment variable is not already set, and then delegates execution
+to
+.BR spacegl_client (1).
+.PP
+All arguments passed to this script are forwarded verbatim to the
+underlying
+.B spacegl_client
+binary. Pass
+.B gl
+to use the OpenGL frontend or
+.B vk
+to use the Vulkan frontend.
+.SH OPTIONS
+Any option accepted by
+.BR spacegl_client (1)
+is passed through unchanged.
+.SH ENVIRONMENT
+.TP
+.B SPACEGL_KEY
+If set, the authentication key prompt is skipped and this value is used directly.
+.SH SEE ALSO
+.BR spacegl_client (1),
+.BR spacegl_server.sh (1)
+.SH AUTHOR
+Nicola Taibi
+.SH LICENSE
+GPL-3.0-or-later

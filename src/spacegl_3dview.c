@@ -5019,7 +5019,7 @@ void display() {
                     case 53: drawStellarNebula(0,0,0, 4); break; // Planetary
                     case 54: drawStellarNebula(0,0,0, 4); break; // SNR
                     case 55: drawStellarNebula(0,0,0, 5); break; // GMC
-                    case 56: drawInterstellarFilament(0,0,0); break;
+                    case 56: drawInterstellarFilament(); break;
                     case 57: drawInterstellarBubble(0,0,0, pulse); break;
                     case 58: drawBokGlobule(0,0,0); break;
                     case 59: drawClumpCore(0,0,0); break;

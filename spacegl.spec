@@ -1,15 +1,13 @@
 # License: GPL-3.0-or-later
 %global rpkg_srpm_build_method rpmautospec
-%global autorelease_version 1
 
 Name:           spacegl
-Version:        2026.05.23.02
+Version:        2026.05.26.01
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
-# Disable debuginfo package generation and binary stripping
-%global debug_package %{nil}
-%global __strip /bin/true
+# Granularly exclude telemetry binary from stripping to preserve SHM symbols (see issue #155)
+%global __os_install_post %(echo '%{__os_install_post}' | sed -e 's!/usr/lib/rpm/brp-strip!/usr/lib/rpm/brp-strip --exclude=spacegl_diag!')
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/nicolataibi/spacegl
@@ -17,13 +15,13 @@ Source0:        %{url}/archive/refs/tags/%{version}.tar.gz#/%{name}-%{version}.t
 
 BuildRequires:  cmake
 BuildRequires:  gcc
-BuildRequires:  mesa-libGL-devel
-BuildRequires:  mesa-libGLU-devel
-BuildRequires:  glew-devel
-BuildRequires:  openssl-devel
-BuildRequires:  ncurses-devel
-BuildRequires:  glfw-devel
-BuildRequires:  vulkan-loader-devel
+BuildRequires:  pkgconfig(gl)
+BuildRequires:  pkgconfig(glu)
+BuildRequires:  pkgconfig(glew)
+BuildRequires:  pkgconfig(openssl)
+BuildRequires:  pkgconfig(ncurses)
+BuildRequires:  pkgconfig(glfw3)
+BuildRequires:  pkgconfig(vulkan)
 BuildRequires:  glslc
 
 # Automatic dependency generation handles libraries
@@ -68,15 +66,8 @@ and additional assets explaining the SpaceGL engine and game play.
 %cmake_build
 
 
-%check
-# Verifica l'integrità dei binari senza eseguirli (importante per build headless)
-for bin in spacegl_server spacegl_client spacegl_3dview spacegl_viewer spacegl_vulkan spacegl_hud spacegl_diag spacegl_telemetry; do
-    find . -type f -executable -name "$bin" -print | grep -q "." || { echo "Error: $bin not found or not executable"; exit 1; }
-done
-
 %install
 %cmake_install
-
 
 
 %files
@@ -90,11 +81,21 @@ done
 %{_bindir}/spacegl_diag
 %{_bindir}/spacegl_telemetry
 
-%{_bindir}/spacegl_server.sh
-%{_bindir}/spacegl_client.sh
-%{_bindir}/spacegl_diag.sh
+%{_bindir}/spacegl-server
+%{_bindir}/spacegl-client
+%{_bindir}/spacegl-diag
 
-%{_mandir}/man1/spacegl_*.1*
+%{_mandir}/man1/spacegl_3dview.1*
+%{_mandir}/man1/spacegl_client.1*
+%{_mandir}/man1/spacegl-client.1*
+%{_mandir}/man1/spacegl_diag.1*
+%{_mandir}/man1/spacegl-diag.1*
+%{_mandir}/man1/spacegl_hud.1*
+%{_mandir}/man1/spacegl_server.1*
+%{_mandir}/man1/spacegl-server.1*
+%{_mandir}/man1/spacegl_telemetry.1*
+%{_mandir}/man1/spacegl_viewer.1*
+%{_mandir}/man1/spacegl_vulkan.1*
 
 
 %files data

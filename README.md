@@ -469,13 +469,13 @@ The `local_check.sh` script verifies that all dependencies are met and binaries 
 ### 4. Start Server
 Run the startup script from the project root. You will be asked to set a **Master Key**:
 ```bash
-./spacegl_server.sh
+./spacegl-server
 ```
 
 ### 5. Start Client
 Launch the client from the project root:
 ```bash
-./spacegl_client.sh gl|vk
+./spacegl-client gl|vk
 ```
 **Login Flow:**
 1.  **Server IP:** Enter the server address.
