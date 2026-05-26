@@ -672,7 +672,7 @@ Il sistema utilizza due livelli di crittografia distinti per bilanciare accessib
     *   **Ruolo:** Funziona come **Key Encryption Key (KEK)**. Non cifra direttamente i dati di gioco, ma protegge il tunnel in cui viene scambiata la chiave di sessione.
     *   **Verifica di Integrità:** Il sistema utilizza una "Firma Magica" di 32 byte (`HANDSHAKE_MAGIC_STRING`). Durante l'aggancio, il server tenta di decifrare questa firma usando la Master Key fornita.
     *   **Rigore Tattico:** Se anche un solo bit della Master Key differisce (es. "ciao" vs "ciao1"), la firma risulterà corrotta. Il server rileverà l'anomalia e **troncherà istantaneamente la connessione TCP**, emettendo un `[SECURITY ALERT]` nei log.
-    *   **Impostazione:** Viene richiesta all'avvio dagli script `spacegl_server.sh` e `spacegl_client.sh`.
+    *   **Impostazione:** Viene richiesta all'avvio dagli script `spacegl-server` e `spacegl-client`.
 
 2.  **Session Key (Unique Ephemeral Key):**
     *   **Ruolo:** Chiave crittografica casuale a 256-bit generata dal client per ogni sessione.
@@ -684,14 +684,14 @@ Per garantire che la sicurezza sia attiva, utilizzare sempre gli script bash for
 
 **Avvio del Server:**
 ```bash
-./spacegl_server.sh
+./spacegl-server
 # Ti verrà chiesto di inserire una Master Key segreta (es. "DeltaVega47").
 # Questa chiave dovrà essere comunicata a tutti i giocatori autorizzati.
 ```
 
 **Avvio del Client:**
 ```bash
-./spacegl_client.sh gl|vk
+./spacegl-client gl|vk
 # Inserisci la STESSA Master Key impostata sul server.
 # Il sistema confermerà: "Secure Link Established. Unique Frequency active."
 ```

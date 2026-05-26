@@ -2,12 +2,11 @@
 %global rpkg_srpm_build_method rpmautospec
 
 Name:           spacegl
-Version:        2026.05.26.01
+Version:        2026.05.26.02
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
 # Granularly exclude telemetry binary from stripping to preserve SHM symbols (see issue #155)
-%global __os_install_post %(echo '%{__os_install_post}' | sed -e 's!/usr/lib/rpm/brp-strip!/usr/lib/rpm/brp-strip --exclude=spacegl_diag!')
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/nicolataibi/spacegl
@@ -100,6 +99,7 @@ and additional assets explaining the SpaceGL engine and game play.
 
 %files data
 %license LICENSE.txt
+%doc HOWTO.txt
 %dir %{_datadir}/%{name}
 %{_datadir}/%{name}/shaders/
 

@@ -1,3 +1,10 @@
+* Tue May 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.26.02
+- Restore standard binary stripping due to spec file implementation complexity
+- Note: Users requiring SHM telemetry via spacegl_diag must recompile locally; otherwise, use spacegl_telemetry
+- Refine documentation placement: README files moved exclusively to the doc subpackage
+- Add HOWTO.txt to the data subpackage to satisfy documentation requirements
+- Remove %check section as it is not required by the reviewer
+
 * Tue May 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.26.01
 - Address review comments: cleanup unused macros, remove %check, switch to pkgconfig()
 - Rename wrapper scripts and man pages (remove .sh extension)
