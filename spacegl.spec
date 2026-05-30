@@ -1,12 +1,11 @@
 # License: GPL-3.0-or-later
 %global rpkg_srpm_build_method rpmautospec
+%global _docdir_fmt %{name}
 
 Name:           spacegl
-Version:        2026.05.26.02
+Version:        2026.05.30.01
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
-
-# Granularly exclude telemetry binary from stripping to preserve SHM symbols (see issue #155)
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/nicolataibi/spacegl
@@ -98,7 +97,6 @@ and additional assets explaining the SpaceGL engine and game play.
 
 
 %files data
-%license LICENSE.txt
 %doc HOWTO.txt
 %dir %{_datadir}/%{name}
 %{_datadir}/%{name}/shaders/

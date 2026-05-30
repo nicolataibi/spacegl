@@ -1,3 +1,9 @@
+* Sat May 30 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.30.01
+- Remove leftover stripping comment from spec file
+- Prevent duplicate LICENSE.txt installation in data subpackage
+- Unify documentation directory using %global _docdir_fmt %{name}
+- Fix HOWTO.txt referencing outdated .sh extensions
+
 * Tue May 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.26.02
 - Restore standard binary stripping due to spec file implementation complexity
 - Note: Users requiring SHM telemetry via spacegl_diag must recompile locally; otherwise, use spacegl_telemetry

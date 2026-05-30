@@ -14,10 +14,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-SPACEGL_KEY="thisisasecretkeyforencryption" ./spacegl_server.sh
+SPACEGL_KEY="thisisasecretkeyforencryption" ./spacegl-server
 
 #With GLFW 3d
-SPACEGL_KEY="thisisasecretkeyforencryption" ./spacegl_client.sh gl
+SPACEGL_KEY="thisisasecretkeyforencryption" ./spacegl-client gl
 
 #With Vulkan 3d
-SPACEGL_KEY="thisisasecretkeyforencryption" ./spacegl_client.sh vk
+SPACEGL_KEY="thisisasecretkeyforencryption" ./spacegl-client vk
