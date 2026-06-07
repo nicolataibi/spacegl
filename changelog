@@ -1,3 +1,7 @@
+* Sun Jun 07 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.06.07.01
+- Fix i686 build failure in Vulkan engine by correctly using VK_NULL_HANDLE
+- Ensure 32-bit compatibility for Vulkan handles (VkSwapchainKHR, VkFence)
+
 * Sat May 30 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.30.01
 - Remove leftover stripping comment from spec file
 - Prevent duplicate LICENSE.txt installation in data subpackage

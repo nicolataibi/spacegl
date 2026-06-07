@@ -2925,7 +2925,7 @@ void createSwapChain(VulkanApp* app) {
     }
     free(modes);
 
-    VkSwapchainCreateInfoKHR cInfo = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, NULL, 0, app->surface, 2, app->swapChainImageFormat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, app->swapChainExtent, 1, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, NULL, VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR, VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, bestMode, VK_TRUE, NULL};
+    VkSwapchainCreateInfoKHR cInfo = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, NULL, 0, app->surface, 2, app->swapChainImageFormat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, app->swapChainExtent, 1, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, NULL, VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR, VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, bestMode, VK_TRUE, VK_NULL_HANDLE};
     if (vkCreateSwapchainKHR(app->device, &cInfo, NULL, &app->swapChain) != VK_SUCCESS) exit(1);
     vkGetSwapchainImagesKHR(app->device, app->swapChain, &app->swapChainImageCount, NULL);
     app->swapChainImages = malloc(sizeof(VkImage)*app->swapChainImageCount);
@@ -4088,7 +4088,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
 
 void drawFrame(VulkanApp* app) {
     vkWaitForFences(app->device, 1, &app->inFlightFences[app->currentFrame], 1, UINT64_MAX);
-    uint32_t imgIdx; if (vkAcquireNextImageKHR(app->device, app->swapChain, UINT64_MAX, app->imageAvailableSemaphores[app->currentFrame], NULL, &imgIdx) != VK_SUCCESS) return; 
+    uint32_t imgIdx; if (vkAcquireNextImageKHR(app->device, app->swapChain, UINT64_MAX, app->imageAvailableSemaphores[app->currentFrame], VK_NULL_HANDLE, &imgIdx) != VK_SUCCESS) return; 
     vkResetFences(app->device, 1, &app->inFlightFences[app->currentFrame]);
     vkResetCommandBuffer(app->commandBuffers[app->currentFrame], 0); recordCommandBuffer(app->commandBuffers[app->currentFrame], imgIdx, app);
     
