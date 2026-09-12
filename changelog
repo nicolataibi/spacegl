@@ -1,3 +1,16 @@
+* Sat Sep 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.12.01
+- Network: Fix heap buffer overflow in send_optimized_update by using a fixed 256KB buffer.
+- Network: Clamp beam_count to MAX_NET_BEAMS to prevent out-of-bounds memory writes.
+- Client: Clamp object_count when reading UPD_OBJECTS packets to mitigate overflow vulnerabilities.
+- Galaxy: Fix data race in save_task by executing galaxy saves synchronously on the game thread.
+- Logic: Resolve OpenMP concurrent data races within update_npc_ai.
+- Logic: Replace thread-unsafe rand() with thread-local rand_r().
+- Logic: Add OpenMP critical sections to encapsulate apply_hull_damage, push_server_event, and broadcast_server_event.
+- Logic: Protect torpedo slot allocation with critical sections to prevent dual-allocation conflicts.
+- Server: Fix async File Descriptor (fd) reuse race in sync_client_task via a player generation counter.
+- Client: Resolve double-buffer data race in swap_buffers by transitioning to a 3-buffer ring layout.
+- Client: Fix orphaned Vulkan viewer process by placing it in a process group and terminating the entire group on cleanup.
+
 * Sun Jun 07 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.06.07.01
 - Fix i686 build failure in Vulkan engine by correctly using VK_NULL_HANDLE
 - Ensure 32-bit compatibility for Vulkan handles (VkSwapchainKHR, VkFence)

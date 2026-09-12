@@ -107,6 +107,7 @@ typedef struct {
     int last_q1, last_q2, last_q3;
     uint64_t full_update_timer;
 
+    uint32_t generation;
     SpaceGLGame state;
 } __attribute__((aligned(64))) ConnectedPlayer;
 

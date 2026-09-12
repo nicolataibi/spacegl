@@ -85,6 +85,7 @@ void update_npc_ai(int n) {
     if (!npcs[n].active) {
         return;
     }
+    unsigned int ai_seed = (unsigned int)n ^ (unsigned int)global_tick;
 
     if (npcs[n].gx <= 0.001 && npcs[n].gy <= 0.001) {
         npcs[n].gx = (npcs[n].q1 - 1) * QUADRANT_SIZE + npcs[n].x;
@@ -156,9 +157,9 @@ void update_npc_ai(int n) {
     if (npcs[n].ai_state == AI_STATE_ATTACK_RUN && closest_p != -1) {
         if (npcs[n].nav_timer <= 0) {
             /* Pick a random direction and move 3 units in that direction */
-            double rx = (rand() % 200 - 100) / (double)YIELD_HARVEST_MAX;
-            double ry = (rand() % 200 - 100) / (double)YIELD_HARVEST_MAX;
-            double rz = (rand() % 200 - 100) / (double)YIELD_HARVEST_MAX;
+            double rx = (rand_r(&ai_seed) % 200 - 100) / (double)YIELD_HARVEST_MAX;
+            double ry = (rand_r(&ai_seed) % 200 - 100) / (double)YIELD_HARVEST_MAX;
+            double rz = (rand_r(&ai_seed) % 200 - 100) / (double)YIELD_HARVEST_MAX;
             double rl = sqrt(rx * rx + ry * ry + rz * rz);
             if (rl < 0.001) { rx = 1.0; ry = 0; rz = 0; rl = 1.0; }
             
@@ -186,9 +187,12 @@ void update_npc_ai(int n) {
                         n + GALAXY_OBJECT_MIN_NPC, closest_p + 1, 1
                     };
                     /* Reduced mobile damage to balance higher frequency */
-                    apply_hull_damage(closest_p, (DMG_ION_BEAM_NPC / 2.5) / (double)MAX_TORPEDO_CAPACITY);
+                    #pragma omp critical
+                    {
+                        apply_hull_damage(closest_p, (DMG_ION_BEAM_NPC / 2.5) / (double)MAX_TORPEDO_CAPACITY);
+                    }
                 }
-                npcs[n].fire_cooldown = (20 + (rand() % 40)); /* Very fast mobile firing */
+                npcs[n].fire_cooldown = (20 + (rand_r(&ai_seed) % 40)); /* Very fast mobile firing */
             }
         }
 
@@ -238,8 +242,11 @@ void update_npc_ai(int n) {
             /* Alliance ships fire real homing torpedoes instead of instant beams */
             if (npcs[n].faction == FACTION_ALLIANCE) {
                 int t_idx = -1;
-                for (int i = 0; i < MAX_GLOBAL_TORPEDOES; i++) {
-                    if (!players_torpedoes[i].active) { t_idx = i; break; }
+                #pragma omp critical
+                {
+                    for (int i = 0; i < MAX_GLOBAL_TORPEDOES; i++) {
+                        if (!players_torpedoes[i].active) { t_idx = i; players_torpedoes[i].active = true; break; }
+                    }
                 }
                 if (t_idx != -1) {
                     PlayerTorpedo *pt = &players_torpedoes[t_idx];
@@ -263,7 +270,10 @@ void update_npc_ai(int n) {
                     pt->q1 = npcs[n].q1; pt->q2 = npcs[n].q2; pt->q3 = npcs[n].q3;
                     pt->x = npcs[n].x; pt->y = npcs[n].y; pt->z = npcs[n].z;
                     
-                    broadcast_server_event(pt->q1, pt->q2, pt->q3, IPC_EV_TORPEDO, pt->x, pt->y, pt->z, pt->dx * SPEED_TORPEDO, pt->dy * SPEED_TORPEDO, pt->dz * SPEED_TORPEDO, IPC_TORPEDO_ID_OFFSET + t_idx);
+                    #pragma omp critical
+                    {
+                        broadcast_server_event(pt->q1, pt->q2, pt->q3, IPC_EV_TORPEDO, pt->x, pt->y, pt->z, pt->dx * SPEED_TORPEDO, pt->dy * SPEED_TORPEDO, pt->dz * SPEED_TORPEDO, IPC_TORPEDO_ID_OFFSET + t_idx);
+                    }
                 }
             } else if (npcs[n].beam_count < 4) {
                 npcs[n].beams[npcs[n].beam_count++] = (NetBeam){
@@ -306,7 +316,10 @@ void update_npc_ai(int n) {
             }
             if (dmg_rem > 0) {
                 double hull_dmg = dmg_rem / (double)MAX_TORPEDO_CAPACITY;
-                apply_hull_damage(closest_p, hull_dmg);
+                #pragma omp critical
+                {
+                    apply_hull_damage(closest_p, hull_dmg);
+                }
                 uint64_t e_loss = (uint64_t)(dmg_rem / 2);
                 if (target->state.energy > e_loss) target->state.energy -= e_loss;
                 else target->state.energy = 0;
@@ -317,9 +330,12 @@ void update_npc_ai(int n) {
                 target->state.hull_integrity = 0;
                 target->state.crew_count = 0;
                 target->death_timer = (GAME_TICK_RATE / 2);
-                push_server_event(closest_p, IPC_EV_BOOM, target->state.s1, target->state.s2, target->state.s3, 0, 0, 0, 1);
+                #pragma omp critical
+                {
+                    push_server_event(closest_p, IPC_EV_BOOM, target->state.s1, target->state.s2, target->state.s3, 0, 0, 0, 1);
+                }
             }
-            npcs[n].fire_cooldown = (40 + (rand() % 40)); /* Faster stationary firing */
+            npcs[n].fire_cooldown = (40 + (rand_r(&ai_seed) % 40)); /* Faster stationary firing */
         }
         npcs[n].nav_timer--;
         if (npcs[n].nav_timer <= 0) {
@@ -342,10 +358,10 @@ void update_npc_ai(int n) {
         }
     } else {
         if (npcs[n].nav_timer-- <= 0) { 
-            npcs[n].nav_timer = (int)(1.6 * GAME_TICK_RATE) + rand() % (int)(3.3 * GAME_TICK_RATE); 
-            double rx = (rand() % 100 - 50) / (double)YIELD_HARVEST_MAX;
-            double ry = (rand() % 100 - 50) / (double)YIELD_HARVEST_MAX;
-            double rz = (rand() % 100 - 50) / (double)YIELD_HARVEST_MAX;
+            npcs[n].nav_timer = (int)(1.6 * GAME_TICK_RATE) + rand_r(&ai_seed) % (int)(3.3 * GAME_TICK_RATE); 
+            double rx = (rand_r(&ai_seed) % 100 - 50) / (double)YIELD_HARVEST_MAX;
+            double ry = (rand_r(&ai_seed) % 100 - 50) / (double)YIELD_HARVEST_MAX;
+            double rz = (rand_r(&ai_seed) % 100 - 50) / (double)YIELD_HARVEST_MAX;
             double rl = sqrt(rx * rx + ry * ry + rz * rz);
             if (rl > 0.001) {
                 npcs[n].dx = rx / rl;
@@ -394,7 +410,7 @@ void update_npc_ai(int n) {
 
 void update_game_logic() {
     /* global_tick is already incremented in the calling thread loop */
-
+    unsigned int ai_seed = (unsigned int)global_tick;
     /* Autosave every 60 seconds */
     if (global_tick % (60 * GAME_TICK_RATE) == 0) {
         save_galaxy_async();
@@ -445,9 +461,9 @@ void update_game_logic() {
                     /* EMERGENCY REENTRY PROTOCOL: Instead of setting active=0, reset the ship to a safe state */
                     int rq1, rq2, rq3;
                     do {
-                        rq1 = rand() % GALAXY_SIZE + 1;
-                        rq2 = rand() % GALAXY_SIZE + 1;
-                        rq3 = rand() % GALAXY_SIZE + 1;
+                        rq1 = rand_r(&ai_seed) % GALAXY_SIZE + 1;
+                        rq2 = rand_r(&ai_seed) % GALAXY_SIZE + 1;
+                        rq3 = rand_r(&ai_seed) % GALAXY_SIZE + 1;
                     } while (supernova_event.supernova_timer > 0 && 
                             rq1 == supernova_event.supernova_q1 && 
                             rq2 == supernova_event.supernova_q2 && 
@@ -550,9 +566,9 @@ void update_game_logic() {
                 /* EMERGENCY REENTRY PROTOCOL */
                 int rq1, rq2, rq3;
                 do {
-                    rq1 = rand() % GALAXY_SIZE + 1;
-                    rq2 = rand() % GALAXY_SIZE + 1;
-                    rq3 = rand() % GALAXY_SIZE + 1;
+                    rq1 = rand_r(&ai_seed) % GALAXY_SIZE + 1;
+                    rq2 = rand_r(&ai_seed) % GALAXY_SIZE + 1;
+                    rq3 = rand_r(&ai_seed) % GALAXY_SIZE + 1;
                 } while (supernova_event.supernova_timer > 0 && 
                         rq1 == supernova_event.supernova_q1 && 
                         rq2 == supernova_event.supernova_q2 && 
@@ -2328,10 +2344,10 @@ void update_game_logic() {
             rebuild_spatial_index();
             save_galaxy();
         }
-    } else if (global_tick > (2 * GAME_TICK_RATE) && supernova_event.supernova_timer <= 0 && (rand() % 9000 < 1)) {
-        int rq1 = rand() % GALAXY_SIZE + 1; 
-        int rq2 = rand() % GALAXY_SIZE + 1; 
-        int rq3 = rand() % GALAXY_SIZE + 1;
+    } else if (global_tick > (2 * GAME_TICK_RATE) && supernova_event.supernova_timer <= 0 && (rand_r(&ai_seed) % 9000 < 1)) {
+        int rq1 = rand_r(&ai_seed) % GALAXY_SIZE + 1; 
+        int rq2 = rand_r(&ai_seed) % GALAXY_SIZE + 1; 
+        int rq3 = rand_r(&ai_seed) % GALAXY_SIZE + 1;
         QuadrantIndex *qi = &spatial_index[rq1][rq2][rq3];
         if (qi->star_count > 0) {
             supernova_event.supernova_q1 = rq1; 
@@ -2627,7 +2643,7 @@ void update_game_logic() {
 
         if (supernova_event.supernova_timer > 0) { upd->map_update_q[0] = supernova_event.supernova_q1; upd->map_update_q[1] = supernova_event.supernova_q2; upd->map_update_q[2] = supernova_event.supernova_q3; upd->map_update_val = -supernova_event.supernova_timer; }
         else { upd->map_update_q[0] = upd->q1; upd->map_update_q[1] = upd->q2; upd->map_update_q[2] = upd->q3; upd->map_update_val = spacegl_master.g[upd->q1][upd->q2][upd->q3]; }
-        int rq1 = rand() % GALAXY_SIZE + 1; int rq2 = rand() % GALAXY_SIZE + 1; int rq3 = rand() % GALAXY_SIZE + 1;
+        int rq1 = rand_r(&ai_seed) % GALAXY_SIZE + 1; int rq2 = rand_r(&ai_seed) % GALAXY_SIZE + 1; int rq3 = rand_r(&ai_seed) % GALAXY_SIZE + 1;
         upd->map_update_q2[0] = rq1; upd->map_update_q2[1] = rq2; upd->map_update_q2[2] = rq3; upd->map_update_val2 = spacegl_master.g[rq1][rq2][rq3];
 
         /* Reset transient effects IMMEDIATELY after copying to update packet while holding the lock */
@@ -2695,9 +2711,9 @@ void update_game_logic() {
                     };
                 }
                 /* Damage player shields and hull */
-                int s_idx = rand() % 6;
+                int s_idx = rand_r(&ai_seed) % 6;
                 if (players[pi].state.shields[s_idx] > 0) {
-                    int shield_dmg = 200 + rand() % 300;
+                    int shield_dmg = 200 + rand_r(&ai_seed) % 300;
                     if ((int)players[pi].state.shields[s_idx] > shield_dmg) {
                         players[pi].state.shields[s_idx] -= shield_dmg;
                     } else {
@@ -2745,8 +2761,9 @@ void apply_hull_damage(int i, double amount) {
     if (players[i].state.hull_integrity < 0) players[i].state.hull_integrity = 0;
     
     /* Random system damage (1-5% per hit) */
-    int sys = rand() % MAX_SYSTEMS;
-    double sys_dmg = 1.0 + (rand() % 400) / (double)YIELD_HARVEST_MAX;
+    unsigned int ai_seed = (unsigned int)i ^ (unsigned int)(uintptr_t)&i;
+    int sys = rand_r(&ai_seed) % MAX_SYSTEMS;
+    double sys_dmg = 1.0 + (rand_r(&ai_seed) % 400) / (double)YIELD_HARVEST_MAX;
     players[i].state.system_health[sys] -= sys_dmg;
     if (players[i].state.system_health[sys] < 0) players[i].state.system_health[sys] = 0;
     

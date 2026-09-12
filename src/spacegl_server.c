@@ -142,6 +142,7 @@ void sign_galaxy_data();
 typedef struct {
     int slot;
     int fd;
+    uint32_t generation;
     bool is_new;
 } SyncTask;
 
@@ -162,7 +163,7 @@ void sync_client_task(void *arg) {
     
     /* 1. Send the giant Galaxy Master object. */
     pthread_mutex_lock(&players[slot].socket_mutex);
-    if (players[slot].socket != fd) {
+    if (players[slot].socket != fd || players[slot].generation != task->generation) {
         pthread_mutex_unlock(&players[slot].socket_mutex);
         free(task);
         return;
@@ -172,7 +173,7 @@ void sync_client_task(void *arg) {
 
     if (w_res == sizeof(SpaceGLGame)) {
         pthread_mutex_lock(&game_mutex);
-        if (players[slot].socket != fd) {
+        if (players[slot].socket != fd || players[slot].generation != task->generation) {
             pthread_mutex_unlock(&game_mutex);
             free(task);
             return;
@@ -870,6 +871,8 @@ int main(int argc, char *argv[]) {
                                     if (stask) {
                                         stask->slot = slot;
                                         stask->fd = fd;
+                                        players[slot].generation++;
+                                        stask->generation = players[slot].generation;
                                         stask->is_new = is_new;
                                         if (threadpool_add_task(g_pool, sync_client_task, stask) != 0) {
                                             /* Fallback if pool fails: sync synchronously */

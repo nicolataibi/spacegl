@@ -370,7 +370,7 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
 
     if (mask == 0) return; 
 
-    uint8_t *buffer = malloc(65536);
+    uint8_t *buffer = malloc(262144);
     if (!buffer) return;
     PacketUpdateDelta *delta = (PacketUpdateDelta *)buffer;
     delta->type = PKT_UPDATE_DELTA;
@@ -406,7 +406,9 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         memcpy(b.tube_torpedo_etas, upd->tube_torpedo_etas, sizeof(b.tube_torpedo_etas));
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
         /* Append beams if any */
-        int32_t bc = upd->beam_count; memcpy(ptr, &bc, sizeof(int32_t)); ptr += sizeof(int32_t);
+        int32_t bc = upd->beam_count;
+        if (bc > MAX_NET_BEAMS) bc = MAX_NET_BEAMS;
+        memcpy(ptr, &bc, sizeof(int32_t)); ptr += sizeof(int32_t);
         if (bc > 0) { memcpy(ptr, upd->beams, bc * sizeof(NetBeam)); ptr += bc * sizeof(NetBeam); }
     }
     if (mask & UPD_FLAGS) {

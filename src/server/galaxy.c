@@ -987,13 +987,7 @@ void save_galaxy_async() {
     if (!copy) { atomic_store(&g_is_saving, false); return; }
     memcpy(copy, &spacegl_master, sizeof(SpaceGLGame));
     
-    extern threadpool_t *g_pool;
-    if (g_pool) {
-        threadpool_add_task(g_pool, save_task, copy);
-    } else {
-        /* Fallback if pool not ready */
-        save_task(copy);
-    }
+    save_task(copy);
 }
 
 void save_galaxy() { save_galaxy_async(); }

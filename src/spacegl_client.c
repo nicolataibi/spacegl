@@ -373,7 +373,7 @@ void init_shm() {
     memset(g_shm->shm_galaxy, 0, sizeof(g_shm->shm_galaxy));
 
     /* Initial state for BOTH buffers: set objects as INACTIVE */
-    for(int b=0; b<2; b++) {
+    for(int b=0; b<3; b++) {
         g_shm->buffers[b].shm_s[0] = 20.0;
         g_shm->buffers[b].shm_s[1] = 20.0;
         g_shm->buffers[b].shm_s[2] = 20.0;
@@ -389,17 +389,22 @@ void init_shm() {
 
 void swap_buffers() {
     int old_write = atomic_load(&g_shm->write_index);
-    int old_read = atomic_load(&g_shm->read_index);
+    int read_idx = atomic_load(&g_shm->read_index);
+    
+    int next_write = 0;
+    while (next_write == old_write || next_write == read_idx) {
+        next_write++;
+    }
     
     /* Swap Indices */
     atomic_store(&g_shm->read_index, old_write);
-    atomic_store(&g_shm->write_index, old_read);
+    atomic_store(&g_shm->write_index, next_write);
     
     /* Update local write pointer for the NEXT frame.
        We COPY the current dynamic buffer to the next one to maintain continuity.
        Galaxy data is now persistent and doesn't need copying. */
-    memcpy(&g_shm->buffers[old_read], &g_shm->buffers[old_write], sizeof(GameState));
-    g_shared_state = &g_shm->buffers[old_read];
+    memcpy(&g_shm->buffers[next_write], &g_shm->buffers[old_write], sizeof(GameState));
+    g_shared_state = &g_shm->buffers[next_write];
 }
 
 void push_ipc_event(int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra) {
@@ -444,7 +449,7 @@ void process_ipc_commands(int server_sock) {
 }
 
 void cleanup() {
-    if (visualizer_pid > 0) kill(visualizer_pid, SIGTERM);
+    if (visualizer_pid > 0) kill(-visualizer_pid, SIGTERM);
     if (g_shm) munmap(g_shm, sizeof(SharedIPC));
     if (shm_fd != -1) {
         close(shm_fd);
@@ -781,6 +786,8 @@ void *network_listener(void *arg) {
                 size_t fixed_size = offsetof(PacketUpdate, objects);
                 int r_fixed = read_all(sock, ((char*)&upd) + sizeof(int32_t), fixed_size - sizeof(int32_t));
                 if (r_fixed <= 0) break;
+                if (upd.object_count < 0) upd.object_count = 0;
+                if (upd.object_count > MAX_NET_OBJECTS) upd.object_count = MAX_NET_OBJECTS;
                 if (upd.object_count > 0) {
                     int r_objs = read_all(sock, upd.objects, upd.object_count * sizeof(NetObject));
                     if (r_objs <= 0) break;
@@ -1476,8 +1483,12 @@ int main(int argc, char *argv[]) {
         perror("fork failed");
         exit(1);
     }
+    if (visualizer_pid > 0) {
+        setpgid(visualizer_pid, visualizer_pid);
+    }
     if (visualizer_pid == 0) {
         /* Child process */
+        setpgid(0, 0);
         if (strcmp(visualizer_type, "vk") == 0) {
             /* Start Vulkan Viewer */
             if (fork() == 0) {

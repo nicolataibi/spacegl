@@ -202,7 +202,7 @@ typedef struct {
     int64_t shm_galaxy[41][41][41];
 
     /* Double Buffers */
-    GameState buffers[2];
+    GameState buffers[3];
     
     /* Lock-Free Command Queue (Viewer -> Client) */
     atomic_int cmd_head;
