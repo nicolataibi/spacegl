@@ -1,3 +1,20 @@
+* Sat Sep 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.12.04
+- Server: Eliminate 40+ static-object loops from rebuild_spatial_index(), which runs at 60Hz. Cosmic structures (nebulae, filaments, quasars, dyson spheres, etc.) never change quadrant after init, so they are now placed once by init_static_spatial_index() and never re-iterated. The per-tick rebuild now only processes truly mobile objects: NPC, player, torpedo, monster, comet, asteroid, mine, buoy, platform, rift, derelict. Reduces ~560 lines of per-tick work to ~150.
+
+* Sat Sep 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.12.03
+- Server: Reduce spatial_index memory from ~349 MB to ~151 MB (-55%, ~182 MB savings) by calibrating MAX_Q_* per-quadrant capacity limits to the real galaxy density (4000 NPC / 64000 quadrants ≈ 0.06 average occupancy). All caps remain safely above worst-case peak occupancy. No logic changes required; the existing spatial_index[q1][q2][q3] access pattern is fully preserved.
+
+* Sat Sep 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.12.02
+- Server/Net: Decouple network I/O from game_mutex by introducing send_pending_updates(), called after releasing the simulation lock. Packets are now built under the lock and sent outside, preventing slow clients from stalling the 60Hz game thread.
+- Server/Net: Refactor broadcast_message() to release game_mutex before the write_all broadcast loop, isolating blocking I/O behind per-player socket_mutex only.
+- Server/Logic: Eliminate per-tick malloc()/free() for PacketUpdate by adding a static upd_packet buffer to ConnectedPlayer, removing ~200MB/s of heap churn at 60Hz.
+- Server/Logic: Remove unnecessary OpenMP parallelism from MAX_CLIENTS=16 player loops (antimatter refill, death timer, main physics) where synchronization overhead exceeded the parallelism benefit. NPC and monster loops retain parallelism.
+- Vulkan: Increase MAX_FRAMES_IN_FLIGHT from 2 to 3 for better CPU/GPU pipeline decoupling.
+- Vulkan: Cap MSAA at 4x (removed 8x/16x/32x/64x paths) to reduce GPU memory and fill-rate cost with no perceptible visual benefit.
+- Vulkan: Add guard in pickPhysicalDevice against systems with zero Vulkan-capable GPUs to prevent a null-dereference crash.
+- Vulkan: Replace UINT64_MAX timeout in vkAcquireNextImageKHR with 100ms to prevent indefinite stalls; handle VK_SUBOPTIMAL_KHR gracefully.
+- Vulkan: Add a ~144fps frame limiter (nanosleep 6.94ms) after vkQueuePresentKHR to prevent CPU saturation under MAILBOX/IMMEDIATE present modes.
+
 * Sat Sep 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.12.01
 - Network: Fix heap buffer overflow in send_optimized_update by using a fixed 256KB buffer.
 - Network: Clamp beam_count to MAX_NET_BEAMS to prevent out-of-bounds memory writes.

@@ -179,7 +179,13 @@ void broadcast_message(PacketMessage *msg) {
         plaintext[c_len] = '\0';
     }
 
-    /* 2. BROADCAST LOOP */
+    /* Release game_mutex before the broadcast send loop.
+     * All data needed for routing and encryption has already been read above.
+     * Each write_all is protected by the per-player socket_mutex, so no
+     * shared state is accessed unsafely after this point. */
+    pthread_mutex_unlock(&game_mutex);
+
+    /* 2. BROADCAST LOOP (executed outside game_mutex) */
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (players[i].active && players[i].socket != 0) {
             
@@ -269,7 +275,6 @@ void broadcast_message(PacketMessage *msg) {
             }
         }
     }
-    pthread_mutex_unlock(&game_mutex);
     free(plaintext);
 }
 
@@ -438,10 +443,26 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
 
+
     size_t total_size = ptr - buffer;
     pthread_mutex_lock(&p->socket_mutex);
     if (p->socket != 0) write_all(p->socket, buffer, total_size);
     pthread_mutex_unlock(&p->socket_mutex);
     memcpy(&p->last_sent_state, upd, sizeof(PacketUpdate));
     free(buffer);
+}
+
+/*
+ * send_pending_updates — called from the game loop AFTER releasing game_mutex.
+ * Sends all packets that update_game_logic() built and flagged with pending_send.
+ * This decouples blocking TCP writes from the 60Hz simulation lock.
+ */
+void send_pending_updates(void) {
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (!players[i].pending_send) {
+            continue;
+        }
+        players[i].pending_send = false;
+        send_optimized_update(i, &players[i].upd_packet);
+    }
 }

@@ -270,7 +270,7 @@ const uint32_t vectorIndices[] = {
 typedef struct { mat4 model; float color[4]; float time; int usePushColor; float metallic; float roughness; } PushConstants;
 typedef struct { mat4 view; mat4 proj; } UniformBufferObject;
 
-#define MAX_FRAMES_IN_FLIGHT 2
+#define MAX_FRAMES_IN_FLIGHT 3
 #define MAX_ACTIVE_BEAMS 64
 #define MAX_ACTIVE_BOOMS 128
 #define MAX_ACTIVE_TORPS 256
@@ -2886,21 +2886,27 @@ void createInstance(VulkanApp* app) {
 }
 
 VkSampleCountFlagBits getMaxUsableSampleCount(VkPhysicalDevice pDevice) {
-    VkPhysicalDeviceProperties props; vkGetPhysicalDeviceProperties(pDevice, &props);
+    VkPhysicalDeviceProperties props;
+    vkGetPhysicalDeviceProperties(pDevice, &props);
     VkSampleCountFlags counts = props.limits.framebufferColorSampleCounts & props.limits.framebufferDepthSampleCounts;
-    if (counts & VK_SAMPLE_COUNT_64_BIT) return VK_SAMPLE_COUNT_64_BIT;
-    if (counts & VK_SAMPLE_COUNT_32_BIT) return VK_SAMPLE_COUNT_32_BIT;
-    if (counts & VK_SAMPLE_COUNT_16_BIT) return VK_SAMPLE_COUNT_16_BIT;
-    if (counts & VK_SAMPLE_COUNT_8_BIT) return VK_SAMPLE_COUNT_8_BIT;
+    /* Cap at 4x: higher MSAA has negligible visual benefit but very high GPU cost */
     if (counts & VK_SAMPLE_COUNT_4_BIT) return VK_SAMPLE_COUNT_4_BIT;
     if (counts & VK_SAMPLE_COUNT_2_BIT) return VK_SAMPLE_COUNT_2_BIT;
     return VK_SAMPLE_COUNT_1_BIT;
 }
 
 void pickPhysicalDevice(VulkanApp* app) {
-    uint32_t count = 0; vkEnumeratePhysicalDevices(app->instance, &count, NULL);
-    VkPhysicalDevice* devs = malloc(sizeof(VkPhysicalDevice)*count); vkEnumeratePhysicalDevices(app->instance, &count, devs);
-    app->physicalDevice = devs[0]; app->msaaSamples = getMaxUsableSampleCount(app->physicalDevice); free(devs);
+    uint32_t count = 0;
+    vkEnumeratePhysicalDevices(app->instance, &count, NULL);
+    if (count == 0) {
+        fprintf(stderr, "No Vulkan-capable GPU found. Aborting.\n");
+        exit(1);
+    }
+    VkPhysicalDevice* devs = malloc(sizeof(VkPhysicalDevice) * count);
+    vkEnumeratePhysicalDevices(app->instance, &count, devs);
+    app->physicalDevice = devs[0];
+    app->msaaSamples = getMaxUsableSampleCount(app->physicalDevice);
+    free(devs);
 }
 
 void createLogicalDevice(VulkanApp* app) {
@@ -4088,7 +4094,14 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
 
 void drawFrame(VulkanApp* app) {
     vkWaitForFences(app->device, 1, &app->inFlightFences[app->currentFrame], 1, UINT64_MAX);
-    uint32_t imgIdx; if (vkAcquireNextImageKHR(app->device, app->swapChain, UINT64_MAX, app->imageAvailableSemaphores[app->currentFrame], VK_NULL_HANDLE, &imgIdx) != VK_SUCCESS) return; 
+    uint32_t imgIdx;
+    VkResult acq_res = vkAcquireNextImageKHR(app->device, app->swapChain,
+                                              100000000ULL, /* 100ms timeout */
+                                              app->imageAvailableSemaphores[app->currentFrame],
+                                              VK_NULL_HANDLE, &imgIdx);
+    if (acq_res != VK_SUCCESS && acq_res != VK_SUBOPTIMAL_KHR) {
+        return;
+    }
     vkResetFences(app->device, 1, &app->inFlightFences[app->currentFrame]);
     vkResetCommandBuffer(app->commandBuffers[app->currentFrame], 0); recordCommandBuffer(app->commandBuffers[app->currentFrame], imgIdx, app);
     
@@ -4181,7 +4194,12 @@ void drawFrame(VulkanApp* app) {
     VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO, NULL, 1, &app->imageAvailableSemaphores[app->currentFrame], &w, 1, &app->commandBuffers[app->currentFrame], 1, &app->renderFinishedSemaphores[app->currentFrame]};
     vkQueueSubmit(app->graphicsQueue, 1, &si, app->inFlightFences[app->currentFrame]);
     VkSwapchainKHR sw = app->swapChain; VkPresentInfoKHR pi = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, NULL, 1, &app->renderFinishedSemaphores[app->currentFrame], 1, &sw, &imgIdx, NULL};
-    vkQueuePresentKHR(app->graphicsQueue, &pi); app->currentFrame = (app->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    vkQueuePresentKHR(app->graphicsQueue, &pi);
+    app->currentFrame = (app->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+    /* Frame limiter: cap at ~144fps to avoid saturating the CPU on MAILBOX/IMMEDIATE present */
+    struct timespec frame_limit = {0, 6944444L}; /* ~144fps = 1s/144 ≈ 6.94ms */
+    nanosleep(&frame_limit, NULL);
 
     /* Decrement Shield Hit Timers */
     for (int s = 0; s < 6; s++) if (app->shieldHitTimers[s] > 0) app->shieldHitTimers[s]--;

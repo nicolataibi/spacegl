@@ -107,6 +107,11 @@ typedef struct {
     int last_q1, last_q2, last_q3;
     uint64_t full_update_timer;
 
+    /* Per-player static PacketUpdate buffer: eliminates per-tick malloc at 60Hz */
+    PacketUpdate upd_packet;
+    /* Set to true by update_game_logic when a packet is ready; cleared by send_pending_updates */
+    bool pending_send;
+
     uint32_t generation;
     SpaceGLGame state;
 } __attribute__((aligned(64))) ConnectedPlayer;
@@ -605,79 +610,82 @@ typedef struct {
 #define MAX_CMB 200
 
 /* Local Quadrant Limits for Spatial Index (Optimization) */
-#define MAX_Q_NPC 32
-#define MAX_Q_PLANETS 32
-#define MAX_Q_BASES 16
-#define MAX_Q_STARS 64
-#define MAX_Q_BH 8
-#define MAX_Q_NEBULAS 16
-#define MAX_Q_PULSARS 8
-#define MAX_Q_QUASARS 8
-#define MAX_Q_COMETS 8
-#define MAX_Q_ASTEROIDS 40
-#define MAX_Q_DERELICTS 8
-#define MAX_Q_MINES 32
-#define MAX_Q_BUOYS 8
-#define MAX_Q_PLATFORMS 16
-#define MAX_Q_RIFTS 4
-#define MAX_Q_MONSTERS 4
-#define MAX_Q_PLAYERS 32
-#define MAX_Q_TORPEDOES 32
-#define MAX_Q_DYSON 4
-#define MAX_Q_HUBS 4
-#define MAX_Q_RELICS 4
-#define MAX_Q_RUPTURES 4
-#define MAX_Q_SATELLITES 8
-#define MAX_Q_STORMS 4
-#define MAX_Q_ARTIFACTS 4
-#define MAX_Q_WARP_GATES 4
-#define MAX_Q_NEUTRON_STARS 4
-#define MAX_Q_MEGA_STRUCTS 4
-#define MAX_Q_DARK_CLOUDS 8
-#define MAX_Q_SINGULARITIES 4
-#define MAX_Q_PLASMA_STORMS 4
-#define MAX_Q_ORBITAL_RINGS 4
-#define MAX_Q_TIME_ANOMALIES 4
-#define MAX_Q_VOID_CRYSTALS 4
-#define MAX_Q_SUBSPACE_ANOMALIES 4
-#define MAX_Q_DIFFUSE_NEBULA 4
-#define MAX_Q_DARK_NEBULA 4
-#define MAX_Q_PLANETARY_NEBULA 4
-#define MAX_Q_SNR 4
-#define MAX_Q_GMC 4
-#define MAX_Q_INTERSTELLAR_FILAMENT 4
-#define MAX_Q_INTERSTELLAR_BUBBLE 4
-#define MAX_Q_BOK_GLOBULE 4
-#define MAX_Q_CLUMP_CORE 4
-#define MAX_Q_ACCRETION_DISK 4
-#define MAX_Q_RELATIVISTIC_JET 4
-#define MAX_Q_SHOCK_WAVE 4
-#define MAX_Q_STELLAR_BOW_SHOCK 4
-#define MAX_Q_COSMIC_VOID 2
-#define MAX_Q_COSMIC_FILAMENT 4
-#define MAX_Q_EVENT_HORIZON 4
-#define MAX_Q_KILONOVA 2
-#define MAX_Q_GRAV_LENS 4
-#define MAX_Q_GRB 2
-#define MAX_Q_GRAV_WAVE 4
-#define MAX_Q_PROTOPLANETARY_DISK 4
-#define MAX_Q_DEBRIS_DISK 4
-#define MAX_Q_PLANETESIMAL 8
-#define MAX_Q_ROGUE_PLANET 4
-#define MAX_Q_BROWN_DWARF 4
-#define MAX_Q_ISO 4
-#define MAX_Q_MAG_RECONN 4
-#define MAX_Q_CURRENT_SHEET 4
-#define MAX_Q_HELIOSPHERE 4
-#define MAX_Q_TERM_SHOCK 4
-#define MAX_Q_MAGNETOSPHERE 4
-#define MAX_Q_COSMIC_STRING 4
-#define MAX_Q_DOMAIN_WALL 2
-#define MAX_Q_DM_HALO 4
-#define MAX_Q_IGM 4
-#define MAX_Q_CGM 4
-#define MAX_Q_LYMAN_ALPHA 4
-#define MAX_Q_CMB 2
+/* Per-quadrant capacity limits — calibrated to real galaxy density:
+ * 4000 NPC / 64000 quadrants ≈ 0.06 avg; caps set at safe peak multiples.
+ * Reduction from original values saves ~182 MB of spatial_index RAM. */
+#define MAX_Q_NPC 8       /* was 32: 4000 NPC / 64000 quads; 8 is a safe peak */
+#define MAX_Q_PLANETS 8   /* was 32 */
+#define MAX_Q_BASES 4     /* was 16: bases are rare, 1 per populated quad */
+#define MAX_Q_STARS 16    /* was 64: 4000 stars / 64000 quads */
+#define MAX_Q_BH 4        /* was 8 */
+#define MAX_Q_NEBULAS 4   /* was 16 */
+#define MAX_Q_PULSARS 4   /* was 8 */
+#define MAX_Q_QUASARS 4   /* was 8 */
+#define MAX_Q_COMETS 4    /* was 8 */
+#define MAX_Q_ASTEROIDS 8 /* was 40: asteroids cluster but 8 is safe per quad */
+#define MAX_Q_DERELICTS 4 /* was 8 */
+#define MAX_Q_MINES 8     /* was 32 */
+#define MAX_Q_BUOYS 4     /* was 8 */
+#define MAX_Q_PLATFORMS 4 /* was 16 */
+#define MAX_Q_RIFTS 2     /* was 4 */
+#define MAX_Q_MONSTERS 2  /* was 4 */
+#define MAX_Q_PLAYERS 16  /* was 32: MAX_CLIENTS=16, never more than 16 */
+#define MAX_Q_TORPEDOES 8 /* was 32: MAX_GLOBAL_TORPEDOES=64, rarely in same quad */
+#define MAX_Q_DYSON 2     /* was 4 */
+#define MAX_Q_HUBS 2      /* was 4 */
+#define MAX_Q_RELICS 2    /* was 4 */
+#define MAX_Q_RUPTURES 2  /* was 4 */
+#define MAX_Q_SATELLITES 4 /* was 8 */
+#define MAX_Q_STORMS 2    /* was 4 */
+#define MAX_Q_ARTIFACTS 2 /* was 4 */
+#define MAX_Q_WARP_GATES 2 /* was 4 */
+#define MAX_Q_NEUTRON_STARS 2 /* was 4 */
+#define MAX_Q_MEGA_STRUCTS 2 /* was 4 */
+#define MAX_Q_DARK_CLOUDS 4 /* was 8 */
+#define MAX_Q_SINGULARITIES 2 /* was 4 */
+#define MAX_Q_PLASMA_STORMS 2 /* was 4 */
+#define MAX_Q_ORBITAL_RINGS 2 /* was 4 */
+#define MAX_Q_TIME_ANOMALIES 2 /* was 4 */
+#define MAX_Q_VOID_CRYSTALS 2 /* was 4 */
+#define MAX_Q_SUBSPACE_ANOMALIES 2 /* was 4 */
+#define MAX_Q_DIFFUSE_NEBULA 2 /* was 4 */
+#define MAX_Q_DARK_NEBULA 2 /* was 4 */
+#define MAX_Q_PLANETARY_NEBULA 2 /* was 4 */
+#define MAX_Q_SNR 2 /* was 4 */
+#define MAX_Q_GMC 2 /* was 4 */
+#define MAX_Q_INTERSTELLAR_FILAMENT 2 /* was 4 */
+#define MAX_Q_INTERSTELLAR_BUBBLE 2 /* was 4 */
+#define MAX_Q_BOK_GLOBULE 2 /* was 4 */
+#define MAX_Q_CLUMP_CORE 2 /* was 4 */
+#define MAX_Q_ACCRETION_DISK 2 /* was 4 */
+#define MAX_Q_RELATIVISTIC_JET 2 /* was 4 */
+#define MAX_Q_SHOCK_WAVE 2 /* was 4 */
+#define MAX_Q_STELLAR_BOW_SHOCK 2 /* was 4 */
+#define MAX_Q_COSMIC_VOID 1 /* was 2: at most 1 cosmic void per quadrant */
+#define MAX_Q_COSMIC_FILAMENT 2 /* was 4 */
+#define MAX_Q_EVENT_HORIZON 2 /* was 4 */
+#define MAX_Q_KILONOVA 1 /* was 2 */
+#define MAX_Q_GRAV_LENS 2 /* was 4 */
+#define MAX_Q_GRB 1 /* was 2 */
+#define MAX_Q_GRAV_WAVE 2 /* was 4 */
+#define MAX_Q_PROTOPLANETARY_DISK 2 /* was 4 */
+#define MAX_Q_DEBRIS_DISK 2 /* was 4 */
+#define MAX_Q_PLANETESIMAL 4 /* was 8 */
+#define MAX_Q_ROGUE_PLANET 2 /* was 4 */
+#define MAX_Q_BROWN_DWARF 2 /* was 4 */
+#define MAX_Q_ISO 2 /* was 4 */
+#define MAX_Q_MAG_RECONN 2 /* was 4 */
+#define MAX_Q_CURRENT_SHEET 2 /* was 4 */
+#define MAX_Q_HELIOSPHERE 2 /* was 4 */
+#define MAX_Q_TERM_SHOCK 2 /* was 4 */
+#define MAX_Q_MAGNETOSPHERE 2 /* was 4 */
+#define MAX_Q_COSMIC_STRING 2 /* was 4 */
+#define MAX_Q_DOMAIN_WALL 1 /* was 2 */
+#define MAX_Q_DM_HALO 2 /* was 4 */
+#define MAX_Q_IGM 2 /* was 4 */
+#define MAX_Q_CGM 2 /* was 4 */
+#define MAX_Q_LYMAN_ALPHA 2 /* was 4 */
+#define MAX_Q_CMB 1 /* was 2 */
 
 /* Global Data accessed by modules */
 extern NPCStar stars_data[MAX_STARS];
@@ -921,6 +929,7 @@ void push_server_event(int p_idx, int type, double x1, double y1, double z1, dou
 bool is_player_in_nebula(int p_idx);
 void apply_hull_damage(int p_idx, double amount);
 void send_optimized_update(int p_idx, PacketUpdate *upd);
+void send_pending_updates(void);
 
 int calculate_shield_index(double shooter_x, double shooter_y, double shooter_z, 
                            double target_x, double target_y, double target_z,

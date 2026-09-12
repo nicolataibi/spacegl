@@ -273,6 +273,11 @@ void *game_loop_thread(void *arg) {
 
         pthread_mutex_unlock(&game_mutex);
 
+        /* Send all pending player network updates OUTSIDE game_mutex.
+         * This decouples blocking TCP writes from the 60Hz simulation lock,
+         * preventing a slow client from stalling the entire game thread. */
+        send_pending_updates();
+
         /* Broadcast telemetry OUTSIDE of the game lock to avoid stalling the main loop */
         extern void telemetry_broadcast();
         telemetry_broadcast();

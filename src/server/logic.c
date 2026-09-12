@@ -423,7 +423,6 @@ void update_game_logic() {
     }
 
     /* High-Energy Nebula Antimatter Refill */
-    #pragma omp parallel for schedule(dynamic)
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (!players[i].active) continue;
         int pq1 = players[i].state.q1, pq2 = players[i].state.q2, pq3 = players[i].state.q3;
@@ -447,7 +446,6 @@ void update_game_logic() {
         }
     }
 
-    #pragma omp parallel for schedule(dynamic)
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (players[i].socket && players[i].death_timer > 0) {
             players[i].death_timer--;
@@ -505,7 +503,6 @@ void update_game_logic() {
         }
     }
 
-    #pragma omp parallel for schedule(dynamic)
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (!players[i].active) {
             continue;
@@ -2485,9 +2482,8 @@ void update_game_logic() {
         if (players[i].socket == 0 || !players[i].active) {
             continue;
         }
-        PacketUpdate *upd = malloc(sizeof(PacketUpdate));
-        if (!upd) continue;
-        memset(upd, 0, sizeof(PacketUpdate)); 
+        PacketUpdate *upd = &players[i].upd_packet;
+        memset(upd, 0, sizeof(PacketUpdate));
         upd->type = PKT_UPDATE;
         
         upd->frame_id = global_tick;
@@ -2657,9 +2653,7 @@ void update_game_logic() {
         }
         players[i].state.beam_count = 0;
         players[i].fire_requested_this_tick = false;
-
-        send_optimized_update(i, upd);
-        free(upd);
+        players[i].pending_send = true;
     }
 
     /* === STARBASE FACTION DEFENSE: fire at players docking into hostile bases === */

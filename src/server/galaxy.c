@@ -325,562 +325,151 @@ void rebuild_spatial_index() {
         spatial_index = calloc(41 * 41 * 41, sizeof(QuadrantIndex));
         if (!spatial_index) { perror("Failed to allocate spatial_index"); exit(1); }
     }
-    
-    for(int i=0; i<dirty_count; i++) {
+
+    /* Reset ONLY the dynamic-object counts in dirty quadrants.
+     * Static objects (stars, planets, bases, nebulae, cosmic structures, etc.)
+     * are placed once by init_static_spatial_index() and never move, so their
+     * counts are preserved. Only truly mobile objects are re-inserted below. */
+    for (int i = 0; i < dirty_count; i++) {
         QuadrantIndex *q = &spatial_index[dirty_quads[i].q1][dirty_quads[i].q2][dirty_quads[i].q3];
-        q->npc_count = 0;
-        q->player_count = 0;
-        q->comet_count = 0;
+        q->npc_count      = 0;                         /* NPCs are always dynamic */
+        q->player_count   = 0;
+        q->torpedo_count  = 0;
+        q->monster_count  = 0;
+        q->comet_count    = 0;
         q->asteroid_count = 0;
         q->derelict_count = 0;
-        q->mine_count = 0;
-        q->buoy_count = 0;
+        q->mine_count     = 0;
+        q->buoy_count     = 0;
         q->platform_count = 0;
-        q->rift_count = 0;
-        q->monster_count = 0;
-        q->quasar_count = 0;
-        q->torpedo_count = 0;
-        q->dyson_count = 0;
-        q->hub_count = 0;
-        q->relic_count = 0;
-        q->rupture_count = 0;
-        q->satellite_count = 0;
-        q->storm_count = 0;
-        q->artifact_count = 0;
-        q->warp_gate_count = 0;
-        q->neutron_star_count = 0;
-        q->mega_struct_count = 0;
-        q->dark_cloud_count = 0;
-        q->singularity_count = 0;
-        q->plasma_storm_count = 0;
-        q->orbital_ring_count = 0;
-        q->time_anomaly_count = 0;
-        q->void_crystal_count = 0;
-        q->subspace_anomaly_count = 0;
-        q->diffuse_nebula_count = 0;
-        q->dark_nebula_count = 0;
-        q->planetary_nebula_count = 0;
-        q->snr_count = 0;
-        q->gmc_count = 0;
-        q->interstellar_filament_count = 0;
-        q->interstellar_bubble_count = 0;
-        q->bok_globule_count = 0;
-        q->clump_core_count = 0;
-        q->accretion_disk_count = 0;
-        q->relativistic_jet_count = 0;
-        q->shock_wave_count = 0;
-        q->stellar_bow_shock_count = 0;
-        q->cosmic_void_count = 0;
-        q->cosmic_filament_count = 0;
-        q->event_horizon_count = 0;
-        q->kilonova_count = 0;
-        q->grav_lens_count = 0;
-        q->grb_count = 0;
-        q->grav_wave_count = 0;
-        q->protoplanetary_disk_count = 0;
-        q->debris_disk_count = 0;
-        q->planetesimal_count = 0;
-        q->rogue_planet_count = 0;
-        q->brown_dwarf_count = 0;
-        q->iso_count = 0;
-        q->mag_reconn_count = 0;
-        q->current_sheet_count = 0;
-        q->heliosphere_count = 0;
-        q->term_shock_count = 0;
-        q->magnetosphere_count = 0;
-        q->cosmic_string_count = 0;
-        q->domain_wall_count = 0;
-        q->dm_halo_count = 0;
-        q->igm_count = 0;
-        q->cgm_count = 0;
-        q->lyman_alpha_count = 0;
-        q->cmb_count = 0;
+        q->rift_count     = 0;
     }
     dirty_count = 0;
 
-    for(int n=0; n<MAX_NPC; n++) if(npcs[n].active) {
-        if (IS_Q_VALID(npcs[n].q1, npcs[n].q2, npcs[n].q3)) {
-            mark_quad_dirty(npcs[n].q1, npcs[n].q2, npcs[n].q3);
-            QuadrantIndex *q = &spatial_index[npcs[n].q1][npcs[n].q2][npcs[n].q3];
-            if (q->npc_count < MAX_Q_NPC) q->npcs[q->npc_count++] = &npcs[n];
-        }
-    }
-    for(int i=0; i<MAX_DIFFUSE_NEBULAE; i++) if(diffuse_nebulae[i].active) {
-        if (IS_Q_VALID(diffuse_nebulae[i].q1, diffuse_nebulae[i].q2, diffuse_nebulae[i].q3)) {
-            mark_quad_dirty(diffuse_nebulae[i].q1, diffuse_nebulae[i].q2, diffuse_nebulae[i].q3);
-            QuadrantIndex *q = &spatial_index[diffuse_nebulae[i].q1][diffuse_nebulae[i].q2][diffuse_nebulae[i].q3];
-            if (q->diffuse_nebula_count < MAX_Q_DIFFUSE_NEBULA) q->diffuse_nebulae[q->diffuse_nebula_count++] = &diffuse_nebulae[i];
-        }
-    }
-    for(int i=0; i<MAX_DARK_NEBULAE; i++) if(dark_nebulae[i].active) {
-        if (IS_Q_VALID(dark_nebulae[i].q1, dark_nebulae[i].q2, dark_nebulae[i].q3)) {
-            mark_quad_dirty(dark_nebulae[i].q1, dark_nebulae[i].q2, dark_nebulae[i].q3);
-            QuadrantIndex *q = &spatial_index[dark_nebulae[i].q1][dark_nebulae[i].q2][dark_nebulae[i].q3];
-            if (q->dark_nebula_count < MAX_Q_DARK_NEBULA) q->dark_nebulae[q->dark_nebula_count++] = &dark_nebulae[i];
-        }
-    }
-    for(int i=0; i<MAX_PLANETARY_NEBULAE; i++) if(planetary_nebulae[i].active) {
-        if (IS_Q_VALID(planetary_nebulae[i].q1, planetary_nebulae[i].q2, planetary_nebulae[i].q3)) {
-            mark_quad_dirty(planetary_nebulae[i].q1, planetary_nebulae[i].q2, planetary_nebulae[i].q3);
-            QuadrantIndex *q = &spatial_index[planetary_nebulae[i].q1][planetary_nebulae[i].q2][planetary_nebulae[i].q3];
-            if (q->planetary_nebula_count < MAX_Q_PLANETARY_NEBULA) q->planetary_nebulae[q->planetary_nebula_count++] = &planetary_nebulae[i];
-        }
-    }
-    for(int i=0; i<MAX_SNR; i++) if(snrs[i].active) {
-        if (IS_Q_VALID(snrs[i].q1, snrs[i].q2, snrs[i].q3)) {
-            mark_quad_dirty(snrs[i].q1, snrs[i].q2, snrs[i].q3);
-            QuadrantIndex *q = &spatial_index[snrs[i].q1][snrs[i].q2][snrs[i].q3];
-            if (q->snr_count < MAX_Q_SNR) q->snrs[q->snr_count++] = &snrs[i];
-        }
-    }
-    for(int i=0; i<MAX_GMC; i++) if(gmcs[i].active) {
-        if (IS_Q_VALID(gmcs[i].q1, gmcs[i].q2, gmcs[i].q3)) {
-            mark_quad_dirty(gmcs[i].q1, gmcs[i].q2, gmcs[i].q3);
-            QuadrantIndex *q = &spatial_index[gmcs[i].q1][gmcs[i].q2][gmcs[i].q3];
-            if (q->gmc_count < MAX_Q_GMC) q->gmcs[q->gmc_count++] = &gmcs[i];
-        }
-    }
-    for(int i=0; i<MAX_INTERSTELLAR_FILAMENTS; i++) if(interstellar_filaments[i].active) {
-        if (IS_Q_VALID(interstellar_filaments[i].q1, interstellar_filaments[i].q2, interstellar_filaments[i].q3)) {
-            mark_quad_dirty(interstellar_filaments[i].q1, interstellar_filaments[i].q2, interstellar_filaments[i].q3);
-            QuadrantIndex *q = &spatial_index[interstellar_filaments[i].q1][interstellar_filaments[i].q2][interstellar_filaments[i].q3];
-            if (q->interstellar_filament_count < MAX_Q_INTERSTELLAR_FILAMENT) q->interstellar_filaments[q->interstellar_filament_count++] = &interstellar_filaments[i];
-        }
-    }
-    for(int i=0; i<MAX_INTERSTELLAR_BUBBLES; i++) if(interstellar_bubbles[i].active) {
-        if (IS_Q_VALID(interstellar_bubbles[i].q1, interstellar_bubbles[i].q2, interstellar_bubbles[i].q3)) {
-            mark_quad_dirty(interstellar_bubbles[i].q1, interstellar_bubbles[i].q2, interstellar_bubbles[i].q3);
-            QuadrantIndex *q = &spatial_index[interstellar_bubbles[i].q1][interstellar_bubbles[i].q2][interstellar_bubbles[i].q3];
-            if (q->interstellar_bubble_count < MAX_Q_INTERSTELLAR_BUBBLE) q->interstellar_bubbles[q->interstellar_bubble_count++] = &interstellar_bubbles[i];
-        }
-    }
-    for(int i=0; i<MAX_BOK_GLOBULES; i++) if(bok_globules[i].active) {
-        if (IS_Q_VALID(bok_globules[i].q1, bok_globules[i].q2, bok_globules[i].q3)) {
-            mark_quad_dirty(bok_globules[i].q1, bok_globules[i].q2, bok_globules[i].q3);
-            QuadrantIndex *q = &spatial_index[bok_globules[i].q1][bok_globules[i].q2][bok_globules[i].q3];
-            if (q->bok_globule_count < MAX_Q_BOK_GLOBULE) q->bok_globules[q->bok_globule_count++] = &bok_globules[i];
-        }
-    }
-    for(int i=0; i<MAX_CLUMP_CORES; i++) if(clump_cores[i].active) {
-        if (IS_Q_VALID(clump_cores[i].q1, clump_cores[i].q2, clump_cores[i].q3)) {
-            mark_quad_dirty(clump_cores[i].q1, clump_cores[i].q2, clump_cores[i].q3);
-            QuadrantIndex *q = &spatial_index[clump_cores[i].q1][clump_cores[i].q2][clump_cores[i].q3];
-            if (q->clump_core_count < MAX_Q_CLUMP_CORE) q->clump_cores[q->clump_core_count++] = &clump_cores[i];
-        }
-    }
-    for(int i=0; i<MAX_ACCRETION_DISKS; i++) if(accretion_disks[i].active) {
-        if (IS_Q_VALID(accretion_disks[i].q1, accretion_disks[i].q2, accretion_disks[i].q3)) {
-            mark_quad_dirty(accretion_disks[i].q1, accretion_disks[i].q2, accretion_disks[i].q3);
-            QuadrantIndex *q = &spatial_index[accretion_disks[i].q1][accretion_disks[i].q2][accretion_disks[i].q3];
-            if (q->accretion_disk_count < MAX_Q_ACCRETION_DISK) q->accretion_disks[q->accretion_disk_count++] = &accretion_disks[i];
-        }
-    }
-    for(int i=0; i<MAX_RELATIVISTIC_JETS; i++) if(relativistic_jets[i].active) {
-        if (IS_Q_VALID(relativistic_jets[i].q1, relativistic_jets[i].q2, relativistic_jets[i].q3)) {
-            mark_quad_dirty(relativistic_jets[i].q1, relativistic_jets[i].q2, relativistic_jets[i].q3);
-            QuadrantIndex *q = &spatial_index[relativistic_jets[i].q1][relativistic_jets[i].q2][relativistic_jets[i].q3];
-            if (q->relativistic_jet_count < MAX_Q_RELATIVISTIC_JET) q->relativistic_jets[q->relativistic_jet_count++] = &relativistic_jets[i];
-        }
-    }
-    for(int i=0; i<MAX_SHOCK_WAVES; i++) if(shock_waves[i].active) {
-        if (IS_Q_VALID(shock_waves[i].q1, shock_waves[i].q2, shock_waves[i].q3)) {
-            mark_quad_dirty(shock_waves[i].q1, shock_waves[i].q2, shock_waves[i].q3);
-            QuadrantIndex *q = &spatial_index[shock_waves[i].q1][shock_waves[i].q2][shock_waves[i].q3];
-            if (q->shock_wave_count < MAX_Q_SHOCK_WAVE) q->shock_waves[q->shock_wave_count++] = &shock_waves[i];
-        }
-    }
-    for(int i=0; i<MAX_STELLAR_BOW_SHOCKS; i++) if(stellar_bow_shocks[i].active) {
-        if (IS_Q_VALID(stellar_bow_shocks[i].q1, stellar_bow_shocks[i].q2, stellar_bow_shocks[i].q3)) {
-            mark_quad_dirty(stellar_bow_shocks[i].q1, stellar_bow_shocks[i].q2, stellar_bow_shocks[i].q3);
-            QuadrantIndex *q = &spatial_index[stellar_bow_shocks[i].q1][stellar_bow_shocks[i].q2][stellar_bow_shocks[i].q3];
-            if (q->stellar_bow_shock_count < MAX_Q_STELLAR_BOW_SHOCK) q->stellar_bow_shocks[q->stellar_bow_shock_count++] = &stellar_bow_shocks[i];
-        }
-    }
-    for(int i=0; i<MAX_COSMIC_VOIDS; i++) if(cosmic_voids[i].active) {
-        if (IS_Q_VALID(cosmic_voids[i].q1, cosmic_voids[i].q2, cosmic_voids[i].q3)) {
-            mark_quad_dirty(cosmic_voids[i].q1, cosmic_voids[i].q2, cosmic_voids[i].q3);
-            QuadrantIndex *q = &spatial_index[cosmic_voids[i].q1][cosmic_voids[i].q2][cosmic_voids[i].q3];
-            if (q->cosmic_void_count < MAX_Q_COSMIC_VOID) q->cosmic_voids[q->cosmic_void_count++] = &cosmic_voids[i];
-        }
-    }
-    for(int i=0; i<MAX_COSMIC_FILAMENTS; i++) if(cosmic_filaments[i].active) {
-        if (IS_Q_VALID(cosmic_filaments[i].q1, cosmic_filaments[i].q2, cosmic_filaments[i].q3)) {
-            mark_quad_dirty(cosmic_filaments[i].q1, cosmic_filaments[i].q2, cosmic_filaments[i].q3);
-            QuadrantIndex *q = &spatial_index[cosmic_filaments[i].q1][cosmic_filaments[i].q2][cosmic_filaments[i].q3];
-            if (q->cosmic_filament_count < MAX_Q_COSMIC_FILAMENT) q->cosmic_filaments[q->cosmic_filament_count++] = &cosmic_filaments[i];
-        }
-    }
-    for(int i=0; i<MAX_EVENT_HORIZONS; i++) if(event_horizons[i].active) {
-        if (IS_Q_VALID(event_horizons[i].q1, event_horizons[i].q2, event_horizons[i].q3)) {
-            mark_quad_dirty(event_horizons[i].q1, event_horizons[i].q2, event_horizons[i].q3);
-            QuadrantIndex *q = &spatial_index[event_horizons[i].q1][event_horizons[i].q2][event_horizons[i].q3];
-            if (q->event_horizon_count < MAX_Q_EVENT_HORIZON) q->event_horizons[q->event_horizon_count++] = &event_horizons[i];
-        }
-    }
-    for(int i=0; i<MAX_KILONOVAE; i++) if(kilonovae[i].active) {
-        if (IS_Q_VALID(kilonovae[i].q1, kilonovae[i].q2, kilonovae[i].q3)) {
-            mark_quad_dirty(kilonovae[i].q1, kilonovae[i].q2, kilonovae[i].q3);
-            QuadrantIndex *q = &spatial_index[kilonovae[i].q1][kilonovae[i].q2][kilonovae[i].q3];
-            if (q->kilonova_count < MAX_Q_KILONOVA) q->kilonovae[q->kilonova_count++] = &kilonovae[i];
-        }
-    }
-    for(int i=0; i<MAX_GRAV_LENSES; i++) if(grav_lenses[i].active) {
-        if (IS_Q_VALID(grav_lenses[i].q1, grav_lenses[i].q2, grav_lenses[i].q3)) {
-            mark_quad_dirty(grav_lenses[i].q1, grav_lenses[i].q2, grav_lenses[i].q3);
-            QuadrantIndex *q = &spatial_index[grav_lenses[i].q1][grav_lenses[i].q2][grav_lenses[i].q3];
-            if (q->grav_lens_count < MAX_Q_GRAV_LENS) q->grav_lenses[q->grav_lens_count++] = &grav_lenses[i];
-        }
-    }
-    for(int i=0; i<MAX_GRB; i++) if(grbs[i].active) {
-        if (IS_Q_VALID(grbs[i].q1, grbs[i].q2, grbs[i].q3)) {
-            mark_quad_dirty(grbs[i].q1, grbs[i].q2, grbs[i].q3);
-            QuadrantIndex *q = &spatial_index[grbs[i].q1][grbs[i].q2][grbs[i].q3];
-            if (q->grb_count < MAX_Q_GRB) q->grbs[q->grb_count++] = &grbs[i];
-        }
-    }
-    for(int i=0; i<MAX_GRAV_WAVES; i++) if(grav_waves[i].active) {
-        if (IS_Q_VALID(grav_waves[i].q1, grav_waves[i].q2, grav_waves[i].q3)) {
-            mark_quad_dirty(grav_waves[i].q1, grav_waves[i].q2, grav_waves[i].q3);
-            QuadrantIndex *q = &spatial_index[grav_waves[i].q1][grav_waves[i].q2][grav_waves[i].q3];
-            if (q->grav_wave_count < MAX_Q_GRAV_WAVE) q->grav_waves[q->grav_wave_count++] = &grav_waves[i];
-        }
-    }
-    for(int i=0; i<MAX_PROTOPLANETARY_DISKS; i++) if(protoplanetary_disks[i].active) {
-        if (IS_Q_VALID(protoplanetary_disks[i].q1, protoplanetary_disks[i].q2, protoplanetary_disks[i].q3)) {
-            mark_quad_dirty(protoplanetary_disks[i].q1, protoplanetary_disks[i].q2, protoplanetary_disks[i].q3);
-            QuadrantIndex *q = &spatial_index[protoplanetary_disks[i].q1][protoplanetary_disks[i].q2][protoplanetary_disks[i].q3];
-            if (q->protoplanetary_disk_count < MAX_Q_PROTOPLANETARY_DISK) q->protoplanetary_disks[q->protoplanetary_disk_count++] = &protoplanetary_disks[i];
-        }
-    }
-    for(int i=0; i<MAX_DEBRIS_DISKS; i++) if(debris_disks[i].active) {
-        if (IS_Q_VALID(debris_disks[i].q1, debris_disks[i].q2, debris_disks[i].q3)) {
-            mark_quad_dirty(debris_disks[i].q1, debris_disks[i].q2, debris_disks[i].q3);
-            QuadrantIndex *q = &spatial_index[debris_disks[i].q1][debris_disks[i].q2][debris_disks[i].q3];
-            if (q->debris_disk_count < MAX_Q_DEBRIS_DISK) q->debris_disks[q->debris_disk_count++] = &debris_disks[i];
-        }
-    }
-    for(int i=0; i<MAX_PLANETESIMALS; i++) if(planetesimals[i].active) {
-        if (IS_Q_VALID(planetesimals[i].q1, planetesimals[i].q2, planetesimals[i].q3)) {
-            mark_quad_dirty(planetesimals[i].q1, planetesimals[i].q2, planetesimals[i].q3);
-            QuadrantIndex *q = &spatial_index[planetesimals[i].q1][planetesimals[i].q2][planetesimals[i].q3];
-            if (q->planetesimal_count < MAX_Q_PLANETESIMAL) q->planetesimals[q->planetesimal_count++] = &planetesimals[i];
-        }
-    }
-    for(int i=0; i<MAX_ROGUE_PLANETS; i++) if(rogue_planets[i].active) {
-        if (IS_Q_VALID(rogue_planets[i].q1, rogue_planets[i].q2, rogue_planets[i].q3)) {
-            mark_quad_dirty(rogue_planets[i].q1, rogue_planets[i].q2, rogue_planets[i].q3);
-            QuadrantIndex *q = &spatial_index[rogue_planets[i].q1][rogue_planets[i].q2][rogue_planets[i].q3];
-            if (q->rogue_planet_count < MAX_Q_ROGUE_PLANET) q->rogue_planets[q->rogue_planet_count++] = &rogue_planets[i];
-        }
-    }
-    for(int i=0; i<MAX_BROWN_DWARFS; i++) if(brown_dwarfs[i].active) {
-        if (IS_Q_VALID(brown_dwarfs[i].q1, brown_dwarfs[i].q2, brown_dwarfs[i].q3)) {
-            mark_quad_dirty(brown_dwarfs[i].q1, brown_dwarfs[i].q2, brown_dwarfs[i].q3);
-            QuadrantIndex *q = &spatial_index[brown_dwarfs[i].q1][brown_dwarfs[i].q2][brown_dwarfs[i].q3];
-            if (q->brown_dwarf_count < MAX_Q_BROWN_DWARF) q->brown_dwarfs[q->brown_dwarf_count++] = &brown_dwarfs[i];
-        }
-    }
-    for(int i=0; i<MAX_ISO; i++) if(isos[i].active) {
-        if (IS_Q_VALID(isos[i].q1, isos[i].q2, isos[i].q3)) {
-            mark_quad_dirty(isos[i].q1, isos[i].q2, isos[i].q3);
-            QuadrantIndex *q = &spatial_index[isos[i].q1][isos[i].q2][isos[i].q3];
-            if (q->iso_count < MAX_Q_ISO) q->isos[q->iso_count++] = &isos[i];
-        }
-    }
-    for(int i=0; i<MAX_MAG_RECONN; i++) if(mag_reconns[i].active) {
-        if (IS_Q_VALID(mag_reconns[i].q1, mag_reconns[i].q2, mag_reconns[i].q3)) {
-            mark_quad_dirty(mag_reconns[i].q1, mag_reconns[i].q2, mag_reconns[i].q3);
-            QuadrantIndex *q = &spatial_index[mag_reconns[i].q1][mag_reconns[i].q2][mag_reconns[i].q3];
-            if (q->mag_reconn_count < MAX_Q_MAG_RECONN) q->mag_reconns[q->mag_reconn_count++] = &mag_reconns[i];
-        }
-    }
-    for(int i=0; i<MAX_CURRENT_SHEETS; i++) if(current_sheets[i].active) {
-        if (IS_Q_VALID(current_sheets[i].q1, current_sheets[i].q2, current_sheets[i].q3)) {
-            mark_quad_dirty(current_sheets[i].q1, current_sheets[i].q2, current_sheets[i].q3);
-            QuadrantIndex *q = &spatial_index[current_sheets[i].q1][current_sheets[i].q2][current_sheets[i].q3];
-            if (q->current_sheet_count < MAX_Q_CURRENT_SHEET) q->current_sheets[q->current_sheet_count++] = &current_sheets[i];
-        }
-    }
-    for(int i=0; i<MAX_HELIOSPHERES; i++) if(heliospheres[i].active) {
-        if (IS_Q_VALID(heliospheres[i].q1, heliospheres[i].q2, heliospheres[i].q3)) {
-            mark_quad_dirty(heliospheres[i].q1, heliospheres[i].q2, heliospheres[i].q3);
-            QuadrantIndex *q = &spatial_index[heliospheres[i].q1][heliospheres[i].q2][heliospheres[i].q3];
-            if (q->heliosphere_count < MAX_Q_HELIOSPHERE) q->heliospheres[q->heliosphere_count++] = &heliospheres[i];
-        }
-    }
-    for(int i=0; i<MAX_TERM_SHOCKS; i++) if(term_shocks[i].active) {
-        if (IS_Q_VALID(term_shocks[i].q1, term_shocks[i].q2, term_shocks[i].q3)) {
-            mark_quad_dirty(term_shocks[i].q1, term_shocks[i].q2, term_shocks[i].q3);
-            QuadrantIndex *q = &spatial_index[term_shocks[i].q1][term_shocks[i].q2][term_shocks[i].q3];
-            if (q->term_shock_count < MAX_Q_TERM_SHOCK) q->term_shocks[q->term_shock_count++] = &term_shocks[i];
-        }
-    }
-    for(int i=0; i<MAX_MAGNETOSPHERES; i++) if(magnetospheres[i].active) {
-        if (IS_Q_VALID(magnetospheres[i].q1, magnetospheres[i].q2, magnetospheres[i].q3)) {
-            mark_quad_dirty(magnetospheres[i].q1, magnetospheres[i].q2, magnetospheres[i].q3);
-            QuadrantIndex *q = &spatial_index[magnetospheres[i].q1][magnetospheres[i].q2][magnetospheres[i].q3];
-            if (q->magnetosphere_count < MAX_Q_MAGNETOSPHERE) q->magnetospheres[q->magnetosphere_count++] = &magnetospheres[i];
-        }
-    }
-    for(int i=0; i<MAX_COSMIC_STRINGS; i++) if(cosmic_strings[i].active) {
-        if (IS_Q_VALID(cosmic_strings[i].q1, cosmic_strings[i].q2, cosmic_strings[i].q3)) {
-            mark_quad_dirty(cosmic_strings[i].q1, cosmic_strings[i].q2, cosmic_strings[i].q3);
-            QuadrantIndex *q = &spatial_index[cosmic_strings[i].q1][cosmic_strings[i].q2][cosmic_strings[i].q3];
-            if (q->cosmic_string_count < MAX_Q_COSMIC_STRING) q->cosmic_strings[q->cosmic_string_count++] = &cosmic_strings[i];
-        }
-    }
-    for(int i=0; i<MAX_DOMAIN_WALLS; i++) if(domain_walls[i].active) {
-        if (IS_Q_VALID(domain_walls[i].q1, domain_walls[i].q2, domain_walls[i].q3)) {
-            mark_quad_dirty(domain_walls[i].q1, domain_walls[i].q2, domain_walls[i].q3);
-            QuadrantIndex *q = &spatial_index[domain_walls[i].q1][domain_walls[i].q2][domain_walls[i].q3];
-            if (q->domain_wall_count < MAX_Q_DOMAIN_WALL) q->domain_walls[q->domain_wall_count++] = &domain_walls[i];
-        }
-    }
-    for(int i=0; i<MAX_DM_HALO; i++) if(dm_halos[i].active) {
-        if (IS_Q_VALID(dm_halos[i].q1, dm_halos[i].q2, dm_halos[i].q3)) {
-            mark_quad_dirty(dm_halos[i].q1, dm_halos[i].q2, dm_halos[i].q3);
-            QuadrantIndex *q = &spatial_index[dm_halos[i].q1][dm_halos[i].q2][dm_halos[i].q3];
-            if (q->dm_halo_count < MAX_Q_DM_HALO) q->dm_halos[q->dm_halo_count++] = &dm_halos[i];
-        }
-    }
-    for(int i=0; i<MAX_IGM; i++) if(igms[i].active) {
-        if (IS_Q_VALID(igms[i].q1, igms[i].q2, igms[i].q3)) {
-            mark_quad_dirty(igms[i].q1, igms[i].q2, igms[i].q3);
-            QuadrantIndex *q = &spatial_index[igms[i].q1][igms[i].q2][igms[i].q3];
-            if (q->igm_count < MAX_Q_IGM) q->igms[q->igm_count++] = &igms[i];
-        }
-    }
-    for(int i=0; i<MAX_CGM; i++) if(cgms[i].active) {
-        if (IS_Q_VALID(cgms[i].q1, cgms[i].q2, cgms[i].q3)) {
-            mark_quad_dirty(cgms[i].q1, cgms[i].q2, cgms[i].q3);
-            QuadrantIndex *q = &spatial_index[cgms[i].q1][cgms[i].q2][cgms[i].q3];
-            if (q->cgm_count < MAX_Q_CGM) q->cgms[q->cgm_count++] = &cgms[i];
-        }
-    }
-    for(int i=0; i<MAX_LYMAN_ALPHA; i++) if(lyman_alphas[i].active) {
-        if (IS_Q_VALID(lyman_alphas[i].q1, lyman_alphas[i].q2, lyman_alphas[i].q3)) {
-            mark_quad_dirty(lyman_alphas[i].q1, lyman_alphas[i].q2, lyman_alphas[i].q3);
-            QuadrantIndex *q = &spatial_index[lyman_alphas[i].q1][lyman_alphas[i].q2][lyman_alphas[i].q3];
-            if (q->lyman_alpha_count < MAX_Q_LYMAN_ALPHA) q->lyman_alphas[q->lyman_alpha_count++] = &lyman_alphas[i];
-        }
-    }
-    for(int i=0; i<MAX_CMB; i++) if(cmbs[i].active) {
-        if (IS_Q_VALID(cmbs[i].q1, cmbs[i].q2, cmbs[i].q3)) {
-            mark_quad_dirty(cmbs[i].q1, cmbs[i].q2, cmbs[i].q3);
-            QuadrantIndex *q = &spatial_index[cmbs[i].q1][cmbs[i].q2][cmbs[i].q3];
-            if (q->cmb_count < MAX_Q_CMB) q->cmbs[q->cmb_count++] = &cmbs[i];
-        }
-    }
-    /* Populating new types in spatial index */
-    for(int d=0; d<MAX_DYSON; d++) if(dysons[d].active) {
-        if (IS_Q_VALID(dysons[d].q1, dysons[d].q2, dysons[d].q3)) {
-            mark_quad_dirty(dysons[d].q1, dysons[d].q2, dysons[d].q3);
-            QuadrantIndex *q = &spatial_index[dysons[d].q1][dysons[d].q2][dysons[d].q3];
-            if (q->dyson_count < MAX_Q_DYSON) q->dysons[q->dyson_count++] = &dysons[d];
-        }
-    }
-    for(int h=0; h<MAX_HUBS; h++) if(hubs[h].active) {
-        if (IS_Q_VALID(hubs[h].q1, hubs[h].q2, hubs[h].q3)) {
-            mark_quad_dirty(hubs[h].q1, hubs[h].q2, hubs[h].q3);
-            QuadrantIndex *q = &spatial_index[hubs[h].q1][hubs[h].q2][hubs[h].q3];
-            if (q->hub_count < MAX_Q_HUBS) q->hubs[q->hub_count++] = &hubs[h];
-        }
-    }
-    for(int r=0; r<MAX_RELICS; r++) if(relics[r].active) {
-        if (IS_Q_VALID(relics[r].q1, relics[r].q2, relics[r].q3)) {
-            mark_quad_dirty(relics[r].q1, relics[r].q2, relics[r].q3);
-            QuadrantIndex *q = &spatial_index[relics[r].q1][relics[r].q2][relics[r].q3];
-            if (q->relic_count < MAX_Q_RELICS) q->relics[q->relic_count++] = &relics[r];
-        }
-    }
-    for(int ru=0; ru<MAX_RUPTURES; ru++) if(ruptures[ru].active) {
-        if (IS_Q_VALID(ruptures[ru].q1, ruptures[ru].q2, ruptures[ru].q3)) {
-            mark_quad_dirty(ruptures[ru].q1, ruptures[ru].q2, ruptures[ru].q3);
-            QuadrantIndex *q = &spatial_index[ruptures[ru].q1][ruptures[ru].q2][ruptures[ru].q3];
-            if (q->rupture_count < MAX_Q_RUPTURES) q->ruptures[q->rupture_count++] = &ruptures[ru];
-        }
-    }
-    for(int sa=0; sa<MAX_SATELLITES; sa++) if(satellites[sa].active) {
-        if (IS_Q_VALID(satellites[sa].q1, satellites[sa].q2, satellites[sa].q3)) {
-            mark_quad_dirty(satellites[sa].q1, satellites[sa].q2, satellites[sa].q3);
-            QuadrantIndex *q = &spatial_index[satellites[sa].q1][satellites[sa].q2][satellites[sa].q3];
-            if (q->satellite_count < MAX_Q_SATELLITES) q->satellites[q->satellite_count++] = &satellites[sa];
-        }
-    }
-    for(int st=0; st<MAX_STORMS; st++) if(storms[st].active) {
-        if (IS_Q_VALID(storms[st].q1, storms[st].q2, storms[st].q3)) {
-            mark_quad_dirty(storms[st].q1, storms[st].q2, storms[st].q3);
-            QuadrantIndex *q = &spatial_index[storms[st].q1][storms[st].q2][storms[st].q3];
-            if (q->storm_count < MAX_Q_STORMS) q->storms[q->storm_count++] = &storms[st];
-        }
-    }
-
-    for(int a=0; a<MAX_ARTIFACTS; a++) if(artifacts[a].active) {
-        if (IS_Q_VALID(artifacts[a].q1, artifacts[a].q2, artifacts[a].q3)) {
-            mark_quad_dirty(artifacts[a].q1, artifacts[a].q2, artifacts[a].q3);
-            QuadrantIndex *q = &spatial_index[artifacts[a].q1][artifacts[a].q2][artifacts[a].q3];
-            if (q->artifact_count < MAX_Q_ARTIFACTS) q->artifacts[q->artifact_count++] = &artifacts[a];
-        }
-    }
-
-    for(int a=0; a<MAX_WARP_GATES; a++) if(warp_gates[a].active) {
-        if (IS_Q_VALID(warp_gates[a].q1, warp_gates[a].q2, warp_gates[a].q3)) {
-            mark_quad_dirty(warp_gates[a].q1, warp_gates[a].q2, warp_gates[a].q3);
-            QuadrantIndex *q = &spatial_index[warp_gates[a].q1][warp_gates[a].q2][warp_gates[a].q3];
-            if (q->warp_gate_count < MAX_Q_WARP_GATES) q->warp_gates[q->warp_gate_count++] = &warp_gates[a];
-        }
-    }
-
-    for(int a=0; a<MAX_NEUTRON_STARS; a++) if(neutron_stars[a].active) {
-        if (IS_Q_VALID(neutron_stars[a].q1, neutron_stars[a].q2, neutron_stars[a].q3)) {
-            mark_quad_dirty(neutron_stars[a].q1, neutron_stars[a].q2, neutron_stars[a].q3);
-            QuadrantIndex *q = &spatial_index[neutron_stars[a].q1][neutron_stars[a].q2][neutron_stars[a].q3];
-            if (q->neutron_star_count < MAX_Q_NEUTRON_STARS) q->neutron_stars[q->neutron_star_count++] = &neutron_stars[a];
-        }
-    }
-
-    for(int a=0; a<MAX_MEGA_STRUCTS; a++) if(mega_structs[a].active) {
-        if (IS_Q_VALID(mega_structs[a].q1, mega_structs[a].q2, mega_structs[a].q3)) {
-            mark_quad_dirty(mega_structs[a].q1, mega_structs[a].q2, mega_structs[a].q3);
-            QuadrantIndex *q = &spatial_index[mega_structs[a].q1][mega_structs[a].q2][mega_structs[a].q3];
-            if (q->mega_struct_count < MAX_Q_MEGA_STRUCTS) q->mega_structs[q->mega_struct_count++] = &mega_structs[a];
-        }
-    }
-
-    for(int a=0; a<MAX_DARK_CLOUDS; a++) if(dark_clouds[a].active) {
-        if (IS_Q_VALID(dark_clouds[a].q1, dark_clouds[a].q2, dark_clouds[a].q3)) {
-            mark_quad_dirty(dark_clouds[a].q1, dark_clouds[a].q2, dark_clouds[a].q3);
-            QuadrantIndex *q = &spatial_index[dark_clouds[a].q1][dark_clouds[a].q2][dark_clouds[a].q3];
-            if (q->dark_cloud_count < MAX_Q_DARK_CLOUDS) q->dark_clouds[q->dark_cloud_count++] = &dark_clouds[a];
-        }
-    }
-
-    for(int a=0; a<MAX_SINGULARITIES; a++) if(singularities[a].active) {
-        if (IS_Q_VALID(singularities[a].q1, singularities[a].q2, singularities[a].q3)) {
-            mark_quad_dirty(singularities[a].q1, singularities[a].q2, singularities[a].q3);
-            QuadrantIndex *q = &spatial_index[singularities[a].q1][singularities[a].q2][singularities[a].q3];
-            if (q->singularity_count < MAX_Q_SINGULARITIES) q->singularities[q->singularity_count++] = &singularities[a];
-        }
-    }
-
-    for(int a=0; a<MAX_PLASMA_STORMS; a++) if(plasma_storms[a].active) {
-        if (IS_Q_VALID(plasma_storms[a].q1, plasma_storms[a].q2, plasma_storms[a].q3)) {
-            mark_quad_dirty(plasma_storms[a].q1, plasma_storms[a].q2, plasma_storms[a].q3);
-            QuadrantIndex *q = &spatial_index[plasma_storms[a].q1][plasma_storms[a].q2][plasma_storms[a].q3];
-            if (q->plasma_storm_count < MAX_Q_PLASMA_STORMS) q->plasma_storms[q->plasma_storm_count++] = &plasma_storms[a];
-        }
-    }
-
-    for(int a=0; a<MAX_ORBITAL_RINGS; a++) if(orbital_rings[a].active) {
-        if (IS_Q_VALID(orbital_rings[a].q1, orbital_rings[a].q2, orbital_rings[a].q3)) {
-            mark_quad_dirty(orbital_rings[a].q1, orbital_rings[a].q2, orbital_rings[a].q3);
-            QuadrantIndex *q = &spatial_index[orbital_rings[a].q1][orbital_rings[a].q2][orbital_rings[a].q3];
-            if (q->orbital_ring_count < MAX_Q_ORBITAL_RINGS) q->orbital_rings[q->orbital_ring_count++] = &orbital_rings[a];
-        }
-    }
-
-    for(int a=0; a<MAX_TIME_ANOMALIES; a++) if(time_anomalies[a].active) {
-        if (IS_Q_VALID(time_anomalies[a].q1, time_anomalies[a].q2, time_anomalies[a].q3)) {
-            mark_quad_dirty(time_anomalies[a].q1, time_anomalies[a].q2, time_anomalies[a].q3);
-            QuadrantIndex *q = &spatial_index[time_anomalies[a].q1][time_anomalies[a].q2][time_anomalies[a].q3];
-            if (q->time_anomaly_count < MAX_Q_TIME_ANOMALIES) q->time_anomalies[q->time_anomaly_count++] = &time_anomalies[a];
-        }
-    }
-
-    for(int a=0; a<MAX_VOID_CRYSTALS; a++) if(void_crystals[a].active) {
-        if (IS_Q_VALID(void_crystals[a].q1, void_crystals[a].q2, void_crystals[a].q3)) {
-            mark_quad_dirty(void_crystals[a].q1, void_crystals[a].q2, void_crystals[a].q3);
-            QuadrantIndex *q = &spatial_index[void_crystals[a].q1][void_crystals[a].q2][void_crystals[a].q3];
-            if (q->void_crystal_count < MAX_Q_VOID_CRYSTALS) q->void_crystals[q->void_crystal_count++] = &void_crystals[a];
-        }
-    }
-
-    for(int a=0; a<MAX_SUBSPACE_ANOMALIES; a++) if(subspace_anomalies[a].active) {
-        if (IS_Q_VALID(subspace_anomalies[a].q1, subspace_anomalies[a].q2, subspace_anomalies[a].q3)) {
-            mark_quad_dirty(subspace_anomalies[a].q1, subspace_anomalies[a].q2, subspace_anomalies[a].q3);
-            QuadrantIndex *q = &spatial_index[subspace_anomalies[a].q1][subspace_anomalies[a].q2][subspace_anomalies[a].q3];
-            if (q->subspace_anomaly_count < MAX_Q_SUBSPACE_ANOMALIES) q->subspace_anomalies[q->subspace_anomaly_count++] = &subspace_anomalies[a];
-        }
-    }
-    /* ... existing loops ... */
-    for(int c=0; c<MAX_COMETS; c++) if(comets[c].active) {
-        if (IS_Q_VALID(comets[c].q1, comets[c].q2, comets[c].q3)) {
-            mark_quad_dirty(comets[c].q1, comets[c].q2, comets[c].q3);
-            QuadrantIndex *q = &spatial_index[comets[c].q1][comets[c].q2][comets[c].q3];
-            if (q->comet_count < MAX_Q_COMETS) q->comets[q->comet_count++] = &comets[c];
-        }
-    }
-    for(int a=0; a<MAX_ASTEROIDS; a++) if(asteroids[a].active) {
-        if (IS_Q_VALID(asteroids[a].q1, asteroids[a].q2, asteroids[a].q3)) {
-            mark_quad_dirty(asteroids[a].q1, asteroids[a].q2, asteroids[a].q3);
-            QuadrantIndex *q = &spatial_index[asteroids[a].q1][asteroids[a].q2][asteroids[a].q3];
-            if (q->asteroid_count < MAX_Q_ASTEROIDS) q->asteroids[q->asteroid_count++] = &asteroids[a];
-        }
-    }
-    for(int d=0; d<MAX_DERELICTS; d++) if(derelicts[d].active) {
-        if (IS_Q_VALID(derelicts[d].q1, derelicts[d].q2, derelicts[d].q3)) {
-            mark_quad_dirty(derelicts[d].q1, derelicts[d].q2, derelicts[d].q3);
-            QuadrantIndex *q = &spatial_index[derelicts[d].q1][derelicts[d].q2][derelicts[d].q3];
-            if (q->derelict_count < MAX_Q_DERELICTS) q->derelicts[q->derelict_count++] = &derelicts[d];
-        }
-    }
-    for(int m=0; m<MAX_MINES; m++) if(mines[m].active) {
-        if (IS_Q_VALID(mines[m].q1, mines[m].q2, mines[m].q3)) {
-            mark_quad_dirty(mines[m].q1, mines[m].q2, mines[m].q3);
-            QuadrantIndex *q = &spatial_index[mines[m].q1][mines[m].q2][mines[m].q3];
-            if (q->mine_count < MAX_Q_MINES) q->mines[q->mine_count++] = &mines[m];
-        }
-    }
-    for(int b=0; b<MAX_BUOYS; b++) if(buoys[b].active) {
-        if (IS_Q_VALID(buoys[b].q1, buoys[b].q2, buoys[b].q3)) {
-            mark_quad_dirty(buoys[b].q1, buoys[b].q2, buoys[b].q3);
-            QuadrantIndex *q = &spatial_index[buoys[b].q1][buoys[b].q2][buoys[b].q3];
-            if (q->buoy_count < MAX_Q_BUOYS) q->buoys[q->buoy_count++] = &buoys[b];
-        }
-    }
-    for(int pl=0; pl<MAX_PLATFORMS; pl++) if(platforms[pl].active) {
-        if (IS_Q_VALID(platforms[pl].q1, platforms[pl].q2, platforms[pl].q3)) {
-            mark_quad_dirty(platforms[pl].q1, platforms[pl].q2, platforms[pl].q3);
-            QuadrantIndex *q = &spatial_index[platforms[pl].q1][platforms[pl].q2][platforms[pl].q3];
-            if (q->platform_count < MAX_Q_PLATFORMS) q->platforms[q->platform_count++] = &platforms[pl];
-        }
-    }
-    for(int r=0; r<MAX_RIFTS; r++) if(rifts[r].active) {
-        if (IS_Q_VALID(rifts[r].q1, rifts[r].q2, rifts[r].q3)) {
-            mark_quad_dirty(rifts[r].q1, rifts[r].q2, rifts[r].q3);
-            QuadrantIndex *q = &spatial_index[rifts[r].q1][rifts[r].q2][rifts[r].q3];
-            if (q->rift_count < MAX_Q_RIFTS) q->rifts[q->rift_count++] = &rifts[r];
-        }
-    }
-    for(int m=0; m<MAX_MONSTERS; m++) if(monsters[m].active) {
-        if (IS_Q_VALID(monsters[m].q1, monsters[m].q2, monsters[m].q3)) {
-            mark_quad_dirty(monsters[m].q1, monsters[m].q2, monsters[m].q3);
-            QuadrantIndex *q = &spatial_index[monsters[m].q1][monsters[m].q2][monsters[m].q3];
-            if (q->monster_count < MAX_Q_MONSTERS) q->monsters[q->monster_count++] = &monsters[m];
-        }
-    }
-    for(int qsr=0; qsr<MAX_QUASARS; qsr++) if(quasars[qsr].active) {
-        if (IS_Q_VALID(quasars[qsr].q1, quasars[qsr].q2, quasars[qsr].q3)) {
-            mark_quad_dirty(quasars[qsr].q1, quasars[qsr].q2, quasars[qsr].q3);
-            QuadrantIndex *q = &spatial_index[quasars[qsr].q1][quasars[qsr].q2][quasars[qsr].q3];
-            if (q->quasar_count < MAX_Q_QUASARS) q->quasars[q->quasar_count++] = &quasars[qsr];
-        }
-    }
-    for(int u=0; u<MAX_CLIENTS; u++) if(players[u].active && players[u].name[0] != '\0') {
-        if (IS_Q_VALID(players[u].state.q1, players[u].state.q2, players[u].state.q3)) {
-            mark_quad_dirty(players[u].state.q1, players[u].state.q2, players[u].state.q3);
-            QuadrantIndex *q = &spatial_index[players[u].state.q1][players[u].state.q2][players[u].state.q3];
-            if (q->player_count < MAX_Q_PLAYERS) q->players[q->player_count++] = &players[u];
-        }
-    }
-    for(int t=0; t<MAX_GLOBAL_TORPEDOES; t++) if(players_torpedoes[t].active) {
-        if (IS_Q_VALID(players_torpedoes[t].q1, players_torpedoes[t].q2, players_torpedoes[t].q3)) {
-            mark_quad_dirty(players_torpedoes[t].q1, players_torpedoes[t].q2, players_torpedoes[t].q3);
-            QuadrantIndex *q = &spatial_index[players_torpedoes[t].q1][players_torpedoes[t].q2][players_torpedoes[t].q3];
-            if (q->torpedo_count < MAX_Q_TORPEDOES) q->torpedoes[q->torpedo_count++] = &players_torpedoes[t];
+    /* Re-insert only truly dynamic objects (those that can change quadrant each tick) */
+    for (int n = 0; n < MAX_NPC; n++) {
+        if (npcs[n].active) {
+            if (IS_Q_VALID(npcs[n].q1, npcs[n].q2, npcs[n].q3)) {
+                mark_quad_dirty(npcs[n].q1, npcs[n].q2, npcs[n].q3);
+                QuadrantIndex *q = &spatial_index[npcs[n].q1][npcs[n].q2][npcs[n].q3];
+                if (q->npc_count < MAX_Q_NPC) {
+                    q->npcs[q->npc_count++] = &npcs[n];
+                }
+            }
+        }
+    }
+    for (int m = 0; m < MAX_MONSTERS; m++) {
+        if (monsters[m].active) {
+            if (IS_Q_VALID(monsters[m].q1, monsters[m].q2, monsters[m].q3)) {
+                mark_quad_dirty(monsters[m].q1, monsters[m].q2, monsters[m].q3);
+                QuadrantIndex *q = &spatial_index[monsters[m].q1][monsters[m].q2][monsters[m].q3];
+                if (q->monster_count < MAX_Q_MONSTERS) {
+                    q->monsters[q->monster_count++] = &monsters[m];
+                }
+            }
+        }
+    }
+    for (int u = 0; u < MAX_CLIENTS; u++) {
+        if (players[u].active && players[u].name[0] != '\0') {
+            if (IS_Q_VALID(players[u].state.q1, players[u].state.q2, players[u].state.q3)) {
+                mark_quad_dirty(players[u].state.q1, players[u].state.q2, players[u].state.q3);
+                QuadrantIndex *q = &spatial_index[players[u].state.q1][players[u].state.q2][players[u].state.q3];
+                if (q->player_count < MAX_Q_PLAYERS) {
+                    q->players[q->player_count++] = &players[u];
+                }
+            }
+        }
+    }
+    for (int t = 0; t < MAX_GLOBAL_TORPEDOES; t++) {
+        if (players_torpedoes[t].active) {
+            if (IS_Q_VALID(players_torpedoes[t].q1, players_torpedoes[t].q2, players_torpedoes[t].q3)) {
+                mark_quad_dirty(players_torpedoes[t].q1, players_torpedoes[t].q2, players_torpedoes[t].q3);
+                QuadrantIndex *q = &spatial_index[players_torpedoes[t].q1][players_torpedoes[t].q2][players_torpedoes[t].q3];
+                if (q->torpedo_count < MAX_Q_TORPEDOES) {
+                    q->torpedoes[q->torpedo_count++] = &players_torpedoes[t];
+                }
+            }
+        }
+    }
+    for (int c = 0; c < MAX_COMETS; c++) {
+        if (comets[c].active) {
+            if (IS_Q_VALID(comets[c].q1, comets[c].q2, comets[c].q3)) {
+                mark_quad_dirty(comets[c].q1, comets[c].q2, comets[c].q3);
+                QuadrantIndex *q = &spatial_index[comets[c].q1][comets[c].q2][comets[c].q3];
+                if (q->comet_count < MAX_Q_COMETS) {
+                    q->comets[q->comet_count++] = &comets[c];
+                }
+            }
+        }
+    }
+    for (int a = 0; a < MAX_ASTEROIDS; a++) {
+        if (asteroids[a].active) {
+            if (IS_Q_VALID(asteroids[a].q1, asteroids[a].q2, asteroids[a].q3)) {
+                mark_quad_dirty(asteroids[a].q1, asteroids[a].q2, asteroids[a].q3);
+                QuadrantIndex *q = &spatial_index[asteroids[a].q1][asteroids[a].q2][asteroids[a].q3];
+                if (q->asteroid_count < MAX_Q_ASTEROIDS) {
+                    q->asteroids[q->asteroid_count++] = &asteroids[a];
+                }
+            }
+        }
+    }
+    for (int d = 0; d < MAX_DERELICTS; d++) {
+        if (derelicts[d].active) {
+            if (IS_Q_VALID(derelicts[d].q1, derelicts[d].q2, derelicts[d].q3)) {
+                mark_quad_dirty(derelicts[d].q1, derelicts[d].q2, derelicts[d].q3);
+                QuadrantIndex *q = &spatial_index[derelicts[d].q1][derelicts[d].q2][derelicts[d].q3];
+                if (q->derelict_count < MAX_Q_DERELICTS) {
+                    q->derelicts[q->derelict_count++] = &derelicts[d];
+                }
+            }
+        }
+    }
+    for (int m = 0; m < MAX_MINES; m++) {
+        if (mines[m].active) {
+            if (IS_Q_VALID(mines[m].q1, mines[m].q2, mines[m].q3)) {
+                mark_quad_dirty(mines[m].q1, mines[m].q2, mines[m].q3);
+                QuadrantIndex *q = &spatial_index[mines[m].q1][mines[m].q2][mines[m].q3];
+                if (q->mine_count < MAX_Q_MINES) {
+                    q->mines[q->mine_count++] = &mines[m];
+                }
+            }
+        }
+    }
+    for (int b = 0; b < MAX_BUOYS; b++) {
+        if (buoys[b].active) {
+            if (IS_Q_VALID(buoys[b].q1, buoys[b].q2, buoys[b].q3)) {
+                mark_quad_dirty(buoys[b].q1, buoys[b].q2, buoys[b].q3);
+                QuadrantIndex *q = &spatial_index[buoys[b].q1][buoys[b].q2][buoys[b].q3];
+                if (q->buoy_count < MAX_Q_BUOYS) {
+                    q->buoys[q->buoy_count++] = &buoys[b];
+                }
+            }
+        }
+    }
+    for (int pl = 0; pl < MAX_PLATFORMS; pl++) {
+        if (platforms[pl].active) {
+            if (IS_Q_VALID(platforms[pl].q1, platforms[pl].q2, platforms[pl].q3)) {
+                mark_quad_dirty(platforms[pl].q1, platforms[pl].q2, platforms[pl].q3);
+                QuadrantIndex *q = &spatial_index[platforms[pl].q1][platforms[pl].q2][platforms[pl].q3];
+                if (q->platform_count < MAX_Q_PLATFORMS) {
+                    q->platforms[q->platform_count++] = &platforms[pl];
+                }
+            }
+        }
+    }
+    for (int r = 0; r < MAX_RIFTS; r++) {
+        if (rifts[r].active) {
+            if (IS_Q_VALID(rifts[r].q1, rifts[r].q2, rifts[r].q3)) {
+                mark_quad_dirty(rifts[r].q1, rifts[r].q2, rifts[r].q3);
+                QuadrantIndex *q = &spatial_index[rifts[r].q1][rifts[r].q2][rifts[r].q3];
+                if (q->rift_count < MAX_Q_RIFTS) {
+                    q->rifts[q->rift_count++] = &rifts[r];
+                }
+            }
         }
     }
 }
+
 
 static void save_task(void* arg) {
     SpaceGLGame *master_copy = (SpaceGLGame*)arg;
