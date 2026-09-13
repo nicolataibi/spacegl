@@ -16,8 +16,26 @@ Authentication is performed through a master key provided via the
 environment variable or interactively at startup.
 .SH OPTIONS
 .TP
+.B \-d
+Enable debug mode (verbose logging).
+.TP
+.B \-\-data-dir DIR
+Root directory for the server's persistent state: the
+.IR captains/ \(em captain profiles, identity records and frequency
+keys \(em and the
+.I galaxy.dat
+file are stored under this directory instead of the current working
+directory (the default, kept for backward compatibility). The directory
+is created at startup if it does not exist. Note: pointing the server at
+a directory without an existing
+galaxy.dat
+starts a fresh galaxy.
+.TP
 .B \-\-version
 Print version information and exit.
+.TP
+.BR \-h ", " \-\-help
+Display usage information and exit.
 .SH ENVIRONMENT
 .TP
 .B SPACEGL_KEY
@@ -26,9 +44,16 @@ Master authentication key for the server session.
 .TP
 .I /usr/bin/spacegl_server
 Server executable.
+.TP
+.I [DATA\-DIR]/galaxy.dat
+Serialized galaxy state (default: ./galaxy.dat).
+.TP
+.I [DATA\-DIR]/captains/
+captain profiles, identity records and frequency keys
+(default: ./captains/).
 .SH SEE ALSO
 .BR spacegl_client (1),
-.BR spacegl_server.sh (1),
+.BR spacegl-server (1),
 .BR spacegl_3dview (1),
 .BR spacegl_vulkan (1)
 .SH AUTHOR

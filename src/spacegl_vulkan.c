@@ -49,8 +49,11 @@
 #include "game_config.h"
 #include "shared_state.h"
 
-#define VIEW_WINDOW_WIDTH 1440
-#define VIEW_WINDOW_HEIGHT 900
+/* Window resolution: Full HD (1920x1080). The swapchain, viewport,
+   framebuffers and projection aspect ratio all derive from these
+   constants (see WIDTH / HEIGHT below). */
+#define VIEW_WINDOW_WIDTH 1920
+#define VIEW_WINDOW_HEIGHT 1080
 #define VIEW_QUADRANT_HALF 20.0f
 #define VIEW_ROTATION_SPEED 0.0056687f
 #define VIEW_CAMERA_DIST 60.0f

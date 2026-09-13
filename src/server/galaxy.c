@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <time.h>
 #include <math.h>
 #include <stdatomic.h>
@@ -473,9 +474,11 @@ void rebuild_spatial_index() {
 
 static void save_task(void* arg) {
     SpaceGLGame *master_copy = (SpaceGLGame*)arg;
-    FILE *f = fopen("galaxy.dat", "wb");
+    char galaxy_path[1088];
+    server_data_path(galaxy_path, sizeof(galaxy_path), "galaxy.dat");
+    FILE *f = fopen(galaxy_path, "wb");
     if (!f) { 
-        perror("Failed to open galaxy.dat for writing"); 
+        slog("ERROR: Failed to open %s for writing: %s\n", galaxy_path, strerror(errno));
         free(master_copy); 
         atomic_store(&g_is_saving, false);
         return; 
@@ -562,7 +565,7 @@ static void save_task(void* arg) {
     time_t now = time(NULL);
     char *ts = ctime(&now);
     if (ts) ts[strlen(ts)-1] = '\0';
-    printf("--- [%s] GALAXY SAVED ASYNCHRONOUSLY (POOL) ---\n", ts);
+    slog("--- [%s] GALAXY SAVED ASYNCHRONOUSLY (POOL) ---\n", ts);
     
     free(master_copy);
     atomic_store(&g_is_saving, false);
@@ -582,7 +585,9 @@ void save_galaxy_async() {
 void save_galaxy() { save_galaxy_async(); }
 
 int load_galaxy() {
-    FILE *f = fopen("galaxy.dat", "rb");
+    char galaxy_path[1088];
+    server_data_path(galaxy_path, sizeof(galaxy_path), "galaxy.dat");
+    FILE *f = fopen(galaxy_path, "rb");
     if (!f) return 0;
     int version;
     if (fread(&version, sizeof(int), 1, f) != 1 || version != GALAXY_VERSION) {

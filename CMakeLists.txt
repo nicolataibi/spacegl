@@ -1,13 +1,20 @@
 cmake_minimum_required(VERSION 3.10)
-project(SpaceGL VERSION 2026.04.12 LANGUAGES C)
+project(SpaceGL VERSION 2026.09.13 LANGUAGES C)
 
 # --- Standard C e Opzioni di Compilazione ---
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# Default to Release build if not specified
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
+# Default to Release build if not specified.
+# NOTE: an *empty* cached value (e.g. a build dir configured once with
+# -DCMAKE_BUILD_TYPE=) also counts as "not specified": without this
+# guard, on an existing cache the test would keep failing while the
+# build silently loses -O3 and -D_FORTIFY_SOURCE=2 (which requires at
+# least -O1 to be effective). The empty value is normalized to Release
+# and written back to the cache so later re-configures keep it.
+if(NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    message(STATUS "CMAKE_BUILD_TYPE was not set (or empty): defaulting to Release")
 endif()
 
 # Fix OpenGL Policy CMP0072
@@ -55,10 +62,26 @@ pkg_check_modules(GLFW REQUIRED glfw3)
 # --- Include Directories ---
 include_directories(include ${OPENSSL_INCLUDE_DIR} ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIR} ${NCURSES_INCLUDE_DIRS} ${GLFW_INCLUDE_DIRS})
 
-# --- Helper per Compilazione Shader Vulkan ---
+# --- Vulkan Shader Compiler Helper ---
+# glslc is a hard requirement: there is NO automatic fallback to
+# glslangValidator on purpose (different CLI and SPIR-V defaults), so a
+# missing compiler must fail loudly with an actionable message.
 find_program(GLSLC_EXECUTABLE glslc)
 if(NOT GLSLC_EXECUTABLE)
-    message(FATAL_ERROR "glslc compiler not found. Required for Vulkan shaders.")
+    message(FATAL_ERROR
+        "glslc not found in PATH - it is REQUIRED to compile the Vulkan shaders\n"
+        "(assets/shaders/shader.vert / shader.frag -> SPIR-V).\n"
+        "\n"
+        "Install it with your distribution package manager, e.g.:\n"
+        "  Fedora/RHEL     : dnf install glslc\n"
+        "  Debian/Ubuntu   : apt install glslc\n"
+        "\n"
+        "or build it from source: https://github.com/google/shaderc\n"
+        "(build target: glslc, then put the binary on PATH).\n"
+        "\n"
+        "Alternative (manual, not done automatically): compile the shaders\n"
+        "with glslangValidator -V -o <name>.spv and place the result in\n"
+        "the ${SPV_OUTPUT_DIR}/ directory.")
 endif()
 
 set(SHADER_SOURCES 
@@ -87,8 +110,22 @@ add_custom_target(spacegl_shaders ALL DEPENDS ${SHADER_SPV_FILES})
 set(COMMON_LIBS Threads::Threads OpenMP::OpenMP_C OpenSSL::Crypto m rt)
 
 # 1. spacegl_server
-file(GLOB SERVER_EXTRA_SRCS "src/server/*.c")
-add_executable(spacegl_server src/spacegl_server.c src/telemetry_server.c ${SERVER_EXTRA_SRCS})
+# Explicit source list (no file(GLOB): a new file in src/server/ would
+# otherwise be silently ignored until CMake is re-run, and this build
+# tree does not use CONFIGURE_DEPENDS). Add new server sources here.
+set(SERVER_SRCS
+    src/spacegl_server.c
+    src/telemetry_server.c
+    src/server/commands.c
+    src/server/galaxy.c
+    src/server/globals.c
+    src/server/log.c
+    src/server/logic.c
+    src/server/net.c
+    src/server/targets.c
+    src/server/threadpool.c
+)
+add_executable(spacegl_server ${SERVER_SRCS})
 target_link_libraries(spacegl_server ${COMMON_LIBS})
 
 # 1b. spacegl_telemetry

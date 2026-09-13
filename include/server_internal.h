@@ -94,7 +94,13 @@ typedef struct {
     
     /* Boarding Interaction State */
     int pending_bor_target; /* ID of target player */
-    int pending_bor_type;   /* 1: Ally, 2: Enemy */
+    int pending_bor_type;   /* 1: Ally, 2: Enemy, 3: Platform, 4: Derelict (NEVER a timer) */
+
+    /* Alignment LERP initial duration (ticks) for the ALIGN / ALIGN_IMPULSE /
+     * ALIGN_ONLY navigation states. Previously abused the pending_bor_type
+     * field, which gave it a dual (board-type vs timer) meaning; now a
+     * dedicated field. */
+    int align_timer;
 
     int radio_lock_target;  /* ID of locked captain (1-based), 0 if none */
 
@@ -780,7 +786,14 @@ typedef struct {
 } SupernovaState;
 extern SupernovaState supernova_event;
 
-#define LOG_DEBUG(...) do { if (g_debug) { printf("DEBUG: " __VA_ARGS__); fflush(stdout); } } while (0)
+/* Thread-safe console logging: every event is formatted once and emitted
+ * with a single write(2) under a dedicated mutex, so log lines from the
+ * game thread, the main epoll loop, the thread pool and the telemetry
+ * thread can never interleave (see src/server/log.c). */
+void slog(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+void log_init(void);
+
+#define LOG_DEBUG(...) do { if (g_debug) { slog("DEBUG: " __VA_ARGS__); } } while (0)
 
 #define GALAXY_VERSION 20260422
 
@@ -922,9 +935,67 @@ const char* get_species_name(int s);
 void broadcast_message(PacketMessage *msg);
 void send_server_msg(int p_idx, const char *from, const char *text);
 void broadcast_server_event(int q1, int q2, int q3, int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra);
+void telemetry_init(void);
+void telemetry_shutdown(void);
 
 bool process_command(int p_idx, const char *cmd);
 void update_game_logic();
+
+/* Shared "EMERGENCY REENTRY" protocol: relocate the player to a random safe
+ * quadrant (never the supernova epicenter) and restore escape-vessel state.
+ * The four historical call sites (death countdown, crew depletion, the "xxx"
+ * command and the login sync rescue) share this single implementation; the
+ * small behavioral differences are captured in RescueParams. */
+typedef struct {
+    double sector_offset;       /* Sector coordinate inside the safe quadrant */
+    bool full_torpedo_reload;   /* true: MAX_TORPEDO_CAPACITY, false: MAX/10 */
+    bool always_reset_crew;     /* true: crew always MAX_CREW_EXPLORER/10,
+                                   false: only when crew_count <= 0 */
+    bool force_shutdown;        /* set state.force_shutdown = 1 ("xxx" cmd) */
+    bool reset_motion;          /* reset hyper_speed/velocity/dock/torpedoes */
+    bool reactivate;            /* set players[i].active = 1 (login sync) */
+} RescueParams;
+
+extern const RescueParams RESCUE_PARAMS_STANDARD;  /* death countdown */
+extern const RescueParams RESCUE_PARAMS_CREW;      /* crew depletion */
+extern const RescueParams RESCUE_PARAMS_TACTICAL;  /* "xxx" command */
+extern const RescueParams RESCUE_PARAMS_LOGIN;     /* login sync rescue */
+void rescue_player(int i, const RescueParams *p, unsigned int *seed);
+
+/* Universal target resolution (single source of truth for the
+ * GALAXY_OBJECT_MIN_* / GALAXY_OBJECT_MAX_* ID ranges;
+ * see src/server/targets.c). */
+#define TGT_F_LOCK_VALID  (1u << 0) /* per-tick lock validity chain */
+#define TGT_F_APR_LOCAL   (1u << 1) /* NAV_STATE_APPROACH: spatial-index lookup */
+#define TGT_F_APR_GLOBAL  (1u << 2) /* NAV_STATE_APPROACH: global-array fallback */
+#define TGT_F_CMD_APR     (1u << 3) /* handle_apr: spatial-index lookup */
+#define TGT_F_CMD_LOCK    (1u << 4) /* handle_lock: lookup */
+#define TGT_F_LOCK_GLOBAL (1u << 5) /* handle_lock: resolve via global array */
+#define TGT_F_CHASE       (1u << 6) /* NAV_STATE_CHASE: global-array lookup */
+
+typedef struct TargetRangeDef {
+    const char *name;  /* Default display name (SRS/APR readout) */
+    int min_id;
+    int max_id;
+    const void *base;  /* Global object array */
+    size_t stride;     /* sizeof(element) */
+    size_t capacity;   /* MAX_* of the array */
+    unsigned flags;    /* TGT_F_* capability flags */
+    bool (*active_in_quadrant)(const void *e, int q1, int q2, int q3);
+    bool (*is_active)(const void *e);
+    void (*abs_pos)(const void *e, double *ax, double *ay, double *az);
+    void *(*find_in_quadrant)(const QuadrantIndex *q, int tid);
+    void (*make_name)(const void *e, char *buf, size_t len); /* NULL: use name */
+    bool (*visible)(const void *e, int my_faction);          /* NULL: visible */
+} TargetRangeDef;
+
+const TargetRangeDef *target_range_for(int tid);
+bool target_is_active_in_quadrant(int tid, int q1, int q2, int q3);
+void *target_find_local(const TargetRangeDef *r, const QuadrantIndex *q, int tid);
+const void *target_find_global_active(int tid);
+void target_abs_pos(const TargetRangeDef *r, const void *e, double *ax, double *ay, double *az);
+void target_make_name(const TargetRangeDef *r, const void *e, char *buf, size_t len);
+bool target_visible(const TargetRangeDef *r, const void *e, int my_faction);
 void push_server_event(int p_idx, int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra);
 bool is_player_in_nebula(int p_idx);
 void apply_hull_damage(int p_idx, double amount);
@@ -937,5 +1008,16 @@ int calculate_shield_index(double shooter_x, double shooter_y, double shooter_z,
 
 int read_all(int fd, void *buf, size_t len);
 int write_all(int fd, const void *buf, size_t len);
+
+/* --- Configurable data directory (captains/ tree + galaxy.dat) ---
+ * The server used to read and write its persistent state relative to the
+ * current working directory. The --data-dir option (parsed in main)
+ * relocates it: g_data_dir is the configured root (default "." = legacy
+ * CWD behavior) and server_data_path() resolves a relative resource
+ * path against it. */
+#define SERVER_DATA_DIR_MAX 512
+extern char g_data_dir[SERVER_DATA_DIR_MAX];
+void server_set_data_dir(const char *dir);
+void server_data_path(char *out, size_t out_len, const char *rel);
 
 #endif

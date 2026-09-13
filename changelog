@@ -1,3 +1,65 @@
+* Sun Sep 13 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.13.03
+  - Quality refactoring.
+  - Build (CMake): Replace the file(GLOB) collection of the server sources
+  with an explicit list. A new file added under src/server/ was previously
+  silently ignored until CMake was re-run by hand; the list is now
+  maintained directly with the target.
+  - Build (CMake): Harden the default build type. An empty CMAKE_BUILD_TYPE
+  value (e.g. left in an existing build/CMakeCache.txt) is now normalized to
+  Release and written back to the cache: the old if(NOT CMAKE_BUILD_TYPE)
+  guard never fired on existing caches, so the build ran without -O3 and
+  with -D_FORTIFY_SOURCE=2 ineffective (it requires at least -O1). The
+  build tree was regenerated with an explicit -DCMAKE_BUILD_TYPE=Release.
+  - Build (CMake): the hard requirement on glslc now fails with an
+  informative FATAL_ERROR when the compiler is missing: it states its role
+  (assets/shaders/*.vert|*.frag to SPIR-V), how to install it
+  (dnf/apt install glslc), the upstream project (shaderc) and mentions
+  glslangValidator as a manual alternative. There is intentionally no
+  automatic fallback.
+  - Server: new --data-dir option. The captains/ tree and galaxy.dat no
+  longer depend on the process working directory: every persistent path
+  (identity records, salts, frequency keys, profile deletion, galaxy
+  save/load) is resolved against the configured root, which defaults to
+  the previous CWD behavior. The directory is created at startup if
+  missing, and the spacegl-server wrapper already forwards all arguments
+  to the binary.
+  - Vulkan: raise the 3D viewer window resolution from 1440x900 to
+  1920x1080 (Full HD); swapchain, viewport, framebuffers and projection
+  aspect ratio all scale with the new constants.
+  - Docs (man): the launcher man pages (spacegl-server.1, spacegl-client.1,
+  spacegl-diag.1) documented script names that do not exist on disk
+  (spacegl_*.sh); every section is now aligned with the installed names
+  (spacegl-server, spacegl-client, spacegl-diag). spacegl_server.1 gains
+  documentation of the new --data-dir option and the data file locations.
+  - Release: CMake project version bumped to 2026.09.13 and the server
+  --version string to v2026.09.13.03.
+
+* Sun Sep 13 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.13.02
+  - Maintainability (Server): Introduce a universal target-resolution module
+  (src/server/targets.c) and remove the duplicated if/else chains over the
+  GALAXY_OBJECT_MIN_* / GALAXY_OBJECT_MAX_* ID ranges. Every object type is
+  now described once in a single table {name, min_id, max_id, array, stride,
+  capacity, flags} with per-type accessors for the few layout and visibility
+  differences (absolute NPC-ship position, faction-dependent names, cloak
+  checks). Capability flags encode which historical chain each range
+  participated in, so every call site keeps its previous behavior: per-tick
+  lock validity, NAV_STATE_APPROACH autopilot (spatial index first, then the
+  cross-quadrant global fallback), NAV_STATE_CHASE tracking (a fifth chain,
+  previously uncounted, now covered too), and the "apr" and "lock" commands.
+  Five duplicated chains of roughly 1,500 lines collapse into short
+  table-driven lookups; the "lock" quirk of resolving derelicts through the
+  global array is preserved by an explicit per-entry flag.
+  - Bug fix (Server): The "apr" command's Subspace Anomaly branch was missing
+  two closing braces, which silently nested the 39 following branches
+  (Diffuse Nebula through CMB) inside it and made those object types
+  unresolvable by "apr". The chain is now flat, and all 60 static object
+  types resolve as the sensor displays advertise.
+  - Memory safety (Server): Player-ID target lookups indexed the 16-slot
+  player array with IDs up to 32 or 999 (out-of-bounds reads reachable from
+  the "apr", "lock" and "scan" commands and from the navigation state
+  machine). All five affected sites are now bounded by MAX_CLIENTS; the
+  out-of-range player IDs are simply reported as "not detected".
+
 * Sun Sep 13 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.13.01
   - Security (Server): Remove the master key from the GDIS boot banner. The
   banner now displays only a short, non-reversible fingerprint (first four bytes

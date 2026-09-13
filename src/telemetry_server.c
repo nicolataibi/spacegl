@@ -35,6 +35,7 @@ static int tel_tcp_fd = -1;
 static int tel_unix_fd = -1;
 static int tel_epoll_fd = -1;
 static pthread_t tel_thread;
+static bool tel_thread_created = false;
 static bool tel_running = false;
 
 const char* cat_names_diag[] = {
@@ -260,6 +261,7 @@ void telemetry_init() {
         memset(tel_clients, 0, sizeof(tel_clients));
         tel_running = true;
         pthread_create(&tel_thread, NULL, telemetry_worker, NULL);
+        tel_thread_created = true;
 
         printf("\033[1;35m[TELEMETRY]\033[0m Scanning Implementation Coverage...\n");
         printf("\033[1;37m CATEGORY                | STATUS  | ACTIVE ENTITIES \033[0m\n");
@@ -1407,4 +1409,21 @@ void telemetry_broadcast() {
             disconnect_client(i);
         }
     }
+}
+
+/*
+ * Graceful telemetry teardown (called from the main shutdown path).
+ * Stops the uplink worker thread, then closes the telemetry sockets and
+ * removes the Unix socket path.
+ */
+void telemetry_shutdown() {
+    tel_running = false;
+    if (tel_thread_created) {
+        pthread_join(tel_thread, NULL);
+        tel_thread_created = false;
+    }
+    if (tel_tcp_fd >= 0) { close(tel_tcp_fd); tel_tcp_fd = -1; }
+    if (tel_unix_fd >= 0) { close(tel_unix_fd); tel_unix_fd = -1; }
+    if (tel_epoll_fd >= 0) { close(tel_epoll_fd); tel_epoll_fd = -1; }
+    unlink(TELEMETRY_UNIX_PATH);
 }

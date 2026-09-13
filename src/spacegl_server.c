@@ -45,13 +45,22 @@ pthread_mutex_t game_mutex = PTHREAD_MUTEX_INITIALIZER;
 threadpool_t *g_pool = NULL;
 int g_debug = 0;
 int global_tick = 0;
+
+/* Graceful shutdown state. Set by the signal handler (async-signal-safe);
+ * the simulation thread and the main epoll loop both observe it and exit
+ * cleanly, and main() performs the final save and resource cleanup. */
+static volatile sig_atomic_t g_running = 1;
+
+static void handle_shutdown_signal(int sig) {
+    (void)sig;
+    g_running = 0;
+}
 uint8_t ALGO_KEYS[MAX_CRYPTO_ALGOS + 1][32]; /* Global Default */
 uint8_t MASTER_SESSION_KEY[32];
 uint8_t SERVER_PUBKEY[32];
 uint8_t SERVER_PRIVKEY[64];
 uint8_t deep_space_key[32];
 uint8_t GALAXY_VERIFY_KEY[32]; /* Stable galaxy-signature key, derived from the master key */
-int server_fd;
 
 /* Derive the stable galaxy verification key from the master key.
  * This key (and only this key) is disclosed to clients at handshake time,
@@ -91,11 +100,13 @@ void ensure_player_algo_key(int p_idx, int k, bool private_mode) {
     /* We don't use a 'loaded' flag here to keep it simple, we just derive if needed 
        or check if the buffer is all zeros (unlikely for a valid key) */
     
-    char dir_path[128];
-    sprintf(dir_path, "captains/%s", players[p_idx].name);
-    char key_path[256];
-    if (private_mode) sprintf(key_path, "%s/algo_%d_private.key", dir_path, k);
-    else sprintf(key_path, "%s/algo_%d.key", dir_path, k);
+    char rel_dir[160];
+    snprintf(rel_dir, sizeof(rel_dir), "captains/%s", players[p_idx].name);
+    char dir_path[1024];
+    server_data_path(dir_path, sizeof(dir_path), rel_dir);
+    char key_path[1088];
+    if (private_mode) snprintf(key_path, sizeof(key_path), "%s/algo_%d_private.key", dir_path, k);
+    else snprintf(key_path, sizeof(key_path), "%s/algo_%d.key", dir_path, k);
 
     /* Try to load from disk first (persistence) */
     FILE *fk = fopen(key_path, "r");
@@ -133,15 +144,20 @@ void ensure_player_algo_key(int p_idx, int k, bool private_mode) {
 }
 
 void derive_algo_keys(uint8_t *master_key, const char *name, uint8_t target_keys[MAX_CRYPTO_ALGOS + 1][32]) {
-    char dir_path[128];
-    sprintf(dir_path, "captains/%s", name ? name : "DEFAULT");
-    /* mkdir(dir_path) is usually handled by the client, but for server safety: */
-    mkdir("captains", 0700);
+    char rel_dir[160];
+    snprintf(rel_dir, sizeof(rel_dir), "captains/%s", name ? name : "DEFAULT");
+    char dir_path[1024];
+    server_data_path(dir_path, sizeof(dir_path), rel_dir);
+    /* mkdir(dir_path) is usually handled by the client, but for server safety
+       (the data dir itself is created in main, best effort): */
+    char captains_path[1024];
+    server_data_path(captains_path, sizeof(captains_path), "captains");
+    mkdir(captains_path, 0700);
     mkdir(dir_path, 0700);
 
     for (int k = 1; k <= MAX_CRYPTO_ALGOS; k++) {
-        char key_path[256];
-        sprintf(key_path, "%s/algo_%d.key", dir_path, k);
+        char key_path[1088];
+        snprintf(key_path, sizeof(key_path), "%s/algo_%d.key", dir_path, k);
         
         FILE *fk_read = fopen(key_path, "r");
         bool loaded = false;
@@ -265,25 +281,7 @@ void sync_client_task(void *arg) {
 
         if (needs_rescue) {
             /* Reposition ship to center of a random safe quadrant */
-            int rq1, rq2, rq3;
-            do {
-                rq1 = rand() % GALAXY_SIZE + 1;
-                rq2 = rand() % GALAXY_SIZE + 1;
-                rq3 = rand() % GALAXY_SIZE + 1;
-            } while (supernova_event.supernova_timer > 0 && rq1 == supernova_event.supernova_q1 && rq2 == supernova_event.supernova_q2 && rq3 == supernova_event.supernova_q3);
-
-            players[slot].state.q1 = rq1; players[slot].state.q2 = rq2; players[slot].state.q3 = rq3;
-            players[slot].state.s1 = (QUADRANT_SIZE / 2.0); players[slot].state.s2 = (QUADRANT_SIZE / 2.0); players[slot].state.s3 = (QUADRANT_SIZE / 2.0);
-            players[slot].state.energy = MAX_ENERGY_CAPACITY;
-            players[slot].state.torpedoes = MAX_TORPEDO_CAPACITY;
-            if (players[slot].state.crew_count <= 0) players[slot].state.crew_count = (MAX_CREW_EXPLORER / 10);
-            players[slot].state.hull_integrity = (float)THRESHOLD_SYS_STABLE + 5.0f;
-            for (int s = 0; s < MAX_SYSTEMS; s++) players[slot].state.system_health[s] = (float)THRESHOLD_SYS_STABLE + 5.0f;
-            players[slot].gx = (rq1 - 1) * QUADRANT_SIZE + (QUADRANT_SIZE / 2.0);
-            players[slot].gy = (rq2 - 1) * QUADRANT_SIZE + (QUADRANT_SIZE / 2.0);
-            players[slot].gz = (rq3 - 1) * QUADRANT_SIZE + (QUADRANT_SIZE / 2.0);
-            players[slot].nav_state = NAV_STATE_IDLE;
-            players[slot].active = 1;
+            rescue_player(slot, &RESCUE_PARAMS_LOGIN, NULL);
             pthread_mutex_unlock(&game_mutex);
             send_server_msg(slot, "Alliance Command", "EMERGENCY RESCUE: Ship recovered and towed to safe sector.");
 
@@ -292,7 +290,7 @@ void sync_client_task(void *arg) {
             struct tm *t_rescue = localtime(&now_rescue);
             char time_rescue[64];
             strftime(time_rescue, sizeof(time_rescue), "%Y-%m-%d %H:%M:%S", t_rescue);
-            printf("\033[1;31m[RESCUE]\033[0m     Captain \033[1;37m%-15s\033[0m was recovered from deep space. [\033[1;33m%s\033[0m]\n", 
+            slog("\033[1;31m[RESCUE]\033[0m     Captain \033[1;37m%-15s\033[0m was recovered from deep space. [\033[1;33m%s\033[0m]\n", 
                    players[slot].name, time_rescue);
         } else {
             players[slot].active = 1;
@@ -305,7 +303,7 @@ void sync_client_task(void *arg) {
         struct tm *t = localtime(&now);
         char time_str[64];
         strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", t);
-        printf("\033[1;32m[CONNECTION]\033[0m Captain \033[1;37m%-15s\033[0m has entered the galaxy. [\033[1;33m%s\033[0m]\n", 
+        slog("\033[1;32m[CONNECTION]\033[0m Captain \033[1;37m%-15s\033[0m has entered the galaxy. [\033[1;33m%s\033[0m]\n", 
                players[slot].name, time_str);
     } else {
         /* Failed to send master data, slot remains inactive */
@@ -323,7 +321,7 @@ void *game_loop_thread(void *arg) {
     (void)arg;
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    while (1) {
+    while (g_running) {
         ts.tv_nsec += GAME_TICK_NSEC; 
         if (ts.tv_nsec >= 1000000000) { ts.tv_sec++; ts.tv_nsec -= 1000000000; }
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL);
@@ -353,8 +351,9 @@ void *game_loop_thread(void *arg) {
         /* Broadcast telemetry OUTSIDE of the game lock to avoid stalling the main loop */
         extern void telemetry_broadcast();
         telemetry_broadcast();
-        }
-        }
+    }
+    return NULL;
+}
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
 #include <time.h>
@@ -506,14 +505,23 @@ int main(int argc, char *argv[]) {
             printf("Space GL Galactic Server Core\n\n");
             printf("Options:\n");
             printf("  -d             Enable debug mode\n");
+            printf("  --data-dir DIR Root directory for persistent state (captains/ tree\n");
+            printf("                 and galaxy.dat). Default: current working directory.\n");
             printf("  --help, -h     Display this help and exit\n");
             printf("  --version      Display version information and exit\n\n");
             printf("Environment Variables:\n");
             printf("  SPACEGL_KEY    Master Key for cryptographic synchronization (required)\n");
             return 0;
         }
+        if (strcmp(argv[i], "--data-dir") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "ERROR: --data-dir requires a path argument.\n");
+                exit(1);
+            }
+            server_set_data_dir(argv[++i]);
+        }
         if (strcmp(argv[i], "--version") == 0) {
-            printf("Space GL Server v2026.04.02.01\n");
+            printf("Space GL Server v2026.09.13.03\n");
             printf("Copyright (C) 2026 Nicola Taibi\n");
             printf("License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.\n");
             return 0;
@@ -521,7 +529,20 @@ int main(int argc, char *argv[]) {
         if (strcmp(argv[i], "-d") == 0) g_debug = 1;
     }
     signal(SIGPIPE, SIG_IGN);
-    
+    signal(SIGTERM, handle_shutdown_signal);
+    signal(SIGINT, handle_shutdown_signal);
+    log_init();
+
+    /* Data directory: persistent state (captains/ tree + galaxy.dat) lives
+       under it. Default "." preserves the legacy CWD behavior; the
+       directory is created best-effort (it must exist as a directory). */
+    if (mkdir(g_data_dir, 0755) != 0 && errno != EEXIST) {
+        fprintf(stderr, "WARNING: cannot create data directory '%s': %s\n",
+                g_data_dir, strerror(errno));
+    }
+    printf("\033[1;34m[DATA]\033[0m Data directory: %s (captains/ + galaxy.dat)\n",
+           (g_data_dir[0] != '\0') ? g_data_dir : ".");
+
     /* Security Initialization */
     char *env_key = getenv("SPACEGL_KEY");
     if (!env_key) {
@@ -595,7 +616,6 @@ int main(int argc, char *argv[]) {
     sign_galaxy_data();
     init_static_spatial_index();
     
-    extern void telemetry_init();
     telemetry_init();
 
     pthread_t tid; pthread_create(&tid, NULL, game_loop_thread, NULL);
@@ -635,8 +655,9 @@ int main(int argc, char *argv[]) {
 
     printf("STELLAR SERVER started on port %d (EPOLL MODE)\n", DEFAULT_PORT);
     
-    while (1) {
-        int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+    while (g_running) {
+        /* 200ms timeout so the loop can observe g_running for a graceful stop */
+        int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, 200);
         if (nfds == -1) {
             if (errno == EINTR) continue;
             perror("epoll_wait"); break;
@@ -668,7 +689,7 @@ int main(int argc, char *argv[]) {
                         struct tm *t_disc = localtime(&now_disc);
                         char time_disc[64];
                         strftime(time_disc, sizeof(time_disc), "%Y-%m-%d %H:%M:%S", t_disc);
-                        printf("\033[1;35m[DISCONNECT]\033[0m Captain \033[1;37m%-15s\033[0m has left the galaxy.    [\033[1;33m%s\033[0m]\n", 
+                        slog("\033[1;35m[DISCONNECT]\033[0m Captain \033[1;37m%-15s\033[0m has left the galaxy.    [\033[1;33m%s\033[0m]\n", 
                                players[i].name[0] ? players[i].name : "Unknown", time_disc);
 
                         players[i].socket = 0;
@@ -823,10 +844,14 @@ int main(int argc, char *argv[]) {
                                      * Legacy unsalted identity.hash files remain verifiable and are
                                      * transparently migrated to the salted scheme on first successful
                                      * login (the client proved the password and supplied a fresh salt). */
-                                    char auth_path[256];
-                                    char salt_path[256];
-                                    sprintf(auth_path, "captains/%s/identity.hash", pkt.name);
-                                    sprintf(salt_path, "captains/%s/identity.salt", pkt.name);
+                                    char rel_auth[192];
+                                    char rel_salt[192];
+                                    char auth_path[1024];
+                                    char salt_path[1024];
+                                    snprintf(rel_auth, sizeof(rel_auth), "captains/%s/identity.hash", pkt.name);
+                                    snprintf(rel_salt, sizeof(rel_salt), "captains/%s/identity.salt", pkt.name);
+                                    server_data_path(auth_path, sizeof(auth_path), rel_auth);
+                                    server_data_path(salt_path, sizeof(salt_path), rel_salt);
 
                                     bool have_stored_salt = false;
                                     bool auth_ok = false;
@@ -910,9 +935,13 @@ int main(int argc, char *argv[]) {
                                     } else {
                                         /* New Captain (salt supplied): create directory and
                                            save salted hash + salt */
-                                        char dir_path[128];
-                                        sprintf(dir_path, "captains/%s", pkt.name);
-                                        mkdir("captains", 0700);
+                                        char rel_dir[160];
+                                        snprintf(rel_dir, sizeof(rel_dir), "captains/%s", pkt.name);
+                                        char dir_path[1024];
+                                        server_data_path(dir_path, sizeof(dir_path), rel_dir);
+                                        char captains_path[1024];
+                                        server_data_path(captains_path, sizeof(captains_path), "captains");
+                                        mkdir(captains_path, 0700);
                                         mkdir(dir_path, 0700);
                                         fa = fopen(auth_path, "wb");
                                         if (fa) {
@@ -1168,5 +1197,32 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+
+    /* --- Graceful Shutdown ---
+     * Order matters:
+     *  1. Stop the 60Hz simulation thread (let the current tick complete).
+     *  2. Stop the telemetry uplink (no more state readers).
+     *  3. Drain and destroy the thread pool (in-flight RESCUE/sync/broadcast
+     *     tasks complete before the workers exit).
+     *  4. Final persistence of the galaxy state.
+     *  5. Close the listening socket and the epoll instance. */
+    slog("\033[1;33m[SHUTDOWN]\033[0m Signal received: stopping simulation thread...\n");
+    pthread_join(tid, NULL);
+
+    telemetry_shutdown();
+
+    slog("\033[1;33m[SHUTDOWN]\033[0m Draining thread pool...\n");
+    if (g_pool) {
+        threadpool_destroy(g_pool);
+        g_pool = NULL;
+    }
+
+    slog("\033[1;33m[SHUTDOWN]\033[0m Saving galaxy state...\n");
+    save_galaxy();
+
+    close(server_fd);
+    close(epoll_fd);
+
+    slog("\033[1;32m[SHUTDOWN]\033[0m Server stopped cleanly. Goodbye, Commander.\n");
     return 0;
 }
