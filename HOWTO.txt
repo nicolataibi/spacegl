@@ -14,10 +14,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-SPACEGL_KEY="thisisasecretkeyforencryption" ./spacegl-server
+# 1. Generate a random 256-bit master key ONCE (do NOT share this value
+#    with anyone, and do not reuse example keys from documentation).
+export SPACEGL_KEY="$(openssl rand -hex 32)"
 
-#With GLFW 3d
-SPACEGL_KEY="thisisasecretkeyforencryption" ./spacegl-client gl
+# 2. Start the server (terminal 1).
+./spacegl-server
 
-#With Vulkan 3d
-SPACEGL_KEY="thisisasecretkeyforencryption" ./spacegl-client vk
+# 3. Start the client (terminal 2) using THE SAME key value.
+#
+# With GLFW 3d:
+export SPACEGL_KEY="<paste the same value generated above>"
+./spacegl-client gl
+
+# With Vulkan 3d:
+export SPACEGL_KEY="<paste the same value generated above>"
+./spacegl-client vk
+
+# NOTE: server and clients MUST run with the identical SPACEGL_KEY,
+# otherwise the secure handshake will be rejected.

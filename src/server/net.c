@@ -66,6 +66,9 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
     const EVP_CIPHER *cipher;
     int is_gcm = 0;
 
+    /* NOTE: the post-quantum-named slots (12-19, 21) are EXPERIMENTAL ALIASES:
+       they fall through to AES-256-GCM below. No genuine post-quantum
+       primitive is used in this build. */
     if (msg->crypto_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
     else if (msg->crypto_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
     else if (msg->crypto_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }

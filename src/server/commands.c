@@ -24,6 +24,8 @@
 #include <string.h>
 #include <math.h>
 #include <inttypes.h>
+#include <unistd.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include "server_internal.h"
 #include "game_config.h"
@@ -209,8 +211,8 @@ void handle_enc_common(int i, const char *params, int level, bool *should_discon
             if (level == 4) players[i].state.encryption_flags |= 0x08;
             else if (level == 3) players[i].state.encryption_flags |= 0x04;
             else if (level == 2) players[i].state.encryption_flags |= 0x02;
-            send_server_msg(i, "COMPUTER", "Deep Space encryption: ML-KEM-1024 (POST-QUANTUM) ACTIVE.");
-            send_server_msg(i, "SCIENCE", "Quantum Tunnel established. Signal is now immune to Shor's algorithm.");
+            send_server_msg(i, "COMPUTER", "Deep Space encryption: ML-KEM-1024 slot ACTIVE (experimental alias: AES-256-GCM).");
+            send_server_msg(i, "SCIENCE", "Post-quantum slot is an experimental alias in this build; the underlying cipher is AES-256-GCM.");
         } else if (strstr(params, "off")) {
             players[i].state.shm_crypto_algo = CRYPTO_NONE;
             players[i].state.encryption_flags = 0;
@@ -1354,6 +1356,33 @@ void handle_zztop(int i, const char *params, bool *should_disconnect) {
     /* TRANSFER HULL TO DERELICTS */
     spawn_derelict(players[i].state.q1, players[i].state.q2, players[i].state.q3, players[i].state.s1, players[i].state.s2, players[i].state.s3, players[i].faction, players[i].ship_class, players[i].name);
     push_server_event(i, IPC_EV_BOOM, players[i].state.s1, players[i].state.s2, players[i].state.s3, 0, 0, 0, 1);
+
+    /* PERMANENT PROFILE DELETION (disk): remove the identity record and all
+       frequency keys so the "purged" profile cannot simply log in again.
+       The name was sanitized at login ([A-Za-z0-9_-], max 32 chars), so the
+       constructed paths cannot escape the captains/ tree. */
+    {
+        char deleted_name[64];
+        char dir_path[128];
+        char file_path[256];
+        memcpy(deleted_name, players[i].name, 64);
+        deleted_name[63] = '\0';
+        if (deleted_name[0] != '\0') {
+            snprintf(dir_path, sizeof(dir_path), "captains/%s", deleted_name);
+            snprintf(file_path, sizeof(file_path), "%s/identity.hash", dir_path);
+            unlink(file_path);
+            snprintf(file_path, sizeof(file_path), "%s/identity.salt", dir_path);
+            unlink(file_path);
+            for (int k = 1; k <= MAX_CRYPTO_ALGOS; k++) {
+                snprintf(file_path, sizeof(file_path), "%s/algo_%d.key", dir_path, k);
+                unlink(file_path);
+                snprintf(file_path, sizeof(file_path), "%s/algo_%d_private.key", dir_path, k);
+                unlink(file_path);
+            }
+            rmdir(dir_path);
+            printf("\033[1;33m[PROFILE DELETION]\033[0m On-disk identity record for \033[1;37m%s\033[0m removed (captains/%s).\n", deleted_name, deleted_name);
+        }
+    }
 
     /* CLEAR DATA FROM MEMORY */
     memset(players[i].name, 0, 64);

@@ -10,6 +10,8 @@ spacegl_diag
 # Directory di build
 build/
 _build/
+.cache/
+.ruby-lsp/
 
 # Directory di spacegl
 captain
@@ -34,3 +36,4 @@ galaxy.dat
 spacegl_new_revision.sh
 spacegl_new_release.sh
 local_check.sh
+wrap.py

@@ -184,9 +184,9 @@ const char* get_crypto_name(int algo) {
         case 9: return "BLOWFISH-CBC (Gilded)";
         case 10: return "RC4-STREAM (Tactical)";
         case 11: return "DES-CBC (Pre-Hyperdrive)";
-        case 12: return "ML-KEM-1024 (Post-Quantum)";
-        case 13: return "MCELIECE (Archival PQC)";
-        case 14: return "DILITHIUM (Signature PQC)";
+        case 12: return "ML-KEM-1024 SLOT (Experimental PQC Alias: AES-256-GCM)";
+        case 13: return "MCELIECE SLOT (Experimental PQC Alias: AES-256-GCM)";
+        case 14: return "DILITHIUM SLOT (Experimental PQC Alias: AES-256-GCM)";
         case 15: return "SERPENT (Digital Fortress)";
         case 16: return "TWOFISH (Mercenary Protocol)";
         case 17: return "SM4 (Eastern Syndicate)";
@@ -593,7 +593,7 @@ int main(int argc, char *argv[]) {
             printf("  [INTEGRITY]  Signature: VERIFIED (HMAC-SHA256)\n");
             printf("  [SECURITY]   Encryption: ACTIVE (Status: 0x%02X)\n", spacegl_master.encryption_flags);
             printf("  [ALGORITHM]  Frequency:  %s\n", get_crypto_name(spacegl_master.shm_crypto_algo));
-            if (spacegl_master.encryption_flags & 0x02) printf("  [QUANTUM]    Quantum-Resistant Layer: ENGAGED\n");
+            if (spacegl_master.encryption_flags & 0x02) printf("  [PQC-ALIAS]  Post-Quantum slots (experimental): mapped to AES-256-GCM\n");
             if (spacegl_master.encryption_flags & 0x04) printf("  [MILITARY]   AES-256-GCM Hardware Acceleration: ACTIVE\n");
         } else {
             printf("  [WARNING]    Signature: NOT PRESENT / UNVERIFIED\n");

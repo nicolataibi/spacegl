@@ -47,6 +47,7 @@ const char* get_lrs_object_name(int id);
 /* Pre-Shared DeepSpace Encryption Key (Loaded from ENV) */
 uint8_t deep_space_key[32];
 uint8_t master_root_key[32];
+uint8_t galaxy_verify_key[32]; /* Stable galaxy-signature key, delivered by the server at handshake */
 uint8_t ALGO_KEYS[MAX_CRYPTO_ALGOS + 1][32];
 uint8_t ALGO_KEYS_PRIVATE[MAX_CRYPTO_ALGOS + 1][32];
 
@@ -54,6 +55,54 @@ int sock = 0;
 char captain_name[64];
 int my_faction = 0;
 int g_debug = 0;
+
+/* Validate a captain name before it is used in local file paths.
+ * Must mirror the server-side rules: [A-Za-z0-9_-] only, max 32 chars.
+ * Returns 1 if safe, 0 if the name must be rejected (path injection guard). */
+static int sanitize_captain_name(const char *name) {
+    if (!name || name[0] == '\0') {
+        return 0;
+    }
+    size_t len = 0;
+    for (const char *p = name; *p != '\0'; p++) {
+        len++;
+        if (len > 32) {
+            return 0;
+        }
+        if (!((*p >= 'A' && *p <= 'Z') ||
+              (*p >= 'a' && *p <= 'z') ||
+              (*p >= '0' && *p <= '9') ||
+              *p == '_' || *p == '-')) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* Identity hash v2: salted per-captain password verification hash.
+ *   HMAC-SHA256(master, "SPACEGL-ID-V2" || name || 0 || salt || 0 || password)
+ * The per-user salt makes hashes of identical passwords non-linkable across
+ * accounts. The password itself is never transmitted. */
+static void compute_identity_hash_v2(const uint8_t *master, const char *name,
+                                     const uint8_t *salt, const char *password,
+                                     uint8_t out_hash[32]) {
+    uint8_t msg[14 + 64 + 1 + 16 + 1 + 64];
+    size_t off = 0;
+    memcpy(msg + off, "SPACEGL-ID-V2", 13); off += 13;
+    size_t nlen = strlen(name);
+    if (nlen > 63) nlen = 63;
+    memcpy(msg + off, name, nlen); off += nlen;
+    msg[off++] = 0;
+    memcpy(msg + off, salt, 16); off += 16;
+    msg[off++] = 0;
+    size_t plen = strlen(password);
+    if (plen > 63) plen = 63;
+    memcpy(msg + off, password, plen); off += plen;
+
+    unsigned int len = 32;
+    HMAC(EVP_sha256(), master, 32, msg, off, out_hash, &len);
+    memset(msg, 0, sizeof(msg));
+}
 
 char captain_dir[128] = "";
 bool algo_key_loaded[MAX_CRYPTO_ALGOS + 1] = {false};
@@ -99,6 +148,8 @@ void ensure_algo_key_for_name(int k, bool private_mode, const char *name, uint8_
         else sprintf(key_path, "%s/algo_%d.key", captain_dir, k);
         FILE *fk = fopen(key_path, "w");
         if (fk) {
+            /* Security: frequency keys must not be world-readable (mode 0600) */
+            if (fchmod(fileno(fk), 0600) != 0) { /* best effort */ }
             for (int b = 0; b < 32; b++) fprintf(fk, "%02x", out_key[b]);
             fprintf(fk, "\n"); fclose(fk);
         }
@@ -208,6 +259,10 @@ int encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *ke
     const EVP_CIPHER *cipher;
     int is_gcm = 0;
 
+    /* NOTE: the post-quantum-named slots (CRYPTO_PQC, CRYPTO_MCELIECE,
+       CRYPTO_DILITHIUM, CRYPTO_SERPENT, CRYPTO_TWOFISH, CRYPTO_ASCON,
+       CRYPTO_PRESENT) are EXPERIMENTAL ALIASES implemented as AES-256-GCM.
+       No genuine post-quantum primitive is used in this build. */
     if (msg->crypto_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
     else if (msg->crypto_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
     else if (msg->crypto_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
@@ -521,7 +576,16 @@ void *network_listener(void *arg) {
             if (read_all(sock, ((char*)msg) + sizeof(int), fixed_size - sizeof(int)) <= 0) {
                 free(msg); g_running = 0; break;
             }
-            
+
+            /* Security: clamp the network-supplied length BEFORE reading the
+               payload. msg->text is 65536 bytes (65535 + NUL), so any length
+               outside [0, 65535] would overflow the buffer. A corrupt/malicious
+               length also desynchronizes the stream: abort the listener. */
+            if (msg->length < 0 || msg->length > 65535) {
+                printf("\r\033[K" B_RED "[NET] Protocol error: message length out of range (%d). Connection aborted.\n" RESET, msg->length);
+                free(msg); g_running = 0; break;
+            }
+
             if (msg->length > 0) {
                 if (read_all(sock, msg->text, msg->length) <= 0) {
                     free(msg); g_running = 0; break;
@@ -530,8 +594,14 @@ void *network_listener(void *arg) {
                 /* Receiver Auto-Tuning: Attempt decryption if the packet is marked encrypted.
                    The integrity check (GCM tag) will determine if the frequency/key is correct. */
                 if (msg->is_encrypted) {
-                    char decrypted[65536];
+                    /* Decryption scratch buffer on the heap: a 64KB stack frame
+                       inside the listener thread is fragile under small-thread
+                       or constrained-stack configurations. */
+                    char *decrypted = malloc(65536);
                     int success = 0;
+                    if (!decrypted) {
+                        free(msg); g_running = 0; break;
+                    }
                     
                     /* Identify if the message is from a ship system or the server */
                     bool is_system_msg = (strcmp(msg->from, "SERVER") == 0 || strcmp(msg->from, "COMPUTER") == 0 || 
@@ -553,6 +623,9 @@ void *network_listener(void *arg) {
                     int decryption_algo = active_algo;
 
                     if (is_system_msg || is_private || is_peer) decryption_algo = msg->crypto_algo;
+                    /* NOTE: post-quantum-named slots (12-19, 21) are
+                       EXPERIMENTAL ALIASES mapped to AES-256-GCM below; no
+                       genuine post-quantum primitive is used in this build. */
                     if (decryption_algo != CRYPTO_NONE) {
                        uint8_t *k = deep_space_key;
                        uint8_t derived_k[32];
@@ -643,6 +716,7 @@ void *network_listener(void *arg) {
                         EVP_CIPHER_CTX_free(ctx);
                        }
                     }
+                    free(decrypted);
 
                     if (!success) {
                         /* Decryption failed (likely due to algorithm mismatch or key synchronization during transition) */
@@ -1322,7 +1396,21 @@ int main(int argc, char *argv[]) {
         close(sock);
         exit(1);
     }
-    
+
+    /* Receive the stable galaxy verification key (XOR-bound to this session).
+     * It allows verifying the HMAC-SHA256 galaxy-state signature even after
+     * deep_space_key is rotated to the session key below. */
+    {
+        uint8_t verify_xt[32];
+        if (read_all(sock, verify_xt, sizeof(verify_xt)) != (int)sizeof(verify_xt)) {
+            fprintf(stderr, B_RED "SECURITY ERROR: Handshake truncated: galaxy verification key missing.\n" RESET);
+            close(sock);
+            exit(1);
+        }
+        for(int k=0; k<32; k++) galaxy_verify_key[k] = verify_xt[k] ^ MY_SESSION_KEY[k];
+        memset(verify_xt, 0, sizeof(verify_xt));
+    }
+
     /* Switch to the new Session Key */
     memcpy(deep_space_key, MY_SESSION_KEY, 32);
     printf(B_BLUE "DeepSpace Link Secured. Unique Frequency active.\n" RESET);
@@ -1332,6 +1420,14 @@ int main(int argc, char *argv[]) {
     fflush(stdout);
     if (scanf("%63s", captain_name) != 1) { strcpy(captain_name, "Captain"); }
     clear_stdin();
+
+    /* Security: reject names that could be abused for path injection in the
+       local captains/ tree (the server enforces the same rule). */
+    if (!sanitize_captain_name(captain_name)) {
+        fprintf(stderr, B_RED "SECURITY ERROR: Invalid commander name. Only letters, digits, '_' and '-' are allowed (max 32 characters).\n" RESET);
+        close(sock);
+        exit(1);
+    }
 
     /* Password Input with Echo Disabled (Mandatory) */
     char password[64] = "";
@@ -1356,24 +1452,73 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* Hash password with Master Key */
+    /* Hash password with Master Key (legacy, kept for legacy-account verification) */
     unsigned int pass_len = 32;
     HMAC(EVP_sha256(), master_root_key, 32, (uint8_t*)password, strlen(password), password_hash, &pass_len);
 
     /* Personalize Frequencies based on Captain Name */
     derive_algo_keys(captain_name);
 
-    /* Identity Check */
-    PacketLogin qpkt;
-    memset(&qpkt, 0, sizeof(PacketLogin));
-    qpkt.type = PKT_QUERY;
-    strcpy(qpkt.name, captain_name);
-    memcpy(qpkt.pass_hash, password_hash, 32);
-    memcpy(qpkt.x25519_pubkey, my_x25519_pubkey_bytes, 32);
-    write_all(sock, &qpkt, sizeof(PacketLogin));
-    
-    int login_status = 0; /* 1:Success, 2:New, 3:WrongPass, 4:Duplicate */
-    read_all(sock, &login_status, sizeof(int));
+    /* Identity Check (v2): per-captain salted identity hash.
+     * The client starts with a zero salt ("I hold no salt for this account")
+     * and lets the server drive the salt exchange: status 5 carries the salt
+     * to use (the stored salt for existing accounts, zeros for new ones, in
+     * which case the client generates its own random salt). */
+    uint8_t id_salt[16] = {0};
+    int salt_rounds = 0;
+
+    int login_status = 0; /* 1:Success, 2:New, 3:WrongPass, 4:Duplicate, 5:SaltRequired */
+    do {
+        PacketLogin qpkt;
+        memset(&qpkt, 0, sizeof(PacketLogin));
+        qpkt.type = PKT_QUERY;
+        strcpy(qpkt.name, captain_name);
+        compute_identity_hash_v2(master_root_key, captain_name, id_salt, password, qpkt.pass_hash);
+        memcpy(qpkt.salt, id_salt, 16);
+        memcpy(qpkt.pass_hash_legacy, password_hash, 32);
+        memcpy(qpkt.x25519_pubkey, my_x25519_pubkey_bytes, 32);
+        write_all(sock, &qpkt, sizeof(PacketLogin));
+
+        login_status = 0;
+        if (read_all(sock, &login_status, sizeof(int)) <= 0) {
+            fprintf(stderr, B_RED "SECURITY ERROR: Identity check: no response from server.\n" RESET);
+            close(sock);
+            exit(1);
+        }
+        if (login_status == PKT_ID_STATUS_SALT_REQUIRED) {
+            uint8_t reply_salt[16];
+            if (read_all(sock, reply_salt, 16) != 16) {
+                fprintf(stderr, B_RED "SECURITY ERROR: Identity check: truncated salt reply.\n" RESET);
+                close(sock);
+                exit(1);
+            }
+            bool reply_zero = true;
+            for (int b = 0; b < 16; b++) if (reply_salt[b] != 0) { reply_zero = false; break; }
+            if (reply_zero) {
+                /* New account (or legacy migration): generate our own random salt */
+                if (RAND_bytes(id_salt, 16) != 1) {
+                    FILE *f_ur = fopen("/dev/urandom", "rb");
+                    if (f_ur) { if (fread(id_salt, 1, 16, f_ur) != 16) memset(id_salt, 0, 16); fclose(f_ur); }
+                    else { for (int b = 0; b < 16; b++) id_salt[b] = (uint8_t)rand(); }
+                }
+            } else {
+                memcpy(id_salt, reply_salt, 16);
+            }
+            if (++salt_rounds > 3) {
+                fprintf(stderr, B_RED "SECURITY ERROR: Identity check: salt exchange did not converge.\n" RESET);
+                close(sock);
+                exit(1);
+            }
+        }
+    } while (login_status == PKT_ID_STATUS_SALT_REQUIRED);
+    /* Defensive: enrollment must never leave an all-zero salt on disk */
+    {
+        bool zero = true;
+        for (int b = 0; b < 16; b++) if (id_salt[b] != 0) { zero = false; break; }
+        if (zero) {
+            if (RAND_bytes(id_salt, 16) != 1) { for (int b = 0; b < 16; b++) id_salt[b] = (uint8_t)(rand() & 0xFF); }
+        }
+    }
 
     if (login_status == 3) {
         printf(B_RED "SECURITY ERROR: INVALID ACCESS CODE.\n" RESET);
@@ -1419,15 +1564,21 @@ int main(int argc, char *argv[]) {
         printf(B_CYAN "\n--- RETURNING COMMANDER RECOGNIZED ---\n" RESET);
     }
 
-    /* Final Login */
+    /* Final Login (v2 identity fields carried for protocol consistency) */
     PacketLogin lpkt;
     memset(&lpkt, 0, sizeof(PacketLogin));
     lpkt.type = PKT_LOGIN;
     strcpy(lpkt.name, captain_name);
     lpkt.faction = my_faction;
     lpkt.ship_class = my_ship_class;
-    memcpy(lpkt.pass_hash, password_hash, 32);
+    compute_identity_hash_v2(master_root_key, captain_name, id_salt, password, lpkt.pass_hash);
+    memcpy(lpkt.salt, id_salt, 16);
+    memcpy(lpkt.pass_hash_legacy, password_hash, 32);
     memcpy(lpkt.x25519_pubkey, my_x25519_pubkey_bytes, 32);
+    
+    /* Minimize the lifetime of the cleartext access code */
+    memset(password, 0, sizeof(password));
+    memset(id_salt, 0, sizeof(id_salt));
     
     LOG_DEBUG("Sending login packet (%zu bytes)...\n", sizeof(PacketLogin));
     write_all(sock, &lpkt, sizeof(PacketLogin));
@@ -1447,12 +1598,41 @@ int main(int argc, char *argv[]) {
     if (master_read == sizeof(SpaceGLGame)) {
         printf(B_GREEN "Galaxy Map synchronized.\n" RESET);
         LOG_DEBUG("Received Encryption Flags: 0x%08X\n", master_sync->encryption_flags);
+
+        /* GENUINE integrity verification: recompute the HMAC-SHA256 galaxy
+         * signature with the stable verification key received at handshake
+         * (mirrors the server-side construction), and cross-check the server
+         * identity digest against the local master key. The "VERIFIED" badge
+         * is shown ONLY when the signature actually checks out. */
+        int signature_valid = 0;
+        uint8_t expect_sig[32];
+        uint8_t inner[32];
+        uint8_t head[14 + 8];
+        uint8_t expect_pub[32];
+        unsigned int inner_len = 32, sig_len = 32;
+        memcpy(head, "SPACEGL-SIG-V1", 14);
+        memcpy(head + 14, &master_sync->frame_id, 8);
+        HMAC(EVP_sha256(), galaxy_verify_key, 32, head, sizeof(head), inner, &inner_len);
+        HMAC(EVP_sha256(), inner, 32, (const uint8_t*)master_sync->g,
+             sizeof(master_sync->g) + sizeof(master_sync->z), expect_sig, &sig_len);
+        SHA256(master_root_key, 32, expect_pub);
+        signature_valid = (memcmp(expect_sig, master_sync->server_signature, 32) == 0) &&
+                          (memcmp(expect_pub, master_sync->server_pubkey, 32) == 0);
+        memset(inner, 0, sizeof(inner));
+        memset(head, 0, sizeof(head));
+        memset(expect_pub, 0, sizeof(expect_pub));
+
         if (master_sync->encryption_flags & 0x01) {
-            printf(B_CYAN "[SECURE] DeepSpace Signature: " B_GREEN "VERIFIED (HMAC-SHA256)\n" RESET);
-            printf(B_CYAN "[SECURE] Server Identity:    " B_YELLOW);
-            for(int k=0; k<16; k++) printf("%02X", master_sync->server_pubkey[k]);
-            printf("... [ACTIVE]\n" RESET);
-            printf(B_CYAN "[SECURE] Encryption Layer:   " B_GREEN "AES-GCM + PQC (Quantum Ready)\n" RESET);
+            if (signature_valid) {
+                printf(B_CYAN "[SECURE] DeepSpace Signature: " B_GREEN "VERIFIED (HMAC-SHA256)\n" RESET);
+                printf(B_CYAN "[SECURE] Server Identity:    " B_YELLOW);
+                for(int k=0; k<16; k++) printf("%02X", master_sync->server_pubkey[k]);
+                printf("... [ACTIVE]\n" RESET);
+                printf(B_CYAN "[SECURE] Encryption Layer:   " B_GREEN "AES-256-GCM (PQC slots: experimental aliases)\n" RESET);
+            } else {
+                printf(B_CYAN "[SECURE] DeepSpace Signature: " B_RED "VERIFICATION FAILED (HMAC-SHA256 MISMATCH) - DO NOT TRUST THIS SERVER\n" RESET);
+                master_sync->encryption_flags &= ~0x01; /* mark unverified in shared state */
+            }
         }
     } else {
         printf(B_RED "ERROR: Failed to synchronize Galaxy Map (Expected %zu, got %d).\n" RESET, sizeof(SpaceGLGame), master_read);

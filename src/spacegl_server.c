@@ -50,7 +50,41 @@ uint8_t MASTER_SESSION_KEY[32];
 uint8_t SERVER_PUBKEY[32];
 uint8_t SERVER_PRIVKEY[64];
 uint8_t deep_space_key[32];
+uint8_t GALAXY_VERIFY_KEY[32]; /* Stable galaxy-signature key, derived from the master key */
 int server_fd;
+
+/* Derive the stable galaxy verification key from the master key.
+ * This key (and only this key) is disclosed to clients at handshake time,
+ * so they can verify the galaxy state HMAC even after their local session
+ * key has rotated away from the master key. */
+void derive_galaxy_verify_key() {
+    unsigned int len = 32;
+    HMAC(EVP_sha256(), MASTER_SESSION_KEY, 32,
+         (const uint8_t*)"SPACEGL-GALAXY-VERIFY-V1", 24, GALAXY_VERIFY_KEY, &len);
+}
+
+/* Validate a captain name received from the network.
+ * Allows only [A-Za-z0-9_-] and enforces MAX 32 chars.
+ * Returns 1 if safe, 0 if the name must be rejected (path injection guard). */
+static int sanitize_captain_name(const char *name) {
+    if (!name || name[0] == '\0') {
+        return 0;
+    }
+    size_t len = 0;
+    for (const char *p = name; *p != '\0'; p++) {
+        len++;
+        if (len > 32) {
+            return 0;
+        }
+        if (!((*p >= 'A' && *p <= 'Z') ||
+              (*p >= 'a' && *p <= 'z') ||
+              (*p >= '0' && *p <= '9') ||
+              *p == '_' || *p == '-')) {
+            return 0;
+        }
+    }
+    return 1;
+}
 
 void ensure_player_algo_key(int p_idx, int k, bool private_mode) {
     if (k < 1 || k > MAX_CRYPTO_ALGOS) return;
@@ -66,6 +100,9 @@ void ensure_player_algo_key(int p_idx, int k, bool private_mode) {
     /* Try to load from disk first (persistence) */
     FILE *fk = fopen(key_path, "r");
     if (fk) {
+        /* Security: frequency keys must not be world-readable (also repairs
+           legacy files created with the default umask). */
+        if (fchmod(fileno(fk), 0600) != 0) { /* best effort */ }
         char hex[128];
         if (fgets(hex, sizeof(hex), fk)) {
             for (int b = 0; b < 32; b++) {
@@ -85,9 +122,10 @@ void ensure_player_algo_key(int p_idx, int k, bool private_mode) {
     unsigned int len = 32;
     HMAC(EVP_sha256(), MASTER_SESSION_KEY, 32, (uint8_t*)salt, strlen(salt), players[p_idx].algo_keys[k], &len);
     
-    /* Save for next time */
+    /* Save for next time (mode 0600: owner read/write only) */
     fk = fopen(key_path, "w");
     if (fk) {
+        if (fchmod(fileno(fk), 0600) != 0) { /* best effort */ }
         for (int b = 0; b < 32; b++) fprintf(fk, "%02x", players[p_idx].algo_keys[k][b]);
         fprintf(fk, "\n");
         fclose(fk);
@@ -108,6 +146,8 @@ void derive_algo_keys(uint8_t *master_key, const char *name, uint8_t target_keys
         FILE *fk_read = fopen(key_path, "r");
         bool loaded = false;
         if (fk_read) {
+            /* Security: tighten legacy permissions (best effort) */
+            if (fchmod(fileno(fk_read), 0600) != 0) { /* best effort */ }
             char hex[128];
             if (fgets(hex, sizeof(hex), fk_read)) {
                 for (int b = 0; b < 32; b++) {
@@ -127,8 +167,10 @@ void derive_algo_keys(uint8_t *master_key, const char *name, uint8_t target_keys
             unsigned int len = 32;
             HMAC(EVP_sha256(), master_key, 32, (uint8_t*)salt, strlen(salt), target_keys[k], &len);
             
+            /* Save with restrictive permissions (mode 0600) */
             FILE *fk = fopen(key_path, "w");
             if (fk) {
+                if (fchmod(fileno(fk), 0600) != 0) { /* best effort */ }
                 for (int b = 0; b < 32; b++) fprintf(fk, "%02x", target_keys[k][b]);
                 fprintf(fk, "\n");
                 fclose(fk);
@@ -138,6 +180,7 @@ void derive_algo_keys(uint8_t *master_key, const char *name, uint8_t target_keys
 }
 
 void sign_galaxy_data();
+static void sign_game_state(SpaceGLGame *gs);
 
 typedef struct {
     int slot;
@@ -161,15 +204,37 @@ void sync_client_task(void *arg) {
 
     LOG_DEBUG("Asynchronous Sync: Sending Galaxy Master to FD %d (Slot %d)\n", fd, slot);
     
-    /* 1. Send the giant Galaxy Master object. */
-    pthread_mutex_lock(&players[slot].socket_mutex);
-    if (players[slot].socket != fd || players[slot].generation != task->generation) {
-        pthread_mutex_unlock(&players[slot].socket_mutex);
+    /* 1. Take a consistent snapshot of the Galaxy Master and sign it under the
+     *    game lock, so that the exact bytes the client receives are the bytes
+     *    covered by the HMAC-SHA256 integrity signature. The (blocking) write
+     *    of the ~1MB snapshot then runs on the private copy, outside the game
+     *    lock, so a slow client cannot stall the 60Hz simulation. */
+    SpaceGLGame *snapshot = malloc(sizeof(SpaceGLGame));
+    if (!snapshot) {
         free(task);
         return;
     }
-    int w_res = write_all(fd, &spacegl_master, sizeof(SpaceGLGame));
+    pthread_mutex_lock(&game_mutex);
+    if (players[slot].socket != fd || players[slot].generation != task->generation) {
+        pthread_mutex_unlock(&game_mutex);
+        free(snapshot);
+        free(task);
+        return;
+    }
+    memcpy(snapshot, &spacegl_master, sizeof(SpaceGLGame));
+    sign_game_state(snapshot);
+    pthread_mutex_unlock(&game_mutex);
+
+    pthread_mutex_lock(&players[slot].socket_mutex);
+    if (players[slot].socket != fd || players[slot].generation != task->generation) {
+        pthread_mutex_unlock(&players[slot].socket_mutex);
+        free(snapshot);
+        free(task);
+        return;
+    }
+    int w_res = write_all(fd, snapshot, sizeof(SpaceGLGame));
     pthread_mutex_unlock(&players[slot].socket_mutex);
+    free(snapshot);
 
     if (w_res == sizeof(SpaceGLGame)) {
         pthread_mutex_lock(&game_mutex);
@@ -273,6 +338,13 @@ void *game_loop_thread(void *arg) {
 
         pthread_mutex_unlock(&game_mutex);
 
+        /* Re-sign the galaxy state after every simulation tick so that the
+         * integrity signature always reflects the current state (not just the
+         * boot-time state). Runs outside the game lock: the login snapshot
+         * path re-signs under the lock, so consistency is preserved where it
+         * matters (client verification at full synchronization). */
+        sign_galaxy_data();
+
         /* Send all pending player network updates OUTSIDE game_mutex.
          * This decouples blocking TCP writes from the 60Hz simulation lock,
          * preventing a slow client from stalling the entire game thread. */
@@ -362,27 +434,61 @@ void display_system_telemetry() {
     
     printf("%s |                                                                      %s\n", B_MAGENTA, RESET);
     printf("%s | %s CRYPTOGRAPHIC SUBSYSTEM (SECURE LAYER)                               %s %s\n", B_MAGENTA, B_WHITE, B_MAGENTA, RESET);
-    printf("%s | %s SIGNATURE ALGO:    %sHMAC-SHA256 (EdDSA Surrogate)                 %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, B_MAGENTA, RESET);
-    printf("%s | %s ENCRYPTION FLAGS:  %s0x%08X (AES-GCM/PQC/INT)                      %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, 0x07, B_MAGENTA, RESET);
-    printf("%s | %s MASTER KEY:        %s%-43.43s %s %s\n", B_MAGENTA, B_WHITE, B_YELLOW, getenv("SPACEGL_KEY") ? getenv("SPACEGL_KEY") : "NOT SET", B_MAGENTA, RESET);
+    printf("%s | %s SIGNATURE ALGO:    %sHMAC-SHA256 (Galaxy State Integrity)           %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, B_MAGENTA, RESET);
+    printf("%s | %s ENCRYPTION FLAGS:  %s0x%08X (AES-GCM / PQC-ALIAS / INT)              %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, 0x07, B_MAGENTA, RESET);
+
+    /* Security: never print the master key. Display only a short, non-reversible
+       fingerprint (first 4 bytes of the SHA-256 digest of the key material). */
+    {
+        uint8_t key_digest[32];
+        SHA256(MASTER_SESSION_KEY, 32, key_digest);
+        printf("%s | %s MASTER KEY:        %sPRESENT (fingerprint: %02X%02X%02X%02X)             %s %s\n",
+               B_MAGENTA, B_WHITE, B_YELLOW, key_digest[0], key_digest[1], key_digest[2], key_digest[3], B_MAGENTA, RESET);
+        memset(key_digest, 0, sizeof(key_digest));
+    }
     
     printf("%s '-----------------------------------------------------------------------------------------'%s\n\n", B_MAGENTA, RESET);
 }
 
+/*
+ * Sign the persistent galaxy state of the given snapshot.
+ *
+ * The signature covers the deterministic, client-recoverable part of the
+ * state: frame_id || g[41][41][41] || z[41][41][41] (g and z are contiguous
+ * in SpaceGLGame). It is computed with a two-level HMAC using the stable
+ * GALAXY_VERIFY_KEY (never with the master key directly), so that clients
+ * can recompute it locally after the handshake:
+ *
+ *   inner = HMAC-SHA256(GALAXY_VERIFY_KEY, "SPACEGL-SIG-V1" || LE64(frame_id))
+ *   sig   = HMAC-SHA256(inner, g[] || z[])
+ */
+static void sign_game_state(SpaceGLGame *gs) {
+    uint8_t inner[32];
+    uint8_t head[14 + 8];
+    unsigned int inner_len = 32;
+    unsigned int sig_len = 32;
+
+    memcpy(head, "SPACEGL-SIG-V1", 14);
+    memcpy(head + 14, &gs->frame_id, 8);
+    HMAC(EVP_sha256(), GALAXY_VERIFY_KEY, 32, head, sizeof(head), inner, &inner_len);
+    HMAC(EVP_sha256(), inner, 32, (const uint8_t*)gs->g,
+         sizeof(gs->g) + sizeof(gs->z), gs->server_signature, &sig_len);
+    memset(gs->server_signature + 32, 0, sizeof(gs->server_signature) - 32);
+}
+
 void sign_galaxy_data() {
-    unsigned int len = 32;
-    /* Generate a cryptographic signature of the galaxy state (excluding the signature field itself) */
-    HMAC(EVP_sha256(), MASTER_SESSION_KEY, 32, (uint8_t*)&spacegl_master, 
-         offsetof(SpaceGLGame, server_signature), spacegl_master.server_signature, &len);
-    
-    /* In a real scenario, we'd use an actual Ed25519 public key here. 
+    /* Re-sign on every call: the galaxy signature must track state changes,
+       not just the boot-time state. */
+    sign_game_state(&spacegl_master);
+
+    /* In a real scenario, we'd use an actual Ed25519 public key here.
        For this implementation, we use a derived key from the Master Session Key. */
     SHA256(MASTER_SESSION_KEY, 32, SERVER_PUBKEY);
     memcpy(spacegl_master.server_pubkey, SERVER_PUBKEY, 32);
-    
+
     /* Encryption Details: 
-       Bit 0: Integrity Verified (HMAC-SHA256)
-       Bit 1: Quantum Resistant Layer (PQC)
+       Bit 0: Integrity signature present (HMAC-SHA256, client-verifiable)
+       Bit 1: Post-quantum-named slots active (EXPERIMENTAL aliases of AES-256-GCM)
        Bit 2: AES-256-GCM Active
     */
     spacegl_master.encryption_flags = 0x07; 
@@ -430,6 +536,10 @@ int main(int argc, char *argv[]) {
     /* Auto-generate Default Global Algorithm keys */
     derive_algo_keys(MASTER_SESSION_KEY, "DEFAULT", ALGO_KEYS);
     printf("\033[1;34m[SECURITY]\033[0m Default Global Frequencies derived.\n");
+
+    /* Derive the stable galaxy verification key (used for the client-verifiable
+       HMAC-SHA256 signature of the galaxy state). Must run before any sign. */
+    derive_galaxy_verify_key();
     
     memset(players, 0, sizeof(players)); 
     memset(players_torpedoes, 0, sizeof(players_torpedoes));
@@ -616,7 +726,17 @@ int main(int argc, char *argv[]) {
                             LOG_DEBUG("Secure Session Key negotiated for Client FD %d (Slot %d)\n", fd, slot);
                             int ack_type = PKT_HANDSHAKE;
                             write_all(fd, &ack_type, sizeof(int));
-                            LOG_DEBUG("Handshake ACK sent to FD %d\n", fd);
+                            /* Deliver the stable galaxy verification key, bound to this
+                             * session: the client XORs it back with the session key it
+                             * generated. This lets the client verify the galaxy state
+                             * HMAC-SHA256 signature even after its local key rotated. */
+                            uint8_t verify_xt[32];
+                            for(int k=0; k<32; k++) {
+                                verify_xt[k] = GALAXY_VERIFY_KEY[k] ^ players[slot].session_key[k];
+                            }
+                            write_all(fd, verify_xt, sizeof(verify_xt));
+                            memset(verify_xt, 0, sizeof(verify_xt));
+                            LOG_DEBUG("Handshake ACK sent to FD %d (with galaxy verify key)\n", fd);
                         } else {
                             fprintf(stderr, "\033[1;33m[WARNING]\033[0m Connection rejected: Server full (FD %d).\n", fd);
                             epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
@@ -658,9 +778,34 @@ int main(int argc, char *argv[]) {
 
                         PacketLogin pkt;
                         if (read_all(fd, ((char*)&pkt) + sizeof(int), sizeof(PacketLogin) - sizeof(int)) > 0) {
+                            /* 3.4 — Reject names that could cause path traversal.
+                             * Must be checked before any file I/O uses pkt.name. */
+                            pkt.name[sizeof(pkt.name) - 1] = '\0';
+                            if (!sanitize_captain_name(pkt.name)) {
+                                /* Unsafe captain name (path injection attempt):
+                                   refuse the connection before any file I/O.
+                                   Note: game_mutex is NOT held here. */
+                                LOG_DEBUG("SECURITY: rejected login with unsafe name\n");
+                                fprintf(stderr, "\033[1;33m[SECURITY]\033[0m Rejected login: unsafe captain name on FD %d (connection closed).\n", fd);
+                                epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                                close(fd);
+                                /* Reap the slot reserved by the handshake so that
+                                   repeated rejects cannot exhaust the server (DoS). */
+                                pthread_mutex_lock(&game_mutex);
+                                for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) {
+                                    players[i].socket = 0;
+                                    players[i].active = 0;
+                                    memset(players[i].session_key, 0, 32);
+                                    break;
+                                }
+                                pthread_mutex_unlock(&game_mutex);
+                                break;
+                            }
                             if (type == PKT_QUERY) {
                                 pthread_mutex_lock(&game_mutex);
                                 int status = 1; /* 1:Success (Known), 2:New, 3:WrongPass, 4:Duplicate */
+                                uint8_t stored_salt[16] = {0}; /* Salted-scheme reply payload (status 5) */
+
 
                                 /* 1. Check for Duplicate Name (already active session) */
                                 for(int j=0; j<MAX_CLIENTS; j++) {
@@ -671,17 +816,81 @@ int main(int argc, char *argv[]) {
                                 }
 
                                 if (status != 4) {
-                                    /* 2. Check for existence and password */
+                                    /* 2. Check for existence and password.
+                                     * Identity scheme v2 (per-user salt):
+                                     *   identity.hash = HMAC-SHA256(master, "SPACEGL-ID-V2" || name || 0 || salt || 0 || password)
+                                     *   identity.salt = random 16-byte per-captain salt (issued at enrollment)
+                                     * Legacy unsalted identity.hash files remain verifiable and are
+                                     * transparently migrated to the salted scheme on first successful
+                                     * login (the client proved the password and supplied a fresh salt). */
                                     char auth_path[256];
+                                    char salt_path[256];
                                     sprintf(auth_path, "captains/%s/identity.hash", pkt.name);
+                                    sprintf(salt_path, "captains/%s/identity.salt", pkt.name);
+
+                                    bool have_stored_salt = false;
+                                    bool auth_ok = false;
+
+                                    /* A zero salt is the client's "I do not hold a salt for
+                                       this account" probe. The server answers with status 5
+                                       plus the salt to use (stored salt, or zeros, which tell
+                                       a fresh client to generate its own random salt). */
+                                    bool client_salt_zero = true;
+                                    for(int b=0; b<16; b++) if (pkt.salt[b] != 0) { client_salt_zero = false; break; }
+
                                     FILE *fa = fopen(auth_path, "rb");
                                     if (fa) {
-                                        uint8_t stored_hash[32];
-                                        if (fread(stored_hash, 1, 32, fa) == 32) {
-                                            if (memcmp(stored_hash, pkt.pass_hash, 32) != 0) {
+                                        uint8_t stored_hash[32] = {0};
+                                        bool have_stored_hash = (fread(stored_hash, 1, 32, fa) == 32);
+                                        fclose(fa);
+
+                                        FILE *fs = fopen(salt_path, "rb");
+                                        if (fs) {
+                                            if (fread(stored_salt, 1, 16, fs) == 16) have_stored_salt = true;
+                                            fclose(fs);
+                                        }
+
+                                        if (have_stored_salt) {
+                                            /* Salted (v2) account */
+                                            if (client_salt_zero) {
+                                                status = PKT_ID_STATUS_SALT_REQUIRED; /* reply carries the stored salt */
+                                            } else if (memcmp(pkt.salt, stored_salt, 16) != 0) {
+                                                status = 3; /* Wrong salt: verification fails */
+                                            } else {
+                                                auth_ok = have_stored_hash && (memcmp(stored_hash, pkt.pass_hash, 32) == 0);
+                                            }
+                                        } else {
+                                            /* Legacy account (no salt on disk) */
+                                            auth_ok = have_stored_hash &&
+                                                (memcmp(stored_hash, pkt.pass_hash_legacy, 32) == 0 ||
+                                                 memcmp(stored_hash, pkt.pass_hash, 32) == 0);
+                                            if (auth_ok && client_salt_zero) {
+                                                /* Password proved, but no salt supplied yet: ask for one
+                                                   so the record can be migrated to the salted scheme. */
+                                                status = PKT_ID_STATUS_SALT_REQUIRED; /* reply carries zeros */
+                                                auth_ok = false;
+                                            } else if (auth_ok) {
+                                                /* Transparent migration of the stored record */
+                                                FILE *fm = fopen(auth_path, "wb");
+                                                if (fm) {
+                                                    fwrite(pkt.pass_hash, 1, 32, fm);
+                                                    if (fchmod(fileno(fm), 0600) != 0) { /* best effort */ }
+                                                    fclose(fm);
+                                                }
+                                                FILE *fsm = fopen(salt_path, "wb");
+                                                if (fsm) {
+                                                    fwrite(pkt.salt, 1, 16, fsm);
+                                                    if (fchmod(fileno(fsm), 0600) != 0) { /* best effort */ }
+                                                    fclose(fsm);
+                                                }
+                                            }
+                                        }
+
+                                        if (status != 3 && status != PKT_ID_STATUS_SALT_REQUIRED) {
+                                            if (!auth_ok) {
                                                 status = 3; /* Wrong Password */
                                             } else {
-                                                /* Password correct, but check if the commander is in the current galaxy persistent state */
+                                                /* Password correct: check if the commander is in the current galaxy persistent state */
                                                 bool found_in_galaxy = false;
                                                 for(int j=0; j<MAX_CLIENTS; j++) {
                                                     if (players[j].name[0] != '\0' && strcmp(players[j].name, pkt.name) == 0) {
@@ -693,9 +902,14 @@ int main(int argc, char *argv[]) {
                                                 else status = 2; /* New Recruit (Identity exists, but Galaxy was reset) */
                                             }
                                         }
-                                        fclose(fa);
+                                    } else if (client_salt_zero) {
+                                        /* New Captain, salt probe: do NOT create the account yet.
+                                           Reply with status 5 + zeros; the client picks a random
+                                           salt and re-queries, which creates the record. */
+                                        status = PKT_ID_STATUS_SALT_REQUIRED;
                                     } else {
-                                        /* New Captain: Create directory and save hash */
+                                        /* New Captain (salt supplied): create directory and
+                                           save salted hash + salt */
                                         char dir_path[128];
                                         sprintf(dir_path, "captains/%s", pkt.name);
                                         mkdir("captains", 0700);
@@ -703,15 +917,28 @@ int main(int argc, char *argv[]) {
                                         fa = fopen(auth_path, "wb");
                                         if (fa) {
                                             fwrite(pkt.pass_hash, 1, 32, fa);
+                                            if (fchmod(fileno(fa), 0600) != 0) { /* best effort */ }
                                             fclose(fa);
-                                            status = 2; /* New Captain */
                                         }
+                                        FILE *fsm = fopen(salt_path, "wb");
+                                        if (fsm) {
+                                            fwrite(pkt.salt, 1, 16, fsm);
+                                            if (fchmod(fileno(fsm), 0600) != 0) { /* best effort */ }
+                                            fclose(fsm);
+                                        }
+                                        status = 2; /* New Captain */
                                     }
                                 }
 
                                 pthread_mutex_unlock(&game_mutex);
                                 LOG_DEBUG("Security Check for '%s': Status %d\n", pkt.name, status);
                                 write_all(fd, &status, sizeof(int));
+                                if (status == PKT_ID_STATUS_SALT_REQUIRED) {
+                                    /* Disclose the stored salt so the client can recompute the
+                                     * salted identity hash (one extra round-trip; the salt is
+                                     * public-parameters material, like a database salt). */
+                                    write_all(fd, stored_salt, 16);
+                                }
                             } else {
                                 /* PKT_LOGIN: Re-using the same packet read for login */
                                 pthread_mutex_lock(&game_mutex);
@@ -890,29 +1117,52 @@ int main(int argc, char *argv[]) {
                                 }
                             }
                         }
-                    } else if (p_idx != -1) {
+                    } else if (type == PKT_COMMAND || type == PKT_MESSAGE) {
+                        /* NOTE: the payload MUST always be consumed, even when the
+                           player is not active yet (sync in flight), otherwise the
+                           socket stream desynchronizes. Commands/messages arriving
+                           in that narrow window are dropped without desync. */
                         if (type == PKT_COMMAND) {
                             PacketCommand pkt;
                             if (read_all(fd, ((char*)&pkt) + sizeof(int), sizeof(PacketCommand) - sizeof(int)) > 0) {
-                                if (process_command(p_idx, pkt.cmd)) {
-                                    /* Profile was deleted (zztop), drop connection */
+                                if (p_idx != -1 && process_command(p_idx, pkt.cmd)) {
+                                    /* Profile was deleted (zztop), drop connection and
+                                       reap the slot so repeated zztops cannot exhaust
+                                       the server (DoS). game_mutex is NOT held here. */
+                                    pthread_mutex_lock(&game_mutex);
+                                    for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) {
+                                        players[i].socket = 0;
+                                        players[i].active = 0;
+                                        memset(players[i].session_key, 0, 32);
+                                        break;
+                                    }
+                                    pthread_mutex_unlock(&game_mutex);
                                     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
                                     close(fd);
                                     LOG_DEBUG("Connection dropped after zztop: FD %d\n", fd);
                                 }
                             }
-                        } else if (type == PKT_MESSAGE) {
+                        } else { /* PKT_MESSAGE */
                             PacketMessage *pkt = malloc(sizeof(PacketMessage));
                             if (pkt && read_all(fd, ((char*)pkt) + sizeof(int), offsetof(PacketMessage, text) - sizeof(int)) > 0) {
                                 if (pkt->length > 0 && pkt->length < 65536) read_all(fd, pkt->text, pkt->length);
                                 else pkt->text[0] = '\0';
                                 pkt->type = type;
-                                
-                                extern void broadcast_task(void *arg);
-                                if (g_pool) threadpool_add_task(g_pool, broadcast_task, pkt);
-                                else { broadcast_message(pkt); free(pkt); }
+
+                                if (p_idx != -1) {
+                                    extern void broadcast_task(void *arg);
+                                    if (g_pool) threadpool_add_task(g_pool, broadcast_task, pkt);
+                                    else { broadcast_message(pkt); free(pkt); }
+                                } else {
+                                    free(pkt); /* player not active yet: drop cleanly */
+                                }
                             } else if (pkt) free(pkt);
                         }
+                    } else {
+                        /* Unknown/unsupported packet type: close the connection
+                           (we cannot resynchronize the stream). */
+                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                        close(fd);
                     }
                 }
             }

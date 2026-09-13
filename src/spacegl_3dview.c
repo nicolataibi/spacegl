@@ -5804,7 +5804,7 @@ void display() {
             drawText3D(850, ty, 0, "ENCRYPTION: DES-CBC (PRE-HYPERDRIVE)");
         } else if (g_shared_state->shm_crypto_algo == CRYPTO_PQC) {
             glColor3f(1.0, 1.0, 1.0);
-            drawText3D(850, ty, 0, "ENCRYPTION: ML-KEM-1024 (QUANTUM-SECURE)");
+            drawText3D(850, ty, 0, "ENCRYPTION: ML-KEM-1024 SLOT (EXP. ALIAS: AES-256-GCM)");
         } else {
             glColor3f(1.0, 0.0, 0.0);
             drawText3D(850, ty, 0, "ENCRYPTION: DISABLED / RAW");

@@ -33,7 +33,7 @@ Space GL è un simulatore di volo e combattimento spaziale 3D multi-utente ad al
 ---
 
 ### Website: https://github.com/nicolataibi/spacegl
-### Authors: Nicola Taibi, Supported by Google Gemini
+### Authors: Nicola Taibi, Supported by Google Gemini, AI locale Qwen, Gemma
 ### Copyright (C) 2026 Nicola Taibi - Licensed under GPL-3.0-or-later
 #### **Licenza: CC BY 4.0 (Attribuzione)**
 #### Tutte le immagini dei personaggi e le interfacce grafiche presenti in questa collezione sono rilasciate sotto la licenza [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/deed.it). 
@@ -1749,7 +1749,7 @@ In Space GL, la crittografia non riguarda solo la sicurezza: è una **scelta di 
     *   **Blowfish (`enc bf`)**: Indice di frequenza **9**. *Nota Intel: "La firma del Commander Thorne. Trasforma il segnale in un 'fantasma' digitale, perfetto per il passaggio silenzioso attraverso i blocchi."* BLOWFISH-CBC (Gilded).
     *   **RC4 (`enc rc4`)**: Indice di frequenza **10**. *Nota Intel: "Veloce ma fragile. Utile solo per trasmissioni tattiche a brevissimo raggio durante i combattimenti mischia."* RC4-STREAM (Tattico).
     *   **DES (`enc des`)**: Indice di frequenza **11**. *Nota Intel: "Obsoleto. Usarlo in combattimento equivale a urlare i propri piani nel vuoto."* DES-CBC (Pre-Curvatura).
-    *   **PQC (`enc pqc`)**: Indice di frequenza **12**. *Nota Intel: "L'ultima difesa contro le intelligenze artificiali dei collettivi Swarm. Resistente ai tentativi di forzatura quantistica."* **Crittografia Post-Quantistica (ML-KEM-1024)**. Resistente agli attacchi dei computer quantistici.
+    *   **PQC (`enc pqc`)**: Indice di frequenza **12**. *Nota Intel: "L'ultima difesa contro le intelligenze artificiali dei collettivi Swarm. Resistente ai tentativi di forzatura quantistica."* **ML-KEM-1024 (slot sperimentale)**: in questa build lo slot è un alias sperimentale implementato con **AES-256-GCM**; non è ancora una primitiva post-quantistica genuina e non va considerato resistente ai computer quantistici (vedi nota di implementazione sotto).
     *   **McEliece (`enc mceliece`)**: Indice di frequenza **13**. *Nota Intel: "Codice basato su matrici d'errore. Anche se il segnale è disturbato al 40%, il messaggio arriva integro."* Classic McEliece (PQC code-based).
     *   **Dilithium (`enc dilithium`)**: Indice di frequenza **14**. *Nota Intel: "Firma digitale post-quantistica. Garantisce che l'ordine provenga direttamente dal ponte dell'Ammiraglio Niklaus."* Dilithium ML-DSA (Firma Post-Quantistica).
     *   **Serpent (`enc serpent`)**: Indice di frequenza **15**. *Nota Intel: "Lento, massiccio e impenetrabile. Viene usato per proteggere i manifesti di carico dell'Aetherium più prezioso."* SERPENT-256-GCM.
@@ -1760,6 +1760,8 @@ In Space GL, la crittografia non riguarda solo la sicurezza: è una **scelta di 
     *   **GOST (`enc gost`)**: Indice di frequenza **20**. *Nota Intel: "Cifrario a blocchi derivato dai vecchi archivi terrestri. Brutale ed efficace."* GOST-Kuznyechik.
     *   **Salsa20 (`enc salsa`)**: Indice di frequenza **21**. *Nota Intel: "Il cugino esotico del ChaCha. Molti piloti indipendenti lo usano per evitare i monitoraggi standard dell'Alleanza."* Cifratore di flusso SALSA20.
     *   **OFF (`enc off`)**: Indice **0**. *Nota Intel: "Comunicazione in chiaro. Solo per soccorso o per chi non ha nulla da nascondere... o nulla da perdere."* Usata per chiamate di soccorso d'emergenza o trasmissioni non protette.
+
+> **⚠️ Nota di Implementazione (Slot Post-Quantistici)**: Le frequenze denominate dai schemi post-quantistici (indici **12-14**: ML-KEM-1024, Classic McEliece, Dilithium) sono attualmente **alias sperimentali** mappati su **AES-256-GCM** in questa build. Non utilizzano ancora primitive post-quantistiche genuine; finché non sarà disponibile una vera implementazione PQC, offrono lo stesso livello di sicurezza di AES-256-GCM e non devono essere presentate né usate come resistenti ai computer quantistici.
 
 > **📔 Diario di Bordo: L'Eclissi di Ossidiana (Anno 2024)**
 > *"I sensori morirono in un istante. Quando il Quasar di settore ebbe quel sussulto gravitazionale, la realtà stessa sembrò spegnersi. Navigammo per tre giorni usando solo gli echi dei colpi di scafo e il coraggio dei piloti. Fu allora che capimmo: nello spazio, il silenzio non è assenza di rumore, è assenza di verità." — Inquisitore Xal'Tar, Rapporto sulla Purificazione del Segnale.*
@@ -2405,7 +2407,9 @@ Space GL implementa una suite crittografica a più livelli che trasforma la sicu
 
 Oltre alla scelta dell'algoritmo, il sistema GDIS utilizza protocolli avanzati per garantire che ogni ordine provenga dal legittimo comandante:
 
-*   **Handshake Iniziale (Offuscamento XOR)**: All'aggancio, il client e il server negoziano una **Chiave di Sessione** unica a 256 bit. Questo scambio avviene tramite un protocollo di offuscamento XOR basato sulla **Master Key** del settore (`SPACEGL_KEY`), assicurando che nessun pacchetto sia leggibile senza l'autorizzazione iniziale.
+*   **Handshake Iniziale (Offuscamento XOR)**: All'aggancio, il client e il server negoziano una **Chiave di Sessione** unica a 256 bit. Questo scambio avviene tramite un protocollo di offuscamento XOR basato sulla **Master Key** del settore (`SPACEGL_KEY`), assicurando che nessun pacchetto sia leggibile senza l'autorizzazione iniziale. Il server consegna poi una stabile **Chiave di Verifica della Galassia** (derivata dalla master key, legata alla sessione), che il client usa per i controlli di integrità dello stato.
+*   **Integrità dello Stato Galattico (HMAC-SHA256)**: Il server firma lo stato galattico persistente (frame ID, cubo galattico e cubo di scansione) con una costruzione HMAC-SHA256 a due livelli, ri-firmando dopo ogni tick di simulazione e prima di ogni sincronizzazione completa. Il client **ricalcola la firma localmente** e mostra `VERIFIED (HMAC-SHA256)` solo quando la firma corrisponde effettivamente; in caso di mismatch il flag di integrità viene azzerato e il client avverte di non fidarsi del server.
+*   **Verifica Identità con Sale**: Gli access code sono verificati con un hash HMAC-SHA256 **salato** per capitano (nome, sale casuale di 16 byte e access code), così access code identici producono hash non collegabili tra account. I record di identità legacy senza sale restano verificabili e vengono migrati in modo trasparente allo schema salato al primo login di successo.
 *   **Firme Digitali Ed25519**: Ogni pacchetto inviato via radio (`rad`) è firmato digitalmente. Il ricevitore verifica istantaneamente l'autenticità usando curve ellittiche. I messaggi autentici sono contrassegnati con **`[VERIFIED]`** in verde.
 *   **Integrazione della Frequenza Rotante**: Il Vettore di Inizializzazione (IV) di ogni messaggio viene modificato dinamicamente in base al `frame_id` del server. Questo rende il sistema immune agli *Attacchi di Replay*: un messaggio registrato un secondo fa sarà illeggibile quello successivo.
 *   **Supporto Legacy Provider**: SpaceGL carica esplicitamente i **Legacy Provider** di OpenSSL 3.0, abilitando il supporto completo per standard storici come SEED, CAST5 e IDEA insieme alle moderne suite GCM.
@@ -2452,7 +2456,9 @@ Oltre alla scelta dell'algoritmo, il sistema GDIS utilizza protocolli avanzati p
 
 ### ⚛️ Suite di Algoritmi (Frequenze Operative)
 
-Il comando `enc <ALGO>` permette di sintonizzare i sistemi di bordo su uno dei seguenti standard:
+Il comando `enc <ALGO>` permette di sintonizzare i sistemi di bordo su uno dei seguenti standard.
+
+> **⚠️ Nota di Implementazione**: le voci **1** (ML-KEM-1024), **13** (Classic McEliece) e **14** (Dilithium) sono attualmente **alias sperimentali** implementati come **AES-256-GCM**; non sono primitive post-quantistiche genuine in questa build.
 
 #### 1. ML-KEM-1024 (Kyber) - `enc pqc`
 *   **Descrizione**: Crittografia Post-Quantistica basata su reticoli.

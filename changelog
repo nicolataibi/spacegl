@@ -1,379 +1,765 @@
+* Sun Sep 13 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.13.01
+  - Security (Server): Remove the master key from the GDIS boot banner. The
+  banner now displays only a short, non-reversible fingerprint (first four bytes
+  of the SHA-256 digest of the key material), so the most sensitive secret of
+  the system is no longer written to consoles or logs.
+  - Security (Server/Client): Implement genuine galaxy-state integrity
+  verification. The server derives a stable verification key from the master
+  key, delivers it to the client during the handshake (bound to the negotiated
+  session key), and re-signs the galaxy state after every simulation tick and
+  before every full synchronization (two-level HMAC-SHA256 over the frame ID,
+  the galaxy cube and the scan cube). The client recomputes the signature
+  locally, cross-checks the server identity digest, and displays the "VERIFIED
+  (HMAC-SHA256)" badge only when the signature actually matches; on mismatch a
+  prominent warning is issued and the integrity flag is cleared in the shared
+  state. The badge is no longer a display of a protocol flag.
+  - Security (Server/Client): Replace the unsalted password hash HMAC-
+  SHA256(master, password) with a per-captain salted scheme. The client probes
+  with a zero salt; the server replies with status 5 carrying the stored salt
+  (or zeros for new accounts, in which case the client generates its own random
+  16-byte salt); the verified hash becomes HMAC-SHA256(master, name, salt,
+  password), so identical access codes are no longer linkable across accounts.
+  Legacy unsalted identity records remain verifiable and are transparently
+  migrated to the salted scheme on first successful login. Note: the master key
+  remains the root of the password hierarchy; a per-session KDF or SRP-style
+  proof is future work.
+  - Security (Server/Client): Enforce strict captain-name sanitization
+  (characters [A-Za-z0-9_-], maximum 32 characters) on both sides before any
+  filesystem use, rejecting path-traversal names such as "x/../captains" and
+  closing the offending connection. Rejects and profile deletion now release the
+  reserved client slot, so a hostile client can no longer exhaust server
+  capacity through repeated rejected handshakes (denial of service).
+  - Security (Server): The zztop command (PERMANENT PROFILE DELETION) now also
+  removes the on-disk profile: identity hash, identity salt, all frequency keys
+  and the profile directory. A deleted commander can no longer log back in.
+  - Security (Client): Clamp the network-supplied message length before reading
+  the payload (an out-of-range length aborts the listener instead of overflowing
+  the 64 KB text buffer) and move the 64 KB decryption scratch buffer from the
+  listener-thread stack to the heap.
+  - Security (Server/Client): Identity and frequency-key files under captains/
+  are now created with 0600 permissions, and pre-existing files are tightened to
+  0600 on access, removing reliance on the process umask.
+  - Security (Protocol): The packet dispatcher now always consumes COMMAND and
+  MESSAGE payloads; commands or messages arriving while a session is still
+  synchronizing are dropped cleanly instead of desynchronizing the socket
+  stream, and unsupported packet types cause the connection to be closed (fail
+  closed).
+  - Security (Docs): Remove the hardcoded shared secret from HOWTO.txt. The
+  document now instructs generating a random 256-bit key per deployment (openssl
+  rand -hex 32) and reusing the same value on server and clients.
+  - Security (UI/Docs): Relabel the post-quantum frequency slots (indices
+  12-14). They are currently experimental aliases implemented as AES-256-GCM and
+  are no longer advertised as "Quantum Ready" or quantum-resistant in the client
+  banner, the diagnostics viewer, the 3D view, in-game computer messages, or the
+  documentation; an explicit implementation note has been added to README.md and
+  README_it.md.
+
 * Sat Sep 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.12.04
-- Server: Eliminate 40+ static-object loops from rebuild_spatial_index(), which runs at 60Hz. Cosmic structures (nebulae, filaments, quasars, dyson spheres, etc.) never change quadrant after init, so they are now placed once by init_static_spatial_index() and never re-iterated. The per-tick rebuild now only processes truly mobile objects: NPC, player, torpedo, monster, comet, asteroid, mine, buoy, platform, rift, derelict. Reduces ~560 lines of per-tick work to ~150.
+  - Server: Eliminate 40+ static-object loops from rebuild_spatial_index(),
+  which runs at 60Hz.
+  Cosmic structures (nebulae, filaments, quasars, dyson spheres, etc.) never change quadrant after
+  init, so they are now placed once by init_static_spatial_index() and never re-iterated. The per-
+  tick rebuild now only processes truly mobile objects: NPC, player, torpedo, monster, comet,
+  asteroid, mine, buoy, platform, rift, derelict. Reduces ~560 lines of per-tick work to ~150.
 
 * Sat Sep 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.12.03
-- Server: Reduce spatial_index memory from ~349 MB to ~151 MB (-55%, ~182 MB savings) by calibrating MAX_Q_* per-quadrant capacity limits to the real galaxy density (4000 NPC / 64000 quadrants ≈ 0.06 average occupancy). All caps remain safely above worst-case peak occupancy. No logic changes required; the existing spatial_index[q1][q2][q3] access pattern is fully preserved.
+  - Server: Reduce spatial_index memory from ~349 MB to ~151 MB (-55%, ~182 MB
+  savings) by
+  calibrating MAX_Q_* per-quadrant capacity limits to the real galaxy density (4000 NPC / 64000
+  quadrants ≈ 0.06 average occupancy). All caps remain safely above worst-case peak occupancy. No
+  logic changes required; the existing spatial_index[q1][q2][q3] access pattern is fully preserved.
 
 * Sat Sep 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.12.02
-- Server/Net: Decouple network I/O from game_mutex by introducing send_pending_updates(), called after releasing the simulation lock. Packets are now built under the lock and sent outside, preventing slow clients from stalling the 60Hz game thread.
-- Server/Net: Refactor broadcast_message() to release game_mutex before the write_all broadcast loop, isolating blocking I/O behind per-player socket_mutex only.
-- Server/Logic: Eliminate per-tick malloc()/free() for PacketUpdate by adding a static upd_packet buffer to ConnectedPlayer, removing ~200MB/s of heap churn at 60Hz.
-- Server/Logic: Remove unnecessary OpenMP parallelism from MAX_CLIENTS=16 player loops (antimatter refill, death timer, main physics) where synchronization overhead exceeded the parallelism benefit. NPC and monster loops retain parallelism.
-- Vulkan: Increase MAX_FRAMES_IN_FLIGHT from 2 to 3 for better CPU/GPU pipeline decoupling.
-- Vulkan: Cap MSAA at 4x (removed 8x/16x/32x/64x paths) to reduce GPU memory and fill-rate cost with no perceptible visual benefit.
-- Vulkan: Add guard in pickPhysicalDevice against systems with zero Vulkan-capable GPUs to prevent a null-dereference crash.
-- Vulkan: Replace UINT64_MAX timeout in vkAcquireNextImageKHR with 100ms to prevent indefinite stalls; handle VK_SUBOPTIMAL_KHR gracefully.
-- Vulkan: Add a ~144fps frame limiter (nanosleep 6.94ms) after vkQueuePresentKHR to prevent CPU saturation under MAILBOX/IMMEDIATE present modes.
+  - Server/Net: Decouple network I/O from game_mutex by introducing
+  send_pending_updates(), called
+  after releasing the simulation lock. Packets are now built under the lock and sent outside,
+  preventing slow clients from stalling the 60Hz game thread.
+  - Server/Net: Refactor broadcast_message() to release game_mutex before the
+  write_all broadcast
+  loop, isolating blocking I/O behind per-player socket_mutex only.
+  - Server/Logic: Eliminate per-tick malloc()/free() for PacketUpdate by adding
+  a static upd_packet
+  buffer to ConnectedPlayer, removing ~200MB/s of heap churn at 60Hz.
+  - Server/Logic: Remove unnecessary OpenMP parallelism from MAX_CLIENTS=16
+  player loops (antimatter
+  refill, death timer, main physics) where synchronization overhead exceeded the parallelism
+  benefit. NPC and monster loops retain parallelism.
+  - Vulkan: Increase MAX_FRAMES_IN_FLIGHT from 2 to 3 for better CPU/GPU
+  pipeline decoupling.
+  - Vulkan: Cap MSAA at 4x (removed 8x/16x/32x/64x paths) to reduce GPU memory
+  and fill-rate cost
+  with no perceptible visual benefit.
+  - Vulkan: Add guard in pickPhysicalDevice against systems with zero Vulkan-
+  capable GPUs to prevent
+  a null-dereference crash.
+  - Vulkan: Replace UINT64_MAX timeout in vkAcquireNextImageKHR with 100ms to
+  prevent indefinite
+  stalls; handle VK_SUBOPTIMAL_KHR gracefully.
+  - Vulkan: Add a ~144fps frame limiter (nanosleep 6.94ms) after
+  vkQueuePresentKHR to prevent CPU
+  saturation under MAILBOX/IMMEDIATE present modes.
 
 * Sat Sep 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.12.01
-- Network: Fix heap buffer overflow in send_optimized_update by using a fixed 256KB buffer.
-- Network: Clamp beam_count to MAX_NET_BEAMS to prevent out-of-bounds memory writes.
-- Client: Clamp object_count when reading UPD_OBJECTS packets to mitigate overflow vulnerabilities.
-- Galaxy: Fix data race in save_task by executing galaxy saves synchronously on the game thread.
-- Logic: Resolve OpenMP concurrent data races within update_npc_ai.
-- Logic: Replace thread-unsafe rand() with thread-local rand_r().
-- Logic: Add OpenMP critical sections to encapsulate apply_hull_damage, push_server_event, and broadcast_server_event.
-- Logic: Protect torpedo slot allocation with critical sections to prevent dual-allocation conflicts.
-- Server: Fix async File Descriptor (fd) reuse race in sync_client_task via a player generation counter.
-- Client: Resolve double-buffer data race in swap_buffers by transitioning to a 3-buffer ring layout.
-- Client: Fix orphaned Vulkan viewer process by placing it in a process group and terminating the entire group on cleanup.
+  - Network: Fix heap buffer overflow in send_optimized_update by using a fixed
+  256KB buffer.
+  - Network: Clamp beam_count to MAX_NET_BEAMS to prevent out-of-bounds memory
+  writes.
+  - Client: Clamp object_count when reading UPD_OBJECTS packets to mitigate
+  overflow
+  vulnerabilities.
+  - Galaxy: Fix data race in save_task by executing galaxy saves synchronously
+  on the game thread.
+  - Logic: Resolve OpenMP concurrent data races within update_npc_ai.
+  - Logic: Replace thread-unsafe rand() with thread-local rand_r().
+  - Logic: Add OpenMP critical sections to encapsulate apply_hull_damage,
+  push_server_event, and
+  broadcast_server_event.
+  - Logic: Protect torpedo slot allocation with critical sections to prevent
+  dual-allocation
+  conflicts.
+  - Server: Fix async File Descriptor (fd) reuse race in sync_client_task via a
+  player generation
+  counter.
+  - Client: Resolve double-buffer data race in swap_buffers by transitioning to
+  a 3-buffer ring
+  layout.
+  - Client: Fix orphaned Vulkan viewer process by placing it in a process group
+  and terminating the
+  entire group on cleanup.
 
 * Sun Jun 07 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.06.07.01
-- Fix i686 build failure in Vulkan engine by correctly using VK_NULL_HANDLE
-- Ensure 32-bit compatibility for Vulkan handles (VkSwapchainKHR, VkFence)
+  - Fix i686 build failure in Vulkan engine by correctly using VK_NULL_HANDLE
+  - Ensure 32-bit compatibility for Vulkan handles (VkSwapchainKHR, VkFence)
 
 * Sat May 30 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.30.01
-- Remove leftover stripping comment from spec file
-- Prevent duplicate LICENSE.txt installation in data subpackage
-- Unify documentation directory using %global _docdir_fmt %{name}
-- Fix HOWTO.txt referencing outdated .sh extensions
+  - Remove leftover stripping comment from spec file
+  - Prevent duplicate LICENSE.txt installation in data subpackage
+  - Unify documentation directory using %global _docdir_fmt %{name}
+  - Fix HOWTO.txt referencing outdated .sh extensions
 
 * Tue May 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.26.02
-- Restore standard binary stripping due to spec file implementation complexity
-- Note: Users requiring SHM telemetry via spacegl_diag must recompile locally; otherwise, use spacegl_telemetry
-- Refine documentation placement: README files moved exclusively to the doc subpackage
-- Add HOWTO.txt to the data subpackage to satisfy documentation requirements
-- Remove %check section as it is not required by the reviewer
+  - Restore standard binary stripping due to spec file implementation complexity
+  - Note: Users requiring SHM telemetry via spacegl_diag must recompile locally;
+  otherwise, use
+  spacegl_telemetry
+  - Refine documentation placement: README files moved exclusively to the doc
+  subpackage
+  - Add HOWTO.txt to the data subpackage to satisfy documentation requirements
+  - Remove %check section as it is not required by the reviewer
 
 * Tue May 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.26.01
-- Address review comments: cleanup unused macros, remove %check, switch to pkgconfig()
-- Rename wrapper scripts and man pages (remove .sh extension)
-- Enable granular stripping exclusion for spacegl_diag
-- Update documentation and build system
+  - Address review comments: cleanup unused macros, remove %check, switch to
+  pkgconfig()
+  - Rename wrapper scripts and man pages (remove .sh extension)
+  - Enable granular stripping exclusion for spacegl_diag
+  - Update documentation and build system
 
 * Sat May 23 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.23.02
-- [Docs] Added final sections to README.md and README_it.md including Performance Analysis (driver maturity focus for amdgpu vs i915/Xe) and Personal Reflections.
-- [Docs] Integrated the "Hall of Fame and Personnel Merits" section, providing a comprehensive mapping between game logic and the narrative background of all 25 bridge officers.
+  - [Docs] Added final sections to README.md and README_it.md including
+  Performance Analysis (driver
+  maturity focus for amdgpu vs i915/Xe) and Personal Reflections.
+  - [Docs] Integrated the "Hall of Fame and Personnel Merits" section, providing
+  a comprehensive
+  mapping between game logic and the narrative background of all 25 bridge officers.
 
 * Fri May 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.22.01
-- [Docs] Integrated the comprehensive Command Bridge cast (24 officers) into README.md and README_it.md for the "Echo of the Void" mission, establishing a detailed technical-narrative mapping for all ship stations.
+  - [Docs] Integrated the comprehensive Command Bridge cast (24 officers) into
+  README.md and
+  README_it.md for the "Echo of the Void" mission, establishing a detailed technical-narrative
+  mapping for all ship stations.
 
 * Wed May 20 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.20.02
-- [Docs] Finalized the README documentation and integrated three key actors into Chapter 2 (Part II): The Command Bridge within the "Mission Archive: The Void Protocol" section.
+  - [Docs] Finalized the README documentation and integrated three key actors
+  into Chapter 2 (Part
+  II): The Command Bridge within the "Mission Archive: The Void Protocol" section.
 
 * Wed May 20 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.20.01
-- [Docs] Completed the final review of the README, identifying and correcting minor inaccuracies in the "The persistent galaxy" section, paragraph 3.
+  - [Docs] Completed the final review of the README, identifying and correcting
+  minor inaccuracies
+  in the "The persistent galaxy" section, paragraph 3.
 
 * Tue May 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.19.01
-- [Docs] Successfully finalized comprehensive README documentation and completed the translation of all source code comments within .h and .c files into English to ensure project-wide consistency and international accessibility.
+  - [Docs] Successfully finalized comprehensive README documentation and
+  completed the translation
+  of all source code comments within .h and .c files into English to ensure project-wide consistency
+  and international accessibility.
 
 * Mon May 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.18.01
-- [Docs] Integrated "The Dawn of Digital Adventure" section in README.md, providing historical context and a tribute to early text-based space simulations.
+  - [Docs] Integrated "The Dawn of Digital Adventure" section in README.md,
+  providing historical
+  context and a tribute to early text-based space simulations.
 
 * Sun May 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.17.01
-- [Visuals] Implemented high-fidelity 3D rendering for the Alliance Sentinel-class ship in both Vulkan and GLFW engines.
-- [Visuals] Added cinematic dual-stage wormhole transit sequences for Vulkan and GLFW visualization front-ends.
-- [Docs] Completed comprehensive documentation of all 88 galactic objects in README.md and README_it.md.
-- [Docs] Updated HOWTO.txt with new technical specifications and engine operational procedures.
+  - [Visuals] Implemented high-fidelity 3D rendering for the Alliance Sentinel-
+  class ship in both
+  Vulkan and GLFW engines.
+  - [Visuals] Added cinematic dual-stage wormhole transit sequences for Vulkan
+  and GLFW
+  visualization front-ends.
+  - [Docs] Completed comprehensive documentation of all 88 galactic objects in
+  README.md and
+  README_it.md.
+  - [Docs] Updated HOWTO.txt with new technical specifications and engine
+  operational procedures.
 
 * Sat May 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.16.02
-- [Vulkan] Implemented dynamic shader path resolution: added fallback logic to prioritize /usr/share/spacegl/shaders/ and default to the build directory, ensuring compatibility for installed COPR packages.
+  - [Vulkan] Implemented dynamic shader path resolution: added fallback logic to
+  prioritize
+  /usr/share/spacegl/shaders/ and default to the build directory, ensuring compatibility for
+  installed COPR packages.
 
 * Sat May 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.16.01
-- [Build] Fixed compilation error in spacegl_extras_glfw.c by correctly using the glut_compat.h layer instead of system GLUT headers.
-- [Build] Added missing stdlib.h include for rand() and RAND_MAX in spacegl_extras_glfw.c.
-- [Galaxy] Integrated 38 new galactic object types to expand exploration depth.
-- [Sensors] Upgraded Short-Range (SRS) and Long-Range (LRS) sensor accuracy and data density.
-- [Combat] Fixed critical bugs in torpedo homing and shield depletion logic.
-- [Docs] Comprehensive update of technical and user documentation.
+  - [Build] Fixed compilation error in spacegl_extras_glfw.c by correctly using
+  the glut_compat.h
+  layer instead of system GLUT headers.
+  - [Build] Added missing stdlib.h include for rand() and RAND_MAX in
+  spacegl_extras_glfw.c.
+  - [Galaxy] Integrated 38 new galactic object types to expand exploration
+  depth.
+  - [Sensors] Upgraded Short-Range (SRS) and Long-Range (LRS) sensor accuracy
+  and data density.
+  - [Combat] Fixed critical bugs in torpedo homing and shield depletion logic.
+  - [Docs] Comprehensive update of technical and user documentation.
 
 * Tue May 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.12.04
-- [Commands] Expanded 'scan' command to support all 35+ galactic object types (Dyson, Hubs, Anomalies, etc.).
-- [Sensors] Corrected starbase faction identification in SRS/LRS scans and communications.
-- [Commands] Added Starbase deep scan support to 'scan' command.
-- [Telemetry/Docking] Fixed generic starbase labels in network telemetry and docking sequences.
+  - [Commands] Expanded 'scan' command to support all 35+ galactic object types
+  (Dyson, Hubs,
+  Anomalies, etc.).
+  - [Sensors] Corrected starbase faction identification in SRS/LRS scans and
+  communications.
+  - [Commands] Added Starbase deep scan support to 'scan' command.
+  - [Telemetry/Docking] Fixed generic starbase labels in network telemetry and
+  docking sequences.
 
 * Tue May 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.12.03
-- [Vulkan] Stabilized Ion Beam visualization by implementing real-time tracking with vertical emitter offsets.
-- [Vulkan] Implemented event deduplication logic for IPC beams to prevent multiple overlaying visual effects.
-- [Server] Optimized beam propagation by removing redundant IPC events and utilizing the synchronized NetUpdate state.
-- [Client] Enhanced event pipeline to correctly propagate emitter metadata for multi-beam tracking.
+  - [Vulkan] Stabilized Ion Beam visualization by implementing real-time
+  tracking with vertical
+  emitter offsets.
+  - [Vulkan] Implemented event deduplication logic for IPC beams to prevent
+  multiple overlaying
+  visual effects.
+  - [Server] Optimized beam propagation by removing redundant IPC events and
+  utilizing the
+  synchronized NetUpdate state.
+  - [Client] Enhanced event pipeline to correctly propagate emitter metadata for
+  multi-beam
+  tracking.
 
 * Tue May 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.12.02
-- [Server] Resolved a critical race condition in the logic thread that caused intermittent loss of transient events (dismantle effects).
-- [Server] Standardized mutex locking duration to cover the entire broadcast and transient-reset cycle, ensuring event atomicity.
-- [Diagnostics] Enhanced server-side telemetry to verify end-to-end event transmission for dismantle operations.
+  - [Server] Resolved a critical race condition in the logic thread that caused
+  intermittent loss of
+  transient events (dismantle effects).
+  - [Server] Standardized mutex locking duration to cover the entire broadcast
+  and transient-reset
+  cycle, ensuring event atomicity.
+  - [Diagnostics] Enhanced server-side telemetry to verify end-to-end event
+  transmission for
+  dismantle operations.
 
 * Tue May 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.12.01
-- [Logic] Synchronized NPC derelict spawning with current death coordinates, resolving the "teleporting wreck" issue and ensuring consistent visual alignment for the dismantle command.
-- [Logic] Upgraded dismantle yield and resource recovery calculations to uint64_t to prevent integer overflows with high energy values.
-- [Server] Implemented comprehensive server-side logging for dismantle operations, including precise distance and yield diagnostics.
-- [Vulkan/GLFW] Standardized client-side event processing with robust eviction and ring-buffer overwrite policies for visual effects, ensuring dismantle animations are never dropped under load.
-- [Telemetry] Integrated real-time dismantle reception logs into the Vulkan and GLFW console outputs for end-to-end event validation.
+  - [Logic] Synchronized NPC derelict spawning with current death coordinates,
+  resolving the
+  "teleporting wreck" issue and ensuring consistent visual alignment for the dismantle command.
+  - [Logic] Upgraded dismantle yield and resource recovery calculations to
+  uint64_t to prevent
+  integer overflows with high energy values.
+  - [Server] Implemented comprehensive server-side logging for dismantle
+  operations, including
+  precise distance and yield diagnostics.
+  - [Vulkan/GLFW] Standardized client-side event processing with robust eviction
+  and ring-buffer
+  overwrite policies for visual effects, ensuring dismantle animations are never dropped under load.
+  - [Telemetry] Integrated real-time dismantle reception logs into the Vulkan
+  and GLFW console
+  outputs for end-to-end event validation.
 
 * Mon May 11 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.10.02
-- [Docs] Integrated the official game logo into README.md and README_it.md documentation files.
+  - [Docs] Integrated the official game logo into README.md and README_it.md
+  documentation files.
 
 * Sun May 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.10.01
-- [Vulkan] Fixed particle rendering alignment and event handling consistency.
-- [HUD] Integrated telemetry monitors for real-time event delivery validation.
-- [Docs] Updated README.md and README_it.md with new Vulkan rendering reference screenshots.
+  - [Vulkan] Fixed particle rendering alignment and event handling consistency.
+  - [HUD] Integrated telemetry monitors for real-time event delivery validation.
+  - [Docs] Updated README.md and README_it.md with new Vulkan rendering
+  reference screenshots.
 
 * Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.04
-- [Logic] Refactored dismantle (dis) event coordinates to use absolute local quadrant values, ensuring consistent rendering across boundary conditions.
-- [Logic] Implemented robust feedback for inactive targets in dis command, guiding users to scan for derelict IDs.
-- [Stability] Expanded IPC_EVENT_QUEUE_SIZE to 4096 and prioritized dismantle IPC events in the viewer for consistent visual delivery.
+  - [Logic] Refactored dismantle (dis) event coordinates to use absolute local
+  quadrant values,
+  ensuring consistent rendering across boundary conditions.
+  - [Logic] Implemented robust feedback for inactive targets in dis command,
+  guiding users to scan
+  for derelict IDs.
+  - [Stability] Expanded IPC_EVENT_QUEUE_SIZE to 4096 and prioritized dismantle
+  IPC events in the
+  viewer for consistent visual delivery.
 
 * Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.03
-- [Logic] Stabilized dismantle (dis) visual effects by expanding IPC event buffer to 4096.
-- [Visuals] Implemented event prioritization in the 3D viewer to ensure dismantle explosion delivery under load.
-- [Telemetry] Added DISM-FX telemetry counter to the HUD, integrated with SharedIPC for real-time validation.
+  - [Logic] Stabilized dismantle (dis) visual effects by expanding IPC event
+  buffer to 4096.
+  - [Visuals] Implemented event prioritization in the 3D viewer to ensure
+  dismantle explosion
+  delivery under load.
+  - [Telemetry] Added DISM-FX telemetry counter to the HUD, integrated with
+  SharedIPC for real-time
+  validation.
 
 * Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.02
-- [Story] Integrated narrative framework and background documentation for 'The Void Protocol' into the project documentation.
+  - [Story] Integrated narrative framework and background documentation for 'The
+  Void Protocol' into
+  the project documentation.
 
 * Sat May 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.09.01
-- [Sensors] Standardized Long Range Sensors (LRS) to scan the full 3x3x3 volumetric neighborhood (27 quadrants).
-- [Sensors] Integrated all 35 galactic entity categories into both SRS and LRS scans for comprehensive tactical coverage.
-- [Sensors] Implemented Z-depth color-coding for LRS: Green (Above), Yellow (Same Plane), Red (Below).
-- [Network] Migrated LRS to dynamic PacketLRSUpdate transmission for full data integrity and detail.
-- [Bugfix] Eliminated ghost entities (ID 0) and ensured strict active-filtering for all tactical data transmissions.
-- [UI] Standardized tactical output format and icon mapping between SRS and LRS for interface consistency.
+  - [Sensors] Standardized Long Range Sensors (LRS) to scan the full 3x3x3
+  volumetric neighborhood
+  (27 quadrants).
+  - [Sensors] Integrated all 35 galactic entity categories into both SRS and LRS
+  scans for
+  comprehensive tactical coverage.
+  - [Sensors] Implemented Z-depth color-coding for LRS: Green (Above), Yellow
+  (Same Plane), Red
+  (Below).
+  - [Network] Migrated LRS to dynamic PacketLRSUpdate transmission for full data
+  integrity and
+  detail.
+  - [Bugfix] Eliminated ghost entities (ID 0) and ensured strict active-
+  filtering for all tactical
+  data transmissions.
+  - [UI] Standardized tactical output format and icon mapping between SRS and
+  LRS for interface
+  consistency.
 
 * Fri May 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.08.03
-- [Sensors] Expanded Short Range Sensors (SRS) to include all galactic object categories, including Subspace Anomalies, Pulsars, Quasars, Rifts, and Space Monsters.
-- [Sensors] Updated Long Range Sensors (LRS) and galaxy bitmask logic to correctly identify and display Subspace Anomalies (Symbol: 'A').
-- [Logic] Optimized refresh_lrs_grid to handle high-power bitmask operations using safe long long multipliers.
-- [Bugfix] Fixed intermittent 'srs' command failures by refactoring handle_srs to use safe string operations (strncpy/strncat) and ensuring buffer limits are respected.
-- [Network] Mitigated potential stack overflow in send_server_msg by transitioning PacketMessage allocation from stack to heap, ensuring stability for large data payloads.
+  - [Sensors] Expanded Short Range Sensors (SRS) to include all galactic object
+  categories,
+  including Subspace Anomalies, Pulsars, Quasars, Rifts, and Space Monsters.
+  - [Sensors] Updated Long Range Sensors (LRS) and galaxy bitmask logic to
+  correctly identify and
+  display Subspace Anomalies (Symbol: 'A').
+  - [Logic] Optimized refresh_lrs_grid to handle high-power bitmask operations
+  using safe long long
+  multipliers.
+  - [Bugfix] Fixed intermittent 'srs' command failures by refactoring handle_srs
+  to use safe string
+  operations (strncpy/strncat) and ensuring buffer limits are respected.
+  - [Network] Mitigated potential stack overflow in send_server_msg by
+  transitioning PacketMessage
+  allocation from stack to heap, ensuring stability for large data payloads.
 
 * Fri May 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.08.02
-- [Docs] Integrated comprehensive technical documentation for the Universal Approach Autopilot (APR) in both README.md and README_it.md, detailing deceleration ramps and LERP-based orientation.
-- [Docs] Documented strategic refueling maneuvers for High-Energy Nebulae, including optimal distance parameters and antimatter replenishment rates.
+  - [Docs] Integrated comprehensive technical documentation for the Universal
+  Approach Autopilot
+  (APR) in both README.md and README_it.md, detailing deceleration ramps and LERP-based orientation.
+  - [Docs] Documented strategic refueling maneuvers for High-Energy Nebulae,
+  including optimal
+  distance parameters and antimatter replenishment rates.
 
 * Fri May 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.08.01
-- [Logic] Implemented antimatter replenishment mechanics: ships entering High-Energy Nebulae (Type 1) now passively regenerate 10 antimatter units per second.
-- [HUD] Updated ncurses HUD (spacegl_hud) to display current anti-matter reserves (A-MAT) in the tactical vitals section.
+  - [Logic] Implemented antimatter replenishment mechanics: ships entering High-
+  Energy Nebulae (Type
+  1) now passively regenerate 10 antimatter units per second.
+  - [HUD] Updated ncurses HUD (spacegl_hud) to display current anti-matter
+  reserves (A-MAT) in the
+  tactical vitals section.
 
 * Thu May 07 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.07.01
-- [Navigation] Verified and validated the Precision Approach Autopilot (APR) logic: confirmed universal target resolution for all 45+ galactic entity categories in the server-side navigation state machine.
-- [Telemetry] Finalized the dual-socket high-performance telemetry system, ensuring consistent data streams and robust faction-specific monitoring across the fleet.
+  - [Navigation] Verified and validated the Precision Approach Autopilot (APR)
+  logic: confirmed
+  universal target resolution for all 45+ galactic entity categories in the server-side navigation
+  state machine.
+  - [Telemetry] Finalized the dual-socket high-performance telemetry system,
+  ensuring consistent
+  data streams and robust faction-specific monitoring across the fleet.
 
 * Tue May 05 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.05.02
-- [Optimization] Calibrated particle system for high-concurrency (up to 16 simultaneous players): increased MAX_PARTICLES to 16,384, implemented fixed-quota spawning for dismantle events, and optimized spawn search algorithm.
+  - [Optimization] Calibrated particle system for high-concurrency (up to 16
+  simultaneous players):
+  increased MAX_PARTICLES to 16,384, implemented fixed-quota spawning for dismantle events, and
+  optimized spawn search algorithm.
 
 * Tue May 05 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.05.01
-- [Bugfix] Resolved flickering/flashing labels in the 3D viewer by standardizing object cache iteration using the MAX_OBJECTS macro, ensuring consistent rendering regardless of transient network update sizes.
-- [Visuals] Implemented a high-intensity, multi-colored pixel explosion effect for the dismantle (DIS) command. The new effect features over 1100 particles with randomized vibrant hues, extended life, and a high-velocity central core flash.
-- [Refactor] Standardized use of MAX_OBJECTS and MAX_BEAMS macros across the OpenGL tactical viewer for improved maintainability and memory safety.
+  - [Bugfix] Resolved flickering/flashing labels in the 3D viewer by
+  standardizing object cache
+  iteration using the MAX_OBJECTS macro, ensuring consistent rendering regardless of transient
+  network update sizes.
+  - [Visuals] Implemented a high-intensity, multi-colored pixel explosion effect
+  for the dismantle
+  (DIS) command. The new effect features over 1100 particles with randomized vibrant hues, extended
+  life, and a high-velocity central core flash.
+  - [Refactor] Standardized use of MAX_OBJECTS and MAX_BEAMS macros across the
+  OpenGL tactical
+  viewer for improved maintainability and memory safety.
 
 * Mon May 04 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.04.01
-- Remove freeglut dependencies from documentation
+  - Remove freeglut dependencies from documentation
 
 * Sun May 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.03.04
-- [Vulkan] Implemented Ion Storm visual effect: multi-layer rendering with pulsing core, randomized jagged lightning arcs, and spatial distortion rings.
-- [Vulkan] Added dual-palette support (Electric Blue/Violet) for Ion Storm instability states.
-- [Docs] Added comprehensive installation and verification guides for AlmaLinux/RHEL/Fedora and Ubuntu/Debian in README.md and README_it.md.
-- [Tooling] Updated spacegl_viewer diagnostic tool to support reporting and counting of Ion Storms and Void Crystals.
+  - [Vulkan] Implemented Ion Storm visual effect: multi-layer rendering with
+  pulsing core,
+  randomized jagged lightning arcs, and spatial distortion rings.
+  - [Vulkan] Added dual-palette support (Electric Blue/Violet) for Ion Storm
+  instability states.
+  - [Docs] Added comprehensive installation and verification guides for
+  AlmaLinux/RHEL/Fedora and
+  Ubuntu/Debian in README.md and README_it.md.
+  - [Tooling] Updated spacegl_viewer diagnostic tool to support reporting and
+  counting of Ion Storms
+  and Void Crystals.
 
 * Sun May 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.03.03
-- [Documentation] Fixed Markdown syntax in README_it.md to prevent incorrect visual formatting (sidebar/blockquote nesting).
+  - [Documentation] Fixed Markdown syntax in README_it.md to prevent incorrect
+  visual formatting
+  (sidebar/blockquote nesting).
 
 * Sun May 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.03.02
-- [Telemetry] Fixed factional filtering logic to ensure connected players are correctly categorized in faction-specific streams.
-- [Telemetry] Integrated persistent infrastructure (Starbases) into factional telemetry monitors to ensure accurate asset representation.
-- [Telemetry] Optimized bandwidth by removing redundant 'SUMMARY' page and streamlining real-time data flow.
-- [Stability] Optimized telemetry broadcasting loop by utilizing pre-allocated buffers and removing dynamic allocations, improving server tick stability.
+  - [Telemetry] Fixed factional filtering logic to ensure connected players are
+  correctly
+  categorized in faction-specific streams.
+  - [Telemetry] Integrated persistent infrastructure (Starbases) into factional
+  telemetry monitors
+  to ensure accurate asset representation.
+  - [Telemetry] Optimized bandwidth by removing redundant 'SUMMARY' page and
+  streamlining real-time
+  data flow.
+  - [Stability] Optimized telemetry broadcasting loop by utilizing pre-allocated
+  buffers and
+  removing dynamic allocations, improving server tick stability.
 
 * Sun May 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.03.01
-- [Feature] Implemented high-performance dual-socket telemetry system (TCP/Unix Domain Sockets).
-- [Architecture] Adopted server-streaming (Push) model for real-time 60Hz tactical updates, reducing network overhead.
-- [Network] Simultaneous support for local IPC via Unix Sockets and remote monitoring via TCP Port 5001.
-- [Instrumentation] Comprehensive monitoring of 35+ galactic categories with 12 distinct faction-specific ship streams.
-- [Client] New `spacegl_telemetry` ncurses client featuring unique faction color mapping and deterministic navigation.
-- [Asset Integration] Enhanced factional presence tracking by including Starbases and connected players in real-time counts.
-- [Compliance] Full COPR specification adherence for CLI help messages and argument handling.
-- [Localization] Updated README.md and README_it.md with "The Omniscience Protocol" narrative lore and technical user guides.
+  - [Feature] Implemented high-performance dual-socket telemetry system
+  (TCP/Unix Domain Sockets).
+  - [Architecture] Adopted server-streaming (Push) model for real-time 60Hz
+  tactical updates,
+  reducing network overhead.
+  - [Network] Simultaneous support for local IPC via Unix Sockets and remote
+  monitoring via TCP Port
+  5001.
+  - [Instrumentation] Comprehensive monitoring of 35+ galactic categories with
+  12 distinct faction-
+  specific ship streams.
+  - [Client] New `spacegl_telemetry` ncurses client featuring unique faction
+  color mapping and
+  deterministic navigation.
+  - [Asset Integration] Enhanced factional presence tracking by including
+  Starbases and connected
+  players in real-time counts.
+  - [Compliance] Full COPR specification adherence for CLI help messages and
+  argument handling.
+  - [Localization] Updated README.md and README_it.md with "The Omniscience
+  Protocol" narrative lore
+  and technical user guides.
 
 * Fri May 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.01.04
-- [Refactor] Migrated spacegl_3dview from FreeGLUT to GLFW for native Wayland support and improved window management.
-- [Compatibility] Implemented a custom GLUT compatibility layer (glut_compat.c/h) to replicate legacy geometric primitives and text rendering.
-- [Performance] Enabled native VSync via glfwSwapInterval(1) for smooth 60 FPS synchronization, replacing legacy usleep timing.
-- [Rendering] Enabled Backface Culling (GL_CULL_FACE) globally to optimize GPU throughput, with selective bypass for Skybox visibility.
-- [Bugfix] Fixed text rendering corruption by setting correct pixel unpack alignment (GL_UNPACK_ALIGNMENT 1) for 1-byte font bitmaps.
-- [Bugfix] Resolved bracket rendering issues by fixing a line-continuation syntax error in the compatibility font definition.
-- [Optimization] Standardized OpenGL context initialization to request 3.0 Compatibility Profile, ensuring stability on modern Wayland drivers.
+  - [Refactor] Migrated spacegl_3dview from FreeGLUT to GLFW for native Wayland
+  support and improved
+  window management.
+  - [Compatibility] Implemented a custom GLUT compatibility layer
+  (glut_compat.c/h) to replicate
+  legacy geometric primitives and text rendering.
+  - [Performance] Enabled native VSync via glfwSwapInterval(1) for smooth 60 FPS
+  synchronization,
+  replacing legacy usleep timing.
+  - [Rendering] Enabled Backface Culling (GL_CULL_FACE) globally to optimize GPU
+  throughput, with
+  selective bypass for Skybox visibility.
+  - [Bugfix] Fixed text rendering corruption by setting correct pixel unpack
+  alignment
+  (GL_UNPACK_ALIGNMENT 1) for 1-byte font bitmaps.
+  - [Bugfix] Resolved bracket rendering issues by fixing a line-continuation
+  syntax error in the
+  compatibility font definition.
+  - [Optimization] Standardized OpenGL context initialization to request 3.0
+  Compatibility Profile,
+  ensuring stability on modern Wayland drivers.
 
 * Fri May 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.01.03
-- [Game Logic] Implemented faction defense AI for proprietary starbases: bases now open fire at 3 shots/second (20-tick cooldown at 60 Hz) when a player from a different faction attempts to dock. Damage targets shields first, then hull directly (8% per shot). Alliance starbases remain neutral.
-- [Network] Serialized starbase combat beams (NetBeam) into the per-quadrant update pipeline alongside platform and monster beams. Beams are broadcast via IPC_EV_BEAM and rendered in real-time by both Vulkan and FreeGLUT clients.
-- [Bugfix] Fixed critical network serialization bug in logic.c: the faction field of NPCBase NetObject was hard-coded to 0 (Alliance), causing all starbases to be rendered as Alliance bases in both clients regardless of actual ownership.
-- [Server] Extended NPCBase struct with fire_cooldown, beam_count, and beams[4] fields to support combat state, following the existing pattern of NPCPlatform and NPCMonster.
-- [Rendering] Implemented unique procedural 3D architectural designs for all 11 proprietary faction starbases (IDs 10-20) in both the Vulkan (PBR pipeline) and FreeGLUT (OpenGL immediate mode) rendering engines. Each design reflects its faction's aesthetic identity using existing engine geometry primitives with no additional GPU memory allocations.
-- [Server] Replaced hard-coded FACTION_ALLIANCE assignment in generate_galaxy() with probabilistic multi-faction distribution across all 11 proprietary factions.
-- [Server] Added STARBASES BY FACTION section to the server Astrometrics Report displayed at galaxy generation.
-- [Diagnostics] Updated spacegl_diag to display faction-specific starbase labels (e.g. Korthian Base) using get_species_name(), replacing the generic Starbase label.
+  - [Game Logic] Implemented faction defense AI for proprietary starbases: bases
+  now open fire at 3
+  shots/second (20-tick cooldown at 60 Hz) when a player from a different faction attempts to dock.
+  Damage targets shields first, then hull directly (8% per shot). Alliance starbases remain neutral.
+  - [Network] Serialized starbase combat beams (NetBeam) into the per-quadrant
+  update pipeline
+  alongside platform and monster beams. Beams are broadcast via IPC_EV_BEAM and rendered in real-
+  time by both Vulkan and FreeGLUT clients.
+  - [Bugfix] Fixed critical network serialization bug in logic.c: the faction
+  field of NPCBase
+  NetObject was hard-coded to 0 (Alliance), causing all starbases to be rendered as Alliance bases
+  in both clients regardless of actual ownership.
+  - [Server] Extended NPCBase struct with fire_cooldown, beam_count, and
+  beams[4] fields to support
+  combat state, following the existing pattern of NPCPlatform and NPCMonster.
+  - [Rendering] Implemented unique procedural 3D architectural designs for all
+  11 proprietary
+  faction starbases (IDs 10-20) in both the Vulkan (PBR pipeline) and FreeGLUT (OpenGL immediate
+  mode) rendering engines. Each design reflects its faction's aesthetic identity using existing
+  engine geometry primitives with no additional GPU memory allocations.
+  - [Server] Replaced hard-coded FACTION_ALLIANCE assignment in
+  generate_galaxy() with probabilistic
+  multi-faction distribution across all 11 proprietary factions.
+  - [Server] Added STARBASES BY FACTION section to the server Astrometrics
+  Report displayed at
+  galaxy generation.
+  - [Diagnostics] Updated spacegl_diag to display faction-specific starbase
+  labels (e.g. Korthian
+  Base) using get_species_name(), replacing the generic Starbase label.
 
 * Fri May 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.01.02
-- [Vulkan] Implemented high-fidelity procedural rendering for 8 advanced galactic object types: Dyson Fragments (Type 34): Exposed architecture with wireframe lattice and visible internal power nodes. Ancient Relics (Type 36): Prismatic silver core with procedurally orbiting emissive emerald glyphs. Subspace Ruptures (Type 37): Magenta reality cracks, entropy core, and expanding resonance rings. Dark Matter Clouds (Type 44): Nebulous navy overlapping masses with internal gravitational blue veins. Quantum Singularities (Type 45): Matte black event horizon, spinning accretion disks, and high-intensity polar jets. Plasma Storms (Type 46): Turbulent procedural fire nucleus with rapidly flickering cyan electric arcs. Time Anomalies (Type 48): Golden chronos core, clockwork rings, and temporal ghosting shells. Subspace Anomalies (Type 50): Multi-axis rotating neon-green core, pulsing lattice, and flickering quantum pixels. 
-- [Engine] Synchronized Client-Server Object Mapping: Corrected internal Vulkan object IDs to align perfectly with the server state logic (logic.c). Fixed misidentified assignments for Subspace Ruptures (37), Dark Matter Clouds (44), and Plasma Storms (46).
-- [Graphics] Expanded PBR and Emissive implementations for highly specific dynamic effects (High-Chrome Silver, Matte Void Black, Neon Glows).
+  - [Vulkan] Implemented high-fidelity procedural rendering for 8 advanced
+  galactic object types:
+  Dyson Fragments (Type 34): Exposed architecture with wireframe lattice and visible internal power
+  nodes. Ancient Relics (Type 36): Prismatic silver core with procedurally orbiting emissive emerald
+  glyphs. Subspace Ruptures (Type 37): Magenta reality cracks, entropy core, and expanding resonance
+  rings. Dark Matter Clouds (Type 44): Nebulous navy overlapping masses with internal gravitational
+  blue veins. Quantum Singularities (Type 45): Matte black event horizon, spinning accretion disks,
+  and high-intensity polar jets. Plasma Storms (Type 46): Turbulent procedural fire nucleus with
+  rapidly flickering cyan electric arcs. Time Anomalies (Type 48): Golden chronos core, clockwork
+  rings, and temporal ghosting shells. Subspace Anomalies (Type 50): Multi-axis rotating neon-green
+  core, pulsing lattice, and flickering quantum pixels.
+  - [Engine] Synchronized Client-Server Object Mapping: Corrected internal
+  Vulkan object IDs to
+  align perfectly with the server state logic (logic.c). Fixed misidentified assignments for
+  Subspace Ruptures (37), Dark Matter Clouds (44), and Plasma Storms (46).
+  - [Graphics] Expanded PBR and Emissive implementations for highly specific
+  dynamic effects (High-
+  Chrome Silver, Matte Void Black, Neon Glows).
 
 * Fri May 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.05.01.01
-- Completed the visual modernization of the SpaceGL Vulkan engine by replacing legacy wireframe placeholders with high-fidelity, procedurally rendered 3D models.
-- Implemented specialized PBR-compliant rendering handlers for 14 object classes: Starbases, Pulsars, Comets, Asteroids, Monsters (Crystalline/Amoeba), Trading Hubs, Mines, Comm Buoys, Defense Platforms, Spatial Rifts, Alien Artifacts, Mega Structures, Void Crystals, and Satellites.
-- Integrated dynamic animation systems for rotating docking rings, scanning dishes, solar arrays, and unstable subspace discharges.
-- Enhanced tactical visualization with faction-colored energy reactors and multi-point navigation beacons using advanced glow pipelines.
-- Synchronized object type definitions between server logic and Vulkan rendering, resolving ID mismatches for Alien Artifacts (Type 40) and specialized anomalies.
-- Optimized the Vulkan command buffer loop for diverse specialized draw calls and improved material property mapping in getObjectColor.
+  - Completed the visual modernization of the SpaceGL Vulkan engine by replacing
+  legacy wireframe
+  placeholders with high-fidelity, procedurally rendered 3D models.
+  - Implemented specialized PBR-compliant rendering handlers for 14 object
+  classes: Starbases,
+  Pulsars, Comets, Asteroids, Monsters (Crystalline/Amoeba), Trading Hubs, Mines, Comm Buoys,
+  Defense Platforms, Spatial Rifts, Alien Artifacts, Mega Structures, Void Crystals, and Satellites.
+  - Integrated dynamic animation systems for rotating docking rings, scanning
+  dishes, solar arrays,
+  and unstable subspace discharges.
+  - Enhanced tactical visualization with faction-colored energy reactors and
+  multi-point navigation
+  beacons using advanced glow pipelines.
+  - Synchronized object type definitions between server logic and Vulkan
+  rendering, resolving ID
+  mismatches for Alien Artifacts (Type 40) and specialized anomalies.
+  - Optimized the Vulkan command buffer loop for diverse specialized draw calls
+  and improved
+  material property mapping in getObjectColor.
 
 * Thu Apr 30 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.30.01
-- Updated documentation (README.md and README_it.md) to include new Captain's log.
+  - Updated documentation (README.md and README_it.md) to include new Captain's
+  log.
 
 * Sat Apr 25 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.25.01
-- Implemented a professional Wayland protocol compatibility check in spacegl_3dview.
-- Added automatic termination with a formal error message when a Wayland session is detected, as FreeGLUT currently requires X11.
-- Updated build system to ensure correct library path resolution for FreeGLUT on Fedora systems.
+  - Implemented a professional Wayland protocol compatibility check in
+  spacegl_3dview.
+  - Added automatic termination with a formal error message when a Wayland
+  session is detected, as
+  FreeGLUT currently requires X11.
+  - Updated build system to ensure correct library path resolution for FreeGLUT
+  on Fedora systems.
 
 * Fri Apr 24 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.24.02
-- Space GL is now available for Fedora 44. README updates.
+  - Space GL is now available for Fedora 44. README updates.
 
 * Fri Apr 24 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.24.01
-- Space GL is now available for Fedora 44.
+  - Space GL is now available for Fedora 44.
 
 * Thu Apr 23 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.23.01
-- Updated documentation (README.md and README_it.md) to include all newly implemented galactic entity types (Type Codes 40-50, Universal IDs 34,000-44,999) and updated interaction distance schemas.
+  - Updated documentation (README.md and README_it.md) to include all newly
+  implemented galactic
+  entity types (Type Codes 40-50, Universal IDs 34,000-44,999) and updated interaction distance
+  schemas.
 
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.08
-- Updated documentation (README.md and README_it.md) to include all newly implemented galactic object types (IDs 40-50).
+  - Updated documentation (README.md and README_it.md) to include all newly
+  implemented galactic
+  object types (IDs 40-50).
 
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.07
-- Implemented 'Subspace Anomalies' (Type 50) as physical, persistent galactic objects.
-- Added procedural generation, SHM indexing, and persistence for Subspace Anomalies.
-- Integrated Type 50 rendering in freeglut (drawSubspaceAnomaly) and Vulkan clients.
-- Operationalized the 'Subspace Anomalies' telemetry page in spacegl_diag.
+  - Implemented 'Subspace Anomalies' (Type 50) as physical, persistent galactic
+  objects.
+  - Added procedural generation, SHM indexing, and persistence for Subspace
+  Anomalies.
+  - Integrated Type 50 rendering in freeglut (drawSubspaceAnomaly) and Vulkan
+  clients.
+  - Operationalized the 'Subspace Anomalies' telemetry page in spacegl_diag.
 
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.06
-- Fixed missing statistics in the server startup report: implemented the planetary resources loop to correctly display counts for all 8 resource types.
+  - Fixed missing statistics in the server startup report: implemented the
+  planetary resources loop
+  to correctly display counts for all 8 resource types.
 
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.05
-- Refactored spacegl_diag main menu with a multi-column layout (up to 3 columns) to accommodate the expanded list of 50 telemetry pages.
-- Added support for lateral navigation (left/right arrows) in the diagnostic menu.
+  - Refactored spacegl_diag main menu with a multi-column layout (up to 3
+  columns) to accommodate
+  the expanded list of 50 telemetry pages.
+  - Added support for lateral navigation (left/right arrows) in the diagnostic
+  menu.
 
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.04
-- Enhanced server startup report with a new 'ANCIENT STRUCTURES & ANOMALIES' section to display statistics for exotic galactic objects (types 40-49).
+  - Enhanced server startup report with a new 'ANCIENT STRUCTURES & ANOMALIES'
+  section to display
+  statistics for exotic galactic objects (types 40-49).
 
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.03
-- Implemented 'spacegl-doc' subpackage in SPEC file to isolate heavy documentation assets (193 MB), reducing main package size.
-- Updated spacegl_diag with full support for 10 new galactic object types (Alien Artifacts, Warp Gates, Neutron Stars, etc., types 40-49).
-- Synchronized object type definitions across server, Vulkan client, and diagnostic tools.
+  - Implemented 'spacegl-doc' subpackage in SPEC file to isolate heavy
+  documentation assets (193
+  MB), reducing main package size.
+  - Updated spacegl_diag with full support for 10 new galactic object types
+  (Alien Artifacts, Warp
+  Gates, Neutron Stars, etc., types 40-49).
+  - Synchronized object type definitions across server, Vulkan client, and
+  diagnostic tools.
 
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.02
-- Revision script fix: corrected changelog path resolution.
+  - Revision script fix: corrected changelog path resolution.
 
 * Wed Apr 22 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.22.01
-- Fixed faction display issue in spacegl_diag: players are now correctly identified by their chosen faction instead of defaulting to "Alliance".
+  - Fixed faction display issue in spacegl_diag: players are now correctly
+  identified by their
+  chosen faction instead of defaulting to "Alliance".
 
 * Tue Apr 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.21.03
-- Updated Fedora packaging compliance and documentation.
+  - Updated Fedora packaging compliance and documentation.
 
 * Tue Apr 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.21.01
-- Updated Fedora packaging to comply with official guidelines (standardized CMake macros).
-- Consolidated documentation by removing redundant files and utilizing proper %doc packaging.
-- Standardized all source code comments to English.
-- Integrated comprehensive galactic object images into README files via HTML tables.
+  - Updated Fedora packaging to comply with official guidelines (standardized
+  CMake macros).
+  - Consolidated documentation by removing redundant files and utilizing proper
+  %doc packaging.
+  - Standardized all source code comments to English.
+  - Integrated comprehensive galactic object images into README files via HTML
+  tables.
 
 * Sun Apr 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.19.04
-- Implemented an interactive navigation menu in spacegl_diag for direct access to all 36 telemetry categories.
-- Expanded the galactic content with 6 new persistent entity classes: Dyson Fragments, Trading Hubs, Ancient Relics, Subspace Ruptures, Orbital Satellites, and Ionic Storms.
-- Fixed a critical player persistence bug in spacegl_server, ensuring correct slot allocation and state preservation for returning captains.
-- Added real-time diagnostic headers (ITEMS/SYMS) and critical symbol-resolution safety checks.
+  - Implemented an interactive navigation menu in spacegl_diag for direct access
+  to all 36 telemetry
+  categories.
+  - Expanded the galactic content with 6 new persistent entity classes: Dyson
+  Fragments, Trading
+  Hubs, Ancient Relics, Subspace Ruptures, Orbital Satellites, and Ionic Storms.
+  - Fixed a critical player persistence bug in spacegl_server, ensuring correct
+  slot allocation and
+  state preservation for returning captains.
+  - Added real-time diagnostic headers (ITEMS/SYMS) and critical symbol-
+  resolution safety checks.
 
 * Sun Apr 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.19.03
-- Finalized RPM compliance after extensive troubleshooting of build-time constraints.
-- Optimized %check section to perform non-intrusive integrity verification, ensuring compatibility with headless build environments (COPR/Mock).
-- Consolidated all documentation and man page fixes into a stable release candidate.
+  - Finalized RPM compliance after extensive troubleshooting of build-time
+  constraints.
+  - Optimized %check section to perform non-intrusive integrity verification,
+  ensuring compatibility
+  with headless build environments (COPR/Mock).
+  - Consolidated all documentation and man page fixes into a stable release
+  candidate.
 
 * Sun Apr 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.19.02
-- Fixed rpmlint spelling error (frontends -> front-ends) in package description.
-- Resolved specfile locale warning by simplifying the Release macro.
-- Added mandatory documentation (%doc) to spacegl-data subpackage.
+  - Fixed rpmlint spelling error (frontends -> front-ends) in package
+  description.
+  - Resolved specfile locale warning by simplifying the Release macro.
+  - Added mandatory documentation (%doc) to spacegl-data subpackage.
 
 * Sun Apr 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.19.01
-- Fixed rpmlint packaging errors: added man pages for all binaries and wrapper scripts (man/man1/), resolving bad-manual-page-folder and no-manual-page-for-binary warnings, - Added %license to spacegl-data subpackage to resolve no-documentation warning, Delegated man page installation to CMake (GNUInstallDirs/mandir), removing manual install commands from SPEC.
+  - Fixed rpmlint packaging errors: added man pages for all binaries and wrapper
+  scripts
+  (man/man1/), resolving bad-manual-page-folder and no-manual-page-for-binary warnings, - Added
+  %license to spacegl-data subpackage to resolve no-documentation warning, Delegated man page
+  installation to CMake (GNUInstallDirs/mandir), removing manual install commands from SPEC.
 
 * Sat Apr 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.18.01
-- Consolidated recent improvements: fixed rotation/timing issues and automated man page generation.
-- Improved packaging: automatic help2man generation.
-- Cleaned up repository: removed 'man/' directory and added to .gitignore.
-- Refactored release/revision scripts to use native rpmautospec.
-- Added missing manual pages for launch scripts.
-- Simplified release process by removing manual SPEC file flattening.
+  - Consolidated recent improvements: fixed rotation/timing issues and automated
+  man page
+  generation.
+  - Improved packaging: automatic help2man generation.
+  - Cleaned up repository: removed 'man/' directory and added to .gitignore.
+  - Refactored release/revision scripts to use native rpmautospec.
+  - Added missing manual pages for launch scripts.
+  - Simplified release process by removing manual SPEC file flattening.
 
 * Fri Apr 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.17.03
-- Package revision: distribution assets cleanup 2nd pass.
+  - Package revision: distribution assets cleanup 2nd pass.
 
 * Fri Apr 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.17.02
-- Package revision: distribution assets cleanup.
+  - Package revision: distribution assets cleanup.
 
 * Fri Apr 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.17.01
-- Package revision
-- Enhanced NPC and Space Monster aggressiveness: implemented mobile firing during attack runs, significantly reduced weapon cooldowns, and doubled monster movement speed.
-- Fixed player faction reset on re-entry and implemented dynamic beam source anchoring to eliminate NPC firing lag and coordinate offsets.
+  - Package revision
+  - Enhanced NPC and Space Monster aggressiveness: implemented mobile firing
+  during attack runs,
+  significantly reduced weapon cooldowns, and doubled monster movement speed.
+  - Fixed player faction reset on re-entry and implemented dynamic beam source
+  anchoring to
+  eliminate NPC firing lag and coordinate offsets.
 
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.10
-- Release based on ships & torps fluidity.
+  - Release based on ships & torps fluidity.
 
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.09
-- Revision 2
-- Release 1
+  - Revision 2
+  - Release 1
 
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.08
-- Revision 2
-- Release 1
+  - Revision 2
+  - Release 1
 
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.07
-- Revision 3
-- Revision 2
-- Revision 1
-- Release
+  - Revision 3
+  - Revision 2
+  - Revision 1
+  - Release
 
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.06
-- Revision 4
-- Revision 3
-- Revision 2
-- Data files revision
+  - Revision 4
+  - Revision 3
+  - Revision 2
+  - Data files revision
 
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.05
-- Revision 2, data files
-- Revision 1
-- Refactored for new Release/Revision 2nd.
+  - Revision 2, data files
+  - Revision 1
+  - Refactored for new Release/Revision 2nd.
 
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.04
-- Refactored for new Release/Revision
+  - Refactored for new Release/Revision
 
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.03
-- Refactored src/spacegl_client.c to search for visualizers and HUD in the /build directory.
-- Updated README.md and README_it.md to reflect the mandatory CMake build workflow.
-- Enhanced src/spacegl_vulkan.c with resilient shader path resolution and SHM attachment diagnostics.
-- Implemented a visible debug clear color in Vulkan to distinguish between rendering state and empty scene.
+  - Refactored src/spacegl_client.c to search for visualizers and HUD in the
+  /build directory.
+  - Updated README.md and README_it.md to reflect the mandatory CMake build
+  workflow.
+  - Enhanced src/spacegl_vulkan.c with resilient shader path resolution and SHM
+  attachment
+  diagnostics.
+  - Implemented a visible debug clear color in Vulkan to distinguish between
+  rendering state and
+  empty scene.
 
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.02
-- Finalized spacegl_diag.sh with improved error reporting and xterm persistence.
-- Verified full project recompilation and build system integrity after SHM tool removal.
-- Ensured all binary targets (Vulkan, Server, HUD) are correctly generated in /build.
+  - Finalized spacegl_diag.sh with improved error reporting and xterm
+  persistence.
+  - Verified full project recompilation and build system integrity after SHM
+  tool removal.
+  - Ensured all binary targets (Vulkan, Server, HUD) are correctly generated in
+  /build.
 
 * Thu Apr 16 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.16.01
-- Disabled binary stripping in SPEC file to preserve symbols for spacegl_diag.
-- Fixed release.sh to allow native %autorelease and %dist expansion.
-- Removed obsolete spacegl_diag_shm.c tool from project and build system.
-- Performed comprehensive performance analysis on Vulkan rendering and IPC logic.
+  - Disabled binary stripping in SPEC file to preserve symbols for spacegl_diag.
+  - Fixed release.sh to allow native %autorelease and %dist expansion.
+  - Removed obsolete spacegl_diag_shm.c tool from project and build system.
+  - Performed comprehensive performance analysis on Vulkan rendering and IPC
+  logic.
 
 * Tue Apr 14 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.04.14.05
-- 5: spacegl_diag help section improved.
-- 4: Refactored revision logic to ensure consistent build triggering. 
-- 3: PIE compliance, spacegl_diag tool has been refactored, .sh scripts prioritize the optimized /build environment.
-- 2: Migrated to pure CMake build system, improved packaging standards, and resolved NPC/Wormhole rendering issues.
-- Updated SPEC file to include %autorelease and %autochangelog macros. Migrated SRPM generation workflow to 'rpkg' to ensure macro preservation. Fixed Source RPM structure to comply with Fedora/Sponsor automation standards.
-* mar 21 apr 2026 Nick <nick@glauke> - 2026.04.21.04-1
-- Cleaned up package installation: moved readme_assets only to documentation directory
+  - 5: spacegl_diag help section improved.
+  - 4: Refactored revision logic to ensure consistent build triggering.
+  - 3: PIE compliance, spacegl_diag tool has been refactored, .sh scripts
+  prioritize the optimized
+  /build environment.
+  - 2: Migrated to pure CMake build system, improved packaging standards, and
+  resolved NPC/Wormhole
+  rendering issues.
+  - Updated SPEC file to include %autorelease and %autochangelog macros.
+  Migrated SRPM generation
+  workflow to 'rpkg' to ensure macro preservation. Fixed Source RPM structure to comply with
+  Fedora/Sponsor automation standards.
+  - Cleaned up package installation: moved readme_assets only to documentation
+  directory

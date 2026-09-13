@@ -149,6 +149,35 @@ typedef struct {
 /* Magic Signature for Key Verification (32 bytes) */
 #define HANDSHAKE_MAGIC_STRING "SPACEGL-KEY-VERIFICATION-SIG-32B"
 
+/*
+ * Handshake protocol (v2):
+ *   C -> S: PacketHandshake (random session key || HANDSHAKE_MAGIC_STRING, XOR master key)
+ *   S -> C: int32 type (PKT_HANDSHAKE)  [ACK]
+ *           uint8[32]  galaxy verification key XOR session key
+ *
+ * The galaxy verification key is a STABLE key derived from the master key
+ * (HMAC-SHA256(master, "SPACEGL-GALAXY-VERIFY-V1")). It allows the client to
+ * verify the HMAC-SHA256 integrity signature of the galaxy state even after
+ * the local deep_space_key has been rotated to the session key.
+ */
+
+/*
+ * Identity (password) verification protocol (v2):
+ *   - pass_hash        = HMAC-SHA256(master, "SPACEGL-ID-V2" || name || 0 || salt || 0 || password)
+ *   - pass_hash_legacy = HMAC-SHA256(master, password)   [legacy accounts only]
+ *   - Salt exchange: the client starts with an all-zero salt ("I hold no salt
+ *     for this account"). The server replies with status
+ *     PKT_ID_STATUS_SALT_REQUIRED plus uint8[16]: the stored salt for existing
+ *     salted accounts, or zeros for new/legacy accounts (the client then
+ *     generates its own random salt). The client retries with the resulting
+ *     salt; for new accounts the retry creates the record (identity.hash +
+ *     identity.salt), and for legacy accounts it transparently migrates the
+ *     stored record to the salted scheme.
+ *   - S -> C reply: int32 status, followed by uint8[16] salt when
+ *     status == PKT_ID_STATUS_SALT_REQUIRED.
+ */
+#define PKT_ID_STATUS_SALT_REQUIRED 5
+
 #define CRYPTO_NONE 0
 #define CRYPTO_AES  1
 #define CRYPTO_CHACHA 2
@@ -223,7 +252,9 @@ typedef struct {
     char name[64];
     int32_t faction;
     int32_t ship_class;
-    uint8_t pass_hash[32];
+    uint8_t pass_hash[32];      /* V2 salted identity hash (see protocol note above) */
+    uint8_t salt[16];           /* Per-captain salt (random at enrollment) */
+    uint8_t pass_hash_legacy[32]; /* Legacy unsalted hash; verified only for legacy accounts */
     uint8_t x25519_pubkey[32];
 } PacketLogin;
 
@@ -247,7 +278,7 @@ typedef struct {
     int32_t length;
     int64_t origin_frame; /* Server frame used for frequency scrambling */
     uint8_t is_encrypted;
-    uint8_t crypto_algo; /* 1-11:Standard, 12-21:Advanced/PQC */
+    uint8_t crypto_algo; /* 1-11:Standard, 12-21:Advanced slots (12-19,21 are experimental PQC-named aliases of AES-256-GCM) */
     uint8_t iv[16];      /* Full 128-bit IV for CBC/CTR/GCM */
     uint8_t tag[16];     /* Auth Tag */
     uint8_t has_signature;
