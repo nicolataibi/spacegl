@@ -3,7 +3,7 @@
 %global _docdir_fmt %{name}
 
 Name:           spacegl
-Version:        2026.09.13.03
+Version:        2026.09.20.01
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
@@ -68,6 +68,18 @@ and additional assets explaining the SpaceGL engine and game play.
 %cmake_install
 
 
+%check
+# Build and run the self-contained unit-test project (tests/): it compiles
+# the production sources from ../src and ../include directly, so the suite
+# always exercises the real code. gdd_mesh skips itself (exit 77) when no
+# Vulkan ICD is available, so the section is safe in bare build chroots.
+cmake -S tests -B tests-build \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DGDD_SPV_DIR=%{buildroot}%{_datadir}/%{name}/shaders
+cmake --build tests-build
+ctest --test-dir tests-build --output-on-failure
+
+
 %files
 %license LICENSE.txt
 %{_bindir}/spacegl_server
@@ -104,7 +116,7 @@ and additional assets explaining the SpaceGL engine and game play.
 
 %files doc
 %license LICENSE.txt
-%doc README.md README_it.md HOWTO.txt
+%doc README.md HOWTO.txt
 %doc readme_assets/
 
 

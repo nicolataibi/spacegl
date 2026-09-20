@@ -1,5 +1,5 @@
 <div style="text-align: center; border-bottom: 1px solid #ccc; margin-bottom: 20px;">
-<h1>Space GL: 3D Multi-User Client-Server Edition</h1>
+<h1>Space GL: A space exploration & combat game</h1>
 
 ![Version](https://img.shields.io/badge/Version-3.0-green)
 ![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
@@ -7,7 +7,7 @@
 ![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
 ![Platform](https://img.shields.io/badge/Platform-Fedora%2044-blue?logo=fedora)
 
-## A space exploration & combat game
+## Multi-User Client-Server 3D RPG Engine — OpenGL (GLFW) & Vulkan
 ![Status](https://img.shields.io/badge/Status-Verified%20HMAC--SHA256-brightgreen)
 ![Alliance](https://img.shields.io/badge/Fleet-Stellar%20Alliance-cyan)
 ![Security](https://img.shields.io/badge/Encryption-AES%20%7C%20ChaCha%20%7C%20Blowfish-lightgrey)
@@ -82,6 +82,22 @@ Space GL is a high-performance 3D multi-user client-server space flight and comb
          </figcaption>
        </figure>
      </td>
+          <td align="center">
+       <figure style="margin: 0;">
+         <img 
+           src="readme_assets/StellarAlliance-project1.png" 
+           alt="Stellar Alliance Sentinel Class" 
+           width="400"/>
+         <figcaption>
+           <em><b>Fig. 2/a:</b> "Alliance-Class Sentinel Ship's Project"</em>
+         </figcaption>
+       </figure>
+     </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
      <td align="center">
        <figure style="margin: 0;">
          <img 
@@ -89,13 +105,11 @@ Space GL is a high-performance 3D multi-user client-server space flight and comb
            alt="Stellar Alliance Sentinel Class" 
            width="400"/>
          <figcaption>
-           <em><b>Fig. 1/b:</b> "Alliance-Class Sentinel Ship"</em>
+           <em><b>Fig. 3/a:</b> "Alliance-Class Sentinel Ship"</em>
          </figcaption>
        </figure>
      </td>
-  </tr>
 </table>
-
 
 **Vulkan Screenshots**
 
@@ -166,6 +180,376 @@ essential, cold, technical… and incredibly immersive.
 ---
 ---
 
+## 🚀 Version 3.2 Highlights (Rel. 2026.09.20 - GPU-Driven Rendering)
+
+Update 3.2 adds a second, fully modern rendering architecture for the 3D tactical viewer. The same `spacegl_vulkan` binary now hosts **two architectures**, selected at startup by the **`SPACEGL_GPD`** environment variable:
+*   **GPU-Driven Rendering (GDD)** — `SPACEGL_GPD=1`:
+    *   **One Upload Per Frame**: the CPU reads the same SharedIPC state, runs the same cubic-Hermite network smoothing, classifies every object/effect/static into compact **112-byte instance descriptors** and memcpys two lists (4096 dynamic + 8192 map/static slots) into persistently mapped SSBOs. **No per-object Vulkan calls** anymore.
+    *   **GPU-Side Render Pipeline**: three compute passes on a single graphics+compute queue (synchronization2 barriers): `gdd_cull.comp` (vision-sphere culling), `gdd_expand.comp` (GPU-generated geometry into a device-local vertex SSBO, atomic reservation + 512k-vertex capacity guard), `gdd_final.comp` (GPU counters → two `VkDrawIndirectCommand`).
+    *   **Two Indirect Draws**: one `vkCmdBeginRendering` (dynamic rendering, Vulkan 1.3/1.4) and **exactly one `vkCmdDrawIndirect` per pass** — opaque (depth write) and additive glow (src-alpha blending). The scene vertex shader reads the GPU-generated vertices from storage; the fragment shader re-implements all the procedural color modes of the legacy path, so both architectures look identical.
+    *   **GPU-Generated Geometry**: ships, spheres, boxes, rings, points and square-tube lines are expanded on the GPU from one unit description per mesh type — no per-object vertex/index buffers.
+*   **`SPACEGL_GPD` Switch & Graceful Fallback**:
+    *   **Unset or `SPACEGL_GPD=0`** → legacy **CPU-driven** path (default; 100% unchanged).
+    *   **`SPACEGL_GPD=1`** → GPU-driven path (requires a Vulkan ≥ 1.3 driver and a queue family with BOTH graphics and compute).
+    *   If the device cannot support GDD (driver too old, no suitable queue, pipeline/buffer creation failure), the client **prints a banner and falls back to the CPU-driven path automatically** — the game always runs.
+*   **Contract & Tests**:
+    *   `include/spacegl_gdd.h` is the single source of truth for every CPU/GPU boundary layout, with compile-time `_Static_assert`s that break the build if the contract drifts from the GLSL structs.
+    *   New self-contained `tests/` project: `gdd_contract_test` (CPU-side layout/flag/builder verification, no device needed) and `gdd_mesh_test` (headless GPU compute test: the real SPIR-V passes are executed and compared bit-exactly against a CPU mirror).
+
+---
+
+*SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.09.20 - PROJECT: THE CAGED SUN*
+
+# 🌌 SPACE GL: THE CAGED SUN
+
+## Project Archive: The Origin of GPU-Driven (GDD) Rendering
+
+> *"Geometry is the only truth in a silent universe."* — H. Niklaus
+> *"We did not build a faster trigger. We caged a sun, and taught it to aim."* — Lt. Cmdr. E. Vance
+
+### Chapter 1: The Ember
+
+<table>
+<tr>
+    <td><img src="readme_assets/the caged sun/cs01.png" alt="Chapter 1" width="600"/></td>
+ </tr>
+</table>
+
+Deep inside the Aegis — that perfect sphere of white steel, forty kilometers in diameter, suspended at the Lagrange point between the two moons of Orion Prime — the laboratories had not slept for three years. The new propulsion project was finally taking shape, and it was not a reactor.
+
+For centuries the Alliance had known one secret of the Builders' shattered works: the fragments of the Dyson spheres still emit *residual solar energy*, capable of recharging modern ship reactors via induction. Chief Engineer K'Rath's team did what no one had dared: they compressed the residual flux, channeled it through a field of containment, and let it run. The energy did not burn. It *persisted*. Filament by filament, the golden field kept glowing in the conduit long after the source was closed, rewinding its own shape a thousand times per second, patient as a held breath.
+
+They called it the **Ember**.
+
+At first it powered the drive: silent, inexhaustible, a ship that could coast for months on the breath of a dead sun. Then the engineers noticed something else — something dangerous. Shaped, focused, aimed, the Ember did not behave like fuel. It behaved like an intelligence.
+
+"It has no memory of its own," Vance told Grand Admiral Niklaus, who watched the golden threads through the observation glass in his white cotton gloves. "Every moment, it computes itself anew."
+
+Niklaus was silent for a long time. "Then we have not built a reactor, Commander. We have caged a sun."
+
+### Chapter 2: The Law of Sequence
+
+<table>
+<tr>
+    <td><img src="readme_assets/the caged sun/cs02.png" alt="Chapter 2" width="600"/></td>
+ </tr>
+</table>
+
+The Ember's first test was not in war. It was in a pipe.
+
+Every weapon of the Alliance had been built around *transient* energy: Aetherium pulses, discrete packets, one commanded shot at a time. The old architecture — trusted for a century — was a law of sequence: one order per object, one packet per target, the energy arriving and cooling between each shot. An elegant machine for a gentle fuel.
+
+The Ember broke the law. A persistent field poured into a serial conduit does not flow: it *pressurizes*. In the first hot tests, only a fraction of the field reached the muzzle; the rest cooled in the pipes, or bounced back. Every conduit they tried died the same death. The problem was not the hands on the bridge, nor the crew, nor their courage. The problem was the pipe.
+
+"The war is no longer asking for a faster finger," Niklaus wrote in his bridge log. "It is asking for an architecture that can carry a sun. We can keep building better triggers for a fuel that no longer exists."
+
+The old path was not scrapped — it was preserved, untouched, as a fallback for the day the Ember went dark. But the new architecture would be designed around neither the crew nor the command. It would be designed around the *nature of the energy itself*.
+
+### Chapter 3: The Inversion
+
+<table>
+<tr>
+    <td><img src="readme_assets/the caged sun/cs03.png" alt="Chapter 3" width="600"/></td>
+ </tr>
+</table>
+
+The idea arrived, as most dangerous ideas do, during a simulation.
+
+Vance watched the old pipeline choke on a synthetic swarm of four thousand contacts — one order, one packet, one cooled shot — and asked the only question that mattered: *What if we stop feeding the Ember shot by shot?*
+
+The inversion. The bridge would no longer *fire*; it would *describe*. Once per frame, the crew would read the state of the ship's shared memory, smooth the network's breath with the old cubic-Hermite curves, classify every object — ships, beams, explosions, stars — and upload a single compact snapshot of the universe into the Ember's persistent memory: **one hundred and twelve characters per entity** — position, form, scale, flags, color, orientation, material. Mapped once at launch, never unmapped. One upload per frame. One breath of data. No more packets.
+
+After that, the field did the rest on its own: it found what was in range, it carved its own shapes, it discharged. The guns became a vessel for the field, not a trigger for it.
+
+"We do not feed the fire, and we do not aim it," Vance told the council. "We draw its map. The Ember aims."
+
+The room was silent for a long time. Then Jinn spoke: "And if it aims at something we did not describe?"
+
+Vance smiled. "Then the Codex will answer for it."
+
+### Chapter 4: The Codex
+
+<table>
+<tr>
+    <td><img src="readme_assets/the caged sun/cs04.png" alt="Chapter 4" width="600"/></td>
+ </tr>
+</table>
+
+A field that thinks must be *described* precisely — or it will carve the wrong shapes. The Builders knew this. That is why their Dyson spheres were not machines but *certificates*: every panel and every seam defined once, and never redefined.
+
+The Alliance learned the same lesson in its own way. The **Codex** was written: a single document, the only source of truth between the bridge and the Ember. It defined the 112-character descriptor — everything the field had to know about every object in the universe — and it was written twice: in metal, in the ship's language, and mirrored in light, in the field's own language.
+
+And the Codex carried an oath. At every launch, before the first breath of power, the two descriptions were compared, byte by byte. If they had drifted by even a single character — if the bridge said *sphere* and the Codex said *pyramid* — the build failed. The ship refused to launch. Not a warning. Not an alarm. A refusal.
+
+K'Rath used to say: "A contract that cannot be broken is a contract worth signing." The Codex could not be broken. That is why the Ember listened.
+
+Deep in its flags, the Codex kept two vows: one bit named `NEVER_CULL`, and another named `ADDITIVE`. The field would keep them for the rest of its life.
+
+### Chapter 5: The Sphere of Sight
+
+<table>
+<tr>
+    <td><img src="readme_assets/the caged sun/cs05.png" alt="Chapter 5" width="600"/></td>
+ </tr>
+</table>
+
+The field's first discipline was culling — and culling, the engineers learned, is an act of respect, not of economy.
+
+The Ember spread everywhere at once, and everywhere was too much. So the Codex drew a **sphere of sight** around the ship: a sphere of combat. What fell outside it was not destroyed — it was *released*. The field did not waste itself on the empty, and it did not think about the absent: its first pass woke only as many minds as there were threats inside the sphere. *Dynamic dispatch*, the engineers called it. A field that sleeps where there is no war.
+
+But the field kept the Codex's second vow. Some things were never culled — no matter how far, no matter how quiet: the starfield, the tactical grid, the frame of the galaxy, the quadrants of the void. The statics wore the `NEVER_CULL` flag, and the field let them pass untouched, burning only around them.
+
+"The swarm can have the war," Vance wrote in the test log. "It will never have the sky. Even in the heat of battle, a caged sun remembers that some light is eternal."
+
+That night, for the first time, the tactical viewer of the Aegis showed a galaxy in which the stars twinkle not because someone commands them to, but because the field *refuses* to forget them.
+
+### Chapter 6: The Unfolding
+
+<table>
+<tr>
+    <td><img src="readme_assets/the caged sun/cs06.png" alt="Chapter 6" width="600"/></td>
+ </tr>
+</table>
+
+The strangest thing about the Ember was that it did not need weapons.
+
+The old guns carried their ammunition with them: shaped channels, pre-carved beams, fixed geometry, one per object, heavy as anchors. The Ember carried only **seven unit patterns** — a point, a sphere, a box, a pyramid, an octahedron, a ring, a square tube — and *unfolded* the rest on its own.
+
+Where the Codex said *ship*, the field unfolded a pyramid of light and gave it a nose pointing +X. Where it said *star*, a sphere bloomed in six by ten facets. Where it said *beam*, the box stretched into an anisotropic lance; where it said *gate*, the ring opened flat as a horizon; where it said *grid*, the square tube ran along the edges of the void, patient and straight.
+
+The geometry was not stored. It was *generated in flight*, in the field's own vault — device-local memory that the crew would never touch. The Sentinel, when it was built, would carry no ammunition at all.
+
+"The ship carries the *idea* of its weapons," K'Rath explained to the fleet academy, "and the Ember remembers how to make the idea real. You cannot board it, capture it, or dismantle it: you cannot steal a gun that does not exist until the moment of fire."
+
+### Chapter 7: The Discipline of Waves
+
+<table>
+<tr>
+    <td><img src="readme_assets/the caged sun/cs07.png" alt="Chapter 7" width="600"/></td>
+ </tr>
+</table>
+
+A field that thinks in parallel must obey a stricter order than a mind that thinks in sequence. The Ember's architecture was built on a single rule, and the rule was *barriers*.
+
+The whole frame — from the field's first breath to its last discharge — ran on a single queue: one lane of thought in which the eye and the hand were the same organ. The engineers demanded a core of **dual nature**: a core that could *see* and a core that could *act*, fused into one. A core of a single nature could hold the field; only a dual-natured core could aim it.
+
+And between the passes, the barriers. The wave of culling had to end before the wave of unfolding began; the unfolding had to end before the final counting. No wave may overtake the wave ahead of it — not by a millisecond, not by a facet. The engineers built three rotating chambers — a **triple buffer** — so that while one frame was discharging, the next was being described, and the third was being remembered. No frame may wait for another.
+
+"In the Ember, order is not a rule," Vance wrote. "Order is the architecture. The field is free everywhere except in the sequence of its own waves. That freedom is the point."
+
+### Chapter 8: The Horizon of 512,000
+
+<table>
+<tr>
+    <td><img src="readme_assets/the caged sun/cs08.png" alt="Chapter 8" width="600"/></td>
+ </tr>
+</table>
+
+The hardest lesson of the Ember was its horizon.
+
+The field's vault — the device-local memory where the unfolding happened — was not infinite. It held **512,000 facets of light** per frame. No more. When the simulated swarm first exceeded that number, the engineers expected a crash. The Codex had written a different law.
+
+The field *reserved* its facets **atomically**: no two thoughts may claim the same facet, and no thought may claim a facet it has not earned. And when the vault was full — when the war was bigger than the sun — the field did not break. It *yielded*. It released the least important, the farthest, the least in range, and kept the rest in perfect order. A capacity guard, the engineers called it. A horizon, the poets would have called it.
+
+Vance stood before the test log for a long time: 512,000 facets, and the simulation still running, still aiming, still whole.
+
+"We have built a weapon that knows how to forget," she wrote. "Not because it is weak — because even a sun must know where it ends. To choose what to forget is the first act of a mind, and the first act of a sun."
+
+### Chapter 9: The Two Draws
+
+<table>
+<tr>
+    <td><img src="readme_assets/the caged sun/cs09.png" alt="Chapter 9" width="600"/></td>
+ </tr>
+</table>
+
+When the frame was finished, the Ember did not discharge in a thousand small shots. It discharged in **exactly two draws**.
+
+The first was **OPAQUE**: a solid surge, written into depth, unblended. The hard truth. Where the opaque beam passed, nothing behind it was allowed to exist — it occluded the world like a fact. The second was **ADDITIVE**: a glow, pure source-alpha laid *above* the darkness without erasing it. The bloom of the beams, the swell of the explosions, the plasma filaments — the things that do not occlude but *illuminate*.
+
+"One beam that states," Niklaus wrote in the margin of the test report, "and one beam that sings. The sun speaks with two voices, and both are true."
+
+But the field kept a final vow — the vow of the **same eye**. The new light had to render the galaxy *exactly* as the old eye had: the same twinkling stars, the same PBR sheen on the hulls, the same hyperwarp pulse, the same accretion gradient, the same FBM nebula. Not one star may have moved. Not one color may have changed. And the grid — the grid's lines were never allowed to fall below **1.5 pixels**, so that even a dying officer's eye could still read the horizon.
+
+Before launch, the fleet's auditors — a ghost layer that walked the field's steps and questioned every barrier — and the **mirror test**: a perfect copy of the old mind, compared to the new one **bit by bit**. The two said the same thing. The new eye had not replaced the old one. It had *become* it.
+
+### Chapter 10: The Sentinel Sails
+
+<table>
+<tr>
+    <td><img src="readme_assets/the caged sun/cs10.png" alt="Chapter 10" width="600"/></td>
+ </tr>
+</table>
+
+The Sentinel was not unveiled. It *left* — a white Alliance-class hull, 950 souls on board, sliding out of the Aegis's shadow with the two moons of Orion Prime behind it, the Ember burning in its core like a held dawn.
+
+On the bridge there was a single manual key, set by hand at ignition, labeled **GPD** — the project's old codename, the **Galactic Pattern Drive**, the first machine that ever dreamed of galaxies in silicon. The crew pressed it, and the core printed its banner:
+
+`EMBER READY — 4096 living contours · 8192 eternal · 512000 facets`
+
+Below it, the oath that no officer was ever to forget: *if the field is dark — if the core is too old, or of a single nature, an eye without a hand — the ship prints the banner and returns to the old Aetherium pulses. The guns fall back to sequence. The Sentinel never refuses to fight.*
+
+The first live test came sooner than anyone wanted. The Swarm had smelled the Ember — the richest field of computational energy the Nexus Queen had ever sensed — and a web of obsidian beetles unfolded around the new ship like a closing hand. The bridge did not fire. The bridge described. One snapshot, one breath of data; the field found the sphere, unfolded its geometry, and answered in two verses: opaque, additive, opaque, additive. When the light faded, the web was gone — and the stars, the eternal never-culled stars, were still there.
+
+Niklaus, watching through the glass, removed his white cotton gloves for the first time in a decade and placed his bare hand on the viewport.
+
+"We built a new drive to carry a sun," he said. "Then the sun taught us how to aim. *Sidera jungit sapientia* — wisdom unites the stars. And wisdom, at last, knows where to point them."
+
+---
+
+## 🛠 TECHNICAL SECTION: GPU-DRIVEN RENDERING (GDD) ARCHITECTURE
+
+The legacy path of `spacegl_vulkan` is **CPU-driven**: for every frame the CPU records one draw call per object (ships, beams, explosions, compass, grid, starfield, galaxy map…) — each with its own push constants, vertex/index buffer bindings and pipeline switch. Frame cost scales linearly with the number of visible objects, and the GPU starves between thousands of small submissions.
+
+The **GPU-Driven (GDD)** architecture inverts this division of labor. The CPU is reduced to *data handling* (reading the shared-memory state, network smoothing, object classification) and performs **one compact per-frame upload**; the GPU does the actual rendering work — culling, geometry generation, draw-list construction — and finishes the frame with **two indirect draw calls**. The design mirrors the modern GPU-driven techniques used by large-scale open-world engines (persistent data, GPU culling, indirect rendering), adapted to Space GL's tactical viewer.
+
+### 🎛 Selecting the Architecture: the `SPACEGL_GPD` Environment Variable
+
+Both architectures live in the **same binary**; the switch is made at startup by reading `SPACEGL_GPD`:
+
+| `SPACEGL_GPD` | Architecture | Notes |
+| :--- | :--- | :--- |
+| *(unset)* or `0` | **CPU-driven** (legacy) | Default. Per-object draw calls, `LINE_LIST` primitives, 4× MSAA. Completely unchanged by 3.2. |
+| `1` | **GPU-driven (GDD)** | One instance upload + 3 compute passes + 2 `vkCmdDrawIndirect`. Requires Vulkan ≥ 1.3 (instance created at 1.4 when the driver exposes it) and a queue family with both graphics and compute. |
+
+```bash
+# CPU-driven (default — the variable can be left unset)
+./spacegl_vulkan
+SPACEGL_GPD=0 ./spacegl_vulkan
+
+# GPU-driven (the new architecture)
+SPACEGL_GPD=1 ./spacegl_vulkan
+
+# GPU-driven with the Khronos validation layer
+# (audits the GDD synchronization / pipeline code)
+SPACEGL_GPD=1 VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation ./spacegl_vulkan
+```
+
+Expected startup banners with `SPACEGL_GPD=1`:
+
+```
+[GDD] SPACEGL_GPD=1: requesting the GPU-driven path (Vulkan 1.4)
+[GDD] creating Vulkan instance at API version 1.4.3xx (driver exposes 1.4.3xx)
+[GDD] GPU-driven path initialized (queue family 0, 4096 instance slots, 512000 vertex capacity)
+```
+
+On an unsupported device the client instead prints, for example,
+`[GDD] no graphics+compute queue family: falling back to CPU-driven path`
+and continues on the legacy architecture — **the game never refuses to start**.
+
+### 🔄 The Per-Frame Data Flow
+
+```
+┌──────────────────── CPU (per frame) ─────────────────────┐
+│ read SharedIPC state (same IPC as the CPU path)          │
+│ cubic-Hermite network smoothing (same interpolation)     │
+│ classify objects / effects / statics / map mode          │
+│ fill 2 instance lists (GddInstance, 112 B each)          │
+│ ONE memcpy into persistently mapped host-visible SSBOs   │
+└──────────────────────────┬───────────────────────────────┘
+                           ▼
+┌──────────── GPU compute (1 graphics+compute queue) ──────┐
+│ vkCmdFillBuffer: zero the per-frame GPU counters (16 B)  │
+│ 1. gdd_cull.comp  (map + dyn dispatch)                   │
+│      vision-sphere cull → compact visible index lists    │
+│      (NEVER_CULL statics bypass the test)                │
+│ 2. gdd_expand.comp (map + dyn, opaque pass)              │
+│      instances → device-local vertex SSBO (80 B verts)   │
+│      atomic reservation + 512k vertex "drop when full"   │
+│ 3. gdd_expand.comp (map + dyn, additive pass)            │
+│ 4. gdd_final.comp                                        │
+│      counters → 2× VkDrawIndirectCommand (GPU-side)      │
+└──────────────────────────┬───────────────────────────────┘
+                           ▼  (synchronization2 barriers)
+┌──────────── GPU graphics (dynamic rendering) ────────────┐
+│ vkCmdBeginRendering (color + 1-sample depth)             │
+│   Pass A: OPAQUE    — depth write, no blend              │
+│              ONE vkCmdDrawIndirect                       │
+│   Pass B: ADDITIVE  — src-alpha glow, no depth write     │
+│              ONE vkCmdDrawIndirect                       │
+│ vkCmdEndRendering → PRESENT_SRC barrier → present        │
+└──────────────────────────────────────────────────────────┘
+```
+
+### 🧬 The CPU/GPU Contract
+
+Every structure that crosses the CPU/GPU boundary is defined once in **`include/spacegl_gdd.h`** and mirrored in **`assets/shaders/gdd_common.glsl`**; compile-time `_Static_assert`s (re-checked at runtime by `gdd_contract_test`) fail the build if the two sides drift out of sync.
+
+| Structure | Size | Role |
+| :--- | :--- | :--- |
+| `GddInstance` | 112 B | One descriptor per object/effect/static: position, mesh id, scale, flags, color/alpha, 3×3 orientation (GLSL mat3, columns padded), metallic/roughness. The CPU's entire per-frame payload. |
+| `GddVertex` | 80 B | GPU-generated vertex (world/local position, color, normal + fragment mode, material). Written only by `gdd_expand.comp`. |
+| `GddCounts` | 16 B | Per-frame GPU counters (`dyn_vis`, `map_vis`, `opaque_verts`, `additive_verts`); zeroed with `vkCmdFillBuffer`, accumulated by the compute passes. |
+| `GddPC` | 36 B | Compute push constants: cull sphere (center/radius), list count, group (0 dynamic / 1 map-static), vertex capacity, pass selector (opaque/additive) and `line_min_wu` (screen-space line floor, see below). |
+| `GddScenePC` | 84 B | Scene push constants: row-major MVP pushed verbatim, time, camera position. |
+
+**Instance flags** (`GddInstance.flags`, a float holding exact small integers): bit 0 = `NEVER_CULL` (static geometry: starfield, grid, galaxy frame, quadrant cube), bit 1 = `ADDITIVE` (route to the glow pass), bits 2..5 = fragment mode.
+
+### 🏗 Geometry Generated on the GPU
+
+`gdd_expand.comp` expands each visible instance from a **single unit description per mesh type** — the scene carries descriptors, not vertex buffers:
+
+| Mesh id | Vertices | Shape | Used for |
+| :--- | :--- | :--- | :--- |
+| `GDD_MESH_POINT` | 6 | double-sided triangle | stars, FX pixels, markers |
+| `GDD_MESH_SPHERE` | 360 | UV sphere 6×10 | stars, planets, black holes, mines, FX glows |
+| `GDD_MESH_BOX` | 36 | unit box | structures, map sectors, beams (anisotropic scale) |
+| `GDD_MESH_PYRAMID` | 18 | ship nose (+X) | ships, torpedoes |
+| `GDD_MESH_OCTA` | 24 | octahedron | starbase cores, buoys |
+| `GDD_MESH_RING` | 96 | flat 16-segment annulus | gates, orbital rings, compass rings |
+| `GDD_MESH_LINE` | 24 | square tube (4 faces × 6) | grid lines, compass axes, quadrant cube edges |
+
+The scene fragment shader (`gdd_scene.frag`) re-implements the procedural color modes of the legacy `shader.frag` so both architectures render the same semantics: unlit/wireframe (1), starfield twinkle (2), unlit vertex color (4), PBR diffuse+specular (5), hyperwarp pulse (6), shockwave (7), accretion gradient (8), FBM nebula (9), plasma filament (10).
+
+**Screen-space line thickness (CPU parity).** The legacy path draws grid/compass/quadrant-cube edges with the fixed-function 1-px `LINE_LIST` primitive + 4× MSAA. The GDD path rasterizes the same edges as square-tube triangles (single sample), so `gdd_expand_line` clamps the tube half-thickness to `max(requested, pc.line_min_wu)`: the CPU pushes, every frame, half of `GDD_LINE_MIN_PX` (1.5 px) expressed in world units at the *actual* camera (orbital/bridge blend, fov 45°→65°, viewport height). Every GDD line therefore rasterizes at ≥ 1.5 px — the same visual weight as the legacy 1-px MSAA lines, with no sub-pixel dashing or flicker. The tactical grid (world half-thickness 0.35) is always above the floor and is visually unchanged.
+
+### 🔒 Synchronization and the Triple-Buffer Invariant
+
+*   One **graphics+compute queue family** is selected at init (`gdd_pick_queue`); the whole frame runs in-order on the same queue.
+*   All barriers use **synchronization2** (`vkCmdPipelineBarrier2`): counter fill → cull → expand → final → (buffer + image layout barriers) → dynamic rendering → present.
+*   The per-frame ring keeps the **same triple-buffer invariant as the CPU path**: 3 slots (`GDD_MAX_FRAMES`), one in-flight fence + acquire/render semaphores per slot, the wait at the top of the frame so CPU and GPU overlap; the same ~144 fps frame limiter.
+*   The GDD scene pipelines are single-sample, so they attach a **dedicated 1-sample D32 depth image** (the app-level MSAA depth image belongs to the CPU path; the attachment sample count must equal the pipeline's `rasterizationSamples`).
+
+### 📷 Camera and MVP Parity
+
+`gdd_compute_view` replicates the legacy camera exactly: orbital view (yaw/pitch/distance), first-person bridge view, and their interpolated blend. The engine builds **row-major** matrices with the translation in the bottom row — the byte layout GLSL expects for a column-major mat4 — so the MVP (`view * proj`, with the legacy Y flip) is pushed **verbatim** and applied as `gl_Position = mvp * v`. The persistent 2000-star field uses the same distribution as the legacy `createStarfield()`.
+
+### ✅ Requirements and Graceful Fallback
+
+| Condition | Behavior with `SPACEGL_GPD=1` |
+| :--- | :--- |
+| Driver Vulkan < 1.3 | Instance created at 1.0, GDD disabled, banner, CPU-driven path. |
+| No queue family with graphics+compute | Banner, CPU-driven path. |
+| Compute/scene pipeline or per-frame buffer creation failure | Banner, CPU-driven path. |
+| All requirements satisfied | GDD active; `[GDD] GPU-driven path initialized …` banner. |
+
+`SPACEGL_GPD=0` (or unset) never attempts GDD initialization.
+
+### 📁 Code Layout, Shaders and Tests
+
+| File | Role |
+| :--- | :--- |
+| `src/spacegl_vulkan_gdd.c` | CPU instance builder + Vulkan device state + per-frame recording (`gdd_build_frame` → `gdd_record` → `gdd_draw_frame`). |
+| `include/spacegl_gdd.h` | The CPU/GPU contract (layouts, caps, flags, `_Static_assert`s). |
+| `assets/shaders/gdd_common.glsl` | GLSL mirror of the contract (structs, mesh tables, flag decoding). |
+| `assets/shaders/gdd_ops.glsl` | The expand operations (box, sphere, pyramid, octa, ring, line, point). |
+| `assets/shaders/gdd_cull.comp` / `gdd_expand.comp` / `gdd_final.comp` | The three compute passes. |
+| `assets/shaders/gdd_scene.vert` / `gdd_scene.frag` | SSBO-fed scene shaders (no fixed-function vertex input). |
+| `tests/gdd_contract_test.c` | CPU-side contract test (no device): layouts/offsets, flag round-trip, builder against synthetic scenes. |
+| `tests/gdd_mesh_test.c` | Headless GPU compute test: runs the real SPIR-V, compares readback bit-exactly vs a `-ffp-contract=off` CPU mirror (exit 77 = skip when no ICD/SPV). |
+
+Build and run the GDD test suite (the `tests/` project is self-contained and pulls the production sources straight from `../src`):
+
+```bash
+cmake -B build-tests tests
+cmake --build build-tests
+ctest --test-dir build-tests --output-on-failure
+```
+
+The main build compiles the GDD SPIR-V with **glslc** (hard requirement) into `build/shaders/`, installed to `/usr/share/spacegl/shaders` together with the legacy shaders.
+
+---
+
 ## 🚀 Version 3.1 Highlights (Rel. 2026.05.03 - The Omniscience Protocol)
 
 Update 3.1 introduces a revolutionary telemetry architecture, granting Commanders unprecedented real-time awareness of the galactic theater:
@@ -187,7 +571,7 @@ Update 3.1 introduces a revolutionary telemetry architecture, granting Commander
 
 <table>
 <tr>
-    <td><img src="readme_assets/telemetry/telemetry1.png" alt="Black jump" width="200"/></td>
+    <td><img src="readme_assets/telemetry/telemetry1.png" alt="Black jump" width="500"/></td>
   </tr>
 </table>
 
@@ -197,7 +581,7 @@ The command bridge of the Alliance Flagship was bathed in silence, broken only b
 
 <table>
 <tr>
-    <td><img src="readme_assets/telemetry/telemetry2.png" alt="Black jump" width="200"/></td>
+    <td><img src="readme_assets/telemetry/telemetry2.png" alt="Black jump" width="500"/></td>
   </tr>
 </table>
 
@@ -207,7 +591,7 @@ In the secret laboratories of the Aegis research station, technicians began mapp
 
 <table>
 <tr>
-    <td><img src="readme_assets/telemetry/telemetry3.png" alt="Black jump" width="200"/></td>
+    <td><img src="readme_assets/telemetry/telemetry3.png" alt="Black jump" width="500"/></td>
   </tr>
 </table>
 
@@ -227,7 +611,7 @@ The system came to life. Eighty-eight categories of objects were instrumented. N
 
 <table>
 <tr>
-    <td><img src="readme_assets/telemetry/telemetry5.png" alt="Black jump" width="200"/></td>
+    <td><img src="readme_assets/telemetry/telemetry5.png" alt="Black jump" width="500"/></td>
   </tr>
 </table>
 

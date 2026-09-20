@@ -87,6 +87,14 @@ endif()
 set(SHADER_SOURCES 
     "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/shader.vert" 
     "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/shader.frag"
+    # GPU-driven path (GDD): compute cull/expand/final passes + the
+    # SSBO-based scene vertex/fragment shaders (common code in
+    # assets/shaders/gdd_common.glsl). Used when SPACEGL_GPD=1.
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/gdd_cull.comp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/gdd_expand.comp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/gdd_final.comp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/gdd_scene.vert"
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/gdd_scene.frag"
 )
 set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders")
 file(MAKE_DIRECTORY ${SPV_OUTPUT_DIR})
@@ -94,10 +102,22 @@ file(MAKE_DIRECTORY ${SPV_OUTPUT_DIR})
 foreach(SHADER ${SHADER_SOURCES})
     get_filename_component(SHADER_NAME ${SHADER} NAME)
     set(SPV_FILE "${SPV_OUTPUT_DIR}/${SHADER_NAME}.spv")
+    # The GDD compute shaders #include the shared gdd_common.glsl (and
+    # gdd_expand.comp also gdd_ops.glsl): recompile them when those
+    # change, and give glslc the include dir.
+    if(SHADER MATCHES "gdd_(cull|expand|final)\.comp$")
+        set(SHADER_EXTRA_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/gdd_common.glsl"
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/gdd_ops.glsl")
+        set(SHADER_INCLUDE_FLAG "-I${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders")
+    else()
+        set(SHADER_EXTRA_DEPENDS "")
+        set(SHADER_INCLUDE_FLAG "")
+    endif()
     add_custom_command(
         OUTPUT ${SPV_FILE}
-        COMMAND ${GLSLC_EXECUTABLE} ${SHADER} -o ${SPV_FILE}
-        DEPENDS ${SHADER}
+        COMMAND ${GLSLC_EXECUTABLE} ${SHADER_INCLUDE_FLAG} ${SHADER} -o ${SPV_FILE}
+        DEPENDS ${SHADER} ${SHADER_EXTRA_DEPENDS}
         COMMENT "Compiling shader ${SHADER_NAME}"
     )
     list(APPEND SHADER_SPV_FILES ${SPV_FILE})
@@ -149,7 +169,11 @@ add_executable(spacegl_hud src/spacegl_hud.c)
 target_link_libraries(spacegl_hud ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 
 # 6. spacegl_vulkan
-add_executable(spacegl_vulkan src/spacegl_vulkan.c)
+# The GPU-driven path (SPACEGL_GPD=1) lives in src/spacegl_vulkan_gdd.c
+# and shares the executable with the CPU-driven path (SPACEGL_GPD=0):
+# one binary, two architectures, selected at startup (with automatic
+# fallback to the CPU path when the device cannot support GDD).
+add_executable(spacegl_vulkan src/spacegl_vulkan.c src/spacegl_vulkan_gdd.c)
 target_link_libraries(spacegl_vulkan ${COMMON_LIBS} Vulkan::Vulkan ${GLFW_LIBRARIES})
 add_dependencies(spacegl_vulkan spacegl_shaders)
 

@@ -1,0 +1,38 @@
+#version 450
+/*
+ * SPACE GL - GDD compute pass 1: GPU CULLING.
+ * Copyright (C) 2026 Nicola Taibi
+ * License: GPL-3.0-or-later
+ *
+ * Vision-radius sphere cull: one dispatch per instance group (the
+ * group is selected through push constants, so a single pipeline
+ * serves both the dynamic and the map/static group). Instances with
+ * GDD_FLAG_NEVER_CULL (static geometry: starfield, grid, map frame)
+ * are never culled. Output: compact index list + visibility counter.
+ */
+#include "gdd_common.glsl"
+
+layout(local_size_x = 256) in;
+
+layout(binding = 0) buffer GddInstB  { GddInstance inst[]; } gdd_insts;
+layout(binding = 1) buffer GddVisB   { uint          idx[]; } gdd_vis;
+layout(binding = 2) buffer GddCntB   { GddCounts     c; }     gdd_counts;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= pc.list_count) return;
+
+    GddInstance it = gdd_insts.inst[i];
+    if (!gdd_never_cull(it)) {
+        vec3 d = it.a.xyz - pc.cull.xyz;
+        if (dot(d, d) > pc.cull.w * pc.cull.w) return;
+    }
+
+    if (pc.group == 1u) {
+        uint s = atomicAdd(gdd_counts.c.map_vis, 1u);
+        gdd_vis.idx[s] = i;
+    } else {
+        uint s = atomicAdd(gdd_counts.c.dyn_vis, 1u);
+        gdd_vis.idx[s] = i;
+    }
+}

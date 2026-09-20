@@ -1,3 +1,105 @@
+* Sun Sep 20 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.20.01
+  - NEW ARCHITECTURE: GPU-driven rendering (GDD) for the 3D tactical
+  viewer (spacegl_vulkan), selected at startup with the SPACEGL_GPD
+  environment variable (0 or unset = legacy CPU-driven path, 1 =
+  GPU-driven; same binary, two architectures). The design mirrors the
+  DRAGONGL GPD approach, adapted to SpaceGL: the per-object Vulkan
+  draw-call storm of the CPU path is replaced by ONE small per-frame
+  CPU upload + a fully GPU-side render pipeline.
+    * CPU side (data handling, not rendering): reads the same SharedIPC
+      state and runs the same cubic-Hermite interpolation as the CPU
+      path, then classifies every object/effect/static into compact
+      112 B instance descriptors (GddInstance: position, mesh id,
+      scale, flags, color, 3x3 orientation) and memcpys two lists
+      (4096 dynamic + 8192 map/static slots) into persistently mapped
+      host-visible SSBOs — no per-object Vulkan call.
+    * GPU side (one graphics+compute queue, in-order, synchronization2
+      barriers): gdd_cull.comp vision-sphere culls into compact visible
+      index lists (static geometry carries GDD_FLAG_NEVER_CULL);
+      gdd_expand.comp expands each visible instance into a
+      device-local 80 B vertex SSBO (atomic reservation + 512k-vertex
+      capacity guard, "drop when full" like the CPU path), dispatched
+      per group and per pass (opaque / additive); gdd_final.comp
+      publishes the two VkDrawIndirectCommands from the GPU counters.
+    * Graphics side: a single vkCmdBeginRendering (dynamic rendering,
+      Vulkan 1.3/1.4: color + depth) and one vkCmdDrawIndirect per
+      pass (opaque with depth write, additive glow with src-alpha
+      blending). The scene vertex shader reads the GPU-generated
+      vertices from storage (NO fixed-function vertex input) and the
+      fragment shader re-implements the 10 procedural color modes of
+      the CPU path (unlit/wireframe, starfield twinkle, PBR, hyperwarp
+      glow, shockwave, accretion disk, FBM nebula, plasma filament...),
+      keeping both architectures visually aligned.
+    * All scene geometry is generated on the GPU from one unit
+      description per mesh type (double-sided triangle point, 6x10 UV
+      sphere, box, ship pyramid, octahedron, 16-segment ring, square
+      tube line) — no per-object vertex/index buffers; camera,
+      row-major MVP (view*proj pushed verbatim), the 45->65 deg
+      orbital/bridge fov blend, the Y flip and the persistent 2000-star
+      field all replicate the CPU-path conventions exactly.
+  - Vulkan GDD (SPACEGL_GPD=1): fix the dashed/flickering quadrant
+  wireframe cube lines. Root cause: the GDD path models the cube edges
+  (and every GDD_MESH_LINE) as square tubes with a fixed WORLD-space
+  half-thickness (0.02 for the cube), rasterized as single-sample
+  triangles. At typical camera distances the tube cross-section is
+  sub-pixel, so the rasterizer covers only a stochastic subset of the
+  pixel centers along the line (dashes) and lines pop in/out as the
+  camera orbits. The CPU-driven path is unaffected because it uses the
+  fixed-function 1-px LINE_LIST primitive + 4x MSAA.
+  - GDD contract: GddPC gains float line_min_wu (32 B -> 36 B,
+  spacegl_gdd.h + gdd_common.glsl in sync; contract test updated).
+  - GDD expand pass: gdd_expand_line clamps the tube half-thickness to
+  max(requested, pc.line_min_wu). The CPU pushes, per frame, half of
+  GDD_LINE_MIN_PX (1.5 px) expressed in world units at the actual
+  camera (true orbital/bridge camera position, fov blend, viewport
+  height): every line now rasterizes at >= 1.5 px like the CPU-path
+  1-px MSAA lines. The tactical grid (ht 0.35) stays unchanged because
+  its world thickness is always above the floor.
+  - GDD contract: GDD_VCOUNT_LINE corrected from 6u to 24u (the GLSL
+  square-tube truth; the header doc said the obsolete "thin quad").
+  - GDD correctness: the scene pipelines (VK_SAMPLE_COUNT_1_BIT) now
+  attach a dedicated 1-sample D32 depth image instead of the app-level
+  MSAA'd depth image (whose sample count must equal the pipeline's
+  rasterizationSamples, VUID-VkRenderingInfo-pDepthAttachment-06467).
+  The CPU-driven path keeps its own MSAA depth image and is unchanged.
+  - Vulkan GDD: requirements and graceful fallback. The path needs a
+  Vulkan >= 1.3 driver (the instance is created at 1.4 when the driver
+  exposes it) and a queue family with BOTH graphics and compute; if any
+  of that is missing, or pipeline/buffer creation fails, the client
+  prints a banner and falls back to the CPU-driven path automatically.
+  The standard VK_INSTANCE_LAYERS variable enables validation layers
+  for auditing the GDD synchronization/pipeline code. The per-frame
+  ring keeps the same triple-buffer invariant as the CPU path (one
+  fence + acquire/render semaphores per slot) and the same ~144 fps
+  frame limiter.
+  - Build (CMake): the GDD SPIR-V (gdd_cull/expand/final.comp,
+  gdd_scene.vert/frag, shared gdd_common.glsl/gdd_ops.glsl) is
+  compiled with glslc (hard requirement, same as the CPU shaders) into
+  build/shaders and installed to /usr/share/spacegl/shaders; the
+  shaders #include-dir dependency is tracked so the shared .glsl files
+  trigger a recompile.
+  - Tests: new self-contained tests/ CMake project (no reference from
+  the main CMakeLists.txt; mirrors the DRAGONGL test layout and pulls
+  the production sources straight from ../src so the real module is
+  always exercised). gdd_contract_test verifies the CPU side without a
+  device: struct layouts/offsets of the CPU/GPU boundary (112/80/16/
+  36/84 B), the flag encode/decode round-trip and the pure-C instance
+  builder against synthetic scenes (type classification, (X, Z, -Y)
+  centered mapping, per-type companions, beams/booms/torps, AR
+  compass, jump-arrival hiding, grid/starfield statics, galaxy map
+  mode, capacity guard). gdd_mesh_test is a headless GPU compute test:
+  it runs the real cull/expand/final SPIR-V and compares the
+  readback bit-exactly against a CPU mirror compiled with
+  -ffp-contract=off (no FMA drift), exiting 77 (skip) when no Vulkan
+  ICD or SPV is available. Both pass; the mesh test is insensitive to
+  the new line floor (it pushes line_min_wu = 0).
+  - GDD code layout: src/spacegl_vulkan_gdd.c (CPU instance builder +
+  Vulkan device state + per-frame recording), include/spacegl_gdd.h
+  (single source of truth for every CPU/GPU boundary layout, with
+  compile-time _Static_asserts that fail the build if the contract
+  drifts from the GLSL structs), assets/shaders/gdd_* (compute passes,
+  shared tables/ops, scene shaders).
+
 * Sun Sep 13 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.13.03
   - Quality refactoring.
   - Build (CMake): Replace the file(GLOB) collection of the server sources

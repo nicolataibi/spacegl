@@ -48,6 +48,7 @@
 #include <inttypes.h>
 #include "game_config.h"
 #include "shared_state.h"
+#include "spacegl_vulkan_types.h"
 
 /* Window resolution: Full HD (1920x1080). The swapchain, viewport,
    framebuffers and projection aspect ratio all derive from these
@@ -77,70 +78,10 @@
 #define WH_NR 32
 #define WH_NT 64
 
-typedef float vec3[3];
-typedef float mat4[4][4];
 
-void mat4_identity(mat4 m) {
-    memset(m, 0, sizeof(mat4));
-    m[0][0] = 1.0f; m[1][1] = 1.0f; m[2][2] = 1.0f; m[3][3] = 1.0f;
-}
-
-void mat4_multiply(mat4 a, mat4 b, mat4 res) {
-    mat4 tmp;
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            tmp[i][j] = a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j] + a[i][3] * b[3][j];
-        }
-    }
-    memcpy(res, tmp, sizeof(mat4));
-}
-
-void mat4_translate(mat4 m, vec3 v) {
-    mat4_identity(m);
-    m[3][0] = v[0]; m[3][1] = v[1]; m[3][2] = v[2];
-}
-
-void mat4_scale(mat4 m, vec3 v) {
-    mat4_identity(m);
-    m[0][0] = v[0]; m[1][1] = v[1]; m[2][2] = v[2]; m[3][3] = 1.0f;
-}
-
-void mat4_rotate(mat4 m, float angle, vec3 axis) {
-    float c = cosf(angle); float s = sinf(angle); float t = 1.0f - c;
-    float x = axis[0], y = axis[1], z = axis[2];
-    float len = sqrtf(x*x + y*y + z*z);
-    if (len > 0) { x /= len; y /= len; z /= len; }
-    mat4 rot; mat4_identity(rot);
-    rot[0][0] = t*x*x + c;   rot[0][1] = t*x*y - s*z; rot[0][2] = t*x*z + s*y;
-    rot[1][0] = t*x*y + s*z; rot[1][1] = t*y*y + c;   rot[1][2] = t*y*z - s*x;
-    rot[2][0] = t*x*z - s*y; rot[2][1] = t*y*z + s*x; rot[2][2] = t*z*z + c;
-    mat4_multiply(m, rot, m);
-}
-
-void mat4_lookat(vec3 eye, vec3 center, vec3 up, mat4 dest) {
-    vec3 f = { center[0] - eye[0], center[1] - eye[1], center[2] - eye[2] };
-    float flen = sqrtf(f[0]*f[0] + f[1]*f[1] + f[2]*f[2]);
-    f[0] /= flen; f[1] /= flen; f[2] /= flen;
-    vec3 s = { f[1]*up[2] - f[2]*up[1], f[2]*up[0] - f[0]*up[2], f[0]*up[1] - f[1]*up[0] };
-    float slen = sqrtf(s[0]*s[0] + s[1]*s[1] + s[2]*s[2]);
-    s[0] /= slen; s[1] /= slen; s[2] /= slen;
-    vec3 u = { s[1]*f[2] - s[2]*f[1], s[2]*f[0] - s[0]*f[2], s[0]*f[1] - s[1]*f[0] };
-    mat4_identity(dest);
-    dest[0][0] = s[0]; dest[1][0] = u[0]; dest[2][0] = -f[0];
-    dest[0][1] = s[1]; dest[1][1] = u[1]; dest[2][1] = -f[1];
-    dest[0][2] = s[2]; dest[1][2] = u[2]; dest[2][2] = -f[2];
-    dest[3][0] = -(s[0]*eye[0] + s[1]*eye[1] + s[2]*eye[2]);
-    dest[3][1] = -(u[0]*eye[0] + u[1]*eye[1] + u[2]*eye[2]);
-    dest[3][2] = f[0]*eye[0] + f[1]*eye[1] + f[2]*eye[2];
-}
-
-void mat4_perspective(float fovy, float aspect, float nearZ, float farZ, mat4 dest) {
-    float f = 1.0f / tanf(fovy / 2.0f);
-    mat4_identity(dest);
-    dest[0][0] = f / aspect; dest[1][1] = f;
-    dest[2][2] = farZ / (nearZ - farZ); dest[2][3] = -1.0f;
-    dest[3][2] = (nearZ * farZ) / (nearZ - farZ); dest[3][3] = 0.0f;
-}
+/* The mat4_* matrix math helpers now live in include/spacegl_vulkan_types.h
+ * (static inline, shared by the CPU-driven and the GPU-driven paths and
+ * by the standalone tests/ project). */
 
 void getObjectColor(int type, int faction, float* r, float* g, float* b);
 
@@ -159,7 +100,6 @@ void resolve_shader_paths() {
 
 const char* GLTF_MODEL_PATH = "spaceships/uss_shenzhou44/scene.gltf";
 
-typedef struct { float pos[3]; float color[3]; float normal[3]; } Vertex;
 
 const Vertex vertices[] = {
     /* Top Loop (Green) - Y=20 */
@@ -270,98 +210,6 @@ const uint32_t vectorIndices[] = {
     6, 2, 6, 3, 6, 4, 6, 5 
 };
 
-typedef struct { mat4 model; float color[4]; float time; int usePushColor; float metallic; float roughness; } PushConstants;
-typedef struct { mat4 view; mat4 proj; } UniformBufferObject;
-
-#define MAX_FRAMES_IN_FLIGHT 3
-#define MAX_ACTIVE_BEAMS 64
-#define MAX_ACTIVE_BOOMS 128
-#define MAX_ACTIVE_TORPS 256
-#define MAX_ACTIVE_DISMANTLES 64
-#define EXPLOSION_PIXELS 256
-#define MAX_STARS 2000
-#define MAX_ARRIVAL_PARTICLES 500
-
-/* Starfield Mode Selection Macros */
-#define STARFIELD_MODE_TWINKLE 1  /* Dynamic intensity variation */
-#define STARFIELD_MODE_HALO    2  /* Geometric atmospheric glow */
-#define STARFIELD_MODE_BLOOM   3  /* Point Sprite Procedural Bloom (Most Realistic) */
-
-#define STARFIELD_MODE STARFIELD_MODE_TWINKLE
-
-typedef struct { float sx, sy, sz, tx, ty, tz, life; int owner_id; int extra; int emitter_id; } ActiveBeam;
-typedef struct { float x, y, z, life; float offsets[EXPLOSION_PIXELS][3]; float colors[EXPLOSION_PIXELS][3]; } ActiveBoom;
-typedef struct { float x, y, z, life; float scale; } ActiveDismantle;
-typedef struct { float x, y, z; float dx, dy, dz; int active; int id; } ActiveTorp;
-typedef struct { float x, y, z; float angle; float radius; float speed; int active; } ArrivalParticle;
-
-typedef struct { float x, y, z; double h, m; int active; int timer; int jump_type; } JumpState;
-typedef struct { float x, y, z; double h, m; int active; int jump_type; } WormholeState;
-
-typedef struct VulkanApp {
-    GLFWwindow* window; VkInstance instance; VkPhysicalDevice physicalDevice; VkDevice device; VkQueue graphicsQueue;
-    VkSurfaceKHR surface; VkSwapchainKHR swapChain; VkImage* swapChainImages; uint32_t swapChainImageCount;
-    VkFormat swapChainImageFormat; VkExtent2D swapChainExtent; VkImageView* swapChainImageViews;
-    VkRenderPass renderPass; VkDescriptorSetLayout descriptorSetLayout; VkPipelineLayout pipelineLayout;
-    VkPipeline graphicsPipeline; VkPipeline wireframePipeline; VkPipeline pointPipeline; VkPipeline glowPipeline; VkPipeline alphaPipeline;
-    VkFramebuffer* swapChainFramebuffers;
-    VkCommandPool commandPool; VkSampleCountFlagBits msaaSamples;
-    VkImage colorImage; VkDeviceMemory colorImageMemory; VkImageView colorImageView;
-    VkImage depthImage; VkDeviceMemory depthImageMemory; VkImageView depthImageView;
-    VkBuffer vertexBuffer; VkDeviceMemory vertexBufferMemory; VkBuffer indexBuffer; VkDeviceMemory indexBufferMemory;
-    VkBuffer shipVertexBuffer; VkDeviceMemory shipVertexBufferMemory; VkBuffer shipIndexBuffer; VkDeviceMemory shipIndexBufferMemory;
-    VkBuffer starbaseVertexBuffer; VkDeviceMemory starbaseVertexBufferMemory; VkBuffer starbaseIndexBuffer; VkDeviceMemory starbaseIndexBufferMemory;
-    VkBuffer cubeVertexBuffer; VkDeviceMemory cubeVertexBufferMemory; 
-    VkBuffer cubeIndexBuffer; VkDeviceMemory cubeIndexBufferMemory;
-    VkBuffer cubeSolidIndexBuffer; VkDeviceMemory cubeSolidIndexBufferMemory;
-    VkBuffer torpVertexBuffer; VkDeviceMemory torpVertexBufferMemory; VkBuffer torpIndexBuffer; VkDeviceMemory torpIndexBufferMemory;
-    VkBuffer axesVertexBuffer; VkDeviceMemory axesVertexBufferMemory; VkBuffer axesIndexBuffer; VkDeviceMemory axesIndexBufferMemory;
-    VkBuffer beamVertexBuffer; VkDeviceMemory beamVertexBufferMemory; VkBuffer beamIndexBuffer; VkDeviceMemory beamIndexBufferMemory;
-    VkBuffer circleVertexBuffer; VkDeviceMemory circleVertexBufferMemory; VkBuffer circleIndexBuffer; VkDeviceMemory circleIndexBufferMemory;
-    VkBuffer arcVertexBuffer; VkDeviceMemory arcVertexBufferMemory; VkBuffer arcIndexBuffer; VkDeviceMemory arcIndexBufferMemory;
-    VkBuffer rollCircleVertexBuffer; VkDeviceMemory rollCircleVertexBufferMemory; VkBuffer rollCircleIndexBuffer; VkDeviceMemory rollCircleIndexBufferMemory;
-    VkBuffer gridVertexBuffer; VkDeviceMemory gridVertexBufferMemory; VkBuffer gridIndexBuffer; VkDeviceMemory gridIndexBufferMemory;
-    VkBuffer vectorVertexBuffer; VkDeviceMemory vectorVertexBufferMemory; VkBuffer vectorIndexBuffer; VkDeviceMemory vectorIndexBufferMemory;
-    VkBuffer sphereVertexBuffer; VkDeviceMemory sphereVertexBufferMemory; VkBuffer sphereIndexBuffer; VkDeviceMemory sphereIndexBufferMemory;
-    VkBuffer whVertexBuffer; VkDeviceMemory whVertexBufferMemory; VkBuffer whIndexBuffer; VkDeviceMemory whIndexBufferMemory; uint32_t whIndexCount;
-    VkBuffer coreVB[14]; VkDeviceMemory coreVBM[14]; VkBuffer coreIB[14]; VkDeviceMemory coreIBM[14]; uint32_t coreICount[14];
-    VkBuffer starfieldVertexBuffer; VkDeviceMemory starfieldVertexBufferMemory; VkBuffer starfieldIndexBuffer; VkDeviceMemory starfieldIndexBufferMemory;
-    uint64_t gridVertexCount; uint64_t starfieldIndexCount;
-    VkBuffer uniformBuffers[MAX_FRAMES_IN_FLIGHT]; VkDeviceMemory uniformBuffersMemory[MAX_FRAMES_IN_FLIGHT];
-    VkDescriptorPool descriptorPool; VkDescriptorSet descriptorSets[MAX_FRAMES_IN_FLIGHT];
-    VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT];
-    VkSemaphore imageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT]; VkSemaphore renderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
-    VkFence inFlightFences[MAX_FRAMES_IN_FLIGHT]; uint32_t currentFrame;
-    SharedIPC* shm; int shm_fd; float angleY; float angleX; float cameraDist; bool autoRotate;
-    ActiveBeam activeBeams[MAX_ACTIVE_BEAMS]; ActiveBoom activeBooms[MAX_ACTIVE_BOOMS];
-    ActiveDismantle activeDismantles[MAX_ACTIVE_DISMANTLES];
-    ActiveTorp activeTorps[MAX_ACTIVE_TORPS]; ArrivalParticle arrivalParticles[MAX_ARRIVAL_PARTICLES];
-    JumpState jumpArrival; WormholeState departureWormhole;
-    /* Smooth State Interpolation */
-    long long last_shm_frame_id;
-    double last_shm_time;
-    double smoothed_shm_time;
-    struct {
-        float x, y, z, h, m, r;
-        float prev_x, prev_y, prev_z, prev_h, prev_m, prev_r;
-        float target_x, target_y, target_z, target_h, target_m, target_r;
-        float vx, vy, vz;
-        float prev_vx, prev_vy, prev_vz;
-        bool first;
-    } smoothObjs[MAX_NET_OBJECTS];
-
-    float mapAnim;
-    int mapFilter;
-    float bridgeAnim;
-    int showBridge;
-    /* Shield Hit Visuals */
-    int shieldHitTimers[6];
-    int lastShieldsValHit[6];
-    bool shieldsInitialized;
-    mat4 playerR;
-    mat4 playerT;
-    int shm_inspector_page; /* 0=Off, 1=Energy/Status, 2=Galaxy/HMAC, 3=Networking */
-} VulkanApp;
 
 #include "spacegl_vulkan_extras.inl"
 
@@ -2882,10 +2730,71 @@ void createDepthResources(VulkanApp* app) {
 }
 
 void createInstance(VulkanApp* app) {
-    VkApplicationInfo aInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, NULL, "SpaceGL", 1, "NoEngine", 1, VK_API_VERSION_1_0};
+    /* GPU-driven path (SPACEGL_GPD=1): the instance must expose the
+     * Vulkan 1.4 API (synchronization2 barriers, dynamic rendering,
+     * indirect draws). Query what the driver provides and clamp; a
+     * driver older than 1.3 cannot run the GDD path at all, so the
+     * client falls back to the CPU-driven one. */
+    uint32_t apiVer = VK_API_VERSION_1_0;
+    if (app->gdd_wanted) {
+        uint32_t drvVer = 0;
+        if (vkEnumerateInstanceVersion(&drvVer) == VK_SUCCESS && drvVer >= VK_API_VERSION_1_3) {
+            apiVer = (drvVer >= VK_API_VERSION_1_4) ? VK_API_VERSION_1_4 : VK_API_VERSION_1_3;
+            printf("[GDD] creating Vulkan instance at API version %u.%u.%u (driver exposes %u.%u.%u)\n",
+                   VK_VERSION_MAJOR(apiVer), VK_VERSION_MINOR(apiVer), VK_VERSION_PATCH(apiVer),
+                   VK_VERSION_MAJOR(drvVer), VK_VERSION_MINOR(drvVer), VK_VERSION_PATCH(drvVer));
+        } else {
+            fprintf(stderr, "[GDD] driver Vulkan %u.%u.%u < 1.3: GPU-driven path unavailable, falling back to CPU-driven\n",
+                    VK_VERSION_MAJOR(drvVer), VK_VERSION_MINOR(drvVer), VK_VERSION_PATCH(drvVer));
+            app->gdd_wanted = false;
+        }
+    }
+    VkApplicationInfo aInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, NULL, "SpaceGL", 1, "NoEngine", 1, apiVer};
     uint32_t glfwExtCount = 0; const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwExtCount);
-    VkInstanceCreateInfo cInf = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, NULL, 0, &aInfo, 0, NULL, glfwExtCount, glfwExts};
+
+    /* Optional validation layers: the names in the standard
+     * VK_INSTANCE_LAYERS environment variable (colon-separated, e.g.
+     * "VK_LAYER_KHRONOS_validation") are enabled IF the driver provides
+     * them — the canonical way to audit synchronization/pipeline errors
+     * of the GPU-driven path. Unset variable => no layers requested. */
+    const char *vk_wanted_layers = getenv("VK_INSTANCE_LAYERS");
+    const char *vk_layers[16];
+    uint32_t vk_layer_count = 0;
+    VkLayerProperties *vk_avail = NULL;
+    if (vk_wanted_layers && vk_wanted_layers[0]) {
+        uint32_t avail_count = 0;
+        if (vkEnumerateInstanceLayerProperties(&avail_count, NULL) == VK_SUCCESS && avail_count > 0) {
+            vk_avail = malloc(sizeof(VkLayerProperties) * avail_count);
+            uint32_t got = avail_count;
+            if (vk_avail && vkEnumerateInstanceLayerProperties(&got, vk_avail) == VK_SUCCESS) {
+                char *tok_copy = strdup(vk_wanted_layers);
+                if (tok_copy) {
+                    char *sp = NULL;
+                    for (char *tok = strtok_r(tok_copy, ":", &sp);
+                         tok; tok = strtok_r(NULL, ":", &sp)) {
+                        bool have = false;
+                        for (uint32_t li = 0; li < got; li++) {
+                            if (strcmp(tok, vk_avail[li].layerName) == 0) {
+                                if (vk_layer_count < 16) vk_layers[vk_layer_count++] = vk_avail[li].layerName;
+                                have = true;
+                                break;
+                            }
+                        }
+                        if (!have)
+                            fprintf(stderr, "[VK] warning: layer '%s' (VK_INSTANCE_LAYERS) not available - skipping\n", tok);
+                    }
+                    free(tok_copy);
+                }
+            }
+        }
+    }
+    if (vk_layer_count > 0)
+        printf("[VK] enabling %u validation layer(s) from VK_INSTANCE_LAYERS\n", vk_layer_count);
+
+    VkInstanceCreateInfo cInf = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, NULL, 0, &aInfo,
+                                 vk_layer_count, vk_layers, glfwExtCount, glfwExts};
     if (vkCreateInstance(&cInf, NULL, &app->instance) != VK_SUCCESS) exit(1);
+    free(vk_avail);
 }
 
 VkSampleCountFlagBits getMaxUsableSampleCount(VkPhysicalDevice pDevice) {
@@ -2913,11 +2822,54 @@ void pickPhysicalDevice(VulkanApp* app) {
 }
 
 void createLogicalDevice(VulkanApp* app) {
-    float prio = 1.0f; VkDeviceQueueCreateInfo qInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, NULL, 0, 0, 1, &prio};
+    float prio = 1.0f;
+    uint32_t qfam = 0;
     const char* ext = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
-    VkPhysicalDeviceFeatures feat = {0}; VkDeviceCreateInfo cInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, NULL, 0, 1, &qInfo, 0, NULL, 1, &ext, &feat};
+    VkPhysicalDeviceFeatures feat = {0};
+
+    /* GPU-driven path: the device queue must belong to a family with
+     * BOTH graphics and compute (the GDD compute passes run in-order
+     * on the same queue, no cross-queue sync), and the device must
+     * enable synchronization2 + dynamicRendering (both Vulkan 1.3
+     * features). Support is queried first; any shortfall falls back
+     * to the CPU-driven path (queue family 0, base features, before). */
+    VkPhysicalDeviceVulkan13Features f13;
+    VkPhysicalDeviceFeatures2 f2;
+    bool gdd_dev = false;
+    if (app->gdd_wanted) {
+        if (!gdd_pick_queue(app->physicalDevice, &qfam)) {
+            fprintf(stderr, "[GDD] no graphics+compute queue family: falling back to CPU-driven path\n");
+            app->gdd_wanted = false;
+        } else {
+            app->gdd_queue_family = qfam;
+            VkPhysicalDeviceVulkan13Features q13 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
+            VkPhysicalDeviceFeatures2 q = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &q13 };
+            vkGetPhysicalDeviceFeatures2(app->physicalDevice, &q);
+            if (!q13.synchronization2 || !q13.dynamicRendering) {
+                fprintf(stderr, "[GDD] device lacks synchronization2/dynamicRendering: falling back to CPU-driven path\n");
+                app->gdd_wanted = false;
+            } else {
+                gdd_dev = true;
+            }
+        }
+    }
+
+    VkDeviceQueueCreateInfo qInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, NULL, qfam, 0, 1, &prio};
+    VkDeviceCreateInfo cInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, NULL, 0, 1, &qInfo, 0, NULL, 1, &ext, &feat};
+    if (gdd_dev) {
+        memset(&f13, 0, sizeof(f13));
+        f13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        f13.dynamicRendering = VK_TRUE;
+        f13.synchronization2 = VK_TRUE;
+        memset(&f2, 0, sizeof(f2));
+        f2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        f2.pNext = &f13;
+        cInfo.pNext = &f2;
+        cInfo.pEnabledFeatures = NULL;
+        printf("[GDD] device queue family %u (graphics+compute): synchronization2 + dynamicRendering enabled\n", qfam);
+    }
     if (vkCreateDevice(app->physicalDevice, &cInfo, NULL, &app->device) != VK_SUCCESS) exit(1);
-    vkGetDeviceQueue(app->device, 0, 0, &app->graphicsQueue);
+    vkGetDeviceQueue(app->device, qfam, 0, &app->graphicsQueue);
 }
 
 void createSwapChain(VulkanApp* app) {
@@ -4669,7 +4621,10 @@ void mainLoop(VulkanApp* app) {
                 if (app->bridgeAnim < 0.0f) app->bridgeAnim = 0.0f;
             }
         }
-        drawFrame(app);
+        /* Architectural switch: GPU-driven (SPACEGL_GPD=1) or legacy
+         * CPU-driven rendering of the same frame. */
+        if (app->gdd) gdd_draw_frame(app);
+        else drawFrame(app);
     }
 }
 
@@ -4966,6 +4921,9 @@ void initVulkan(VulkanApp* app) {
 }
 
 void cleanup(VulkanApp* app) {
+    /* GDD resources first: the per-slot command buffers come from
+     * app->commandPool, which is destroyed below. */
+    if (app->gdd) gdd_cleanup(app);
     for (int i=0; i<MAX_FRAMES_IN_FLIGHT; i++) { vkDestroySemaphore(app->device, app->renderFinishedSemaphores[i], NULL); vkDestroySemaphore(app->device, app->imageAvailableSemaphores[i], NULL); vkDestroyFence(app->device, app->inFlightFences[i], NULL); }
     vkDestroyCommandPool(app->device, app->commandPool, NULL);
     vkDestroyImageView(app->device, app->colorImageView, NULL); vkDestroyImage(app->device, app->colorImage, NULL); vkFreeMemory(app->device, app->colorImageMemory, NULL);
@@ -5040,7 +4998,16 @@ int main(int argc, char** argv) {
     }
     memset(app, 0, sizeof(VulkanApp));
     app->shm_fd = -1;
-    
+
+    /* Architectural switch: SPACEGL_GPD=0 (or unset) keeps the legacy
+     * CPU-driven path; SPACEGL_GPD=1 selects the GPU-driven one (with
+     * automatic fallback to CPU-driven if the device cannot support it). */
+    const char *gpd = getenv("SPACEGL_GPD");
+    app->gdd_wanted = (gpd != NULL && atoi(gpd) == 1);
+    if (app->gdd_wanted) {
+        printf("[GDD] SPACEGL_GPD=1: requesting the GPU-driven path (Vulkan 1.4)\n");
+    }
+
     if (argc > 1) {
         app->shm_fd = shm_open(argv[1], O_RDWR, 0666);
         if (app->shm_fd != -1) {
@@ -5068,6 +5035,14 @@ int main(int argc, char** argv) {
     glfwSetKeyCallback(app->window, key_callback);
     
     initVulkan(app); 
+
+    /* GPU-driven path: create the compute/scene pipelines and the
+     * per-frame ring. On failure app->gdd stays NULL and the client
+     * transparently runs the CPU-driven path. */
+    if (app->gdd_wanted && !gdd_init(app)) {
+        app->gdd_wanted = false;
+        printf("[GDD] GPU-driven path unavailable: falling back to CPU-driven rendering\n");
+    }
     
     if (app->shm) {
         pid_t tp = getppid();

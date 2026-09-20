@@ -1,0 +1,31 @@
+#version 450
+/*
+ * SPACE GL - GDD compute pass 3: publish the indirect draw commands.
+ * Copyright (C) 2026 Nicola Taibi
+ * License: GPL-3.0-or-later
+ *
+ * Runs after the two cull and two expand dispatches (same queue =
+ * in-order), so the counters hold the exact per-pass vertex totals.
+ * Always dispatched (even when everything was culled): it publishes
+ * vertexCount = 0, which makes vkCmdDrawIndirect a valid no-op.
+ * Layout: VkDrawIndirectCommand[2] (opaque, additive).
+ */
+#include "gdd_common.glsl"
+
+layout(local_size_x = 1) in;
+
+layout(binding = 0) buffer GddIndB { uint cmd[8]; } gdd_indir;
+layout(binding = 1) buffer GddCntB { GddCounts c; } gdd_counts;
+
+void main() {
+    /* opaque pass */
+    gdd_indir.cmd[0] = gdd_counts.c.opaque_verts; // Numero di vertici opachi
+gdd_indir.cmd[1] = 1u;                        // Instance count
+gdd_indir.cmd[2] = 0u;                        // firstVertex = 0 (parte dall'inizio del buffer)
+gdd_indir.cmd[3] = 0u;                        // firstInstance
+    /* additive pass */
+    gdd_indir.cmd[4] = gdd_counts.c.additive_verts; // Numero di vertici additivi
+gdd_indir.cmd[5] = 1u;                          // Instance count
+gdd_indir.cmd[6] = gdd_counts.c.opaque_verts;   // firstVertex = offset esatto dove iniziano gli additivi!
+gdd_indir.cmd[7] = 0u;                          // firstInstance
+}
