@@ -329,18 +329,48 @@ static void test_compass_and_jump(void) {
     run_builder(&c);
     CHECK(g_dyn_n == 17, "no compass: ship+16bbox = %u dyn", g_dyn_n);
 
-    /* Compass on: +10 instances (3 axes, 4 rings, 2 vectors) + 16 bbox */
+    /* Compass on: +25 instances (3 axis lines, 3 circles, 1 mark arc,
+     * 2 arrows x 9 lines) + 16 bbox — CPU compass parity */
     c.show_axes = 1;
     run_builder(&c);
-    CHECK(g_dyn_n == 27, "compass: 11 dyn + 16 bbox = %u", g_dyn_n);
-    CHECK(count_dyn(GDD_MESH_LINE) == 21, "compass: 5 lines + 16 bbox = %d", count_dyn(GDD_MESH_LINE));
-    CHECK(count_dyn(GDD_MESH_RING) == 5, "compass: 5 rings (%d)", count_dyn(GDD_MESH_RING));
+    CHECK(g_dyn_n == 42, "compass: ship + 25 compass + 16 bbox = %u dyn", g_dyn_n);
+    CHECK(count_dyn(GDD_MESH_LINE) == 37,
+          "compass: 3 axes + 18 arrow lines + 16 bbox = %d", count_dyn(GDD_MESH_LINE));
+    CHECK(count_dyn(GDD_MESH_CIRCLE) == 3,
+          "compass: 3 circles (fixed/heading/roll) = %d", count_dyn(GDD_MESH_CIRCLE));
+    CHECK(count_dyn(GDD_MESH_ARC) == 1, "compass: 1 vertical mark arc = %d",
+          count_dyn(GDD_MESH_ARC));
+    CHECK(count_dyn(GDD_MESH_RING) == 0,
+          "compass: no solid rings left = %d", count_dyn(GDD_MESH_RING));
+
+    /* Mark arc: yellow, r = 2.8 (unrotated: scale.x is the radius) */
+    const GddInstance *arc = find_dyn(GDD_MESH_ARC, 0.0f, 0.0f, 0.0f, 1e-4f);
+    CHECK(arc != NULL, "mark arc present at the anchor");
+    if (arc) {
+        CHECK_F("mark arc radius", arc->scale[0], 2.8f, 1e-4f, "mark arc radius");
+        CHECK_F("mark arc yellow r", arc->color[0], 1.0f, 1e-5f, "mark arc yellow r");
+        CHECK_F("mark arc yellow g", arc->color[1], 1.0f, 1e-5f, "mark arc yellow g");
+        CHECK_F("mark arc yellow b", arc->color[2], 0.0f, 1e-5f, "mark arc yellow b");
+        CHECK(gdd_frag_mode(arc->flags) == GDD_FRAG_UNLIT, "mark arc unlit");
+    }
+
+    /* Circles: exactly one each of r = 3.0 (white), 2.5 (cyan),
+     * 2.8 (yellow roll) */
+    int r30 = 0, r25 = 0, r28 = 0;
+    for (uint32_t i = 0; i < g_dyn_n; i++) {
+        if ((int)(g_dyn[i].mesh + 0.5f) != GDD_MESH_CIRCLE) continue;
+        if (near_f(g_dyn[i].scale[0], 3.0f, 1e-3f)) r30++;
+        else if (near_f(g_dyn[i].scale[0], 2.5f, 1e-3f)) r25++;
+        else if (near_f(g_dyn[i].scale[0], 2.8f, 1e-3f)) r28++;
+    }
+    CHECK(r30 == 1 && r25 == 1 && r28 == 1,
+          "circle radii 3.0/2.5/2.8 one each (got %d/%d/%d)", r30, r25, r28);
 
     /* Shield hit: +2 additive rings */
     static int shields[6] = { 0, 0, 30, 0, 0, 0 };
     c.shield_timers = shields;
     run_builder(&c);
-    CHECK(g_dyn_n == 29, "shield glow: 13 dyn + 16 bbox = %u", g_dyn_n);
+    CHECK(g_dyn_n == 44, "shield glow: 27 dyn + 16 bbox = %u", g_dyn_n);
     c.shield_timers = NULL;
 
     /* Compass hidden far away (cameraDist >= 150): bbox still drawn */

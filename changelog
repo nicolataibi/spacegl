@@ -1,3 +1,60 @@
+* Mon Sep 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.21.01
+  - Vulkan GDD (SPACEGL_GPD=1): the AR compass now composes exactly
+  like the CPU-driven reference. New contract mesh types
+  GDD_MESH_CIRCLE (72-segment thin wireframe circle in XZ) and
+  GDD_MESH_ARC (36-segment 180-degree arc in XY): vertex counts in
+  include/spacegl_gdd.h (with the compile-time _Static_assert
+  contract), the mesh table in gdd_common.glsl, the
+  gdd_expand_circle/gdd_expand_arc expanders in gdd_ops.glsl
+  (screen-space thickness floor like the line tubes, normals rotated
+  by the instance orientation) and the gdd_expand.comp dispatch.
+  The gdd_build_instances compass section is rewritten to mirror the
+  CPU path 1:1 (25 instances): pure R/G/B axis tubes, the fixed
+  r=3.0 white ring and the r=2.5 cyan heading ring as 72-segment
+  wireframes (the faceted 16-segment solid rings are gone), the
+  missing 180-degree vertical bow marking arc in the XY plane
+  (r=2.8, yellow, RotY(90-heading)) which was previously faked by a
+  full yellow ring in the wrong XZ plane, the roll circle moved to
+  the correct transverse YZ plane (it was wrongly rendered
+  longitudinal XY; r=2.8, yellow), removal of the extra green pitch
+  ring, and complete arrows (shaft + square head + tip, 9 lines
+  each) for the green direction vector and the halved blue upper
+  vector. The compass emits no GDD_MESH_RING instance anymore.
+  - Vulkan GDD: MSAA parity with the CPU path. The scene pipelines
+  (opaque + additive) now carry rasterizationSamples equal to the
+  app's sample count (capped at 4x in getMaxUsableSampleCount, same
+  as the CPU path), and the dynamic rendering draws into a TRANSIENT
+  multisampled color attachment (swapchain format) + a
+  multisampled D32 depth image, with the sample-average
+  per-attachment resolve writing the 1-sample swapchain image. In
+  this API the rendering's sample count is defined by the attached
+  image views (VkRenderingInfo has no samples member); the depth
+  attachment and the pipeline rasterizationSamples carry the same
+  count. Layout transitions are manual, as dynamic rendering
+  performs no implicit ones: UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
+  before the pass for the MSAA color, the swapchain image and the
+  depth image, and COLOR_ATTACHMENT_OPTIMAL -> PRESENT_SRC_KHR
+  before present; the MSAA attachment is cleared and stored
+  DONT_CARE, consumed only by the resolve, exactly like the
+  CPU-driven render pass's transient. The quadrant wireframe cube,
+  the compass wireframes and every GDD line now antialias like the
+  CPU path.
+  - Vulkan GDD: Vulkan 1.4 is now the default API for the path. The
+  instance is created at 1.4 only when the driver exposes >= 1.4
+  (synchronization2, dynamic rendering with per-attachment MSAA
+  resolve); a driver older than 1.4 no longer clamps to 1.3 but
+  prints a banner and falls back to the CPU-driven path, like every
+  other GDD shortfall.
+  - Tests: gdd_contract_test gains the new compass expectations
+  (25 instances: 3 axes + 3 circles r=3.0/2.5/2.8 + 1 marking arc +
+  2 arrows x 9 lines, zero solid rings) and passes with 265 checks;
+  gdd_mesh_test gains the CIRCLE/ARC expansion cases (bit-exact GPU
+  vs CPU mirror compiled with -ffp-contract=off) and passes with 56
+  checks. The build trees compile and link against Vulkan SDK
+  1.4.357.1 (headers, loader, glslc); the SDK's 1.4.357 validation
+  layer is available via the standard VK_INSTANCE_LAYERS variable
+  for auditing the new synchronization/barrier code.
+
 * Sun Sep 20 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.20.01
   - NEW ARCHITECTURE: GPU-driven rendering (GDD) for the 3D tactical
   viewer (spacegl_vulkan), selected at startup with the SPACEGL_GPD

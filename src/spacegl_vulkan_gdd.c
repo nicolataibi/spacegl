@@ -131,6 +131,70 @@ typedef struct {
     uint32_t n;
 } GddList;
 
+/* Forward: gdd_list_add is defined below, the compass arrow helper
+ * (also below) needs it. */
+static void gdd_list_add(GddList *L, int mesh,
+                         float px, float py, float pz,
+                         float sx, float sy, float sz,
+                         float cr, float cg, float cb, float ca,
+                         uint32_t never_cull, uint32_t additive, int frag_mode,
+                         const float orient[12],
+                         float metallic, float roughness);
+
+/* Identity orientation (GDD mesh lines get their cross-section from
+ * the direction vector, so an identity matrix is the right default). */
+static const float GDD_ORIENT_ID[12] = { 1, 0, 0, 0,
+                                         0, 1, 0, 0,
+                                         0, 0, 1, 0 };
+
+/* World position of an AR-compass local point: anchor + M * (lp * s)
+ * (engine row-vector convention, same as gdd_xform in gdd_ops.glsl). */
+static void gdd_compass_pt(const float anchor[3], const gdd_m3 m,
+                           const float lp[3], float s, float out[3]) {
+    for (int r = 0; r < 3; r++)
+        out[r] = anchor[r]
+               + (lp[0] * s) * m[0][r]
+               + (lp[1] * s) * m[1][r]
+               + (lp[2] * s) * m[2][r];
+}
+
+/* One AR-compass arrow with CPU parity (vectorVertices in
+ * src/spacegl_vulkan.c): shaft (0.18,0,0)->(1.38,0,0), head square at
+ * x = 1.38 (corners ±0.05 in Y/Z), tip (1.68,0,0). Emits 9 line
+ * instances: 1 shaft + 4 square edges + 4 tip spokes. */
+static void gdd_compass_arrow(GddList *dyn, const float anchor[3],
+                              const gdd_m3 m, float s,
+                              float cr, float cg, float cb) {
+    static const float shaft0[3] = { 0.18f, 0.0f, 0.0f };
+    static const float shaft1[3] = { 1.38f, 0.0f, 0.0f };
+    static const float tip[3]    = { 1.68f, 0.0f, 0.0f };
+    static const float corners[4][3] = {
+        { 1.38f,  0.05f,  0.05f }, { 1.38f, -0.05f,  0.05f },
+        { 1.38f, -0.05f, -0.05f }, { 1.38f,  0.05f, -0.05f },
+    };
+    float p0[3], p1[3];
+    gdd_compass_pt(anchor, m, shaft0, s, p0);
+    gdd_compass_pt(anchor, m, shaft1, s, p1);
+    gdd_list_add(dyn, GDD_MESH_LINE, p0[0], p0[1], p0[2],
+                 p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2],
+                 cr, cg, cb, 1.0f, 0, 0, GDD_FRAG_UNLIT, GDD_ORIENT_ID, 0, 0);
+    for (int i = 0; i < 4; i++) {
+        int j = (i + 1) % 4;
+        /* square edge i -> i+1 (CPU vectorIndices: 2-3, 3-4, 4-5, 5-2) */
+        gdd_compass_pt(anchor, m, corners[i], s, p0);
+        gdd_compass_pt(anchor, m, corners[j], s, p1);
+        gdd_list_add(dyn, GDD_MESH_LINE, p0[0], p0[1], p0[2],
+                     p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2],
+                     cr, cg, cb, 1.0f, 0, 0, GDD_FRAG_UNLIT, GDD_ORIENT_ID, 0, 0);
+        /* tip spoke i -> tip (CPU vectorIndices: 6-x) */
+        gdd_compass_pt(anchor, m, corners[i], s, p0);
+        gdd_compass_pt(anchor, m, tip, s, p1);
+        gdd_list_add(dyn, GDD_MESH_LINE, p0[0], p0[1], p0[2],
+                     p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2],
+                     cr, cg, cb, 1.0f, 0, 0, GDD_FRAG_UNLIT, GDD_ORIENT_ID, 0, 0);
+    }
+}
+
 static void gdd_list_add(GddList *L, int mesh,
                          float px, float py, float pz,
                          float sx, float sy, float sz,
@@ -703,41 +767,49 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
 
     /* ---------------------------------------------------------------- */
     /* 2. AR compass (anchored to the smoothed player) — dyn group      */
+    /*    Exact parity with the CPU-driven compass ("Zero-Lag AR        */
+    /*    Compass" in recordCommandBuffer): same 7 elements, same       */
+    /*    planes, same rotations:                                      */
+    /*      1. 3 axis lines, pure R/G/B (the CPU vertex colors)        */
+    /*      2. fixed ring   — white circle, world XZ,  r = 3.0         */
+    /*      3. heading ring — cyan circle, pitched,     r = 2.5        */
+    /*      4. mark arc     — yellow vertical ARC (local XY), r = 2.8  */
+    /*      5. roll circle  — yellow transverse circle (local YZ)      */
+    /*      6. nose arrow   — green, shaft + head (roll-free)          */
+    /*      7. top arrow    — blue, half size, full ship orientation   */
     /* ---------------------------------------------------------------- */
     int compass_ok = ctx->show_axes && ctx->object_count > 0 &&
                      ctx->objs && !ctx->objs[0].first &&
                      ctx->camera_dist < 150.0f &&
                      !(ctx->jump_arrival && ctx->jump_arrival->active);
     float cx = 0, cy = 0, cz = 0;
-    float dirx[3] = {1, 0, 0};
     if (compass_ok) {
         const SmoothObj *p0 = &ctx->objs[0];
         cx = (p0->x - GDD_QUADRANT) * ts;
         cy = (p0->z - GDD_QUADRANT) * ts;
         cz = (GDD_QUADRANT - p0->y) * ts;
-        gdd_m3 m;
-        gdd_ship_rotation(p0, m);
-        gdd_m3_xaxis(m, dirx);
+        float anchor[3] = { cx, cy, cz };
 
-        float a = 5.5f * ts;
-        /* 1. Global axes (R/G/B) */
-        gdd_list_add(&dyn, GDD_MESH_LINE, cx - a, cy, cz, 2.0f*a, 0, 0, 1, 0.2f, 0.2f, 1.0f,
-                     0, 0, GDD_FRAG_UNLIT, o, 0, 1);
-        gdd_list_add(&dyn, GDD_MESH_LINE, cx, cy - a, cz, 0, 2.0f*a, 0, 0.2f, 1, 0.2f, 1.0f,
-                     0, 0, GDD_FRAG_UNLIT, o, 0, 1);
-        gdd_list_add(&dyn, GDD_MESH_LINE, cx, cy, cz - a, 0, 0, 2.0f*a, 0.2f, 0.2f, 1, 1.0f,
-                     0, 0, GDD_FRAG_UNLIT, o, 0, 1);
-
-        float h = p0->h * M_PI / 180.0f;
-        float mrot = p0->m * M_PI / 180.0f;
-        float rrot = p0->r * M_PI / 180.0f;
+        float h = p0->h * M_PI / 180.0f;      /* heading (CPU oh)  */
+        float mrot = p0->m * M_PI / 180.0f;   /* pitch   (CPU om)  */
+        float rrot = p0->r * M_PI / 180.0f;   /* roll    (CPU oro) */
         float pitch_axis[3] = { cosf(h), 0.0f, -sinf(h) };
         float nose[3] = { sinf(h) * cosf(mrot), sinf(mrot), cosf(h) * cosf(mrot) };
+        float head_yaw = (90.0f * M_PI / 180.0f) - h;
+
+        /* 1. Global axes (fixed to world orientation, pure R/G/B) */
+        float a = 5.5f * ts;
+        gdd_list_add(&dyn, GDD_MESH_LINE, cx - a, cy, cz, 2.0f*a, 0, 0,
+                     1, 0, 0, 1.0f, 0, 0, GDD_FRAG_UNLIT, o, 0, 0);
+        gdd_list_add(&dyn, GDD_MESH_LINE, cx, cy - a, cz, 0, 2.0f*a, 0,
+                     0, 1, 0, 1.0f, 0, 0, GDD_FRAG_UNLIT, o, 0, 0);
+        gdd_list_add(&dyn, GDD_MESH_LINE, cx, cy, cz - a, 0, 0, 2.0f*a,
+                     0, 0, 1, 1.0f, 0, 0, GDD_FRAG_UNLIT, o, 0, 0);
 
         /* 2. Fixed compass ring (white, world orientation) */
-        gdd_list_add(&dyn, GDD_MESH_RING, cx, cy, cz,
+        gdd_list_add(&dyn, GDD_MESH_CIRCLE, cx, cy, cz,
                      3.0f*ts, 3.0f*ts, 3.0f*ts, 1, 1, 1, 1.0f,
-                     0, 0, GDD_FRAG_UNLIT, o, 0.04f, 0);
+                     0, 0, GDD_FRAG_UNLIT, o, 0, 0);
 
         /* 3. Heading ring (cyan, level with pitch) */
         {
@@ -745,70 +817,56 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             gdd_m3_identity(mring);
             gdd_m3_rotate(mring, mrot, pitch_axis[0], pitch_axis[1], pitch_axis[2]);
             gdd_orient_from_m3(o, mring);
-            gdd_list_add(&dyn, GDD_MESH_RING, cx, cy, cz,
+            gdd_list_add(&dyn, GDD_MESH_CIRCLE, cx, cy, cz,
                          2.5f*ts, 2.5f*ts, 2.5f*ts, 0, 1, 1, 1.0f,
-                         0, 0, GDD_FRAG_UNLIT, o, 0.04f, 0);
+                         0, 0, GDD_FRAG_UNLIT, o, 0, 0);
         }
 
-        /* 4. Mark ring (yellow, aligned with heading) */
+        /* 4. Mark arc (yellow vertical arc, aligned with ship heading) */
         {
             gdd_m3 mring;
             gdd_m3_identity(mring);
-            gdd_m3_rotate(mring, (90.0f * M_PI / 180.0f) - h, 0, 1, 0);
+            gdd_m3_rotate(mring, head_yaw, 0, 1, 0);
             gdd_orient_from_m3(o, mring);
-            gdd_list_add(&dyn, GDD_MESH_RING, cx, cy, cz,
+            gdd_list_add(&dyn, GDD_MESH_ARC, cx, cy, cz,
                          2.8f*ts, 2.8f*ts, 2.8f*ts, 1, 1, 0, 1.0f,
-                         0, 0, GDD_FRAG_UNLIT, o, 0.04f, 0);
+                         0, 0, GDD_FRAG_UNLIT, o, 0, 0);
         }
 
-        /* 4.1 Roll circle (yellow, perpendicular to nose) */
+        /* 5. Roll circle (yellow, transverse: the GDD circle lives in
+         *    local XZ, so a RotZ(90) brings it to the CPU's local YZ,
+         *    then the same heading + pitch rotations) */
         {
             gdd_m3 mring;
             gdd_m3_identity(mring);
-            gdd_m3_rotate(mring, 90.0f * M_PI / 180.0f, 1, 0, 0); /* XZ -> YZ geometry */
-            gdd_m3_rotate(mring, (90.0f * M_PI / 180.0f) - h, 0, 1, 0);
+            gdd_m3_rotate(mring, 90.0f * M_PI / 180.0f, 0, 0, 1);
+            gdd_m3_rotate(mring, head_yaw, 0, 1, 0);
             gdd_m3_rotate(mring, mrot, pitch_axis[0], pitch_axis[1], pitch_axis[2]);
             gdd_orient_from_m3(o, mring);
-            gdd_list_add(&dyn, GDD_MESH_RING, cx, cy, cz,
+            gdd_list_add(&dyn, GDD_MESH_CIRCLE, cx, cy, cz,
                          2.8f*ts, 2.8f*ts, 2.8f*ts, 1, 1, 0, 1.0f,
-                         0, 0, GDD_FRAG_UNLIT, o, 0.04f, 0);
+                         0, 0, GDD_FRAG_UNLIT, o, 0, 0);
         }
 
-        /* 4.2 Pitch indicator ring */
+        /* 6. Directional vector (green arrow along the nose; a roll is
+         *    a rotation around the nose and leaves the arrow unchanged) */
         {
             gdd_m3 mring;
             gdd_m3_identity(mring);
-            gdd_m3_rotate(mring, h, 0, 1, 0);
-            gdd_orient_from_m3(o, mring);
-            gdd_list_add(&dyn, GDD_MESH_RING, cx, cy, cz,
-                         2.2f*ts, 2.2f*ts, 2.2f*ts, 0.5f, 1, 0.5f, 1.0f,
-                         0, 0, GDD_FRAG_UNLIT, o, 0.04f, 0);
-        }
-        
-        /* 5. Directional vector (green arrow along nose) */
-        {
-            float L = 1.68f * ts;
-            gdd_list_add(&dyn, GDD_MESH_LINE,
-                         cx + dirx[0] * 0.18f * ts, cy + dirx[1] * 0.18f * ts, cz + dirx[2] * 0.18f * ts,
-                         dirx[0] * (L - 0.18f * ts), dirx[1] * (L - 0.18f * ts), dirx[2] * (L - 0.18f * ts),
-                         0, 1, 0, 1.0f, 0, 0, GDD_FRAG_UNLIT, o, 0, 1);
+            gdd_m3_rotate(mring, head_yaw, 0, 1, 0);
+            gdd_m3_rotate(mring, mrot, pitch_axis[0], pitch_axis[1], pitch_axis[2]);
+            gdd_compass_arrow(&dyn, anchor, mring, ts, 0.0f, 1.0f, 0.0f);
         }
 
-        /* 5.1 Top vector (blue, half size, includes roll) */
+        /* 7. Top vector (blue arrow, half size, full ship orientation) */
         {
-            gdd_m3 mup;
-            gdd_m3_identity(mup);
-            gdd_m3_rotate(mup, -90.0f * M_PI / 180.0f, 0, 0, 1);
-            gdd_m3_rotate(mup, (90.0f * M_PI / 180.0f) - h, 0, 1, 0);
-            gdd_m3_rotate(mup, mrot, pitch_axis[0], pitch_axis[1], pitch_axis[2]);
-            gdd_m3_rotate(mup, rrot, nose[0], nose[1], nose[2]);
-            float d[3];
-            gdd_m3_xaxis(mup, d);
-            float L = 1.68f * 0.5f * ts;
-            gdd_list_add(&dyn, GDD_MESH_LINE,
-                         cx + d[0] * 0.18f * L, cy + d[1] * 0.18f * L, cz + d[2] * 0.18f * L,
-                         d[0] * (L - 0.18f * L), d[1] * (L - 0.18f * L), d[2] * (L - 0.18f * L),
-                         0, 0.5f, 1, 1.0f, 0, 0, GDD_FRAG_UNLIT, o, 0, 1);
+            gdd_m3 mring;
+            gdd_m3_identity(mring);
+            gdd_m3_rotate(mring, -90.0f * M_PI / 180.0f, 0, 0, 1);
+            gdd_m3_rotate(mring, head_yaw, 0, 1, 0);
+            gdd_m3_rotate(mring, mrot, pitch_axis[0], pitch_axis[1], pitch_axis[2]);
+            gdd_m3_rotate(mring, rrot, nose[0], nose[1], nose[2]);
+            gdd_compass_arrow(&dyn, anchor, mring, 0.5f * ts, 0.0f, 0.5f, 1.0f);
         }
     }
 
@@ -1213,12 +1271,21 @@ struct GddState {
 
     VkDescriptorPool desc_pool;
 
-    /* Single-sample depth attachment dedicated to the GDD pipelines.
-     * The app-level depth image is MSAA'd for the CPU-driven path, and
-     * the attachment sample count must equal the pipeline's
-     * rasterizationSamples (VUID-VkRenderingInfo-pDepthAttachment-06467);
-     * the GDD scene pipelines are VK_SAMPLE_COUNT_1_BIT, so they need
-     * their own 1-sample depth image. The CPU path keeps its own. */
+    /* MSAA state (CPU-path parity: the whole scene — quadrant cube
+     * wireframe included — is drawn with app->msaaSamples, capped at
+     * 4x, then resolved to the swapchain image).
+     * In this API the dynamic-rendering sample count is defined by the
+     * attachments, not by VkRenderingInfo: the color attachment below
+     * is multisampled (transient) and carries a per-attachment resolve
+     * onto the 1-sample swapchain image; the depth image and the scene
+     * pipelines' rasterizationSamples carry the same count (the depth
+     * attachment's samples must equal the pipeline's —
+     * VUID-VkRenderingInfo-pDepthAttachment-06467). The CPU-driven
+     * path keeps its own colorImage/depthImage. */
+    VkSampleCountFlagBits msaa;
+    VkImage colorImage;
+    VkDeviceMemory colorMemory;
+    VkImageView colorView;
     VkImage depthImage;
     VkDeviceMemory depthMemory;
     VkImageView depthView;
@@ -1360,7 +1427,7 @@ static bool gdd_create_buffer(VkDevice device, VkPhysicalDevice pd,
 }
 
 /* ------------------------------------------------------------------ */
-/* single-sample depth attachment (see GddState.depthImage note)       */
+/* depth attachment (MSAA — see GddState.msaa note)                    */
 /* ------------------------------------------------------------------ */
 static bool gdd_create_depth_image(GddState *g, VulkanApp *app) {
     VkDevice d = g->device;
@@ -1371,7 +1438,7 @@ static bool gdd_create_depth_image(GddState *g, VulkanApp *app) {
         .extent = { app->swapChainExtent.width, app->swapChainExtent.height, 1 },
         .mipLevels = 1,
         .arrayLayers = 1,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .samples = g->msaa,
         .tiling = VK_IMAGE_TILING_OPTIMAL,
         .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1404,6 +1471,55 @@ static bool gdd_create_depth_image(GddState *g, VulkanApp *app) {
         .subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 },
     };
     if (vkCreateImageView(d, &vi, NULL, &g->depthView) != VK_SUCCESS) return false;
+    return true;
+}
+
+/* Transient MSAA color attachment: rendered by the scene passes, then
+ * resolved onto the swapchain image through the color attachment's
+ * per-attachment resolve fields (see gdd_record). Same shape as the
+ * CPU-driven path's createColorResources. */
+static bool gdd_create_msaa_color_image(GddState *g, VulkanApp *app) {
+    VkDevice d = g->device;
+    VkImageCreateInfo ii = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = app->swapChainImageFormat,
+        .extent = { app->swapChainExtent.width, app->swapChainExtent.height, 1 },
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = g->msaa,
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    };
+    if (vkCreateImage(d, &ii, NULL, &g->colorImage) != VK_SUCCESS) return false;
+    VkMemoryRequirements mr;
+    vkGetImageMemoryRequirements(d, g->colorImage, &mr);
+    VkPhysicalDeviceMemoryProperties mprops;
+    vkGetPhysicalDeviceMemoryProperties(g->physicalDevice, &mprops);
+    uint32_t idx = VK_MAX_MEMORY_TYPES;
+    for (uint32_t i = 0; i < mprops.memoryTypeCount; i++)
+        if ((mr.memoryTypeBits & (1u << i)) &&
+            (mprops.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+            idx = i;
+            break;
+        }
+    if (idx == VK_MAX_MEMORY_TYPES) return false;
+    VkMemoryAllocateInfo ai = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = mr.size,
+        .memoryTypeIndex = idx,
+    };
+    if (vkAllocateMemory(d, &ai, NULL, &g->colorMemory) != VK_SUCCESS) return false;
+    if (vkBindImageMemory(d, g->colorImage, g->colorMemory, 0) != VK_SUCCESS) return false;
+    VkImageViewCreateInfo vi = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = g->colorImage,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = app->swapChainImageFormat,
+        .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
+    };
+    if (vkCreateImageView(d, &vi, NULL, &g->colorView) != VK_SUCCESS) return false;
     return true;
 }
 
@@ -1699,9 +1815,13 @@ static bool gdd_create_scene_pipelines(GddState *g) {
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .lineWidth = 1.0f,
     };
+    /* MSAA (CPU-path parity): the sample count must equal the
+     * multisampled color/depth attachments of the dynamic rendering —
+     * in this API the rendering's sample count comes from the
+     * attachments themselves. */
     VkPipelineMultisampleStateCreateInfo ms = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .rasterizationSamples = g->msaa,
     };
 
     VkPipeline pipelines[2];
@@ -1789,6 +1909,9 @@ bool gdd_init(VulkanApp *app) {
     g->device = app->device;
     g->physicalDevice = app->physicalDevice;
     g->app = app;
+    /* MSAA count shared by both architectures (capped at 4x in
+     * pickPhysicalDevice) — must be set before the images/pipelines. */
+    g->msaa = app->msaaSamples ? app->msaaSamples : VK_SAMPLE_COUNT_1_BIT;
     if (!gdd_pick_queue(app->physicalDevice, &g->queue_family)) {
         fprintf(stderr, "[GDD] no graphics+compute queue family: falling back to CPU-driven path\n");
         free(g);
@@ -1800,6 +1923,7 @@ bool gdd_init(VulkanApp *app) {
     bool ok = gdd_create_compute_pipelines(g);
     ok &= gdd_create_scene_pipelines(g);
     ok &= gdd_create_depth_image(g, app);
+    ok &= gdd_create_msaa_color_image(g, app);
     if (!ok) {
         fprintf(stderr, "[GDD] pipeline creation failed: falling back to CPU-driven path\n");
         gdd_cleanup(app);
@@ -1834,8 +1958,8 @@ bool gdd_init(VulkanApp *app) {
     }
 
     app->gdd = g;
-    printf("[GDD] GPU-driven path initialized (queue family %u, %u instance slots, %u vertex capacity)\n",
-           g->queue_family, GDD_DYN_MAX, GDD_VERTEX_CAPACITY);
+    printf("[GDD] GPU-driven path initialized (queue family %u, %u instance slots, %u vertex capacity, %u sample MSAA)\n",
+           g->queue_family, GDD_DYN_MAX, GDD_VERTEX_CAPACITY, (unsigned)g->msaa);
     return true;
 }
 
@@ -1843,6 +1967,9 @@ void gdd_cleanup(VulkanApp *app) {
     GddState *g = (GddState *)app->gdd;
     if (!g) return;
     VkDevice d = g->device;
+    if (g->colorView) vkDestroyImageView(d, g->colorView, NULL);
+    if (g->colorImage) vkDestroyImage(d, g->colorImage, NULL);
+    if (g->colorMemory) vkFreeMemory(d, g->colorMemory, NULL);
     if (g->depthView) vkDestroyImageView(d, g->depthView, NULL);
     if (g->depthImage) vkDestroyImage(d, g->depthImage, NULL);
     if (g->depthMemory) vkFreeMemory(d, g->depthMemory, NULL);
@@ -1896,10 +2023,12 @@ void gdd_cleanup(VulkanApp *app) {
 
 /* Minimum screen-space width (pixels, total) enforced on the GDD_MESH_LINE
  * tube cross-section (pushed to the expand pass as GddPC.line_min_wu, see
- * gdd_record). The GDD scene pipeline is triangle-based and single-sample:
- * without this floor the sub-pixel quadrant-cube edges rasterize with
- * stochastic pixel coverage — the dashed, flickering wireframe lines. 1.5 px
- * matches the visual weight of the CPU-driven 1-px MSAA lines. */
+ * gdd_record). The GDD scene pipeline is triangle-based (no line
+ * rasterizer): without this floor the sub-pixel quadrant-cube edges
+ * rasterize with stochastic sample coverage — the dashed, flickering
+ * wireframe lines (the pipeline now MSAA's like the CPU path, but each
+ * sample still covers the thin triangle independently). 1.5 px matches
+ * the visual weight of the CPU-driven 1-px MSAA lines. */
 #define GDD_LINE_MIN_PX 1.5f
 
 /* ------------------------------------------------------------------ */
@@ -2219,6 +2348,19 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
         ib_color.subresourceRange = (VkImageSubresourceRange){
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1 };
 
+        VkImageMemoryBarrier2 ib_msaa = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+        ib_msaa.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+        ib_msaa.srcAccessMask = 0;
+        ib_msaa.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+        ib_msaa.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+        ib_msaa.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        ib_msaa.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        ib_msaa.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        ib_msaa.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        ib_msaa.image = g->colorImage;
+        ib_msaa.subresourceRange = (VkImageSubresourceRange){
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1 };
+
         VkImageMemoryBarrier2 ib_depth = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
         ib_depth.srcStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
         ib_depth.srcAccessMask = 0;
@@ -2232,25 +2374,38 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
         ib_depth.subresourceRange = (VkImageSubresourceRange){
             .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .levelCount = 1, .layerCount = 1 };
 
-        VkImageMemoryBarrier2 barriers[2] = { ib_color, ib_depth };
+        VkImageMemoryBarrier2 barriers[3] = { ib_color, ib_msaa, ib_depth };
         VkDependencyInfo dep = { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
                                  .memoryBarrierCount = 1, .pMemoryBarriers = &mb,
-                                 .imageMemoryBarrierCount = 2,
+                                 .imageMemoryBarrierCount = 3,
                                  .pImageMemoryBarriers = barriers };
         vkCmdPipelineBarrier2(cb, &dep);
     }
 
-    /* --- 6. dynamic rendering (Vulkan 1.3/1.4): one render pass,      */
-    /*        one DrawIndirect per pass -------------------------------- */
+    /* --- 6. dynamic rendering with MSAA (Vulkan 1.4): one render     */
+    /*        pass, one DrawIndirect per pass, hardware resolve -------
+    *        The scene passes draw into a TRANSIENT multisampled color
+    *        attachment; the per-attachment resolve (VkRenderingAttach-
+    *        mentInfo resolve fields) averages the samples onto the
+    *        1-sample swapchain image — the same MSAA + resolve the
+    *        CPU-driven render pass does. In this API the rendering's
+    *        sample count is defined by the attachments (VkRendering-
+    *        Info has no samples member); the depth attachment and the
+    *        pipeline rasterizationSamples carry the same count. */
     VkRenderingAttachmentInfo color_att = { .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    color_att.imageView = app->swapChainImageViews[image_idx];
+    color_att.imageView = g->colorView; /* MSAA transient color */
     color_att.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    /* AVERAGE (this SDK's name for the 0x2 SAMPLE_AVERAGE bit): average
+     * the MSAA samples onto the 1-sample swapchain image. */
+    color_att.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+    color_att.resolveImageView = app->swapChainImageViews[image_idx];
+    color_att.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     color_att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    color_att.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color_att.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; /* transient: only the resolve consumes it */
     color_att.clearValue.color.float32[3] = 1.0f; /* black background */
 
     VkRenderingAttachmentInfo depth_att = { .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    depth_att.imageView = g->depthView; /* GDD 1-sample depth (VUID match) */
+    depth_att.imageView = g->depthView; /* GDD MSAA depth (matches rasterizationSamples) */
     depth_att.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     depth_att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depth_att.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;

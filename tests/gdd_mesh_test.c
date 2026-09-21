@@ -62,7 +62,7 @@
 #endif
 
 /* Test data sizes (declared first: the buffer setup below uses them) */
-#define N_DYN  10
+#define N_DYN  12
 #define N_MAP  4
 #define VMAX   2048
 
@@ -237,6 +237,72 @@ static uint32_t expand_ring(const GddInstance *it, GddVertex *out) {
     return 96;
 }
 
+/* Shared half-thickness of expand_circle / expand_arc: mirror of
+ * gdd_expand_circle/gdd_expand_arc (it.p.x with default 0.02, clamped
+ * to pc.line_min_wu — 0 in this test). */
+static float band_half_thick(const GddInstance *it) {
+    float t = (it->pad[0] > 1e-4f) ? it->pad[0] : 0.02f;
+    float line_min_wu = 0.0f; /* pc.line_min_wu in this test */
+    return (t > line_min_wu) ? t : line_min_wu;
+}
+
+static uint32_t expand_circle(const GddInstance *it, GddVertex *out) {
+    float r = (it->scale[0] > 1e-4f) ? it->scale[0] : 1e-4f;
+    float t = band_half_thick(it);
+    float rin = (r - t) / r;
+    if (rin < 1e-4f) rin = 1e-4f;
+    if (rin > 1.0f) rin = 1.0f;
+    float rout = (r + t) / r;
+    for (int j = 0; j < 72; j++) {
+        float a0 = 6.283185307179586f * (float)j / 72.0f;
+        float a1 = 6.283185307179586f * (float)(j + 1) / 72.0f;
+        float i0[3] = { cosf(a0) * rin, 0.0f, sinf(a0) * rin };
+        float i1[3] = { cosf(a1) * rin, 0.0f, sinf(a1) * rin };
+        float o0[3] = { cosf(a0) * rout, 0.0f, sinf(a0) * rout };
+        float o1[3] = { cosf(a1) * rout, 0.0f, sinf(a1) * rout };
+        const float *lp[6] = { i0, i1, o1, i0, o1, o0 };
+        const float n[3] = { 0, 1, 0 };
+        for (int k = 0; k < 6; k++) {
+            float w[3], nn[3];
+            m_xform(it, lp[k], w);
+            m_xform_n(it, n, nn);
+            float lsc[3] = { lp[k][0] * it->scale[0], lp[k][1] * it->scale[0],
+                             lp[k][2] * it->scale[0] };
+            put_exp(&out[j * 6 + k], w, lsc, nn, it);
+        }
+    }
+    return 432;
+}
+
+static uint32_t expand_arc(const GddInstance *it, GddVertex *out) {
+    const float PI = 3.141592653589793f;
+    float r = (it->scale[0] > 1e-4f) ? it->scale[0] : 1e-4f;
+    float t = band_half_thick(it);
+    float rin = (r - t) / r;
+    if (rin < 1e-4f) rin = 1e-4f;
+    if (rin > 1.0f) rin = 1.0f;
+    float rout = (r + t) / r;
+    for (int j = 0; j < 36; j++) {
+        float a0 = PI * (float)j / 36.0f - PI * 0.5f;
+        float a1 = PI * (float)(j + 1) / 36.0f - PI * 0.5f;
+        float i0[3] = { cosf(a0) * rin, sinf(a0) * rin, 0.0f };
+        float i1[3] = { cosf(a1) * rin, sinf(a1) * rin, 0.0f };
+        float o0[3] = { cosf(a0) * rout, sinf(a0) * rout, 0.0f };
+        float o1[3] = { cosf(a1) * rout, sinf(a1) * rout, 0.0f };
+        const float *lp[6] = { i0, i1, o1, i0, o1, o0 };
+        const float n[3] = { 0, 0, 1 };
+        for (int k = 0; k < 6; k++) {
+            float w[3], nn[3];
+            m_xform(it, lp[k], w);
+            m_xform_n(it, n, nn);
+            float lsc[3] = { lp[k][0] * it->scale[0], lp[k][1] * it->scale[0],
+                             lp[k][2] * it->scale[0] };
+            put_exp(&out[j * 6 + k], w, lsc, nn, it);
+        }
+    }
+    return 216;
+}
+
 static uint32_t expand_line(const GddInstance *it, GddVertex *out) {
     float e[3] = { it->scale[0], it->scale[1], it->scale[2] };
     float len = sqrtf(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]);
@@ -344,6 +410,8 @@ static uint32_t expand_mesh(const GddInstance *it, GddVertex *out) {
     case GDD_MESH_OCTA:    return expand_octa(it, out);
     case GDD_MESH_RING:    return expand_ring(it, out);
     case GDD_MESH_LINE:    return expand_line(it, out);
+    case GDD_MESH_CIRCLE:  return expand_circle(it, out);
+    case GDD_MESH_ARC:     return expand_arc(it, out);
     default:               return expand_box(it, out);
     }
 }
@@ -918,6 +986,34 @@ static void fill_test_data(void) {
     u_inst_dyn[9].alpha = 1.0f;
     set_identity_orient(u_inst_dyn[9].orient);
 
+    /* 10: circle (compass-ring style), IN range, half-thickness 0.02 */
+    u_inst_dyn[10].pos[0] = 3.0f;
+    u_inst_dyn[10].mesh = GDD_MESH_CIRCLE;
+    u_inst_dyn[10].scale[0] = 1.2f; u_inst_dyn[10].scale[1] = 1.2f; u_inst_dyn[10].scale[2] = 1.2f;
+    u_inst_dyn[10].flags = gdd_make_flags(0, 0, GDD_FRAG_UNLIT);
+    u_inst_dyn[10].color[0] = 1.0f; u_inst_dyn[10].color[1] = 1.0f; u_inst_dyn[10].color[2] = 1.0f;
+    u_inst_dyn[10].alpha = 1.0f;
+    u_inst_dyn[10].pad[0] = 0.02f;
+    set_identity_orient(u_inst_dyn[10].orient);
+
+    /* 11: arc (compass-mark style), IN range, half-thickness 0.05,
+     *     rotated RotY(30 deg) (engine row-major M) */
+    u_inst_dyn[11].pos[0] = -2.0f; u_inst_dyn[11].pos[1] = 1.0f;
+    u_inst_dyn[11].mesh = GDD_MESH_ARC;
+    u_inst_dyn[11].scale[0] = 0.9f; u_inst_dyn[11].scale[1] = 0.9f; u_inst_dyn[11].scale[2] = 0.9f;
+    u_inst_dyn[11].flags = gdd_make_flags(0, 0, GDD_FRAG_UNLIT);
+    u_inst_dyn[11].color[0] = 1.0f; u_inst_dyn[11].color[1] = 1.0f; u_inst_dyn[11].color[2] = 0.0f;
+    u_inst_dyn[11].alpha = 1.0f;
+    u_inst_dyn[11].pad[0] = 0.05f;
+    {
+        float c30 = cosf(30.0f * M_PI / 180.0f);
+        float s30 = sinf(30.0f * M_PI / 180.0f);
+        float ory30[12] = { c30, 0.0f, s30, 0.0f,
+                            0.0f, 1.0f, 0.0f, 0.0f,
+                           -s30, 0.0f, c30, 0.0f };
+        memcpy(u_inst_dyn[11].orient, ory30, sizeof(ory30));
+    }
+
     /* --- map group (static geometry: all NEVER_CULL) --------------- */
     u_inst_map[0].pos[0] = 5.0f; u_inst_map[0].pos[2] = -5.0f;
     u_inst_map[0].mesh = GDD_MESH_BOX;
@@ -1152,7 +1248,7 @@ int main(int argc, char **argv) {
     }
     /* Expected per-pass totals */
     uint32_t opaque_ref = 0, additive_ref = 0;
-    GddVertex exp_block[384];
+    GddVertex exp_block[432]; /* max mesh vertex count (GDD_VCOUNT_CIRCLE) */
     static uint32_t used[VMAX];
     int blocks_checked = 0;
 
@@ -1163,7 +1259,9 @@ int main(int argc, char **argv) {
                      u_inst_dyn[i].mesh == GDD_MESH_OCTA ||
                      u_inst_dyn[i].mesh == GDD_MESH_RING ||
                      u_inst_dyn[i].mesh == GDD_MESH_POINT ||
-                     u_inst_dyn[i].mesh == GDD_MESH_LINE || i == 0) ? TOL_TRIG : TOL_EXACT;
+                     u_inst_dyn[i].mesh == GDD_MESH_LINE ||
+                     u_inst_dyn[i].mesh == GDD_MESH_CIRCLE ||
+                     u_inst_dyn[i].mesh == GDD_MESH_ARC || i == 0) ? TOL_TRIG : TOL_EXACT;
         uint32_t at = find_block(u_verts, VMAX, used, exp_block, n, tol);
         CHECK(at != UINT32_MAX, "map block %d (mesh %u, %u verts) found in readback",
               i, (uint32_t)u_inst_map[i].mesh, n);
@@ -1180,7 +1278,9 @@ int main(int argc, char **argv) {
         /* trig meshes (sin/cos) and rotated blocks get the ulp tolerance */
         float tol = (u_inst_dyn[i].mesh == GDD_MESH_SPHERE ||
                      u_inst_dyn[i].mesh == GDD_MESH_OCTA ||
-                     u_inst_dyn[i].mesh == GDD_MESH_RING || i == 0) ? TOL_TRIG : TOL_EXACT;
+                     u_inst_dyn[i].mesh == GDD_MESH_RING ||
+                     u_inst_dyn[i].mesh == GDD_MESH_CIRCLE ||
+                     u_inst_dyn[i].mesh == GDD_MESH_ARC || i == 0) ? TOL_TRIG : TOL_EXACT;
         uint32_t at = find_block(u_verts, VMAX, used, exp_block, n, tol);
         
         if (at == UINT32_MAX) {

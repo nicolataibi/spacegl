@@ -2731,20 +2731,19 @@ void createDepthResources(VulkanApp* app) {
 
 void createInstance(VulkanApp* app) {
     /* GPU-driven path (SPACEGL_GPD=1): the instance must expose the
-     * Vulkan 1.4 API (synchronization2 barriers, dynamic rendering,
-     * indirect draws). Query what the driver provides and clamp; a
-     * driver older than 1.3 cannot run the GDD path at all, so the
-     * client falls back to the CPU-driven one. */
+     * Vulkan 1.4 API (synchronization2 barriers, dynamic rendering
+     * with per-attachment MSAA resolve, indirect draws). Query what
+     * the driver provides; a driver older than 1.4 cannot run the
+     * GDD path, so the client falls back to the CPU-driven one. */
     uint32_t apiVer = VK_API_VERSION_1_0;
     if (app->gdd_wanted) {
         uint32_t drvVer = 0;
-        if (vkEnumerateInstanceVersion(&drvVer) == VK_SUCCESS && drvVer >= VK_API_VERSION_1_3) {
-            apiVer = (drvVer >= VK_API_VERSION_1_4) ? VK_API_VERSION_1_4 : VK_API_VERSION_1_3;
-            printf("[GDD] creating Vulkan instance at API version %u.%u.%u (driver exposes %u.%u.%u)\n",
-                   VK_VERSION_MAJOR(apiVer), VK_VERSION_MINOR(apiVer), VK_VERSION_PATCH(apiVer),
+        if (vkEnumerateInstanceVersion(&drvVer) == VK_SUCCESS && drvVer >= VK_API_VERSION_1_4) {
+            apiVer = VK_API_VERSION_1_4;
+            printf("[GDD] creating Vulkan instance at API version 1.4 (driver exposes %u.%u.%u)\n",
                    VK_VERSION_MAJOR(drvVer), VK_VERSION_MINOR(drvVer), VK_VERSION_PATCH(drvVer));
         } else {
-            fprintf(stderr, "[GDD] driver Vulkan %u.%u.%u < 1.3: GPU-driven path unavailable, falling back to CPU-driven\n",
+            fprintf(stderr, "[GDD] driver Vulkan %u.%u.%u < 1.4: GPU-driven path unavailable, falling back to CPU-driven\n",
                     VK_VERSION_MAJOR(drvVer), VK_VERSION_MINOR(drvVer), VK_VERSION_PATCH(drvVer));
             app->gdd_wanted = false;
         }

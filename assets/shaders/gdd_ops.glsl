@@ -181,6 +181,69 @@ void gdd_expand_ring(uint base, GddInstance it) {
     }
 }
 
+void gdd_expand_circle(uint base, GddInstance it) {
+    /* Thin wireframe circle in the local XZ plane (unit space; the
+     * instance's x-scale is the radius, same convention as GDD_MESH_RING):
+     * 72 segments x 2 triangles — the same 5-degree tessellation as the
+     * CPU compass circle (CIRCLE_SEGMENTS = 72), so the two paths render
+     * the same smooth ring instead of the faceted 16-seg annulus.
+     * it.p.x (metallic) = half-thickness of the band in world units;
+     * clamped to the same screen-space floor as gdd_expand_line
+     * (pc.line_min_wu) so the ring keeps the 1-px visual weight of the
+     * CPU-driven MSAA lines. 0 -> default 0.02. */
+    float r = max(it.b.x, 1e-4);
+    float t = (it.p.x > 1e-4) ? it.p.x : 0.02;
+    t = max(t, pc.line_min_wu);
+    float rin  = clamp((r - t) / r, 1e-4, 1.0);
+    float rout = (r + t) / r;
+    for (int j = 0; j < GDD_CIRCLE_SEGS; j++) {
+        float a0 = 6.283185307179586 * float(j) / float(GDD_CIRCLE_SEGS);
+        float a1 = 6.283185307179586 * float(j + 1) / float(GDD_CIRCLE_SEGS);
+        vec3 i0 = vec3(cos(a0), 0.0, sin(a0)) * rin;
+        vec3 i1 = vec3(cos(a1), 0.0, sin(a1)) * rin;
+        vec3 o0 = vec3(cos(a0), 0.0, sin(a0)) * rout;
+        vec3 o1 = vec3(cos(a1), 0.0, sin(a1)) * rout;
+        uint b0 = base + uint(j) * 6u;
+        gdd_put(b0 + 0u, gdd_xform(it, i0), i0 * it.b.x, it.o * vec3(0, 1, 0), it);
+        gdd_put(b0 + 1u, gdd_xform(it, i1), i1 * it.b.x, it.o * vec3(0, 1, 0), it);
+        gdd_put(b0 + 2u, gdd_xform(it, o1), o1 * it.b.x, it.o * vec3(0, 1, 0), it);
+        gdd_put(b0 + 3u, gdd_xform(it, i0), i0 * it.b.x, it.o * vec3(0, 1, 0), it);
+        gdd_put(b0 + 4u, gdd_xform(it, o1), o1 * it.b.x, it.o * vec3(0, 1, 0), it);
+        gdd_put(b0 + 5u, gdd_xform(it, o0), o0 * it.b.x, it.o * vec3(0, 1, 0), it);
+    }
+}
+
+void gdd_expand_arc(uint base, GddInstance it) {
+    /* Thin 180-degree wireframe arc in the local XY (vertical) plane:
+     * sweeps from -90 degrees (local -Y) through 0 degrees (local +X,
+     * the nose direction) to +90 degrees (+Y), 36 segments of 5 degrees
+     * — the same sweep/tessellation as the CPU compass mark arc
+     * (ARC_SEGMENTS = 37 points). The instance orientation tilts the
+     * whole arc (the CPU path applies RotY(90-deg - heading) to it).
+     * Half-thickness semantics identical to gdd_expand_circle. */
+    float r = max(it.b.x, 1e-4);
+    float t = (it.p.x > 1e-4) ? it.p.x : 0.02;
+    t = max(t, pc.line_min_wu);
+    float rin  = clamp((r - t) / r, 1e-4, 1.0);
+    float rout = (r + t) / r;
+    float PI = 3.141592653589793;
+    for (int j = 0; j < GDD_ARC_SEGS; j++) {
+        float a0 = PI * float(j) / float(GDD_ARC_SEGS) - PI * 0.5;
+        float a1 = PI * float(j + 1) / float(GDD_ARC_SEGS) - PI * 0.5;
+        vec3 i0 = vec3(cos(a0), sin(a0), 0.0) * rin;
+        vec3 i1 = vec3(cos(a1), sin(a1), 0.0) * rin;
+        vec3 o0 = vec3(cos(a0), sin(a0), 0.0) * rout;
+        vec3 o1 = vec3(cos(a1), sin(a1), 0.0) * rout;
+        uint b0 = base + uint(j) * 6u;
+        gdd_put(b0 + 0u, gdd_xform(it, i0), i0 * it.b.x, it.o * vec3(0, 0, 1), it);
+        gdd_put(b0 + 1u, gdd_xform(it, i1), i1 * it.b.x, it.o * vec3(0, 0, 1), it);
+        gdd_put(b0 + 2u, gdd_xform(it, o1), o1 * it.b.x, it.o * vec3(0, 0, 1), it);
+        gdd_put(b0 + 3u, gdd_xform(it, i0), i0 * it.b.x, it.o * vec3(0, 0, 1), it);
+        gdd_put(b0 + 4u, gdd_xform(it, o1), o1 * it.b.x, it.o * vec3(0, 0, 1), it);
+        gdd_put(b0 + 5u, gdd_xform(it, o0), o0 * it.b.x, it.o * vec3(0, 0, 1), it);
+    }
+}
+
 void gdd_expand_line(uint base, GddInstance it) {
     /* Square-tube cross-section: 4 rectangular faces × 6 verts = 24.
      * Visible from any camera angle, no Z-fighting, clean corners.

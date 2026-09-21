@@ -43,6 +43,8 @@ void main() {
         case GDD_MESH_OCTA:    if (!gdd_reserve(it, GDD_VC_OCTA, base)) return; gdd_expand_octa(base, it); break;
         case GDD_MESH_RING:    if (!gdd_reserve(it, GDD_VC_RING, base)) return; gdd_expand_ring(base, it); break;
         case GDD_MESH_LINE:    if (!gdd_reserve(it, GDD_VC_LINE, base)) return; gdd_expand_line(base, it); break;
+        case GDD_MESH_CIRCLE:  if (!gdd_reserve(it, GDD_VC_CIRCLE, base)) return; gdd_expand_circle(base, it); break;
+        case GDD_MESH_ARC:     if (!gdd_reserve(it, GDD_VC_ARC, base)) return; gdd_expand_arc(base, it); break;
         default:               if (!gdd_reserve(it, GDD_VC_BOX, base)) return; gdd_expand_box(base, it); break;
     }
 }

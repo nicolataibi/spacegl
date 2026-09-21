@@ -79,6 +79,8 @@ const int GDD_MESH_PYRAMID = 3;
 const int GDD_MESH_OCTA    = 4;
 const int GDD_MESH_RING    = 5;
 const int GDD_MESH_LINE    = 6;
+const int GDD_MESH_CIRCLE  = 7;
+const int GDD_MESH_ARC     = 8;
 
 const uint GDD_VC_POINT   = 6u;
 const uint GDD_VC_SPHERE  = 360u;
@@ -87,10 +89,14 @@ const uint GDD_VC_PYRAMID = 18u;
 const uint GDD_VC_OCTA    = 24u;
 const uint GDD_VC_RING    = 96u;
 const uint GDD_VC_LINE    = 24u; /* square tube: 4 faces × 6 verts, no Z-fighting */
+const uint GDD_VC_CIRCLE  = 432u; /* 72 segments × 6 verts (2 triangles) */
+const uint GDD_VC_ARC     = 216u; /* 36 segments × 6 verts (2 triangles) */
 
 const int  GDD_SPHERE_LATS = 6;
 const int  GDD_SPHERE_LONS = 10;
 const int  GDD_RING_SEGS   = 16;
+const int  GDD_CIRCLE_SEGS = 72; /* == CIRCLE_SEGMENTS of the CPU compass */
+const int  GDD_ARC_SEGS    = 36; /* == ARC_SEGMENTS-1 of the CPU compass */
 
 /* ------------------------------------------------------------------ */
 /* Flag decoding (GddInstance.b.w is a float holding exact small      */

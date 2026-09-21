@@ -89,6 +89,8 @@
 #define GDD_MESH_OCTA    4  /* 24 verts  : starbase core, buoys */
 #define GDD_MESH_RING    5  /* 96 verts  : flat 16-segment annulus in local XZ (gates, orbital rings) */
 #define GDD_MESH_LINE    6  /* 24 verts  : square tube (4 faces x 6) along scale.xyz (grid, axes, quadrant cube) */
+#define GDD_MESH_CIRCLE  7  /* 432 verts : thin 72-seg wireframe circle in local XZ (AR compass rings) */
+#define GDD_MESH_ARC     8  /* 216 verts : thin 36-seg 180-deg wireframe arc in local XY (AR compass mark) */
 
 #define GDD_VCOUNT_POINT   6u
 #define GDD_VCOUNT_SPHERE  360u
@@ -97,6 +99,8 @@
 #define GDD_VCOUNT_OCTA    24u
 #define GDD_VCOUNT_RING    96u
 #define GDD_VCOUNT_LINE    24u
+#define GDD_VCOUNT_CIRCLE  432u
+#define GDD_VCOUNT_ARC     216u
 
 /* Fragment render modes (mirror the CPU path "usePushColor" ids,
  * assets/shaders/shader.frag — keep the numbers aligned). */
@@ -134,7 +138,7 @@ typedef struct {
     float pos[3];    /* world position (tactical mapping already applied) */
     float mesh;      /* GDD_MESH_* id */
     float scale[3];  /* box/pyramid/octa: half-extents; sphere: radius (x);
-                        ring: radius; line: full direction*length vector */
+                        ring/circle/arc: radius (x); line: full direction*length vector */
     float flags;     /* GDD_FLAG_* (exact integer bits) */
     float color[3];  /* rgb */
     float alpha;     /* 0..1 */
