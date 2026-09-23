@@ -91,6 +91,19 @@
 #define GDD_MESH_LINE    6  /* 24 verts  : square tube (4 faces x 6) along scale.xyz (grid, axes, quadrant cube) */
 #define GDD_MESH_CIRCLE  7  /* 432 verts : thin 72-seg wireframe circle in local XZ (AR compass rings) */
 #define GDD_MESH_ARC     8  /* 216 verts : thin 36-seg 180-deg wireframe arc in local XY (AR compass mark) */
+/* Procedural explosion cloud (CPU boom parity: 256 expanding particles).
+ * it.a.xyz = boom center (world, already tactScale-mapped); it.b.x =
+ * tactScale; it.c.w (alpha) = life; it.p.x = per-boom seed (0..1000);
+ * it.p.y = style (0 = torpedo boom: cubic offsets, 6-color cycle;
+ * 1 = dismantle boom: spherical offsets, 3-color mix). */
+#define GDD_MESH_BOOM    9  /* 1536 verts : 256 particles x 6 verts (double-sided triangle) */
+/* Wireframe box: the 12 edges of the unit box as square tubes (same
+ * tube construction as GDD_MESH_LINE), ONE instance per wireframe box
+ * (the GDD counterpart of the CPU path's LINE_LIST cube, e.g. the
+ * galaxy map frame/sectors). it.b.xyz = half-extents (GDD_MESH_BOX
+ * convention); it.p.x (metallic) = tube half-thickness in world units
+ * (0 -> 0.02), clamped to the same 1-px screen-space floor. */
+#define GDD_MESH_BOXWIRE 10  /* 288 verts : 12 edges x 4 faces x 6 verts */
 
 #define GDD_VCOUNT_POINT   6u
 #define GDD_VCOUNT_SPHERE  360u
@@ -101,6 +114,8 @@
 #define GDD_VCOUNT_LINE    24u
 #define GDD_VCOUNT_CIRCLE  432u
 #define GDD_VCOUNT_ARC     216u
+#define GDD_VCOUNT_BOOM    1536u
+#define GDD_VCOUNT_BOXWIRE 288u
 
 /* Fragment render modes (mirror the CPU path "usePushColor" ids,
  * assets/shaders/shader.frag — keep the numbers aligned). */
@@ -113,6 +128,14 @@
 #define GDD_FRAG_ACCRETION  8  /* white->yellow->red radial gradient (black hole disks) */
 #define GDD_FRAG_NEBULA     9  /* FBM volumetric cloud (nebulae, dark matter) */
 #define GDD_FRAG_FILAMENT  10  /* electrical discharge plasma (filaments, storms) */
+/* Barycentric wireframe (procedural line rendering on solid triangles):
+ * the pyramid / box / octa expanders store per-vertex barycentric coords
+ * in GddVertex.params (x,y,z) when the instance mode is one of these,
+ * and the scene fragment shader draws the triangle edges only (per-sample
+ * discard under MSAA = antialiased lines, the GDD counterpart of the CPU
+ * path's fixed-function LINE_LIST wireframe pipeline). */
+#define GDD_FRAG_WIREFRAME  11 /* wireframe, unlit instance color (CPU mode 1 on the wireframe pipeline) */
+#define GDD_FRAG_WIREFRAME_PBR 12 /* wireframe, PBR metal 0.9 / rough 0.25 (CPU ships: wireframe + mode 5) */
 
 /* Instance flags (GddInstance.b.w). The field is a float that must hold
  * exact small integer values (any integer < 2^24 is exact in float32);
@@ -158,6 +181,9 @@ typedef struct {
     float color[4];
     float normal[3]; float mode;     /* GDD_FRAG_* */
     float local[3];  float pad1;     /* local (pre-transform) position */
+    /* params: (metallic, roughness, 0, 0) for the PBR / shockwave modes;
+     * (bary_x, bary_y, bary_z, 0) for the GDD_FRAG_WIREFRAME(_PBR) modes
+     * (per-vertex barycentric coords used by the fragment wireframe mask). */
     float metallic;  float roughness; float pad2; float pad3;
 } GddVertex;
 
@@ -212,8 +238,19 @@ typedef struct {
 /* ================================================================== */
 #define GDD_MAX_FRAMES          3
 #define GDD_DYN_MAX             4096u  /* objects + torps + effects + compass */
-#define GDD_MAP_MAX             8192u  /* starfield + grid (tactical) / galaxy sectors (map) */
-#define GDD_VERTEX_CAPACITY     512000u /* total generated vertices per frame (both passes) */
+/* Map/static group: starfield + grid (tactical) or the galaxy map
+ * (frame + highlight + one instance per non-zero sector; a 40^3 galaxy
+ * has 64,000 cells, so the budget covers a fully populated galaxy even
+ * mid tactical<->map transition, where both static sets coexist: ~3,300
+ * tactical + 64,013 map). */
+#define GDD_MAP_MAX             72000u
+/* Total generated vertices per frame (both passes). In map mode every
+ * wireframe sector costs GDD_VCOUNT_BOXWIRE (288) vertices: the budget
+ * covers ~14,500 wireframe sectors (a fully populated 64k-sector galaxy
+ * in filter mode, where each sector is one 36-vertex PBR box, always
+ * fits); beyond the budget the expand pass drops instances ("drop when
+ * full", same policy as the legacy CPU path). */
+#define GDD_VERTEX_CAPACITY     4194304u
 #define GDD_WORKGROUP           256u
 #define GDD_STAR_COUNT          2000u /* == MAX_STARS of the CPU path */
 
@@ -249,7 +286,13 @@ typedef struct {
 } SmoothObj;
 
 typedef struct { float sx, sy, sz, tx, ty, tz, life; int owner_id; int extra; int emitter_id; } ActiveBeam;
-typedef struct { float x, y, z, life; float offsets[GDD_EXPLOSION_PIXELS][3]; float colors[GDD_EXPLOSION_PIXELS][3]; } ActiveBoom;
+typedef struct { float x, y, z, life; float offsets[GDD_EXPLOSION_PIXELS][3]; float colors[GDD_EXPLOSION_PIXELS][3];
+    /* GPU-driven path: the 256-particle cloud is generated on the GPU
+     * from these (per-boom random seed + style) instead of the
+     * CPU-side offsets/colors tables (which the CPU-driven path keeps).
+     * style 0 = torpedo boom (cubic offsets, 6-color cycle),
+     * style 1 = dismantle boom (spherical offsets, 3-color mix). */
+    float seed; int style; } ActiveBoom;
 typedef struct { float x, y, z, life; float scale; } ActiveDismantle;
 typedef struct { float x, y, z; float dx, dy, dz; int active; int id; } ActiveTorp;
 typedef struct { float x, y, z; float angle; float radius; float speed; int active; } ArrivalParticle;

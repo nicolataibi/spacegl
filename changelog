@@ -1,3 +1,103 @@
+* Wed Sep 23 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.23.01
+  - Vulkan GDD (SPACEGL_GPD=1): CPU parity for the ships, the quantum
+  engine, the torpedo explosions, the shield hits and the galaxy map.
+  New fragment modes GDD_FRAG_WIREFRAME (11) / GDD_FRAG_WIREFRAME_PBR
+  (12) in include/spacegl_gdd.h: a barycentric wireframe drawn in the
+  scene fragment shader (gdd_wire_mask on the per-vertex barycentric
+  coords stored in GddVertex.params by gdd_put_bary; per-sample
+  discard under MSAA = antialiased lines, the GDD counterpart of the CPU path's
+  fixed-function LINE_LIST wireframe pipeline). The pyramid/box/octa
+  expanders emit the barycentric variant when the instance mode is one
+  of the two. Tactical ships (type 1 / >= 10) now render as PBR
+  wireframe (mode 12, metal 0.9 / rough 0.25, the CPU wireframe +
+  usePushColor=5 look) instead of solid unlit pyramids, with the
+  CPU geometry alignment: the centered GDD pyramid is shifted along
+  the nose axis by GDD_SHIP_STERN_OFF (0.7288 * SCALE_SHIP * 0.55)
+  so stern/nose land on the exact CPU world offsets (mesh local
+  X in [-0.7288, +2.1866] x 0.55 * tactScale). Cloaked ships keep
+  the cyan pulsing wireframe.
+  - Vulkan GDD: the Alliance quantum engine (faction 0/1 ships) is
+  now drawn in the GDD builder: a pulsing wireframe octahedron core
+  (class-dependent spin 1.0 + (12-cl)*0.2, the CPU color pulse
+  0.8+0.2sin / 0.6+0.3cos / 0.2+0.2sin) + 3 orbiting wireframe
+  circles (speeds 2.8/-2.1/3.5, radii 0.15/0.18/0.21, cyan
+  0/0.95/1). Position and scale reproduce the ACTUAL CPU matrix
+  product (offset -0.46 * 0.2475 * ts along the nose axis, core
+  radius 0.20 * 0.2475 * ts, with 0.2475 = SCALE_SHIP * 0.55) —
+  the code comment (-0.46 * ts) does not match what the CPU really
+  renders, and the GDD follows the real render.
+  - Vulkan GDD: new mesh GDD_MESH_BOOM (9, 1536 verts = 256 particles
+  x double-sided triangle) for the torpedo/dismantle explosions. The
+  GPU generates the full 256-particle cloud procedurally from the
+  per-boom seed + style (gdd_boom_hash: Wang hash over the exact
+  integer inputs, bit-identical in the C mirror), matching the CPU
+  cloud: style 0 (torpedo) cubic offsets in [-4,4]^3 with the 6-color
+  cycle (0,1,1)(1,0,1)(1,1,0)(1,0,0)(0,1,0)(1,0.5,0); style 1
+  (dismantle) spherical offsets, speed 3.5..5.5 for p<32 else
+  1.0..3.5, colors white / (0,0.5,1) / (0.2,0.8,1); expansion
+  exp = (1-life) * 12 * tactScale, particle radius 0.25 * tactScale.
+  ActiveBoom gains the seed/style fields (the event handlers
+  populate them; the CPU path keeps its per-boom tables). The old
+  GDD "core/flash/shockwave" boom spheres (copied from the
+  dismantle effect and absent from the CPU explosion) are gone; the GDD
+  dismantle flash now respects the CPU life > 0.7 window.
+  - Vulkan GDD: shield hit illumination. gdd_build_frame now runs
+  the same hit detection as the CPU's drawShieldEffect (a sector
+  flashes for GAME_TICK_RATE frames whenever its shield value drops,
+  static last-value tracking per sector) so the GDD path lights up
+  its shields too. The builder's two shield rings are replaced by
+  the faithful 6 directional panels: per hit sector an anisotropic
+  PBR energy sphere (0.5 x 1.8 x 1.8 scale), a shockwave surface
+  glow (metallic = pulse * 15) and 4 outer volumetric shells (CPU
+  drawShieldGlow, alpha / (i * 1.2)), all oriented with the ship
+  (R_sec = Ry(ry) * Rz(rx) composed with R_ship) and centered at
+  1.45 * scale along the sector axis; alpha fades in the last half
+  of the 80-frame timer.
+  - Vulkan GDD: the galaxy map is now faithful to drawGalaxyMap. New
+  mesh GDD_MESH_BOXWIRE (10, 288 verts = 12 edges x 4 tube faces x 6
+  verts): the 12 edges of the unit box as square tubes in ONE
+  instance (GDD_BOXWIRE_EDGES table in gdd_common.glsl, same tube
+  construction as gdd_expand_line, gdd_expand_boxwire in
+  gdd_ops.glsl) — the GDD counterpart of the CPU's LINE_LIST cube,
+  one instance per wireframe box instead of 12 (a 40^3 galaxy has
+  64,000 cells and must fit the map budget). The global frame, the
+  filter-0 sectors and the player-quadrant highlight are now
+  wireframe (GDD_FRAG_UNLIT, the CPU wireframe pipeline with
+  usePushColor=1); filter>0 sectors are solid PBR boxes (mode 5,
+  metallic 0.5 / roughness 0.5, the CPU graphics pipeline with
+  usePushColor=5); the player highlight stays wireframe even when a
+  filter is active. Capacity: GDD_MAP_MAX 8192 -> 72000 (a fully
+  populated 64k-sector galaxy plus the ~3,300 tactical statics
+  coexisting mid tactical<->map transition) and
+  GDD_VERTEX_CAPACITY 512k -> 4M (~14,500 wireframe sectors per
+  frame; a fully populated galaxy in any filter mode, where each
+  sector is one 36-vertex box, always fits; beyond the budget the
+  expand pass drops instances, same policy as the legacy CPU path).
+  - Vulkan GDD: 1-px line weight parity. GDD_LINE_MIN_PX 1.5 -> 1.0,
+  and every "1-px class" GDD line (quadrant cube, AR compass
+  axes/rings/arc, direction + top vectors, tactical grid, quantum
+  rings) now requests GDD_HAIRLINE (0.004 world half-thickness)
+  instead of the old 0.02 / 0.35 fixed world values: the request
+  sits below the screen-space floor, so the floor dominates and the
+  tube rasterizes at exactly 1 px at EVERY camera distance — the
+  same visual weight of the CPU path's 1-px MSAA lines
+  (wireframe pipeline rast.lineWidth = 1.0f). The old values
+  rendered as fat multi-pixel tubes at close range (up to ~4 px for
+  the compass at cameraDist 10, ~76 px for the grid) instead of
+  hairlines.
+  - Tests: gdd_contract_test now passes with 307 checks (the galaxy
+  map block verifies the BOXWIRE frame/sectors/highlight, the
+  filter-1 solid PBR sector with metallic/roughness 0.5 and a
+  no-match filter count; the previous galaxy expectations of solid
+  UNLIT boxes are gone). gdd_mesh_test passes with 65 checks: it
+  gains the expand_boxwire CPU mirror (288-vertex bit-exact block,
+  -ffp-contract=off) run against the real GPU compute pass —
+  on this host it executes on the lavapipe software ICD
+  (tests/CMakeLists.txt: GDD_SPV_DIR now resolves to the main
+  build tree, so ctest runs it instead of skipping). Both build
+  trees compile against Vulkan SDK 1.4.357.1 and ctest is green
+  (2/2).
+
 * Mon Sep 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.21.01
   - Vulkan GDD (SPACEGL_GPD=1): the AR compass now composes exactly
   like the CPU-driven reference. New contract mesh types

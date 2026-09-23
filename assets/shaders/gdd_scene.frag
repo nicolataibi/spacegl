@@ -19,6 +19,9 @@ layout(location = 3) in vec3 vLocal;
 layout(location = 4) in flat float vMode;
 layout(location = 5) in float vMetal;
 layout(location = 6) in float vRough;
+/* Raw params: (metallic, roughness, ..) — or the per-vertex barycentric
+ * coords (x,y,z) for the GDD_FRAG_WIREFRAME(_PBR) modes. */
+layout(location = 7) in vec4 vParams;
 layout(location = 0) out vec4 outColor;
 
 layout(push_constant) uniform GddScenePC {
@@ -64,6 +67,17 @@ float fbm(vec3 p) {
         a *= 0.5;
     }
     return v;
+}
+
+/* Barycentric wireframe edge mask (vParams.xyz = per-vertex barycentric
+ * coords for the GDD_FRAG_WIREFRAME(_PBR) modes): 1 on a triangle edge,
+ * 0 inside the face. Per-sample evaluation + the caller's discard gives
+ * MSAA-antialiased lines, the triangle counterpart of the CPU path's
+ * fixed-function 1-px LINE_LIST wireframe. */
+float gdd_wire_mask(vec3 b) {
+    vec3 d = fwidth(b) + 1e-6;
+    vec3 a = smoothstep(vec3(0.0), d * 1.25, b);
+    return 1.0 - min(min(a.x, a.y), a.z);
 }
 
 void main() {
@@ -165,6 +179,30 @@ void main() {
         float alpha = (plasma * 0.7 + spark) * vColor.a;
         alpha = clamp(alpha, 0.0, 1.0);
         outColor = vec4(finalColor, alpha);
+        return;
+    }
+
+    /* MODE 11: Barycentric wireframe, unlit (CPU mode 1 on the
+     * wireframe pipeline: constant push color, only the lines rasterize). */
+    if (mode == 11) {
+        float line = gdd_wire_mask(vParams.xyz);
+        if (line < 0.5) discard; /* inside the face: not rasterized, like LINE_LIST */
+        outColor = vec4(vColor.rgb, vColor.a);
+        return;
+    }
+
+    /* MODE 12: Barycentric wireframe, PBR (CPU ships: wireframe pipeline
+     * + usePushColor=5 with the ship's metal 0.9 / roughness 0.25). */
+    if (mode == 12) {
+        float line = gdd_wire_mask(vParams.xyz);
+        if (line < 0.5) discard;
+        vec3 N = (length(vNormal) > 1e-6) ? normalize(vNormal) : vec3(0, 1, 0);
+        vec3 L = normalize(vec3(50.0, 100.0, 50.0) - vPos);
+        vec3 V = normalize(sc.cam - vPos);
+        vec3 H = normalize(L + V);
+        float diff = max(dot(N, L), 0.0);
+        vec3 specular = vec3(pow(max(dot(N, H), 0.0), 32.0 * (1.0 - 0.25))) * 0.9;
+        outColor = vec4(0.25 * vColor.rgb + diff * vColor.rgb + specular, vColor.a);
         return;
     }
 

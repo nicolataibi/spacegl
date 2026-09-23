@@ -81,6 +81,8 @@ const int GDD_MESH_RING    = 5;
 const int GDD_MESH_LINE    = 6;
 const int GDD_MESH_CIRCLE  = 7;
 const int GDD_MESH_ARC     = 8;
+const int GDD_MESH_BOOM    = 9;
+const int GDD_MESH_BOXWIRE = 10;
 
 const uint GDD_VC_POINT   = 6u;
 const uint GDD_VC_SPHERE  = 360u;
@@ -91,6 +93,8 @@ const uint GDD_VC_RING    = 96u;
 const uint GDD_VC_LINE    = 24u; /* square tube: 4 faces × 6 verts, no Z-fighting */
 const uint GDD_VC_CIRCLE  = 432u; /* 72 segments × 6 verts (2 triangles) */
 const uint GDD_VC_ARC     = 216u; /* 36 segments × 6 verts (2 triangles) */
+const uint GDD_VC_BOOM    = 1536u; /* 256 particles × 6 verts (2 triangles) */
+const uint GDD_VC_BOXWIRE = 288u; /* 12 edges × 4 tube faces × 6 verts */
 
 const int  GDD_SPHERE_LATS = 6;
 const int  GDD_SPHERE_LONS = 10;
@@ -142,6 +146,55 @@ const vec3 GDD_BOX_FACE_N[6] = {
     vec3(-1.0,  0.0,  0.0),
     vec3( 1.0,  0.0,  0.0)
 };
+
+/* ------------------------------------------------------------------ */
+/* Box-edge table (GDD_MESH_BOXWIRE): the 12 edges of the unit box    */
+/* (±0.5)^3 as start/end endpoint pairs (corner convention identical  */
+/* to GDD_BOX_SIGNS). Edge order: 4 along X, 4 along Y, 4 along Z.    */
+/* ------------------------------------------------------------------ */
+const vec3 GDD_BOXWIRE_EDGES[24] = {
+    /* X edges (y = ±0.5, z = ±0.5) */
+    vec3(-0.5, -0.5, -0.5), vec3( 0.5, -0.5, -0.5),
+    vec3(-0.5,  0.5, -0.5), vec3( 0.5,  0.5, -0.5),
+    vec3(-0.5, -0.5,  0.5), vec3( 0.5, -0.5,  0.5),
+    vec3(-0.5,  0.5,  0.5), vec3( 0.5,  0.5,  0.5),
+    /* Y edges (x = ±0.5, z = ±0.5) */
+    vec3(-0.5, -0.5, -0.5), vec3(-0.5,  0.5, -0.5),
+    vec3( 0.5, -0.5, -0.5), vec3( 0.5,  0.5, -0.5),
+    vec3(-0.5, -0.5,  0.5), vec3(-0.5,  0.5,  0.5),
+    vec3( 0.5, -0.5,  0.5), vec3( 0.5,  0.5,  0.5),
+    /* Z edges (x = ±0.5, y = ±0.5) */
+    vec3(-0.5, -0.5, -0.5), vec3(-0.5, -0.5,  0.5),
+    vec3( 0.5, -0.5, -0.5), vec3( 0.5, -0.5,  0.5),
+    vec3(-0.5,  0.5, -0.5), vec3(-0.5,  0.5,  0.5),
+    vec3( 0.5,  0.5, -0.5), vec3( 0.5,  0.5,  0.5)
+};
+
+/* ------------------------------------------------------------------ */
+/* Per-particle hash for the procedural explosion cloud               */
+/* (GDD_MESH_BOOM): 32-bit integer scramble (Wang hash) over the      */
+/* EXACT integer inputs (particle index 0..255, quantized per-boom    */
+/* seed 0..1000, stream id). No float intermediates: the result is    */
+/* bit-identical on the GPU and in the C mirror (tests/               */
+/* gdd_mesh_test.c). A float value-hash with fract() on large         */
+/* intermediates is FMA-fragile (a 1-ulp drift in t maps to an        */
+/* arbitrary fract(t)) and must not be used here.                     */
+/* ------------------------------------------------------------------ */
+uint gdd_hash_u(uint x) {
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+}
+float gdd_boom_hash(float u, float seed, float k) {
+    uint a = uint(u + 0.5);
+    uint b = uint(seed * 1000.0 + 0.5);
+    uint c = uint(k);
+    uint x = a * 73856093u + b * 19349663u + c * 83492791u;
+    return float(gdd_hash_u(x)) / 4294967296.0; /* [0, 1) */
+}
 
 /* ------------------------------------------------------------------ */
 /* The expand passes' global buffers are declared by the entry shader */

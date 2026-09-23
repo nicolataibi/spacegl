@@ -60,10 +60,26 @@
 #define GDD_GALAXY_GAP    1.2f
 #define GDD_GRID_STEP     2.0f
 
+/* World half-thickness requested by every "1-px class" GDD line
+ * (quadrant cube, AR compass rings/arc/axes, direction vectors, grid,
+ * quantum rings). Deliberately BELOW the screen-space floor
+ * (GDD_LINE_MIN_PX = 1.0, defined below in Part 2) so the floor always
+ * dominates: the square tube rasterizes at exactly 1 px at EVERY camera
+ * distance — the same visual weight of the CPU path's 1-px MSAA
+ * LINE_LIST lines (rast.lineWidth = 1.0f). A fixed world thickness
+ * (e.g. the old 0.02 / 0.35) rendered as fat multi-pixel tubes at
+ * close range instead of hairlines. */
+#define GDD_HAIRLINE 0.004f
+
 /* Ship visual scale (SCALE_SHIP * 0.55 from the CPU path) and the CPU
- * ship mesh length ratio (apex 2.1866 + base 0.7288 = 2.9154 units). */
+ * ship mesh length ratio (apex 2.1866 + base 0.7288 = 2.9154 units).
+ * The CPU ship mesh spans local X in [-0.7288, +2.1866], so the object
+ * position sits 0.7288 * GDD_SHIP_SCALE AHEAD of the stern; the centered
+ * GDD pyramid must be shifted along the nose axis by that amount to put
+ * stern/nose at the exact CPU world offsets. */
 #define GDD_SHIP_SCALE    (0.45f * 0.55f)
 #define GDD_SHIP_LEN_RATIO 2.9154f
+#define GDD_SHIP_STERN_OFF (0.7288f * GDD_SHIP_SCALE)
 #define GDD_GDD_BRIDGE_Y  0.30f  /* unused placeholder to keep parity */
 
 /* ================================================================== */
@@ -177,7 +193,7 @@ static void gdd_compass_arrow(GddList *dyn, const float anchor[3],
     gdd_compass_pt(anchor, m, shaft1, s, p1);
     gdd_list_add(dyn, GDD_MESH_LINE, p0[0], p0[1], p0[2],
                  p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2],
-                 cr, cg, cb, 1.0f, 0, 0, GDD_FRAG_UNLIT, GDD_ORIENT_ID, 0, 0);
+                 cr, cg, cb, 1.0f, 0, 0, GDD_FRAG_UNLIT, GDD_ORIENT_ID, GDD_HAIRLINE, 0);
     for (int i = 0; i < 4; i++) {
         int j = (i + 1) % 4;
         /* square edge i -> i+1 (CPU vectorIndices: 2-3, 3-4, 4-5, 5-2) */
@@ -185,13 +201,13 @@ static void gdd_compass_arrow(GddList *dyn, const float anchor[3],
         gdd_compass_pt(anchor, m, corners[j], s, p1);
         gdd_list_add(dyn, GDD_MESH_LINE, p0[0], p0[1], p0[2],
                      p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2],
-                     cr, cg, cb, 1.0f, 0, 0, GDD_FRAG_UNLIT, GDD_ORIENT_ID, 0, 0);
+                     cr, cg, cb, 1.0f, 0, 0, GDD_FRAG_UNLIT, GDD_ORIENT_ID, GDD_HAIRLINE, 0);
         /* tip spoke i -> tip (CPU vectorIndices: 6-x) */
         gdd_compass_pt(anchor, m, corners[i], s, p0);
         gdd_compass_pt(anchor, m, tip, s, p1);
         gdd_list_add(dyn, GDD_MESH_LINE, p0[0], p0[1], p0[2],
                      p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2],
-                     cr, cg, cb, 1.0f, 0, 0, GDD_FRAG_UNLIT, GDD_ORIENT_ID, 0, 0);
+                     cr, cg, cb, 1.0f, 0, 0, GDD_FRAG_UNLIT, GDD_ORIENT_ID, GDD_HAIRLINE, 0);
     }
 }
 
@@ -320,11 +336,15 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         if (type == 1 || type >= 10) {
             v->mesh = GDD_MESH_PYRAMID;
             v->scale = GDD_SHIP_SCALE;
-            v->frag_mode = GDD_FRAG_UNLIT; /* CPU: wireframe pipeline */
+            /* CPU: wireframe LINE_LIST pipeline + PBR (mode 5,
+             * metal 0.9 / roughness 0.25) — the barycentric wireframe
+             * fragment mode re-implements exactly that look. */
+            v->frag_mode = GDD_FRAG_WIREFRAME_PBR;
             v->metallic = 0.9f; v->roughness = 0.25f;
             if (cloaked) {
+                /* CPU: cyan wireframe, pulsing alpha, standard blending */
                 v->color[0]=0.0f; v->color[1]=0.8f; v->color[2]=1.0f;
-                v->additive = 1; v->frag_mode = GDD_FRAG_UNLIT;
+                v->additive = 1; v->frag_mode = GDD_FRAG_WIREFRAME;
             }
         }
         break;
@@ -596,12 +616,12 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
     /*    the CPU path from const vertices[] / indices[] (always on,    */
     /*    no show_grid flag, hidden only during map and jump arrival).  */
     /*    16 edges: top loop (green), bottom loop (red), 8 verticals    */
-    /*    top→mid→bottom (yellow). Thickness 0.25 via metallic field.  */
+    /*    top→mid→bottom (yellow), 1-px hairlines (GDD_HAIRLINE).      */
     /* ---------------------------------------------------------------- */
     if (ctx->map_anim < 0.99f &&
         !(ctx->jump_arrival && ctx->jump_arrival->active)) {
         float hq = GDD_QUADRANT; /* 20.0 = QUADRANT_SIZE/2 */
-        float ht = 0.02f;        /* same half-thickness as the AR compass axis lines */
+        float ht = GDD_HAIRLINE; /* 1-px class: screen floor dominates (see define) */
         /* Top loop corners  (Y = +hq, green 0,1,0) */
         float tx[4] = { -hq*ts,  hq*ts,  hq*ts, -hq*ts };
         float ty[4] = {  hq*ts,  hq*ts,  hq*ts,  hq*ts };
@@ -677,13 +697,14 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             GddVisual v;
             gdd_visual_for(type, faction, sclass, plating, cloaked, ctx, &v);
 
-            /* Orientation: full Euler for ships, spin for quasars */
-            if ((type == 1 || type >= 10) && !cloaked) {
-                gdd_m3 m;
+            /* Orientation: full Euler for ships (cloaked included — the
+             * CPU computes R for every ship), spin for quasars */
+            gdd_m3 m;
+            int is_ship = (type == 1 || type >= 10);
+            if (is_ship) {
                 gdd_ship_rotation(so, m);
                 gdd_orient_from_m3(o, m);
             } else if (v.spin) {
-                gdd_m3 m;
                 gdd_m3_identity(m);
                 gdd_m3_rotate(m, pulse * 3.0f, 0.0f, 1.0f, 0.0f);
                 gdd_m3_rotate(m, 20.0f * M_PI / 180.0f, 1.0f, 0.0f, 0.0f);
@@ -694,14 +715,85 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
 
             float s = v.scale * ts;
             float sx = s, sy = s, sz = s;
-            if (type == 1 || type >= 10) {
+            float nose[3] = { 1.0f, 0.0f, 0.0f };
+            if (is_ship) {
                 /* CPU ship mesh aspect: nose length 2.9154, base 1.0 */
                 sx *= GDD_SHIP_LEN_RATIO;
+                gdd_m3_xaxis(m, nose);
+                /* CPU parity: the object position sits 0.7288*GDD_SHIP_SCALE
+                 * ahead of the stern (mesh local [-0.7288, +2.1866]); the
+                 * centered GDD pyramid is shifted along the nose axis so
+                 * stern/nose land on the exact CPU world offsets. */
+                float sox = GDD_SHIP_STERN_OFF * ts;
+                px += nose[0] * sox; py += nose[1] * sox; pz += nose[2] * sox;
             }
             gdd_list_add(&dyn, v.mesh, px, py, pz, sx, sy, sz,
                          v.color[0], v.color[1], v.color[2], 1.0f,
                          0, v.additive, v.frag_mode, o,
                          v.metallic, v.roughness);
+
+            /* --- QUANTUM CORE (Alliance ships: faction 0 or 1) --------- */
+            /* CPU parity (recordCommandBuffer "QUANTUM CORE"): a pulsing
+             * wireframe polyhedron core + 3 orbiting wireframe rings at
+             * the stern. The CPU matrix product puts the core at
+             * -0.46 * GDD_SHIP_SCALE * ts along the ship axis (the T_core
+             * translation is inside the ship's 0.2475 scale) with core
+             * radius 0.20 * GDD_SHIP_SCALE * ts — this reproduces the
+             * ACTUAL CPU render, not the (wrong) code comment. The CPU
+             * core is a class-dependent N-side bipyramid (N = 3+(13-cl)*6,
+             * 81 for Legacy down to 3 for Sentinel); the GDD approximates
+             * it with the 4-side bipyramid (octahedron) wireframe. */
+            if (is_ship && (faction == 0 || faction == 1)) {
+                int cl = sclass;
+                if (cl < 0 || cl > 13) cl = 13;
+
+                /* Stern anchor: object position (pre stern-shift) minus
+                 * 0.46 * GDD_SHIP_SCALE * ts along the nose axis. */
+                float qoff = -0.46f * GDD_SHIP_SCALE * ts;
+                float qx = px - nose[0] * GDD_SHIP_STERN_OFF * ts + nose[0] * qoff;
+                float qy = py - nose[1] * GDD_SHIP_STERN_OFF * ts + nose[1] * qoff;
+                float qz = pz - nose[2] * GDD_SHIP_STERN_OFF * ts + nose[2] * qoff;
+
+                /* 1. Core: wireframe polyhedron, spinning (Legacy fastest) */
+                {
+                    gdd_m3 rq;
+                    gdd_m3_identity(rq);
+                    float rotSpeed = 1.0f + (12 - cl) * 0.2f;
+                    gdd_m3_rotate(rq, pulse * rotSpeed, 0.0f, 1.0f, 0.0f);
+                    gdd_m3 mq;
+                    gdd_m3_multiply(m, rq, mq); /* vertex: R_ship then R_q */
+                    float qo[12];
+                    gdd_orient_from_m3(qo, mq);
+                    float cs = 0.20f * GDD_SHIP_SCALE * ts;
+                    float cr = 0.8f + 0.2f * sinf(pulse * 2.0f);
+                    float cg = 0.6f + 0.3f * cosf(pulse * 1.5f);
+                    float cb = 0.2f + 0.2f * sinf(pulse * 3.0f);
+                    gdd_list_add(&dyn, GDD_MESH_OCTA, qx, qy, qz,
+                                 cs, cs, cs,
+                                 cr, cg, cb, 1.0f,
+                                 0, 0, GDD_FRAG_WIREFRAME, qo, 0.0f, 1.0f);
+                }
+
+                /* 2. Three orbiting rings (wireframe circles, cyan) */
+                static const float r_speeds[3] = { 2.8f, -2.1f, 3.5f };
+                static const float r_radii[3]  = { 0.15f, 0.18f, 0.21f };
+                static const vec3 r_axes[3] = { {1,1,0.3f}, {0.3f,1,1}, {1,0.3f,1} };
+                for (int r = 0; r < 3; r++) {
+                    gdd_m3 rr;
+                    gdd_m3_identity(rr);
+                    gdd_m3_rotate(rr, pulse * r_speeds[r],
+                                  r_axes[r][0], r_axes[r][1], r_axes[r][2]);
+                    gdd_m3 mr;
+                    gdd_m3_multiply(m, rr, mr); /* vertex: R_ship then R_r */
+                    float ro[12];
+                    gdd_orient_from_m3(ro, mr);
+                    float rr2 = r_radii[r] * GDD_SHIP_SCALE * ts;
+                    gdd_list_add(&dyn, GDD_MESH_CIRCLE, qx, qy, qz,
+                                 rr2, rr2, rr2,
+                                 0.0f, 0.95f, 1.0f, 1.0f,
+                                 0, 0, GDD_FRAG_UNLIT, ro, GDD_HAIRLINE, 1.0f);
+                }
+            }
 
             /* --- per-type companions (CPU parity approximations) --- */
             if (type == 6) { /* black hole accretion disk */
@@ -800,16 +892,16 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         /* 1. Global axes (fixed to world orientation, pure R/G/B) */
         float a = 5.5f * ts;
         gdd_list_add(&dyn, GDD_MESH_LINE, cx - a, cy, cz, 2.0f*a, 0, 0,
-                     1, 0, 0, 1.0f, 0, 0, GDD_FRAG_UNLIT, o, 0, 0);
+                     1, 0, 0, 1.0f, 0, 0, GDD_FRAG_UNLIT, o, GDD_HAIRLINE, 0);
         gdd_list_add(&dyn, GDD_MESH_LINE, cx, cy - a, cz, 0, 2.0f*a, 0,
-                     0, 1, 0, 1.0f, 0, 0, GDD_FRAG_UNLIT, o, 0, 0);
+                     0, 1, 0, 1.0f, 0, 0, GDD_FRAG_UNLIT, o, GDD_HAIRLINE, 0);
         gdd_list_add(&dyn, GDD_MESH_LINE, cx, cy, cz - a, 0, 0, 2.0f*a,
-                     0, 0, 1, 1.0f, 0, 0, GDD_FRAG_UNLIT, o, 0, 0);
+                     0, 0, 1, 1.0f, 0, 0, GDD_FRAG_UNLIT, o, GDD_HAIRLINE, 0);
 
         /* 2. Fixed compass ring (white, world orientation) */
         gdd_list_add(&dyn, GDD_MESH_CIRCLE, cx, cy, cz,
                      3.0f*ts, 3.0f*ts, 3.0f*ts, 1, 1, 1, 1.0f,
-                     0, 0, GDD_FRAG_UNLIT, o, 0, 0);
+                     0, 0, GDD_FRAG_UNLIT, o, GDD_HAIRLINE, 0);
 
         /* 3. Heading ring (cyan, level with pitch) */
         {
@@ -819,7 +911,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             gdd_orient_from_m3(o, mring);
             gdd_list_add(&dyn, GDD_MESH_CIRCLE, cx, cy, cz,
                          2.5f*ts, 2.5f*ts, 2.5f*ts, 0, 1, 1, 1.0f,
-                         0, 0, GDD_FRAG_UNLIT, o, 0, 0);
+                         0, 0, GDD_FRAG_UNLIT, o, GDD_HAIRLINE, 0);
         }
 
         /* 4. Mark arc (yellow vertical arc, aligned with ship heading) */
@@ -830,7 +922,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             gdd_orient_from_m3(o, mring);
             gdd_list_add(&dyn, GDD_MESH_ARC, cx, cy, cz,
                          2.8f*ts, 2.8f*ts, 2.8f*ts, 1, 1, 0, 1.0f,
-                         0, 0, GDD_FRAG_UNLIT, o, 0, 0);
+                         0, 0, GDD_FRAG_UNLIT, o, GDD_HAIRLINE, 0);
         }
 
         /* 5. Roll circle (yellow, transverse: the GDD circle lives in
@@ -845,7 +937,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             gdd_orient_from_m3(o, mring);
             gdd_list_add(&dyn, GDD_MESH_CIRCLE, cx, cy, cz,
                          2.8f*ts, 2.8f*ts, 2.8f*ts, 1, 1, 0, 1.0f,
-                         0, 0, GDD_FRAG_UNLIT, o, 0, 0);
+                         0, 0, GDD_FRAG_UNLIT, o, GDD_HAIRLINE, 0);
         }
 
         /* 6. Directional vector (green arrow along the nose; a roll is
@@ -962,43 +1054,23 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
     }
 
     /* ---------------------------------------------------------------- */
-    /* 5. Explosions (FX): flash + core + aura + pixel cloud             */
+    /* 5. Explosions (FX): one GDD_MESH_BOOM instance per boom.         */
+    /*    The GPU expands the full 256-particle cloud procedurally      */
+    /*    (gdd_expand_boom) from the per-boom seed + style, matching    */
+    /*    the CPU path (recordCommandBuffer: 256 unlit spheres,         */
+    /*    offsets*exp with exp = (1-life)*12*tactScale, per-boom        */
+    /*    random offsets/colors, radius 0.25*tactScale).                */
     /* ---------------------------------------------------------------- */
     if (ctx->map_anim < 0.99f && ctx->booms) {
         for (int i = 0; i < (int)GDD_MAX_ACTIVE_BOOMS; i++) {
             const ActiveBoom *bm = &ctx->booms[i];
             if (bm->life <= 0.0f) continue;
-            float life = bm->life;
-            float bx = bm->x * ts, by = bm->y * ts, bz = bm->z * ts;
-
-            if (life < 0.7f || 1.0f) { /* (flash below) */
-            }
-            gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, bx, by, bz,
-                                  life * 1.5f * ts, life * 1.5f * ts, life * 1.5f * ts,
-                                  1, 1, 1, life, 0, 1, GDD_FRAG_HYPERWARP, 0, 1);
-            if (life > 0.7f) {
-                float s = (1.0f - life) * 3.0f * ts;
-                gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, bx, by, bz, s, s, s,
-                                      1, 1, 1, (life - 0.7f) / 0.3f,
-                                      0, 1, GDD_FRAG_UNLIT, 0, 1);
-            }
-            float sa = (1.0f + (1.0f - life) * 2.0f) * 2.5f * ts;
-            gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, bx, by, bz, sa, sa, sa,
-                                  0, 1, 1, life * 0.7f, 0, 1, GDD_FRAG_SHOCKWAVE, 0, 1);
-
-            /* Pixel cloud: subset of the CPU 256-pixel explosion */
-            float exp = (1.0f - life) * 12.0f * ts;
-            int px_n = 16;
-            for (int p = 0; p < px_n; p++) {
-                int idx = p * (int)GDD_EXPLOSION_PIXELS / px_n;
-                float wx = (bm->x + bm->offsets[idx][0] * exp) * ts;
-                float wy = (bm->y + bm->offsets[idx][1] * exp) * ts;
-                float wz = (bm->z + bm->offsets[idx][2] * exp) * ts;
-                gdd_list_add_identity(&dyn, GDD_MESH_POINT, wx, wy, wz,
-                                      0.25f * ts, 0.25f * ts, 0.25f * ts,
-                                      bm->colors[idx][0], bm->colors[idx][1], bm->colors[idx][2], 1.0f,
-                                      0, 1, GDD_FRAG_UNLIT, 0, 1);
-            }
+            gdd_list_add_identity(&dyn, GDD_MESH_BOOM,
+                                  bm->x * ts, bm->y * ts, bm->z * ts,
+                                  ts, ts, ts,
+                                  1, 1, 1, bm->life,
+                                  1, 0, GDD_FRAG_UNLIT,
+                                  bm->seed, (float)bm->style);
         }
     }
 
@@ -1011,10 +1083,14 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             if (dm->life <= 0.0f) continue;
             float life = dm->life;
             float dx = dm->x * ts, dy = dm->y * ts, dz = dm->z * ts;
-            if (life < 0.7f) continue;
-            float s0 = (1.0f - life) * 3.0f * ts;
-            gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, dx, dy, dz, s0, s0, s0,
-                                  1, 1, 1, (life - 0.7f) / 0.3f, 0, 1, GDD_FRAG_UNLIT, 0, 1);
+            /* CPU parity: the flash (j=0, mode 7) is drawn only while
+             * life >= 0.7; the core (j=1, mode 6) and the expanding
+             * cyan aura (j=2, mode 7) are always drawn. */
+            if (life > 0.7f) {
+                float s0 = (1.0f - life) * 3.0f * ts;
+                gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, dx, dy, dz, s0, s0, s0,
+                                      1, 1, 1, (life - 0.7f) / 0.3f, 0, 1, GDD_FRAG_SHOCKWAVE, 0, 1);
+            }
             float s1 = life * 1.5f * ts;
             gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, dx, dy, dz, s1, s1, s1,
                                   1, 1, 1, life, 0, 1, GDD_FRAG_HYPERWARP, 0, 1);
@@ -1064,24 +1140,88 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
     }
 
     /* ---------------------------------------------------------------- */
-    /* 8. Shield hit glow (around the player)                            */
+    /* 8. Shield hit illumination (CPU parity: drawShieldEffect).       */
+    /*    Per hit sector: anisotropic PBR energy panel + shockwave      */
+    /*    surface glow + 4 outer volumetric shells, all oriented with   */
+    /*    the ship (R_sec = Ry(ry) * Rz(rx) * R_ship, offset 1.45*      */
+    /*    scale along the sector axis, scale 0.5 x 1.8 x 1.8).         */
     /* ---------------------------------------------------------------- */
-    if (compass_ok && ctx->shield_timers) {
+    if (ctx->map_anim < 0.99f && ctx->object_count > 0 && ctx->objs &&
+        !ctx->objs[0].first && ctx->shield_timers) {
+        /* Sector orientation: (rx around Z, ry around Y), CPU table */
+        static const float SHIELD_ROT_RX[6] = {
+            0.0f, 0.0f, -M_PI / 2.0f, M_PI / 2.0f, 0.0f, 0.0f
+        };
+        static const float SHIELD_ROT_RY[6] = {
+            0.0f, M_PI, 0.0f, 0.0f, M_PI / 2.0f, -M_PI / 2.0f
+        };
+
         int hit = 0;
         for (int i = 0; i < 6; i++) if (ctx->shield_timers[i] > 0) hit = 1;
         if (hit) {
-            float rad = (1.2f + 0.3f * sinf(pulse * 10.0f)) * GDD_SHIP_SCALE * ts;
-            gdd_list_add_identity(&dyn, GDD_MESH_RING, cx, cy, cz,
-                                  rad * 2.0f, rad * 2.0f, rad * 2.0f,
-                                  0.0f, 0.9f, 1.0f, 0.8f, 0, 1, GDD_FRAG_HYPERWARP, 0, 1);
-            gdd_list_add_identity(&dyn, GDD_MESH_RING, cx, cy, cz,
-                                  rad * 2.6f, rad * 2.6f, rad * 2.6f,
-                                  1.0f, 1.0f, 1.0f, 0.5f, 0, 1, GDD_FRAG_HYPERWARP, 0, 1);
+            gdd_m3 m_ship;
+            gdd_ship_rotation(&ctx->objs[0], m_ship);
+            /* Ship position (plain object mapping, no stern shift — the
+             * CPU shield uses T_ship from the object loop). */
+            const SmoothObj *so0 = &ctx->objs[0];
+            float sx0 = (so0->x - GDD_QUADRANT) * ts;
+            float sy0 = (so0->z - GDD_QUADRANT) * ts;
+            float sz0 = (GDD_QUADRANT - so0->y) * ts;
+            for (int s = 0; s < 6; s++) {
+                if (ctx->shield_timers[s] <= 0) continue;
+                float t = (float)ctx->shield_timers[s] / 80.0f;
+                float alpha = (t > 0.5f) ? 1.0f : t * 2.0f;
+                float scale = (1.2f + (1.0f - t) * 0.3f) * ts;
+                float bsc[3] = { 0.5f * scale, 1.8f * scale, 1.8f * scale };
+
+                /* R_sec = Ry(ry) * Rz(rx), composed with the ship */
+                gdd_m3 m_sec;
+                gdd_m3_identity(m_sec);
+                gdd_m3_rotate(m_sec, SHIELD_ROT_RY[s], 0.0f, 1.0f, 0.0f);
+                gdd_m3_rotate(m_sec, SHIELD_ROT_RX[s], 0.0f, 0.0f, 1.0f);
+                gdd_m3 m_full;
+                gdd_m3_multiply(m_sec, m_ship, m_full);
+                float orient[12];
+                gdd_orient_from_m3(orient, m_full);
+
+                /* Center = ship pos + R_ship * R_sec * (1.45*scale, 0, 0) */
+                float off0 = 1.45f * scale;
+                float px = sx0 + off0 * m_full[0][0];
+                float py = sy0 + off0 * m_full[0][1];
+                float pz = sz0 + off0 * m_full[0][2];
+
+                /* 1. Shield energy grid (PBR panel, opaque) */
+                gdd_list_add(&dyn, GDD_MESH_SPHERE, px, py, pz,
+                             bsc[0], bsc[1], bsc[2],
+                             0.0f, 0.8f, 1.0f, alpha * 0.8f,
+                             0, 0, GDD_FRAG_PBR, orient, 0.0f, 0.0f);
+                /* 2. Shield surface glow (shockwave, metallic = pulse*15) */
+                gdd_list_add(&dyn, GDD_MESH_SPHERE, px, py, pz,
+                             bsc[0], bsc[1], bsc[2],
+                             0.0f, 0.6f, 1.0f, alpha * 0.6f,
+                             0, 1, GDD_FRAG_SHOCKWAVE, orient, pulse * 15.0f, 0.0f);
+                /* 3. Outer volumetric glow (4 shells, CPU drawShieldGlow) */
+                for (int i = 1; i <= 4; i++) {
+                    float gs = 0.7f * scale * (1.2f + (float)i * 0.4f);
+                    gdd_list_add(&dyn, GDD_MESH_SPHERE, px, py, pz,
+                                 bsc[0] * gs, bsc[1] * gs, bsc[2] * gs,
+                                 0.0f, 0.5f, 1.0f, (alpha * 0.9f) / ((float)i * 1.2f),
+                                 0, 1, GDD_FRAG_SHOCKWAVE, orient, pulse * 10.0f, 0.0f);
+                }
+            }
         }
     }
 
     /* ---------------------------------------------------------------- */
-    /* 9. Galaxy map (map group, rebuilt every frame in map mode)        */
+    /* 9. Galaxy map (map group, rebuilt every frame in map mode)       */
+    /*    CPU parity (drawGalaxyMap): the global frame and every        */
+    /*    sector drawn in filter-0 mode are WIREFRAME cubes (LINE_LIST  */
+    /*    on cubeIndices) -> GDD_MESH_BOXWIRE, 1-px hairlines;          */
+    /*    filter>0 sectors are solid PBR boxes (graphics pipeline,      */
+    /*    usePushColor=5, metallic 0.5 / roughness 0.5) -> GDD_MESH_BOX */
+    /*    + GDD_FRAG_PBR. The player-quadrant highlight is ALWAYS        */
+    /*    wireframe (unlit white); the marker inside it follows the     */
+    /*    same filter rule as the other sectors.                        */
     /* ---------------------------------------------------------------- */
     if (ctx->map_anim > 0.01f) {
         float gap = GDD_GALAXY_GAP;
@@ -1089,12 +1229,13 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         int gs = ctx->galaxy_size > 0 ? ctx->galaxy_size : GDD_GALAXY_SIZE;
         int stride = gs + 1; /* shm_galaxy[gs+1][gs+1][gs+1], coords 1..gs */
 
-        /* 1. Galaxy frame */
-        gdd_list_add_identity(&map, GDD_MESH_BOX, 0, 0, 0,
+        /* 1. Galaxy frame (CPU: wireframe cube, push color 0.4/0.4/1.0) */
+        gdd_list_add_identity(&map, GDD_MESH_BOXWIRE, 0, 0, 0,
                               (float)GDD_GALAXY_SIZE * gap * ms * 0.5f,
                               (float)GDD_GALAXY_SIZE * gap * ms * 0.5f,
                               (float)GDD_GALAXY_SIZE * gap * ms * 0.5f,
-                              0.4f, 0.4f, 1.0f, 0.8f, 1, 0, GDD_FRAG_UNLIT, 0, 1);
+                              0.4f, 0.4f, 1.0f, 0.8f, 1, 0, GDD_FRAG_UNLIT,
+                              GDD_HAIRLINE, 0);
 
         /* 2. Sectors */
         if (ctx->galaxy && ctx->map_anim > 0.01f) {
@@ -1163,20 +1304,42 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                         else if (monster > 0) scale = 0.25f + sinf(pulse * 5.0f) * 0.05f;
                         scale *= ms;
 
+                        /* Sector marker: wireframe (filter 0) or solid
+                         * PBR (filter > 0), CPU usePushColor 1/5 with
+                         * metallic 0.5 / roughness 0.5. */
+                        int wire = (ef == 0);
                         if (is_my_q) {
+                            /* Player-quadrant highlight: ALWAYS wireframe,
+                             * unlit white (CPU: wireframe pipeline even
+                             * when mapFilter > 0). */
                             float meScale = (0.4f + sinf(pulse * 6.0f) * 0.15f) * ms;
-                            gdd_list_add_identity(&map, GDD_MESH_BOX, pxm, pym, pzm,
+                            gdd_list_add_identity(&map, GDD_MESH_BOXWIRE, pxm, pym, pzm,
                                                   meScale, meScale, meScale,
-                                                  1, 1, 1, 0.8f, 1, 0, GDD_FRAG_UNLIT, 0, 1);
+                                                  1, 1, 1, 0.8f, 1, 0, GDD_FRAG_UNLIT,
+                                                  GDD_HAIRLINE, 0);
                             if (val != 0) {
-                                gdd_list_add_identity(&map, GDD_MESH_BOX, pxm, pym, pzm,
-                                                      scale, scale, scale,
-                                                      cr, cg, cb, 1.0f, 1, 0, GDD_FRAG_UNLIT, 0, 1);
+                                if (wire)
+                                    gdd_list_add_identity(&map, GDD_MESH_BOXWIRE, pxm, pym, pzm,
+                                                          scale, scale, scale,
+                                                          cr, cg, cb, 1.0f, 1, 0,
+                                                          GDD_FRAG_UNLIT, GDD_HAIRLINE, 0);
+                                else
+                                    gdd_list_add_identity(&map, GDD_MESH_BOX, pxm, pym, pzm,
+                                                          scale, scale, scale,
+                                                          cr, cg, cb, 1.0f, 1, 0,
+                                                          GDD_FRAG_PBR, 0.5f, 0.5f);
                             }
                         } else if (val != 0) {
-                            gdd_list_add_identity(&map, GDD_MESH_BOX, pxm, pym, pzm,
-                                                  scale, scale, scale,
-                                                  cr, cg, cb, 1.0f, 1, 0, GDD_FRAG_UNLIT, 0, 1);
+                            if (wire)
+                                gdd_list_add_identity(&map, GDD_MESH_BOXWIRE, pxm, pym, pzm,
+                                                      scale, scale, scale,
+                                                      cr, cg, cb, 1.0f, 1, 0,
+                                                      GDD_FRAG_UNLIT, GDD_HAIRLINE, 0);
+                            else
+                                gdd_list_add_identity(&map, GDD_MESH_BOX, pxm, pym, pzm,
+                                                      scale, scale, scale,
+                                                      cr, cg, cb, 1.0f, 1, 0,
+                                                      GDD_FRAG_PBR, 0.5f, 0.5f);
                         }
                     }
                 }
@@ -1195,9 +1358,11 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         if (grid_visible) {
             int steps = (int)GDD_QUADRANT_SPAN / 2; /* 20, CPU parity */
             float hq = GDD_QUADRANT_SPAN / 2.0f;
-            /* Half-thickness passed via metallic field (it.p.x).
-             * 0.35 world-units stays >=1 pixel at cameraDist up to 150. */
-            float ht = 0.35f;
+            /* 1-px class: the metallic field carries the requested
+             * half-thickness; GDD_HAIRLINE sits below the 1-px screen
+             * floor so the grid renders as 1-px hairlines at every
+             * camera distance (CPU wireframe-pipeline parity). */
+            float ht = GDD_HAIRLINE;
             for (int i = 0; i <= steps; i++) {
                 float p = -hq + i * GDD_GRID_STEP;
                 for (int j = 0; j <= steps; j++) {
@@ -2027,9 +2192,11 @@ void gdd_cleanup(VulkanApp *app) {
  * rasterizer): without this floor the sub-pixel quadrant-cube edges
  * rasterize with stochastic sample coverage — the dashed, flickering
  * wireframe lines (the pipeline now MSAA's like the CPU path, but each
- * sample still covers the thin triangle independently). 1.5 px matches
- * the visual weight of the CPU-driven 1-px MSAA lines. */
-#define GDD_LINE_MIN_PX 1.5f
+ * sample still covers the thin triangle independently). 1.0 px keeps
+ * the exact visual weight of the CPU-driven 1-px MSAA lines (a
+ * 1-px-wide quad has a smooth 0.5..1.0 sample coverage under MSAA —
+ * no dashes — while anything below sub-pixel would flicker). */
+#define GDD_LINE_MIN_PX 1.0f
 
 /* ------------------------------------------------------------------ */
 /* View matrix + camera position — mirrors drawFrame() of the         */
@@ -2150,6 +2317,22 @@ void gdd_build_frame(VulkanApp *app, float pulse) {
     if (app->shm) {
         int r_idx = atomic_load_explicit(&app->shm->read_index, memory_order_acquire);
         GameState *st = &app->shm->buffers[r_idx];
+
+        /* Shield hit detection (CPU parity: the CPU path runs this same
+         * logic inside drawShieldEffect). A sector flashes for GAME_TICK_RATE
+         * (60, game_config.h) frames whenever its shield value drops. */
+        static int g_shield_last[6] = {0};
+        static bool g_shield_init = false;
+        if (!g_shield_init && st->object_count > 0 && st->objects[0].active) {
+            for (int s = 0; s < 6; s++) g_shield_last[s] = st->shm_shields[s];
+            g_shield_init = true;
+        }
+        if (g_shield_init) {
+            for (int s = 0; s < 6; s++) {
+                if (st->shm_shields[s] < g_shield_last[s]) app->shieldHitTimers[s] = 60;
+                g_shield_last[s] = st->shm_shields[s];
+            }
+        }
 
         int types[MAX_OBJECTS], factions[MAX_OBJECTS], ship_classes[MAX_OBJECTS];
         int cloaked[MAX_OBJECTS], active[MAX_OBJECTS], platings[MAX_OBJECTS], ids[MAX_OBJECTS];

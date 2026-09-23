@@ -4365,6 +4365,11 @@ void mainLoop(VulkanApp* app) {
                     app->activeBooms[i].y = (float)ev->z1 - 20.0f; 
                     app->activeBooms[i].z = 20.0f - (float)ev->y1; 
                     app->activeBooms[i].life = 1.0f;
+                    /* GPU-driven path: the 256-particle cloud is expanded
+                     * on the GPU from this per-boom seed (style 0 =
+                     * torpedo boom: cubic offsets, 6-color cycle). */
+                    app->activeBooms[i].seed = (float)(rand() % 1001);
+                    app->activeBooms[i].style = 0;
                     for(int k=0; k<MAX_ACTIVE_TORPS; k++) {
                         if (app->activeTorps[k].active > 0) {
                             /* Prioritize ID matching for precise de-allocation (using IPC_TORPEDO_ID_OFFSET) */
@@ -4457,6 +4462,10 @@ void mainLoop(VulkanApp* app) {
                     app->activeBooms[oldest_boom].y = app->activeDismantles[oldest].y;
                     app->activeBooms[oldest_boom].z = app->activeDismantles[oldest].z;
                     app->activeBooms[oldest_boom].life = 1.2f;
+                    /* GPU-driven path: dismantle boom cloud (style 1 =
+                     * spherical offsets, 3-color mix). */
+                    app->activeBooms[oldest_boom].seed = (float)(rand() % 1001);
+                    app->activeBooms[oldest_boom].style = 1;
                     for(int p=0; p<EXPLOSION_PIXELS; p++){
                         float speed = (p < 32) ? (3.5f + (rand()%200)/100.0f) : (1.0f + (rand()%250)/100.0f);
                         float theta = (float)(rand()%3600) * 0.1f * M_PI / 180.0f;

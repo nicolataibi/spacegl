@@ -35,6 +35,9 @@ layout(location = 3) out vec3 vLocal;
 layout(location = 4) out flat float vMode;
 layout(location = 5) out float vMetal;
 layout(location = 6) out float vRough;
+/* Raw params: (metallic, roughness, ..) — or the per-vertex barycentric
+ * coords (x,y,z) for the GDD_FRAG_WIREFRAME(_PBR) modes. */
+layout(location = 7) out vec4 vParams;
 
 void main() {
     // Vulkan automatically applies the 'firstVertex' of the indirect command 
@@ -52,4 +55,5 @@ void main() {
     vMode = g.normal.w; //[cite: 17]
     vMetal = g.params.x; //[cite: 17]
     vRough = g.params.y; //[cite: 17]
+    vParams = g.params;
 }

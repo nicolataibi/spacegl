@@ -62,9 +62,9 @@
 #endif
 
 /* Test data sizes (declared first: the buffer setup below uses them) */
-#define N_DYN  12
-#define N_MAP  4
-#define VMAX   2048
+#define N_DYN  14
+#define N_MAP  5
+#define VMAX   8192
 
 /* ------------------------------------------------------------------ */
 /* CPU mirrors of the GLSL expand ops (gdd_ops.glsl)                   */
@@ -237,9 +237,9 @@ static uint32_t expand_ring(const GddInstance *it, GddVertex *out) {
     return 96;
 }
 
-/* Shared half-thickness of expand_circle / expand_arc: mirror of
- * gdd_expand_circle/gdd_expand_arc (it.p.x with default 0.02, clamped
- * to pc.line_min_wu — 0 in this test). */
+/* Shared half-thickness of expand_circle / expand_arc / expand_boxwire:
+ * mirror of gdd_expand_circle/gdd_expand_arc/gdd_expand_boxwire (it.p.x
+ * with default 0.02, clamped to pc.line_min_wu — 0 in this test). */
 static float band_half_thick(const GddInstance *it) {
     float t = (it->pad[0] > 1e-4f) ? it->pad[0] : 0.02f;
     float line_min_wu = 0.0f; /* pc.line_min_wu in this test */
@@ -377,6 +377,86 @@ static uint32_t expand_line(const GddInstance *it, GddVertex *out) {
     return 24;
 }
 
+/* 12 edges of the unit box (±0.5)^3 as start/end pairs — same table
+ * as GDD_BOXWIRE_EDGES in gdd_common.glsl. */
+static const float BOXWIRE_EDGES[24][3] = {
+    /* X edges (y = ±0.5, z = ±0.5) */
+    {-0.5f, -0.5f, -0.5f}, { 0.5f, -0.5f, -0.5f},
+    {-0.5f,  0.5f, -0.5f}, { 0.5f,  0.5f, -0.5f},
+    {-0.5f, -0.5f,  0.5f}, { 0.5f, -0.5f,  0.5f},
+    {-0.5f,  0.5f,  0.5f}, { 0.5f,  0.5f,  0.5f},
+    /* Y edges (x = ±0.5, z = ±0.5) */
+    {-0.5f, -0.5f, -0.5f}, {-0.5f,  0.5f, -0.5f},
+    { 0.5f, -0.5f, -0.5f}, { 0.5f,  0.5f, -0.5f},
+    {-0.5f, -0.5f,  0.5f}, {-0.5f,  0.5f,  0.5f},
+    { 0.5f, -0.5f,  0.5f}, { 0.5f,  0.5f,  0.5f},
+    /* Z edges (x = ±0.5, y = ±0.5) */
+    {-0.5f, -0.5f, -0.5f}, {-0.5f, -0.5f,  0.5f},
+    { 0.5f, -0.5f, -0.5f}, { 0.5f, -0.5f,  0.5f},
+    {-0.5f,  0.5f, -0.5f}, {-0.5f,  0.5f,  0.5f},
+    { 0.5f,  0.5f, -0.5f}, { 0.5f,  0.5f,  0.5f}
+};
+
+/* Mirror of gdd_expand_boxwire (gdd_ops.glsl): 12 edge tubes, same
+ * per-edge construction and face order as expand_line above. */
+static uint32_t expand_boxwire(const GddInstance *it, GddVertex *out) {
+    float t = band_half_thick(it); /* it.p.x (default 0.02), floor 0 here */
+    for (int e = 0; e < 12; e++) {
+        float la[3] = { BOXWIRE_EDGES[2*e][0],   BOXWIRE_EDGES[2*e][1],   BOXWIRE_EDGES[2*e][2] };
+        float lb[3] = { BOXWIRE_EDGES[2*e+1][0], BOXWIRE_EDGES[2*e+1][1], BOXWIRE_EDGES[2*e+1][2] };
+        float s[3], f[3];
+        m_xform(it, la, s);
+        m_xform(it, lb, f);
+        float dv[3] = { f[0]-s[0], f[1]-s[1], f[2]-s[2] };
+        float len = sqrtf(dv[0]*dv[0] + dv[1]*dv[1] + dv[2]*dv[2]);
+        float d[3];
+        if (len > 1e-6f) {
+            d[0] = dv[0]/len; d[1] = dv[1]/len; d[2] = dv[2]/len;
+        } else {
+            d[0] = 1; d[1] = 0; d[2] = 0;
+        }
+        float ref[3];
+        if (fabsf(d[0]) > 0.9f) { ref[0] = 0; ref[1] = 1; ref[2] = 0; }
+        else                    { ref[0] = 1; ref[1] = 0; ref[2] = 0; }
+        float p1[3] = {
+            d[1]*ref[2] - d[2]*ref[1],
+            d[2]*ref[0] - d[0]*ref[2],
+            d[0]*ref[1] - d[1]*ref[0]
+        };
+        float pl = sqrtf(p1[0]*p1[0] + p1[1]*p1[1] + p1[2]*p1[2]);
+        p1[0] /= pl; p1[1] /= pl; p1[2] /= pl;
+        float p2[3] = {
+            d[1]*p1[2] - d[2]*p1[1],
+            d[2]*p1[0] - d[0]*p1[2],
+            d[0]*p1[1] - d[1]*p1[0]
+        };
+        float p2l = sqrtf(p2[0]*p2[0] + p2[1]*p2[1] + p2[2]*p2[2]);
+        p2[0] /= p2l; p2[1] /= p2l; p2[2] /= p2l;
+        float sA[3] = { s[0]+p1[0]*t+p2[0]*t, s[1]+p1[1]*t+p2[1]*t, s[2]+p1[2]*t+p2[2]*t };
+        float sB[3] = { s[0]-p1[0]*t+p2[0]*t, s[1]-p1[1]*t+p2[1]*t, s[2]-p1[2]*t+p2[2]*t };
+        float sC[3] = { s[0]-p1[0]*t-p2[0]*t, s[1]-p1[1]*t-p2[1]*t, s[2]-p1[2]*t-p2[2]*t };
+        float sD[3] = { s[0]+p1[0]*t-p2[0]*t, s[1]+p1[1]*t-p2[1]*t, s[2]+p1[2]*t-p2[2]*t };
+        float fA[3] = { f[0]+p1[0]*t+p2[0]*t, f[1]+p1[1]*t+p2[1]*t, f[2]+p1[2]*t+p2[2]*t };
+        float fB[3] = { f[0]-p1[0]*t+p2[0]*t, f[1]-p1[1]*t+p2[1]*t, f[2]-p1[2]*t+p2[2]*t };
+        float fC[3] = { f[0]-p1[0]*t-p2[0]*t, f[1]-p1[1]*t-p2[1]*t, f[2]-p1[2]*t-p2[2]*t };
+        float fD[3] = { f[0]+p1[0]*t-p2[0]*t, f[1]+p1[1]*t-p2[1]*t, f[2]+p1[2]*t-p2[2]*t };
+        float np1[3] = { p1[0], p1[1], p1[2] };
+        float nm1[3] = {-p1[0],-p1[1],-p1[2] };
+        float np2[3] = { p2[0], p2[1], p2[2] };
+        float nm2[3] = {-p2[0],-p2[1],-p2[2] };
+        uint32_t b = (uint32_t)e * 24u;
+        const float *fp1[6] = { sA, sD, fD, sA, fD, fA };
+        for (int k = 0; k < 6; k++) put_exp(&out[b+ 0+k], fp1[k], fp1[k], np1, it);
+        const float *fm1[6] = { sB, sC, fC, sB, fC, fB };
+        for (int k = 0; k < 6; k++) put_exp(&out[b+ 6+k], fm1[k], fm1[k], nm1, it);
+        const float *fp2[6] = { sA, sB, fB, sA, fB, fA };
+        for (int k = 0; k < 6; k++) put_exp(&out[b+12+k], fp2[k], fp2[k], np2, it);
+        const float *fm2[6] = { sC, sD, fD, sC, fD, fC };
+        for (int k = 0; k < 6; k++) put_exp(&out[b+18+k], fm2[k], fm2[k], nm2, it);
+    }
+    return 288;
+}
+
 static uint32_t expand_point(const GddInstance *it, GddVertex *out) {
     float r = it->scale[0] > 1e-4f ? it->scale[0] : 1e-4f;
     float p[3] = { it->pos[0], it->pos[1], it->pos[2] };
@@ -401,6 +481,99 @@ static uint32_t expand_point(const GddInstance *it, GddVertex *out) {
     return 6;
 }
 
+/* Mirror of gdd_hash_u / gdd_boom_hash (gdd_common.glsl): 32-bit
+ * integer scramble over exact integer inputs — bit-identical on GPU
+ * and CPU (no float intermediates; uint32 arithmetic wraps mod 2^32
+ * by definition, same as GLSL uint). */
+static uint32_t gdd_hash_u(uint32_t x) {
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+}
+static float gdd_boom_hash(float u, float seed, float k) {
+    uint32_t a = (uint32_t)(u + 0.5f);
+    uint32_t b = (uint32_t)(seed * 1000.0f + 0.5f);
+    uint32_t c = (uint32_t)k;
+    uint32_t x = a * 73856093u + b * 19349663u + c * 83492791u;
+    return (float)gdd_hash_u(x) / 4294967296.0f; /* [0, 1) */
+}
+
+/* Mirror of gdd_expand_boom (gdd_ops.glsl): the 256-particle procedural
+ * explosion cloud (CPU boom parity). The expander writes per-vertex colors
+ * directly and zeroes v.params (seed/style stay on the instance). */
+static uint32_t expand_boom(const GddInstance *it, GddVertex *out) {
+    float life = it->alpha;
+    float ts = (it->scale[0] > 1e-4f) ? it->scale[0] : 1e-4f;
+    float expn = (1.0f - life) * 12.0f * ts;
+    float style = it->pad[1];
+    float r = 0.25f * ts;
+    for (int p = 0; p < 256; p++) {
+        float u = (float)p;
+        float h1 = gdd_boom_hash(u, it->pad[0], 1.0f);
+        float h2 = gdd_boom_hash(u, it->pad[0], 2.0f);
+        float h3 = gdd_boom_hash(u, it->pad[0], 3.0f);
+        float off[3], col[3];
+        if (style > 0.5f) {
+            /* dismantle boom: spherical offsets, per-particle speed,
+             * colors: p%3==0 white, p%5==0 (0,0.5,1), else (0.2,0.8,1) */
+            float theta = h1 * 6.283185307179586f;
+            float phi = (h2 - 0.5f) * 3.141592653589793f;
+            float speed = (u < 32.0f) ? (3.5f + h3 * 2.0f) : (1.0f + h3 * 2.5f);
+            off[0] = cosf(phi) * cosf(theta) * speed;
+            off[1] = sinf(phi) * speed;
+            off[2] = cosf(phi) * sinf(theta) * speed;
+            if ((float)(p % 3) < 0.5f)      { col[0]=1.0f; col[1]=1.0f; col[2]=1.0f; }
+            else if ((float)(p % 5) < 0.5f) { col[0]=0.0f; col[1]=0.5f; col[2]=1.0f; }
+            else                             { col[0]=0.2f; col[1]=0.8f; col[2]=1.0f; }
+        } else {
+            /* torpedo boom: cubic offsets [-4,4)^3, 6-color cycle */
+            off[0] = (h1 * 8.0f) - 4.0f;
+            off[1] = (h2 * 8.0f) - 4.0f;
+            off[2] = (h3 * 8.0f) - 4.0f;
+            float k = (float)(p % 6);
+            if (k < 0.5f)      { col[0]=0.0f; col[1]=1.0f; col[2]=1.0f; }
+            else if (k < 1.5f) { col[0]=1.0f; col[1]=0.0f; col[2]=1.0f; }
+            else if (k < 2.5f) { col[0]=1.0f; col[1]=1.0f; col[2]=0.0f; }
+            else if (k < 3.5f) { col[0]=1.0f; col[1]=0.0f; col[2]=0.0f; }
+            else if (k < 4.5f) { col[0]=0.0f; col[1]=1.0f; col[2]=0.0f; }
+            else               { col[0]=1.0f; col[1]=0.5f; col[2]=0.0f; }
+        }
+        float wp[3] = { it->pos[0] + off[0] * expn,
+                        it->pos[1] + off[1] * expn,
+                        it->pos[2] + off[2] * expn };
+        float n[3], uu[3], vv[3];
+        if (fabsf(wp[0]) >= fabsf(wp[1]) && fabsf(wp[0]) >= fabsf(wp[2])) {
+            n[0]=1; n[1]=0; n[2]=0; uu[0]=0; uu[1]=1; uu[2]=0; vv[0]=0; vv[1]=0; vv[2]=1;
+        } else if (fabsf(wp[1]) >= fabsf(wp[2])) {
+            n[0]=0; n[1]=1; n[2]=0; uu[0]=1; uu[1]=0; uu[2]=0; vv[0]=0; vv[1]=0; vv[2]=1;
+        } else {
+            n[0]=0; n[1]=0; n[2]=1; uu[0]=0; uu[1]=1; uu[2]=0; vv[0]=0; vv[1]=0; vv[2]=1;
+        }
+        float a0[3] = { wp[0] + uu[0]*r, wp[1] + uu[1]*r, wp[2] + uu[2]*r };
+        float a1[3] = { wp[0] - uu[0]*(r*0.8660254f) - vv[0]*(r*0.5f),
+                        wp[1] - uu[1]*(r*0.8660254f) - vv[1]*(r*0.5f),
+                        wp[2] - uu[2]*(r*0.8660254f) - vv[2]*(r*0.5f) };
+        float a2[3] = { wp[0] - uu[0]*(r*0.8660254f) + vv[0]*(r*0.5f),
+                        wp[1] - uu[1]*(r*0.8660254f) + vv[1]*(r*0.5f),
+                        wp[2] - uu[2]*(r*0.8660254f) + vv[2]*(r*0.5f) };
+        const float *pt[6] = { a0, a1, a2, a0, a2, a1 };
+        for (int k = 0; k < 6; k++) {
+            GddVertex *v = &out[p * 6 + k];
+            memset(v, 0, sizeof(*v));
+            v->pos[0] = pt[k][0]; v->pos[1] = pt[k][1]; v->pos[2] = pt[k][2];
+            v->color[0] = col[0]; v->color[1] = col[1]; v->color[2] = col[2]; v->color[3] = 1.0f;
+            v->normal[0] = n[0]; v->normal[1] = n[1]; v->normal[2] = n[2];
+            v->mode = (float)gdd_frag_mode(it->flags);
+            v->local[0] = off[0] * expn; v->local[1] = off[1] * expn; v->local[2] = off[2] * expn;
+            v->metallic = 0.0f; v->roughness = 0.0f; /* boom zeroes params */
+        }
+    }
+    return 1536;
+}
+
 static uint32_t expand_mesh(const GddInstance *it, GddVertex *out) {
     switch ((int)(it->mesh + 0.5f)) {
     case GDD_MESH_POINT:   return expand_point(it, out);
@@ -412,6 +585,8 @@ static uint32_t expand_mesh(const GddInstance *it, GddVertex *out) {
     case GDD_MESH_LINE:    return expand_line(it, out);
     case GDD_MESH_CIRCLE:  return expand_circle(it, out);
     case GDD_MESH_ARC:     return expand_arc(it, out);
+    case GDD_MESH_BOOM:    return expand_boom(it, out);
+    case GDD_MESH_BOXWIRE: return expand_boxwire(it, out);
     default:               return expand_box(it, out);
     }
 }
@@ -486,6 +661,10 @@ static void dump_vertex(const char *tag, const GddVertex *v) {
 
 static const float TOL_EXACT = 0.0f;   /* identity orientation, no transcendentals */
 static const float TOL_TRIG = 1e-4f;   /* sin/cos ulp drift */
+/* The boom cloud multiplies sin/cos by the particle speed (<= 5.5) and by
+ * the expansion factor (<= 12*tactScale), so the GPU sin/cos implementation
+ * error (measured ~1.2e-5 on ANV) is amplified up to ~8e-4 in world units. */
+static const float TOL_BOOM = 1e-3f;
 
 /* Best-leading-match diagnostics for a failed find_block (offset of the
  * candidate block whose first vertices matched the most, and how many
@@ -1014,6 +1193,28 @@ static void fill_test_data(void) {
         memcpy(u_inst_dyn[11].orient, ory30, sizeof(ory30));
     }
 
+    /* 12: boom cloud (torpedo style 0: cubic offsets, 6-color cycle),
+     *     IN range; alpha = life, pad.x = seed, pad.y = style */
+    u_inst_dyn[12].pos[0] = 2.0f; u_inst_dyn[12].pos[1] = -2.0f; u_inst_dyn[12].pos[2] = 1.0f;
+    u_inst_dyn[12].mesh = GDD_MESH_BOOM;
+    u_inst_dyn[12].scale[0] = 0.5f; u_inst_dyn[12].scale[1] = 0.5f; u_inst_dyn[12].scale[2] = 0.5f;
+    u_inst_dyn[12].flags = gdd_make_flags(0, 0, GDD_FRAG_UNLIT);
+    u_inst_dyn[12].alpha = 0.8f;
+    u_inst_dyn[12].pad[0] = 37.0f;  /* seed */
+    u_inst_dyn[12].pad[1] = 0.0f;   /* style 0 = torpedo */
+    set_identity_orient(u_inst_dyn[12].orient);
+
+    /* 13: boom cloud (dismantle style 1: spherical offsets, 3-color
+     *     mix, p<32 fast shell), IN range */
+    u_inst_dyn[13].pos[0] = -4.0f; u_inst_dyn[13].pos[1] = 3.0f; u_inst_dyn[13].pos[2] = 2.0f;
+    u_inst_dyn[13].mesh = GDD_MESH_BOOM;
+    u_inst_dyn[13].scale[0] = 0.7f; u_inst_dyn[13].scale[1] = 0.7f; u_inst_dyn[13].scale[2] = 0.7f;
+    u_inst_dyn[13].flags = gdd_make_flags(0, 0, GDD_FRAG_UNLIT);
+    u_inst_dyn[13].alpha = 0.6f;
+    u_inst_dyn[13].pad[0] = 123.0f; /* seed */
+    u_inst_dyn[13].pad[1] = 1.0f;   /* style 1 = dismantle */
+    set_identity_orient(u_inst_dyn[13].orient);
+
     /* --- map group (static geometry: all NEVER_CULL) --------------- */
     u_inst_map[0].pos[0] = 5.0f; u_inst_map[0].pos[2] = -5.0f;
     u_inst_map[0].mesh = GDD_MESH_BOX;
@@ -1043,6 +1244,17 @@ static void fill_test_data(void) {
     u_inst_map[3].flags = gdd_make_flags(1, 1, GDD_FRAG_UNLIT);
     u_inst_map[3].alpha = 1.0f;
     set_identity_orient(u_inst_map[3].orient);
+
+    /* 4: boxwire (galaxy-map sector style), non-uniform half-extents,
+     *    half-thickness 0.02, identity orientation, NEVER_CULL */
+    u_inst_map[4].pos[0] = -3.0f; u_inst_map[4].pos[1] = -2.0f; u_inst_map[4].pos[2] = -1.0f;
+    u_inst_map[4].mesh = GDD_MESH_BOXWIRE;
+    u_inst_map[4].scale[0] = 0.5f; u_inst_map[4].scale[1] = 0.75f; u_inst_map[4].scale[2] = 0.5f;
+    u_inst_map[4].flags = gdd_make_flags(1, 0, GDD_FRAG_UNLIT);
+    u_inst_map[4].color[0] = 0.4f; u_inst_map[4].color[1] = 0.4f; u_inst_map[4].color[2] = 1.0f;
+    u_inst_map[4].alpha = 0.8f;
+    u_inst_map[4].pad[0] = 0.02f; /* half-thickness (line_min_wu = 0 here) */
+    set_identity_orient(u_inst_map[4].orient);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1186,7 +1398,7 @@ int main(int argc, char **argv) {
     fill_test_data();
 
     /* ---------------- Stage 1: CULL ---------------- */
-    if (!run_cull(4096)) {
+    if (!run_cull(8192)) {
         fprintf(stderr, "FAIL: cull stage did not complete\n");
         return 1;
     }
@@ -1229,7 +1441,7 @@ int main(int argc, char **argv) {
 
     /* ---------------- Stage 2: EXPAND ---------------- */
     memset(u_verts, 0, VMAX * sizeof(GddVertex));
-    if (!run_expand(4096)) {
+    if (!run_expand(8192)) {
         fprintf(stderr, "FAIL: expand stage did not complete\n");
         return 1;
     }
@@ -1248,20 +1460,21 @@ int main(int argc, char **argv) {
     }
     /* Expected per-pass totals */
     uint32_t opaque_ref = 0, additive_ref = 0;
-    GddVertex exp_block[432]; /* max mesh vertex count (GDD_VCOUNT_CIRCLE) */
+    GddVertex exp_block[1536]; /* max mesh vertex count (GDD_VCOUNT_BOOM) */
     static uint32_t used[VMAX];
     int blocks_checked = 0;
 
     for (int i = 0; i < N_MAP; i++) {
         if (!map_vis[i]) continue;
         uint32_t n = expand_mesh(&u_inst_map[i], exp_block);
-        float tol = (u_inst_dyn[i].mesh == GDD_MESH_SPHERE ||
-                     u_inst_dyn[i].mesh == GDD_MESH_OCTA ||
-                     u_inst_dyn[i].mesh == GDD_MESH_RING ||
-                     u_inst_dyn[i].mesh == GDD_MESH_POINT ||
-                     u_inst_dyn[i].mesh == GDD_MESH_LINE ||
-                     u_inst_dyn[i].mesh == GDD_MESH_CIRCLE ||
-                     u_inst_dyn[i].mesh == GDD_MESH_ARC || i == 0) ? TOL_TRIG : TOL_EXACT;
+        float tol = (u_inst_map[i].mesh == GDD_MESH_SPHERE ||
+                     u_inst_map[i].mesh == GDD_MESH_OCTA ||
+                     u_inst_map[i].mesh == GDD_MESH_RING ||
+                     u_inst_map[i].mesh == GDD_MESH_POINT ||
+                     u_inst_map[i].mesh == GDD_MESH_LINE ||
+                     u_inst_map[i].mesh == GDD_MESH_CIRCLE ||
+                     u_inst_map[i].mesh == GDD_MESH_ARC || i == 0) ? TOL_TRIG : TOL_EXACT;
+        if (u_inst_map[i].mesh == GDD_MESH_BOOM) tol = TOL_BOOM;
         uint32_t at = find_block(u_verts, VMAX, used, exp_block, n, tol);
         CHECK(at != UINT32_MAX, "map block %d (mesh %u, %u verts) found in readback",
               i, (uint32_t)u_inst_map[i].mesh, n);
@@ -1281,6 +1494,7 @@ int main(int argc, char **argv) {
                      u_inst_dyn[i].mesh == GDD_MESH_RING ||
                      u_inst_dyn[i].mesh == GDD_MESH_CIRCLE ||
                      u_inst_dyn[i].mesh == GDD_MESH_ARC || i == 0) ? TOL_TRIG : TOL_EXACT;
+        if (u_inst_dyn[i].mesh == GDD_MESH_BOOM) tol = TOL_BOOM;
         uint32_t at = find_block(u_verts, VMAX, used, exp_block, n, tol);
         
         if (at == UINT32_MAX) {

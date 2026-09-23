@@ -193,7 +193,8 @@ static void test_objects_mapping(void) {
     c.object_count = 3;
 
     run_builder(&c);
-    CHECK(g_dyn_n == 19, "3 objects + 16 bbox edges -> %u dyn instances", g_dyn_n);
+    /* ship is Alliance (fac 0): +4 quantum instances (core + 3 rings) */
+    CHECK(g_dyn_n == 23, "3 objects + quantum(4) + 16 bbox edges -> %u dyn instances", g_dyn_n);
 
     /* (X, Z, -Y) centered mapping: obj1 (10,15,25) -> (-10, 5, 5) */
     const GddInstance *star = find_dyn(GDD_MESH_SPHERE, -10.0f, 5.0f, 5.0f, 1e-4f);
@@ -212,16 +213,27 @@ static void test_objects_mapping(void) {
               "star identity orientation");
     }
 
-    /* Player ship: pyramid at the center, x stretched by the nose ratio */
-    const GddInstance *ship = find_dyn(GDD_MESH_PYRAMID, 0.0f, 0.0f, 0.0f, 1e-4f);
-    CHECK(ship != NULL, "ship (pyramid) at center");
+    /* Player ship: pyramid centered on the object in the CPU path, so
+     * the GDD instance is shifted along the nose axis (identity heading:
+     * RotY(90deg) -> nose +Z) by 0.7288 * GDD_SHIP_SCALE (CPU stern
+     * alignment: the mesh spans local [-0.7288, +2.1866]). */
+    const float ship_stern_off = 0.7288f * 0.45f * 0.55f;
+    const GddInstance *ship = find_dyn(GDD_MESH_PYRAMID, 0.0f, 0.0f, ship_stern_off, 1e-4f);
+    CHECK(ship != NULL, "ship (pyramid) at stern-aligned position");
     if (ship) {
         /* GDD_SHIP_SCALE = SCALE_SHIP * 0.55 = 0.45 * 0.55 */
         CHECK_F("ship sx", ship->scale[0], 0.45f * 0.55f * 2.9154f, 1e-4f, "ship sx");
         CHECK_F("ship sy", ship->scale[1], 0.45f * 0.55f, 1e-4f, "ship sy");
         CHECK_F("ship color.g", ship->color[1], 1.0f, 1e-5f, "ship color.g");
-        CHECK(gdd_frag_mode(ship->flags) == GDD_FRAG_UNLIT, "ship unlit");
+        /* CPU: wireframe pipeline + PBR (metal 0.9 / rough 0.25) */
+        CHECK(gdd_frag_mode(ship->flags) == GDD_FRAG_WIREFRAME_PBR, "ship wireframe PBR");
+        CHECK_F("ship metallic", ship->pad[0], 0.9f, 1e-5f, "ship metallic");
+        CHECK_F("ship roughness", ship->pad[1], 0.25f, 1e-5f, "ship roughness");
         CHECK(gdd_flag_bit(ship->flags, 1) == 0, "ship opaque");
+        /* Orientation = RotY(90deg): column 0 of the GLSL mat3 = nose (+Z) */
+        CHECK(near_f(ship->orient[2], 1.0f, 1e-5f) && near_f(ship->orient[0], 0.0f, 1e-5f) &&
+              near_f(ship->orient[5], 1.0f, 1e-5f) && near_f(ship->orient[8], -1.0f, 1e-5f),
+              "ship RotY(90deg) orientation (nose +Z)");
     }
 
     /* Planet (30,10,5) -> (10, -15, 15) */
@@ -230,11 +242,31 @@ static void test_objects_mapping(void) {
     if (planet)
         CHECK_F("planet scale", planet->scale[0], 1.8f, 1e-5f, "planet scale");
 
+    /* Quantum core: octahedron wireframe at -0.46*GDD_SHIP_SCALE along
+     * the nose axis (here +Z), radius 0.20*GDD_SHIP_SCALE */
+    const float q_off = -0.46f * 0.45f * 0.55f;
+    const GddInstance *qcore = find_dyn(GDD_MESH_OCTA, 0.0f, 0.0f, q_off, 1e-4f);
+    CHECK(qcore != NULL, "quantum core octahedron at the stern");
+    if (qcore) {
+        CHECK_F("quantum core radius", qcore->scale[0], 0.20f * 0.45f * 0.55f, 1e-4f,
+                "quantum core radius");
+        CHECK(gdd_frag_mode(qcore->flags) == GDD_FRAG_WIREFRAME, "quantum core wireframe");
+        CHECK(gdd_flag_bit(qcore->flags, 1) == 0, "quantum core opaque");
+    }
+    /* Three orbiting rings (wireframe circles, cyan) */
+    CHECK(count_dyn(GDD_MESH_CIRCLE) == 3, "quantum: 3 orbiting rings = %d", count_dyn(GDD_MESH_CIRCLE));
+    const GddInstance *qr = find_dyn(GDD_MESH_CIRCLE, 0.0f, 0.0f, q_off, 1e-4f);
+    CHECK(qr != NULL, "quantum ring at the stern");
+    if (qr) {
+        CHECK_F("quantum ring b", qr->color[2], 1.0f, 1e-5f, "quantum ring b");
+        CHECK_F("quantum ring g", qr->color[1], 0.95f, 1e-5f, "quantum ring g");
+    }
+
     /* Inactive objects must not be emitted */
     int act2[3] = { 1, 0, 1 };
     c.active = act2;
     run_builder(&c);
-    CHECK(g_dyn_n == 18, "inactive object dropped + 16 bbox = %u dyn", g_dyn_n);
+    CHECK(g_dyn_n == 22, "inactive object dropped + quantum(4) + 16 bbox = %u dyn", g_dyn_n);
 }
 
 static void test_effects(void) {
@@ -245,12 +277,15 @@ static void test_effects(void) {
     c.types = types; c.factions = fac; c.ship_classes = sc; c.cloaked = cl;
     c.active = act; c.platings = pl; c.ids = id; c.object_count = 1;
 
-    /* One explosion at (5,5,5), life 0.9:
-     * flash (life>0.7) + core + aura + 16 point pixels = 19 instances */
+    /* One explosion at (5,5,5), life 0.9: a single GDD_MESH_BOOM
+     * instance; the 256-particle cloud is expanded on the GPU from
+     * seed/style (CPU parity: 256 unlit spheres, offsets*exp). */
     static ActiveBoom boom[GDD_MAX_ACTIVE_BOOMS];
     memset(boom, 0, sizeof(boom));
     boom[0].x = boom[0].y = boom[0].z = 5.0f;
     boom[0].life = 0.9f;
+    boom[0].seed = 42.0f;
+    boom[0].style = 0;
     for (int p = 0; p < (int)GDD_EXPLOSION_PIXELS; p++) {
         boom[0].offsets[p][0] = 0.1f * p;
         boom[0].offsets[p][1] = 0.0f;
@@ -279,18 +314,23 @@ static void test_effects(void) {
 
     run_builder(&c);
 
-    /* ship (1) + boom (3+16) + beam (3) + torp (1) = 22 */
-    CHECK(g_dyn_n == 40, "effects: ship+boom+beam+torp+16bbox -> %u dyn (want 40)", g_dyn_n);
-    CHECK(count_dyn(GDD_MESH_POINT) == 16, "16 explosion pixels, got %d",
-          count_dyn(GDD_MESH_POINT));
+    /* ship (1+4 quantum) + boom (1 cloud) + beam (3) + torp (1) + 16 bbox */
+    CHECK(g_dyn_n == 26, "effects: ship+quantum+boom+beam+torp+16bbox -> %u dyn (want 26)", g_dyn_n);
 
-    /* Boom core at (5,5,5): sphere, additive, hyperwarp */
-    const GddInstance *core = find_dyn(GDD_MESH_SPHERE, 5.0f, 5.0f, 5.0f, 1e-4f);
-    CHECK(core != NULL, "boom core sphere at (5,5,5)");
-    if (core) {
-        CHECK_F("boom core scale", core->scale[0], 0.9f * 1.5f, 1e-4f, "boom core scale");
-        CHECK(gdd_flag_bit(core->flags, 1) == 1, "boom core additive");
-        CHECK(gdd_frag_mode(core->flags) == GDD_FRAG_HYPERWARP, "boom core mode");
+    /* Boom: exactly 1 GDD_MESH_BOOM instance at (5,5,5); the GPU expands
+     * the 256-particle cloud from seed/style (pad.x/pad.y). */
+    CHECK(count_dyn(GDD_MESH_BOOM) == 1, "1 boom cloud instance, got %d",
+          count_dyn(GDD_MESH_BOOM));
+    const GddInstance *boomit = find_dyn(GDD_MESH_BOOM, 5.0f, 5.0f, 5.0f, 1e-4f);
+    CHECK(boomit != NULL, "boom cloud instance at (5,5,5)");
+    if (boomit) {
+        CHECK_F("boom ts scale", boomit->scale[0], 1.0f, 1e-5f, "boom ts scale");
+        CHECK_F("boom alpha=life", boomit->alpha, 0.9f, 1e-6f, "boom alpha");
+        CHECK_F("boom seed", boomit->pad[0], 42.0f, 1e-6f, "boom seed");
+        CHECK_F("boom style", boomit->pad[1], 0.0f, 1e-6f, "boom style");
+        CHECK(gdd_flag_bit(boomit->flags, 0) == 1, "boom never-cull (CPU draws regardless of vision)");
+        CHECK(gdd_flag_bit(boomit->flags, 1) == 0, "boom opaque");
+        CHECK(gdd_frag_mode(boomit->flags) == GDD_FRAG_UNLIT, "boom unlit");
     }
     /* Beam: midpoint (5,0,0), a box oriented along +X (x half-extent ~ dist/0.9) */
     int boxes = count_dyn(GDD_MESH_BOX);
@@ -305,16 +345,17 @@ static void test_effects(void) {
     const GddInstance *tp = find_dyn(GDD_MESH_PYRAMID, 1.0f, 2.0f, 3.0f, 1e-4f);
     CHECK(tp != NULL, "torpedo pyramid at (1,2,3)");
 
-    /* Dismantle with life < 0.7 is skipped (CPU parity) */
+    /* Dismantle with life < 0.7: only the flash is skipped (CPU parity),
+     * core + aura are still drawn -> 26 + 2 */
     static ActiveDismantle dm[GDD_MAX_ACTIVE_DISMANTLES];
     memset(dm, 0, sizeof(dm));
     dm[0].x = 9.0f; dm[0].life = 0.5f;
     c.dismantles = dm;
     run_builder(&c);
-    CHECK(g_dyn_n == 40, "dead dismantle skipped (%u)", g_dyn_n);
+    CHECK(g_dyn_n == 28, "dead dismantle: flash skipped, core+aura drawn (%u)", g_dyn_n);
     dm[0].life = 0.9f;
     run_builder(&c);
-    CHECK(g_dyn_n == 43, "live dismantle adds 3 spheres (%u)", g_dyn_n);
+    CHECK(g_dyn_n == 29, "live dismantle adds 3 spheres (%u)", g_dyn_n);
 }
 
 static void test_compass_and_jump(void) {
@@ -325,19 +366,20 @@ static void test_compass_and_jump(void) {
     c.types = types; c.factions = fac; c.ship_classes = sc; c.cloaked = cl;
     c.active = act; c.platings = pl; c.ids = id; c.object_count = 1;
 
-    /* No compass: ship + 16 bbox lines */
+    /* No compass: ship + quantum(4) + 16 bbox lines */
     run_builder(&c);
-    CHECK(g_dyn_n == 17, "no compass: ship+16bbox = %u dyn", g_dyn_n);
+    CHECK(g_dyn_n == 21, "no compass: ship+quantum+16bbox = %u dyn", g_dyn_n);
 
     /* Compass on: +25 instances (3 axis lines, 3 circles, 1 mark arc,
      * 2 arrows x 9 lines) + 16 bbox — CPU compass parity */
     c.show_axes = 1;
     run_builder(&c);
-    CHECK(g_dyn_n == 42, "compass: ship + 25 compass + 16 bbox = %u dyn", g_dyn_n);
+    CHECK(g_dyn_n == 46, "compass: ship + quantum + 25 compass + 16 bbox = %u dyn", g_dyn_n);
     CHECK(count_dyn(GDD_MESH_LINE) == 37,
           "compass: 3 axes + 18 arrow lines + 16 bbox = %d", count_dyn(GDD_MESH_LINE));
-    CHECK(count_dyn(GDD_MESH_CIRCLE) == 3,
-          "compass: 3 circles (fixed/heading/roll) = %d", count_dyn(GDD_MESH_CIRCLE));
+    CHECK(count_dyn(GDD_MESH_CIRCLE) == 6,
+          "circles: 3 compass (fixed/heading/roll) + 3 quantum rings = %d",
+          count_dyn(GDD_MESH_CIRCLE));
     CHECK(count_dyn(GDD_MESH_ARC) == 1, "compass: 1 vertical mark arc = %d",
           count_dyn(GDD_MESH_ARC));
     CHECK(count_dyn(GDD_MESH_RING) == 0,
@@ -366,26 +408,71 @@ static void test_compass_and_jump(void) {
     CHECK(r30 == 1 && r25 == 1 && r28 == 1,
           "circle radii 3.0/2.5/2.8 one each (got %d/%d/%d)", r30, r25, r28);
 
-    /* Shield hit: +2 additive rings */
+    /* Shield hit (sector 2 = top): 6 faithful instances (CPU
+     * drawShieldEffect parity): PBR energy panel + shockwave surface
+     * glow + 4 volumetric shells, oriented with the ship. Ship at the
+     * origin with identity heading: R_ship = RotY(90), Rz(-90) maps the
+     * sector +X axis to world +Y. */
     static int shields[6] = { 0, 0, 30, 0, 0, 0 };
     c.shield_timers = shields;
     run_builder(&c);
-    CHECK(g_dyn_n == 44, "shield glow: 27 dyn + 16 bbox = %u", g_dyn_n);
+    CHECK(g_dyn_n == 52, "shield glow: ship+quantum+compass+6 panel + 16 bbox = %u", g_dyn_n);
+    {
+        float t = 30.0f / 80.0f;
+        float alpha = (t > 0.5f) ? 1.0f : t * 2.0f;
+        float scale = (1.2f + (1.0f - t) * 0.3f); /* ts = 1 (map_anim 0) */
+        float off = 1.45f * scale;
+        int n_sec = 0;
+        const GddInstance *pbr = NULL, *pulse = NULL, *glow1 = NULL;
+        for (uint32_t i = 0; i < g_dyn_n; i++) {
+            const GddInstance *it = &g_dyn[i];
+            if ((int)(it->mesh + 0.5f) != GDD_MESH_SPHERE) continue;
+            if (!(near_f(it->pos[0], 0.0f, 1e-4f) && near_f(it->pos[1], off, 1e-4f) &&
+                  near_f(it->pos[2], 0.0f, 1e-4f))) continue;
+            n_sec++;
+            int mode = gdd_frag_mode(it->flags);
+            if (mode == GDD_FRAG_PBR) pbr = it;
+            else if (mode == GDD_FRAG_SHOCKWAVE) {
+                if (near_f(it->scale[0], 0.5f * scale, 1e-5f)) pulse = it;
+                else if (near_f(it->scale[0], 0.5f * scale * 0.7f * scale * 1.6f, 1e-4f)) glow1 = it;
+            }
+        }
+        CHECK(n_sec == 6, "shield sector 2: 6 instances (got %d)", n_sec);
+        CHECK(pbr != NULL, "shield PBR panel present");
+        if (pbr) {
+            CHECK_F("shield panel scale x", pbr->scale[0], 0.5f * scale, 1e-5f, "shield panel scale x");
+            CHECK_F("shield panel scale y", pbr->scale[1], 1.8f * scale, 1e-5f, "shield panel scale y");
+            CHECK_F("shield panel g", pbr->color[1], 0.8f, 1e-5f, "shield panel g");
+            CHECK_F("shield panel alpha", pbr->alpha, alpha * 0.8f, 1e-5f, "shield panel alpha");
+            CHECK(gdd_flag_bit(pbr->flags, 1) == 0, "shield panel opaque");
+        }
+        CHECK(pulse != NULL, "shield shockwave pulse present");
+        if (pulse) {
+            CHECK_F("shield pulse alpha", pulse->alpha, alpha * 0.6f, 1e-5f, "shield pulse alpha");
+            CHECK_F("shield pulse metallic", pulse->pad[0], 15.0f, 1e-5f, "shield pulse metallic (pulse*15)");
+            CHECK(gdd_flag_bit(pulse->flags, 1) == 1, "shield pulse additive");
+        }
+        CHECK(glow1 != NULL, "shield glow shell 1 present");
+        if (glow1) {
+            CHECK_F("shield glow1 alpha", glow1->alpha, alpha * 0.9f / 1.2f, 1e-5f, "shield glow1 alpha");
+            CHECK_F("shield glow1 metallic", glow1->pad[0], 10.0f, 1e-5f, "shield glow1 metallic (pulse*10)");
+        }
+    }
     c.shield_timers = NULL;
 
     /* Compass hidden far away (cameraDist >= 150): bbox still drawn */
     c.camera_dist = 150.0f;
     run_builder(&c);
-    CHECK(g_dyn_n == 17, "compass hidden at dist>=150, bbox present (%u)", g_dyn_n);
+    CHECK(g_dyn_n == 21, "compass hidden at dist>=150, bbox present (%u)", g_dyn_n);
     c.camera_dist = 80.0f;
 
-    /* Jump arrival: only object 0 (the ship) is drawn */
+    /* Jump arrival: only object 0 (the ship + its quantum core) is drawn */
     static JumpState jump;
     memset(&jump, 0, sizeof(jump));
     jump.active = 1; jump.timer = 500;
     c.jump_arrival = &jump;
     run_builder(&c);
-    CHECK(g_dyn_n == 4, "jump arrival hides everything else (%u)", g_dyn_n);
+    CHECK(g_dyn_n == 8, "jump arrival: ship + quantum(4) + arrival glow + wormhole(2) = %u", g_dyn_n);
     c.jump_arrival = NULL;
 }
 
@@ -444,23 +531,56 @@ static void test_galaxy_map(void) {
 
     if (g_map_n == 3) {
         const GddInstance *frame = &g_map[0];
-        CHECK((int)(frame->mesh + 0.5f) == GDD_MESH_BOX, "galaxy frame is a box");
+        /* CPU parity: the frame is a WIREFRAME cube (LINE_LIST on
+         * cubeIndices) -> GDD_MESH_BOXWIRE, unlit 0.4/0.4/1.0 a=0.8. */
+        CHECK((int)(frame->mesh + 0.5f) == GDD_MESH_BOXWIRE, "galaxy frame is a wireframe box");
         CHECK_F("frame half-size", frame->scale[0], 40.0f * 1.2f * 0.5f, 1e-4f, "frame half-size");
         CHECK(gdd_flag_bit(frame->flags, 0) == 1, "frame NEVER_CULL");
+        CHECK_F("frame alpha", frame->alpha, 0.8f, 1e-6f, "frame alpha");
 
         /* (1,1,1): pxm = -24 + 0.5*1.2 = -23.4 ; pym same ;
          * pzm = -24 + (40.5-1)*1.2 = 23.4 */
         const GddInstance *sst = &g_map[1];
+        /* filter 0: sectors are wireframe (CPU: wireframe pipeline) */
+        CHECK((int)(sst->mesh + 0.5f) == GDD_MESH_BOXWIRE, "filter-0 sector is wireframe");
         CHECK_F("sector x", sst->pos[0], -23.4f, 1e-4f, "sector (1,1,1) x");
         CHECK_F("sector z", sst->pos[2], 23.4f, 1e-4f, "sector (1,1,1) z");
         CHECK_F("sector scale", sst->scale[0], 0.15f, 1e-5f, "sector scale");
         CHECK_F("sector color.r (sst)", sst->color[0], 1.0f, 1e-5f, "sst color r");
         CHECK_F("sector color.g (sst)", sst->color[1], 1.0f, 1e-5f, "sst color g");
 
-        /* My quadrant: (-22.2, -22.2, 22.2), white */
+        /* My quadrant: (-22.2, -22.2, 22.2), white wireframe highlight */
         const GddInstance *me = &g_map[2];
+        CHECK((int)(me->mesh + 0.5f) == GDD_MESH_BOXWIRE, "my-q highlight is wireframe");
         CHECK_F("my-q x", me->pos[0], -22.2f, 1e-4f, "my quadrant x");
         CHECK_F("my-q color", me->color[0], 1.0f, 1e-5f, "my quadrant white");
+    }
+
+    /* Filter > 0 (filter 1 = star systems): matching sectors become SOLID
+     * PBR boxes (CPU: graphics pipeline, usePushColor=5, metallic 0.5,
+     * roughness 0.5); the player-quadrant highlight stays wireframe. */
+    c.map_filter = 1;
+    run_builder(&c);
+    CHECK(g_map_n == 3, "map filter 1: %u map instances (want 3)", g_map_n);
+    if (g_map_n == 3) {
+        const GddInstance *frame = &g_map[0];
+        CHECK((int)(frame->mesh + 0.5f) == GDD_MESH_BOXWIRE, "frame stays wireframe (filter 1)");
+        const GddInstance *sst = &g_map[1];
+        CHECK((int)(sst->mesh + 0.5f) == GDD_MESH_BOX, "filter-1 sector is a solid box");
+        CHECK(gdd_frag_mode(sst->flags) == GDD_FRAG_PBR, "filter-1 sector PBR mode");
+        CHECK_F("filter-1 metallic", sst->pad[0], 0.5f, 1e-6f, "filter-1 metallic");
+        CHECK_F("filter-1 roughness", sst->pad[1], 0.5f, 1e-6f, "filter-1 roughness");
+        CHECK_F("filter-1 color.r", sst->color[0], 1.0f, 1e-5f, "filter-1 sst color r");
+        CHECK_F("filter-1 color.g", sst->color[1], 1.0f, 1e-5f, "filter-1 sst color g");
+        const GddInstance *me = &g_map[2];
+        CHECK((int)(me->mesh + 0.5f) == GDD_MESH_BOXWIRE, "my-q highlight wireframe (filter 1)");
+
+        /* A filter with no matching sector in this 2x2x2 galaxy draws
+         * only the frame + the player highlight (2 instances). */
+        c.map_filter = 5; /* black holes: none present */
+        run_builder(&c);
+        CHECK(g_map_n == 2, "map filter 5 (no match): %u instances (want 2)", g_map_n);
+        c.map_filter = 0;
     }
 
     /* Tactical objects must not leak into map mode */

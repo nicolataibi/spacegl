@@ -45,6 +45,8 @@ void main() {
         case GDD_MESH_LINE:    if (!gdd_reserve(it, GDD_VC_LINE, base)) return; gdd_expand_line(base, it); break;
         case GDD_MESH_CIRCLE:  if (!gdd_reserve(it, GDD_VC_CIRCLE, base)) return; gdd_expand_circle(base, it); break;
         case GDD_MESH_ARC:     if (!gdd_reserve(it, GDD_VC_ARC, base)) return; gdd_expand_arc(base, it); break;
+        case GDD_MESH_BOOM:    if (!gdd_reserve(it, GDD_VC_BOOM, base)) return; gdd_expand_boom(base, it); break;
+        case GDD_MESH_BOXWIRE: if (!gdd_reserve(it, GDD_VC_BOXWIRE, base)) return; gdd_expand_boxwire(base, it); break;
         default:               if (!gdd_reserve(it, GDD_VC_BOX, base)) return; gdd_expand_box(base, it); break;
     }
 }
