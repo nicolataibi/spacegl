@@ -65,6 +65,16 @@ static int g_pass = 0;
 
 static int near_f(float a, float b, float tol) { return fabsf(a - b) <= tol; }
 
+/* Identity in the GDD 12-float (3x4 padded) orientation layout: 1s at
+ * 0/5/10, the three padding slots (3/7/11) and the off-diagonal zeros. */
+static int orient_is_identity(const float o[12]) {
+    for (int i = 0; i < 12; i++) {
+        float want = (i == 0 || i == 5 || i == 10) ? 1.0f : 0.0f;
+        if (fabsf(o[i] - want) > 1e-6f) return 0;
+    }
+    return 1;
+}
+
 /* ================================================================== */
 /* 1. Layout invariants                                                */
 /* ================================================================== */
@@ -407,6 +417,59 @@ static void test_compass_and_jump(void) {
     }
     CHECK(r30 == 1 && r25 == 1 && r28 == 1,
           "circle radii 3.0/2.5/2.8 one each (got %d/%d/%d)", r30, r25, r28);
+
+    /* B1 regression: an enemy ship with a non-trivial Euler orientation
+     * is the LAST object processed, so the shared `o` carries the
+     * enemy's rotation into the compass section. The 3 axis lines and
+     * the fixed white ring must stay in the identity (world) orientation. */
+    {
+        obj_at(&g_smooth[1], 10.0f, 30.0f, 25.0f, 137.0f, 42.0f, -63.0f);
+        int t2[2] = { 1, 10 }, f2[2] = { 0, 5 }, sc2[2] = { 0, 3 },
+            cl2[2] = { 0, 0 }, ac2[2] = { 1, 1 }, pl2[2] = { 30, 20 },
+            id2[2] = { 100, 200 };
+        c.types = t2; c.factions = f2; c.ship_classes = sc2; c.cloaked = cl2;
+        c.active = ac2; c.platings = pl2; c.ids = id2; c.object_count = 2;
+        run_builder(&c);
+        CHECK(g_dyn_n == 47, "B1: ship+quantum(4)+enemy+25 compass+16 bbox = %u dyn", g_dyn_n);
+
+        /* Sanity: the enemy pyramid is present and rotated */
+        const GddInstance *enemy = NULL;
+        for (uint32_t i = 0; i < g_dyn_n; i++) {
+            const GddInstance *it = &g_dyn[i];
+            if ((int)(it->mesh + 0.5f) != GDD_MESH_PYRAMID) continue;
+            if (near_f(it->pos[0], 0.0f, 1e-3f) && near_f(it->pos[1], 0.0f, 1e-3f) &&
+                near_f(it->pos[2], 0.0f, 0.2f)) continue; /* player at the origin */
+            enemy = it; break;
+        }
+        CHECK(enemy != NULL, "B1: enemy ship pyramid present in the quadrant");
+        if (enemy)
+            CHECK(!orient_is_identity(enemy->orient),
+                  "B1: enemy carries a non-identity orientation (sanity)");
+
+        /* Fixed white ring (r = 3.0 at the anchor): identity orientation */
+        const GddInstance *fring = find_dyn(GDD_MESH_CIRCLE, 0.0f, 0.0f, 0.0f, 1e-4f);
+        CHECK(fring != NULL, "B1: fixed white ring present at the anchor");
+        if (fring) {
+            CHECK_F("B1: fixed ring radius", fring->scale[0], 3.0f, 1e-4f, "B1: fixed ring radius");
+            CHECK(orient_is_identity(fring->orient),
+                  "B1: fixed white ring stays world-aligned despite the enemy ship");
+        }
+
+        /* The 3 compass axis lines: identity orientation */
+        const GddInstance *ax[3] = {
+            find_dyn(GDD_MESH_LINE, -5.5f, 0.0f, 0.0f, 1e-4f),
+            find_dyn(GDD_MESH_LINE, 0.0f, -5.5f, 0.0f, 1e-4f),
+            find_dyn(GDD_MESH_LINE, 0.0f, 0.0f, -5.5f, 1e-4f)
+        };
+        CHECK(ax[0] && ax[1] && ax[2], "B1: the 3 compass axis lines are present");
+        for (int k = 0; k < 3 && ax[k]; k++)
+            CHECK(orient_is_identity(ax[k]->orient),
+                  "B1: compass axis %d stays world-aligned", k);
+
+        /* Restore the single-object scene for the checks below */
+        c.types = types; c.factions = fac; c.ship_classes = sc; c.cloaked = cl;
+        c.active = act; c.platings = pl; c.ids = id; c.object_count = 1;
+    }
 
     /* Shield hit (sector 2 = top): 6 faithful instances (CPU
      * drawShieldEffect parity): PBR energy panel + shockwave surface

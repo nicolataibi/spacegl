@@ -889,6 +889,12 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         float nose[3] = { sinf(h) * cosf(mrot), sinf(mrot), cosf(h) * cosf(mrot) };
         float head_yaw = (90.0f * M_PI / 180.0f) - h;
 
+        /* The shared `o` still holds the orientation of the LAST object
+         * processed in the loop above (e.g. an enemy ship). The global
+         * axes and the fixed white ring must stay world-aligned, so
+         * re-establish identity orientation before reusing `o`. */
+        gdd_orient_identity(o);
+
         /* 1. Global axes (fixed to world orientation, pure R/G/B) */
         float a = 5.5f * ts;
         gdd_list_add(&dyn, GDD_MESH_LINE, cx - a, cy, cz, 2.0f*a, 0, 0,

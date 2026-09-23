@@ -1,3 +1,26 @@
+* Thu Sep 24 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.24.01
+  - Vulkan GDD (SPACEGL_GPD=1): fixed the AR compass drifting when
+  enemy ships are in the quadrant. gdd_build_instances reuses the
+  shared orientation array `o` across sections, and the object loop
+  left it holding the rotation of the LAST processed object (e.g. an
+  enemy ship); the 3 global axis lines and the fixed white ring (the
+  "white circle" the user saw move) were then emitted with the
+  enemy's orientation matrix instead of world identity. The compass
+  section now re-establishes gdd_orient_identity(o) before the axes
+  and the fixed ring; the remaining compass elements (heading ring,
+  mark arc, roll circle, arrows) already build their own matrices.
+  The CPU-driven and OpenGL compasses were not affected (they build
+  fresh per-element PushConstants / modelview state). The CPU path
+  was verified correct, the fix is GDD-only.
+  - Tests: gdd_contract_test gains the B1 regression scenario (player
+  + enemy ship with non-trivial Euler h/m/r as the LAST object):
+  the enemy pyramid must be present and rotated (sanity), and the
+  fixed white ring (r = 3.0 at the anchor) plus the 3 axis lines
+  must carry the identity orientation; new orient_is_identity
+  helper. Verified red without the fix (4 failures: ring + 3 axes
+  inherit the enemy rotation), green with it. gdd_contract_test now
+  passes with 317 checks (was 307); gdd_mesh_test unchanged (65).
+
 * Wed Sep 23 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.23.01
   - Vulkan GDD (SPACEGL_GPD=1): CPU parity for the ships, the quantum
   engine, the torpedo explosions, the shield hits and the galaxy map.
