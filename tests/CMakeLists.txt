@@ -89,3 +89,13 @@ set_tests_properties(gdd_mesh PROPERTIES SKIP_RETURN_CODE 77)
 add_executable(nav_heading_test nav_heading_test.c ${SG_ROOT}/src/server/nav_math.c)
 target_link_libraries(nav_heading_test PRIVATE m)
 add_test(NAME nav_heading COMMAND nav_heading_test)
+
+# --- Server spatial index contract (B3: the quasar and the other
+# static galactic objects must be inserted into the per-quadrant
+# index, otherwise the per-frame update / LRS grid never send them)
+# ------------------------------------------------------------------
+# Pulls the real production source, same pattern as nav_heading_test.
+# The test TU defines the global object arrays the module indexes
+# (in the server they live in galaxy.c, which is not linked).
+add_executable(quad_index_test quad_index_test.c ${SG_ROOT}/src/server/quad_index.c)
+add_test(NAME quad_index COMMAND quad_index_test)

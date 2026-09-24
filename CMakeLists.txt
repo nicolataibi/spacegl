@@ -143,6 +143,7 @@ set(SERVER_SRCS
     src/server/logic.c
     src/server/nav_math.c
     src/server/net.c
+    src/server/quad_index.c
     src/server/targets.c
     src/server/threadpool.c
 )

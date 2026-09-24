@@ -26,6 +26,7 @@
 #include <stdatomic.h>
 #include <pthread.h>
 #include "server_internal.h"
+#include "quad_index.h"
 #include "ui.h"
 
 NPCStar stars_data[MAX_STARS];
@@ -121,126 +122,15 @@ void init_static_spatial_index() {
     }
     memset(spatial_index, 0, 41 * 41 * 41 * sizeof(QuadrantIndex));
 
-    for (int p = 0; p < MAX_PLANETS; p++) {
-        if (planets[p].active) {
-            if (!IS_Q_VALID(planets[p].q1, planets[p].q2, planets[p].q3)) {
-                continue;
-            }
-            QuadrantIndex *q = &spatial_index[planets[p].q1][planets[p].q2][planets[p].q3];
-            if (q->planet_count < MAX_Q_PLANETS) { 
-                q->planets[q->planet_count] = &planets[p]; 
-                q->planet_count++;
-                q->static_planet_count = q->planet_count;
-            }
-        }
-    }
-    for (int b = 0; b < MAX_BASES; b++) {
-        if (bases[b].active) {
-            if (!IS_Q_VALID(bases[b].q1, bases[b].q2, bases[b].q3)) {
-                continue;
-            }
-            QuadrantIndex *q = &spatial_index[bases[b].q1][bases[b].q2][bases[b].q3];
-            if (q->base_count < MAX_Q_BASES) { 
-                q->bases[q->base_count] = &bases[b]; 
-                q->base_count++;
-                q->static_base_count = q->base_count;
-            }
-        }
-    }
-    for (int s = 0; s < MAX_STARS; s++) {
-        if (stars_data[s].active) {
-            if (!IS_Q_VALID(stars_data[s].q1, stars_data[s].q2, stars_data[s].q3)) {
-                continue;
-            }
-            QuadrantIndex *q = &spatial_index[stars_data[s].q1][stars_data[s].q2][stars_data[s].q3];
-            if (q->star_count < MAX_Q_STARS) { 
-                q->stars[q->star_count] = &stars_data[s]; 
-                q->star_count++;
-                q->static_star_count = q->star_count;
-            }
-        }
-    }
-    for (int h = 0; h < MAX_BH; h++) {
-        if (black_holes[h].active) {
-            if (!IS_Q_VALID(black_holes[h].q1, black_holes[h].q2, black_holes[h].q3)) {
-                continue;
-            }
-            QuadrantIndex *q = &spatial_index[black_holes[h].q1][black_holes[h].q2][black_holes[h].q3];
-            if (q->bh_count < MAX_Q_BH) { 
-                q->black_holes[q->bh_count] = &black_holes[h]; 
-                q->bh_count++;
-                q->static_bh_count = q->bh_count;
-            }
-        }
-    }
-    for (int n = 0; n < MAX_NEBULAS; n++) {
-        if (nebulas[n].active) {
-            if (!IS_Q_VALID(nebulas[n].q1, nebulas[n].q2, nebulas[n].q3)) {
-                continue;
-            }
-            QuadrantIndex *q = &spatial_index[nebulas[n].q1][nebulas[n].q2][nebulas[n].q3];
-            if (q->nebula_count < MAX_Q_NEBULAS) { 
-                q->nebulas[q->nebula_count] = &nebulas[n]; 
-                q->nebula_count++;
-                q->static_nebula_count = q->nebula_count;
-            }
-        }
-    }
-    for (int p = 0; p < MAX_PULSARS; p++) {
-        if (pulsars[p].active) {
-            if (!IS_Q_VALID(pulsars[p].q1, pulsars[p].q2, pulsars[p].q3)) {
-                continue;
-            }
-            QuadrantIndex *q = &spatial_index[pulsars[p].q1][pulsars[p].q2][pulsars[p].q3];
-            if (q->pulsar_count < MAX_Q_PULSARS) { 
-                q->pulsars[q->pulsar_count] = &pulsars[p]; 
-                q->pulsar_count++;
-                q->static_pulsar_count = q->pulsar_count;
-            }
-        }
-    }
-    for (int s = 0; s < MAX_STORMS; s++) {
-        if (storms[s].active) {
-            if (!IS_Q_VALID(storms[s].q1, storms[s].q2, storms[s].q3)) continue;
-            QuadrantIndex *q = &spatial_index[storms[s].q1][storms[s].q2][storms[s].q3];
-            if (q->storm_count < MAX_Q_STORMS) q->storms[q->storm_count++] = &storms[s];
-        }
-    }
-    for (int d = 0; d < MAX_DYSON; d++) {
-        if (dysons[d].active) {
-            if (!IS_Q_VALID(dysons[d].q1, dysons[d].q2, dysons[d].q3)) continue;
-            QuadrantIndex *q = &spatial_index[dysons[d].q1][dysons[d].q2][dysons[d].q3];
-            if (q->dyson_count < MAX_Q_DYSON) q->dysons[q->dyson_count++] = &dysons[d];
-        }
-    }
-    for (int h = 0; h < MAX_HUBS; h++) {
-        if (hubs[h].active) {
-            if (!IS_Q_VALID(hubs[h].q1, hubs[h].q2, hubs[h].q3)) continue;
-            QuadrantIndex *q = &spatial_index[hubs[h].q1][hubs[h].q2][hubs[h].q3];
-            if (q->hub_count < MAX_Q_HUBS) q->hubs[q->hub_count++] = &hubs[h];
-        }
-    }
-    for (int r = 0; r < MAX_RELICS; r++) {
-        if (relics[r].active) {
-            if (!IS_Q_VALID(relics[r].q1, relics[r].q2, relics[r].q3)) continue;
-            QuadrantIndex *q = &spatial_index[relics[r].q1][relics[r].q2][relics[r].q3];
-            if (q->relic_count < MAX_Q_RELICS) q->relics[q->relic_count++] = &relics[r];
-        }
-    }
-    for (int ru = 0; ru < MAX_RUPTURES; ru++) {
-        if (ruptures[ru].active) {
-            if (!IS_Q_VALID(ruptures[ru].q1, ruptures[ru].q2, ruptures[ru].q3)) continue;
-            QuadrantIndex *q = &spatial_index[ruptures[ru].q1][ruptures[ru].q2][ruptures[ru].q3];
-            if (q->rupture_count < MAX_Q_RUPTURES) q->ruptures[q->rupture_count++] = &ruptures[ru];
-        }
-    }
-    for (int sa = 0; sa < MAX_SATELLITES; sa++) {
-        if (satellites[sa].active) {
-            if (!IS_Q_VALID(satellites[sa].q1, satellites[sa].q2, satellites[sa].q3)) continue;
-            QuadrantIndex *q = &spatial_index[satellites[sa].q1][satellites[sa].q2][satellites[sa].q3];
-            if (q->satellite_count < MAX_Q_SATELLITES) q->satellites[q->satellite_count++] = &satellites[sa];
-        }
-    }
+    /* B3: the static insertion used to be a hand-written set of 12
+     * per-type loops here that skipped the quasar and the other 49
+     * static types, so their quadrant counts stayed 0 forever and the
+     * per-frame update / LRS grid / LRS-SRS lists never sent them to
+     * the clients. The complete table (all 62 static types) and the
+     * insertion algorithm now live in src/server/quad_index.c.
+     * Dynamic types are still handled per tick by
+     * rebuild_spatial_index() below. */
+    quad_index_insert_static_all(spatial_index);
 }
 
 static void mark_quad_dirty(int q1, int q2, int q3) {

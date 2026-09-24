@@ -1,3 +1,66 @@
+* Thu Sep 24 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.24.03
+  - Server spatial index: fixed the quasar — and 49 other static
+  galactic object types — never appearing in the quadrant and in the
+  HUD object list (Vulkan GPU-driven, CPU-driven and OpenGL all read
+  the same server update). The per-frame update builder (logic.c),
+  the LRS grid (refresh_lrs_grid) and the LRS/SRS object lists
+  (commands.c) all read their quadrant contents from the per-quadrant
+  spatial index (QuadrantIndex), but init_static_spatial_index()
+  (src/server/galaxy.c) inserted only 12 of the static types (planets,
+  bases, stars, black holes, nebulas, pulsars, storms, dysons, hubs,
+  relics, ruptures, satellites) and skipped the quasar plus the 11
+  anomaly types (alien artifact, warp gate, neutron star, mega
+  structure, dark matter cloud, quantum singularity, plasma storm,
+  orbital ring, time anomaly, void crystal, subspace anomaly, net
+  40-50) and the 38 environment types (diffuse/dark/planetary nebula,
+  SNR, GMC, interstellar filament/bubble, bok globule, clump core,
+  accretion disk, relativistic jet, shock wave, stellar bow shock,
+  cosmic void/filament, event horizon, kilonova, grav lens, GRB, grav
+  wave, protoplanetary/debris disk, planetesimal, rogue planet, brown
+  dwarf, ISO, mag reconn, current sheet, heliosphere, term shock,
+  magnetosphere, cosmic string, domain wall, DM halo, IGM, CGM, Lyman
+  alpha, CMB, net 51-88): their quadrant counts stayed 0 forever, so
+  no NetObject for them was ever sent, the LRS quasar digit was
+  always 0 and the clients could never draw them (the quasar the user
+  reported missing from the quadrant / HUD object list, and the same
+  defect for every other skipped type). The static insertion was
+  extracted to a table-driven, dependency-free module
+  (src/server/quad_index.c: quad_index_insert_static_all,
+  include/quad_index.h) holding the complete set of 62 static types,
+  one descriptor per type with the field offsets resolved at compile
+  time (offsetof over the production structs, so no per-type code to
+  drift out of sync); the insertion algorithm matches the original
+  per-type loops exactly (active check, IS_Q_VALID, per-quadrant cap,
+  and the legacy static_X_count bookkeeping for the types that carry
+  it). init_static_spatial_index() now allocates/zeroes the grid and
+  delegates to the module; dynamic types (npcs, players, torpedoes,
+  monsters, comets, asteroids, derelicts, mines, buoys, platforms,
+  rifts) are still handled per tick by rebuild_spatial_index()
+  (unchanged).
+  - Tests: new standalone quad_index_test in the independent tests
+  project, compiling the real production source (same pattern as
+  nav_heading_test / gdd_contract_test; the test TU owns the global
+  object arrays the module indexes, since galaxy.c is not linked):
+  the reported B3 quasar scenario (a quasar at [5,6,7] must be
+  indexed, produce the type-29 NetObject with the
+  GALAXY_OBJECT_MIN_QUASAR id base and the right coordinates, and
+  light the LRS quasar digit), set-equality of the production table
+  with the 62 expected static types (a missing — e.g. the pre-fix
+  quasar — or extra entry fails, and every entry must be bound to
+  the right global array, element size, length and per-quadrant
+  cap), every type seeded in a quadrant is found back in the right
+  slot (pointer identity, all 62 coexisting in one quadrant),
+  inactive objects and out-of-range quadrants (0, 41, negative) are
+  excluded, per-quadrant caps are never exceeded (incl. the cap-1
+  types), and a 1240-object fuzz over all 62 types verifies every
+  slot of every quadrant stays within its cap and points to an
+  active object of the matching type and quadrant. Verified red
+  without the fix (table limited to the 12 legacy types: the B3
+  quasar scenario reports quasar_count 0, no type-29 NetObject, LRS
+  digit 0, and 50 expected types missing from the table), green with
+  it: quad_index_test passes with 394 checks, full suite 4/4
+  (gdd_contract 317, gdd_mesh 65 and nav_heading 31 unchanged).
+
 * Thu Sep 24 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.24.02
   - Server navigation: fixed the heading field (shm_h) displayed above
   360 degrees (and below 0) in the HUD (Vulkan GPU-driven and
