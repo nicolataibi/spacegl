@@ -82,3 +82,10 @@ add_compile_options(-ffp-contract=off)
 set(GDD_SPV_DIR "${SG_ROOT}/build/shaders" CACHE PATH "Directory holding the gdd_*.spv binaries")
 add_test(NAME gdd_mesh COMMAND gdd_mesh_test "${GDD_SPV_DIR}")
 set_tests_properties(gdd_mesh PROPERTIES SKIP_RETURN_CODE 77)
+
+# --- Server navigation heading contract (B2: HUD heading must stay
+# in [0, 360) even when a turn crosses the 0/360 boundary) -----------
+# Pulls the real production source, same pattern as gdd_contract_test.
+add_executable(nav_heading_test nav_heading_test.c ${SG_ROOT}/src/server/nav_math.c)
+target_link_libraries(nav_heading_test PRIVATE m)
+add_test(NAME nav_heading COMMAND nav_heading_test)

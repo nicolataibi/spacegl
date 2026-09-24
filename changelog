@@ -1,3 +1,35 @@
+* Thu Sep 24 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.24.02
+  - Server navigation: fixed the heading field (shm_h) displayed above
+  360 degrees (and below 0) in the HUD (Vulkan GPU-driven and
+  CPU-driven, spacegl_hud.c) and in the CLI navigation readout. The
+  alignment interpolation (NAV_STATE_ALIGN / NAV_STATE_ALIGN_IMPULSE
+  and NAV_STATE_ALIGN_ONLY in src/server/logic.c) computed
+  `van_h = start_h + diff_h * t` with diff_h wrapped to ±180° but
+  never re-wrapped the result: a turn crossing the 0/360 boundary
+  (e.g. 350° to 30°) sent 390° to the clients, which display it
+  as-is. The interpolation was extracted to a pure, dependency-free
+  module (src/server/nav_math.c: nav_wrap_heading / nav_heading_at,
+  include/nav_math.h) which re-wraps the interpolated heading back
+  into [0, 360); the wrap is display-only — it is the same angle, so
+  the ship motion vectors (cos/sin of the heading) are identical to
+  before (verified in the tests). target_h was already guaranteed in
+  [0, 360) at every setting site (normalize_upright in nav/imp/pos,
+  atan2 in apr), so the invariant now holds across all van_h write
+  sites.
+  - Tests: new standalone nav_heading_test in the independent tests
+  project, compiling the real production source (same pattern as
+  gdd_contract_test): the wrap contract over -720..720, the reported
+  350° to 30° scenario sampled at 1001 t values (stays in [0, 360),
+  crosses the 0/360 boundary exactly once at t=0.25, exact
+  endpoints), the shortest-arc property (350 to 10 goes through 0,
+  not 180; ±180° turns exact), and a 20000-pair fuzz proving every
+  result stays in [0, 360) and the orientation (cos/sin) is identical
+  to the pre-fix formula. Verified red without the re-wrap (the 350
+  to 30 scenario reports 390 at t=1, 751/1001 out-of-range values,
+  2588/20000 in the fuzz, plus negative headings), green with it:
+  nav_heading_test passes with 31 checks, full suite 3/3 (gdd_contract
+  317 checks and gdd_mesh 65 unchanged).
+
 * Thu Sep 24 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.24.01
   - Vulkan GDD (SPACEGL_GPD=1): fixed the AR compass drifting when
   enemy ships are in the quadrant. gdd_build_instances reuses the

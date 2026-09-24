@@ -141,6 +141,7 @@ set(SERVER_SRCS
     src/server/globals.c
     src/server/log.c
     src/server/logic.c
+    src/server/nav_math.c
     src/server/net.c
     src/server/targets.c
     src/server/threadpool.c
