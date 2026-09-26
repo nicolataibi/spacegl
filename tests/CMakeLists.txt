@@ -90,6 +90,14 @@ add_executable(nav_heading_test nav_heading_test.c ${SG_ROOT}/src/server/nav_mat
 target_link_libraries(nav_heading_test PRIVATE m)
 add_test(NAME nav_heading COMMAND nav_heading_test)
 
+# --- Server navigation roll contract (the HUD roll field must stay
+# in [0, 360): "pos" normalizes the requested roll into [0, 360) and
+# the NAV_STATE_ALIGN_ONLY interpolation re-wraps the trajectory) ---
+# Pulls the real production source, same pattern as nav_heading_test.
+add_executable(nav_roll_test nav_roll_test.c ${SG_ROOT}/src/server/nav_math.c)
+target_link_libraries(nav_roll_test PRIVATE m)
+add_test(NAME nav_roll COMMAND nav_roll_test)
+
 # --- Server spatial index contract (B3: the quasar and the other
 # static galactic objects must be inserted into the per-quadrant
 # index, otherwise the per-frame update / LRS grid never send them)

@@ -282,6 +282,7 @@ typedef struct {
     float target_x, target_y, target_z, target_h, target_m, target_r;
     float vx, vy, vz;
     float prev_vx, prev_vy, prev_vz;
+    int id;
     bool first;
 } SmoothObj;
 

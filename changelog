@@ -1,3 +1,82 @@
+* Sat Sep 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.26.02
+  - Server navigation: fixed the roll field (shm_r) displayed above
+  360 degrees in the HUD (spacegl_hud.c main page and shared-memory
+  inspector, and the OpenGL 3D view readout) after a "pos <H> <M> [R]"
+  command. Two paths could leave van_r outside [0, 360): (a) handle_pos
+  (src/server/commands.c) stored the requested roll in target_r without
+  normalizing it — normalize_upright wraps only heading and mark — so
+  "pos 90 10 370" (or a negative R) aligned the ship to an out-of-range
+  roll that persisted until the next command; (b) the
+  NAV_STATE_ALIGN_ONLY interpolation in src/server/logic.c computed
+  `van_r = start_r + diff_r * t` with diff_r wrapped to ±180° but never
+  re-wrapped the result, so every roll turn crossing the 0/360
+  boundary (e.g. 350° to 20°) passed through 370..380° mid-turn and
+  the clients, which display van_r as-is, showed it (same defect class
+  as the B2 heading fix in 2026.09.24.02). The roll interpolation was
+  extracted to nav_roll_at in the same pure, dependency-free module
+  (src/server/nav_math.c, include/nav_math.h), which takes the
+  shortest-arc delta and re-wraps the result back into [0, 360);
+  handle_pos now normalizes the requested roll through nav_wrap_heading
+  before storing target_r, and the "already aligned" fast-path check
+  wraps the roll delta like it already did for the heading, so the
+  short timer also works across the boundary. The wrap is display-only
+  — it is the same angle, so the shield basis (calculate_shield_index
+  uses roll through sin/cos) and the 3D views are unchanged.
+  - Tests: new standalone nav_roll_test in the independent tests
+  project, compiling the real production source (same pattern as
+  nav_heading_test): the reported 350° to 20° scenario sampled at 1001
+  t values (stays in [0, 360), crosses the 0/360 boundary exactly once
+  at t=1/3, exact endpoints), the "pos" normalization contract for
+  out-of-range requested rolls (370, -10, 730, -370 and more are
+  handled modulo 360, endpoints always back in [0, 360)), the
+  shortest-arc property, and a 20000-triple fuzz proving every result
+  stays in [0, 360) and the orientation (cos/sin) is identical to the
+  pre-fix formula. Verified red without the re-wrap (the 350 to 20
+  scenario reports 380 at t=1, 667/1001 out-of-range values, 2441/20000
+  in the fuzz of which 1223 negative), green with it: nav_roll_test
+  passes with 29 checks, full suite 5/5 (gdd_contract 317, gdd_mesh 65,
+  nav_heading 31 and quad_index 394 unchanged).
+
+* Sat Sep 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.26.01
+  - Fixed beam height offset mapping in GPU-driven tracking
+
+* Fri Sep 25 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.25.03
+  - Server (galaxy): Fixed HUD ID duplication by omitting static objects
+  from dirty quadrant flagging.
+  - Vulkan client (net): Fixed NPC movement skipping/teleporting by correctly
+  interpolating based on network IDs rather than array index.
+  - Vulkan GPU-Driven (GDD): Fixed invisible beams by resolving a double
+  coordinate subtraction; beam endpoints now read directly from
+  already-mapped memory instead of applying server translations twice.
+
+* Fri Sep 25 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.25.03
+  - Server (galaxy): Fixed HUD ID duplication by omitting static objects
+  from dirty quadrant flagging.
+  - Vulkan client (net): Fixed NPC movement skipping/teleporting by
+  correctly interpolating based on network IDs rather than array index.
+  - Vulkan GPU-Driven (GDD): Fixed invisible beams by resolving a double
+  coordinate subtraction; beam endpoints now read directly from
+  already-mapped memory instead of applying server translations twice.
+
+* Fri Sep 25 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.25.02
+  - Vulkan GPU-Driven (GDD): fixed invisible ionic beams caused by aggressive
+  spherical culling discarding the beam if its midpoint was outside the
+  camera radius. Added never_cull flag to beam meshes.
+  - Vulkan GPU-Driven (GDD): fixed beam length scaling overshooting the
+  target and projecting backwards by halving the scale parameter to account
+  for the 2-unit width of the base GDD box primitive.
+
+* Fri Sep 25 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.25.01
+  - Vulkan client: fixed NPC movement jumping and teleporting caused by
+  interpolating network array indices instead of tracking persistent
+  entity IDs.
+  - Vulkan client: fixed invisible enemy beams missing the viewport due
+  to double-subtraction of coordinate offsets for fallback endpoints.
+  - Server spatial index: fixed infinite entity duplication in Vulkan
+  HUD (and other clients) by correctly ignoring static celestial
+  objects when evaluating the dirty quadrant flag, preventing the same
+  dynamic object from being re-inserted infinitely into the array.
+
 * Thu Sep 24 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.24.03
   - Server spatial index: fixed the quasar — and 49 other static
   galactic object types — never appearing in the quadrant and in the

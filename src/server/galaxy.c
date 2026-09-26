@@ -137,20 +137,7 @@ static void mark_quad_dirty(int q1, int q2, int q3) {
     QuadrantIndex *q = &spatial_index[q1][q2][q3];
     if (q->npc_count == 0 && q->player_count == 0 && q->comet_count == 0 && q->asteroid_count == 0 && 
         q->derelict_count == 0 && q->mine_count == 0 && q->buoy_count == 0 && q->platform_count == 0 && 
-        q->rift_count == 0 && q->monster_count == 0 && q->torpedo_count == 0 &&
-        q->diffuse_nebula_count == 0 && q->dark_nebula_count == 0 && q->planetary_nebula_count == 0 &&
-        q->snr_count == 0 && q->gmc_count == 0 && q->interstellar_filament_count == 0 &&
-        q->interstellar_bubble_count == 0 && q->bok_globule_count == 0 && q->clump_core_count == 0 &&
-        q->accretion_disk_count == 0 && q->relativistic_jet_count == 0 && q->shock_wave_count == 0 &&
-        q->stellar_bow_shock_count == 0 && q->cosmic_void_count == 0 && q->cosmic_filament_count == 0 &&
-        q->event_horizon_count == 0 && q->kilonova_count == 0 && q->grav_lens_count == 0 &&
-        q->grb_count == 0 && q->grav_wave_count == 0 && q->protoplanetary_disk_count == 0 &&
-        q->debris_disk_count == 0 && q->planetesimal_count == 0 && q->rogue_planet_count == 0 &&
-        q->brown_dwarf_count == 0 && q->iso_count == 0 && q->mag_reconn_count == 0 &&
-        q->current_sheet_count == 0 && q->heliosphere_count == 0 && q->term_shock_count == 0 &&
-        q->magnetosphere_count == 0 && q->cosmic_string_count == 0 && q->domain_wall_count == 0 &&
-        q->dm_halo_count == 0 && q->igm_count == 0 && q->cgm_count == 0 &&
-        q->lyman_alpha_count == 0 && q->cmb_count == 0) {
+        q->rift_count == 0 && q->monster_count == 0 && q->torpedo_count == 0) {
         if (dirty_count < 10000) {
             dirty_quads[dirty_count++] = (DirtyQuad){(uint16_t)q1, (uint16_t)q2, (uint16_t)q3};
         }

@@ -349,7 +349,7 @@ static void test_effects(void) {
 
     CHECK(bl != NULL, "beam box at midpoint (5,0,0)");
     if (bl)
-                CHECK_F("beam length", bl->scale[0], 10.0f, 1e-3f, "beam length");
+                CHECK_F("beam length", bl->scale[0], 5.0f, 1e-3f, "beam length");
 
     /* Torpedo: pyramid (identity orientation) at (1,2,3) */
     const GddInstance *tp = find_dyn(GDD_MESH_PYRAMID, 1.0f, 2.0f, 3.0f, 1e-4f);

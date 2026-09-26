@@ -4299,43 +4299,75 @@ void mainLoop(VulkanApp* app) {
                 app->last_shm_frame_id = st->frame_id;
                 app->last_shm_time = currentTime;
 
+                SmoothObj nextObjs[MAX_NET_OBJECTS];
+                for (int i=0; i<MAX_NET_OBJECTS; i++) {
+                    nextObjs[i].first = true;
+                }
+                
                 for (int o=0; o < st->object_count && o < MAX_NET_OBJECTS; o++) {
                     SharedObject* obj = &st->objects[o];
-                    if (!obj->active) { app->smoothObjs[o].first = true; continue; }
-                    
-                    if (app->smoothObjs[o].first) {
-                        app->smoothObjs[o].prev_x = app->smoothObjs[o].target_x = app->smoothObjs[o].x = (float)obj->shm_x;
-                        app->smoothObjs[o].prev_y = app->smoothObjs[o].target_y = app->smoothObjs[o].y = (float)obj->shm_y;
-                        app->smoothObjs[o].prev_z = app->smoothObjs[o].target_z = app->smoothObjs[o].z = (float)obj->shm_z;
-                        app->smoothObjs[o].prev_h = app->smoothObjs[o].target_h = app->smoothObjs[o].h = (float)obj->h;
-                        app->smoothObjs[o].prev_m = app->smoothObjs[o].target_m = app->smoothObjs[o].m = (float)obj->m;
-                        app->smoothObjs[o].prev_r = app->smoothObjs[o].target_r = app->smoothObjs[o].r = (float)obj->r;
-                        app->smoothObjs[o].vx = (float)obj->vx;
-                        app->smoothObjs[o].vy = (float)obj->vy;
-                        app->smoothObjs[o].vz = (float)obj->vz;
-                        app->smoothObjs[o].first = false;
-                    } else {
-                        /* Shift targets: Previous target becomes starting point for new interpolation interval */
-                        app->smoothObjs[o].prev_x = app->smoothObjs[o].target_x;
-                        app->smoothObjs[o].prev_y = app->smoothObjs[o].target_y;
-                        app->smoothObjs[o].prev_z = app->smoothObjs[o].target_z;
-                        app->smoothObjs[o].prev_h = app->smoothObjs[o].target_h;
-                        app->smoothObjs[o].prev_m = app->smoothObjs[o].target_m;
-                        app->smoothObjs[o].prev_r = app->smoothObjs[o].target_r;
-                        app->smoothObjs[o].prev_vx = app->smoothObjs[o].vx;
-                        app->smoothObjs[o].prev_vy = app->smoothObjs[o].vy;
-                        app->smoothObjs[o].prev_vz = app->smoothObjs[o].vz;
-
-                        app->smoothObjs[o].target_x = (float)obj->shm_x;
-                        app->smoothObjs[o].target_y = (float)obj->shm_y;
-                        app->smoothObjs[o].target_z = (float)obj->shm_z;
-                        app->smoothObjs[o].target_h = (float)obj->h;
-                        app->smoothObjs[o].target_m = (float)obj->m;
-                        app->smoothObjs[o].target_r = (float)obj->r;
-                        app->smoothObjs[o].vx = (float)obj->vx;
-                        app->smoothObjs[o].vy = (float)obj->vy;
-                        app->smoothObjs[o].vz = (float)obj->vz;
+                    if (!obj->active) {
+                        continue;
                     }
+                    
+                    int old_idx = -1;
+                    for (int i=0; i < MAX_NET_OBJECTS; i++) {
+                        if (!app->smoothObjs[i].first && app->smoothObjs[i].id == obj->id) {
+                            old_idx = i;
+                            break;
+                        }
+                    }
+                    
+                    if (old_idx == -1) {
+                        nextObjs[o].first = false;
+                        nextObjs[o].id = obj->id;
+                        nextObjs[o].prev_x = (float)obj->shm_x;
+                        nextObjs[o].target_x = (float)obj->shm_x;
+                        nextObjs[o].x = (float)obj->shm_x;
+                        nextObjs[o].prev_y = (float)obj->shm_y;
+                        nextObjs[o].target_y = (float)obj->shm_y;
+                        nextObjs[o].y = (float)obj->shm_y;
+                        nextObjs[o].prev_z = (float)obj->shm_z;
+                        nextObjs[o].target_z = (float)obj->shm_z;
+                        nextObjs[o].z = (float)obj->shm_z;
+                        nextObjs[o].prev_h = (float)obj->h;
+                        nextObjs[o].target_h = (float)obj->h;
+                        nextObjs[o].h = (float)obj->h;
+                        nextObjs[o].prev_m = (float)obj->m;
+                        nextObjs[o].target_m = (float)obj->m;
+                        nextObjs[o].m = (float)obj->m;
+                        nextObjs[o].prev_r = (float)obj->r;
+                        nextObjs[o].target_r = (float)obj->r;
+                        nextObjs[o].r = (float)obj->r;
+                        nextObjs[o].vx = (float)obj->vx;
+                        nextObjs[o].vy = (float)obj->vy;
+                        nextObjs[o].vz = (float)obj->vz;
+                    } else {
+                        nextObjs[o] = app->smoothObjs[old_idx];
+                        nextObjs[o].id = obj->id;
+                        nextObjs[o].prev_x = nextObjs[o].target_x;
+                        nextObjs[o].prev_y = nextObjs[o].target_y;
+                        nextObjs[o].prev_z = nextObjs[o].target_z;
+                        nextObjs[o].prev_h = nextObjs[o].target_h;
+                        nextObjs[o].prev_m = nextObjs[o].target_m;
+                        nextObjs[o].prev_r = nextObjs[o].target_r;
+                        nextObjs[o].prev_vx = nextObjs[o].vx;
+                        nextObjs[o].prev_vy = nextObjs[o].vy;
+                        nextObjs[o].prev_vz = nextObjs[o].vz;
+                        nextObjs[o].target_x = (float)obj->shm_x;
+                        nextObjs[o].target_y = (float)obj->shm_y;
+                        nextObjs[o].target_z = (float)obj->shm_z;
+                        nextObjs[o].target_h = (float)obj->h;
+                        nextObjs[o].target_m = (float)obj->m;
+                        nextObjs[o].target_r = (float)obj->r;
+                        nextObjs[o].vx = (float)obj->vx;
+                        nextObjs[o].vy = (float)obj->vy;
+                        nextObjs[o].vz = (float)obj->vz;
+                    }
+                }
+                
+                for (int o=0; o < MAX_NET_OBJECTS; o++) {
+                    app->smoothObjs[o] = nextObjs[o];
                 }
                 /* Torpedo State Sampling: Legacy path removed in favor of Zero-Loss event queue */
             }
@@ -4411,12 +4443,12 @@ void mainLoop(VulkanApp* app) {
                         for(int i=0; i<MAX_ACTIVE_BEAMS; i++) if(app->activeBeams[i].life < min_life){ min_life = app->activeBeams[i].life; oldest = i; }
                         slot = oldest;
                     }
-                    app->activeBeams[slot].sx = (float)ev->x1 - 20.0f;
-                    app->activeBeams[slot].sy = (float)ev->z1 - 20.0f;
-                    app->activeBeams[slot].sz = 20.0f - (float)ev->y1;
-                    app->activeBeams[slot].tx = (float)ev->x2 - 20.0f;
-                    app->activeBeams[slot].ty = (float)ev->z2 - 20.0f;
-                    app->activeBeams[slot].tz = 20.0f - (float)ev->y2;
+                    app->activeBeams[slot].sx = (float)ev->x1;
+                    app->activeBeams[slot].sy = (float)ev->y1;
+                    app->activeBeams[slot].sz = (float)ev->z1;
+                    app->activeBeams[slot].tx = (float)ev->x2;
+                    app->activeBeams[slot].ty = (float)ev->y2;
+                    app->activeBeams[slot].tz = (float)ev->z2;
                     app->activeBeams[slot].life = 1.0f;
                     app->activeBeams[slot].owner_id = owner_id;
                     app->activeBeams[slot].extra = target_id;

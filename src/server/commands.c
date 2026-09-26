@@ -30,6 +30,7 @@
 #include "server_internal.h"
 #include "game_config.h"
 #include "shared_state.h"
+#include "nav_math.h"
 #include "ui.h"
 #include <stddef.h>
 
@@ -481,6 +482,9 @@ void handle_pos(int i, const char *params, bool *should_disconnect) {
             return;
         }
         normalize_upright(&h, &m);
+        /* Roll must stay in [0, 360): the HUD displays it as-is, so the
+         * requested value is normalized (370 -> 10, -10 -> 350). */
+        r = nav_wrap_heading(r);
         players[i].target_h = h; players[i].target_m = m;
         players[i].target_r = r;
         players[i].start_h = players[i].state.van_h; players[i].start_m = players[i].state.van_m;
@@ -489,7 +493,10 @@ void handle_pos(int i, const char *params, bool *should_disconnect) {
         double dh = players[i].target_h - players[i].state.van_h;
         while(dh>180) dh-=360; 
         while(dh<-180) dh+=360;
-        players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0 && fabs(players[i].target_r - players[i].state.van_r)<1.0) ? (GAME_TICK_RATE / 6) : (int)GAME_TICK_RATE;
+        double dr = players[i].target_r - players[i].state.van_r;
+        while(dr>180) dr-=360;
+        while(dr<-180) dr+=360;
+        players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0 && fabs(dr)<1.0) ? (GAME_TICK_RATE / 6) : (int)GAME_TICK_RATE;
         players[i].align_timer = players[i].nav_timer;
         send_server_msg(i, "HELMSMAN", "Ship re-orienting.");
     } else send_server_msg(i, "COMPUTER", "Usage: pos <H> <M> [R]");
@@ -4083,9 +4090,87 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
     } else send_server_msg(i, "COMPUTER", "AUXILIARY: probe | report | recover | jettison");
 }
 
+/* TEMP-DEBUG (REMOVE BEFORE RELEASE): spawn hostile NPCs + monsters in the
+ * local player's quadrant so combat FX (beams, enemy movement) can be
+ * reproduced on demand in an empty galaxy. */
+static void handle_dbgspn(int i, const char *args, bool *profile_deleted) {
+    (void)args; (void)profile_deleted;
+    int q1 = players[i].state.q1, q2 = players[i].state.q2, q3 = players[i].state.q3;
+    int nspawn = 0;
+    for (int n = 0; n < MAX_NPC && nspawn < 8; n++) {
+        if (npcs[n].active) continue;
+        npcs[n] = (NPCShip){0};
+        npcs[n].id = n;
+        npcs[n].active = 1;
+        npcs[n].faction = FACTION_KORTHIAN;
+        npcs[n].ship_class = SHIP_CLASS_GENERIC_ALIEN;
+        npcs[n].q1 = q1; npcs[n].q2 = q2; npcs[n].q3 = q3;
+        npcs[n].x = 8.0 + nspawn * 3.5;
+        npcs[n].y = 8.0;
+        npcs[n].z = 20.0;
+        npcs[n].gx = (q1 - 1) * QUADRANT_SIZE + npcs[n].x;
+        npcs[n].gy = (q2 - 1) * QUADRANT_SIZE + npcs[n].y;
+        npcs[n].gz = (q3 - 1) * QUADRANT_SIZE + npcs[n].z;
+        npcs[n].health = MAX_TORPEDO_CAPACITY;
+        npcs[n].engine_health = YIELD_HARVEST_MAX;
+        npcs[n].energy = 100000;
+        npcs[n].plating = 100;
+        npcs[n].ai_state = AI_STATE_PATROL;
+        snprintf(npcs[n].name, sizeof(npcs[n].name), "DbgNpc%d", nspawn);
+        nspawn++;
+    }
+    int mspawn = 0;
+    for (int m = 0; m < MAX_MONSTERS && mspawn < 2; m++) {
+        if (monsters[m].active) continue;
+        monsters[m] = (NPCMonster){0};
+        monsters[m].id = m;
+        monsters[m].active = 1;
+        monsters[m].type = 30;
+        monsters[m].q1 = q1; monsters[m].q2 = q2; monsters[m].q3 = q3;
+        monsters[m].x = 28.0; monsters[m].y = 28.0; monsters[m].z = 28.0;
+        monsters[m].health = MAX_TORPEDO_CAPACITY;
+        monsters[m].energy = 100000;
+        mspawn++;
+    }
+    char b[160];
+    sprintf(b, "TEMP-DEBUG: spawned %d NPCs, %d monsters in [%d,%d,%d]", nspawn, mspawn, q1, q2, q3);
+    send_server_msg(i, "COMPUTER", b);
+}
+
+/* TEMP-DEBUG (REMOVE BEFORE RELEASE): report the state of the first 12 NPC
+ * slots and first 4 monsters so spawned test entities can be inspected. */
+static void handle_dbgnpc(int i, const char *args, bool *profile_deleted) {
+    (void)args; (void)profile_deleted;
+    int q1 = players[i].state.q1, q2 = players[i].state.q2, q3 = players[i].state.q3;
+    int count = 0;
+    for (int n = 0; n < MAX_NPC && count < 40; n++) {
+        if (!npcs[n].active) continue;
+        if (strncmp(npcs[n].name, "Dbg", 3) != 0 &&
+            !(npcs[n].q1 == q1 && npcs[n].q2 == q2 && npcs[n].q3 == q3)) continue;
+        char b[192];
+        sprintf(b, "NPC n=%d id=%d q=[%d,%d,%d] xyz=(%.2f,%.2f,%.2f) gx=%.1f h=%d eng=%.1f ai=%d death=%d beam_ct=%d name=%s", n, npcs[n].id, npcs[n].q1, npcs[n].q2, npcs[n].q3, npcs[n].x, npcs[n].y, npcs[n].z, npcs[n].gx, npcs[n].health, npcs[n].engine_health, npcs[n].ai_state, npcs[n].death_timer, npcs[n].beam_count, npcs[n].name);
+        send_server_msg(i, "DEBUG", b);
+        count++;
+    }
+    int mcount = 0;
+    for (int m = 0; m < MAX_MONSTERS && mcount < 10; m++) {
+        if (!monsters[m].active) continue;
+        if (!(monsters[m].q1 == q1 && monsters[m].q2 == q2 && monsters[m].q3 == q3)) continue;
+        char b[192];
+        sprintf(b, "MON m=%d type=%d q=[%d,%d,%d] xyz=(%.2f,%.2f,%.2f) h=%d beam_ct=%d", m, monsters[m].type, monsters[m].q1, monsters[m].q2, monsters[m].q3, monsters[m].x, monsters[m].y, monsters[m].z, monsters[m].health, monsters[m].beam_count);
+        send_server_msg(i, "DEBUG", b);
+        mcount++;
+    }
+    char b[128];
+    sprintf(b, "TEMP-DEBUG: NPC report complete (%d shown).", count);
+    send_server_msg(i, "COMPUTER", b);
+}
+
 /* --- Command Registry Table --- */
 
 static const CommandDef command_registry[] = {
+    {"dbgspn", handle_dbgspn, "TEMP-DEBUG: spawn local NPCs/monsters"},
+    {"dbgnpc", handle_dbgnpc, "TEMP-DEBUG: report NPC state"},
     {"nav", handle_nav, "Hyperdrive Navigation (H 0-359, M -90/90, W Dist, F Factor 1-9.9)"},
     {"imp", handle_imp, "Impulse Drive (H, M, Speed 0.0-1.0). imp 0 0 0 to stop."},
     {"pos", handle_pos, "Position Ship (Align orientation without movement)"},

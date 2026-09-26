@@ -50,4 +50,15 @@ double nav_wrap_heading(double h);
  * unchanged. */
 double nav_heading_at(double start_h, double target_h, double t);
 
+/* Shortest-arc linear interpolation between two absolute roll angles
+ * (both in [0, 360)) at fraction t (0 = start_r, 1 = target_r).
+ * Same contract as nav_heading_at: the result is re-wrapped into
+ * [0, 360), so a roll turn crossing the 0/360 boundary (e.g. 350 deg
+ * -> 20 deg) passes through 0 instead of leaving the range (370 deg).
+ * The wrap is display-only — it is the same angle, so the consumers
+ * that use roll through sin/cos (the shield basis in
+ * calculate_shield_index, the 3D views) are unchanged. Out-of-range
+ * inputs are handled modulo 360 as well. */
+double nav_roll_at(double start_r, double target_r, double t);
+
 #endif /* NAV_MATH_H */

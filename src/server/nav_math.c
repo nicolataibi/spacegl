@@ -60,3 +60,13 @@ double nav_heading_at(double start_h, double target_h, double t) {
     while (d < -180.0) d += 360.0;
     return nav_wrap_heading(start_h + d * t);
 }
+
+double nav_roll_at(double start_r, double target_r, double t) {
+    /* Same shortest-arc delta as nav_heading_at: d ends up in
+     * [-180, 180] for in-range inputs, and the wrap keeps it correct
+     * modulo 360 even if a caller passes an out-of-range angle. */
+    double d = target_r - start_r;
+    while (d > 180.0) d -= 360.0;
+    while (d < -180.0) d += 360.0;
+    return nav_wrap_heading(start_r + d * t);
+}

@@ -1001,8 +1001,9 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             for (int j = 0; j < ctx->object_count && j < (int)GDD_MAX_NET_OBJECTS; j++) {
                 if (ctx->objs && ctx->active && ctx->active[j] && ctx->ids) {
                     if (b->owner_id > 0 && ctx->ids[j] == b->owner_id) {
+                        float off_v = (b->emitter_id == 2) ? -0.12f : 0.12f;
                         bsx = ctx->objs[j].x - GDD_QUADRANT;
-                        bsy = ctx->objs[j].z - GDD_QUADRANT;
+                        bsy = ctx->objs[j].z - GDD_QUADRANT + off_v;
                         bsz = GDD_QUADRANT - ctx->objs[j].y;
                     }
                     if (b->extra > 0 && ctx->ids[j] == b->extra) {
@@ -1044,18 +1045,18 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
 
             gdd_list_add(&dyn, GDD_MESH_BOX,
                          (vsx + vtx) * 0.5f, (vsy + vty) * 0.5f, (vsz + vtz) * 0.5f,
-                         dist, thick, thick,
+                         dist * 0.5f, thick, thick,
                          0.0f, 0.8f, 1.0f, b->life,
-                         0, 1, GDD_FRAG_HYPERWARP, bo, 0.0f, 1.0f);
+                         1, 1, GDD_FRAG_HYPERWARP, bo, 0.0f, 1.0f);
             gdd_list_add(&dyn, GDD_MESH_BOX,
                          (vsx + vtx) * 0.5f, (vsy + vty) * 0.5f, (vsz + vtz) * 0.5f,
-                         dist, thick * 0.35f, thick * 0.35f,
+                         dist * 0.5f, thick * 0.35f, thick * 0.35f,
                          1.0f, 1.0f, 1.0f, b->life,
-                         0, 1, GDD_FRAG_HYPERWARP, bo, 0.0f, 1.0f);
+                         1, 1, GDD_FRAG_HYPERWARP, bo, 0.0f, 1.0f);
             float is = 1.3f * ts * b->life;
             gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, vtx, vty, vtz,
                                   is, is, is, 1.0f, 1.0f, 1.0f, b->life,
-                                  0, 1, GDD_FRAG_SHOCKWAVE, 0.0f, 1.0f);
+                                  1, 1, GDD_FRAG_SHOCKWAVE, 0.0f, 1.0f);
         }
     }
 

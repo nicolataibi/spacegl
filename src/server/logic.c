@@ -1025,15 +1025,15 @@ void update_game_logic() {
             players[i].gy = (players[i].state.q2 - 1) * QUADRANT_SIZE + players[i].state.s2;
             players[i].gz = (players[i].state.q3 - 1) * QUADRANT_SIZE + players[i].state.s3;
 
-            double diff_r = players[i].target_r - players[i].start_r;
-            while(diff_r > 180.0) diff_r -= 360.0;
-            while(diff_r < -180.0) diff_r += 360.0;
-
             double init_t = (players[i].align_timer > 0) ? players[i].align_timer : 60.0;
             double t = 1.0 - players[i].nav_timer / init_t;
             players[i].state.van_h = nav_heading_at(players[i].start_h, players[i].target_h, t);
             players[i].state.van_m = (players[i].start_m + (players[i].target_m - players[i].start_m) * t);
-            players[i].state.van_r = (players[i].start_r + diff_r * t);
+            /* Shortest-arc interpolation, re-wrapped into [0, 360) so a
+             * roll turn across the 0/360 boundary never leaves the range
+             * (same contract as the B2 heading fix: the HUD displays
+             * van_r as-is and must never show a roll above 360). */
+            players[i].state.van_r = nav_roll_at(players[i].start_r, players[i].target_r, t);
             if (players[i].nav_timer <= 0) {
                 players[i].state.van_h = players[i].target_h;
                 players[i].state.van_m = players[i].target_m;
