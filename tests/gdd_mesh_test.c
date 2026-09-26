@@ -62,7 +62,7 @@
 #endif
 
 /* Test data sizes (declared first: the buffer setup below uses them) */
-#define N_DYN  14
+#define N_DYN  15
 #define N_MAP  5
 #define VMAX   8192
 
@@ -503,7 +503,10 @@ static float gdd_boom_hash(float u, float seed, float k) {
 
 /* Mirror of gdd_expand_boom (gdd_ops.glsl): the 256-particle procedural
  * explosion cloud (CPU boom parity). The expander writes per-vertex colors
- * directly and zeroes v.params (seed/style stay on the instance). */
+ * directly and zeroes v.params (seed/style stay on the instance).
+ * Style 2 (phaser impact) carries the FULL displacement in its branches
+ * (animation via g = 1 - life, fade baked into the RGB); styles 0/1 keep
+ * the off * exp expansion. */
 static uint32_t expand_boom(const GddInstance *it, GddVertex *out) {
     float life = it->alpha;
     float ts = (it->scale[0] > 1e-4f) ? it->scale[0] : 1e-4f;
@@ -516,7 +519,46 @@ static uint32_t expand_boom(const GddInstance *it, GddVertex *out) {
         float h2 = gdd_boom_hash(u, it->pad[0], 2.0f);
         float h3 = gdd_boom_hash(u, it->pad[0], 3.0f);
         float off[3], col[3];
-        if (style > 0.5f) {
+        if (style > 1.5f) {
+            /* phaser impact: white ring + spark burst + core flash */
+            float g = 1.0f - life;
+            if (u < 96.0f) {
+                float ang = h1 * 6.283185307179586f;
+                float rr = (0.3f + g * 3.2f) * ts;
+                off[0] = cosf(ang) * rr;
+                off[1] = ((h2 - 0.5f) * 0.3f) * ts;
+                off[2] = sinf(ang) * rr;
+                float fade = 1.0f - g;
+                col[0] = fade; col[1] = fade; col[2] = fade;
+            } else if (u < 208.0f) {
+                float theta = h1 * 6.283185307179586f;
+                float phi = (h2 - 0.5f) * 3.141592653589793f;
+                float spd = 0.6f + h3 * 1.8f;
+                float grow = (0.4f + g * 2.4f) * ts;
+                float cpc = cosf(phi) * cosf(theta);
+                float sp  = sinf(phi);
+                float cps = cosf(phi) * sinf(theta);
+                off[0] = (cpc * spd) * grow;
+                off[1] = (sp * spd) * grow;
+                off[2] = (cps * spd) * grow;
+                float fade = 1.0f - g;
+                if ((float)(p % 3) < 0.5f)      { col[0]=fade; col[1]=fade; col[2]=fade; }
+                else if ((float)(p % 5) < 0.5f) { col[0]=fade; col[1]=fade*0.85f; col[2]=fade*0.6f; }
+                else                            { col[0]=fade; col[1]=fade*0.65f; col[2]=fade*0.25f; }
+            } else {
+                float theta = h1 * 6.283185307179586f;
+                float phi = (h2 - 0.5f) * 3.141592653589793f;
+                float rad = (h3 * 0.5f) * life * ts;
+                float cpc = cosf(phi) * cosf(theta);
+                float sp  = sinf(phi);
+                float cps = cosf(phi) * sinf(theta);
+                off[0] = cpc * rad;
+                off[1] = sp * rad;
+                off[2] = cps * rad;
+                float fade = life * life;
+                col[0] = fade; col[1] = fade; col[2] = fade;
+            }
+        } else if (style > 0.5f) {
             /* dismantle boom: spherical offsets, per-particle speed,
              * colors: p%3==0 white, p%5==0 (0,0.5,1), else (0.2,0.8,1) */
             float theta = h1 * 6.283185307179586f;
@@ -541,9 +583,15 @@ static uint32_t expand_boom(const GddInstance *it, GddVertex *out) {
             else if (k < 4.5f) { col[0]=0.0f; col[1]=1.0f; col[2]=0.0f; }
             else               { col[0]=1.0f; col[1]=0.5f; col[2]=0.0f; }
         }
-        float wp[3] = { it->pos[0] + off[0] * expn,
-                        it->pos[1] + off[1] * expn,
-                        it->pos[2] + off[2] * expn };
+        float disp[3];
+        if (style > 1.5f) {
+            disp[0] = off[0]; disp[1] = off[1]; disp[2] = off[2];
+        } else {
+            disp[0] = off[0] * expn; disp[1] = off[1] * expn; disp[2] = off[2] * expn;
+        }
+        float wp[3] = { it->pos[0] + disp[0],
+                        it->pos[1] + disp[1],
+                        it->pos[2] + disp[2] };
         float n[3], uu[3], vv[3];
         if (fabsf(wp[0]) >= fabsf(wp[1]) && fabsf(wp[0]) >= fabsf(wp[2])) {
             n[0]=1; n[1]=0; n[2]=0; uu[0]=0; uu[1]=1; uu[2]=0; vv[0]=0; vv[1]=0; vv[2]=1;
@@ -567,7 +615,7 @@ static uint32_t expand_boom(const GddInstance *it, GddVertex *out) {
             v->color[0] = col[0]; v->color[1] = col[1]; v->color[2] = col[2]; v->color[3] = 1.0f;
             v->normal[0] = n[0]; v->normal[1] = n[1]; v->normal[2] = n[2];
             v->mode = (float)gdd_frag_mode(it->flags);
-            v->local[0] = off[0] * expn; v->local[1] = off[1] * expn; v->local[2] = off[2] * expn;
+            v->local[0] = disp[0]; v->local[1] = disp[1]; v->local[2] = disp[2];
             v->metallic = 0.0f; v->roughness = 0.0f; /* boom zeroes params */
         }
     }
@@ -1214,6 +1262,18 @@ static void fill_test_data(void) {
     u_inst_dyn[13].pad[0] = 123.0f; /* seed */
     u_inst_dyn[13].pad[1] = 1.0f;   /* style 1 = dismantle */
     set_identity_orient(u_inst_dyn[13].orient);
+
+    /* 14: boom cloud (phaser impact style 2: white ring + spark burst
+     *     + core flash, fade in RGB), IN range, ADDITIVE (the beam
+     *     section of the builder draws it in the glow pass) */
+    u_inst_dyn[14].pos[0] = 3.0f; u_inst_dyn[14].pos[1] = -1.0f; u_inst_dyn[14].pos[2] = -2.0f;
+    u_inst_dyn[14].mesh = GDD_MESH_BOOM;
+    u_inst_dyn[14].scale[0] = 1.0f; u_inst_dyn[14].scale[1] = 1.0f; u_inst_dyn[14].scale[2] = 1.0f;
+    u_inst_dyn[14].flags = gdd_make_flags(0, 1, GDD_FRAG_UNLIT);
+    u_inst_dyn[14].alpha = 0.7f;
+    u_inst_dyn[14].pad[0] = 777.0f; /* seed (gdd_beam_boom_seed range 0..1000) */
+    u_inst_dyn[14].pad[1] = 2.0f;   /* style 2 = phaser impact */
+    set_identity_orient(u_inst_dyn[14].orient);
 
     /* --- map group (static geometry: all NEVER_CULL) --------------- */
     u_inst_map[0].pos[0] = 5.0f; u_inst_map[0].pos[2] = -5.0f;

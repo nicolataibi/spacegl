@@ -94,8 +94,15 @@
 /* Procedural explosion cloud (CPU boom parity: 256 expanding particles).
  * it.a.xyz = boom center (world, already tactScale-mapped); it.b.x =
  * tactScale; it.c.w (alpha) = life; it.p.x = per-boom seed (0..1000);
- * it.p.y = style (0 = torpedo boom: cubic offsets, 6-color cycle;
- * 1 = dismantle boom: spherical offsets, 3-color mix). */
+ * it.p.y = style:
+ *   0 = torpedo boom: cubic offsets, 6-color cycle;
+ *   1 = dismantle boom: spherical offsets, 3-color mix;
+ *   2 = phaser impact (the "pha" command's signature): white core
+ *       flash collapsing into the impact point + expanding white ring
+ *       on the tactical plane + radial white/warm spark burst, fade
+ *       baked into the RGB. Drawn by the beam section of the instance
+ *       builder at every phaser impact (one per shot, emitter 1), so
+ *       player and NPC phasers share the exact same effect. */
 #define GDD_MESH_BOOM    9  /* 1536 verts : 256 particles x 6 verts (double-sided triangle) */
 /* Wireframe box: the 12 edges of the unit box as square tubes (same
  * tube construction as GDD_MESH_LINE), ONE instance per wireframe box
@@ -153,6 +160,31 @@ static inline float gdd_make_flags(uint32_t never_cull, uint32_t additive, uint3
 static inline uint32_t gdd_flags_to_uint(float flags) { return (uint32_t)(flags + 0.5f); }
 static inline uint32_t gdd_flag_bit(float flags, uint32_t bit) { return (gdd_flags_to_uint(flags) >> bit) & 1u; }
 static inline uint32_t gdd_frag_mode(float flags) { return (gdd_flags_to_uint(flags) >> 2) & 0xFu; }
+
+/* Wang integer hash — BIT-IDENTICAL to gdd_hash_u in gdd_common.glsl
+ * (same 32-bit ops, no float intermediates). Shared here so the CPU
+ * side (instance builder, unit tests) and the GPU side (gdd_boom_hash
+ * quantizes the seed with uint(seed * 1000.0 + 0.5)) agree. */
+static inline uint32_t gdd_wang_hash(uint32_t x) {
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+}
+
+/* Deterministic per-beam seed (0..1000) for the phaser impact boom
+ * (GDD_MESH_BOOM style 2). Keyed on (owner, target, emitter): stable
+ * for the whole beam life (the cloud must not re-roll per frame)
+ * while still differing between shots. Same prime set as
+ * gdd_boom_hash, so seed * 1000 + 0.5 quantizes exactly on the GPU. */
+static inline float gdd_beam_boom_seed(int owner_id, int target_id, int emitter_id) {
+    uint32_t x = (uint32_t)(owner_id + 1) * 73856093u
+               + (uint32_t)(target_id + 1) * 19349663u
+               + (uint32_t)(emitter_id + 1) * 83492791u;
+    return (float)(gdd_wang_hash(x) % 1001u);
+}
 
 /* ================================================================== */
 /* GddInstance — 112 B == GLSL GddInstance (a, b, c, mat3, vec4)      */
@@ -292,7 +324,10 @@ typedef struct { float x, y, z, life; float offsets[GDD_EXPLOSION_PIXELS][3]; fl
      * from these (per-boom random seed + style) instead of the
      * CPU-side offsets/colors tables (which the CPU-driven path keeps).
      * style 0 = torpedo boom (cubic offsets, 6-color cycle),
-     * style 1 = dismantle boom (spherical offsets, 3-color mix). */
+     * style 1 = dismantle boom (spherical offsets, 3-color mix),
+     * style 2 = phaser impact (white core flash + impact ring + spark
+     * burst; also drawn directly by the builder for every phaser beam,
+     * where the seed comes from gdd_beam_boom_seed()). */
     float seed; int style; } ActiveBoom;
 typedef struct { float x, y, z, life; float scale; } ActiveDismantle;
 typedef struct { float x, y, z; float dx, dy, dz; int active; int id; } ActiveTorp;

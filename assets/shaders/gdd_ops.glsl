@@ -450,16 +450,31 @@ void gdd_expand_boxwire(uint base, GddInstance it) {
 
 void gdd_expand_boom(uint base, GddInstance it) {
     /* CPU boom parity (recordCommandBuffer): 256 particles at
-     *     world_p = boom_pos + offset_p * exp,
-     * where exp = (1 - life) * 12 * tactScale. The CPU tables hold
-     * per-boom RANDOM offsets/colors; the GDD regenerates the SAME
-     * distribution procedurally from the per-boom seed (it.p.x):
+     *     world_p = boom_pos + disp_p,
+     * where disp = offset * exp with exp = (1 - life) * 12 * tactScale
+     * (styles 0/1), or a style-2 signature displacement. The CPU
+     * tables hold per-boom RANDOM offsets/colors; the GDD regenerates
+     * the SAME distribution procedurally from the per-boom seed
+     * (it.p.x):
      *   style 0 (torpedo boom): uniform cubic offsets in [-4,4]^3,
      *     colors cycle by p%6: (0,1,1) (1,0,1) (1,1,0) (1,0,0)
      *     (0,1,0) (1,0.5,0) — CPU IPC_EV_BOOM;
      *   style 1 (dismantle boom): spherical offsets, per-particle speed
      *     3.5..5.5 for p<32 else 1.0..3.5 (CPU IPC_EV_DISMANTLE),
-     *     colors: p%3==0 white, p%5==0 (0,0.5,1), else (0.2,0.8,1).
+     *     colors: p%3==0 white, p%5==0 (0,0.5,1), else (0.2,0.8,1);
+     *   style 2 (phaser impact — the "pha" command's signature, drawn
+     *     at every impact by the beam section of the instance builder,
+     *     same for player and NPC phasers): g = 1 - life is the
+     *     elapsed fraction of the beam life and the fade is baked into
+     *     the RGB (the additive pass multiplies src.rgb by src.a and
+     *     the boom keeps alpha 1):
+     *     p < 96    : expanding white ring on the world XZ plane,
+     *                 radius (0.3 + g * 3.2) * ts, y jitter ±0.15 ts;
+     *     p < 208   : radial spark burst, direction from (h1, h2),
+     *                 speed 0.6 + h3 * 1.8, radius (0.4 + g * 2.4) * ts;
+     *                 colors p%3 white / p%5 warm (0.85,0.6) / (0.65,0.25);
+     *     else      : white core flash collapsing into the impact
+     *                 point, radius h3 * 0.5 * life * ts, fade life^2.
      * Each particle = the same double-sided triangle as GDD_MESH_POINT
      * (radius 0.25 * tactScale, the CPU sphere radius). Instance fields:
      * it.a.xyz = center (world), it.b.x = tactScale, it.c.w = life,
@@ -477,7 +492,36 @@ void gdd_expand_boom(uint base, GddInstance it) {
         float h3 = gdd_boom_hash(u, it.p.x, 3.0);
         vec3 off;
         vec3 col;
-        if (style > 0.5) {
+        if (style > 1.5) {
+            /* phaser impact: the displacement is the FULL world offset
+             * (no extra expansion factor — the animation is carried by
+             * g inside each branch). */
+            float g = 1.0 - life;
+            if (u < 96.0) {
+                float ang = h1 * 6.283185307179586;
+                float rr = (0.3 + g * 3.2) * ts;
+                off = vec3(cos(ang) * rr, (h2 - 0.5) * 0.3 * ts, sin(ang) * rr);
+                float fade = 1.0 - g;
+                col = vec3(fade, fade, fade);
+            } else if (u < 208.0) {
+                float theta = h1 * 6.283185307179586;
+                float phi = (h2 - 0.5) * 3.141592653589793;
+                float spd = 0.6 + h3 * 1.8;
+                float grow = (0.4 + g * 2.4) * ts;
+                off = (vec3(cos(phi) * cos(theta), sin(phi), cos(phi) * sin(theta)) * spd) * grow;
+                float fade = 1.0 - g;
+                if (mod(u, 3.0) < 0.5)      col = vec3(fade, fade, fade);
+                else if (mod(u, 5.0) < 0.5) col = vec3(fade, fade * 0.85, fade * 0.6);
+                else                        col = vec3(fade, fade * 0.65, fade * 0.25);
+            } else {
+                float theta = h1 * 6.283185307179586;
+                float phi = (h2 - 0.5) * 3.141592653589793;
+                float rad = (h3 * 0.5) * life * ts;
+                off = vec3(cos(phi) * cos(theta), sin(phi), cos(phi) * sin(theta)) * rad;
+                float fade = life * life;
+                col = vec3(fade, fade, fade);
+            }
+        } else if (style > 0.5) {
             /* spherical: direction from (h1, h2), speed from h3 */
             float theta = h1 * 6.283185307179586;
             float phi = (h2 - 0.5) * 3.141592653589793;
@@ -496,7 +540,8 @@ void gdd_expand_boom(uint base, GddInstance it) {
             else if (k < 4.5) col = vec3(0.0, 1.0, 0.0);
             else              col = vec3(1.0, 0.5, 0.0);
         }
-        vec3 wp = it.a.xyz + off * exp;
+        vec3 disp = (style > 1.5) ? off : (off * exp);
+        vec3 wp = it.a.xyz + disp;
         /* deterministic pseudo-billboard (same rule as gdd_expand_point) */
         vec3 n, uu, vv;
         if (abs(wp.x) >= abs(wp.y) && abs(wp.x) >= abs(wp.z)) {
@@ -511,7 +556,7 @@ void gdd_expand_boom(uint base, GddInstance it) {
         vec3 a2 = wp - uu * (r * 0.8660254) + vv * (r * 0.5);
         GddVertex v;
         v.normal = vec4(n, gdd_frag_mode(it));
-        v.local  = vec4(off * exp, 0.0);
+        v.local  = vec4(disp, 0.0);
         v.params = vec4(0.0, 0.0, 0.0, 0.0);
         v.color  = vec4(col, 1.0);
         v.pos    = vec4(a0, 0.0); gdd_verts.v[base + uint(p) * 6u + 0u] = v;

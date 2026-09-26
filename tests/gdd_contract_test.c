@@ -304,15 +304,22 @@ static void test_effects(void) {
     }
     c.booms = boom;
 
-        /* One beam raw (20,20,20) -> (30,20,20), i.e. centered (0,0,0) -> (10,0,0),
-     * life 1.0: beam + core + splash. owner_id/extra = 0 disables the
-     * real-time tracking in the builder, so the beam stays where the test puts it. */
+        /* Two phaser beams raw (20,20,20) -> (30,20,20), i.e. centered
+     * (0,0,0) -> (10,0,0), life 1.0: the emitter-1 beam carries the
+     * signature impact boom, the emitter-2 beam (the "pha" bottom
+     * emitter) draws its wireframe line but NO second boom. owner_id/
+     * extra = 0 disables the real-time tracking in the builder, so the
+     * beams stay where the test puts them. */
     static ActiveBeam beam[GDD_MAX_ACTIVE_BEAMS];
     memset(beam, 0, sizeof(beam));
     beam[0].sx = 20.0f; beam[0].sy = 20.0f; beam[0].sz = 20.0f;
     beam[0].tx = 30.0f; beam[0].ty = 20.0f; beam[0].tz = 20.0f;
     beam[0].life = 1.0f;
     beam[0].owner_id = 0; beam[0].extra = 0; beam[0].emitter_id = 1;
+    beam[1].sx = 20.0f; beam[1].sy = 20.0f; beam[1].sz = 20.0f;
+    beam[1].tx = 30.0f; beam[1].ty = 20.0f; beam[1].tz = 20.0f;
+    beam[1].life = 1.0f;
+    beam[1].owner_id = 0; beam[1].extra = 0; beam[1].emitter_id = 2;
     c.beams = beam;
 
     /* One active torpedo */
@@ -324,12 +331,15 @@ static void test_effects(void) {
 
     run_builder(&c);
 
-    /* ship (1+4 quantum) + boom (1 cloud) + beam (3) + torp (1) + 16 bbox */
-    CHECK(g_dyn_n == 26, "effects: ship+quantum+boom+beam+torp+16bbox -> %u dyn (want 26)", g_dyn_n);
+    /* ship (1+4 quantum) + boom (1 cloud) + beams (2 lines + 1 impact
+     * boom) + torp (1) + 16 bbox */
+    CHECK(g_dyn_n == 26, "effects: ship+quantum+boom+beams+torp+16bbox -> %u dyn (want 26)", g_dyn_n);
 
-    /* Boom: exactly 1 GDD_MESH_BOOM instance at (5,5,5); the GPU expands
-     * the 256-particle cloud from seed/style (pad.x/pad.y). */
-    CHECK(count_dyn(GDD_MESH_BOOM) == 1, "1 boom cloud instance, got %d",
+    /* Booms: the torpedo cloud at (5,5,5) plus the phaser impact boom
+     * at the target end (10,0,0) — the GPU expands each 256-particle
+     * cloud from seed/style (pad.x/pad.y). The emitter-2 beam must
+     * NOT add a second impact boom (one per shot). */
+    CHECK(count_dyn(GDD_MESH_BOOM) == 2, "2 boom cloud instances, got %d",
           count_dyn(GDD_MESH_BOOM));
     const GddInstance *boomit = find_dyn(GDD_MESH_BOOM, 5.0f, 5.0f, 5.0f, 1e-4f);
     CHECK(boomit != NULL, "boom cloud instance at (5,5,5)");
@@ -342,14 +352,38 @@ static void test_effects(void) {
         CHECK(gdd_flag_bit(boomit->flags, 1) == 0, "boom opaque");
         CHECK(gdd_frag_mode(boomit->flags) == GDD_FRAG_UNLIT, "boom unlit");
     }
-    /* Beam: midpoint (5,0,0), a box oriented along +X (x half-extent ~ dist/0.9) */
-    int boxes = count_dyn(GDD_MESH_BOX);
-    CHECK(boxes == 2, "beam: 2 boxes, got %d", boxes);
-    const GddInstance *bl = find_dyn(GDD_MESH_BOX, 5.0f, 0.0f, 0.0f, 1e-3f);
-
-    CHECK(bl != NULL, "beam box at midpoint (5,0,0)");
-    if (bl)
-                CHECK_F("beam length", bl->scale[0], 5.0f, 1e-3f, "beam length");
+    /* Phaser impact boom: style 2 at (10,0,0), white, additive, UNLIT,
+     * alpha = beam life, deterministic per-beam seed. */
+    const GddInstance *pb = find_dyn(GDD_MESH_BOOM, 10.0f, 0.0f, 0.0f, 1e-4f);
+    CHECK(pb != NULL, "phaser impact boom at (10,0,0)");
+    if (pb) {
+        CHECK_F("phaser boom style", pb->pad[1], 2.0f, 1e-6f, "phaser boom style");
+        CHECK_F("phaser boom seed", pb->pad[0], gdd_beam_boom_seed(0, 0, 1), 1e-6f,
+                "phaser boom seed");
+        CHECK_F("phaser boom alpha", pb->alpha, 1.0f, 1e-6f, "phaser boom alpha");
+        CHECK_F("phaser boom ts", pb->scale[0], 1.0f, 1e-6f, "phaser boom scale");
+        CHECK(pb->color[0] == 1.0f && pb->color[1] == 1.0f && pb->color[2] == 1.0f,
+              "phaser boom white");
+        CHECK(gdd_flag_bit(pb->flags, 1) == 1, "phaser boom additive");
+        CHECK(gdd_frag_mode(pb->flags) == GDD_FRAG_UNLIT, "phaser boom unlit");
+    }
+    /* Phasers: one white wireframe segment (GDD_MESH_LINE tube) per
+     * beam, ship end (0,0,0), scale = direction vector (+X, length 10),
+     * additive UNLIT, alpha = life, tube half-thickness 0.05 * ts. */
+    CHECK(count_dyn(GDD_MESH_LINE) == 18,
+          "beams: 2 lines + 16 bbox = %d", count_dyn(GDD_MESH_LINE));
+    const GddInstance *bl = find_dyn(GDD_MESH_LINE, 0.0f, 0.0f, 0.0f, 1e-4f);
+    CHECK(bl != NULL, "beam line at the ship end (0,0,0)");
+    if (bl) {
+        CHECK_F("beam length", bl->scale[0], 10.0f, 1e-4f, "beam length");
+        CHECK(bl->scale[1] == 0.0f && bl->scale[2] == 0.0f, "beam along +X");
+        CHECK(bl->color[0] == 1.0f && bl->color[1] == 1.0f && bl->color[2] == 1.0f,
+              "beam white");
+        CHECK(bl->alpha == 1.0f, "beam alpha = life");
+        CHECK_F("beam tube thickness", bl->pad[0], 0.05f, 1e-6f, "beam tube");
+        CHECK(gdd_flag_bit(bl->flags, 1) == 1, "beam additive");
+        CHECK(gdd_frag_mode(bl->flags) == GDD_FRAG_UNLIT, "beam unlit");
+    }
 
     /* Torpedo: pyramid (identity orientation) at (1,2,3) */
     const GddInstance *tp = find_dyn(GDD_MESH_PYRAMID, 1.0f, 2.0f, 3.0f, 1e-4f);

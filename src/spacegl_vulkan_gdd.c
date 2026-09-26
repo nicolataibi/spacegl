@@ -984,7 +984,24 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
     }
 
     /* ---------------------------------------------------------------- */
-    /* 4. Ion beams (FX): beam + white core + impact splash              */
+    /* 4. Phasers (FX): one white wireframe segment from the firing     */
+    /*    ship to the target + the signature impact boom at the         */
+    /*    endpoint (GDD_MESH_BOOM, style 2).                            */
+    /*                                                                  */
+    /*    The rendering is IDENTICAL for every phaser source: the       */
+    /*    player's "pha" command, the NPC AI, the resonance monsters    */
+    /*    and the star bases all push their shots into the same         */
+    /*    NetUpdate.beams channel (server aggregation in logic.c), the  */
+    /*    client relays them as IPC_EV_BEAM events into this very       */
+    /*    ActiveBeam list, and this one section draws them all: a       */
+    /*    white, unlit, additive GDD_MESH_LINE tube (the GDD            */
+    /*    counterpart of the CPU path's 1-px LINE_LIST — the screen-    */
+    /*    space floor in the expand pass keeps it at least 1 px at      */
+    /*    any camera distance, so it can never rasterize invisible)     */
+    /*    with alpha = beam life, ending in the style-2 impact boom.    */
+    /*    The boom is drawn once per shot: "pha" fires two emitter      */
+    /*    beams (top/bottom) at the same target, and only emitter 1     */
+    /*    carries it (NPC/monster/base shots use emitter 1 as well).    */
     /* ---------------------------------------------------------------- */
     if (ctx->map_anim < 0.99f && ctx->beams) {
         for (int i = 0; i < (int)GDD_MAX_ACTIVE_BEAMS; i++) {
@@ -1015,48 +1032,27 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             }
             float vsx = bsx * ts, vsy = bsy * ts, vsz = bsz * ts;
             float vtx = btx * ts, vty = bty * ts, vtz = btz * ts;
-            float V[3] = { vtx - vsx, vty - vsy, vtz - vsz };
-            float dist = sqrtf(V[0]*V[0] + V[1]*V[1] + V[2]*V[2]);
+            float dx = vtx - vsx, dy = vty - vsy, dz = vtz - vsz;
+            float dist = sqrtf(dx*dx + dy*dy + dz*dz);
             if (dist < 0.1f) continue;
-            V[0] /= dist; V[1] /= dist; V[2] /= dist;
 
-            /* Direct basis: X = V, Y = actual_up, Z = right (CPU parity) */
-            float up_ref[3] = { 0, 1, 0 };
-            if (fabsf(V[1]) > 0.95f) { up_ref[0] = 1; up_ref[1] = 0; }
-            float right[3] = {
-                up_ref[1]*V[2] - up_ref[2]*V[1],
-                up_ref[2]*V[0] - up_ref[0]*V[2],
-                up_ref[0]*V[1] - up_ref[1]*V[0]
-            };
-            float rlen = sqrtf(right[0]*right[0] + right[1]*right[1] + right[2]*right[2]);
-            if (rlen < 0.001f) { right[0] = 0; right[1] = 0; right[2] = 1; }
-            else { right[0] /= rlen; right[1] /= rlen; right[2] /= rlen; }
-            float a_up[3] = {
-                V[1]*right[2] - V[2]*right[1],
-                V[2]*right[0] - V[0]*right[2],
-                V[0]*right[1] - V[1]*right[0]
-            };
-            gdd_m3 mb = { { V[0], V[1], V[2] },
-                          { a_up[0], a_up[1], a_up[2] },
-                          { right[0], right[1], right[2] } };
-            float bo[12];
-            gdd_orient_from_m3(bo, mb);
-            float thick = 0.85f * ts * b->life;
-
-            gdd_list_add(&dyn, GDD_MESH_BOX,
-                         (vsx + vtx) * 0.5f, (vsy + vty) * 0.5f, (vsz + vtz) * 0.5f,
-                         dist * 0.5f, thick, thick,
-                         0.0f, 0.8f, 1.0f, b->life,
-                         1, 1, GDD_FRAG_HYPERWARP, bo, 0.0f, 1.0f);
-            gdd_list_add(&dyn, GDD_MESH_BOX,
-                         (vsx + vtx) * 0.5f, (vsy + vty) * 0.5f, (vsz + vtz) * 0.5f,
-                         dist * 0.5f, thick * 0.35f, thick * 0.35f,
+            /* White wireframe segment, ship -> target. The tube's
+             * half-thickness is 0.05 * tactScale; gdd_expand_line
+             * clamps it to the 1-px screen floor (pc.line_min_wu). */
+            gdd_list_add(&dyn, GDD_MESH_LINE, vsx, vsy, vsz, dx, dy, dz,
                          1.0f, 1.0f, 1.0f, b->life,
-                         1, 1, GDD_FRAG_HYPERWARP, bo, 0.0f, 1.0f);
-            float is = 1.3f * ts * b->life;
-            gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, vtx, vty, vtz,
-                                  is, is, is, 1.0f, 1.0f, 1.0f, b->life,
-                                  1, 1, GDD_FRAG_SHOCKWAVE, 0.0f, 1.0f);
+                         1, 1, GDD_FRAG_UNLIT, GDD_ORIENT_ID,
+                         0.05f * ts, 0.0f);
+
+            /* Signature impact boom at the target (once per shot). */
+            if (b->emitter_id == 1) {
+                gdd_list_add_identity(&dyn, GDD_MESH_BOOM, vtx, vty, vtz,
+                                      ts, ts, ts,
+                                      1, 1, 1, b->life,
+                                      1, 1, GDD_FRAG_UNLIT,
+                                      gdd_beam_boom_seed(b->owner_id, b->extra, b->emitter_id),
+                                      2.0f);
+            }
         }
     }
 

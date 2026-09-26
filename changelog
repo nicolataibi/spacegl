@@ -1,3 +1,52 @@
+* Sat Sep 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.26.03
+  - Vulkan GPU-Driven (GDD): redesigned the phaser system (the "pha"
+  command) on the GPU-driven path, with ONE rendering for every ship.
+  Every shot — the player's "pha" and the NPC AI, the resonance
+  monsters and the star base fire (all of them already flow through the
+  same NetUpdate.beams channel, so no server change was needed) — now
+  draws the same two elements in the GDD instance builder
+  (gdd_build_instances, section 4, replacing the old cyan HYPERWARP box
+  + white core + shockwave sphere, which was not visible in practice):
+  (1) a white wireframe segment from the firing ship to the target — a
+  GDD_MESH_LINE square tube, unlit, additive, alpha = beam life, tube
+  half-thickness 0.05 * tactScale clamped to the 1-px screen-space
+  floor in gdd_expand_line (pc.line_min_wu), so the segment can never
+  rasterize sub-pixel/invisible at any camera distance; the endpoints
+  keep the real-time tracking to the smoothed object positions (owner
+  and target snapped by network id, same as before);
+  (2) the signature impact boom at the impact point — a new
+  GDD_MESH_BOOM style 2 expanded on the GPU by gdd_expand_boom (256
+  particles, same 1536-vertex budget as the other styles): a white
+  core flash collapsing into the impact point (radius h3 * 0.5 * life * ts,
+  fade = life^2), an expanding white ring on the tactical XZ plane
+  (radius (0.3 + g * 3.2) * ts, g = elapsed fraction of the beam life,
+  y jitter ±0.15 ts) and a radial white/warm spark burst (direction from
+  the per-particle hash, speed 0.6 + h3 * 1.8, radius (0.4 + g * 2.4) * ts),
+  with the fade baked into the RGB (the additive pass multiplies src.rgb
+  by src.a). The boom shares the beam's 0.4 s life, so the whole
+  impact dies with the shot; it is drawn once per shot: "pha" fires two
+  emitter beams (top/bottom) at the same target and only emitter 1
+  carries the boom (NPC/monster/base shots already use emitter 1). The
+  per-beam seed is deterministic — gdd_beam_boom_seed() in the contract
+  header, a Wang hash keyed on (owner, target, emitter) using the same
+  prime set as gdd_boom_hash — so the cloud is stable for the whole beam
+  life (no per-frame re-roll) while still differing between shots, and
+  it quantizes bit-identically on the GPU (uint(seed*1000+0.5)).
+  Boom styles 0 (torpedo) and 1 (dismantle) are bit-identical; the
+  CPU-driven path (SPACEGL_GPD=0) is untouched, the redesign is
+  GDD-only by design.
+  - Tests: gdd_contract_test now verifies the new beam contract — two
+  emitter beams produce two white GDD_MESH_LINE segments (direction
+  vector, additive UNLIT, alpha = life, tube 0.05 * tactScale) and
+  exactly ONE style-2 impact boom at the target end (white, additive,
+  UNLIT, alpha = life, deterministic seed gdd_beam_boom_seed(0,0,1));
+  the emitter-2 beam must not add a second boom. gdd_mesh_test gains
+  a style-2 boom instance (N_DYN 15, additive) and the CPU mirror of
+  the new expander branch (full-displacement style-2 vs off*exp for
+  styles 0/1), verified against the GPU readback in the headless
+  Vulkan run. Full suite 5/5: gdd_contract 331, gdd_mesh 68 (GPU
+  device run), nav_heading 31, nav_roll 29, quad_index 394.
+
 * Sat Sep 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.26.02
   - Server navigation: fixed the roll field (shm_r) displayed above
   360 degrees in the HUD (spacegl_hud.c main page and shared-memory
