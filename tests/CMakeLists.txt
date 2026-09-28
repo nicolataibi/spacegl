@@ -61,7 +61,8 @@ enable_testing()
 # FMA-contracted: -ffp-contract=off matches the non-FMA GLSL shaders.
 add_executable(gdd_contract_test
     gdd_contract_test.c
-    ${SG_ROOT}/src/spacegl_vulkan_gdd.c)
+    ${SG_ROOT}/src/spacegl_vulkan_gdd.c
+    ${SG_ROOT}/src/sglog.c)
 target_link_libraries(gdd_contract_test PRIVATE Vulkan::Vulkan m)
 if(GLFW_FOUND)
     target_include_directories(gdd_contract_test PRIVATE ${GLFW_INCLUDE_DIRS})

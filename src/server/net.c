@@ -376,7 +376,17 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         mask |= UPD_OBJECTS;
     }
 
-    if (mask == 0) return; 
+    if (mask == 0) {
+        /* Nothing changed for this client this tick: no packet at all.
+         * TRACE1 only (per-tick, would flood anything coarser). */
+        SG_TRACE1(SG_CAT_PROTOCOL, "no delta for player %d (%s): mask=0, frame=%llu",
+                  p_idx, p->name, (unsigned long long)upd->frame_id);
+        return; 
+    }
+
+    SG_TRACE2(SG_CAT_PROTOCOL, "delta to player %d (%s): mask=0x%llx frame=%llu (combat=%d beams_in_upd=%d)",
+              p_idx, p->name, (unsigned long long)mask, (unsigned long long)upd->frame_id,
+              (int)(mask & UPD_COMBAT), upd->beam_count);
 
     uint8_t *buffer = malloc(262144);
     if (!buffer) return;
@@ -418,6 +428,12 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         if (bc > MAX_NET_BEAMS) bc = MAX_NET_BEAMS;
         memcpy(ptr, &bc, sizeof(int32_t)); ptr += sizeof(int32_t);
         if (bc > 0) { memcpy(ptr, upd->beams, bc * sizeof(NetBeam)); ptr += bc * sizeof(NetBeam); }
+        if (bc > 0)
+            SG_TRACE3(SG_CAT_PHA, "DELIVER to player %d (%s): %d beams in DELTA (mask=0x%llx, frame=%llu)",
+                      p_idx, p->name, bc, (unsigned long long)mask, (unsigned long long)upd->frame_id);
+        else if (p->last_sent_state.beam_count > 0)
+            SG_TRACE4(SG_CAT_PHA, "DELIVER to player %d (%s): beam CLEAR in DELTA (%d -> 0, mask=0x%llx)",
+                      p_idx, p->name, p->last_sent_state.beam_count, (unsigned long long)mask);
     }
     if (mask & UPD_FLAGS) {
         UpdateBlockFlags b = {upd->is_cloaked, upd->is_docked, upd->red_alert, upd->is_jammed, upd->nav_state, upd->show_axes, upd->show_grid, upd->show_bridge, upd->show_map, upd->map_filter, upd->force_shutdown, upd->shm_crypto_algo, upd->encryption_flags, upd->radio_lock_target};

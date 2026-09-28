@@ -37,6 +37,7 @@
 #include <omp.h>
 #include "spacegl_extras_glfw.h"
 #include "shared_state.h"
+#include "sglog.h"
 
 #define IS_Q_VALID(q1,q2,q3) ((q1)>=1 && (q1)<=GALAXY_SIZE && (q2)>=1 && (q2)<=GALAXY_SIZE && (q3)>=1 && (q3)<=GALAXY_SIZE)
 
@@ -808,9 +809,16 @@ void loadGameState() {
                     spawnParticle(dx, dy, dz, vx, vy, vz, 1.0, 1.0, 1.0, 15.0, 1.5);
                 }
             } else if (ev->type == IPC_EV_BEAM) {
+                SG_TRACE3(SG_CAT_PHA, "view[GL]: consume IPC_EV_BEAM owner=%d target=%d emitter=%d s=(%.2f,%.2f,%.2f) t=(%.2f,%.2f,%.2f)",
+                          ev->padding[0], ev->extra, ev->padding[1],
+                          ev->x1, ev->y1, ev->z1, ev->x2, ev->y2, ev->z2);
                 int slot = -1;
                 for(int j=0; j<64; j++) if(beams[j].alpha <= 0) { slot = j; break; }
-                if (slot == -1) slot = rand()%64;
+                if (slot == -1) {
+                    if (sglog_rate("gl_beam_full", 2))
+                        SG_WARNING(SG_CAT_RENDER, "view[GL]: beams[64] FULL - overwriting slot with random() (beams will flicker)");
+                    slot = rand()%64;
+                }
                 beams[slot].sx = ev->x1 - (QUADRANT_SIZE / 2.0);
                 beams[slot].sy = ev->z1 - (QUADRANT_SIZE / 2.0);
                 beams[slot].sz = (QUADRANT_SIZE / 2.0) - ev->y1;
@@ -6198,6 +6206,8 @@ void check_display_protocol() {
 }
 
 int main(int argc, char** argv) {
+    sglog_init("glv");
+    sglog_apply_args(argc, argv);
     check_display_protocol();
     /* Handle --help and --version for help2man */
     if (argc > 1) {

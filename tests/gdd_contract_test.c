@@ -719,6 +719,80 @@ static void test_capacity_guard(void) {
     CHECK(small_n == 1, "map capacity guard (%u)", small_n);
 }
 
+/* ------------------------------------------------------------------ */
+/* Test: raw_objs fallback — navi con so->first=true ma active=1.     */
+/* Riproduce la race condition: il GDD builder legge un buffer IPC più */
+/* recente di quello su cui il tracker SmoothObj si è sincronizzato.   */
+/* La nave dell'altro giocatore (type=1, faction=10, Korthian) deve    */
+/* comparire nella lista dyn usando le coordinate raw (non interpolate) */
+/* ------------------------------------------------------------------ */
+static void test_raw_objs_fallback(void) {
+    GddBuildCtx c = base_ctx();
+
+    /* SmoothObj slot 0: nave locale (first=false, pronta) */
+    obj_at(&g_smooth[0], 20.0f, 20.0f, 20.0f, 0.0f, 0.0f, 0.0f);
+
+    /* SmoothObj slot 1: altro giocatore Korthian — first=true (tracker non aggiornato) */
+    memset(&g_smooth[1], 0, sizeof(g_smooth[1]));
+    g_smooth[1].first = true;  /* ← simula la race: tracker non ha ancora questo oggetto */
+
+    /* Raw SharedObject array (IPC frame corrente, più recente del tracker) */
+    static SharedObject raw[2];
+    memset(raw, 0, sizeof(raw));
+    raw[0].shm_x = 20.0f; raw[0].shm_y = 20.0f; raw[0].shm_z = 20.0f;
+    raw[0].active = 1;
+    raw[1].shm_x = 25.0f; raw[1].shm_y = 20.0f; raw[1].shm_z = 20.0f; /* 5 unità a destra */
+    raw[1].h = 0.0f; raw[1].m = 0.0f; raw[1].r = 0.0f;
+    raw[1].active = 1;
+
+    int types[2]  = { 1, 1 };   /* entrambi player */
+    int fac[2]    = { 0, 10 };  /* locale=Alliance, avversario=Korthian */
+    int sclass[2] = { 0, 0 };
+    int cloak[2]  = { 0, 0 };
+    int act[2]    = { 1, 1 };
+    int plat[2]   = { 30, 30 };
+    int ids[2]    = { 1, 2 };
+    c.types = types; c.factions = fac; c.ship_classes = sclass;
+    c.cloaked = cloak; c.active = act; c.platings = plat; c.ids = ids;
+    c.object_count = 2;
+    c.raw_objs = raw;
+
+    run_builder(&c);
+
+    /* La nave Korthian (i=1, first=true) deve comparire nel dyn grazie al fallback */
+    int pyramids = count_dyn(GDD_MESH_PYRAMID);
+    CHECK(pyramids >= 2,
+          "raw_objs fallback: attesi >=2 PYRAMID (propria nave + Korthian avversario), trovati %d",
+          pyramids);
+
+    /* La nave Korthian avversaria deve essere posizionata a X=5 (25-20=5, ts=1) */
+    const float ship_stern_off = 0.7288f * 0.45f * 0.55f;
+    /* Heading=0 → RotY(90°) → nose=+Z → stern_shift lungo +Z */
+    const GddInstance *korth = find_dyn(GDD_MESH_PYRAMID, 5.0f, 0.0f, ship_stern_off, 1e-3f);
+    CHECK(korth != NULL,
+          "raw_objs fallback: nave Korthian avversaria non trovata a (5,0,stern_off)");
+    if (korth) {
+        /* Colore rosso Korthian (faction=10) */
+        CHECK_F("korth color.r", korth->color[0], 1.0f, 1e-5f, "Korthian color.r");
+        CHECK_F("korth color.g", korth->color[1], 0.1f, 1e-5f, "Korthian color.g");
+        CHECK_F("korth color.b", korth->color[2], 0.0f, 1e-5f, "Korthian color.b");
+        /* Deve usare WIREFRAME_PBR come le altre navi */
+        CHECK(gdd_frag_mode(korth->flags) == GDD_FRAG_WIREFRAME_PBR,
+              "Korthian ship WIREFRAME_PBR (mode=12)");
+        /* Opaca (non additiva) */
+        CHECK(gdd_flag_bit(korth->flags, 1) == 0, "Korthian ship opaque (not additive)");
+    }
+
+    /* Senza raw_objs, la nave Korthian deve essere invisibile (first=true → skip) */
+    GddBuildCtx c2 = c;
+    c2.raw_objs = NULL;
+    run_builder(&c2);
+    int pyramids_no_raw = count_dyn(GDD_MESH_PYRAMID);
+    CHECK(pyramids_no_raw < pyramids,
+          "senza raw_objs: nave Korthian (first=true) deve essere saltata (%d vs %d piramidi)",
+          pyramids_no_raw, pyramids);
+}
+
 int main(void) {
     printf("GDD contract test\n");
     test_layout();
@@ -729,6 +803,7 @@ int main(void) {
     test_statics();
     test_galaxy_map();
     test_capacity_guard();
+    test_raw_objs_fallback();
     printf("  %d checks passed, %d failed\n", g_pass, g_fail);
     if (g_fail == 0) {
         printf("PASS\n");

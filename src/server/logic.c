@@ -2080,13 +2080,24 @@ void update_game_logic() {
         for (int p = 0; p < lq->platform_count; p++) { NPCPlatform *pl = lq->platforms[p]; if (!pl->active) continue; for (int b = 0; b < pl->beam_count && b_idx < MAX_NET_BEAMS; b++) upd->beams[b_idx++] = pl->beams[b]; }
         for (int bb = 0; bb < lq->base_count; bb++) { NPCBase *ba = lq->bases[bb]; if (!ba->active) continue; for (int b = 0; b < ba->beam_count && b_idx < MAX_NET_BEAMS; b++) upd->beams[b_idx++] = ba->beams[b]; }
         upd->beam_count = b_idx;
+        if (b_idx > 0) {
+            SG_TRACE3(SG_CAT_PHA, "Q-%d-%d-%d: %d beams aggregated into upd for player %d (%s) [quadrant players=%d npcs=%d monsters=%d platforms=%d bases=%d]",
+                      upd->q1, upd->q2, upd->q3, b_idx, i, players[i].name,
+                      lq->player_count, lq->npc_count, lq->monster_count,
+                      lq->platform_count, lq->base_count);
+        }
 
         if (supernova_event.supernova_timer > 0) { upd->map_update_q[0] = supernova_event.supernova_q1; upd->map_update_q[1] = supernova_event.supernova_q2; upd->map_update_q[2] = supernova_event.supernova_q3; upd->map_update_val = -supernova_event.supernova_timer; }
         else { upd->map_update_q[0] = upd->q1; upd->map_update_q[1] = upd->q2; upd->map_update_q[2] = upd->q3; upd->map_update_val = spacegl_master.g[upd->q1][upd->q2][upd->q3]; }
         int rq1 = rand_r(&ai_seed) % GALAXY_SIZE + 1; int rq2 = rand_r(&ai_seed) % GALAXY_SIZE + 1; int rq3 = rand_r(&ai_seed) % GALAXY_SIZE + 1;
         upd->map_update_q2[0] = rq1; upd->map_update_q2[1] = rq2; upd->map_update_q2[2] = rq3; upd->map_update_val2 = spacegl_master.g[rq1][rq2][rq3];
 
-        /* Reset transient effects IMMEDIATELY after copying to update packet while holding the lock */
+        /* Reset transient effects IMMEDIATELY after copying to update packet while holding the lock.
+         * NOTE: events are safe to reset here because each receiver i reads
+         * ONLY players[i].state.events (its own queue). Player BEAMS are
+         * different: they are aggregated from EVERY quadrant player into
+         * every receiver's update, so their queues must survive the whole
+         * build pass (consumed in phase 3b below). */
         if (players[i].state.event_count > 0) {
             for (int e = 0; e < players[i].state.event_count; e++) {
                 if (players[i].state.events[e].type == IPC_EV_DISMANTLE) {
@@ -2095,9 +2106,24 @@ void update_game_logic() {
             }
             players[i].state.event_count = 0;
         }
+        players[i].pending_send = true;
+    }
+
+    /* 3b. PHASE 2 - Consume the per-player beam queues.
+     *
+     * Player beams are aggregated into EVERY quadrant member's update in
+     * the loop above (receiver i reads lq->players[j]->state.beams for all
+     * j). Resetting a player's beam_count inside that loop destroyed its
+     * beams before the updates of the higher-slot players were built, so
+     * a client only ever received shots fired by players with a HIGHER
+     * slot index (empirically confirmed: slot N saw only owners > N).
+     * The queues are consumed here, after every update packet has been
+     * built (still under game_mutex, same tick). */
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (!players[i].active) continue;
+        if (players[i].state.beam_count > 0) SG_TRACE4(SG_CAT_PHA, "player %d (%s): state.beam_count %d -> 0 (consumed by update builder, phase 3b)", i, players[i].name, players[i].state.beam_count);
         players[i].state.beam_count = 0;
         players[i].fire_requested_this_tick = false;
-        players[i].pending_send = true;
     }
 
     /* === STARBASE FACTION DEFENSE: fire at players docking into hostile bases === */

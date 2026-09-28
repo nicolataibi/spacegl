@@ -43,6 +43,7 @@ const char* get_lrs_object_name(int id);
 #include <openssl/provider.h>
 #include <netdb.h>
 #include "network.h"
+#include "sglog.h"
 
 /* Pre-Shared DeepSpace Encryption Key (Loaded from ENV) */
 uint8_t deep_space_key[32];
@@ -55,6 +56,7 @@ int sock = 0;
 char captain_name[64];
 int my_faction = 0;
 int g_debug = 0;
+char g_visualizer_type[4] = "gl"; /* which viewer this command deck spawned */
 
 /* Validate a captain name before it is used in local file paths.
  * Must mirror the server-side rules: [A-Za-z0-9_-] only, max 32 chars.
@@ -462,8 +464,10 @@ void swap_buffers() {
     g_shared_state = &g_shm->buffers[next_write];
 }
 
-void push_ipc_event(int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra) {
-    if (!g_shm) return;
+/* Returns true if the event was queued, false if it was dropped
+ * (queue full or no SHM). Callers log the drop (rate-limited). */
+bool push_ipc_event(int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra) {
+    if (!g_shm) return false;
     
     if (type == IPC_EV_DISMANTLE) {
         g_shm->dismantle_telemetry.x = x1;
@@ -483,7 +487,9 @@ void push_ipc_event(int type, double x1, double y1, double z1, double x2, double
         ev->x2 = x2; ev->y2 = y2; ev->z2 = z2;
         ev->extra = extra;
         atomic_store_explicit(&g_shm->event_tail, next, memory_order_release);
+        return true;
     }
+    return false; /* queue full: dropped */
 }
 
 void process_ipc_commands(int server_sock) {
@@ -976,6 +982,21 @@ void *network_listener(void *arg) {
                 }
             }
 
+            /* --- Phaser beam flow (TRACE3 = per-shot logical ops) --- */
+            if (current_state.beam_count > 0) {
+                SG_TRACE3(SG_CAT_PHA, "recv %d beams (%s update, frame %lld): owner/target pairs:",
+                          current_state.beam_count,
+                          (type == PKT_UPDATE) ? "FULL" : "DELTA", (long long)current_state.frame_id);
+                for (int b = 0; b < current_state.beam_count && b < MAX_NET_BEAMS; b++) {
+                    SG_TRACE3(SG_CAT_PHA, "  beam[%d]: owner=%d target=%d emitter=%d s=(%.2f,%.2f,%.2f) t=(%.2f,%.2f,%.2f) active=%d",
+                              b, current_state.beams[b].owner_id, current_state.beams[b].target_id,
+                              current_state.beams[b].active,
+                              current_state.beams[b].net_sx, current_state.beams[b].net_sy, current_state.beams[b].net_sz,
+                              current_state.beams[b].net_tx, current_state.beams[b].net_ty, current_state.beams[b].net_tz,
+                              current_state.beams[b].active);
+                }
+            }
+
             /* --- Telemetry Calculation --- */
             static long long bytes_this_sec = 0;
             static struct timespec last_ts = {0, 0};
@@ -1150,18 +1171,33 @@ void *network_listener(void *arg) {
                 
                 /* Handle beams from update - Queue them for reliable rendering */
                 if (current_state.beam_count > 0) {
+                    int pushed = 0, dropped = 0;
                     for (int b=0; b < current_state.beam_count; b++) {
-                        push_ipc_event(IPC_EV_BEAM, 
+                        bool queued = push_ipc_event(IPC_EV_BEAM, 
                                        current_state.beams[b].net_sx, current_state.beams[b].net_sy, current_state.beams[b].net_sz,
                                        current_state.beams[b].net_tx, current_state.beams[b].net_ty, current_state.beams[b].net_tz,
                                        current_state.beams[b].target_id);
-                        
+                        if (!queued) {
+                            dropped++;
+                            if (sglog_rate("ipc_beam_full", 2))
+                                SG_WARNING(SG_CAT_IPC, "IPC event queue FULL: dropped IPC_EV_BEAM owner=%d target=%d (viewer not keeping up?)",
+                                           current_state.beams[b].owner_id, current_state.beams[b].target_id);
+                            continue;
+                        }
+                        pushed++;
+                        SG_TRACE3(SG_CAT_PHA, "push IPC_EV_BEAM to viewer: owner=%d target=%d emitter=%d s=(%.2f,%.2f,%.2f) t=(%.2f,%.2f,%.2f)",
+                                  current_state.beams[b].owner_id, current_state.beams[b].target_id,
+                                  current_state.beams[b].active,
+                                  current_state.beams[b].net_sx, current_state.beams[b].net_sy, current_state.beams[b].net_sz,
+                                  current_state.beams[b].net_tx, current_state.beams[b].net_ty, current_state.beams[b].net_tz);
+
                         /* Pass the owner_id via padding[0] */
                         int tail = atomic_load_explicit(&g_shm->event_tail, memory_order_acquire);
                         int prev_tail = (tail - 1 + IPC_EVENT_QUEUE_SIZE) % IPC_EVENT_QUEUE_SIZE;
                         g_shm->event_queue[prev_tail].padding[0] = current_state.beams[b].owner_id;
                         g_shm->event_queue[prev_tail].padding[1] = current_state.beams[b].active; /* Emitter ID */
                     }
+                    SG_TRACE4(SG_CAT_PHA, "beam relay done: pushed=%d dropped=%d (viewer=%s)", pushed, dropped, g_visualizer_type);
                     /* Reset local beam count after pushing to IPC queue */
                     current_state.beam_count = 0;
                 }
@@ -1220,7 +1256,7 @@ void handle_sigint(int sig) {
 int main(int argc, char *argv[]) {
     char server_ip[64];
     int my_ship_class = SHIP_CLASS_GENERIC_ALIEN;
-    char visualizer_type[4] = "gl";
+    char visualizer_type[4] = "gl"; /* copied from/parsed into g_visualizer_type below */
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -1245,15 +1281,24 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* Unified logging: tag "clt" (the command deck; it relays beams to
+     * whichever viewer it spawned: gl / vk cpu / vk gpd). The spawned
+     * viewer inherits SPACEGL_LOG_LEVEL/CATEGORY and its own tag. */
+    sglog_init("clt");
+    sglog_apply_args(argc, argv);
+
     /* Parse visualizer selection from arguments */
     if (argc > 1) {
         if (strcmp(argv[1], "vk") == 0) strcpy(visualizer_type, "vk");
         else if (strcmp(argv[1], "gl") == 0) strcpy(visualizer_type, "gl");
     }
+    strcpy(g_visualizer_type, visualizer_type);
+    SG_NOTICE(SG_CAT_CLIENT, "command deck starting: visualizer=%s (pid %d)", visualizer_type, (int)getpid());
     
     /* Security Initialization */
     char *env_key = getenv("SPACEGL_KEY");
     if (!env_key) {
+        SG_FATAL(SG_CAT_SECURITY, "SPACEGL_KEY not set in environment");
         fprintf(stderr, B_RED "SECURITY ERROR: DeepSpace Key not found in environment.\n" RESET);
         fprintf(stderr, "Please set SPACEGL_KEY environment variable before launching.\n");
         exit(1);

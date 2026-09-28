@@ -24,19 +24,27 @@
 bool gdd_reserve(GddInstance it, uint n, out uint base) {
     bool add = gdd_additive(it);
     if (add) {
+        /* opaque_verts is fully settled (the opaque expand dispatch
+         * completed before the additive dispatch was launched, separated
+         * by a compute→compute barrier in gdd_record).  Read it once
+         * into a local so the capacity check uses the same value. */
+        uint opaque_settled = gdd_counts.c.opaque_verts;
         uint local_idx = atomicAdd(gdd_counts.c.additive_verts, n);
-        base = gdd_counts.c.opaque_verts + local_idx;
+        base = opaque_settled + local_idx;
+        /* Capacity guard: opaque_settled is final; only additive_verts
+         * is still racing — use local_idx + n as the worst-case
+         * high-water mark for this invocation. */
+        if (opaque_settled + local_idx + n > pc.capacity) {
+            atomicAdd(gdd_counts.c.additive_verts, uint(-n));
+            return false;
+        }
     } else {
         base = atomicAdd(gdd_counts.c.opaque_verts, n);
-    }
-    uint total = gdd_counts.c.opaque_verts + gdd_counts.c.additive_verts;
-    if (total > pc.capacity) {
-        if (add) {
-            atomicAdd(gdd_counts.c.additive_verts, uint(-n));
-        } else {
+        /* Capacity guard (opaque pass only — additive_verts is 0 here). */
+        if (base + n > pc.capacity) {
             atomicAdd(gdd_counts.c.opaque_verts, uint(-n));
+            return false;
         }
-        return false;
     }
     return true;
 }

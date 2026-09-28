@@ -499,12 +499,19 @@ int main(int argc, char *argv[]) {
     int opt = 1, adlen = sizeof(addr);
     struct epoll_event ev, events[MAX_EVENTS];
 
+    /* Official logging (severity x category): env first, CLI overrides. */
+    sglog_init("srv");
+    sglog_apply_args(argc, argv);
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             printf("Usage: %s [OPTIONS]\n", argv[0]);
             printf("Space GL Galactic Server Core\n\n");
             printf("Options:\n");
             printf("  -d             Enable debug mode\n");
+            printf("  --log-level=L  Log level: TRACE1..TRACE4|DEBUG|INFO|NOTICE|"
+                   "SUCCESS|WARNING|ERROR|CRITICAL|FATAL|OFF (default INFO)\n");
+            printf("  --log-category=A,B  Filter by category (e.g. PHA,TOR,NETWORK,IPC)\n");
             printf("  --data-dir DIR Root directory for persistent state (captains/ tree\n");
             printf("                 and galaxy.dat). Default: current working directory.\n");
             printf("  --help, -h     Display this help and exit\n");
@@ -528,6 +535,10 @@ int main(int argc, char *argv[]) {
         }
         if (strcmp(argv[i], "-d") == 0) g_debug = 1;
     }
+
+    SG_INFO(SG_CAT_SYSTEM, "SpaceGL Galactic Server Core (pid %d, log level %s)",
+            (int)getpid(), sglog_sev_name(sglog_threshold()));
+
     signal(SIGPIPE, SIG_IGN);
     signal(SIGTERM, handle_shutdown_signal);
     signal(SIGINT, handle_shutdown_signal);
@@ -546,6 +557,7 @@ int main(int argc, char *argv[]) {
     /* Security Initialization */
     char *env_key = getenv("SPACEGL_KEY");
     if (!env_key) {
+        SG_FATAL(SG_CAT_SECURITY, "SPACEGL_KEY not found in environment");
         fprintf(stderr, "\033[1;31mSECURITY ERROR: Deep Space Key (SPACEGL_KEY) not found in environment.\033[0m\n");
         fprintf(stderr, "The server requires a shared secret key to secure communications.\n");
         exit(1);
@@ -610,9 +622,15 @@ int main(int argc, char *argv[]) {
     /* Initialize Thread Pool for Async Tasks (Crypto, Pathfinding, I/O) */
     int nprocs = sysconf(_SC_NPROCESSORS_ONLN);
     g_pool = threadpool_create(nprocs);
+    SG_DEBUG(SG_CAT_THREAD, "thread pool: %d worker threads", nprocs);
     printf("%s | %s THREAD POOL:       %s%d Worker Threads Active                      %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, nprocs, B_MAGENTA, RESET);
 
-    if (!load_galaxy()) { generate_galaxy(); save_galaxy(); }
+    if (load_galaxy()) {
+        SG_INFO(SG_CAT_ASSET, "galaxy state loaded");
+    } else {
+        SG_NOTICE(SG_CAT_ASSET, "no existing galaxy state: generating new galaxy");
+        generate_galaxy(); save_galaxy();
+    }
     sign_galaxy_data();
     init_static_spatial_index();
     
@@ -653,6 +671,7 @@ int main(int argc, char *argv[]) {
     ev.data.fd = server_fd;
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &ev) == -1) { perror("epoll_ctl: server_fd"); exit(EXIT_FAILURE); }
 
+    SG_SUCCESS(SG_CAT_NETWORK, "listening on port %d (TCP/binary, EPOLL mode)", DEFAULT_PORT);
     printf("STELLAR SERVER started on port %d (EPOLL MODE)\n", DEFAULT_PORT);
     
     while (g_running) {
@@ -673,6 +692,7 @@ int main(int argc, char *argv[]) {
                 ev.events = EPOLLIN; 
                 ev.data.fd = new_socket;
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_socket, &ev) == -1) { perror("epoll_ctl: new_socket"); close(new_socket); }
+                SG_TRACE4(SG_CAT_NETWORK, "new connection accepted (fd %d)", new_socket);
                 LOG_DEBUG("New connection accepted: FD %d\n", new_socket);
             } else {
                 /* Handle data from a client */
@@ -689,6 +709,8 @@ int main(int argc, char *argv[]) {
                         struct tm *t_disc = localtime(&now_disc);
                         char time_disc[64];
                         strftime(time_disc, sizeof(time_disc), "%Y-%m-%d %H:%M:%S", t_disc);
+                        SG_NOTICE(SG_CAT_CLIENT, "captain %s disconnected (slot %d)",
+                                  players[i].name[0] ? players[i].name : "?", i);
                         slog("\033[1;35m[DISCONNECT]\033[0m Captain \033[1;37m%-15s\033[0m has left the galaxy.    [\033[1;33m%s\033[0m]\n", 
                                players[i].name[0] ? players[i].name : "Unknown", time_disc);
 
@@ -1112,6 +1134,11 @@ int main(int argc, char *argv[]) {
                                     /* Derive Personal Algorithm keys for this Captain */
                                     derive_algo_keys(MASTER_SESSION_KEY, players[slot].name, players[slot].algo_keys);
                                     
+                                    SG_SUCCESS(SG_CAT_CLIENT, "captain %s authenticated (slot %d, %s, quadrant [%d,%d,%d])",
+                                               players[slot].name, slot,
+                                               is_new ? "new identity" : "returning",
+                                               players[slot].state.q1, players[slot].state.q2,
+                                               players[slot].state.q3);
                                     players[slot].state.beam_count = 0;
                                     players[slot].state.event_count = 0;
                                     players[slot].torp_active = false;

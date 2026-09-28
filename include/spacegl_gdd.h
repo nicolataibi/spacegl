@@ -351,7 +351,12 @@ typedef struct {
     int object_count;
 
     /* --- interpolated state (cubic Hermite, shared with the CPU path) --- */
-    const SmoothObj *objs;    /* GDD_MAX_NET_OBJECTS entries */
+    const SmoothObj *objs;      /* GDD_MAX_NET_OBJECTS entries */
+    /* Raw IPC coordinates (SharedObject array from current shm frame):
+     * used as a one-frame fallback when objs[i].first=true but active[i]=1
+     * (race between the SmoothObj tracker and the GDD builder reading a
+     * newer IPC buffer after swap_buffers()). */
+    const void *raw_objs;       /* SharedObject[object_count], opaque pointer */
 
     /* --- client-side effect state (event queue) --- */
     const ActiveBeam *beams;

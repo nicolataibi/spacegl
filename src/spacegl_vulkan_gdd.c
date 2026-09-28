@@ -43,6 +43,7 @@
 
 #include "spacegl_gdd.h"
 #include "spacegl_vulkan_types.h"
+#include "sglog.h"
 
 #include <math.h>
 #include <string.h>
@@ -669,12 +670,50 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
     /* ---------------------------------------------------------------- */
     /* 1. Networked objects (tactical view)                             */
     /* ---------------------------------------------------------------- */
+    /* Diagnostica navi altri giocatori (TRACE3, rate-limited)          */
+    {
+        int other_ships_total = 0, other_ships_skipped_first = 0,
+            other_ships_skipped_inactive = 0, other_ships_added = 0;
+        for (int i = 1; i < ctx->object_count && i < (int)GDD_MAX_NET_OBJECTS; i++) {
+            int tp = ctx->types ? ctx->types[i] : 1;
+            if (tp != 1) continue; /* solo giocatori (type=1 a i>0) */
+            other_ships_total++;
+            const SmoothObj *s2 = &ctx->objs[i];
+            if (s2->first) { other_ships_skipped_first++; continue; }
+            if (ctx->active && !ctx->active[i]) { other_ships_skipped_inactive++; continue; }
+            other_ships_added++;
+        }
+        if (other_ships_total > 0 && sglog_rate("gdd_other_ships", 2))
+            SG_TRACE3(SG_CAT_VULKAN,
+                "gdd other-player ships: total=%d added=%d skip_first=%d skip_inactive=%d (obj_count=%d)",
+                other_ships_total, other_ships_added,
+                other_ships_skipped_first, other_ships_skipped_inactive,
+                ctx->object_count);
+    }
     if (ctx->map_anim < 0.99f && ctx->object_count > 0 && ctx->objs) {
         for (int i = 0; i < ctx->object_count && i < (int)GDD_MAX_NET_OBJECTS; i++) {
             const SmoothObj *so = &ctx->objs[i];
-            if (so->first) continue;
             if (ctx->active && !ctx->active[i]) continue;
-            
+
+            /* Fallback per oggetti non ancora tracciati dallo SmoothObj tracker
+             * (first=true con oggetto attivo): usa le coordinate IPC raw se disponibili.
+             * Questo evita un frame (o più) di invisibilità per le navi che entrano
+             * nel quadrante quando il tracker non ha ancora elaborato il nuovo buffer IPC. */
+            SmoothObj raw_fallback;
+            if (so->first) {
+                if (!ctx->raw_objs) continue; /* senza fallback, salta come prima */
+                const SharedObject *ro = (const SharedObject *)ctx->raw_objs + i;
+                memset(&raw_fallback, 0, sizeof(raw_fallback));
+                raw_fallback.first = false;
+                raw_fallback.x = (float)ro->shm_x;
+                raw_fallback.y = (float)ro->shm_y;
+                raw_fallback.z = (float)ro->shm_z;
+                raw_fallback.h = (float)ro->h;
+                raw_fallback.m = (float)ro->m;
+                raw_fallback.r = (float)ro->r;
+                so = &raw_fallback;
+            }
+
             /* Durante l'arrivo da salto, mostra solo l'oggetto 0 (la nave) ed escludi gli altri */
             if (ctx->jump_arrival && ctx->jump_arrival->active && i != 0) continue;
 
@@ -1004,6 +1043,8 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
     /*    carries it (NPC/monster/base shots use emitter 1 as well).    */
     /* ---------------------------------------------------------------- */
     if (ctx->map_anim < 0.99f && ctx->beams) {
+        uint32_t dyn_before = dyn.n;
+        int tubes_added = 0, booms_added = 0;
         for (int i = 0; i < (int)GDD_MAX_ACTIVE_BEAMS; i++) {
             const ActiveBeam *b = &ctx->beams[i];
             if (b->life <= 0.0f) continue;
@@ -1039,20 +1080,35 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             /* White wireframe segment, ship -> target. The tube's
              * half-thickness is 0.05 * tactScale; gdd_expand_line
              * clamps it to the 1-px screen floor (pc.line_min_wu). */
+            uint32_t n0 = dyn.n;
             gdd_list_add(&dyn, GDD_MESH_LINE, vsx, vsy, vsz, dx, dy, dz,
                          1.0f, 1.0f, 1.0f, b->life,
                          1, 1, GDD_FRAG_UNLIT, GDD_ORIENT_ID,
                          0.05f * ts, 0.0f);
+            if (dyn.n > n0) tubes_added++;
 
             /* Signature impact boom at the target (once per shot). */
             if (b->emitter_id == 1) {
+                uint32_t n1 = dyn.n;
                 gdd_list_add_identity(&dyn, GDD_MESH_BOOM, vtx, vty, vtz,
                                       ts, ts, ts,
                                       1, 1, 1, b->life,
                                       1, 1, GDD_FRAG_UNLIT,
                                       gdd_beam_boom_seed(b->owner_id, b->extra, b->emitter_id),
                                       2.0f);
+                if (dyn.n > n1) booms_added++;
             }
+        }
+        /* TRACE2 = per-frame summary (opt-in only). While a beam is alive
+         * this prints once per frame: the whole GDD beam pipeline state. */
+        if (tubes_added > 0) {
+            SG_TRACE2(SG_CAT_VULKAN, "gdd: %d beam tubes + %d impact booms in dyn list (%d/%d used)",
+                      tubes_added, booms_added, dyn.n, (int)GDD_DYN_MAX);
+        }
+        if (tubes_added == 0 && dyn_before < dyn.n) {
+            /* instances were dropped: dyn list full */
+            if (sglog_rate("gdd_dyn_full_beam", 2))
+                SG_WARNING(SG_CAT_VULKAN, "gdd: dyn list FULL (%d) - beam instances DROPPED", (int)GDD_DYN_MAX);
         }
     }
 
@@ -1462,6 +1518,11 @@ struct GddState {
     GddFrame frames[GDD_MAX_FRAMES];
     uint32_t current_frame;
 
+    /* FX funnel diagnostics: set by gdd_build_frame when the dynamic list
+     * carries FX (beams/booms/...), used by gdd_record to gate the
+     * per-frame push-constant trace (no flood while idle). */
+    uint32_t fx_active;
+
     /* persistent starfield (same distribution as the CPU path) */
     GddStar stars[GDD_STAR_COUNT];
 
@@ -1746,11 +1807,11 @@ static bool gdd_create_frame_buffers(GddState *g, VulkanApp *app, uint32_t i) {
     ok &= gdd_create_buffer(d, pd, 2 * sizeof(VkDrawIndirectCommand),
                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                            &f->indirect, &f->ind_mem, NULL);
+                            &f->indirect, &f->ind_mem, &f->indirect_ptr);
     ok &= gdd_create_buffer(d, pd, GDD_COUNTS_STRIDE,
                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                            &f->counters, &f->cnt_mem, NULL);
+                            &f->counters, &f->cnt_mem, &f->counters_ptr);
     if (!ok) return false;
     /* one command buffer per slot (same triple-buffer invariant as CPU) */
     VkCommandBufferAllocateInfo cai = {
@@ -2359,6 +2420,7 @@ void gdd_build_frame(VulkanApp *app, float pulse) {
         ctx.platings = platings;
         ctx.ids = ids;
         ctx.object_count = n;
+        ctx.raw_objs = st->objects;   /* fallback quando SmoothObj.first=true */
         ctx.player_q[0] = st->shm_q[0];
         ctx.player_q[1] = st->shm_q[1];
         ctx.player_q[2] = st->shm_q[2];
@@ -2369,6 +2431,107 @@ void gdd_build_frame(VulkanApp *app, float pulse) {
     }
 
     gdd_build_instances(&ctx);
+
+    /* ---------------------------------------------------------------- */
+    /* FX FUNNEL DIAGNOSTICS (beam visibility hunt)                     */
+    /*                                                                  */
+    /* CPU side of THIS frame: f->dyn_ptr / f->dyn_count were just      */
+    /* uploaded. GPU side below: f->counters_ptr / f->indirect_ptr hold */
+    /* the results of this slot's PREVIOUS use (~3 frames ago) — safe   */
+    /* to read: the slot fence was already waited on at the top of      */
+    /* gdd_draw_frame. The funnel localizes an FX drop without any      */
+    /* GPU-side instrumentation:                                        */
+    /*   dyn inst -> dyn_vis      : cull pass                           */
+    /*   dyn_vis  -> *_verts      : expand pass (pad/capacity/mesh)     */
+    /*   *_verts  -> draw cmds    : final pass                          */
+    /*   draw cmds -> pixels      : scene pipeline / frag / blend       */
+    /* ---------------------------------------------------------------- */
+    {
+        int n_beams = 0;
+        for (int i = 0; i < (int)GDD_MAX_ACTIVE_BEAMS; i++)
+            if (app->activeBeams[i].life > 0.0f) n_beams++;
+
+        int add_inst = 0;
+        const GddInstance *insts = (const GddInstance *)f->dyn_ptr;
+        for (uint32_t k = 0; k < f->dyn_count; k++)
+            if (gdd_flag_bit(insts[k].flags, 1)) add_inst++;
+
+        const GddCounts *gc = (const GddCounts *)f->counters_ptr;
+        const VkDrawIndirectCommand *dic = (const VkDrawIndirectCommand *)f->indirect_ptr;
+
+        /* 3-frame ring: correlate CPU additive counts with the GPU
+         * counters of the SAME (3-frames-ago) frame. */
+        static uint32_t ring_add[3] = {0, 0, 0};
+        static uint32_t ring_idx = 0;
+        uint32_t add_3f_ago = ring_add[ring_idx]; /* read before overwrite */
+
+        if (n_beams != 0 || add_inst != 0 || gc->additive_verts != 0) {
+            SG_TRACE2(SG_CAT_VULKAN,
+                      "gdd funnel: cpu(now) dyn_inst=%u add_inst=%d beams_alive=%d | gpu(-3f) dyn_vis=%u map_vis=%u opaque_v=%u add_v=%u | draw(-3f) opaque_vcnt=%u add_vcnt=%u first_vertex=%u",
+                      f->dyn_count, add_inst, n_beams,
+                      gc->dyn_vis, gc->map_vis, gc->opaque_verts, gc->additive_verts,
+                      dic[0].vertexCount, dic[1].vertexCount, dic[1].firstVertex);
+        }
+
+        /* Beam-population transition (0<->N only, no per-frame flood):
+         * dump the exact GDD_MESH_LINE instance the CPU uploaded for the
+         * first tube — position / direction*length / alpha / flags — so we
+         * can verify what the GPU actually receives without a GPU debugger.
+         * (The beam section of gdd_build_instances already skips a tube when
+         * dist<0.1 or the dyn list is full; a WARNING flags that case.) */
+        static int last_n_beams = -1;
+        if (n_beams != last_n_beams) {
+            const GddInstance *li = NULL;
+            for (uint32_t k = 0; k < f->dyn_count; k++)
+                if ((int)(insts[k].mesh + 0.5f) == GDD_MESH_LINE &&
+                    gdd_flag_bit(insts[k].flags, 1)) { li = &insts[k]; break; }
+            if (n_beams > 0 && li) {
+                SG_TRACE3(SG_CAT_PHA,
+                          "gdd: beam population %d -> %d; first additive GDD_MESH_LINE: pos=(%.3f,%.3f,%.3f) dir*len=(%.3f,%.3f,%.3f) alpha=%.3f flags=0x%x (never_cull=%u additive=%u frag_mode=%u)",
+                          last_n_beams, n_beams,
+                          li->pos[0], li->pos[1], li->pos[2],
+                          li->scale[0], li->scale[1], li->scale[2], li->alpha,
+                          gdd_flags_to_uint(li->flags),
+                          gdd_flag_bit(li->flags, 0), gdd_flag_bit(li->flags, 1), gdd_frag_mode(li->flags));
+            } else if (n_beams > 0) {
+                SG_WARNING(SG_CAT_PHA,
+                           "gdd: %d beam(s) alive but NO additive GDD_MESH_LINE in dyn list (build skipped: dist<0.1, dyn list full, or map_anim>=0.99)",
+                           n_beams);
+            }
+            last_n_beams = n_beams;
+        }
+
+        /* Anomaly (visible at default INFO level, rate-limited): additive
+         * instances were built 3 frames ago but the GPU published ZERO
+         * additive vertices for that frame -> a cull/expand/final drop.
+         * (add_v > 0 with no pixels would instead point at the scene
+         * pipeline / frag / blend / depth stage.) */
+        if (add_3f_ago > 0 && gc->additive_verts == 0) {
+            if (sglog_rate("gdd_additive_drop", 2))
+                SG_WARNING(SG_CAT_VULKAN,
+                           "gdd FUNNEL DROP: %u additive instance(s) built 3 frames ago but GPU published 0 additive vertices (dyn_vis=%u, opaque_v=%u) - cull/expand/final dropping FX",
+                           add_3f_ago, gc->dyn_vis, gc->opaque_verts);
+        }
+        /* Healthy-funnel marker (audit conclusion): the GPU published
+         * additive vertices AND the additive draw command is non-zero,
+         * 3 frames ago. If the beam is STILL not on screen, the funnel
+         * is intact end-to-end and the suspect moves to the pixel side:
+         * the MSAA AVERAGE resolve of the transient color, or the depth
+         * interaction (the blend state SRC_ALPHA/ONE and the UNLIT frag
+         * mode are audited: exact parity with the CPU-driven GL/Vulkan
+         * paths, which draw the same beam with GL_SRC_ALPHA/GL_ONE). */
+        if (add_3f_ago > 0 && gc->additive_verts > 0 && dic[1].vertexCount > 0) {
+            if (sglog_rate("gdd_funnel_ok", 2))
+                SG_INFO(SG_CAT_VULKAN,
+                        "gdd funnel OK: %u add inst -> gpu add_v=%u, draw add_vcnt=%u first_vertex=%u (same frame, -3f); funnel intact - if the beam is still invisible suspect MSAA AVERAGE resolve / depth",
+                        add_3f_ago, gc->additive_verts,
+                        dic[1].vertexCount, dic[1].firstVertex);
+        }
+        ring_add[ring_idx] = (uint32_t)add_inst;
+        ring_idx = (ring_idx + 1) % 3;
+
+        g->fx_active = (n_beams != 0) || (add_inst != 0);
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -2438,6 +2601,13 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
     uint32_t map_wg = (f->map_count + GDD_WORKGROUP - 1u) / GDD_WORKGROUP;
     uint32_t dyn_wg = (f->dyn_count + GDD_WORKGROUP - 1u) / GDD_WORKGROUP;
 
+    if (g->fx_active) {
+        SG_TRACE2(SG_CAT_VULKAN,
+                  "gdd record: cull r=%.1f cam=(%.1f,%.1f,%.1f) cam_dist=%.1f line_min_wu=%.6f dyn_wg=%u map_wg=%u",
+                  pc.cull_radius, cam_world[0], cam_world[1], cam_world[2], cam_dist,
+                  pc.line_min_wu, dyn_wg, map_wg);
+    }
+
     if (map_wg > 0) {
         pc.list_count = f->map_count;
         pc.group = 1;
@@ -2506,6 +2676,17 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
         vkCmdPushConstants(cb, g->pl_expand, VK_SHADER_STAGE_COMPUTE_BIT, 0, GDD_PC_STRIDE, &pc);
         vkCmdDispatch(cb, dyn_wg, 1, 1);
     }
+
+    /* --- 3C. barriera expand_additive → final ------------------------ */
+    /* CRITICAL: the additive expand dispatch writes additive_verts;
+     * gdd_final.comp reads it to publish VkDrawIndirectCommand[1].
+     * Without this barrier, final races expand_additive and reads
+     * additive_verts == 0, producing add_vcnt=0 every frame even
+     * when add_v > 0 (the symptom reported in log_clt_gpd2.txt). */
+    gdd_mem_barrier(cb,
+                    VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_WRITE_BIT,
+                    VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_2_SHADER_READ_BIT);
 
     /* --- 4. final: publish the two VkDrawIndirectCommands ------------ */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g->pipe_final);

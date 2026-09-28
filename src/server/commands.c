@@ -1535,27 +1535,31 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
         e = tid;
         tid = players[i].state.lock_target;
         if (tid == 0) {
+            SG_INFO(SG_CAT_PHA, "player %d (%s) pha REJECTED: no target locked", i, players[i].name);
             send_server_msg(i, "COMPUTER", "No target locked. Usage: pha <ID> <E>.");
             return;
         }
     } else if (args != 2) {
+        SG_INFO(SG_CAT_PHA, "player %d (%s) pha REJECTED: bad params '%s'", i, players[i].name, params);
         send_server_msg(i, "COMPUTER", "Usage: pha <ID> <E>.");
         return;
     }
 
     /* 1. Minimum Integrity Check (ID 4) */
     if (players[i].state.system_health[4] < THRESHOLD_SYS_CRITICAL) {
+        SG_INFO(SG_CAT_PHA, "player %d (%s) pha REJECTED: ion beam banks OFFLINE (sys4=%.1f)", i, players[i].name, players[i].state.system_health[4]);
         send_server_msg(i, "TACTICAL", "Ion Beam banks OFFLINE. Repair required.");
         return;
     }
 
-    if (players[i].state.energy < (uint64_t)e) { send_server_msg(i, "COMPUTER", "Insufficient energy."); return; }
-    if (players[i].state.ion_beam_charge < THRESHOLD_SYS_CRITICAL) { send_server_msg(i, "TACTICAL", "Banks recharging."); return; }
-    if (players[i].state.is_cloaked) { send_server_msg(i, "TACTICAL", "Cannot fire while cloaked."); return; }
+    if (players[i].state.energy < (uint64_t)e) { SG_INFO(SG_CAT_PHA, "player %d (%s) pha REJECTED: insufficient energy (have %llu, need %d)", i, players[i].name, (unsigned long long)players[i].state.energy, e); send_server_msg(i, "COMPUTER", "Insufficient energy."); return; }
+    if (players[i].state.ion_beam_charge < THRESHOLD_SYS_CRITICAL) { SG_INFO(SG_CAT_PHA, "player %d (%s) pha REJECTED: banks recharging (charge %.1f)", i, players[i].name, players[i].state.ion_beam_charge); send_server_msg(i, "TACTICAL", "Banks recharging."); return; }
+    if (players[i].state.is_cloaked) { SG_INFO(SG_CAT_PHA, "player %d (%s) pha REJECTED: cloaked", i, players[i].name); send_server_msg(i, "TACTICAL", "Cannot fire while cloaked."); return; }
 
     /* 2. Miss Probability based on Sensor health (ID 2) */
     double sensor_h = players[i].state.system_health[2];
     if (sensor_h < THRESHOLD_SYS_DEGRADED && (rand() % 100 > (int)(sensor_h + (float)THRESHOLD_SYS_DAMAGED))) {
+        SG_INFO(SG_CAT_PHA, "player %d (%s) pha MISSED: sensor noise (sensor=%.1f), no beams generated", i, players[i].name, sensor_h);
         players[i].state.energy -= (e / (uint64_t)RATIO_ENERGY_REDUCTION);
         players[i].state.ion_beam_charge -= THRESHOLD_SYS_CRITICAL;
         send_server_msg(i, "TACTICAL", "Target lock failed due to sensor noise. Shot missed!");
@@ -1613,6 +1617,11 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
         
         /* VISUAL FX: Integrated via NetUpdate.beams for full tracking support */
 
+        SG_TRACE3(SG_CAT_PHA, "player %d (%s) FIRING: target=%d e=%d dist=%.2f hit=%d q=[%d,%d,%d] pos=(%.2f,%.2f,%.2f)",
+                  i, players[i].name, tid, e, dist, hit,
+                  players[i].state.q1, players[i].state.q2, players[i].state.q3,
+                  players[i].state.s1, players[i].state.s2, players[i].state.s3);
+
         if (players[i].state.beam_count < MAX_NET_BEAMS - 1) {
             /* Beam 1: Top Emitter */
             players[i].state.beams[players[i].state.beam_count++] = (NetBeam){
@@ -1638,6 +1647,11 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
                 (int)tid,
                 2
             };
+            SG_TRACE3(SG_CAT_PHA, "player %d (%s): 2 beams queued (emitters 1+2 -> target %d), state.beam_count=%d",
+                      i, players[i].name, tid, players[i].state.beam_count);
+        } else {
+            SG_WARNING(SG_CAT_PHA, "player %d (%s): beam array FULL (beam_count=%d) - beams NOT queued!",
+                       i, players[i].name, players[i].state.beam_count);
         }
         
         if (tid <= 32) {
@@ -4511,6 +4525,13 @@ bool process_command(int i, const char *cmd) {
         if (strncmp(cmd, command_registry[c].name, len) == 0) {
             /* Check for exact match or followed by space */
             if (cmd[len] == '\0' || cmd[len] == ' ') {
+                /* Per-command trace: the category IS the command name
+                 * ("pha 2 100" -> [PHA]), so --log-category=PHA isolates
+                 * the whole phaser chain across server+clients+viewers. */
+                char cmdcat[8];
+                sglog_cmd_category(cmd, cmdcat);
+                SG_TRACE3(cmdcat, "player %d (%s) dispatch cmd '%s' params '%s'",
+                          i, players[i].name, command_registry[c].name, cmd + len);
                 if (command_registry[c].handler) {
                     command_registry[c].handler(i, cmd + len, &profile_deleted);
                 } else {

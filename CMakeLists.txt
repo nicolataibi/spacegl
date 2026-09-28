@@ -135,6 +135,7 @@ set(COMMON_LIBS Threads::Threads OpenMP::OpenMP_C OpenSSL::Crypto m rt)
 # tree does not use CONFIGURE_DEPENDS). Add new server sources here.
 set(SERVER_SRCS
     src/spacegl_server.c
+    src/sglog.c
     src/telemetry_server.c
     src/server/commands.c
     src/server/galaxy.c
@@ -155,11 +156,11 @@ add_executable(spacegl_telemetry src/spacegl_telemetry.c)
 target_link_libraries(spacegl_telemetry ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 
 # 2. spacegl_client
-add_executable(spacegl_client src/spacegl_client.c)
+add_executable(spacegl_client src/spacegl_client.c src/sglog.c)
 target_link_libraries(spacegl_client ${COMMON_LIBS})
 
 # 3. spacegl_3dview
-add_executable(spacegl_3dview src/spacegl_3dview.c src/glut_compat.c src/spacegl_extras_glfw.c)
+add_executable(spacegl_3dview src/spacegl_3dview.c src/glut_compat.c src/spacegl_extras_glfw.c src/sglog.c)
 target_link_libraries(spacegl_3dview ${COMMON_LIBS} ${GLFW_LIBRARIES} ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES} GLU)
 
 # 4. spacegl_viewer
@@ -167,7 +168,7 @@ add_executable(spacegl_viewer src/spacegl_viewer.c)
 target_link_libraries(spacegl_viewer ${COMMON_LIBS})
 
 # 5. spacegl_hud
-add_executable(spacegl_hud src/spacegl_hud.c)
+add_executable(spacegl_hud src/spacegl_hud.c src/sglog.c)
 target_link_libraries(spacegl_hud ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 
 # 6. spacegl_vulkan
@@ -175,7 +176,7 @@ target_link_libraries(spacegl_hud ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 # and shares the executable with the CPU-driven path (SPACEGL_GPD=0):
 # one binary, two architectures, selected at startup (with automatic
 # fallback to the CPU path when the device cannot support GDD).
-add_executable(spacegl_vulkan src/spacegl_vulkan.c src/spacegl_vulkan_gdd.c)
+add_executable(spacegl_vulkan src/spacegl_vulkan.c src/spacegl_vulkan_gdd.c src/sglog.c)
 target_link_libraries(spacegl_vulkan ${COMMON_LIBS} Vulkan::Vulkan ${GLFW_LIBRARIES})
 add_dependencies(spacegl_vulkan spacegl_shaders)
 

@@ -49,6 +49,7 @@
 #include "game_config.h"
 #include "shared_state.h"
 #include "spacegl_vulkan_types.h"
+#include "sglog.h"
 
 /* Window resolution: Full HD (1920x1080). The swapchain, viewport,
    framebuffers and projection aspect ratio all derive from these
@@ -4424,6 +4425,9 @@ void mainLoop(VulkanApp* app) {
                         app->activeBooms[i].colors[p][0]=r; app->activeBooms[i].colors[p][1]=g; app->activeBooms[i].colors[p][2]=b;
                     }
                 } else if (ev->type == IPC_EV_BEAM) {
+                    SG_TRACE3(SG_CAT_PHA, "view[VK]: consume IPC_EV_BEAM owner=%d target=%d emitter=%d s=(%.2f,%.2f,%.2f) t=(%.2f,%.2f,%.2f)",
+                              ev->padding[0], ev->extra, ev->padding[1],
+                              ev->x1, ev->y1, ev->z1, ev->x2, ev->y2, ev->z2);
                     int slot = -1;
                     int owner_id = ev->padding[0];
                     int target_id = ev->extra;
@@ -4567,6 +4571,17 @@ void mainLoop(VulkanApp* app) {
         for (int i = 0; i < MAX_ACTIVE_BEAMS; i++) {
             if (app->activeBeams[i].life > 0) {
                 app->activeBeams[i].life -= deltaTime / 0.4f;
+            }
+        }
+        /* Beam population transitions (0<->N only: no per-frame flood). */
+        {
+            int n_active = 0;
+            for (int i = 0; i < MAX_ACTIVE_BEAMS; i++) if (app->activeBeams[i].life > 0) n_active++;
+            static int last_n_active = -1;
+            if (n_active != last_n_active) {
+                SG_TRACE2(SG_CAT_PHA, "view[VK]: active beams %d -> %d (path=%s, mapAnim=%.2f)",
+                          last_n_active, n_active, (app->gdd) ? "GPD" : "CPU", app->mapAnim);
+                last_n_active = n_active;
             }
         }
         for (int i = 0; i < MAX_ACTIVE_BOOMS; i++) {
@@ -5042,10 +5057,16 @@ int main(int argc, char** argv) {
     /* Architectural switch: SPACEGL_GPD=0 (or unset) keeps the legacy
      * CPU-driven path; SPACEGL_GPD=1 selects the GPU-driven one (with
      * automatic fallback to CPU-driven if the device cannot support it). */
+    sglog_init("vkv");
+    sglog_apply_args(argc, argv);
+
     const char *gpd = getenv("SPACEGL_GPD");
     app->gdd_wanted = (gpd != NULL && atoi(gpd) == 1);
     if (app->gdd_wanted) {
         printf("[GDD] SPACEGL_GPD=1: requesting the GPU-driven path (Vulkan 1.4)\n");
+        SG_NOTICE(SG_CAT_VULKAN, "SPACEGL_GPD=1: requesting GPU-driven path (pid %d)", (int)getpid());
+    } else {
+        SG_NOTICE(SG_CAT_VULKAN, "CPU-driven path (SPACEGL_GPD unset/0, pid %d)", (int)getpid());
     }
 
     if (argc > 1) {
@@ -5081,7 +5102,13 @@ int main(int argc, char** argv) {
      * transparently runs the CPU-driven path. */
     if (app->gdd_wanted && !gdd_init(app)) {
         app->gdd_wanted = false;
+        SG_WARNING(SG_CAT_VULKAN, "GPU-driven path unavailable: falling back to CPU-driven rendering");
         printf("[GDD] GPU-driven path unavailable: falling back to CPU-driven rendering\n");
+    }
+    if (app->gdd) {
+        SG_SUCCESS(SG_CAT_VULKAN, "GPU-driven path ACTIVE (beams/effects render via gdd_build_frame)");
+    } else {
+        SG_SUCCESS(SG_CAT_VULKAN, "CPU-driven path ACTIVE (beams/effects render via recordCommandBuffer)");
     }
     
     if (app->shm) {

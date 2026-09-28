@@ -1,3 +1,5 @@
+* Thu Sep 29 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.29.01
+  - Vulkan GPU-Driven (GDD): Phaser beam solved.
 * Sat Sep 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.26.03
   - Vulkan GPU-Driven (GDD): redesigned the phaser system (the "pha"
   command) on the GPU-driven path, with ONE rendering for every ship.

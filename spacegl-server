@@ -45,6 +45,7 @@ fi
 
 # Security Management (Master Key)
 if [ -z "$SPACEGL_KEY" ]; then
+    echo -e "$SPACEGL_BIN"
     echo -e "${YELLOW}[SECURITY]${NC} Initializing security protocol..."
     echo -e "${CYAN}[AUTH]${NC} Enter the Master Key for this sector:"
     read -sp "> " key

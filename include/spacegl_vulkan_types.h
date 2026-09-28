@@ -151,8 +151,8 @@ typedef struct {
     VkBuffer map_vis;   VkDeviceMemory mvis_mem;
     /* GPU-generated vertices + indirect commands + counters */
     VkBuffer verts;     VkDeviceMemory vert_mem;
-    VkBuffer indirect;  VkDeviceMemory ind_mem;
-    VkBuffer counters;  VkDeviceMemory cnt_mem;
+    VkBuffer indirect;  VkDeviceMemory ind_mem;  void *indirect_ptr; /* mapped (funnel readback) */
+    VkBuffer counters;  VkDeviceMemory cnt_mem;  void *counters_ptr; /* mapped (funnel readback) */
     /* descriptor sets (written once: the buffers are stable per slot) */
     VkDescriptorSet desc_cull_dyn;
     VkDescriptorSet desc_cull_map;

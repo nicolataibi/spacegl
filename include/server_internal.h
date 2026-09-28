@@ -24,6 +24,7 @@
 #include <pthread.h>
 #include "network.h"
 #include "game_config.h"
+#include "sglog.h"
 
 typedef enum { 
     NAV_STATE_IDLE, 
