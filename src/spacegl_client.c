@@ -583,11 +583,13 @@ void *network_listener(void *arg) {
                 free(msg); g_running = 0; break;
             }
 
-            /* Security: clamp the network-supplied length BEFORE reading the
-               payload. msg->text is 65536 bytes (65535 + NUL), so any length
-               outside [0, 65535] would overflow the buffer. A corrupt/malicious
-               length also desynchronizes the stream: abort the listener. */
-            if (msg->length < 0 || msg->length > 65535) {
+            /* Security: validate the network-supplied length BEFORE reading
+               the payload, using the same canonical check as the server
+               (packet_message_length_valid, network.h). msg->text is 65536
+               bytes (65535 + NUL), so any length outside [0, 65535] would
+               overflow the buffer. A corrupt/malicious length also
+               desynchronizes the stream: abort the listener. */
+            if (!packet_message_length_valid(msg->length)) {
                 printf("\r\033[K" B_RED "[NET] Protocol error: message length out of range (%d). Connection aborted.\n" RESET, msg->length);
                 free(msg); g_running = 0; break;
             }

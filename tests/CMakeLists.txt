@@ -108,3 +108,15 @@ add_test(NAME nav_roll COMMAND nav_roll_test)
 # (in the server they live in galaxy.c, which is not linked).
 add_executable(quad_index_test quad_index_test.c ${SG_ROOT}/src/server/quad_index.c)
 add_test(NAME quad_index COMMAND quad_index_test)
+
+# --- Protocol contract: PacketMessage.length bounds (server-side remote
+# DoS guard) ---------------------------------------------------------
+# The attacker-controlled PacketMessage.length must be validated by BOTH
+# endpoints before it is used in size_t arithmetic (server/net.c:
+# broadcast c_len, EVP_DecryptUpdate, relay pkt_size). The canonical
+# check lives in include/network.h (packet_message_length_valid); this
+# test pins the [0, 65535] contract against the 65536-byte text buffer
+# and proves the pre-fix sink arithmetic was out of bounds for the
+# attack values.
+add_executable(pkt_length_test pkt_length_test.c)
+add_test(NAME pkt_length COMMAND pkt_length_test)

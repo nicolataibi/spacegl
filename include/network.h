@@ -306,6 +306,20 @@ typedef struct {
     char text[65536];
 } PacketMessage;
 
+/* Canonical bounds check for the attacker-controlled PacketMessage.length.
+   text is 65536 bytes (65535 chars + NUL), so only [0, 65535] can be
+   safely consumed. BOTH endpoints MUST apply it before using the length
+   and treat a violation as fatal to the connection: the payload cannot
+   be skipped without desynchronizing the TCP stream, so the client
+   aborts the listener (spacegl_client.c) and the server drops the
+   connection (spacegl_server.c). An out-of-range value must never reach
+   the size_t arithmetic in server/net.c (broadcast c_len,
+   EVP_DecryptUpdate, relay pkt_size): e.g. length = -5 becomes a
+   (size_t) ~4 GB copy/read and crashes the process (remote DoS). */
+static inline bool packet_message_length_valid(int32_t length) {
+    return length >= 0 && length < 65536;
+}
+
 /* Update Packet: Optimized for variable length transmission */
 typedef struct {
     int32_t type;

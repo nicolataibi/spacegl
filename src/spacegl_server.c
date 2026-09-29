@@ -1201,7 +1201,35 @@ int main(int argc, char *argv[]) {
                         } else { /* PKT_MESSAGE */
                             PacketMessage *pkt = malloc(sizeof(PacketMessage));
                             if (pkt && read_all(fd, ((char*)pkt) + sizeof(int), offsetof(PacketMessage, text) - sizeof(int)) > 0) {
-                                if (pkt->length > 0 && pkt->length < 65536) read_all(fd, pkt->text, pkt->length);
+                                /* SECURITY: validate the network-supplied length BEFORE
+                                   touching the payload, with the same canonical check
+                                   as the client (packet_message_length_valid, network.h).
+                                   The value is attacker-controlled: outside [0, 65535]
+                                   it must never reach broadcast_message(), where it is
+                                   converted to size_t (c_len, EVP_DecryptUpdate, relay
+                                   pkt_size) and becomes a multi-GB copy/read (remote
+                                   DoS). The payload has not been consumed, so the
+                                   stream can no longer be resynchronized: drop the
+                                   connection, as the client does. game_mutex is NOT
+                                   held here. */
+                                if (!packet_message_length_valid(pkt->length)) {
+                                    int bad_len = pkt->length;
+                                    free(pkt);
+                                    pthread_mutex_lock(&game_mutex);
+                                    for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) {
+                                        players[i].socket = 0;
+                                        players[i].active = 0;
+                                        memset(players[i].session_key, 0, 32);
+                                        break;
+                                    }
+                                    pthread_mutex_unlock(&game_mutex);
+                                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                                    close(fd);
+                                    fprintf(stderr, "\033[1;31m[SECURITY ALERT]\033[0m Dropped FD %d: PKT_MESSAGE length out of range (%d).\n", fd, bad_len);
+                                    LOG_DEBUG("Connection dropped: PKT_MESSAGE length out of range (%d), FD %d\n", bad_len, fd);
+                                    continue;
+                                }
+                                if (pkt->length > 0) read_all(fd, pkt->text, pkt->length);
                                 else pkt->text[0] = '\0';
                                 pkt->type = type;
 

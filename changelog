@@ -1,4 +1,27 @@
-* Thu Sep 29 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.29.02
+* Tue Sep 29 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.29.03
+  - Server security: PacketMessage.length is now validated on the server
+  side (remote DoS fix). The PKT_MESSAGE parser (spacegl_server.c) only
+  branched on "length > 0 && length < 65536" to decide whether to read
+  the payload, but kept the attacker-controlled length in the packet
+  otherwise: with length = -5 the value reached broadcast_message()
+  (server/net.c) where it is converted to size_t — memcpy(..., c_len)
+  with c_len = (size_t)-5, EVP_DecryptUpdate(..., msg->text, msg->length)
+  on the fleet path and pkt_size = offsetof(...) + msg->length in the
+  relay — a ~4 GB copy/read of heap garbage (crash, or garbage fanned
+  out to every client). The client already validated exactly this
+  ("Protocol error: message length out of range") while the server did
+  not. Both endpoints now use one canonical check
+  (packet_message_length_valid, include/network.h: length must be in
+  [0, 65535], the 65536-byte text buffer minus the NUL) and the server
+  drops the connection on violation — the payload cannot be skipped
+  without desynchronizing the stream — reaping the player slot first so
+  the closed fd cannot be recycled into the old identity (same pattern
+  as the zztop/unsafe-name DoS hardening). New regression contract test
+  tests/pkt_length_test.c pins the [0, 65535] bound against the wire
+  format and proves the pre-fix sink arithmetic was out of bounds for
+  the attack values.
+
+* Tue Sep 29 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.29.02
   - OpenGL 3D view (spacegl_3dview): asteroids (type 21) now render at
   their real world position instead of stacked at the quadrant center.
   In the objects loop the type-21 case only appends an instance to the
@@ -18,8 +41,10 @@
   per-object push/pop is already unwound), the scale and rotation
   fields of the instance are unchanged, and the other object types are
   untouched.
-* Thu Sep 29 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.29.01
+
+* Tue Sep 29 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.29.01
   - Vulkan GPU-Driven (GDD): Phaser beam solved.
+
 * Sat Sep 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.26.03
   - Vulkan GPU-Driven (GDD): redesigned the phaser system (the "pha"
   command) on the GPU-driven path, with ONE rendering for every ship.
