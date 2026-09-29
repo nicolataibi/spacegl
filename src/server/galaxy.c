@@ -258,6 +258,35 @@ void rebuild_spatial_index() {
             }
         }
     }
+
+    /* === DIAG [LRS-3] (smoke test): log each player whose quadrant changed
+     * this tick, with the FINAL per-quadrant player index (ids). Pinpoints
+     * exactly when a ship enters/leaves a quadrant and whether the index
+     * holds each player exactly once (duplicates or drops would show up as
+     * a repeated/missing id or a count that keeps growing tick over tick). === */
+    {
+        static int last_q1[MAX_CLIENTS], last_q2[MAX_CLIENTS], last_q3[MAX_CLIENTS];
+        static int last_diag_init = 0;
+        if (!last_diag_init) {
+            for (int u = 0; u < MAX_CLIENTS; u++) { last_q1[u] = -1; last_q2[u] = -1; last_q3[u] = -1; }
+            last_diag_init = 1;
+        }
+        for (int u = 0; u < MAX_CLIENTS; u++) {
+            if (!players[u].active || players[u].name[0] == '\0') continue;
+            int q1 = players[u].state.q1, q2 = players[u].state.q2, q3 = players[u].state.q3;
+            if (q1 == last_q1[u] && q2 == last_q2[u] && q3 == last_q3[u]) continue;
+            last_q1[u] = q1; last_q2[u] = q2; last_q3[u] = q3;
+            if (!IS_Q_VALID(q1, q2, q3)) continue;
+            QuadrantIndex *q = &spatial_index[q1][q2][q3];
+            char ids[192]; int off = 0;
+            for (int j = 0; j < q->player_count && j < MAX_Q_PLAYERS && off < (int)sizeof(ids) - 16; j++)
+                off += snprintf(ids + off, sizeof(ids) - (size_t)off, "%d,", (int)(q->players[j] - players) + 1);
+            SG_TRACE3(SG_CAT_LRS,
+                "spatial: player %s(slot %d) now in Q-%d-%d-%d: quad players=%d[%s] npcs=%d",
+                players[u].name, u, q1, q2, q3, q->player_count, ids, q->npc_count);
+        }
+    }
+
     for (int t = 0; t < MAX_GLOBAL_TORPEDOES; t++) {
         if (players_torpedoes[t].active) {
             if (IS_Q_VALID(players_torpedoes[t].q1, players_torpedoes[t].q2, players_torpedoes[t].q3)) {

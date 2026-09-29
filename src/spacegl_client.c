@@ -965,10 +965,24 @@ void *network_listener(void *arg) {
                     current_pkt_size += sizeof(b);
                 }
                 if (mask & UPD_OBJECTS) {
-                    int32_t oc; read_all(sock, &oc, sizeof(int32_t)); current_pkt_size += sizeof(int32_t);
+                    /* === FIX+DIAG: the return values used to be ignored; a
+                     * short read would silently desync the whole stream and
+                     * corrupt every object that follows. Now detected. === */
+                    int32_t oc; int r_oc = read_all(sock, &oc, sizeof(int32_t));
+                    if (r_oc != (int)sizeof(int32_t)) {
+                        SG_ERROR(SG_CAT_LRS, "UPD_OBJECTS: short read of object_count (%d/%d) - wire desync, closing",
+                                 r_oc, (int)sizeof(int32_t));
+                        break;
+                    }
+                    current_pkt_size += sizeof(int32_t);
                     current_state.object_count = oc;
                     if (oc > 0) {
-                        read_all(sock, current_state.objects, oc * sizeof(NetObject));
+                        int r_ob = read_all(sock, current_state.objects, oc * sizeof(NetObject));
+                        if (r_ob != oc * (int)sizeof(NetObject)) {
+                            SG_ERROR(SG_CAT_LRS, "UPD_OBJECTS: short read of objects (%d/%d bytes) - wire desync, closing",
+                                     r_ob, oc * (int)sizeof(NetObject));
+                            break;
+                        }
                         current_pkt_size += oc * sizeof(NetObject);
                     }
                 }
@@ -1145,6 +1159,36 @@ void *network_listener(void *arg) {
                 }
 
                 g_shared_state->object_count = current_state.object_count;
+
+                /* === DIAG [LRS-3] (smoke test): dump of the object list as
+                 * received and stored, logged ONLY when the (id,type)
+                 * sequence changes. Mirrors the server-side 'built list'
+                 * dump: if this differs from the server list, the
+                 * wire/delta path corrupts it; if it matches the server but
+                 * the viewer 'gdd other-player ships' dump differs, the
+                 * corruption happens client -> shm -> viewer. === */
+                {
+                    static uint64_t last_rx_sig = 0;
+                    uint64_t sig = 1469598103934665603ull;
+                    for (int o = 0; o < current_state.object_count && o < MAX_NET_OBJECTS; o++) {
+                        sig ^= (uint64_t)(int64_t)current_state.objects[o].id;   sig *= 1099511628211ull;
+                        sig ^= (uint64_t)(int64_t)current_state.objects[o].type;  sig *= 1099511628211ull;
+                    }
+                    if (sig != last_rx_sig) {
+                        last_rx_sig = sig;
+                        char listbuf[1536]; int off = 0;
+                        for (int o = 0; o < current_state.object_count && o < MAX_NET_OBJECTS && off < (int)sizeof(listbuf) - 64; o++)
+                            off += snprintf(listbuf + off, sizeof(listbuf) - (size_t)off,
+                                            " %d:id=%d,t=%d,a=%d,'%s'",
+                                            o, current_state.objects[o].id, current_state.objects[o].type,
+                                            current_state.objects[o].active, current_state.objects[o].name);
+                        SG_TRACE3(SG_CAT_LRS,
+                            "rx obj list (%s, frame %lld): count=%d|%s",
+                            (type == PKT_UPDATE) ? "FULL" : "DELTA", (long long)current_state.frame_id,
+                            current_state.object_count, listbuf);
+                    }
+                }
+
                 g_shared_state->beam_count = current_state.beam_count; memcpy(g_shared_state->beams, current_state.beams, sizeof(NetBeam) * current_state.beam_count);
                 for (int o=0; o < current_state.object_count; o++) {
                     g_shared_state->objects[o].shm_x = current_state.objects[o].net_x;

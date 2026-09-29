@@ -372,8 +372,21 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         mask |= UPD_OBJECTS | UPD_MAP | UPD_FULL;
         p->full_update_timer = 0;
         p->last_q1 = upd->q1; p->last_q2 = upd->q2; p->last_q3 = upd->q3;
+        /* === DIAG [PROTOCOL-3] (smoke test): proves the full list is
+         * re-sent even without a membership change (every 5 s or on
+         * quadrant change). If the client stays wrong for >5 s despite
+         * these lines, the fault is client-side (rx/parse/shm). === */
+        SG_TRACE3(SG_CAT_PROTOCOL,
+            "player %d (%s): UPD_OBJECTS forced into delta (quadrant_changed=%d, full_refresh) objs=%d frame=%llu",
+            p_idx, p->name, (int)quadrant_changed, upd->object_count, (unsigned long long)upd->frame_id);
     } else if (p->last_sent_state.object_count != upd->object_count || memcmp(p->last_sent_state.objects, upd->objects, upd->object_count * sizeof(NetObject)) != 0) {
         mask |= UPD_OBJECTS;
+        /* Membership change only (position-only changes would flood): this
+         * is the incremental path that delivers a new/leaving ship. */
+        if (p->last_sent_state.object_count != upd->object_count)
+            SG_TRACE3(SG_CAT_PROTOCOL,
+                "player %d (%s): UPD_OBJECTS membership change %d -> %d frame=%llu",
+                p_idx, p->name, p->last_sent_state.object_count, upd->object_count, (unsigned long long)upd->frame_id);
     }
 
     if (mask == 0) {

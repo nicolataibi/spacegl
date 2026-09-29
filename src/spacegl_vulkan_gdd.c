@@ -674,21 +674,35 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
     {
         int other_ships_total = 0, other_ships_skipped_first = 0,
             other_ships_skipped_inactive = 0, other_ships_added = 0;
-        for (int i = 1; i < ctx->object_count && i < (int)GDD_MAX_NET_OBJECTS; i++) {
+        char detbuf[1024]; int doff = 0;
+        int ndet = ctx->object_count; if (ndet > 16) ndet = 16;
+        for (int i = 0; i < ndet && i < (int)GDD_MAX_NET_OBJECTS; i++) {
             int tp = ctx->types ? ctx->types[i] : 1;
+            int act = (ctx->active && !ctx->active[i]) ? 0 : 1;
+            const SmoothObj *s2 = &ctx->objs[i];
+            /* Per-index detail (smoke test): raw id/type/active from the
+             * shm frame plus the SmoothObj tracker state at the SAME index.
+             * sm_id must equal id and sm_f must be 0 for every tracked
+             * object; a mismatch means the tracker's position/id mapping
+             * drifted from the raw list (overwritten/aliased slot). */
+            if (doff < (int)sizeof(detbuf) - 64)
+                doff += snprintf(detbuf + doff, sizeof(detbuf) - (size_t)doff,
+                                 " %d[id=%d,t=%d,a=%d,sm_id=%d,sm_f=%d]",
+                                 i, ctx->ids ? ctx->ids[i] : -1, tp, act,
+                                 s2->id, (int)s2->first);
+            if (i == 0) continue;
             if (tp != 1) continue; /* solo giocatori (type=1 a i>0) */
             other_ships_total++;
-            const SmoothObj *s2 = &ctx->objs[i];
             if (s2->first) { other_ships_skipped_first++; continue; }
             if (ctx->active && !ctx->active[i]) { other_ships_skipped_inactive++; continue; }
             other_ships_added++;
         }
-        if (other_ships_total > 0 && sglog_rate("gdd_other_ships", 2))
+        if ((other_ships_total > 0 || ctx->object_count > 1) && sglog_rate("gdd_other_ships", 2))
             SG_TRACE3(SG_CAT_VULKAN,
-                "gdd other-player ships: total=%d added=%d skip_first=%d skip_inactive=%d (obj_count=%d)",
+                "gdd other-player ships: total=%d added=%d skip_first=%d skip_inactive=%d (obj_count=%d)|%s",
                 other_ships_total, other_ships_added,
                 other_ships_skipped_first, other_ships_skipped_inactive,
-                ctx->object_count);
+                ctx->object_count, detbuf);
     }
     if (ctx->map_anim < 0.99f && ctx->object_count > 0 && ctx->objs) {
         for (int i = 0; i < ctx->object_count && i < (int)GDD_MAX_NET_OBJECTS; i++) {

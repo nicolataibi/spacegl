@@ -5063,9 +5063,12 @@ void display() {
                     case 10: drawKorthian(0,0,0); break;
                     case 21: 
                         if (asteroidInstanceCount < 1000) {
-                            asteroidData[asteroidInstanceCount].x = 0;
-                            asteroidData[asteroidInstanceCount].y = 0;
-                            asteroidData[asteroidInstanceCount].z = 0;
+                            /* World position (quadrant-centered): must match the
+                               position used by drawHUD()/gluProject for the label,
+                               otherwise the mesh renders at the quadrant center. */
+                            asteroidData[asteroidInstanceCount].x = objects[i].x;
+                            asteroidData[asteroidInstanceCount].y = objects[i].y;
+                            asteroidData[asteroidInstanceCount].z = objects[i].z;
                             asteroidData[asteroidInstanceCount].scale = 0.5 + (objects[i].plating / (float)YIELD_HARVEST_MAX);
                             asteroidData[asteroidInstanceCount].rot = pulse * 2.0 + (objects[i].id * 0.1);
                             asteroidInstanceCount++;

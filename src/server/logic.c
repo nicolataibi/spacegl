@@ -2061,7 +2061,38 @@ void update_game_logic() {
         for(int i = 0; i < lq->cmb_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->cmbs[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->cmbs[i]->x, .net_y = lq->cmbs[i]->y, .net_z = lq->cmbs[i]->z, .type = 88, .id = lq->cmbs[i]->id + GALAXY_OBJECT_MIN_CMB, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "CMB"); o_idx++; }
 
         upd->object_count = o_idx;
-        
+
+        /* === DIAG [LRS-3] (smoke test): full dump of the quadrant object
+         * list built for this client, logged ONLY when the (id,type)
+         * sequence changes (never per-tick). Pairs with the client-side
+         * 'rx obj list' dump and the viewer-side 'gdd other-player ships'
+         * dump to localize where a ship entry is dropped or overwritten:
+         * server list -> wire -> client state -> shm -> GDD builder. === */
+        {
+            static uint64_t last_built_sig[MAX_CLIENTS];
+            uint64_t sig = 1469598103934665603ull;
+            for (int o = 0; o < o_idx; o++) {
+                sig ^= (uint64_t)(int64_t)upd->objects[o].id;   sig *= 1099511628211ull;
+                sig ^= (uint64_t)(int64_t)upd->objects[o].type;  sig *= 1099511628211ull;
+            }
+            if (sig != last_built_sig[i]) {
+                last_built_sig[i] = sig;
+                char listbuf[1536]; int off = 0;
+                for (int o = 0; o < o_idx && off < (int)sizeof(listbuf) - 64; o++)
+                    off += snprintf(listbuf + off, sizeof(listbuf) - (size_t)off,
+                                    " %d:id=%d,t=%d,a=%d,'%s'",
+                                    o, upd->objects[o].id, upd->objects[o].type,
+                                    upd->objects[o].active, upd->objects[o].name);
+                char qpl[192]; int qo = 0;
+                for (int j = 0; j < lq->player_count && j < MAX_Q_PLAYERS && qo < (int)sizeof(qpl) - 16; j++)
+                    qo += snprintf(qpl + qo, sizeof(qpl) - (size_t)qo, "%d,", (int)(lq->players[j] - players) + 1);
+                SG_TRACE3(SG_CAT_LRS,
+                    "Q-%d-%d-%d built list for %s(slot %d): objs=%d | lq players=%d[%s] npcs=%d stars=%d planets=%d |%s",
+                    upd->q1, upd->q2, upd->q3, players[i].name, i, o_idx,
+                    lq->player_count, qpl, lq->npc_count, lq->star_count, lq->planet_count, listbuf);
+            }
+        }
+
         /* Torpedo Streaming - Aggregated Zero-Loss FX approach */
         /* IPC_EV_TORPEDO is now correctly sent once upon firing in commands.c */
         upd->torpedo_count = 0; /* Standard stream disabled, using Zero-Loss queue instead */

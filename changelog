@@ -1,3 +1,23 @@
+* Thu Sep 29 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.29.02
+  - OpenGL 3D view (spacegl_3dview): asteroids (type 21) now render at
+  their real world position instead of stacked at the quadrant center.
+  In the objects loop the type-21 case only appends an instance to the
+  deferred instanced pass (the single glDrawArraysInstancedARB executed
+  after the loop) and hardcoded the instance position to (0,0,0) — in
+  the viewer's quadrant-centered coordinates (shm - QUADRANT_SIZE/2) the
+  origin is the quadrant center, i.e. the exact point the camera looks
+  at — while the per-object glTranslatef(objects[i].x/y/z) applied at
+  the top of the loop for every other object type was silently ignored
+  for asteroids. The result: every asteroid of the quadrant overlapped
+  in one tiny spot at its center while the HUD labels, which are a
+  separate path (drawHUD/gluProject reading the real obj->x/y/z),
+  floated correctly above the empty space. The instance record now
+  stores the object's world coordinates — the same values the label
+  projects — so each asteroid renders under its own label; the model/
+  view state at instanced-draw time is the base camera matrix (the
+  per-object push/pop is already unwound), the scale and rotation
+  fields of the instance are unchanged, and the other object types are
+  untouched.
 * Thu Sep 29 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.29.01
   - Vulkan GPU-Driven (GDD): Phaser beam solved.
 * Sat Sep 26 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.26.03
