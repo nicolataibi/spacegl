@@ -422,6 +422,20 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx);
  * submit, present (same triple-buffer invariant as the CPU path). */
 void gdd_draw_frame(VulkanApp *app);
 
+/* Rebuild the extent-dependent Vulkan resources (swapchain, image
+ * views, MSAA attachments, framebuffers, GDD attachments) after a
+ * window resize. Shared by the CPU-driven and the GPU-driven frame
+ * paths (called from the framebuffer-size callback and from the
+ * OUT_OF_DATE backstops). No-op if the size did not change or the
+ * window is iconified. */
+void recreateSwapChain(VulkanApp *app);
+
+/* Re-create the extent-dependent resources (MSAA color/depth
+ * attachments) after a window resize; the pipelines, descriptor pool,
+ * per-frame ring and instance geometry are extent-independent and are
+ * kept. No-op if app->gdd is NULL. */
+void gdd_recreate_size_dependent(VulkanApp *app);
+
 void gdd_cleanup(VulkanApp *app);
 
 /* ================================================================== */

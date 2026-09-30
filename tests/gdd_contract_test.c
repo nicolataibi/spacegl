@@ -48,6 +48,11 @@
 double glfwGetTime(void) { return 0.0; }
 #endif
 
+/* recreateSwapChain lives in src/spacegl_vulkan.c (the app's resize
+ * machinery) and is referenced by the device-side frame path of the
+ * production TU; the contract tests never call it. */
+void recreateSwapChain(VulkanApp *app) { (void)app; }
+
 static int g_fail = 0;
 static int g_pass = 0;
 

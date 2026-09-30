@@ -56,7 +56,31 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(NCURSES REQUIRED ncurses)
 
 # GLFW e Vulkan per spacegl_vulkan
-find_package(Vulkan REQUIRED)
+#
+# Vulkan SDK di default (decisione di progetto): si usa la SDK locale
+# 1.4.363.0 invece di quella di sistema, per build riproducibili
+# (headers, loader e glslc dalla stessa SDK). Il loader built-from-source
+# esporta il target Vulkan::Loader: lo si espone come alias Vulkan::Vulkan
+# (nome ufficiale) usato da target e test. Disable: -DUSE_DEFAULT_VULKAN_SDK=OFF
+set(USE_DEFAULT_VULKAN_SDK ON CACHE BOOL "Use the default local Vulkan SDK")
+set(DEFAULT_VULKAN_SDK "/home/nick/dev/c/vulkan-sdk/1.4.363.0/x86_64"
+    CACHE STRING "Root of the default Vulkan SDK (bin/include/lib/share layout)")
+if(USE_DEFAULT_VULKAN_SDK AND EXISTS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader/lib/cmake/VulkanLoader")
+    find_package(VulkanLoader REQUIRED
+        PATHS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader" NO_DEFAULT_PATH)
+    if(TARGET Vulkan::Loader)
+        # The from-source loader config carries no include dirs: point them
+        # at the SDK headers.
+        target_include_directories(Vulkan::Loader INTERFACE "${DEFAULT_VULKAN_SDK}/include")
+        if(NOT TARGET Vulkan::Vulkan)
+            add_library(Vulkan::Vulkan ALIAS Vulkan::Loader)
+        endif()
+    endif()
+    message(STATUS "Vulkan: using default SDK ${DEFAULT_VULKAN_SDK}")
+else()
+    find_package(Vulkan REQUIRED)
+    message(STATUS "Vulkan: using the system SDK (default SDK not found or disabled)")
+endif()
 pkg_check_modules(GLFW REQUIRED glfw3)
 
 # --- Include Directories ---
@@ -66,7 +90,8 @@ include_directories(include ${OPENSSL_INCLUDE_DIR} ${OPENGL_INCLUDE_DIR} ${GLEW_
 # glslc is a hard requirement: there is NO automatic fallback to
 # glslangValidator on purpose (different CLI and SPIR-V defaults), so a
 # missing compiler must fail loudly with an actionable message.
-find_program(GLSLC_EXECUTABLE glslc)
+# Prefer the glslc of the default SDK (HINTS are searched before PATH).
+find_program(GLSLC_EXECUTABLE glslc HINTS "${DEFAULT_VULKAN_SDK}/bin")
 if(NOT GLSLC_EXECUTABLE)
     message(FATAL_ERROR
         "glslc not found in PATH - it is REQUIRED to compile the Vulkan shaders\n"

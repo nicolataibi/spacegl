@@ -2872,8 +2872,33 @@ void createLogicalDevice(VulkanApp* app) {
     vkGetDeviceQueue(app->device, qfam, 0, &app->graphicsQueue);
 }
 
+/* The swapchain extent is NOT a fixed constant: it tracks the live
+   window size, clamped to the range the surface can present
+   (VkSurfaceCapabilitiesKHR). FALSE means the window is iconified
+   (0x0 framebuffer) and the swapchain must not be (re)created. */
+static bool pickSwapChainExtent(VulkanApp* app, VkExtent2D* out) {
+    int w, h;
+    glfwGetFramebufferSize(app->window, &w, &h);
+    if (w <= 0 || h <= 0) return false;
+    VkSurfaceCapabilitiesKHR caps;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(app->physicalDevice, app->surface, &caps);
+    VkExtent2D e = { (uint32_t)w, (uint32_t)h };
+    if (caps.minImageExtent.width && e.width < caps.minImageExtent.width) e.width = caps.minImageExtent.width;
+    if (caps.minImageExtent.height && e.height < caps.minImageExtent.height) e.height = caps.minImageExtent.height;
+    if (caps.maxImageExtent.width && e.width > caps.maxImageExtent.width) e.width = caps.maxImageExtent.width;
+    if (caps.maxImageExtent.height && e.height > caps.maxImageExtent.height) e.height = caps.maxImageExtent.height;
+    *out = e;
+    return true;
+}
+
 void createSwapChain(VulkanApp* app) {
-    app->swapChainImageFormat = VK_FORMAT_B8G8R8A8_UNORM; app->swapChainExtent = (VkExtent2D){WIDTH, HEIGHT};
+    app->swapChainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
+    if (!pickSwapChainExtent(app, &app->swapChainExtent)) {
+        /* Iconified window: nothing presentable. The framebuffer-size
+           callback re-triggers the creation when it is restored. */
+        fprintf(stderr, "[VK] window iconified: swapchain creation deferred\n");
+        return;
+    }
     
     uint32_t modeCount; vkGetPhysicalDeviceSurfacePresentModesKHR(app->physicalDevice, app->surface, &modeCount, NULL);
     VkPresentModeKHR* modes = malloc(sizeof(VkPresentModeKHR) * modeCount);
@@ -2886,7 +2911,14 @@ void createSwapChain(VulkanApp* app) {
     }
     free(modes);
 
-    VkSwapchainCreateInfoKHR cInfo = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, NULL, 0, app->surface, 2, app->swapChainImageFormat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, app->swapChainExtent, 1, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, NULL, VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR, VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, bestMode, VK_TRUE, VK_NULL_HANDLE};
+    /* minImageCount must respect the surface capabilities: for every
+       present mode except SHARED_* it must be >= caps.minImageCount
+       (some drivers require 3 images). */
+    VkSurfaceCapabilitiesKHR caps;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(app->physicalDevice, app->surface, &caps);
+    uint32_t minImages = (caps.minImageCount > 2) ? caps.minImageCount : 2;
+
+    VkSwapchainCreateInfoKHR cInfo = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, NULL, 0, app->surface, minImages, app->swapChainImageFormat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, app->swapChainExtent, 1, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, NULL, VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR, VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, bestMode, VK_TRUE, VK_NULL_HANDLE};
     if (vkCreateSwapchainKHR(app->device, &cInfo, NULL, &app->swapChain) != VK_SUCCESS) exit(1);
     vkGetSwapchainImagesKHR(app->device, app->swapChain, &app->swapChainImageCount, NULL);
     app->swapChainImages = malloc(sizeof(VkImage)*app->swapChainImageCount);
@@ -2930,10 +2962,20 @@ void createGraphicsPipeline(VulkanApp* app) {
     VkVertexInputAttributeDescription atr[] = {{0,0,VK_FORMAT_R32G32B32_SFLOAT,0}, {1,0,VK_FORMAT_R32G32B32_SFLOAT,12}, {2,0,VK_FORMAT_R32G32B32_SFLOAT,24}};
     VkPipelineVertexInputStateCreateInfo vIn = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,NULL,0,1,&bnd,3,atr};
     VkPipelineInputAssemblyStateCreateInfo iAs = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,NULL,0,VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,VK_FALSE};
-    VkViewport vp = {0,0,(float)WIDTH,(float)HEIGHT,0,1}; VkRect2D sc = {{0,0},app->swapChainExtent};
+    /* Viewport and scissor are DYNAMIC (the per-frame values are set in
+       recordCommandBuffer from the live swapchain extent), so the
+       pipelines survive window resizes without recompilation. With
+       classic dynamic state the counts must stay > 0; the values below
+       are initial placeholders, overwritten every frame. */
+    VkViewport vp = {0,0,(float)app->swapChainExtent.width,(float)app->swapChainExtent.height,0,1};
+    VkRect2D sc = {{0,0},app->swapChainExtent};
     VkPipelineViewportStateCreateInfo vpSt = {VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,NULL,0,1,&vp,1,&sc};
+    VkDynamicState dynSt[2] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    VkPipelineDynamicStateCreateInfo dynInfo = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,NULL,0,2,dynSt};
     VkPipelineRasterizationStateCreateInfo rast = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,NULL,0,VK_FALSE,VK_FALSE,VK_POLYGON_MODE_FILL,VK_CULL_MODE_BACK_BIT,VK_FRONT_FACE_CLOCKWISE,VK_FALSE,0,0,0,1.0f};
-    VkPipelineMultisampleStateCreateInfo mult = {VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,NULL,0,app->msaaSamples,VK_TRUE,0.25f,NULL,VK_FALSE,VK_FALSE};
+    /* sampleShadingEnable must stay FALSE: the sampleRateShading device
+       feature is not enabled and the shaders do not use SRA. */
+    VkPipelineMultisampleStateCreateInfo mult = {VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,NULL,0,app->msaaSamples,VK_FALSE,0.25f,NULL,VK_FALSE,VK_FALSE};
     VkPipelineDepthStencilStateCreateInfo depSt = {VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,NULL,0,VK_TRUE,VK_TRUE,VK_COMPARE_OP_LESS,VK_FALSE,VK_FALSE, {0}, {0}, 0, 0};
     VkPipelineColorBlendAttachmentState cBlAt = {VK_FALSE, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT};
     VkPipelineColorBlendStateCreateInfo cBl = {VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, NULL, 0, VK_FALSE, VK_LOGIC_OP_COPY, 1, &cBlAt, {0,0,0,0}};
@@ -2945,7 +2987,7 @@ void createGraphicsPipeline(VulkanApp* app) {
     VkPipelineLayoutCreateInfo lInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, NULL, 0, 1, &app->descriptorSetLayout, 1, &pCr};
     if (vkCreatePipelineLayout(app->device, &lInfo, NULL, &app->pipelineLayout) != VK_SUCCESS) exit(1);
     
-    VkGraphicsPipelineCreateInfo pInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO, NULL, 0, 2, stages, &vIn, &iAs, NULL, &vpSt, &rast, &mult, &depSt, &cBl, NULL, app->pipelineLayout, app->renderPass, 0, VK_NULL_HANDLE, 0};
+    VkGraphicsPipelineCreateInfo pInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO, NULL, 0, 2, stages, &vIn, &iAs, NULL, &vpSt, &rast, &mult, &depSt, &cBl, &dynInfo, app->pipelineLayout, app->renderPass, 0, VK_NULL_HANDLE, 0};
     if (vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &pInfo, NULL, &app->graphicsPipeline) != VK_SUCCESS) exit(1);
     
     /* 2. Wireframe/Line Pipeline with Blending Enabled (for Halo Effect) */
@@ -3081,6 +3123,14 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     VkClearValue cl[2] = {0}; cl[0].color = (VkClearColorValue){{0,0,0,1}}; cl[1].depthStencil = (VkClearDepthStencilValue){1,0};
     VkRenderPassBeginInfo ri = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,NULL,app->renderPass,app->swapChainFramebuffers[idx],{{0,0},app->swapChainExtent}, 2, cl};
     vkCmdBeginRenderPass(cb, &ri, VK_SUBPASS_CONTENTS_INLINE);
+    /* Viewport/scissor are dynamic (see createGraphicsPipeline): sync
+       them to the live swapchain extent so the image follows window
+       resizes. One setting covers every pipeline of the frame (they
+       all enable the same dynamic states). */
+    VkViewport dvp = {0,0,(float)app->swapChainExtent.width,(float)app->swapChainExtent.height,0,1};
+    VkRect2D dsc = {{0,0},app->swapChainExtent};
+    vkCmdSetViewport(cb, 0, 1, &dvp);
+    vkCmdSetScissor(cb, 0, 1, &dsc);
     
     VkDeviceSize off = 0;
     
@@ -4047,6 +4097,69 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     vkCmdEndRenderPass(cb); vkEndCommandBuffer(cb);
 }
 
+/* --- Window resize support ------------------------------------------
+ * The swapchain (and everything sized to it) must be rebuilt when the
+ * window is resized: with a fixed extent, vkAcquireNextImageKHR starts
+ * returning VK_ERROR_OUT_OF_DATE_KHR from the next frame on, and both
+ * draw paths early-return forever — black, frozen window until exit
+ * (VK_SUBOPTIMAL_KHR alone is not the answer: an extent change is
+ * exactly the OUT_OF_DATE case). The pipelines are extent-independent
+ * (dynamic viewport/scissor, see createGraphicsPipeline) and the
+ * projection aspect reads the live extent, so only the swapchain
+ * images, the MSAA color/depth attachments, the framebuffers and the
+ * GDD MSAA attachments are rebuilt. */
+
+static void destroySwapChainResources(VulkanApp* app) {
+    vkDeviceWaitIdle(app->device);
+    for (uint32_t i = 0; i < app->swapChainImageCount; i++)
+        vkDestroyFramebuffer(app->device, app->swapChainFramebuffers[i], NULL);
+    free(app->swapChainFramebuffers); app->swapChainFramebuffers = NULL;
+    for (uint32_t i = 0; i < app->swapChainImageCount; i++)
+        vkDestroyImageView(app->device, app->swapChainImageViews[i], NULL);
+    free(app->swapChainImageViews); app->swapChainImageViews = NULL;
+    free(app->swapChainImages); app->swapChainImages = NULL;
+    vkDestroySwapchainKHR(app->device, app->swapChain, NULL); app->swapChain = VK_NULL_HANDLE;
+    vkDestroyImageView(app->device, app->colorImageView, NULL);
+    vkDestroyImage(app->device, app->colorImage, NULL);
+    vkFreeMemory(app->device, app->colorImageMemory, NULL);
+    vkDestroyImageView(app->device, app->depthImageView, NULL);
+    vkDestroyImage(app->device, app->depthImage, NULL);
+    vkFreeMemory(app->device, app->depthImageMemory, NULL);
+}
+
+static void createSwapChainResources(VulkanApp* app) {
+    app->swapChainImageViews = malloc(sizeof(VkImageView) * app->swapChainImageCount);
+    for (uint32_t i = 0; i < app->swapChainImageCount; i++)
+        app->swapChainImageViews[i] = createImageView(app->device, app->swapChainImages[i], app->swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    createColorResources(app);
+    createDepthResources(app);
+    app->swapChainFramebuffers = malloc(sizeof(VkFramebuffer) * app->swapChainImageCount);
+    for (uint32_t i = 0; i < app->swapChainImageCount; i++) {
+        VkImageView at[] = {app->colorImageView, app->depthImageView, app->swapChainImageViews[i]};
+        VkFramebufferCreateInfo fi = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, NULL, 0, app->renderPass, 3, at, app->swapChainExtent.width, app->swapChainExtent.height, 1};
+        if (vkCreateFramebuffer(app->device, &fi, NULL, &app->swapChainFramebuffers[i]) != VK_SUCCESS) exit(1);
+    }
+}
+
+void recreateSwapChain(VulkanApp* app) {
+    VkExtent2D extent;
+    if (!pickSwapChainExtent(app, &extent)) return; /* iconified: restore re-fires */
+    if (extent.width == app->swapChainExtent.width && extent.height == app->swapChainExtent.height) return;
+    app->swapChainExtent = extent;
+
+    destroySwapChainResources(app);
+    if (app->gdd) gdd_recreate_size_dependent(app);
+    createSwapChain(app);
+    createSwapChainResources(app);
+}
+
+static void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
+    (void)width; (void)height;
+    VulkanApp* app = (VulkanApp*)glfwGetWindowUserPointer(window);
+    if (!app || app->swapChain == VK_NULL_HANDLE) return; /* still initializing */
+    recreateSwapChain(app);
+}
+
 void drawFrame(VulkanApp* app) {
     vkWaitForFences(app->device, 1, &app->inFlightFences[app->currentFrame], 1, UINT64_MAX);
     uint32_t imgIdx;
@@ -4054,7 +4167,23 @@ void drawFrame(VulkanApp* app) {
                                               100000000ULL, /* 100ms timeout */
                                               app->imageAvailableSemaphores[app->currentFrame],
                                               VK_NULL_HANDLE, &imgIdx);
+    if (acq_res == VK_ERROR_OUT_OF_DATE_KHR) {
+        /* Window resized under us (the framebuffer-size callback may
+           not have fired, or a present raced it): rebuild the
+           swapchain and skip this frame; rendering resumes on the
+           next one. Without this the frame loop would return here
+           forever and the display would freeze. */
+        recreateSwapChain(app);
+    }
     if (acq_res != VK_SUCCESS && acq_res != VK_SUBOPTIMAL_KHR) {
+        /* No work is submitted for this slot: re-signal its fence with
+           an empty submit, or the next use of the slot would wait on
+           it forever and the whole loop would hang. The fence was just
+           waited on (signaled); reset it first (vkQueueSubmit requires
+           an unsignaled fence). */
+        vkResetFences(app->device, 1, &app->inFlightFences[app->currentFrame]);
+        VkSubmitInfo empty = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO };
+        vkQueueSubmit(app->graphicsQueue, 1, &empty, app->inFlightFences[app->currentFrame]);
         return;
     }
     vkResetFences(app->device, 1, &app->inFlightFences[app->currentFrame]);
@@ -4142,14 +4271,31 @@ void drawFrame(VulkanApp* app) {
     
     /* 4. Dynamic FOV: 45.0 (Tactical) -> 65.0 (Bridge) */
     float current_fov = 45.0f * (1.0f - app->bridgeAnim) + 65.0f * app->bridgeAnim;
-    mat4_perspective(current_fov * M_PI / 180.0f, WIDTH/(float)HEIGHT, 0.1f, 1000.0f, ubo.proj); ubo.proj[1][1] *= -1;
+    mat4_perspective(current_fov * M_PI / 180.0f, (float)app->swapChainExtent.width / (float)app->swapChainExtent.height, 0.1f, 1000.0f, ubo.proj); ubo.proj[1][1] *= -1;
     
     void* d; vkMapMemory(app->device, app->uniformBuffersMemory[app->currentFrame], 0, sizeof(ubo), 0, &d); memcpy(d, &ubo, sizeof(ubo)); vkUnmapMemory(app->device, app->uniformBuffersMemory[app->currentFrame]);
     VkPipelineStageFlags w = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO, NULL, 1, &app->imageAvailableSemaphores[app->currentFrame], &w, 1, &app->commandBuffers[app->currentFrame], 1, &app->renderFinishedSemaphores[app->currentFrame]};
-    vkQueueSubmit(app->graphicsQueue, 1, &si, app->inFlightFences[app->currentFrame]);
+    /* No fence on the render submit: vkQueuePresentKHR takes no fence,
+       and the render's fence would signal while the present operation
+       (which consumes renderFinishedSemaphores and the swapchain image)
+       is still pending, so reusing the slot 3 frames later would
+       re-signal the semaphore while the old present still uses it. */
+    vkQueueSubmit(app->graphicsQueue, 1, &si, VK_NULL_HANDLE);
     VkSwapchainKHR sw = app->swapChain; VkPresentInfoKHR pi = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, NULL, 1, &app->renderFinishedSemaphores[app->currentFrame], 1, &sw, &imgIdx, NULL};
-    vkQueuePresentKHR(app->graphicsQueue, &pi);
+    VkResult pres_res = vkQueuePresentKHR(app->graphicsQueue, &pi);
+    /* Queue ops run in order: this empty submit (and its fence)
+       completes only once the PRESENT is done, so the slot can be
+       reused 3 frames later without racing the present. */
+    {
+        VkSubmitInfo empty = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO };
+        vkQueueSubmit(app->graphicsQueue, 1, &empty, app->inFlightFences[app->currentFrame]);
+    }
+    if (pres_res == VK_ERROR_OUT_OF_DATE_KHR) {
+        /* Present raced a resize: rebuild now; the next frame acquires
+           from the new swapchain. */
+        recreateSwapChain(app);
+    }
     app->currentFrame = (app->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
     /* Frame limiter: cap at ~144fps to avoid saturating the CPU on MAILBOX/IMMEDIATE present */
@@ -4762,11 +4908,12 @@ void createStarfield(VulkanApp* app) {
 void initVulkan(VulkanApp* app) {
     createInstance(app); if (glfwCreateWindowSurface(app->instance, app->window, NULL, &app->surface) != VK_SUCCESS) exit(1);
     pickPhysicalDevice(app); createLogicalDevice(app); createSwapChain(app);
-    app->swapChainImageViews = malloc(sizeof(VkImageView)*app->swapChainImageCount); for(uint32_t i=0; i<app->swapChainImageCount; i++) app->swapChainImageViews[i] = createImageView(app->device, app->swapChainImages[i], app->swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-    createRenderPass(app); createGraphicsPipeline(app);
-    VkCommandPoolCreateInfo cpInf = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, NULL, 0, 0}; vkCreateCommandPool(app->device, &cpInf, NULL, &app->commandPool);
-    createColorResources(app); createDepthResources(app);
-    app->swapChainFramebuffers = malloc(sizeof(VkFramebuffer)*app->swapChainImageCount); for(size_t i=0; i<app->swapChainImageCount; i++) { VkImageView at[] = {app->colorImageView, app->depthImageView, app->swapChainImageViews[i]}; VkFramebufferCreateInfo fi = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,NULL,0,app->renderPass,3,at,WIDTH,HEIGHT,1}; vkCreateFramebuffer(app->device, &fi, NULL, &app->swapChainFramebuffers[i]); }
+    createRenderPass(app);
+    createSwapChainResources(app); /* swapchain image views, MSAA color/depth, framebuffers */
+    createGraphicsPipeline(app);
+    /* Command buffers are re-recorded every frame (vkResetCommandBuffer),
+       so the pool must allow resetting. */
+    VkCommandPoolCreateInfo cpInf = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, NULL, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, 0}; vkCreateCommandPool(app->device, &cpInf, NULL, &app->commandPool);
     void* d; createBuffer(app, sizeof(vertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->vertexBuffer, &app->vertexBufferMemory); vkMapMemory(app->device, app->vertexBufferMemory, 0, sizeof(vertices), 0, &d); memcpy(d, vertices, sizeof(vertices)); vkUnmapMemory(app->device, app->vertexBufferMemory);
     createBuffer(app, sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->indexBuffer, &app->indexBufferMemory); vkMapMemory(app->device, app->indexBufferMemory, 0, sizeof(indices), 0, &d); memcpy(d, indices, sizeof(indices)); vkUnmapMemory(app->device, app->indexBufferMemory);
     createBuffer(app, sizeof(shipVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->shipVertexBuffer, &app->shipVertexBufferMemory);
@@ -4976,14 +5123,16 @@ void initVulkan(VulkanApp* app) {
 }
 
 void cleanup(VulkanApp* app) {
+    /* Drain all pending submits AND presents first: freeing the GDD
+     * command buffers, destroying the command pool, the semaphores and
+     * the fences below is only valid once nothing is pending on them. */
+    vkDeviceWaitIdle(app->device);
     /* GDD resources first: the per-slot command buffers come from
      * app->commandPool, which is destroyed below. */
     if (app->gdd) gdd_cleanup(app);
     for (int i=0; i<MAX_FRAMES_IN_FLIGHT; i++) { vkDestroySemaphore(app->device, app->renderFinishedSemaphores[i], NULL); vkDestroySemaphore(app->device, app->imageAvailableSemaphores[i], NULL); vkDestroyFence(app->device, app->inFlightFences[i], NULL); }
     vkDestroyCommandPool(app->device, app->commandPool, NULL);
-    vkDestroyImageView(app->device, app->colorImageView, NULL); vkDestroyImage(app->device, app->colorImage, NULL); vkFreeMemory(app->device, app->colorImageMemory, NULL);
-    vkDestroyImageView(app->device, app->depthImageView, NULL); vkDestroyImage(app->device, app->depthImage, NULL); vkFreeMemory(app->device, app->depthImageMemory, NULL);
-    for (uint32_t i=0; i<app->swapChainImageCount; i++) vkDestroyFramebuffer(app->device, app->swapChainFramebuffers[i], NULL);
+    destroySwapChainResources(app);
     vkDestroyPipeline(app->device, app->graphicsPipeline, NULL); 
     vkDestroyPipeline(app->device, app->wireframePipeline, NULL); 
     vkDestroyPipeline(app->device, app->pointPipeline, NULL);
@@ -4991,8 +5140,6 @@ void cleanup(VulkanApp* app) {
     vkDestroyPipeline(app->device, app->alphaPipeline, NULL);
     vkDestroyPipelineLayout(app->device, app->pipelineLayout, NULL); 
     vkDestroyRenderPass(app->device, app->renderPass, NULL);
-    for (uint32_t i=0; i<app->swapChainImageCount; i++) vkDestroyImageView(app->device, app->swapChainImageViews[i], NULL);
-    vkDestroySwapchainKHR(app->device, app->swapChain, NULL);
     vkDestroyBuffer(app->device, app->whIndexBuffer, NULL); vkFreeMemory(app->device, app->whIndexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->whVertexBuffer, NULL); vkFreeMemory(app->device, app->whVertexBufferMemory, NULL);
     for (int cl = 0; cl <= 13; ++cl) {
@@ -5094,6 +5241,11 @@ int main(int argc, char** argv) {
     
     glfwSetWindowUserPointer(app->window, app);
     glfwSetKeyCallback(app->window, key_callback);
+    /* The window is resizable: without this callback a resize leaves
+       the swapchain at its old extent, vkAcquireNextImageKHR returns
+       VK_ERROR_OUT_OF_DATE_KHR on every frame and the display freezes
+       (see recreateSwapChain). */
+    glfwSetFramebufferSizeCallback(app->window, framebufferSizeCallback);
     
     initVulkan(app); 
 

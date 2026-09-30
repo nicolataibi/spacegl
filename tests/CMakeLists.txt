@@ -48,7 +48,26 @@ include_directories(${SG_ROOT}/include)
 # The GPU module links against Vulkan (device-side functions) and, in the
 # contract test, pulls the whole gdd.c TU which also references
 # glfwGetTime (frame path): link GLFW when available, stub it otherwise.
-find_package(Vulkan REQUIRED)
+#
+# Vulkan SDK di default (stessa decisione del progetto principale, vedi
+# ../CMakeLists.txt): SDK locale 1.4.363.0 per build riproducibili. Il
+# loader built-from-source esporta Vulkan::Loader: alias Vulkan::Vulkan.
+# Disable: -DUSE_DEFAULT_VULKAN_SDK=OFF
+set(USE_DEFAULT_VULKAN_SDK ON CACHE BOOL "Use the default local Vulkan SDK")
+set(DEFAULT_VULKAN_SDK "/home/nick/dev/c/vulkan-sdk/1.4.363.0/x86_64"
+    CACHE STRING "Root of the default Vulkan SDK (bin/include/lib/share layout)")
+if(USE_DEFAULT_VULKAN_SDK AND EXISTS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader/lib/cmake/VulkanLoader")
+    find_package(VulkanLoader REQUIRED
+        PATHS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader" NO_DEFAULT_PATH)
+    if(TARGET Vulkan::Loader)
+        target_include_directories(Vulkan::Loader INTERFACE "${DEFAULT_VULKAN_SDK}/include")
+        if(NOT TARGET Vulkan::Vulkan)
+            add_library(Vulkan::Vulkan ALIAS Vulkan::Loader)
+        endif()
+    endif()
+else()
+    find_package(Vulkan REQUIRED)
+endif()
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
     pkg_check_modules(GLFW glfw3)

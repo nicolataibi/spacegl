@@ -2245,6 +2245,35 @@ void gdd_cleanup(VulkanApp *app) {
     free(g);
 }
 
+/* Re-create the extent-dependent GDD resources (the MSAA color/depth
+ * attachments, sized to app->swapChainExtent in gdd_init) after a
+ * window resize. Everything else — compute and scene pipelines
+ * (dynamic viewport/scissor), descriptor pool, per-frame buffer ring
+ * (capacity-sized, see gdd_create_frame_buffers) and the starfield /
+ * planet geometry — is extent-independent and is kept as-is, so no
+ * fallback to the CPU path and no re-roll of the stars. No-op if
+ * app->gdd is NULL. */
+void gdd_recreate_size_dependent(VulkanApp *app) {
+    GddState *g = (GddState *)app->gdd;
+    if (!g) return;
+    VkDevice d = g->device;
+    if (g->colorView != VK_NULL_HANDLE) vkDestroyImageView(d, g->colorView, NULL);
+    if (g->colorImage != VK_NULL_HANDLE) vkDestroyImage(d, g->colorImage, NULL);
+    if (g->colorMemory != VK_NULL_HANDLE) vkFreeMemory(d, g->colorMemory, NULL);
+    g->colorImage = VK_NULL_HANDLE; g->colorView = VK_NULL_HANDLE; g->colorMemory = VK_NULL_HANDLE;
+    if (g->depthView != VK_NULL_HANDLE) vkDestroyImageView(d, g->depthView, NULL);
+    if (g->depthImage != VK_NULL_HANDLE) vkDestroyImage(d, g->depthImage, NULL);
+    if (g->depthMemory != VK_NULL_HANDLE) vkFreeMemory(d, g->depthMemory, NULL);
+    g->depthImage = VK_NULL_HANDLE; g->depthView = VK_NULL_HANDLE; g->depthMemory = VK_NULL_HANDLE;
+    if (!gdd_create_msaa_color_image(g, app) || !gdd_create_depth_image(g, app)) {
+        /* Should not happen: the extent comes from the surface caps of
+         * the same device. If it does, the caller keeps going and the
+         * next frame fails validation instead of crashing here. */
+        fprintf(stderr, "[GDD] failed to resize MSAA attachments to %ux%u\n",
+                (unsigned)app->swapChainExtent.width, (unsigned)app->swapChainExtent.height);
+    }
+}
+
 /* ================================================================== */
 /* ================================================================== */
 /* Part 3: the per-frame pipeline (build -> record -> draw)           */
@@ -2783,8 +2812,7 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
     color_att.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     color_att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     color_att.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; /* transient: only the resolve consumes it */
-    color_att.clearValue.color.float32[3] = 1.0f; /* black background */
-
+    color_att.clearValue.color = (VkClearColorValue){{0,0,0,1}}; /* nero opaco, come la path CPU */
     VkRenderingAttachmentInfo depth_att = { .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
     depth_att.imageView = g->depthView; /* GDD MSAA depth (matches rasterizationSamples) */
     depth_att.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -2885,7 +2913,15 @@ void gdd_draw_frame(VulkanApp *app) {
     VkResult acq = vkAcquireNextImageKHR(app->device, app->swapChain, 100000000ULL,
                                          app->imageAvailableSemaphores[slot],
                                          VK_NULL_HANDLE, &imgIdx);
+    if (acq == VK_ERROR_OUT_OF_DATE_KHR) {
+        /* Window resized under us: rebuild the swapchain (backstop for
+         * the framebuffer-size callback) and skip this frame. */
+        recreateSwapChain(app);
+    }
     if (acq != VK_SUCCESS && acq != VK_SUBOPTIMAL_KHR) {
+        /* The fence was just waited on (signaled); reset it first
+         * (vkQueueSubmit requires an unsignaled fence). */
+        vkResetFences(app->device, 1, &app->inFlightFences[slot]);
         VkSubmitInfo empty = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO };
         vkQueueSubmit(app->graphicsQueue, 1, &empty, app->inFlightFences[slot]);
         g->current_frame = (slot + 1) % GDD_MAX_FRAMES;
@@ -2908,7 +2944,10 @@ void gdd_draw_frame(VulkanApp *app) {
                         .pCommandBuffers = &f->cmd,
                         .signalSemaphoreCount = 1,
                         .pSignalSemaphores = &app->renderFinishedSemaphores[slot] };
-    vkQueueSubmit(app->graphicsQueue, 1, &si, app->inFlightFences[slot]);
+    /* No fence on the render submit: vkQueuePresentKHR takes no fence,
+     * and the render's fence would signal while the present op is
+     * still pending, racing the next use of this slot. */
+    vkQueueSubmit(app->graphicsQueue, 1, &si, VK_NULL_HANDLE);
 
     VkPresentInfoKHR pi = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
                             .waitSemaphoreCount = 1,
@@ -2917,8 +2956,15 @@ void gdd_draw_frame(VulkanApp *app) {
                             .pSwapchains = &app->swapChain,
                             .pImageIndices = &imgIdx };
     VkResult pres = vkQueuePresentKHR(app->graphicsQueue, &pi);
-    if (pres != VK_SUCCESS && pres != VK_SUBOPTIMAL_KHR &&
-        pres != VK_ERROR_OUT_OF_DATE_KHR) {
+    /* Queue ops run in order: this empty submit (and its fence)
+     * completes only once the PRESENT is done. */
+    {
+        VkSubmitInfo empty = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO };
+        vkQueueSubmit(app->graphicsQueue, 1, &empty, app->inFlightFences[slot]);
+    }
+    if (pres == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapChain(app);
+    } else if (pres != VK_SUCCESS && pres != VK_SUBOPTIMAL_KHR) {
         fprintf(stderr, "[GDD] vkQueuePresentKHR failed: %d\n", (int)pres);
     }
 

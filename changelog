@@ -1,3 +1,100 @@
+* Wed Sep 30 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.30.01
+  - spacegl_vulkan: follow-up to the 2026.09.29.05 resize fix — the
+    CPU-driven path rendered nothing and the frame pacing was not
+    spec-clean; both audited with the Khronos validation layer
+    (VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation) on Intel Arc.
+    (1) CPU-driven black screen: the resize fix moved the five CPU
+    pipelines to dynamic viewport/scissor with viewportCount/
+    scissorCount = 0, which is only legal with the
+    VK_DYNAMIC_STATE_*_WITH_COUNT variants
+    (VUID-...-viewportCount-04135 / scissorCount-04136); with classic
+    dynamic state the counts stay 1 and only the VALUES are updated
+    per frame (vkCmdSetViewport/vkCmdSetScissor in recordCommandBuffer)
+    — the initial pipeline values are placeholders, exactly like the
+    GDD scene pipeline that already worked. (2) In-flight fence:
+    vkQueuePresentKHR takes no fence, and the old fence-on-render-
+    submit signaled while the present operation was still consuming
+    the slot's renderFinished semaphore and swapchain image, so the
+    3-frame-later reuse re-signaled it mid-use (VUID-vkQueueSubmit-
+    pSignalSemaphores-00067); the fence now rides an empty submit
+    issued AFTER the present (queue ops run in order, so it signals
+    only once the present is done) — on BOTH the CPU drawFrame and
+    the GDD gdd_draw_frame. (3) CPU drawFrame early-exit (acquire
+    timeout/failure) now resets the slot fence and re-signals it with
+    an empty submit: before, that path left the fence unsignaled and
+    the next use of the slot waited in vkWaitForFences forever — a
+    hard deadlock of the whole loop (GDD already had this); the reset
+    is required because vkQueueSubmit wants an unsignaled fence. (4)
+    VK_ERROR_OUT_OF_DATE_KHR on PRESENT (a present can race the resize
+    callback) now triggers recreateSwapChain() on both paths. (5)
+    The command pool is created with
+    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT: the command
+    buffers are re-recorded every frame (VUID-vkResetCommandBuffer-
+    commandBuffer-00046, hit every frame). (6) cleanup() starts with
+    vkDeviceWaitIdle, draining pending submits AND presents before
+    freeing the GDD command buffers, destroying the pool, the
+    semaphores and the fences (VUID-vkDestroyCommandPool-commandPool-
+    00041, vkDestroyFence-fence-01120, vkDestroySemaphore-
+    semaphore-05149). (7) The swapchain minImageCount now respects
+    VkSurfaceCapabilitiesKHR (this driver reports 3; the hardcoded 2
+    violated VUID-VkSwapchainCreateInfoKHR-presentMode-02839). (8)
+    sampleShadingEnable is now VK_FALSE: the sampleRateShading device
+    feature is not enabled and the shaders do not use SRA (VUID-
+    VkPipelineMultisampleStateCreateInfo-sampleShadingEnable-00784).
+    All the VUIDs above are the ones the layer reported in a pre-fix
+    run. Post-fix smoke test: the CPU-driven and the GDD
+    (SPACEGL_GPD=1) paths both render, resize cleanly and exit
+    through cleanup().
+
+* Wed Sep 30 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.30.00
+  - Build: the default Vulkan SDK is now the local 1.4.363.0
+    (/home/nick/dev/c/vulkan-sdk/1.4.363.0/x86_64), per project
+    decision, instead of the system one — reproducible builds from a
+    single SDK (headers, loader and glslc). CMakeLists.txt (main
+    project AND the self-contained tests project) set
+    USE_DEFAULT_VULKAN_SDK (default ON) + DEFAULT_VULKAN_SDK and, when
+    the SDK is present, run find_package(VulkanLoader) on its
+    lib/VulkanLoader config (NO_DEFAULT_PATH), point the imported
+    target's INTERFACE include dirs at the SDK headers, and expose it
+    as an ALIAS Vulkan::Vulkan (the from-source loader exports
+    Vulkan::Loader, not the official name) so targets/tests keep
+    linking Vulkan::Vulkan; glslc resolution gets the SDK bin as a
+    HINT (searched before PATH). System SDK fallback when the default
+    is missing or -DUSE_DEFAULT_VULKAN_SDK=OFF. Side effect fixed in
+    tests: gdd_contract_test.c now stubs recreateSwapChain (the
+    device-side resize entry point lives in spacegl_vulkan.c, which
+    the contract test does not link — same pattern as the existing
+    glfwGetTime stub).
+
+* Tue Sep 29 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.29.05
+  - spacegl_vulkan: resizing the window no longer freezes the display.
+    createSwapChain() hardcoded the extent to {1920,1080}
+    (WIDTH/HEIGHT) and no glfwSetFramebufferSizeCallback existed, so
+    after any resize vkAcquireNextImageKHR started returning
+    VK_ERROR_OUT_OF_DATE_KHR, drawFrame()/gdd_draw_frame() early-
+    returned on every frame and the window stayed black and frozen
+    until exit (handling VK_SUBOPTIMAL_KHR alone is not enough: an
+    extent mismatch is exactly the OUT_OF_DATE case). Fix, keeping
+    the window resizable: (1) the extent now follows the live window
+    size, clamped to VkSurfaceCapabilitiesKHR (pickSwapChainExtent);
+    (2) a new glfwSetFramebufferSizeCallback triggers
+    recreateSwapChain(), which rebuilds only the extent-dependent
+    resources — swapchain, its image views, the MSAA color/depth
+    attachments, the framebuffers, and the GDD MSAA attachments via
+    the new gdd_recreate_size_dependent() — while the pipelines
+    survive as-is, because viewport/scissor became dynamic on the
+    five CPU pipelines (set per frame from the live extent in
+    recordCommandBuffer) and the projection aspect now reads
+    app->swapChainExtent instead of WIDTH/HEIGHT; (3) as a backstop,
+    VK_ERROR_OUT_OF_DATE_KHR on acquire (both the CPU drawFrame and
+    the GDD gdd_draw_frame, which re-signals its slot fence with an
+    empty submit to keep the triple-buffer invariant) now triggers
+    recreateSwapChain() and skips the frame, so the loop self-heals
+    even if the resize callback is missed.
+
+* Tue Sep 29 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.29.04
+  - Minor changes.
+
 * Tue Sep 29 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.29.03
   - Server security: PacketMessage.length is now validated on the server
   side (remote DoS fix). The PKT_MESSAGE parser (spacegl_server.c) only
