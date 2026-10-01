@@ -1,3 +1,28 @@
+* Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.02
+  - Client security: fixed an out-of-bounds write into the static update
+    state in the PKT_UPDATE_DELTA parser (src/spacegl_client.c, audit item
+    B3: network counts used as read_all() lengths without clamp). The
+    delta path fed the raw wire values straight into the two
+    variable-length reads into the static PacketUpdate current_state
+    (~173 KB): the UPD_OBJECTS block did
+    read_all(sock, current_state.objects, oc * sizeof(NetObject)) with oc
+    an unvalidated network int32_t, and the UPD_COMBAT block did
+    read_all(sock, current_state.beams, bc * sizeof(NetBeam)) with bc
+    equally unvalidated — while the full PKT_UPDATE path already clamps
+    object_count before its read. current_state.objects is
+    NetObject[MAX_NET_OBJECTS] (1024) and current_state.beams is
+    NetBeam[MAX_NET_BEAMS] (64), so a sick or hostile server answering
+    with oc = 2000 wrote ~165 KB past the end of the object array into
+    the static state (and bc > 64 overflowed the beam array the same
+    way). Fix: clamp oc to [0, MAX_NET_OBJECTS] and bc to
+    [0, MAX_NET_BEAMS] right after the length read and before the
+    read_all, with the same negative-value handling the full PKT_UPDATE
+    path (and the LRS path) already uses; no behavior change for
+    legitimate traffic (a well-behaved server never reports more than
+    its own arrays). Verified: clean rebuild of the client target (C23,
+    -Wall -Wextra -Wpedantic, no new warnings). Smoke test: pending
+    (run by the user).
+
 * Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.01
   - Server security: fixed an out-of-bounds key-table read in the fleet
     (Level A) decryption path of broadcast_message() (src/server/net.c,

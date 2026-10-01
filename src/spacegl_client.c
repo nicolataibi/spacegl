@@ -928,6 +928,15 @@ void *network_listener(void *arg) {
                     current_state.current_tube = b.current_tube; current_state.ion_beam_charge = b.ion_beam_charge;
                     current_pkt_size += sizeof(b);
                     int32_t bc; read_all(sock, &bc, sizeof(int32_t)); current_pkt_size += sizeof(int32_t);
+                    /* === FIX (audit B3): bc is raw wire data that was used
+                     * directly as the length of read_all() into the static
+                     * current_state.beams[MAX_NET_BEAMS]; a sick or hostile
+                     * server with bc > 64 overflowed the static state
+                     * (173 KB). Clamp to [0, MAX_NET_BEAMS] before the
+                     * read_all, exactly like the full PKT_UPDATE path does
+                     * for object_count (negative values included). === */
+                    if (bc < 0) bc = 0;
+                    if (bc > MAX_NET_BEAMS) bc = MAX_NET_BEAMS;
                     current_state.beam_count = bc;
                     if (bc > 0) {
                         read_all(sock, current_state.beams, bc * sizeof(NetBeam));
@@ -977,6 +986,16 @@ void *network_listener(void *arg) {
                         break;
                     }
                     current_pkt_size += sizeof(int32_t);
+                    /* === FIX (audit B3): oc is raw wire data that was used
+                     * directly as the length of read_all() into the static
+                     * current_state.objects[MAX_NET_OBJECTS]; a sick or
+                     * hostile server with oc > 1024 (e.g. oc = 2000) wrote
+                     * ~165 KB past the array into the static state. Clamp
+                     * to [0, MAX_NET_OBJECTS] before the read_all, exactly
+                     * like the full PKT_UPDATE path does (negative values
+                     * included). === */
+                    if (oc < 0) oc = 0;
+                    if (oc > MAX_NET_OBJECTS) oc = MAX_NET_OBJECTS;
                     current_state.object_count = oc;
                     if (oc > 0) {
                         int r_ob = read_all(sock, current_state.objects, oc * sizeof(NetObject));
