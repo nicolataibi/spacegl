@@ -1,3 +1,29 @@
+* Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.01
+  - Server security: fixed an out-of-bounds key-table read in the fleet
+    (Level A) decryption path of broadcast_message() (src/server/net.c,
+    audit item B2: crypto_algo as an index without range check).
+    msg->crypto_algo is a network uint8_t (0..255) while
+    players[].algo_keys has only MAX_CRYPTO_ALGOS + 1 (22) rows: the
+    decryption key was taken as players[sender_idx].algo_keys[algo]
+    with the raw wire value. The range guard already existed in
+    ensure_player_algo_key() (src/spacegl_server.c: k < 1 || k >
+    MAX_CRYPTO_ALGOS -> return), but its result was ignored by the
+    caller — after the no-op return the unvalidated index was used a
+    few lines below, so a client (even a buggy one) sending a fleet
+    message (is_encrypted=0x01, no private/peer/exclusive bit) with
+    crypto_algo = 22..255 made the server read past the per-player key
+    table and hand that out-of-bounds pointer to EVP_DecryptInit_ex: a
+    remotely range-controlled heap over-read. The other two key lookups
+    of the same file were already correct (the adaptive relay and
+    send_server_msg both check 1..MAX_CRYPTO_ALGOS before indexing).
+    Fix: the same guard at the fleet site, with the same out-of-range
+    fallback those paths use (session key) — a bogus algorithm now
+    simply fails the GCM tag check and the message is dropped with the
+    usual “Frequency parity failure” reply; no connection drop, no
+    behavior change for legitimate traffic (algorithms 1..21).
+    Verified: clean rebuild of the server target (C23, -Wall -Wextra
+    -Wpedantic, no new warnings). Smoke test: pending (run by the user).
+
 * Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.00
   - spacegl_3dview: resizing the window no longer crops/compresses the scene
     and no longer desyncs the HUD (same resolution as the 2026.09.30.01

@@ -159,7 +159,16 @@ void broadcast_message(PacketMessage *msg) {
             else if (algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
             else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
 
-            uint8_t *k = players[sender_idx].algo_keys[algo];
+            /* RANGE CHECK: msg->crypto_algo is a network uint8_t (0..255) but
+               algo_keys has only MAX_CRYPTO_ALGOS + 1 rows — an out-of-range
+               value (22..255, or 0 = CRYPTO_NONE) would read past the array.
+               Same 1..MAX guard as the adaptive relay / send_server_msg paths
+               (ensure_player_algo_key above already no-ops these values, its
+               result was ignored). Fallback key: tag check then fails and the
+               message is dropped with a parity error. */
+            uint8_t *k = (algo >= 1 && algo <= MAX_CRYPTO_ALGOS) ?
+                             players[sender_idx].algo_keys[algo] :
+                             players[sender_idx].session_key;
             EVP_DecryptInit_ex(ctx, cipher, NULL, NULL, NULL);
             if (is_gcm) EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
             EVP_DecryptInit_ex(ctx, NULL, NULL, k, msg->iv);
