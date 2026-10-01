@@ -1,3 +1,54 @@
+* Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.04
+  - Client/Server radio: fixed the fleet (Level A, is_encrypted=0x01)
+    messages lost on 15 of the 19 tunable ciphers (audit item B5:
+    divergent cipher tables, the server knew only 4 of the 19). The
+    client encrypted the rad messages with 19 ciphers (the full table
+    in encrypt_payload() and in the PKT_MESSAGE receive path of
+    src/spacegl_client.c), but the server fleet decryption in
+    broadcast_message() (src/server/net.c) had a 4-slot table
+    (AES-256-GCM, CHACHA20-POLY1305, ARIA-256-GCM, CAMELLIA-256-CTR)
+    and resolved every other slot (enc seed, enc cast, enc rc4, ...)
+    to AES-256-GCM no matter what the packet's crypto_algo said: the
+    GCM tag check always failed, the message was dropped with
+    "Frequency parity failure" and — the fleet path decrypts before
+    relaying — it was not delivered to anyone, not even back to the
+    sender. A fourth divergent copy of the same 4-slot table also
+    lived in the server's own encrypt_payload() (adaptive relay
+    re-encryption and send_server_msg): even a successfully decrypted
+    fleet message was re-encrypted to a non-core recipient with
+    AES-256-GCM while labeled with the recipient's slot: undecryptable
+    on the client. Fix: the cipher table is now ONE shared
+    client/server lookup — radio_cipher_for_algo() in
+    include/radio_crypto.h — used by all four sites (client encrypt,
+    client decrypt, server fleet decrypt, server encrypt), so the
+    wire slot and the cipher agree on every endpoint by construction.
+    Decision for the table contents: only the four modern ciphers are
+    implemented (CRYPTO_AES -> AES-256-GCM, CRYPTO_CHACHA ->
+    CHACHA20-POLY1305, CRYPTO_ARIA -> ARIA-256-GCM, CRYPTO_CAMELLIA
+    -> CAMELLIA-256-CTR); every other slot (SEED, CAST5, IDEA, 3DES,
+    BLOWFISH, RC4, DES, the post-quantum-named slots 12-19, SM4, GOST,
+    SALSA, and any 0 / 22..255 wire value) is a fixed alias of
+    AES-256-GCM, the strongest of the four — no legacy/weak cipher is
+    ever used on the wire. The fixed mapping also removes the
+    environment dependence of the old tables: in this OpenSSL (3.x)
+    the legacy ciphers exist only in the "legacy" provider that the
+    system configuration deliberately leaves unloaded (the EVP_*
+    constructors still return non-NULL while EVP_EncryptInit fails at
+    runtime, so the old "!cipher" fallback could not detect the gap),
+    and the name-based lookups SM4-CBC / GOST-KUZNYECHIK are absent
+    from the build — a slot->cipher mapping that depends on the local
+    OpenSSL state is exactly the divergence that caused B5. Verified:
+    clean rebuild of both targets (C23, -Wall -Wextra -Wpedantic, no
+    new warnings) and of the test unit; new unit test
+    tests/crypto_table_test (ctest crypto_table) pins the contract:
+    every slot 1..21 (plus 0/22/255) resolves to a cipher, the four
+    modern slots keep their cipher and AEAD flag, every other slot is
+    the AES-256-GCM alias, the client-encrypt -> server-decrypt
+    round-trip (16-byte IV, 16-byte GCM tag when AEAD) succeeds on
+    ALL slots while a wrong key never passes, and the four
+    frequencies that already worked keep their exact pre-fix
+    resolution. Smoke test: pending (run by the user).
+
 * Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.03
   - Client/Server security: fixed the CBC padding bound in
     encrypt_payload() (both copies: src/server/net.c and

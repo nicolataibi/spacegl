@@ -43,6 +43,7 @@ const char* get_lrs_object_name(int id);
 #include <openssl/provider.h>
 #include <netdb.h>
 #include "network.h"
+#include "radio_crypto.h"
 #include "sglog.h"
 
 /* Pre-Shared DeepSpace Encryption Key (Loaded from ENV) */
@@ -258,37 +259,13 @@ int encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *ke
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     RAND_bytes(msg->iv, 16); 
     
-    const EVP_CIPHER *cipher;
+    /* B5: single shared client/server cipher table (radio_crypto.h):
+       the slot must resolve to the same cipher on every endpoint or
+       the message is lost in transit (see the header for the history
+       of the divergent tables and the experimental aliases). */
     int is_gcm = 0;
+    const EVP_CIPHER *cipher = radio_cipher_for_algo(msg->crypto_algo, &is_gcm);
 
-    /* NOTE: the post-quantum-named slots (CRYPTO_PQC, CRYPTO_MCELIECE,
-       CRYPTO_DILITHIUM, CRYPTO_SERPENT, CRYPTO_TWOFISH, CRYPTO_ASCON,
-       CRYPTO_PRESENT) are EXPERIMENTAL ALIASES implemented as AES-256-GCM.
-       No genuine post-quantum primitive is used in this build. */
-    if (msg->crypto_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_MCELIECE) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_DILITHIUM) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_SERPENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_TWOFISH) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_SM4) { cipher = EVP_get_cipherbyname("SM4-CBC"); is_gcm = 0; }
-    else if (msg->crypto_algo == CRYPTO_ASCON) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_PRESENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_GOST) { cipher = EVP_get_cipherbyname("GOST-KUZNYECHIK"); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_SALSA) { cipher = EVP_get_cipherbyname("chacha20"); is_gcm = 0; }
-    else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    
-    if (!cipher) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    
     /* B4: the ciphertext is written into msg->text (65536 bytes) and the
        wire length is re-validated as [0, 65535] at both endpoints (see
        packet_message_length_valid), so the output must stay <= 65535.
@@ -660,8 +637,9 @@ void *network_listener(void *arg) {
 
                     if (is_system_msg || is_private || is_peer) decryption_algo = msg->crypto_algo;
                     /* NOTE: post-quantum-named slots (12-19, 21) are
-                       EXPERIMENTAL ALIASES mapped to AES-256-GCM below; no
-                       genuine post-quantum primitive is used in this build. */
+                       EXPERIMENTAL ALIASES mapped to AES-256-GCM by the
+                       shared table below (radio_crypto.h); no genuine
+                       post-quantum primitive is used in this build. */
                     if (decryption_algo != CRYPTO_NONE) {
                        uint8_t *k = deep_space_key;
                        uint8_t derived_k[32];
@@ -700,32 +678,11 @@ void *network_listener(void *arg) {
                        } else {
                            EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 
-                       const EVP_CIPHER *cipher;
+                       /* B5: the same shared table as the encrypt path
+                          (radio_crypto.h) — the slot resolves to the
+                          cipher the sender actually used. */
                        int is_gcm = 0;
-
-                       if (decryption_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
-                       else if (decryption_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
-                       else if (decryption_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
-                       else if (decryption_algo == CRYPTO_SEED) { cipher = EVP_seed_cbc(); is_gcm = 0; }
-                       else if (decryption_algo == CRYPTO_CAST5) { cipher = EVP_cast5_cbc(); is_gcm = 0; }
-                       else if (decryption_algo == CRYPTO_IDEA) { cipher = EVP_idea_cbc(); is_gcm = 0; }
-                       else if (decryption_algo == CRYPTO_3DES) { cipher = EVP_des_ede3_cbc(); is_gcm = 0; }
-                       else if (decryption_algo == CRYPTO_BLOWFISH) { cipher = EVP_bf_cbc(); is_gcm = 0; }
-                       else if (decryption_algo == CRYPTO_RC4) { cipher = EVP_rc4(); is_gcm = 0; }
-                       else if (decryption_algo == CRYPTO_DES) { cipher = EVP_des_cbc(); is_gcm = 0; }
-                       else if (decryption_algo == CRYPTO_PQC) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-                       else if (decryption_algo == CRYPTO_MCELIECE) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-                       else if (decryption_algo == CRYPTO_DILITHIUM) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-                       else if (decryption_algo == CRYPTO_SERPENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-                       else if (decryption_algo == CRYPTO_TWOFISH) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-                       else if (decryption_algo == CRYPTO_SM4) { cipher = EVP_get_cipherbyname("SM4-CBC"); is_gcm = 0; }
-                       else if (decryption_algo == CRYPTO_ASCON) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-                       else if (decryption_algo == CRYPTO_PRESENT) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-                       else if (decryption_algo == CRYPTO_GOST) { cipher = EVP_get_cipherbyname("GOST-KUZNYECHIK"); is_gcm = 1; }
-                       else if (decryption_algo == CRYPTO_SALSA) { cipher = EVP_get_cipherbyname("chacha20"); is_gcm = 0; }
-                       else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-
-                       if (!cipher) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+                       const EVP_CIPHER *cipher = radio_cipher_for_algo(decryption_algo, &is_gcm);
 
                         EVP_DecryptInit_ex(ctx, cipher, NULL, NULL, NULL);
                         if (is_gcm) {

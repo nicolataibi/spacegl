@@ -28,6 +28,7 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include "network.h"
+#include "radio_crypto.h"
 #include "server_internal.h"
 
 extern uint8_t deep_space_key[32];
@@ -63,19 +64,18 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     RAND_bytes(msg->iv, 16); 
     
-    const EVP_CIPHER *cipher;
+    /* B5: single shared client/server cipher table (radio_crypto.h):
+       the slot must resolve to the same cipher on every endpoint or
+       the message is lost in transit. Before this table was shared,
+       this copy knew only 4 slots (AES-256-GCM, CHACHA20-POLY1305,
+       ARIA-256-GCM, CAMELLIA-256-CTR), so the adaptive relay
+       re-encrypted a decrypted fleet message to a non-core recipient
+       with AES-256-GCM while labeling it with the recipient's slot:
+       undecryptable on the client. See the header for the full
+       history and the experimental aliases. */
     int is_gcm = 0;
+    const EVP_CIPHER *cipher = radio_cipher_for_algo(msg->crypto_algo, &is_gcm);
 
-    /* NOTE: the post-quantum-named slots (12-19, 21) are EXPERIMENTAL ALIASES:
-       they fall through to AES-256-GCM below. No genuine post-quantum
-       primitive is used in this build. */
-    if (msg->crypto_algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
-    else if (msg->crypto_algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
-    else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    
-    if (!cipher) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
-    
     /* B4: the ciphertext is written into msg->text (65536 bytes) and the
        wire length is re-validated as [0, 65535] at both endpoints (see
        packet_message_length_valid), so the output must stay <= 65535.
@@ -180,16 +180,18 @@ void broadcast_message(PacketMessage *msg) {
         } else {
             /* Level A (Fleet): Server must decrypt to allow cross-algorithm talk and cleartext fallback */
             EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-            const EVP_CIPHER *cipher;
-            int is_gcm = 0;
             int algo = msg->crypto_algo;
             
             ensure_player_algo_key(sender_idx, algo, false);
 
-            if (algo == CRYPTO_CHACHA) { cipher = EVP_chacha20_poly1305(); is_gcm = 1; }
-            else if (algo == CRYPTO_ARIA) { cipher = EVP_aria_256_gcm(); is_gcm = 1; }
-            else if (algo == CRYPTO_CAMELLIA) { cipher = EVP_camellia_256_ctr(); is_gcm = 0; }
-            else { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
+            /* B5: the shared client/server cipher table (radio_crypto.h).
+               Before this was shared, this copy knew only 4 slots and
+               resolved every other one (enc seed, enc cast, enc rc4, ...)
+               to AES-256-GCM: the tag check failed and the fleet message
+               died here with "Frequency parity failure", never delivered
+               even to the sender. */
+            int is_gcm = 0;
+            const EVP_CIPHER *cipher = radio_cipher_for_algo(algo, &is_gcm);
 
             /* RANGE CHECK: msg->crypto_algo is a network uint8_t (0..255) but
                algo_keys has only MAX_CRYPTO_ALGOS + 1 rows — an out-of-range

@@ -45,6 +45,11 @@ set(SG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 include_directories(${SG_ROOT}/include)
 
+# The crypto-table contract test exercises the shared radio cipher
+# lookup (include/radio_crypto.h), which is OpenSSL-based like the
+# production code that includes it.
+find_package(OpenSSL REQUIRED)
+
 # The GPU module links against Vulkan (device-side functions) and, in the
 # contract test, pulls the whole gdd.c TU which also references
 # glfwGetTime (frame path): link GLFW when available, stub it otherwise.
@@ -139,3 +144,18 @@ add_test(NAME quad_index COMMAND quad_index_test)
 # attack values.
 add_executable(pkt_length_test pkt_length_test.c)
 add_test(NAME pkt_length COMMAND pkt_length_test)
+
+# --- Protocol contract: radio cipher table (audit item B5: fleet
+# messages lost on 15 of 19 frequencies) ---------------------------
+# The client encrypts fleet (0x01) messages with every tunable cipher
+# while the server fleet-decrypt path knew only 4 of them, so a
+# message on any other frequency died with "Frequency parity failure"
+# without ever being delivered. The table is now ONE shared
+# client/server lookup (include/radio_crypto.h, included by both
+# endpoints); this test pins its contract: every slot resolves,
+# each slot keeps the cipher/AEAD flag the client always used, the
+# client-encrypt -> server-decrypt round-trip succeeds on ALL slots,
+# and a wrong key never passes.
+add_executable(crypto_table_test crypto_table_test.c)
+target_link_libraries(crypto_table_test PRIVATE OpenSSL::Crypto)
+add_test(NAME crypto_table COMMAND crypto_table_test)
