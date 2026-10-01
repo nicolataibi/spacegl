@@ -50,6 +50,12 @@ void glutWireTeapot(double size);
 /* Text functions */
 void glutBitmapCharacter(void* font, int character);
 
+/* Bitmap glyph edge in window pixels (default: the native 8 px font size).
+ * glBitmap draws in window-pixel units regardless of the current transform,
+ * so callers that scale their HUD coordinate space on resize (spacegl_3dview)
+ * set this to keep the text in sync with the scaled geometry. */
+void glutBitmapTextSize(int px);
+
 /* Utility functions */
 int glutGet(int state);
 void glutSwapBuffers(void);

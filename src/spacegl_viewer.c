@@ -703,7 +703,7 @@ int main(int argc, char *argv[]) {
         printf("--- GALAXY LOCALIZATION REPORT ---\n");
         printf("%-10s %-8s %-15s %-12s %s\n", "TYPE", "ID", "COORD", "FACTION", "NAME/INFO");
         
-        int counts[40] = {0};
+        int counts[71] = {0}; /* 71 object categories, indices 0..70 (CMB) */
 
         for(int i=0; i<MAX_CLIENTS; i++) if(players[i].name[0] != '\0') {
             printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "PLAYER", i, players[i].state.q1, players[i].state.q2, players[i].state.q3, get_faction_name(players[i].faction), players[i].name);

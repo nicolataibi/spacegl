@@ -70,6 +70,15 @@ GLuint fbo_pingpong[2] = {0, 0}, tex_pingpong[2] = {0, 0};
 GLuint blurShaderProgram = 0, finalShaderProgram = 0;
 GLuint quadVAO = 0, quadVBO = 0;
 
+/* Live framebuffer size (updated by reshape); the window is resizable, so
+ * everything size-dependent (bloom FBOs, projection aspect, HUD text) must
+ * follow it instead of the TACTICAL_CUBE_W/H macros. */
+int g_fb_w = TACTICAL_CUBE_W;
+int g_fb_h = TACTICAL_CUBE_H;
+
+/* Size the bloom FBO chain was actually allocated at (0 = not created). */
+int bloom_w = 0, bloom_h = 0;
+
 #define MAX_PARTICLES 16384
 typedef struct {
     float x, y, z;
@@ -396,15 +405,18 @@ void initShaders() {
         "    TexCoords = (position + 1.0) / 2.0;\n"
         "}";
 
-    /* BLOOM: Blur Fragment Shader (Two-Pass Gaussian) */
-    char blurFrag[1024];
-    sprintf(blurFrag, "#version 120\n"
+    /* BLOOM: Blur Fragment Shader (Two-Pass Gaussian)
+     * The texel size is a uniform (not baked into the source): the FBOs are
+     * recreated at the live window size on resize, so the kernel offset must
+     * follow without recompiling the program. */
+    const char* blurFrag = "#version 120\n"
         "uniform sampler2D image;\n"
         "uniform bool horizontal;\n"
+        "uniform vec2 texel;\n"
         "varying vec2 TexCoords;\n"
         "void main() {\n"
         "    float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);\n"
-        "    vec2 tex_offset = 1.0 / vec2(%d.0, %d.0);\n"
+        "    vec2 tex_offset = texel;\n"
         "    vec3 result = texture2D(image, TexCoords).rgb * weight[0];\n"
         "    if(horizontal) {\n"
         "        for(int i = 1; i < 5; ++i) {\n"
@@ -418,7 +430,7 @@ void initShaders() {
         "        }\n"
         "    }\n"
         "    gl_FragColor = vec4(result, 1.0);\n"
-        "}", TACTICAL_CUBE_W, TACTICAL_CUBE_H);
+        "}";
 
     /* BLOOM: Final Combination Shader */
     const char* finalFrag = "#version 120\n"
@@ -459,19 +471,36 @@ void renderQuad() {
     glBindVertexArray(0);
 }
 
-void initBloomFBO() {
+static void destroyBloomFBO() {
+    /* Free the whole chain (all handles are 0-safe) and reset the size stamp. */
+    glDeleteFramebuffers(1, &fbo_msaa);
+    glDeleteRenderbuffers(1, &rbo_color_msaa);
+    glDeleteRenderbuffers(1, &rbo_depth_msaa);
+    glDeleteFramebuffers(1, &fbo_scene);
+    glDeleteTextures(1, &tex_scene);
+    glDeleteFramebuffers(2, fbo_pingpong);
+    glDeleteTextures(2, tex_pingpong);
+    fbo_msaa = rbo_color_msaa = rbo_depth_msaa = 0;
+    fbo_scene = tex_scene = 0;
+    fbo_pingpong[0] = fbo_pingpong[1] = tex_pingpong[0] = tex_pingpong[1] = 0;
+    bloom_w = bloom_h = 0;
+}
+
+void initBloomFBO(int w, int h) {
+    /* The chain is size-dependent: w/h are the LIVE framebuffer size, not the
+     * native 1920x1080 (the window is resizable). */
     /* 1. MSAA Framebuffer (Initial Render Target) */
     glGenFramebuffers(1, &fbo_msaa);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo_msaa);
 
     glGenRenderbuffers(1, &rbo_color_msaa);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo_color_msaa);
-    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_RGB16F, TACTICAL_CUBE_W, TACTICAL_CUBE_H);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_RGB16F, w, h);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo_color_msaa);
 
     glGenRenderbuffers(1, &rbo_depth_msaa);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo_depth_msaa);
-    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT, TACTICAL_CUBE_W, TACTICAL_CUBE_H);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT, w, h);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo_depth_msaa);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -483,7 +512,7 @@ void initBloomFBO() {
 
     glGenTextures(1, &tex_scene);
     glBindTexture(GL_TEXTURE_2D, tex_scene);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, TACTICAL_CUBE_W, TACTICAL_CUBE_H, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, w, h, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_scene, 0);
@@ -497,7 +526,7 @@ void initBloomFBO() {
     for (unsigned int i = 0; i < 2; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo_pingpong[i]);
         glBindTexture(GL_TEXTURE_2D, tex_pingpong[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, TACTICAL_CUBE_W, TACTICAL_CUBE_H, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, w, h, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
@@ -507,7 +536,19 @@ void initBloomFBO() {
             printf("[BLOOM] ERROR: PingPong Framebuffer %d not complete!\n", i);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    printf("[BLOOM] FBOs initialized successfully.\n");
+    bloom_w = w;
+    bloom_h = h;
+    printf("[BLOOM] FBOs initialized at %dx%d.\n", w, h);
+}
+
+/* Recreate the bloom chain if it does not match the requested size. Called
+ * from display() as a backstop (reshape() already does this on the resize
+ * callback; this covers the first frame and any coalesced callback). */
+static void ensureBloomFBO(int w, int h) {
+    if (w <= 0 || h <= 0) return;
+    if (bloom_w == w && bloom_h == h) return;
+    destroyBloomFBO();
+    initBloomFBO(w, h);
 }
 
 int shm_fd = -1;
@@ -4678,11 +4719,56 @@ void drawShieldEffect() {
     glPopAttrib();
 }
 
+/* Bitmap font height in window pixels that keeps the text in sync with the
+ * HUD design space (1000x1000 mapped onto the live window): at the native
+ * TACTICAL_CUBE size the glyph is the raw 8 px, elsewhere it scales with the
+ * window height so text and geometry keep the same relative size. */
+static int hudGlyphPx(int h) {
+    int px = (int)(8.0 * (double)h / (double)TACTICAL_CUBE_H + 0.5);
+    if (px < 1) px = 1;       /* glBitmap needs a non-zero size */
+    if (px > 32) px = 32;     /* sanity cap for pathological sizes */
+    return px;
+}
+
+/* The HUD UI pass is laid out in a fixed 1000x1000 design space (see the
+ * coordinates in display()). With a full-window viewport that space is mapped
+ * onto the live framebuffer, so the HUD follows window resizes; the bitmap
+ * font (glBitmap, window-pixel units) is scaled to match via glutBitmapTextSize.
+ * NOTE: hudEnd() MUST be called (also on early-return paths) to keep the
+ * PROJECTION/MODELVIEW stacks balanced. */
+static void hudBegin(void) {
+    glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity();
+    gluOrtho2D(0.0, 1000.0, 0.0, 1000.0);
+    glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
+}
+
+static void hudEnd(void) {
+    glMatrixMode(GL_PROJECTION); glPopMatrix();
+    glMatrixMode(GL_MODELVIEW); glPopMatrix();
+}
+
 void reshape(int w, int h) {
+    if (w <= 0 || h <= 0) return;
+    g_fb_w = w; g_fb_h = h;
     glViewport(0, 0, w, h);
+
+    /* Size-dependent resources must follow the window (same resize
+     * handling as spacegl_vulkan, 2026.09.30.01): the bloom chain is reallocated at
+     * the new size so the MSAA resolve blit covers the whole target, and the
+     * bitmap font is rescaled so HUD text stays in sync with the design
+     * space. display() re-checks via ensureBloomFBO() as a backstop. */
+    if (bloom_w != w || bloom_h != h) {
+        destroyBloomFBO();
+        initBloomFBO(w, h);
+    }
+    glutBitmapTextSize(hudGlyphPx(h));
 }
 
 void display() {
+    /* Backstop: the bloom chain must match the live framebuffer size (the
+     * resize callback does the same; this covers a missed/coalesced event). */
+    ensureBloomFBO(g_fb_w, g_fb_h);
+
     /* 1. BLOOM PASS: Render Scene to Multisampled Buffer */
     if (fbo_msaa != 0) {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo_msaa);
@@ -4695,7 +4781,9 @@ void display() {
     glMatrixMode(GL_PROJECTION); glLoadIdentity();
     /* Dynamic FOV: 45 (Tactical) -> 65 (Bridge) */
     double current_fov = 45.0 * (1.0 - bridge_anim) + 65.0 * bridge_anim;
-    gluPerspective(current_fov, (double)TACTICAL_CUBE_W/TACTICAL_CUBE_H, 0.1, 500); 
+    /* Aspect follows the LIVE window size (the FBO chain was reallocated to
+     * match in reshape/ensureBloomFBO), not the native 1920x1080. */
+    gluPerspective(current_fov, (double)g_fb_w/g_fb_h, 0.1, 500); 
     glMatrixMode(GL_MODELVIEW); glLoadIdentity();
 
     /* Cinematic Camera Transition */
@@ -5202,7 +5290,9 @@ void display() {
     if (fbo_msaa != 0 && fbo_scene != 0) {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo_msaa);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo_scene);
-        glBlitFramebuffer(0, 0, TACTICAL_CUBE_W, TACTICAL_CUBE_H, 0, 0, TACTICAL_CUBE_W, TACTICAL_CUBE_H, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        /* Full-frame blit at the LIVE size (FBOs == viewport after
+           ensureBloomFBO), so nothing is cropped or letterboxed. */
+        glBlitFramebuffer(0, 0, bloom_w, bloom_h, 0, 0, bloom_w, bloom_h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }
 
     /* 3. BLOOM PASS: Blur the Bright Texture (Ping-Pong) */
@@ -5211,6 +5301,9 @@ void display() {
         unsigned int amount = 6;
         glUseProgram(blurShaderProgram);
         glDisable(GL_DEPTH_TEST);
+        /* Gaussian kernel offset in texels of the LIVE-size textures. */
+        glUniform2f(glGetUniformLocation(blurShaderProgram, "texel"),
+                    1.0f / (float)bloom_w, 1.0f / (float)bloom_h);
         for (unsigned int i = 0; i < amount; i++) {
             glBindFramebuffer(GL_FRAMEBUFFER, fbo_pingpong[horizontal]); 
             glUniform1i(glGetUniformLocation(blurShaderProgram, "horizontal"), horizontal);
@@ -5252,7 +5345,7 @@ void display() {
     /* Draw HUD Overlay (Map Mode) */
     if (g_show_hud && map_anim > 0.5) {
         /* Show Map specific text */
-        glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity(); gluOrtho2D(0, 1000, 0, 1000); glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
+        hudBegin();
         glDisable(GL_LIGHTING); glColor3f(0, 1, 1);
         if (g_is_jammed) {
             glColor3f(1, 0, 0);
@@ -5295,10 +5388,13 @@ void display() {
             fy -= 22;
         }
 
-        glMatrixMode(GL_PROJECTION); glPopMatrix(); glMatrixMode(GL_MODELVIEW); glPopMatrix();
+        hudEnd();
     }
 
-    glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity(); gluOrtho2D(0, 1000, 0, 1000); glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
+    /* Main HUD block (1000x1000 design space mapped onto the live window).
+     * Pushed unconditionally: hudEnd() below (and on the early-return path)
+     * keeps the matrix stacks balanced. */
+    hudBegin();
     glDisable(GL_LIGHTING);
 
     char buf[256];    if (g_show_hud && map_anim < 0.5) {
@@ -5925,8 +6021,7 @@ void display() {
     }
     if (g_show_hud && (g_sn_pos.active || sn_val < 0)) {
         /* Supernova Overlay - Centered and prominently Red */
-        glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity(); gluOrtho2D(0, 1000, 0, 1000); 
-        glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
+        hudBegin();
         glDisable(GL_LIGHTING); glDisable(GL_DEPTH_TEST);
         
         int sec = 0;
@@ -5955,17 +6050,18 @@ void display() {
             sprintf(sn_buf, "!!! WARNING: SUPERNOVA DETECTED IN Q-%d-%d-%d: %d SEC !!!", g_sn_q[0], g_sn_q[1], g_sn_q[2], sec);
         } else {
             /* Event likely cleared but grid not yet synced */
-            glMatrixMode(GL_PROJECTION); glPopMatrix(); glMatrixMode(GL_MODELVIEW); glPopMatrix();
+            hudEnd(); /* supernova block */
+            hudEnd(); /* main HUD block (still open: early return) */
             glEnable(GL_DEPTH_TEST); glEnable(GL_LIGHTING);
             return;
         }
         drawText3D(200, 500, 0, sn_buf);
         
         glEnable(GL_DEPTH_TEST); glEnable(GL_LIGHTING);
-        glMatrixMode(GL_PROJECTION); glPopMatrix(); 
-        glMatrixMode(GL_MODELVIEW); glPopMatrix();
+        hudEnd(); /* supernova block */
     }
 
+    hudEnd(); /* main HUD block (opened unconditionally above) */
     glutSwapBuffers();
 }
 
@@ -6326,8 +6422,9 @@ int main(int argc, char** argv) {
         printf("[3D VIEW] GLEW initialized. OpenGL Version: %s\n", glGetString(GL_VERSION));
     }
 
-    /* Initialize Bloom FBOs */
-    initBloomFBO();
+    /* Initialize from the LIVE framebuffer size (may differ from the window
+     * request, e.g. HiDPI): viewport, bloom FBOs and HUD font in one shot. */
+    { int fw, fh; glfwGetFramebufferSize(window, &fw, &fh); reshape(fw, fh); }
 
     /* Initialize Shader Engine */
     initShaders();
@@ -6365,7 +6462,7 @@ int main(int argc, char** argv) {
     initVBOs(); 
     
     glMatrixMode(GL_PROJECTION); 
-    gluPerspective(45, (double)TACTICAL_CUBE_W/TACTICAL_CUBE_H, 1, 500); 
+    gluPerspective(45, (double)g_fb_w/g_fb_h, 1, 500); 
     glMatrixMode(GL_MODELVIEW);
         
     printf("[3D VIEW] Ready. Sending handshake to parent (PID %d).\n", getppid());

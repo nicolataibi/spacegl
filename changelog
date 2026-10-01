@@ -1,3 +1,54 @@
+* Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.00
+  - spacegl_3dview: resizing the window no longer crops/compresses the scene
+    and no longer desyncs the HUD (same resolution as the 2026.09.30.01
+    spacegl_vulkan resize fix: the window stays
+    resizable, every size-dependent resource follows the live framebuffer
+    size instead of the TACTICAL_CUBE_W/H macros; the 5-minute alternative,
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE), was not taken). Before:
+    reshape() only did glViewport(0,0,w,h); the projection aspect was
+    hardcoded 1920/1080 (gluPerspective in display()) and the whole bloom
+    chain (MSAA renderbuffers, scene texture, ping-pong) was allocated once
+    at 1920x1080 with a full-frame glBlitFramebuffer on the same hardcoded
+    size — window > 1080p cropped the scene in a bottom-left rectangle
+    (viewport larger than the render target), window < 1080p compressed it
+    into part of the FBO then stretched it. Fix: (1) new live size state
+    g_fb_w/g_fb_h (initialized from glfwGetFramebufferSize, so HiDPI is
+    covered), updated in reshape(); (2) initBloomFBO(w,h) is now
+    size-parameterized, new destroyBloomFBO(), and the chain is reallocated
+    on resize in reshape() with ensureBloomFBO() re-checking at the top of
+    display() as a backstop (missed/coalesced callback); (3) the MSAA
+    resolve blit and the projection aspect (display() AND main's initial
+    setup) use the live size; (4) the blur shader had the texel offset
+    BAKED INTO THE FRAGMENT SOURCE (sprintf 1.0/vec2(1920.0,1080.0)) — it is
+    now a `texel` uniform set per frame from the live size, so resizes
+    neither need a recompile nor blur with the wrong kernel; (5) HUD: the
+    0..1000 design space fills the live window via the full-window viewport
+    (geometry already followed), but the bitmap font is drawn with glBitmap,
+    which is fixed window-pixel units and did NOT follow — glut_compat.c
+    gains glutBitmapTextSize(px) (nearest-neighbor scaled glBitmap; default
+    8 px = the old behavior, so nothing changes for other consumers) and
+    reshape() sets the glyph size proportional to the window height (8 px at
+    the native 1080p, so the 1920x1080 look is unchanged), keeping text in
+    sync with the scaled HUD geometry; (6) while in there: the main HUD
+    block pushed PROJECTION+MODELVIEW every frame but never popped them
+    (matrix-stack leak, GL_STACK_OVERFLOW from ~frame 32, self-masking only
+    because every block reloaded its matrices) — the three HUD blocks now
+    use hudBegin()/hudEnd() and are balanced on every path, including the
+    supernova early-return. spacegl_viewer.c: the galaxy "list" report
+    counted objects into int counts[40] but indexes go up to 70 (71 object
+    categories, CMB last) — 31 writes past the end of the stack (cppcheck
+    arrayIndex) — now counts[71]. spacegl_client.c: enc3/enc4 dangling
+    pointer — char algo_str[64] was declared inside the if block, but
+    p = algo_str was kept and used after the block ended (the whole
+    strstr(p, ...) algo chain): UB that only worked because the stack slot
+    was not recycled — algo_str is now declared outside the block; the
+    sscanf on that line also got %63s field widths so peer_name/algo_str
+    cannot be overflowed by a long line. Verified: full build clean with
+    -Wall -Wextra -Wpedantic (Vulkan SDK 1.4.363.0, GLFW 3.5.1) and
+    cppcheck 2.22 (114 checkers) no longer reports the arrayIndex
+    (spacegl_viewer.c) nor the lifetime/dangling finding (spacegl_client.c).
+    Smoke test: pending (run by the user).
+
 * Wed Sep 30 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.30.01
   - spacegl_vulkan: follow-up to the 2026.09.29.05 resize fix — the
     CPU-driven path rendered nothing and the frame pacing was not

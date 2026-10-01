@@ -304,23 +304,46 @@ static const unsigned char font8x8[128][8] = {
     [126] = {0x00,0x00,0x3b,0x6e,0x00,0x00,0x00,0x00}, // ~
 };
 
+/* Glyph edge in window pixels (default: the native 8 px font size). */
+static int g_bitmap_glyph_px = 8;
+
+void glutBitmapTextSize(int px) {
+    if (px < 1) px = 1;
+    if (px > 64) px = 64;
+    g_bitmap_glyph_px = px;
+}
+
 void glutBitmapCharacter(void* font, int character) {
     (void)font;
     if (character < 32 || character > 126) return;
     const unsigned char* bitmap = font8x8[character];
-    
-    // glBitmap expects the bitmap to be flipped vertically (bottom-to-top)
-    unsigned char flipped[8];
-    for (int i = 0; i < 8; i++) {
-        flipped[i] = bitmap[7 - i];
-    }
-    
+
     // Set pixel store mode to avoid noise/corruption due to alignment
     glPushAttrib(GL_PIXEL_MODE_BIT);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    
-    // Draw the bitmap and advance the raster position by 8 pixels
-    glBitmap(8, 8, 0, 0, 8, 0, flipped);
-    
+
+    if (g_bitmap_glyph_px == 8) {
+        // glBitmap expects the bitmap to be flipped vertically (bottom-to-top)
+        unsigned char flipped[8];
+        for (int i = 0; i < 8; i++) {
+            flipped[i] = bitmap[7 - i];
+        }
+        // Draw the bitmap and advance the raster position by 8 pixels
+        glBitmap(8, 8, 0, 0, 8, 0, flipped);
+    } else {
+        // glBitmap ignores the current transform and draws in window pixels,
+        // so a scaled HUD resamples the 8x8 glyph here (nearest neighbor) to
+        // the requested pixel size; the raster advance follows the size.
+        unsigned char scaled[64 * 64];
+        int px = g_bitmap_glyph_px;
+        for (int y = 0; y < px; y++) {
+            int src_y = 7 - (y * 8) / px; // destination row 0 = glyph bottom
+            for (int x = 0; x < px; x++) {
+                scaled[y * px + x] = (bitmap[src_y] >> (7 - (x * 8) / px)) & 1;
+            }
+        }
+        glBitmap(px, px, 0, 0, px, 0, scaled);
+    }
+
     glPopAttrib();
 }

@@ -1883,9 +1883,9 @@ int main(int argc, char *argv[]) {
                         bool is_enc4 = (strncmp(g_input_buf, "enc4 ", 5) == 0);
                         const char *p = is_enc2 ? g_input_buf + 5 : ((is_enc3 || is_enc4) ? g_input_buf + 5 : g_input_buf + 4);
                         char peer_name[64] = "";
+                        char algo_str[64] = ""; /* outside the block: p may keep pointing at it past the block (strstr below) */
                         if (is_enc3 || is_enc4) {
-                            char algo_str[64];
-                            if (sscanf(p, "%s %s", peer_name, algo_str) == 2) p = algo_str;
+                            if (sscanf(p, "%63s %63s", peer_name, algo_str) == 2) p = algo_str;
                             else { printf(B_RED "Usage: %s <Peer> <algo>\n" RESET, is_enc3 ? "enc3" : "enc4"); g_input_ptr = 0; g_input_buf[0] = 0; reprint_prompt(); continue; }
                         }
                         if (strstr(p, "aes")) new_algo = CRYPTO_AES;
