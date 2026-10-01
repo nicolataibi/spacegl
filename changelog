@@ -1,3 +1,32 @@
+* Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.05
+  - Vulkan client: fixed a latent out-of-bounds read of the shared-state
+    object array in mainLoop() (src/spacegl_vulkan.c, audit item B8:
+    loop bound MAX_NET_OBJECTS on a MAX_OBJECTS array). The "Detect New
+    Server Frame" block walks the IPC frame handed over by the client
+    (st = shm->buffers[read_index], GameState) with
+    for (o = 0; o < st->object_count && o < MAX_NET_OBJECTS; o++) and
+    indexes st->objects[o] on every iteration — but st->objects is
+    SharedObject[MAX_OBJECTS] (256 slots, shared_state.h) while
+    MAX_NET_OBJECTS is 1024 (game_state.h): had object_count carried a
+    value in (256, 1024], the loop would read up to 768 SharedObject
+    slots past the end of the frame's object array, into the rest of
+    the GameState / SharedIPC mapping, and feed the garbage ids and
+    coordinates straight into the SmoothObj tracker. It is safe today
+    only because the client clamps object_count to MAX_OBJECTS before
+    writing the frame to the SHM (src/spacegl_client.c): a coupling the
+    viewer cannot see, so a modified client — or any other producer of
+    the same SHM layout — that removes or bypasses the clamp turns the
+    loop into a silent OOB read of the shared buffer. The GPU-driven
+    path was already correct: gdd_build_frame() clamps the same count
+    to MAX_OBJECTS before walking the frame (src/spacegl_vulkan_gdd.c).
+    Fix: the loop bound is now MAX_OBJECTS, the size of the array it
+    indexes (the nextObjs[] / smoothObjs[] written in the same loop are
+    MAX_NET_OBJECTS wide, so the tighter bound changes nothing for
+    them); no behavior change for any legitimate frame, which always
+    carries at most MAX_OBJECTS objects. Verified: clean rebuild of the
+    spacegl_vulkan target (C23, -Wall -Wextra -Wpedantic, no new
+    warnings). Smoke test: pending (run by the user).
+
 * Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.04
   - Client/Server radio: fixed the fleet (Level A, is_encrypted=0x01)
     messages lost on 15 of the 19 tunable ciphers (audit item B5:

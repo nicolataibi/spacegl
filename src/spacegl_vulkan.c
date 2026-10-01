@@ -4451,7 +4451,7 @@ void mainLoop(VulkanApp* app) {
                     nextObjs[i].first = true;
                 }
                 
-                for (int o=0; o < st->object_count && o < MAX_NET_OBJECTS; o++) {
+                for (int o=0; o < st->object_count && o < MAX_OBJECTS; o++) {
                     SharedObject* obj = &st->objects[o];
                     if (!obj->active) {
                         continue;
