@@ -1,3 +1,44 @@
+* Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.03
+  - Client/Server security: fixed the CBC padding bound in
+    encrypt_payload() (both copies: src/server/net.c and
+    src/spacegl_client.c, audit item B4: the payload length is accepted
+    up to 65535 while the ciphertext is written into
+    msg->text[65536]). The API accepted any plaintext up to the 65535
+    clamp and fed it straight into EVP_EncryptUpdate/Final with
+    msg->text as the output; with the padding ciphers (the CBC slots
+    SEED, CAST5, IDEA, 3DES, BLOWFISH, DES, SM4) the PKCS padding
+    rounds the output up to a whole block — a full extra block when the
+    plaintext is block-aligned — so a 65520-byte plaintext already
+    yields 65536 bytes of ciphertext: it fills msg->text to the last
+    byte (zero margin — any input beyond the 65535 clamp, e.g. a
+    modified client, would give 65552 bytes of ciphertext and 16 bytes
+    past the buffer) and sets msg->length = 65536, outside the
+    [0, 65535] wire range both endpoints re-validate
+    (packet_message_length_valid, the B1 check): the receiving
+    endpoint aborts the connection, and in the strict
+    peer/private/exclusive relay the oversized packet is forwarded
+    as-is, taking down the target client. Not reachable from the UI
+    (the radio line clamps to 4 KB), but the API allowed it: a modified
+    client tuned to a CBC frequency sending a 65520..65535-byte message
+    produced such a packet, and the server copy exposes the same
+    unbounded write in the adaptive relay (re-encryption per
+    recipient). Fix: right after cipher selection, if the chosen
+    cipher pads (EVP_CIPHER_get_block_size > 1 — the CBC slots; the
+    AEAD/CTR/stream modes keep ciphertext == plaintext length and allow
+    the full 65535) and the exact padded ciphertext length
+    ((len + block) / block * block, computed with the cipher's own
+    block size so it is exact for the 8-byte blocks too) would exceed
+    65535, the payload is rejected: the client copy returns 0 (the
+    send path already treats that as "Encryption failed. Message NOT
+    sent.") and the server copy falls back to cleartext exactly like
+    its existing encryption-failure paths. For the 16-byte CBC slots
+    the bound lands exactly on reject-if-len > 65535 - 16 (max 65519),
+    the 8-byte blocks allow up to 65527. The server cipher table
+    currently resolves everything to AEAD/CTR (output == input), so its
+    guard keeps the API bound exact for the day a CBC slot is added
+    there. Verified: clean rebuild of both targets (C23, -Wall -Wextra
+    -Wpedantic, no new warnings). Smoke test: pending (run by the user).
+
 * Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.02
   - Client security: fixed an out-of-bounds write into the static update
     state in the PKT_UPDATE_DELTA parser (src/spacegl_client.c, audit item

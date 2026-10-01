@@ -289,6 +289,34 @@ int encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *ke
     
     if (!cipher) { cipher = EVP_aes_256_gcm(); is_gcm = 1; }
     
+    /* B4: the ciphertext is written into msg->text (65536 bytes) and the
+       wire length is re-validated as [0, 65535] at both endpoints (see
+       packet_message_length_valid), so the output must stay <= 65535.
+       The PKCS padding of the CBC slots (SEED, CAST5, IDEA, 3DES,
+       BLOWFISH, DES, SM4) rounds the output up to a whole block — and
+       adds a full extra block when the plaintext is block-aligned — so
+       a 65520-byte plaintext already yields 65536 bytes of ciphertext:
+       it fills msg->text to the last byte (zero margin — without the
+       65535 clamp above, 65536 bytes in would give 65552 out and 16
+       bytes past the buffer, e.g. a modified client) and sets
+       msg->length = 65536, outside the validated wire range: the
+       receiving endpoint aborts the connection, and the strict
+       peer/private/exclusive relay forwards the blob as-is, taking
+       down the target client. Reject such payloads (the send path
+       treats a 0 return as "not sent"); the AEAD/CTR/stream modes
+       keep ciphertext == plaintext length and allow the full 65535.
+       padded_len is the exact padded ciphertext length for this cipher
+       (computed with its own block size, so it is exact for the
+       8-byte blocks too). */
+    if (EVP_CIPHER_get_block_size(cipher) > 1) {
+        size_t block = (size_t)EVP_CIPHER_get_block_size(cipher);
+        size_t padded_len = ((size_t)plaintext_len + block) / block * block;
+        if (padded_len > 65535) {
+            EVP_CIPHER_CTX_free(ctx);
+            return 0;
+        }
+    }
+    
     EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL);
     if (is_gcm) {
         EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
