@@ -1913,6 +1913,7 @@ int main(int argc, char *argv[]) {
                         else if (strstr(p, "present")) new_algo = CRYPTO_PRESENT;
                         else if (strstr(p, "gost")) new_algo = CRYPTO_GOST;
                         else if (strstr(p, "salsa")) new_algo = CRYPTO_SALSA;
+                        if (new_algo >= CRYPTO_BLOWFISH && new_algo <= CRYPTO_GOST) { printf("\033[1;33m[Warning] Legacy frequencies might cause mixed-version compatibility issues.\033[0m\n"); }
                         else if (strstr(p, "off")) new_algo = CRYPTO_NONE;
 
                         if (g_shared_state) {

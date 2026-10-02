@@ -1,3 +1,8 @@
+* Fri Oct 02 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.02.03
+  - Core/Client/Server: fixed startup crash on iconified window (B10);
+    added legacy encryption warning (B5); converted read_all to non-blocking
+    epoll loop to prevent app-level DoS; fixed HOWTO.txt entropy documentation.
+
 * Fri Oct 02 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.02.02
   - Core & Vulkan client: changed dismantle_telemetry counters (count
     and vk_rcv_count) to atomic_int to prevent lost updates from concurrent

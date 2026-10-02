@@ -34,10 +34,13 @@
 extern uint8_t deep_space_key[32];
 extern void ensure_player_algo_key(int p_idx, int k, bool private_mode);
 
+#include <poll.h>
 int read_all(int fd, void *buf, size_t len) {
     size_t total = 0;
     char *p = (char *)buf;
     while (total < len) {
+        struct pollfd pfd = { .fd = fd, .events = POLLIN };
+        if (poll(&pfd, 1, 5000) <= 0) return -1; /* 5 second timeout */
         ssize_t n = recv(fd, p + total, len - total, 0);
         if (n == 0) return 0;
         if (n < 0) return -1;

@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-# 1. Generate a random 256-bit master key ONCE (do NOT share this value
+# 1. Generate a random 128-bit master key ONCE (do NOT share this value
 #    with anyone, and do not reuse example keys from documentation).
 export SPACEGL_KEY="$(openssl rand -hex 32)"
 

@@ -4907,7 +4907,13 @@ void createStarfield(VulkanApp* app) {
 
 void initVulkan(VulkanApp* app) {
     createInstance(app); if (glfwCreateWindowSurface(app->instance, app->window, NULL, &app->surface) != VK_SUCCESS) exit(1);
-    pickPhysicalDevice(app); createLogicalDevice(app); createSwapChain(app);
+    pickPhysicalDevice(app); createLogicalDevice(app);
+    int width = 0, height = 0;
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(app->window, &width, &height);
+        if (width == 0 || height == 0) glfwWaitEvents();
+    }
+    createSwapChain(app);
     createRenderPass(app);
     createSwapChainResources(app); /* swapchain image views, MSAA color/depth, framebuffers */
     createGraphicsPipeline(app);
