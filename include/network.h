@@ -64,6 +64,7 @@ typedef struct {
 #define UPD_OBJECTS   (1ULL << 9)
 #define UPD_MAP       (1ULL << 10)
 #define UPD_CONTINUE  (1ULL << 11)
+#define UPD_KINEMATICS (1ULL << 12)
 #define UPD_FULL      (0xFFFFFFFFFFFFFFFFULL)
 
 /* Delta Compression Blocks */
@@ -150,6 +151,17 @@ typedef struct {
     int32_t object_count;
     NetObject objects[MAX_NET_OBJECTS];
 } UpdateBlockObjects;
+
+typedef struct {
+    int32_t id;
+    float net_x, net_y, net_z;
+    float vx, vy, vz;
+} NetKinematics;
+
+typedef struct {
+    int32_t object_count;
+    NetKinematics items[MAX_NET_OBJECTS];
+} UpdateBlockKinematics;
 
 typedef struct {
     int64_t map_update_val;

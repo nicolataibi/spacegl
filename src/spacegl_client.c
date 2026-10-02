@@ -991,7 +991,36 @@ void *network_listener(void *arg) {
                         }
                         current_pkt_size += oc * sizeof(NetObject);
                     }
+                } else if (mask & UPD_KINEMATICS) {
+                    int32_t oc; int r_oc = read_all(sock, &oc, sizeof(int32_t));
+                    if (r_oc != (int)sizeof(int32_t)) {
+                        SG_ERROR(SG_CAT_LRS, "UPD_KINEMATICS: short read of object_count - wire desync, closing");
+                        break;
+                    }
+                    current_pkt_size += sizeof(int32_t);
+                    if (oc < 0) oc = 0;
+                    if (oc > MAX_NET_OBJECTS) oc = MAX_NET_OBJECTS;
+                    current_state.object_count = oc;
+                    if (oc > 0) {
+                        for (int i = 0; i < oc; i++) {
+                            NetKinematics k;
+                            int r_ob = read_all(sock, &k, sizeof(NetKinematics));
+                            if (r_ob != sizeof(NetKinematics)) {
+                                SG_ERROR(SG_CAT_LRS, "UPD_KINEMATICS: short read of object - wire desync, closing");
+                                break;
+                            }
+                            current_pkt_size += sizeof(NetKinematics);
+                            current_state.objects[i].id = k.id;
+                            current_state.objects[i].net_x = k.net_x;
+                            current_state.objects[i].net_y = k.net_y;
+                            current_state.objects[i].net_z = k.net_z;
+                            current_state.objects[i].vx = k.vx;
+                            current_state.objects[i].vy = k.vy;
+                            current_state.objects[i].vz = k.vz;
+                        }
+                    }
                 }
+                
                 if (mask & UPD_MAP) {
                     UpdateBlockMap b; read_all(sock, &b, sizeof(b));
                     current_state.map_update_val = b.map_update_val;

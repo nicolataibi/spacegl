@@ -1,3 +1,15 @@
+* Fri Oct 02 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.02.05
+  - Network: implemented Data-Oriented Delta Compression for kinematic updates.
+    Separated NetObject metadata from its kinematic properties (positions and
+    velocities) to prevent network bandwidth flooding caused by a blind memcmp.
+    Introduced the UPD_KINEMATICS bitmask (bit 12) and the lightweight
+    NetKinematics struct (28 bytes). Now, when only positional or velocity
+    changes occur, the server sends a minimal kinematics delta payload, bypassing
+    the transmission of the full 153-byte NetObject struct. The full struct
+    (UPD_OBJECTS) is properly relegated to handle membership, health, or other
+    metadata changes. The spacegl_client parser is upgraded to selectively update
+    the interpolator's targets for continuous, stutter-free rendering.
+
 * Fri Oct 02 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.02.04
   - Server: added a professional non-blocking network I/O mode, selectable
     at startup with --io=async; the default --io=legacy keeps the current
