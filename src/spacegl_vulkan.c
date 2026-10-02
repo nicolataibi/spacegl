@@ -3359,7 +3359,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         vkCmdDrawIndexed(cb, app->starfieldIndexCount, 1, 0, 0, 0);
 
         /* Render individual tactical objects */
-        for (int o=0; o<st->object_count; o++) {
+        for (int o=0; o<st->object_count && o < MAX_OBJECTS; o++) {
             SharedObject* obj = &st->objects[o]; if (!obj->active) continue;
             
             /* Re-bind main graphics pipeline for each object to prevent state leakage from specialized renderers */
@@ -3908,7 +3908,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 /* Real-time Tracking: Snap beam endpoints to current smoothed model positions */
                 int owner_id = app->activeBeams[i].owner_id;
                 int emitter_id = app->activeBeams[i].emitter_id;
-                for (int o=0; o < st->object_count; o++) {
+                for (int o=0; o < st->object_count && o < MAX_OBJECTS; o++) {
                     if (st->objects[o].active) {
                         if (st->objects[o].id == owner_id) {
                             float off_v = (emitter_id == 2) ? -0.12f : 0.12f;

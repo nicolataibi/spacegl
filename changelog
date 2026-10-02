@@ -1,3 +1,11 @@
+* Fri Oct 02 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.02.02
+  - Core & Vulkan client: changed dismantle_telemetry counters (count
+    and vk_rcv_count) to atomic_int to prevent lost updates from concurrent
+    increments by the client producer and viewer consumers. Added explicit
+    MAX_OBJECTS bounds checks to the tactical objects and ion beam tracking
+    loops in spacegl_vulkan.c to prevent potential out-of-bounds reads
+    from the SHM mapping (audit item B13).
+
 * Fri Oct 02 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.02.01
   - Vulkan client: fixed bridge camera offset using column-major access
     of the R_ship matrix to translate correctly along local Y axis (audit

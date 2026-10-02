@@ -213,8 +213,8 @@ typedef struct {
     struct {
         double x, y, z;
         int frame_id;
-        int count;
-        int vk_rcv_count;
+        atomic_int count;
+        atomic_int vk_rcv_count;
     } dismantle_telemetry;
 
     /* Synchronization (Must match system alignment) */
