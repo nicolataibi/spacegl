@@ -157,6 +157,18 @@ threadpool_t *threadpool_create(int thread_count);
 int threadpool_add_task(threadpool_t *pool, thread_task_fn function, void *arg);
 void threadpool_destroy(threadpool_t *pool);
 
+/* Login sync task: once authentication succeeds, the giant Galaxy Master
+ * transmission is delegated to the thread pool (dispatch_packet, PKT_LOGIN)
+ * so the ~1 MB blocking write cannot stall the 60 Hz simulation. The worker
+ * re-checks slot/generation before writing and before activating. */
+typedef struct {
+    int slot;
+    int fd;
+    uint32_t generation;
+    bool is_new;
+} SyncTask;
+void sync_client_task(void *arg);
+
 /* --- Celestial and Tactical Entities --- */
 
 typedef struct { 
@@ -775,6 +787,7 @@ extern pthread_mutex_t game_mutex;
 extern int g_debug;
 extern int global_tick;
 extern uint8_t MASTER_SESSION_KEY[32];
+extern uint8_t GALAXY_VERIFY_KEY[32]; /* Stable galaxy-signature key (derived from the master key) */
 extern uint8_t ALGO_KEYS[MAX_CRYPTO_ALGOS + 1][32]; /* Keys for algorithms 1-MAX */
 extern uint8_t SERVER_PUBKEY[32];
 extern uint8_t SERVER_PRIVKEY[64];
@@ -934,7 +947,9 @@ void spawn_derelict(int q1, int q2, int q3, double x, double y, double z, int fa
 const char* get_species_name(int s);
 
 void broadcast_message(PacketMessage *msg);
+void broadcast_task(void *arg);
 void send_server_msg(int p_idx, const char *from, const char *text);
+void derive_algo_keys(uint8_t *master_key, const char *name, uint8_t target_keys[MAX_CRYPTO_ALGOS + 1][32]);
 void broadcast_server_event(int q1, int q2, int q3, int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra);
 void telemetry_init(void);
 void telemetry_shutdown(void);

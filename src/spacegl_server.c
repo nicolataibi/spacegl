@@ -38,6 +38,8 @@
 #include <openssl/err.h>
 #include <openssl/provider.h>
 #include "server_internal.h"
+#include "conn.h"
+#include "packets.h"
 
 #define MAX_EVENTS (MAX_CLIENTS + GAME_MAX_PLAYERS)
 
@@ -49,7 +51,9 @@ int global_tick = 0;
 /* Graceful shutdown state. Set by the signal handler (async-signal-safe);
  * the simulation thread and the main epoll loop both observe it and exit
  * cleanly, and main() performs the final save and resource cleanup. */
-static volatile sig_atomic_t g_running = 1;
+/* Exported (conn.h): the async event loop (src/server/conn.c) observes the
+ * same flag as the legacy loop. */
+volatile sig_atomic_t g_running = 1;
 
 static void handle_shutdown_signal(int sig) {
     (void)sig;
@@ -75,26 +79,6 @@ void derive_galaxy_verify_key() {
 /* Validate a captain name received from the network.
  * Allows only [A-Za-z0-9_-] and enforces MAX 32 chars.
  * Returns 1 if safe, 0 if the name must be rejected (path injection guard). */
-static int sanitize_captain_name(const char *name) {
-    if (!name || name[0] == '\0') {
-        return 0;
-    }
-    size_t len = 0;
-    for (const char *p = name; *p != '\0'; p++) {
-        len++;
-        if (len > 32) {
-            return 0;
-        }
-        if (!((*p >= 'A' && *p <= 'Z') ||
-              (*p >= 'a' && *p <= 'z') ||
-              (*p >= '0' && *p <= '9') ||
-              *p == '_' || *p == '-')) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
 void ensure_player_algo_key(int p_idx, int k, bool private_mode) {
     if (k < 1 || k > MAX_CRYPTO_ALGOS) return;
     /* We don't use a 'loaded' flag here to keep it simple, we just derive if needed 
@@ -197,13 +181,6 @@ void derive_algo_keys(uint8_t *master_key, const char *name, uint8_t target_keys
 
 void sign_galaxy_data();
 static void sign_game_state(SpaceGLGame *gs);
-
-typedef struct {
-    int slot;
-    int fd;
-    uint32_t generation;
-    bool is_new;
-} SyncTask;
 
 void sync_client_task(void *arg) {
     SyncTask *task = (SyncTask *)arg;
@@ -493,11 +470,91 @@ void sign_galaxy_data() {
     spacegl_master.encryption_flags = 0x07; 
 }
 
+/* Legacy event loop: the original blocking per-packet read path
+ * (read_all() bounded by the 5 s poll). Selected by --io=legacy,
+ * the default; kept as-is alongside the async architecture
+ * (run_epoll_loop_async, src/server/conn.c). */
+static void run_legacy_loop(int server_fd, int epoll_fd) {
+    struct sockaddr_in addr;
+    socklen_t adlen = sizeof(addr);
+    struct epoll_event ev, events[MAX_EVENTS];
+
+    while (g_running) {
+        /* 200ms timeout so the loop can observe g_running for a graceful stop */
+        int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, 200);
+        if (nfds == -1) {
+            if (errno == EINTR) continue;
+            perror("epoll_wait"); break;
+        }
+
+        for (int n = 0; n < nfds; ++n) {
+            int fd = events[n].data.fd;
+
+            if (fd == server_fd) {
+                int new_socket = accept(server_fd, (struct sockaddr *)&addr, (socklen_t*)&adlen);
+                if (new_socket == -1) { perror("accept"); continue; }
+                
+                ev.events = EPOLLIN; 
+                ev.data.fd = new_socket;
+                if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_socket, &ev) == -1) { perror("epoll_ctl: new_socket"); close(new_socket); }
+                SG_TRACE4(SG_CAT_NETWORK, "new connection accepted (fd %d)", new_socket);
+                LOG_DEBUG("New connection accepted: FD %d\n", new_socket);
+            } else {
+                /* Handle data from a client */
+                int type;
+                int r = read_all(fd, &type, sizeof(int));
+                
+                if (r <= 0) {
+                    /* Disconnect: Keep player record for persistence, just close socket */
+                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                    pthread_mutex_lock(&game_mutex);
+                    for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) { 
+                        /* Log the departure before clearing the socket */
+                        time_t now_disc = time(NULL);
+                        struct tm *t_disc = localtime(&now_disc);
+                        char time_disc[64];
+                        strftime(time_disc, sizeof(time_disc), "%Y-%m-%d %H:%M:%S", t_disc);
+                        SG_NOTICE(SG_CAT_CLIENT, "captain %s disconnected (slot %d)",
+                                  players[i].name[0] ? players[i].name : "?", i);
+                        slog("\033[1;35m[DISCONNECT]\033[0m Captain \033[1;37m%-15s\033[0m has left the galaxy.    [\033[1;33m%s\033[0m]\n", 
+                               players[i].name[0] ? players[i].name : "Unknown", time_disc);
+
+                        players[i].socket = 0;
+                        players[i].active = 0;
+                        players[i].radio_lock_target = 0;                        memset(players[i].session_key, 0, 32);
+                        save_galaxy();
+                        break; 
+                    }
+                    pthread_mutex_unlock(&game_mutex);
+                    close(fd);
+                    LOG_DEBUG("Connection closed: FD %d\n", fd);
+                    continue;
+                }
+
+                /* The per-packet body handling and every teardown path
+                   live in the shared dispatcher (src/server/packets.c),
+                   which is also the packet-complete callback of the
+                   async mode (src/server/conn.c). LEGACY mode: io.conn
+                   is NULL, so bodies are read from the socket with
+                   read_all() (blocking, bounded by the 5 s poll) and
+                   teardown is plain epoll_ctl + close - the
+                   pre-refactor behavior, byte for byte. */
+                PktIO io;
+                io.epoll_fd = epoll_fd;
+                io.fd = fd;
+                io.conn = NULL;
+                io.rx = NULL;
+                io.rx_len = 0;
+                if (dispatch_packet(&io, type) != 0) continue; /* dispatcher closed the connection */
+            }
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
     int server_fd, epoll_fd;
     struct sockaddr_in addr;
-    int opt = 1, adlen = sizeof(addr);
-    struct epoll_event ev, events[MAX_EVENTS];
+    int opt = 1;
 
     /* Official logging (severity x category): env first, CLI overrides. */
     sglog_init("srv");
@@ -514,6 +571,10 @@ int main(int argc, char *argv[]) {
             printf("  --log-category=A,B  Filter by category (e.g. PHA,TOR,NETWORK,IPC)\n");
             printf("  --data-dir DIR Root directory for persistent state (captains/ tree\n");
             printf("                 and galaxy.dat). Default: current working directory.\n");
+            printf("  --io=MODE      Event-loop I/O strategy: 'legacy' (default; blocking\n");
+            printf("                 per-packet reads bounded by a 5 s poll) or 'async'\n");
+            printf("                 (non-blocking per-connection RX/TX state machine: a\n");
+            printf("                 stalled client can no longer block the loop)\n");
             printf("  --help, -h     Display this help and exit\n");
             printf("  --version      Display version information and exit\n\n");
             printf("Environment Variables:\n");
@@ -527,6 +588,17 @@ int main(int argc, char *argv[]) {
             }
             server_set_data_dir(argv[++i]);
         }
+        if (strncmp(argv[i], "--io=", 5) == 0) {
+            const char *v = argv[i] + 5;
+            if (strcmp(v, "legacy") == 0) {
+                g_io_mode = SPACEGL_IO_LEGACY;
+            } else if (strcmp(v, "async") == 0) {
+                g_io_mode = SPACEGL_IO_ASYNC;
+            } else {
+                fprintf(stderr, "ERROR: --io= expects 'legacy' or 'async'.\n");
+                exit(1);
+            }
+        }
         if (strcmp(argv[i], "--version") == 0) {
             printf("Space GL Server v2026.09.13.03\n");
             printf("Copyright (C) 2026 Nicola Taibi\n");
@@ -538,6 +610,10 @@ int main(int argc, char *argv[]) {
 
     SG_INFO(SG_CAT_SYSTEM, "SpaceGL Galactic Server Core (pid %d, log level %s)",
             (int)getpid(), sglog_sev_name(sglog_threshold()));
+    SG_INFO(SG_CAT_SYSTEM, "I/O mode: %s",
+            g_io_mode == SPACEGL_IO_ASYNC
+                ? "ASYNC (non-blocking per-connection state machine)"
+                : "LEGACY (blocking per-packet reads, bounded poll)");
 
     signal(SIGPIPE, SIG_IGN);
     signal(SIGTERM, handle_shutdown_signal);
@@ -667,590 +743,21 @@ int main(int argc, char *argv[]) {
     epoll_fd = epoll_create1(0);
     if (epoll_fd == -1) { perror("epoll_create1"); exit(EXIT_FAILURE); }
 
-    ev.events = EPOLLIN;
-    ev.data.fd = server_fd;
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &ev) == -1) { perror("epoll_ctl: server_fd"); exit(EXIT_FAILURE); }
+    struct epoll_event listen_ev = { .events = EPOLLIN, .data = { .fd = server_fd } };
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &listen_ev) == -1) { perror("epoll_ctl: server_fd"); exit(EXIT_FAILURE); }
 
     SG_SUCCESS(SG_CAT_NETWORK, "listening on port %d (TCP/binary, EPOLL mode)", DEFAULT_PORT);
     printf("STELLAR SERVER started on port %d (EPOLL MODE)\n", DEFAULT_PORT);
     
-    while (g_running) {
-        /* 200ms timeout so the loop can observe g_running for a graceful stop */
-        int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, 200);
-        if (nfds == -1) {
-            if (errno == EINTR) continue;
-            perror("epoll_wait"); break;
-        }
-
-        for (int n = 0; n < nfds; ++n) {
-            int fd = events[n].data.fd;
-
-            if (fd == server_fd) {
-                int new_socket = accept(server_fd, (struct sockaddr *)&addr, (socklen_t*)&adlen);
-                if (new_socket == -1) { perror("accept"); continue; }
-                
-                ev.events = EPOLLIN; 
-                ev.data.fd = new_socket;
-                if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_socket, &ev) == -1) { perror("epoll_ctl: new_socket"); close(new_socket); }
-                SG_TRACE4(SG_CAT_NETWORK, "new connection accepted (fd %d)", new_socket);
-                LOG_DEBUG("New connection accepted: FD %d\n", new_socket);
-            } else {
-                /* Handle data from a client */
-                int type;
-                int r = read_all(fd, &type, sizeof(int));
-                
-                if (r <= 0) {
-                    /* Disconnect: Keep player record for persistence, just close socket */
-                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-                    pthread_mutex_lock(&game_mutex);
-                    for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) { 
-                        /* Log the departure before clearing the socket */
-                        time_t now_disc = time(NULL);
-                        struct tm *t_disc = localtime(&now_disc);
-                        char time_disc[64];
-                        strftime(time_disc, sizeof(time_disc), "%Y-%m-%d %H:%M:%S", t_disc);
-                        SG_NOTICE(SG_CAT_CLIENT, "captain %s disconnected (slot %d)",
-                                  players[i].name[0] ? players[i].name : "?", i);
-                        slog("\033[1;35m[DISCONNECT]\033[0m Captain \033[1;37m%-15s\033[0m has left the galaxy.    [\033[1;33m%s\033[0m]\n", 
-                               players[i].name[0] ? players[i].name : "Unknown", time_disc);
-
-                        players[i].socket = 0;
-                        players[i].active = 0;
-                        players[i].radio_lock_target = 0;                        memset(players[i].session_key, 0, 32);
-                        save_galaxy();
-                        break; 
-                    }
-                    pthread_mutex_unlock(&game_mutex);
-                    close(fd);
-                    LOG_DEBUG("Connection closed: FD %d\n", fd);
-                    continue;
-                }
-
-                /* Find player index if already logged in - MOVED AFTER HANDSHAKE CHECK */
-                int p_idx = -1;
-
-                if (type == PKT_HANDSHAKE) {
-                    LOG_DEBUG("Handshake request received from FD %d\n", fd);
-                    PacketHandshake h_pkt;
-                    h_pkt.type = type;
-                    int r_hand = read_all(fd, ((char*)&h_pkt) + sizeof(int), sizeof(PacketHandshake) - sizeof(int));
-                    if (r_hand > 0) {
-                        LOG_DEBUG("Handshake data read successfully (%d bytes)\n", r_hand);
-                        /* First: Security verification WITHOUT locking game_mutex */
-                        uint8_t sig[32];
-                        for(int k=0; k<32; k++) sig[k] = h_pkt.pubkey[32+k] ^ MASTER_SESSION_KEY[k];
-                        
-                        if (memcmp(sig, HANDSHAKE_MAGIC_STRING, 32) != 0) {
-                            fprintf(stderr, "\033[1;31m[SECURITY ALERT]\033[0m Handshake integrity failure on FD %d. Invalid Master Key.\n", fd);
-                            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-                            close(fd);
-                            continue;
-                        }
-
-                        LOG_DEBUG("Handshake signature verified. Attempting to lock game_mutex...\n");
-                        /* Second: Now lock only to assign slot and key */
-                        pthread_mutex_lock(&game_mutex);
-                        LOG_DEBUG("game_mutex ACQUIRED for FD %d\n", fd);
-                        int slot = -1;
-                        for(int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) { slot = i; break; }
-                        if (slot == -1) {
-                            for(int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == 0) { 
-                                slot = i; 
-                                players[i].socket = fd; 
-                                players[i].active = 0; 
-                                break; 
-                            }
-                        }
-                        
-                        if (slot != -1) {
-                            for(int k=0; k<32; k++) {
-                                players[slot].session_key[k] = h_pkt.pubkey[k] ^ MASTER_SESSION_KEY[k];
-                            }
-                            LOG_DEBUG("Secure Session Key negotiated for Client FD %d (Slot %d)\n", fd, slot);
-                            int ack_type = PKT_HANDSHAKE;
-                            write_all(fd, &ack_type, sizeof(int));
-                            /* Deliver the stable galaxy verification key, bound to this
-                             * session: the client XORs it back with the session key it
-                             * generated. This lets the client verify the galaxy state
-                             * HMAC-SHA256 signature even after its local key rotated. */
-                            uint8_t verify_xt[32];
-                            for(int k=0; k<32; k++) {
-                                verify_xt[k] = GALAXY_VERIFY_KEY[k] ^ players[slot].session_key[k];
-                            }
-                            write_all(fd, verify_xt, sizeof(verify_xt));
-                            memset(verify_xt, 0, sizeof(verify_xt));
-                            LOG_DEBUG("Handshake ACK sent to FD %d (with galaxy verify key)\n", fd);
-                        } else {
-                            fprintf(stderr, "\033[1;33m[WARNING]\033[0m Connection rejected: Server full (FD %d).\n", fd);
-                            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-                            close(fd);
-                        }
-                        pthread_mutex_unlock(&game_mutex);
-                        LOG_DEBUG("game_mutex RELEASED for FD %d\n", fd);
-                    } else {
-                        LOG_DEBUG("Handshake read_all failed or partial: %d\n", r_hand);
-                    }
-                } else {
-                    /* For all other packets, we need the player index and we need the mutex */
-                    pthread_mutex_lock(&game_mutex);
-                    for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd && players[i].active) { p_idx = i; break; }
-                    pthread_mutex_unlock(&game_mutex);
-
-                    /* MAIN PACKET DISPATCHER */
-                    if (type == PKT_QUERY_KEY) {
-                        PacketQueryKey qk;
-                        if (read_all(fd, ((char*)&qk) + sizeof(int), sizeof(PacketQueryKey) - sizeof(int)) > 0) {
-                            pthread_mutex_lock(&game_mutex);
-                            qk.found = 0;
-                            qk.type = PKT_QUERY_KEY;
-                            for(int j=0; j<MAX_CLIENTS; j++) {
-                                if (players[j].active && players[j].name[0] != '\0' && strcmp(players[j].name, qk.target_name) == 0) {
-                                    memcpy(qk.x25519_pubkey, players[j].x25519_pubkey, 32);
-                                    qk.found = 1; 
-                                    LOG_DEBUG("Tactical Link: Found %s. Key starts with: %02X%02X%02X%02X\n", 
-                                              qk.target_name, qk.x25519_pubkey[0], qk.x25519_pubkey[1], 
-                                              qk.x25519_pubkey[2], qk.x25519_pubkey[3]);
-                                    break;
-                                }
-                            }
-                            pthread_mutex_unlock(&game_mutex);
-                            write_all(fd, &qk, sizeof(PacketQueryKey));
-                        }
-                    } else if (type == PKT_QUERY || type == PKT_LOGIN) {
-                        /* ... login logic remains here ... */
-
-                        PacketLogin pkt;
-                        if (read_all(fd, ((char*)&pkt) + sizeof(int), sizeof(PacketLogin) - sizeof(int)) > 0) {
-                            /* 3.4 — Reject names that could cause path traversal.
-                             * Must be checked before any file I/O uses pkt.name. */
-                            pkt.name[sizeof(pkt.name) - 1] = '\0';
-                            if (!sanitize_captain_name(pkt.name)) {
-                                /* Unsafe captain name (path injection attempt):
-                                   refuse the connection before any file I/O.
-                                   Note: game_mutex is NOT held here. */
-                                LOG_DEBUG("SECURITY: rejected login with unsafe name\n");
-                                fprintf(stderr, "\033[1;33m[SECURITY]\033[0m Rejected login: unsafe captain name on FD %d (connection closed).\n", fd);
-                                epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-                                close(fd);
-                                /* Reap the slot reserved by the handshake so that
-                                   repeated rejects cannot exhaust the server (DoS). */
-                                pthread_mutex_lock(&game_mutex);
-                                for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) {
-                                    players[i].socket = 0;
-                                    players[i].active = 0;
-                                    memset(players[i].session_key, 0, 32);
-                                    break;
-                                }
-                                pthread_mutex_unlock(&game_mutex);
-                                break;
-                            }
-                            if (type == PKT_QUERY) {
-                                pthread_mutex_lock(&game_mutex);
-                                int status = 1; /* 1:Success (Known), 2:New, 3:WrongPass, 4:Duplicate */
-                                uint8_t stored_salt[16] = {0}; /* Salted-scheme reply payload (status 5) */
-
-
-                                /* 1. Check for Duplicate Name (already active session) */
-                                for(int j=0; j<MAX_CLIENTS; j++) {
-                                    if (players[j].active && players[j].name[0] != '\0' && strcmp(players[j].name, pkt.name) == 0) {
-                                        status = 4;
-                                        break;
-                                    }
-                                }
-
-                                if (status != 4) {
-                                    /* 2. Check for existence and password.
-                                     * Identity scheme v2 (per-user salt):
-                                     *   identity.hash = HMAC-SHA256(master, "SPACEGL-ID-V2" || name || 0 || salt || 0 || password)
-                                     *   identity.salt = random 16-byte per-captain salt (issued at enrollment)
-                                     * Legacy unsalted identity.hash files remain verifiable and are
-                                     * transparently migrated to the salted scheme on first successful
-                                     * login (the client proved the password and supplied a fresh salt). */
-                                    char rel_auth[192];
-                                    char rel_salt[192];
-                                    char auth_path[1024];
-                                    char salt_path[1024];
-                                    snprintf(rel_auth, sizeof(rel_auth), "captains/%s/identity.hash", pkt.name);
-                                    snprintf(rel_salt, sizeof(rel_salt), "captains/%s/identity.salt", pkt.name);
-                                    server_data_path(auth_path, sizeof(auth_path), rel_auth);
-                                    server_data_path(salt_path, sizeof(salt_path), rel_salt);
-
-                                    bool have_stored_salt = false;
-                                    bool auth_ok = false;
-
-                                    /* A zero salt is the client's "I do not hold a salt for
-                                       this account" probe. The server answers with status 5
-                                       plus the salt to use (stored salt, or zeros, which tell
-                                       a fresh client to generate its own random salt). */
-                                    bool client_salt_zero = true;
-                                    for(int b=0; b<16; b++) if (pkt.salt[b] != 0) { client_salt_zero = false; break; }
-
-                                    FILE *fa = fopen(auth_path, "rb");
-                                    if (fa) {
-                                        uint8_t stored_hash[32] = {0};
-                                        bool have_stored_hash = (fread(stored_hash, 1, 32, fa) == 32);
-                                        fclose(fa);
-
-                                        FILE *fs = fopen(salt_path, "rb");
-                                        if (fs) {
-                                            if (fread(stored_salt, 1, 16, fs) == 16) have_stored_salt = true;
-                                            fclose(fs);
-                                        }
-
-                                        if (have_stored_salt) {
-                                            /* Salted (v2) account */
-                                            if (client_salt_zero) {
-                                                status = PKT_ID_STATUS_SALT_REQUIRED; /* reply carries the stored salt */
-                                            } else if (memcmp(pkt.salt, stored_salt, 16) != 0) {
-                                                status = 3; /* Wrong salt: verification fails */
-                                            } else {
-                                                auth_ok = have_stored_hash && (memcmp(stored_hash, pkt.pass_hash, 32) == 0);
-                                            }
-                                        } else {
-                                            /* Legacy account (no salt on disk) */
-                                            auth_ok = have_stored_hash &&
-                                                (memcmp(stored_hash, pkt.pass_hash_legacy, 32) == 0 ||
-                                                 memcmp(stored_hash, pkt.pass_hash, 32) == 0);
-                                            if (auth_ok && client_salt_zero) {
-                                                /* Password proved, but no salt supplied yet: ask for one
-                                                   so the record can be migrated to the salted scheme. */
-                                                status = PKT_ID_STATUS_SALT_REQUIRED; /* reply carries zeros */
-                                                auth_ok = false;
-                                            } else if (auth_ok) {
-                                                /* Transparent migration of the stored record */
-                                                FILE *fm = fopen(auth_path, "wb");
-                                                if (fm) {
-                                                    fwrite(pkt.pass_hash, 1, 32, fm);
-                                                    if (fchmod(fileno(fm), 0600) != 0) { /* best effort */ }
-                                                    fclose(fm);
-                                                }
-                                                FILE *fsm = fopen(salt_path, "wb");
-                                                if (fsm) {
-                                                    fwrite(pkt.salt, 1, 16, fsm);
-                                                    if (fchmod(fileno(fsm), 0600) != 0) { /* best effort */ }
-                                                    fclose(fsm);
-                                                }
-                                            }
-                                        }
-
-                                        if (status != 3 && status != PKT_ID_STATUS_SALT_REQUIRED) {
-                                            if (!auth_ok) {
-                                                status = 3; /* Wrong Password */
-                                            } else {
-                                                /* Password correct: check if the commander is in the current galaxy persistent state */
-                                                bool found_in_galaxy = false;
-                                                for(int j=0; j<MAX_CLIENTS; j++) {
-                                                    if (players[j].name[0] != '\0' && strcmp(players[j].name, pkt.name) == 0) {
-                                                        found_in_galaxy = true;
-                                                        break;
-                                                    }
-                                                }
-                                                if (found_in_galaxy) status = 1; /* Success (Known) */
-                                                else status = 2; /* New Recruit (Identity exists, but Galaxy was reset) */
-                                            }
-                                        }
-                                    } else if (client_salt_zero) {
-                                        /* New Captain, salt probe: do NOT create the account yet.
-                                           Reply with status 5 + zeros; the client picks a random
-                                           salt and re-queries, which creates the record. */
-                                        status = PKT_ID_STATUS_SALT_REQUIRED;
-                                    } else {
-                                        /* New Captain (salt supplied): create directory and
-                                           save salted hash + salt */
-                                        char rel_dir[160];
-                                        snprintf(rel_dir, sizeof(rel_dir), "captains/%s", pkt.name);
-                                        char dir_path[1024];
-                                        server_data_path(dir_path, sizeof(dir_path), rel_dir);
-                                        char captains_path[1024];
-                                        server_data_path(captains_path, sizeof(captains_path), "captains");
-                                        mkdir(captains_path, 0700);
-                                        mkdir(dir_path, 0700);
-                                        fa = fopen(auth_path, "wb");
-                                        if (fa) {
-                                            fwrite(pkt.pass_hash, 1, 32, fa);
-                                            if (fchmod(fileno(fa), 0600) != 0) { /* best effort */ }
-                                            fclose(fa);
-                                        }
-                                        FILE *fsm = fopen(salt_path, "wb");
-                                        if (fsm) {
-                                            fwrite(pkt.salt, 1, 16, fsm);
-                                            if (fchmod(fileno(fsm), 0600) != 0) { /* best effort */ }
-                                            fclose(fsm);
-                                        }
-                                        status = 2; /* New Captain */
-                                    }
-                                }
-
-                                pthread_mutex_unlock(&game_mutex);
-                                LOG_DEBUG("Security Check for '%s': Status %d\n", pkt.name, status);
-                                write_all(fd, &status, sizeof(int));
-                                if (status == PKT_ID_STATUS_SALT_REQUIRED) {
-                                    /* Disclose the stored salt so the client can recompute the
-                                     * salted identity hash (one extra round-trip; the salt is
-                                     * public-parameters material, like a database salt). */
-                                    write_all(fd, stored_salt, 16);
-                                }
-                            } else {
-                                /* PKT_LOGIN: Re-using the same packet read for login */
-                                pthread_mutex_lock(&game_mutex);
-                                int slot = -1;
-                                /* 1. Try to find a player with the same name (persistence) */
-                                for(int j=0; j<MAX_CLIENTS; j++) { 
-                                    if (players[j].name[0] != '\0' && strcmp(players[j].name, pkt.name) == 0) { 
-                                        slot = j; 
-                                        break; 
-                                    } 
-                                }
-                                
-                                /* 2. If not found, find a TRULY empty slot (no name) */
-                                if (slot == -1) {
-                                    for(int j=0; j<MAX_CLIENTS; j++) {
-                                        if (players[j].name[0] == '\0') {
-                                            slot = j;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                /* 3. Fallback: if server is full of named players, reuse an inactive slot (socket == 0)
-                                   but we MUST clear it first so it's treated as a new player. */
-                                if (slot == -1) {
-                                    for(int j=0; j<MAX_CLIENTS; j++) {
-                                        if (players[j].socket == 0) {
-                                            slot = j;
-                                            memset(players[slot].name, 0, 64); /* Force is_new = true */
-                                            break;
-                                        }
-                                    }
-                                }
-                                
-                                if (slot != -1) {
-                                    /* Handle Session Key transfer from the temporary handshake slot if needed */
-                                    int handshake_slot = -1;
-                                    for(int j=0; j<MAX_CLIENTS; j++) if (players[j].socket == fd) { handshake_slot = j; break; }
-
-                                    if (handshake_slot != -1 && handshake_slot != slot) {
-                                        memcpy(players[slot].session_key, players[handshake_slot].session_key, 32);
-                                        /* If the temporary slot was just for handshake, clear it */
-                                        if (players[handshake_slot].name[0] == '\0') {
-                                            players[handshake_slot].socket = 0;
-                                        }
-                                    }
-
-                                    players[slot].socket = fd;
-                                    int is_new = (players[slot].name[0] == '\0');
-                                    players[slot].active = 0; /* Block updates during sync */
-
-                                    /* Always update keys on login, but only update faction/class for new players */
-                                    memcpy(players[slot].x25519_pubkey, pkt.x25519_pubkey, 32);
-                                    if (is_new) {
-                                        players[slot].faction = pkt.faction;
-                                        players[slot].ship_class = pkt.ship_class;
-                                        strcpy(players[slot].name, pkt.name);
-                                        
-                                        /* Notify the fleet of the new X25519 public key */
-                                        char key_info[256];
-                                        sprintf(key_info, "[IDENTITY] Public Frequency for Captain %s: ", pkt.name);
-                                        for(int k=0; k<8; k++) sprintf(key_info + strlen(key_info), "%02X", pkt.x25519_pubkey[k]);
-                                        strcat(key_info, "... [UPLINK ACTIVE]");
-                                        send_server_msg(-1, "COMPUTER", key_info);
-                                        players[slot].state.energy = MAX_ENERGY_CAPACITY;
-                                        players[slot].state.torpedoes = MAX_TORPEDO_CAPACITY;
-                                        int crew = (MAX_CREW_EXPLORER / 5);
-                                        switch(pkt.ship_class) {
-                                            case SHIP_CLASS_EXPLORER:    crew = MAX_CREW_EXPLORER; break;
-                                            case SHIP_CLASS_FLAGSHIP:    crew = 850; break;
-                                            case SHIP_CLASS_LEGACY:      crew = 430; break;
-                                            case SHIP_CLASS_HEAVY_CRUISER: crew = 750; break;
-                                            case SHIP_CLASS_ESCORT:      crew = (MAX_CREW_EXPLORER / 20); break;
-                                            case SHIP_CLASS_SCIENCE:     crew = (MAX_CREW_EXPLORER / 7); break;
-                                            case SHIP_CLASS_RESEARCH:    crew = 80; break;
-                                            case SHIP_CLASS_SCOUT:       crew = (MAX_CREW_EXPLORER / 33); break;
-                                            case SHIP_CLASS_MULTI_ENGINE: crew = (MAX_CREW_EXPLORER / 2); break;
-                                            case SHIP_CLASS_CARRIER:     crew = 1200; break;
-                                            case SHIP_CLASS_TACTICAL:    crew = 800; break;
-                                            case SHIP_CLASS_DIPLOMATIC:  crew = (MAX_CREW_EXPLORER / 3); break;
-                                            case SHIP_CLASS_FRIGATE:     crew = 250; break;
-                                            case SHIP_CLASS_SENTINEL:    crew = 950; break;
-                                            default: crew = (MAX_CREW_EXPLORER / 5); break;
-                                        }
-                                        players[slot].state.crew_count = crew;
-                                        players[slot].state.q1 = rand()%GALAXY_SIZE + 1;
-                                        players[slot].state.q2 = rand()%GALAXY_SIZE + 1;
-                                        players[slot].state.q3 = rand()%GALAXY_SIZE + 1;
-                                        players[slot].state.s1 = (QUADRANT_SIZE / 2.0);
-                                        players[slot].state.s2 = (QUADRANT_SIZE / 2.0);
-                                        players[slot].state.s3 = (QUADRANT_SIZE / 2.0);
-                                                                            
-                                        /* Initialize Absolute Galactic Coordinates */
-                                        players[slot].gx = (players[slot].state.q1 - 1) * QUADRANT_SIZE + players[slot].state.s1;
-                                        players[slot].gy = (players[slot].state.q2 - 1) * QUADRANT_SIZE + players[slot].state.s2;
-                                        players[slot].gz = (players[slot].state.q3 - 1) * QUADRANT_SIZE + players[slot].state.s3;
-                                        
-                                        players[slot].state.inventory[1] = 1000000ULL; /* Initial Aetherium for jumps */
-                                                                            
-                                        /* Default Balanced Power Distribution */
-                                        players[slot].state.power_dist[0] = 0.333; /* Engines */
-                                        players[slot].state.power_dist[1] = 0.334; /* Shields */
-                                        players[slot].state.power_dist[2] = 0.333; /* Weapons */
-
-                                        for (int s = 0; s < 6; s++) {
-                                            players[slot].state.shields[s] = SHIELD_MAX_STRENGTH;
-                                            players[slot].state.target_shields[s] = SHIELD_MAX_STRENGTH;
-                                        }
-                                        players[slot].state.shield_change_timer = 0;
-                                        players[slot].state.shield_change_rate = 0.0f;
-
-                                        players[slot].state.hull_integrity = (float)YIELD_HARVEST_MAX;
-                                        for (int s = 0; s < MAX_SYSTEMS; s++) {
-                                            players[slot].state.system_health[s] = (float)YIELD_HARVEST_MAX;
-                                        }
-                                        players[slot].state.life_support = (float)YIELD_HARVEST_MAX;
-                                        players[slot].state.ion_beam_charge = (float)YIELD_HARVEST_MAX;
-                                        memset(players[slot].state.probes, 0, sizeof(players[slot].state.probes));
-                                    } else {
-                                        /* RETURNING CAPTAIN: sync name to the game state for visual consistency */
-                                        strcpy(players[slot].state.captain_name, players[slot].name);
-                                        
-                                        /* Default Power if zero (old accounts or corruption) */
-                                        double p_total = players[slot].state.power_dist[0] + players[slot].state.power_dist[1] + players[slot].state.power_dist[2];
-                                        if (p_total < 0.01) {
-                                            players[slot].state.power_dist[0] = 0.333;
-                                            players[slot].state.power_dist[1] = 0.334;
-                                            players[slot].state.power_dist[2] = 0.333;
-                                        }
-                                    }
-                                    
-                                    /* WELCOME PACKAGE: Ensure all captains (new or returning) have at least 10 Aetherium for Jumps */
-                                    if (players[slot].state.inventory[1] < COST_ACTION_LOW) {
-                                        players[slot].state.inventory[1] = COST_ACTION_LOW;
-                                    }
-
-                                    /* SESSION INITIALIZATION: Reset transient event flags and force full sync */
-                                    players[slot].renegade_timer = 0;
-                                    players[slot].radio_lock_target = 0;
-                                    players[slot].jump_type = 2;
-                                    
-                                    /* Derive Personal Algorithm keys for this Captain */
-                                    derive_algo_keys(MASTER_SESSION_KEY, players[slot].name, players[slot].algo_keys);
-                                    
-                                    SG_SUCCESS(SG_CAT_CLIENT, "captain %s authenticated (slot %d, %s, quadrant [%d,%d,%d])",
-                                               players[slot].name, slot,
-                                               is_new ? "new identity" : "returning",
-                                               players[slot].state.q1, players[slot].state.q2,
-                                               players[slot].state.q3);
-                                    players[slot].state.beam_count = 0;
-                                    players[slot].state.event_count = 0;
-                                    players[slot].torp_active = false;
-                                    players[slot].full_update_timer = (5 * GAME_TICK_RATE + 1); /* Force UPD_FULL on next network pulse */
-                                    memset(&players[slot].last_sent_state, 0, sizeof(PacketUpdate));
-                                    
-                                    /* FORCE COORDINATE SYNC: Ensure HUD and Viewer align immediately */
-                                    players[slot].state.q1 = get_q_from_g(players[slot].gx);
-                                    players[slot].state.q2 = get_q_from_g(players[slot].gy);
-                                    players[slot].state.q3 = get_q_from_g(players[slot].gz);
-                                    players[slot].state.s1 = players[slot].gx - (players[slot].state.q1 - 1) * QUADRANT_SIZE;
-                                    players[slot].state.s2 = players[slot].gy - (players[slot].state.q2 - 1) * QUADRANT_SIZE;
-                                    players[slot].state.s3 = players[slot].gz - (players[slot].state.q3 - 1) * QUADRANT_SIZE;
-
-                                    players[slot].crypto_algo = CRYPTO_NONE; 
-                                    /* Delegate the giant Galaxy Master transmission to the Thread Pool */
-                                    SyncTask *stask = malloc(sizeof(SyncTask));
-                                    if (stask) {
-                                        stask->slot = slot;
-                                        stask->fd = fd;
-                                        players[slot].generation++;
-                                        stask->generation = players[slot].generation;
-                                        stask->is_new = is_new;
-                                        if (threadpool_add_task(g_pool, sync_client_task, stask) != 0) {
-                                            /* Fallback if pool fails: sync synchronously */
-                                            sync_client_task(stask);
-                                        }
-                                    }
-                                    pthread_mutex_unlock(&game_mutex);
-                                } else {
-                                    pthread_mutex_unlock(&game_mutex);
-                                }
-                            }
-                        }
-                    } else if (type == PKT_COMMAND || type == PKT_MESSAGE) {
-                        /* NOTE: the payload MUST always be consumed, even when the
-                           player is not active yet (sync in flight), otherwise the
-                           socket stream desynchronizes. Commands/messages arriving
-                           in that narrow window are dropped without desync. */
-                        if (type == PKT_COMMAND) {
-                            PacketCommand pkt;
-                            if (read_all(fd, ((char*)&pkt) + sizeof(int), sizeof(PacketCommand) - sizeof(int)) > 0) {
-                                if (p_idx != -1 && process_command(p_idx, pkt.cmd)) {
-                                    /* Profile was deleted (zztop), drop connection and
-                                       reap the slot so repeated zztops cannot exhaust
-                                       the server (DoS). game_mutex is NOT held here. */
-                                    pthread_mutex_lock(&game_mutex);
-                                    for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) {
-                                        players[i].socket = 0;
-                                        players[i].active = 0;
-                                        memset(players[i].session_key, 0, 32);
-                                        break;
-                                    }
-                                    pthread_mutex_unlock(&game_mutex);
-                                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-                                    close(fd);
-                                    LOG_DEBUG("Connection dropped after zztop: FD %d\n", fd);
-                                }
-                            }
-                        } else { /* PKT_MESSAGE */
-                            PacketMessage *pkt = malloc(sizeof(PacketMessage));
-                            if (pkt && read_all(fd, ((char*)pkt) + sizeof(int), offsetof(PacketMessage, text) - sizeof(int)) > 0) {
-                                /* SECURITY: validate the network-supplied length BEFORE
-                                   touching the payload, with the same canonical check
-                                   as the client (packet_message_length_valid, network.h).
-                                   The value is attacker-controlled: outside [0, 65535]
-                                   it must never reach broadcast_message(), where it is
-                                   converted to size_t (c_len, EVP_DecryptUpdate, relay
-                                   pkt_size) and becomes a multi-GB copy/read (remote
-                                   DoS). The payload has not been consumed, so the
-                                   stream can no longer be resynchronized: drop the
-                                   connection, as the client does. game_mutex is NOT
-                                   held here. */
-                                if (!packet_message_length_valid(pkt->length)) {
-                                    int bad_len = pkt->length;
-                                    free(pkt);
-                                    pthread_mutex_lock(&game_mutex);
-                                    for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) {
-                                        players[i].socket = 0;
-                                        players[i].active = 0;
-                                        memset(players[i].session_key, 0, 32);
-                                        break;
-                                    }
-                                    pthread_mutex_unlock(&game_mutex);
-                                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-                                    close(fd);
-                                    fprintf(stderr, "\033[1;31m[SECURITY ALERT]\033[0m Dropped FD %d: PKT_MESSAGE length out of range (%d).\n", fd, bad_len);
-                                    LOG_DEBUG("Connection dropped: PKT_MESSAGE length out of range (%d), FD %d\n", bad_len, fd);
-                                    continue;
-                                }
-                                if (pkt->length > 0) read_all(fd, pkt->text, pkt->length);
-                                else pkt->text[0] = '\0';
-                                pkt->type = type;
-
-                                if (p_idx != -1) {
-                                    extern void broadcast_task(void *arg);
-                                    if (g_pool) threadpool_add_task(g_pool, broadcast_task, pkt);
-                                    else { broadcast_message(pkt); free(pkt); }
-                                } else {
-                                    free(pkt); /* player not active yet: drop cleanly */
-                                }
-                            } else if (pkt) free(pkt);
-                        }
-                    } else {
-                        /* Unknown/unsupported packet type: close the connection
-                           (we cannot resynchronize the stream). */
-                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-                        close(fd);
-                    }
-                }
-            }
-        }
+    if (g_io_mode == SPACEGL_IO_ASYNC) {
+        /* Professional mode: explicitly non-blocking sessions, the
+           RX/TX state machine and EPOLLOUT staging
+           (src/server/conn.c); the listener is made non-blocking
+           inside the loop. */
+        conn_set_dispatch(packets_conn_dispatch);
+        run_epoll_loop_async(server_fd, epoll_fd);
+    } else {
+        run_legacy_loop(server_fd, epoll_fd);
     }
 
     /* --- Graceful Shutdown ---

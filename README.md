@@ -1397,6 +1397,9 @@ Remote communication is entrusted to a custom state-aware binary protocol, desig
     *   **Truncated Updates**: Packets containing object lists (like enemy ships or debris) are physically truncated before sending. If there are only 2 ships in your quadrant, the server will send a packet containing only those 2 slots instead of the entire fixed array, saving precious KB every tick.
 *   **Data Integrity & Stream Robustness**:
     *   Implements an **Atomic Read/Write** mechanism. The `read_all` and `write_all` functions ensure that, despite the "stream" nature of TCP, binary packets are reconstructed only when complete and intact, preventing logical state corruption during traffic spikes.
+*   **Dual I/O Architectures** (selected at startup with `--io=MODE`):
+    *   **`legacy` (default)**: the original blocking per-packet path — `read_all()` waits for the whole packet, bounded by a 5 s poll so a silent client cannot freeze the server forever.
+    *   **`async`**: the professional non-blocking architecture — client sockets are explicitly `O_NONBLOCK`, the request handler never waits on the socket, and a `recv()` returning `EAGAIN` mid-packet stages the partial packet in a per-connection RX buffer (HEADER/BODY/TEXT state machine) and returns to the epoll loop, resuming from the saved cursor on the next `EPOLLIN`; replies are staged and drained on `EPOLLOUT`. A stalled (or malicious) client can at most occupy its own session: the 60 Hz loop and every other player keep running.
 *   **Signal Multiplexing**: The protocol manages different packet types (`Login`, `Command`, `Update`, `Message`, `Query`) on the same socket, acting as a Deep Space signal multiplexer.
 
 This implementation allows the simulator to scale smoothly, keeping command latency (Input Lag) minimal and galaxy consistency absolute for all connected captains.

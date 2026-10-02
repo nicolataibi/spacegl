@@ -17,6 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,12 +25,15 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <pthread.h>
+#include <time.h>
+#include <errno.h>
 #include <stddef.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include "network.h"
 #include "radio_crypto.h"
 #include "server_internal.h"
+#include "conn.h"
 
 extern uint8_t deep_space_key[32];
 extern void ensure_player_algo_key(int p_idx, int k, bool private_mode);
@@ -52,10 +56,27 @@ int read_all(int fd, void *buf, size_t len) {
 int write_all(int fd, const void *buf, size_t len) {
     size_t total = 0;
     const char *p = (char *)buf;
+    struct timespec t0;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
     while (total < len) {
         ssize_t n = send(fd, p + total, len - total, 0);
-        if (n <= 0) return (int)n;
-        total += n;
+        if (n > 0) { total += (size_t)n; continue; }
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            /* ASYNC mode only: the session sockets are non-blocking, so a
+             * full send buffer returns EAGAIN instead of blocking. Wait
+             * for writability with a bound (1 s per probe, 30 s in total)
+             * so a stalled receiver can neither spin the thread nor stall
+             * it forever. On a legacy blocking socket send() never returns
+             * EAGAIN, so this path is inert there. */
+            struct timespec now;
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            if (now.tv_sec - t0.tv_sec >= 30) break;
+            struct pollfd pfd = { .fd = fd, .events = POLLOUT };
+            if (poll(&pfd, 1, 1000) <= 0) break;
+            continue;
+        }
+        if (n < 0) break; /* hard error (EPIPE/ECONNRESET/EBADF) */
+        break;            /* n == 0 cannot happen on send() */
     }
     return (int)total;
 }
@@ -327,7 +348,12 @@ void broadcast_message(PacketMessage *msg) {
     free(plaintext);
 }
 
-void send_server_msg(int p_idx, const char *from, const char *text) {
+/* Synchronous core (original body): builds the PacketMessage, encrypts it
+ * for the recipient and write_all()s it under the per-player socket_mutex.
+ * LEGACY mode calls it directly; ASYNC mode runs it on a thread-pool worker
+ * so the single-threaded epoll loop (and the 60 Hz game thread) never
+ * blocks on a send. */
+static void send_server_msg_sync(int p_idx, const char *from, const char *text) {
     PacketMessage *msg = malloc(sizeof(PacketMessage));
     if (!msg) return;
     memset(msg, 0, sizeof(PacketMessage));
@@ -366,6 +392,53 @@ void send_server_msg(int p_idx, const char *from, const char *text) {
     if (players[p_idx].socket != 0) write_all(players[p_idx].socket, msg, pkt_size);
     pthread_mutex_unlock(&players[p_idx].socket_mutex);
     free(msg);
+}
+
+extern threadpool_t *g_pool;
+
+typedef struct {
+    int p_idx;
+    char from[64];
+    char *text;   /* heap copy, freed by the task */
+} ServerMsgTask;
+
+static void server_msg_task(void *arg) {
+    ServerMsgTask *t = (ServerMsgTask *)arg;
+    if (t) {
+        if (t->text) send_server_msg_sync(t->p_idx, t->from, t->text);
+        free(t->text);
+        free(t);
+    }
+}
+
+void send_server_msg(int p_idx, const char *from, const char *text) {
+    /* ASYNC mode: the caller is (or sits on) the single-threaded epoll
+     * loop, which must never block on a send — delegate the (blocking,
+     * bounded) write to the thread pool, exactly like the other outbound
+     * transfers (login sync, fleet broadcast). LEGACY mode: the original
+     * synchronous behavior, unchanged. */
+    if (g_io_mode == SPACEGL_IO_ASYNC && g_pool) {
+        ServerMsgTask *t = malloc(sizeof(ServerMsgTask));
+        if (t) {
+            t->p_idx = p_idx;
+            strncpy(t->from, from, 63);
+            t->from[63] = '\0';
+            size_t tlen = strlen(text);
+            if (tlen > 65535) tlen = 65535;
+            t->text = malloc(tlen + 1);
+            if (t->text) {
+                memcpy(t->text, text, tlen);
+                t->text[tlen] = '\0';
+                if (threadpool_add_task(g_pool, server_msg_task, t) == 0) return; /* delegated */
+                free(t->text);
+                free(t);
+            } else {
+                free(t);
+            }
+        }
+        /* Allocation or enqueue failure: degrade to the sync path. */
+    }
+    send_server_msg_sync(p_idx, from, text);
 }
 
 void send_optimized_update(int p_idx, PacketUpdate *upd) {

@@ -1,3 +1,46 @@
+* Fri Oct 02 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.02.04
+  - Server: added a professional non-blocking network I/O mode, selectable
+    at startup with --io=async; the default --io=legacy keeps the current
+    bounded behavior (blocking read_all() with the 5 s poll in the
+    single-threaded epoll loop, src/server/net.c) unchanged. In legacy
+    mode a client that sends a header and then goes silent holds the whole
+    loop for up to 5 seconds, freezing every other player - an app-level
+    DoS in a 60 Hz real-time engine. The async mode implements the proper
+    architecture: (1) accepted client sockets are explicitly non-blocking
+    (fcntl O_NONBLOCK); (2) the request handler never waits on a socket -
+    no while/poll cycle inside it; (3) a recv() returning
+    EAGAIN/EWOULDBLOCK mid-packet stages the bytes already read into the
+    per-connection persistent RX buffer and returns to the epoll loop
+    immediately; when EPOLLIN fires again the state machine
+    (CONN_S_HEADER -> CONN_S_BODY -> CONN_S_TEXT) resumes from the saved
+    cursor and dispatches the packet only once it is complete, so a
+    stalled or malicious client can at most occupy its own session, never
+    the loop. New files: src/server/conn.c + include/conn.h (session pool,
+    MAX_CONNS = 4*MAX_CLIENTS, which is also a DoS guard against unbounded
+    fd growth; the RX state machine; small-reply TX staging drained on
+    EPOLLOUT so the handler never blocks on send either; reap_player_fd()
+    shared slot reclamation; run_epoll_loop_async()) and
+    src/server/packets.c + include/packets.h (the packet dispatcher,
+    extracted verbatim from the inline loop and shared by both modes via
+    the PktIO body source: legacy reads bodies from the socket with
+    read_all(), async consumes the staged buffer). The shared dispatcher
+    routes system messages (send_server_msg) to the thread pool in async
+    mode, so the loop and the 60 Hz game thread never block on writes,
+    and write_all() gained an EAGAIN guard (bounded POLLOUT wait, 30 s
+    total timeout) required for non-blocking sockets and inert on the
+    legacy blocking ones. Micro-fixes in the shared path (both modes):
+    pkt.cmd is now NUL-terminated before process_command (the pattern
+    already used for pkt.name - a 256-byte command could overrun the
+    strlen); the unsafe-name reject no longer breaks out of the event
+    batch (level-triggered epoll re-reports dropped events anyway); slot
+    reclamation now happens before close(fd) (the order was previously
+    mixed, leaving a re-association window). The pre-existing slot leak
+    on unknown-type close (players[i].socket left set on a closed fd,
+    self-healing at the next login of the same name) is intentionally
+    unchanged in both modes. Verified: clean rebuild of all targets (C23,
+    -Wall -Wextra -Wpedantic, no new warnings) and existing unit suite
+    7/7. Smoke test: pending (run by the user, both --io modes).
+
 * Fri Oct 02 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.02.03
   - Core/Client/Server: fixed startup crash on iconified window (B10);
     added legacy encryption warning (B5); converted read_all to non-blocking

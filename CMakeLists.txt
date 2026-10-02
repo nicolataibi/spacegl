@@ -163,12 +163,14 @@ set(SERVER_SRCS
     src/sglog.c
     src/telemetry_server.c
     src/server/commands.c
+    src/server/conn.c
     src/server/galaxy.c
     src/server/globals.c
     src/server/log.c
     src/server/logic.c
     src/server/nav_math.c
     src/server/net.c
+    src/server/packets.c
     src/server/quad_index.c
     src/server/targets.c
     src/server/threadpool.c

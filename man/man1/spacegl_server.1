@@ -31,6 +31,23 @@ a directory without an existing
 galaxy.dat
 starts a fresh galaxy.
 .TP
+.B \-\-io=MODE
+Event-loop I/O strategy.
+.BR legacy (default):
+the original blocking per-packet read path (read_all() bounded by a
+5 s poll): a client that stalls mid-packet can hold the single-threaded
+loop, and with it every other player, for up to 5 seconds.
+.BR async :
+the professional non-blocking architecture: accepted client sockets are
+explicitly non-blocking (O_NONBLOCK), the request handler never waits
+on a socket, and a recv() returning EAGAIN mid-packet stages the
+partial packet in the per-connection RX buffer (HEADER/BODY/TEXT state
+machine) and returns to the epoll loop; on the next EPOLLIN it resumes
+from the saved cursor and processes the packet only when complete.
+Small replies are staged and drained on EPOLLOUT, so the loop never
+blocks on send either: a stalled client can at most occupy its own
+session.
+.TP
 .B \-\-version
 Print version information and exit.
 .TP
