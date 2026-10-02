@@ -144,6 +144,7 @@ static const QuadStaticDef quad_static_defs[] = {
     QI_DEF("cgm",            NPCCGM,             cgms,             MAX_CGM,              cgms,             cgm_count,             MAX_Q_CGM),
     QI_DEF("lyman_alpha",    NPCLymanAlpha,      lyman_alphas,     MAX_LYMAN_ALPHA,      lyman_alphas,     lyman_alpha_count,     MAX_Q_LYMAN_ALPHA),
     QI_DEF("cmb",            NPCCMB,             cmbs,             MAX_CMB,              cmbs,             cmb_count,             MAX_Q_CMB),
+    QI_DEF("feature",        NPCCosmicFeature,   cosmic_features,  MAX_COSMIC_FEATURES,  features,         feature_count,         MAX_Q_FEATURES),
 };
 
 #define QI_STATIC_TYPE_COUNT (int)(sizeof(quad_static_defs) / sizeof(quad_static_defs[0]))

@@ -102,6 +102,9 @@ NPCCGM cgms[MAX_CGM];
 NPCLymanAlpha lyman_alphas[MAX_LYMAN_ALPHA];
 NPCCMB cmbs[MAX_CMB];
 
+NPCCosmicFeature cosmic_features[MAX_COSMIC_FEATURES];
+int cosmic_feature_count = 0;
+
 PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 ConnectedPlayer players[MAX_CLIENTS];
 SpaceGLGame spacegl_master;
@@ -465,6 +468,8 @@ static void save_task(void* arg) {
     fwrite(cgms, sizeof(NPCCGM), MAX_CGM, f);
     fwrite(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
     fwrite(cmbs, sizeof(NPCCMB), MAX_CMB, f);
+    fwrite(&cosmic_feature_count, sizeof(int), 1, f);
+    fwrite(cosmic_features, sizeof(NPCCosmicFeature), MAX_COSMIC_FEATURES, f);
     fwrite(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
     
@@ -578,6 +583,10 @@ int load_galaxy() {
     CHECK_READ(cgms, sizeof(NPCCGM), MAX_CGM, f);
     CHECK_READ(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
     CHECK_READ(cmbs, sizeof(NPCCMB), MAX_CMB, f);
+    if (fread(&cosmic_feature_count, sizeof(int), 1, f) != 1) { cosmic_feature_count = 0; }
+    if (fread(cosmic_features, sizeof(NPCCosmicFeature), MAX_COSMIC_FEATURES, f) != (size_t)MAX_COSMIC_FEATURES) {
+        memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
+    }
     CHECK_READ(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
     
@@ -589,6 +598,18 @@ int load_galaxy() {
     }
     
     printf("--- PERSISTENT GALAXY LOADED SUCCESSFULLY ---\n");
+    
+    int active_derelicts = 0;
+    for (int i = 0; i < MAX_DERELICTS; i++) if (derelicts[i].active) active_derelicts++;
+    
+    int active_bases = 0;
+    for (int i = 0; i < MAX_BASES; i++) if (bases[i].active) active_bases++;
+
+    printf("\n%s .--- PERSISTENT GALAXY: ASTROMETRICS REPORT -----------------.%s\n", B_CYAN, RESET);
+    printf("%s | %s 🏚️ TOTAL WRECKS:  %s%-5d %s| %s 🛰️ Starbases:          %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, active_derelicts, B_CYAN, B_WHITE, B_GREEN, active_bases, B_CYAN);
+    printf("%s | %s 🌌 EXOTIC FEAT.:  %s%-5d %s| %s                       %s      %s|\n", B_CYAN, B_WHITE, B_GREEN, cosmic_feature_count, B_CYAN, B_WHITE, B_GREEN, B_CYAN);
+    printf("%s '---------------------------------------------------------------'%s\n\n", B_CYAN, RESET);
+
     rebuild_spatial_index();
     return 1;
 }
@@ -1413,8 +1434,52 @@ void generate_galaxy() {
                     int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
                     subspace_anomalies[sub_anomaly_count] = (NPCSubspaceAnomaly){.id=sub_anomaly_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .active=1};
                     sub_anomaly_count++;
-}
-rebuild_spatial_index();
+                }
+
+    /* Insert 32 new types of cosmic features (10 instances each) */
+    const char *new_feature_names[32] = {
+        "Stellar-mass black hole", "Intermediate-mass black hole (IMBH)",
+        "Supermassive black hole (SMBH)", "Ultramassive black hole (UMBH)",
+        "Stupendously large black hole (SLAB)", "Primordial black hole (PBH)",
+        "Schwarzschild black hole", "Kerr black hole",
+        "Reissner-Nordstrom black hole", "Kerr-Newman black hole",
+        "Extremal black hole", "Regular black hole",
+        "Bardeen black hole", "Hayward black hole",
+        "Dymnikova black hole", "Fan-Wang black hole",
+        "Firewall black hole", "Fuzzball",
+        "Quantum black hole", "Micro black hole",
+        "Planck black hole", "Gravastar",
+        "Boson star", "Dark star",
+        "Exotic compact object (ECO)", "Black-hole mimicker",
+        "Wormhole", "White hole",
+        "Naked singularity", "Super-extremal solution black hole",
+        "Super-extremal Reissner-Nordstrom solution black hole", "Super-extremal Kerr solution black hole"
+    };
+
+    for (int t = 0; t < 32; t++) {
+        for (int i = 0; i < 10; i++) {
+            if (cosmic_feature_count >= MAX_COSMIC_FEATURES) break;
+            int q1 = 1 + rand() % GALAXY_SIZE;
+            int q2 = 1 + rand() % GALAXY_SIZE;
+            int q3 = 1 + rand() % GALAXY_SIZE;
+            double x = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
+            double y = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
+            double z = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
+            
+            cosmic_features[cosmic_feature_count] = (NPCCosmicFeature){
+                .id = 83000 + cosmic_feature_count, 
+                .type = 100 + t,                    
+                .q1 = q1, .q2 = q2, .q3 = q3,
+                .x = x, .y = y, .z = z,
+                .active = 1
+            };
+            strncpy(cosmic_features[cosmic_feature_count].name, new_feature_names[t], 63);
+            cosmic_features[cosmic_feature_count].name[63] = '\0';
+            cosmic_feature_count++;
+        }
+    }
+
+    rebuild_spatial_index();
     refresh_lrs_grid();
 
     printf("\n%s .--- GALAXY GENERATION COMPLETED: ASTROMETRICS REPORT ----------.%s\n", B_CYAN, RESET);
@@ -1423,6 +1488,7 @@ rebuild_spatial_index();
     printf("%s | %s 🏺 ANCIENT RELICS: %s%-5d %s| %s ⚡ ION STORMS:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, relic_count, B_CYAN, B_WHITE, B_GREEN, storm_count, B_CYAN);
     printf("%s | %s 🚀 TOTAL VESSELS: %s%-5d %s| %s 🪐 Planets:            %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, n_count, B_CYAN, B_WHITE, B_GREEN, p_count, B_CYAN);
     printf("%s | %s 🌋 SUBSPACE RUPT: %s%-5d %s| %s 📡 SATELLITES:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, rupture_count, B_CYAN, B_WHITE, B_GREEN, satellite_count, B_CYAN);
+    printf("%s | %s 🌌 EXOTIC FEAT.:  %s%-5d %s| %s                       %s      %s|\n", B_CYAN, B_WHITE, B_GREEN, cosmic_feature_count, B_CYAN, B_WHITE, B_GREEN, B_CYAN);
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     
     printf("%s | %s [ STAR SPECTRAL TYPES ]    %s| %s [ NEBULA CLASSIFICATION ]  %s|\n", B_CYAN, B_YELLOW, B_CYAN, B_YELLOW, B_CYAN);
@@ -1483,6 +1549,17 @@ rebuild_spatial_index();
     printf("%s | %s%-12s: %s%-4d %s| %s%-12s: %s%-4d %s| %s%-12s: %s%-4d  %s|\n", B_CYAN, B_WHITE, "Magnetosph.", B_GREEN, magnetosphere_count, B_CYAN, B_WHITE, "Cosm Strings", B_GREEN, cosmic_string_count, B_CYAN, B_WHITE, "Domain Walls", B_GREEN, domain_wall_count, B_CYAN);
     printf("%s | %s%-12s: %s%-4d %s| %s%-12s: %s%-4d %s| %s%-12s: %s%-4d  %s|\n", B_CYAN, B_WHITE, "DM Halos", B_GREEN, dm_halo_count, B_CYAN, B_WHITE, "IGM", B_GREEN, igm_count, B_CYAN, B_WHITE, "CGM", B_GREEN, cgm_count, B_CYAN);
     printf("%s | %s%-12s: %s%-4d %s| %s%-12s: %s%-4d %s| %s%-12s: %s%-4s  %s|\n", B_CYAN, B_WHITE, "Lyman Alpha", B_GREEN, lyman_alpha_count, B_CYAN, B_WHITE, "CMB", B_GREEN, cmb_count, B_CYAN, B_WHITE, "", B_GREEN, "", B_CYAN);
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ CLASSIFIED EXOTIC FEATURES ]                             %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    for (int t = 0; t < 32; t+=2) {
+        char n1[32], n2[32] = "";
+        strncpy(n1, new_feature_names[t], 29); n1[29] = '\0';
+        if (t+1 < 32) { strncpy(n2, new_feature_names[t+1], 29); n2[29] = '\0'; }
+        printf("%s | %s %-29s: %s%-3d %s| %s %-29s: %s%-3d %s|\n", 
+            B_CYAN, 
+            B_WHITE, n1, B_GREEN, 10, B_CYAN, 
+            B_WHITE, n2, B_GREEN, (t+1 < 32) ? 10 : 0, B_CYAN);
+    }
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     printf("%s | %s [ STARBASES BY FACTION ]                                     %s|\n", B_CYAN, B_YELLOW, B_CYAN);
     for (int f = 10; f <= 20; f += 2) {

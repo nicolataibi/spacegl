@@ -110,7 +110,38 @@ const char* cat_names[] = {
     "PROTOPLANETARY DISKS", "DEBRIS DISKS", "PLANETESIMALS", "ROGUE PLANETS", "BROWN DWARFS",
     "INTERSTELLAR OBJECTS", "MAGNETIC RECONNECTION", "CURRENT SHEETS", "HELIOSPHERES", "TERMINATION SHOCKS",
     "MAGNETOSPHERES", "COSMIC STRINGS", "DOMAIN WALLS", "DARK MATTER HALOS", "IGM",
-    "CGM", "LYMAN-ALPHA FOREST", "CMB"
+    "CGM", "LYMAN-ALPHA FOREST", "CMB", "STELLAR-MASS BLACK HOLE",
+    "INTERMEDIATE-MASS BLACK HOLE (IMBH)",
+    "SUPERMASSIVE BLACK HOLE (SMBH)",
+    "ULTRAMASSIVE BLACK HOLE (UMBH)",
+    "STUPENDOUSLY LARGE BLACK HOLE (SLAB)",
+    "PRIMORDIAL BLACK HOLE (PBH)",
+    "SCHWARZSCHILD BLACK HOLE",
+    "KERR BLACK HOLE",
+    "REISSNER-NORDSTROM BLACK HOLE",
+    "KERR-NEWMAN BLACK HOLE",
+    "EXTREMAL BLACK HOLE",
+    "REGULAR BLACK HOLE",
+    "BARDEEN BLACK HOLE",
+    "HAYWARD BLACK HOLE",
+    "DYMNIKOVA BLACK HOLE",
+    "FAN-WANG BLACK HOLE",
+    "FIREWALL BLACK HOLE",
+    "FUZZBALL",
+    "QUANTUM BLACK HOLE",
+    "MICRO BLACK HOLE",
+    "PLANCK BLACK HOLE",
+    "GRAVASTAR",
+    "BOSON STAR",
+    "DARK STAR",
+    "EXOTIC COMPACT OBJECT (ECO)",
+    "BLACK-HOLE MIMICKER",
+    "WORMHOLE",
+    "WHITE HOLE",
+    "NAKED SINGULARITY",
+    "SUPER-EXTREMAL SOLUTION BLACK HOLE",
+    "SUPER-EXTREMAL REISSNER-NORDSTROM SOLUTION BLACK HOLE",
+    "SUPER-EXTREMAL KERR SOLUTION BLACK HOLE"
 };
 
 typedef enum {
@@ -125,11 +156,22 @@ void draw_tel_menu(int selection) {
     
     mvprintw(4, 2, "Use ARROWS to select and ENTER to view. Press 'M' to return to HUD.");
     
+    int max_rows = LINES - 8;
+    if (max_rows < 1) max_rows = 1;
+    int max_cols = COLS / 38;
+    if (max_cols < 1) max_cols = 1;
+    int items_per_page = max_rows * max_cols;
+    int page = selection / items_per_page;
+    int start_idx = page * items_per_page;
+    int end_idx = start_idx + items_per_page;
+    if (end_idx > TEL_CAT_COUNT) end_idx = TEL_CAT_COUNT;
+
     int start_y = 6;
-    for (int i = 0; i < TEL_CAT_COUNT; i++) {
-        int col = i / 23;
-        int row = i % 23;
-        int x_pos = 4 + (col * 40);
+    for (int i = start_idx; i < end_idx; i++) {
+        int idx_on_page = i - start_idx;
+        int col = idx_on_page / max_rows;
+        int row = idx_on_page % max_rows;
+        int x_pos = 2 + (col * 38);
         
         if (i == selection) {
             attron(COLOR_PAIR(1) | A_REVERSE);
@@ -141,7 +183,7 @@ void draw_tel_menu(int selection) {
     }
     
     attron(COLOR_PAIR(3));
-    mvprintw(30, 2, "[UP/DOWN/LEFT/RIGHT] Select | [ENTER] Open | [M] Exit to HUD | [Q] Quit");
+    mvprintw(LINES - 2, 2, "[UP/DOWN/LEFT/RIGHT] Select | [ENTER] Open | [M] Exit to HUD | [Q] Quit");
     attroff(COLOR_PAIR(3));
 }
 

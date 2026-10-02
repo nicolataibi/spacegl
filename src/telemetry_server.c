@@ -73,7 +73,38 @@ const char* cat_names_diag[] = {
     "PROTOPLANETARY DISKS", "DEBRIS DISKS", "PLANETESIMALS", "ROGUE PLANETS", "BROWN DWARFS",
     "INTERSTELLAR OBJECTS", "MAGNETIC RECONNECTION", "CURRENT SHEETS", "HELIOSPHERES", "TERMINATION SHOCKS",
     "MAGNETOSPHERES", "COSMIC STRINGS", "DOMAIN WALLS", "DARK MATTER HALOS", "IGM",
-    "CGM", "LYMAN-ALPHA FOREST", "CMB"
+    "CGM", "LYMAN-ALPHA FOREST", "CMB", "STELLAR-MASS BLACK HOLE",
+    "INTERMEDIATE-MASS BLACK HOLE (IMBH)",
+    "SUPERMASSIVE BLACK HOLE (SMBH)",
+    "ULTRAMASSIVE BLACK HOLE (UMBH)",
+    "STUPENDOUSLY LARGE BLACK HOLE (SLAB)",
+    "PRIMORDIAL BLACK HOLE (PBH)",
+    "SCHWARZSCHILD BLACK HOLE",
+    "KERR BLACK HOLE",
+    "REISSNER-NORDSTROM BLACK HOLE",
+    "KERR-NEWMAN BLACK HOLE",
+    "EXTREMAL BLACK HOLE",
+    "REGULAR BLACK HOLE",
+    "BARDEEN BLACK HOLE",
+    "HAYWARD BLACK HOLE",
+    "DYMNIKOVA BLACK HOLE",
+    "FAN-WANG BLACK HOLE",
+    "FIREWALL BLACK HOLE",
+    "FUZZBALL",
+    "QUANTUM BLACK HOLE",
+    "MICRO BLACK HOLE",
+    "PLANCK BLACK HOLE",
+    "GRAVASTAR",
+    "BOSON STAR",
+    "DARK STAR",
+    "EXOTIC COMPACT OBJECT (ECO)",
+    "BLACK-HOLE MIMICKER",
+    "WORMHOLE",
+    "WHITE HOLE",
+    "NAKED SINGULARITY",
+    "SUPER-EXTREMAL SOLUTION BLACK HOLE",
+    "SUPER-EXTREMAL REISSNER-NORDSTROM SOLUTION BLACK HOLE",
+    "SUPER-EXTREMAL KERR SOLUTION BLACK HOLE"
 };
 
 static pthread_mutex_t cat_mutexes[TEL_CAT_COUNT];
@@ -368,6 +399,166 @@ void telemetry_init() {
                     case TEL_CAT_CGM: COUNT_CAT(cgms, MAX_CGM); break;
                     case TEL_CAT_LYMAN_ALPHA: COUNT_CAT(lyman_alphas, MAX_LYMAN_ALPHA); break;
                     case TEL_CAT_CMB: COUNT_CAT(cmbs, MAX_CMB); break;
+                                        case TEL_CAT_STELLAR_MASS_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 0) count++;
+                        }
+                    } break;
+                    case TEL_CAT_INTERMEDIATE_MASS_BLACK_HOLE_IMBH: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 1) count++;
+                        }
+                    } break;
+                    case TEL_CAT_SUPERMASSIVE_BLACK_HOLE_SMBH: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 2) count++;
+                        }
+                    } break;
+                    case TEL_CAT_ULTRAMASSIVE_BLACK_HOLE_UMBH: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 3) count++;
+                        }
+                    } break;
+                    case TEL_CAT_STUPENDOUSLY_LARGE_BLACK_HOLE_SLAB: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 4) count++;
+                        }
+                    } break;
+                    case TEL_CAT_PRIMORDIAL_BLACK_HOLE_PBH: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 5) count++;
+                        }
+                    } break;
+                    case TEL_CAT_SCHWARZSCHILD_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 6) count++;
+                        }
+                    } break;
+                    case TEL_CAT_KERR_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 7) count++;
+                        }
+                    } break;
+                    case TEL_CAT_REISSNER_NORDSTROM_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 8) count++;
+                        }
+                    } break;
+                    case TEL_CAT_KERR_NEWMAN_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 9) count++;
+                        }
+                    } break;
+                    case TEL_CAT_EXTREMAL_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 10) count++;
+                        }
+                    } break;
+                    case TEL_CAT_REGULAR_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 11) count++;
+                        }
+                    } break;
+                    case TEL_CAT_BARDEEN_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 12) count++;
+                        }
+                    } break;
+                    case TEL_CAT_HAYWARD_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 13) count++;
+                        }
+                    } break;
+                    case TEL_CAT_DYMNIKOVA_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 14) count++;
+                        }
+                    } break;
+                    case TEL_CAT_FAN_WANG_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 15) count++;
+                        }
+                    } break;
+                    case TEL_CAT_FIREWALL_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 16) count++;
+                        }
+                    } break;
+                    case TEL_CAT_FUZZBALL: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 17) count++;
+                        }
+                    } break;
+                    case TEL_CAT_QUANTUM_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 18) count++;
+                        }
+                    } break;
+                    case TEL_CAT_MICRO_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 19) count++;
+                        }
+                    } break;
+                    case TEL_CAT_PLANCK_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 20) count++;
+                        }
+                    } break;
+                    case TEL_CAT_GRAVASTAR: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 21) count++;
+                        }
+                    } break;
+                    case TEL_CAT_BOSON_STAR: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 22) count++;
+                        }
+                    } break;
+                    case TEL_CAT_DARK_STAR: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 23) count++;
+                        }
+                    } break;
+                    case TEL_CAT_EXOTIC_COMPACT_OBJECT_ECO: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 24) count++;
+                        }
+                    } break;
+                    case TEL_CAT_BLACK_HOLE_MIMICKER: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 25) count++;
+                        }
+                    } break;
+                    case TEL_CAT_WORMHOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 26) count++;
+                        }
+                    } break;
+                    case TEL_CAT_WHITE_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 27) count++;
+                        }
+                    } break;
+                    case TEL_CAT_NAKED_SINGULARITY: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 28) count++;
+                        }
+                    } break;
+                    case TEL_CAT_SUPER_EXTREMAL_SOLUTION_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 29) count++;
+                        }
+                    } break;
+                    case TEL_CAT_SUPER_EXTREMAL_REISSNER_NORDSTROM_SOLUTION_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 30) count++;
+                        }
+                    } break;
+                    case TEL_CAT_SUPER_EXTREMAL_KERR_SOLUTION_BLACK_HOLE: {
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 31) count++;
+                        }
+                    } break;
                 }
             }
             printf(" %-23s | \033[1;32mREADY\033[0m   | %-15d\n", cat_names_diag[c], count);
@@ -1211,6 +1402,358 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     to->color_pair = 4;
                 }
             } break;
+            case TEL_CAT_STELLAR_MASS_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_INTERMEDIATE_MASS_BLACK_HOLE_IMBH: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_SUPERMASSIVE_BLACK_HOLE_SMBH: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_ULTRAMASSIVE_BLACK_HOLE_UMBH: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_STUPENDOUSLY_LARGE_BLACK_HOLE_SLAB: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_PRIMORDIAL_BLACK_HOLE_PBH: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_SCHWARZSCHILD_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_KERR_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_REISSNER_NORDSTROM_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_KERR_NEWMAN_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_EXTREMAL_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_REGULAR_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_BARDEEN_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_HAYWARD_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_DYMNIKOVA_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_FAN_WANG_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_FIREWALL_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_FUZZBALL: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_QUANTUM_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_MICRO_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_PLANCK_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_GRAVASTAR: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_BOSON_STAR: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_DARK_STAR: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_EXOTIC_COMPACT_OBJECT_ECO: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_BLACK_HOLE_MIMICKER: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_WORMHOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_WHITE_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_NAKED_SINGULARITY: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_SUPER_EXTREMAL_SOLUTION_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_SUPER_EXTREMAL_REISSNER_NORDSTROM_SOLUTION_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
+            case TEL_CAT_SUPER_EXTREMAL_KERR_SOLUTION_BLACK_HOLE: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Exotic Feature", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
             default: break;
         }
     }
@@ -1318,6 +1861,230 @@ static void update_category_cache(int cat) {
             case TEL_CAT_CGM: FILL_CACHE_CAT(cgms, MAX_CGM); break;
             case TEL_CAT_LYMAN_ALPHA: FILL_CACHE_CAT(lyman_alphas, MAX_LYMAN_ALPHA); break;
             case TEL_CAT_CMB: FILL_CACHE_CAT(cmbs, MAX_CMB); break;
+                        case TEL_CAT_STELLAR_MASS_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 0) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_INTERMEDIATE_MASS_BLACK_HOLE_IMBH: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 1) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_SUPERMASSIVE_BLACK_HOLE_SMBH: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 2) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_ULTRAMASSIVE_BLACK_HOLE_UMBH: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 3) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_STUPENDOUSLY_LARGE_BLACK_HOLE_SLAB: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 4) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_PRIMORDIAL_BLACK_HOLE_PBH: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 5) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_SCHWARZSCHILD_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 6) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_KERR_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 7) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_REISSNER_NORDSTROM_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 8) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_KERR_NEWMAN_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 9) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_EXTREMAL_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 10) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_REGULAR_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 11) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_BARDEEN_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 12) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_HAYWARD_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 13) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_DYMNIKOVA_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 14) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_FAN_WANG_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 15) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_FIREWALL_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 16) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_FUZZBALL: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 17) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_QUANTUM_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 18) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_MICRO_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 19) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_PLANCK_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 20) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_GRAVASTAR: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 21) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_BOSON_STAR: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 22) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_DARK_STAR: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 23) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_EXOTIC_COMPACT_OBJECT_ECO: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 24) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_BLACK_HOLE_MIMICKER: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 25) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_WORMHOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 26) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_WHITE_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 27) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_NAKED_SINGULARITY: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 28) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_SUPER_EXTREMAL_SOLUTION_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 29) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_SUPER_EXTREMAL_REISSNER_NORDSTROM_SOLUTION_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 30) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_SUPER_EXTREMAL_KERR_SOLUTION_BLACK_HOLE: {
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 31) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
         }
     }
     cat_cache_count[cat] = count;

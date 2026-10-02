@@ -5107,6 +5107,23 @@ void display() {
                     case 4: drawStar(0,0,0, objects[i].id); break;
                     case 5: drawPlanet(0,0,0); break;
                     case 6: drawAccretionDisk(0,0,0, pulse); drawBlackHole(0,0,0); break;
+                    case 100 ... 131: {
+                        int e_id = t - 100;
+                        if (e_id % 3 == 0) drawBlackHole(0,0,0);
+                        else if (e_id % 3 == 1) drawSingularity(0,0,0);
+                        else drawNeutronStar(0,0,0);
+                        
+                        if (e_id % 2 == 0) drawAccretionDisk(0,0,0, pulse + e_id);
+                        if (e_id % 4 == 0) drawRelativisticJet(0,0,0, pulse + e_id);
+                        if (e_id % 5 == 0) drawTimeAnomaly(0,0,0);
+                        
+                        /* Add a distinct colored glow based on type ID */
+                        float r = (e_id % 3) * 0.5f;
+                        float g = (e_id % 4) * 0.33f;
+                        float b = (e_id % 5) * 0.25f + 0.2f;
+                        drawGlow(4.0 + (e_id % 3), r, g, b, 0.6);
+                        break;
+                    }
                     case 7: drawStellarNebula(0,0,0, objects[i].ship_class); break;
                     case 8: drawPulsar(0,0,0); break;
                     case 9: drawComet(0,0,0); break;

@@ -290,7 +290,7 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
     v->spin = 0;
 
     /* Base type colors (getObjectColor, src/spacegl_vulkan.c) */
-    if ((type == 1 || type >= 10) && faction >= 10 && faction <= 20) {
+    if ((type == 1 || (type >= 10 && type < 200)) && faction >= 10 && faction <= 20) {
         switch (faction) {
         case 10: v->color[0]=1.0f; v->color[1]=0.1f; v->color[2]=0.0f; break;
         case 11: v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.2f; break;
@@ -319,8 +319,21 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
     else if (type == 26)            { v->color[0]=0.5f; v->color[1]=0.0f; v->color[2]=0.8f; }
     else if (type == 40)            { v->color[0]=0.0f; v->color[1]=0.8f; v->color[2]=0.6f; }
     else if (type == 50)            { v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.5f; }
+    else if (type >= 100 && type <= 131) {
+        int e_id = type - 100;
+        v->color[0] = (e_id % 3) * 0.5f;
+        v->color[1] = (e_id % 4) * 0.33f;
+        v->color[2] = (e_id % 5) * 0.25f + 0.2f;
+    }
 
     switch (type) {
+    case 100 ... 131:
+        v->mesh = GDD_MESH_SPHERE;
+        v->scale = 2.0f;
+        v->frag_mode = GDD_FRAG_PBR;
+        v->additive = 1;
+        v->metallic = 1.0f; v->roughness = 0.0f;
+        break;
     case 1: /* player ship */
     case 10: case 11: case 12: case 13: case 14:
     case 15: case 16: case 17: case 18: case 19:
@@ -333,8 +346,8 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
     case 240: case 241: case 242: case 243: case 244: case 245:
     case 246: case 247: case 248: case 249: case 250:
     case 251: case 252: case 253: case 254: case 255:
-        /* any type >= 10 is a ship in the CPU path (10..255) */
-        if (type == 1 || type >= 10) {
+        /* any (type >= 10 && type < 200) is a ship in the CPU path (10..255) */
+        if (type == 1 || (type >= 10 && type < 200)) {
             v->mesh = GDD_MESH_PYRAMID;
             v->scale = GDD_SHIP_SCALE;
             /* CPU: wireframe LINE_LIST pipeline + PBR (mode 5,
@@ -753,7 +766,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             /* Orientation: full Euler for ships (cloaked included — the
              * CPU computes R for every ship), spin for quasars */
             gdd_m3 m;
-            int is_ship = (type == 1 || type >= 10);
+            int is_ship = (type == 1 || (type >= 10 && type < 200));
             if (is_ship) {
                 gdd_ship_rotation(so, m);
                 gdd_orient_from_m3(o, m);

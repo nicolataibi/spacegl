@@ -518,6 +518,19 @@ typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; i
 typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCLymanAlpha;
 typedef struct { int id; int q1; int q2; int q3; double x; double y; double z; int active; } NPCCMB;
 
+/* Generic Cosmic Feature (Data-Oriented, Replaces individual structs) */
+typedef struct {
+    int id;
+    int type;      /* Determines behavior, rendering class, faction etc. */
+    int q1; int q2; int q3;
+    double x; double y; double z;
+    int active;
+    char name[64]; /* Optional override, or handled globally by type */
+} NPCCosmicFeature;
+
+#define MAX_COSMIC_FEATURES 1024
+#define MAX_Q_FEATURES 32
+
 typedef struct { 
     int id;
     int faction;
@@ -780,6 +793,10 @@ extern NPCCGM cgms[MAX_CGM];
 extern NPCLymanAlpha lyman_alphas[MAX_LYMAN_ALPHA];
 extern NPCCMB cmbs[MAX_CMB];
 
+/* Global Generic Features Array */
+extern NPCCosmicFeature cosmic_features[MAX_COSMIC_FEATURES];
+extern int cosmic_feature_count;
+
 extern PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
 extern ConnectedPlayer players[MAX_CLIENTS];
 extern SpaceGLGame spacegl_master;
@@ -914,6 +931,10 @@ typedef struct {
     NPCCGM *cgms[MAX_Q_CGM]; int cgm_count;
     NPCLymanAlpha *lyman_alphas[MAX_Q_LYMAN_ALPHA]; int lyman_alpha_count;
     NPCCMB *cmbs[MAX_Q_CMB]; int cmb_count;
+
+    /* Generic Cosmic Feature System (Data-Oriented approach for new types) */
+    NPCCosmicFeature *features[MAX_Q_FEATURES];
+    int feature_count;
 
     ConnectedPlayer *players[MAX_Q_PLAYERS];
     int player_count;

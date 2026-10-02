@@ -2059,6 +2059,8 @@ void update_game_logic() {
         for(int i = 0; i < lq->cgm_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->cgms[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->cgms[i]->x, .net_y = lq->cgms[i]->y, .net_z = lq->cgms[i]->z, .type = 86, .id = lq->cgms[i]->id + GALAXY_OBJECT_MIN_CGM, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "CGM"); o_idx++; }
         for(int i = 0; i < lq->lyman_alpha_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->lyman_alphas[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->lyman_alphas[i]->x, .net_y = lq->lyman_alphas[i]->y, .net_z = lq->lyman_alphas[i]->z, .type = 87, .id = lq->lyman_alphas[i]->id + GALAXY_OBJECT_MIN_LYMAN_ALPHA, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "Lyman Alpha"); o_idx++; }
         for(int i = 0; i < lq->cmb_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->cmbs[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->cmbs[i]->x, .net_y = lq->cmbs[i]->y, .net_z = lq->cmbs[i]->z, .type = 88, .id = lq->cmbs[i]->id + GALAXY_OBJECT_MIN_CMB, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "CMB"); o_idx++; }
+        for(int i = 0; i < lq->feature_count && o_idx < MAX_NET_OBJECTS; i++) if (lq->features[i]->active) { upd->objects[o_idx] = (NetObject){.net_x = lq->features[i]->x, .net_y = lq->features[i]->y, .net_z = lq->features[i]->z, .type = lq->features[i]->type, .id = lq->features[i]->id, .active = 1}; snprintf(upd->objects[o_idx].name, 64, "%s", lq->features[i]->name[0] ? lq->features[i]->name : "Cosmic Feature"); o_idx++; }
+
 
         upd->object_count = o_idx;
 

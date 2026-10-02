@@ -2161,7 +2161,7 @@ static char* readShaderFile(const char* filename, size_t* pSize) { FILE* file = 
 void getObjectColor(int type, int faction, float* r, float* g, float* b) {
     *r = 1.0f; *g = 1.0f; *b = 1.0f;
     
-    if ((type == 1 || type >= 10) && (faction >= 10 && faction <= 20)) {
+    if ((type == 1 || (type >= 10 && type < 200)) && (faction >= 10 && faction <= 20)) {
         switch(faction) {
             case 10: *r = 1.0f; *g = 0.1f; *b = 0.0f; break; /* Korthian */
             case 11: *r = 0.0f; *g = 1.0f; *b = 0.2f; break; /* Xylari */
@@ -3659,7 +3659,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             }
 
             /* PBR Parameters based on object type */
-            if (obj->type == 1 || obj->type >= 10) { // Ships
+            if (obj->type == 1 || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) { // Ships
                 opc.metallic = 0.9f; opc.roughness = 0.25f;
             } else if (obj->type == 4) { // Star
                 opc.metallic = 0.0f; opc.roughness = 1.0f; opc.usePushColor = 6; /* Hyper-Warp for surface plasma */
@@ -3691,14 +3691,14 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
 
 
 
-            if (obj->faction == 12 && (obj->type == 1 || obj->type >= 10)) {
+            if (obj->faction == 12 && (obj->type == 1 || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200)))) {
                 drawSwarmCube(cb, app, opc.model, pulse);
                 continue;
             }
 
             /* Draw Standard Object (Ship, Base, Planet, Star, Asteroid, etc.) */
             PushConstants ship_opc = opc;
-                if (obj->type == 1 || obj->type >= 10) {
+                if (obj->type == 1 || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
                     float shipScale = 0.55f * tactScale;
                     mat4 S_ship;
@@ -3727,6 +3727,15 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     else if (obj->type == 47) { ship_opc.color[0]=0.7f; ship_opc.color[1]=0.7f; ship_opc.color[2]=0.0f; } // Orbital Ring
                     else if (obj->type == 48) { ship_opc.color[0]=0.0f; ship_opc.color[1]=1.0f; ship_opc.color[2]=0.5f; } // Time Anomaly
                     else if (obj->type == 49) { ship_opc.color[0]=0.9f; ship_opc.color[1]=0.0f; ship_opc.color[2]=0.9f; } // Void Crystal
+                    else if (obj->type >= 100 && obj->type <= 131) { 
+                        int e_id = obj->type - 100;
+                        ship_opc.color[0]= (e_id % 3) * 0.5f; 
+                        ship_opc.color[1]= (e_id % 4) * 0.33f; 
+                        ship_opc.color[2]= (e_id % 5) * 0.25f + 0.2f; 
+                        ship_opc.usePushColor = 1 + (e_id % 7); // Use various procedural shaders/FX available
+                        ship_opc.metallic = 1.0f; 
+                        ship_opc.roughness = 0.0f; 
+                    }
                 }
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ship_opc), &ship_opc);
                 VkBuffer vb;
@@ -3737,7 +3746,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     vb = app->torpVertexBuffer;
                     ib = app->torpIndexBuffer;
                     cnt = sizeof(torpIndices)/4;
-                } else if (obj->type == 4 || obj->type == 5) {
+                } else if (obj->type == 4 || obj->type == 5 || (obj->type >= 100 && obj->type <= 131)) {
                     vb = app->sphereVertexBuffer;
                     ib = app->sphereIndexBuffer;
                     cnt = SPHERE_LATS * SPHERE_LONGS * 6;
@@ -3753,7 +3762,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 vkCmdBindVertexBuffers(cb, 0, 1, &vb, &off);
                 vkCmdBindIndexBuffer(cb, ib, 0, it);
                 vkCmdDrawIndexed(cb, cnt, 1, 0, 0, 0);
-                if (obj->type == 1 || obj->type >= 10) {
+                if (obj->type == 1 || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
                 }
 
@@ -3762,7 +3771,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 int is_alliance = 0;
                 if (obj->faction == 0 || obj->faction == 1) is_alliance = 1;
 
-                if ((obj->type == 1 || obj->type >= 10) && is_alliance) {
+                if ((obj->type == 1 || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) && is_alliance) {
                     /* Our pyramid is scaled by 0.55f * tactScale and its stern is at local X = -0.7288f.
                      * So in opc.model space, the tail is at -0.7288f * 0.55f * tactScale = -0.40084f * tactScale.
                      * We place the quantum core exactly there */

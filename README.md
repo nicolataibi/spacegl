@@ -1889,6 +1889,7 @@ To interact with galactic objects using the `lock`, `scan`, `pha`, `tor`, `bor`,
 | **CGM (Circumgalactic Medium)** | 80,000 - 80,999 | `lock 80000` | Galactic halo gas study |
 | **Lyman-Alpha Blobs** | 81,000 - 81,999 | `lock 81000` | Primordial gas research |
 | **CMB (Cosmic Microwave Background)** | 82,000 - 82,999 | `lock 82000` | Relic radiation monitoring |
+| **Exotic Features** | 83,000 - 83,999 | `lock 83000` | Deep space anomalies |
 
 **Note**: Locking and autopilot (`apr`) only work if the object is in your current quadrant. If the ID exists but is far away, the computer will indicate the target's `Q[x,y,z]` coordinates.
 

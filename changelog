@@ -1,3 +1,30 @@
+* Sat Oct 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.03.01
+  - Galaxy: added 32 new Exotic Feature object types (IDs 83000-83999, visual
+    types 100-131): Stellar-mass, Intermediate-mass (IMBH), Supermassive (SMBH),
+    Ultramassive (UMBH), Stupendously Large (SLAB), Primordial (PBH),
+    Schwarzschild, Kerr, Reissner-Nordstrom, Kerr-Newman, Extremal, Regular,
+    Bardeen, Hayward, Dymnikova, Fan-Wang, Firewall black holes, Fuzzball,
+    Quantum, Micro, Planck black holes, Gravastar, Boson star, Dark star,
+    Exotic compact object (ECO), Black-hole mimicker, Wormhole, White hole,
+    Naked singularity, Super-extremal solution, Super-extremal
+    Reissner-Nordstrom solution, Super-extremal Kerr solution. 10 instances
+    each (320 total) spawned randomly across the galaxy, persisted to galaxy.dat.
+  - Server: consolidated features into NPCCosmicFeature/cosmic_features[]
+    (server_internal.h). Hooked into spatial quad index, UPD_OBJECTS packet,
+    and Astrometrics report ([CLASSIFIED EXOTIC FEATURES] section).
+  - Telemetry: replaced TEL_CAT_EXOTIC_FEATURE with 32 individual enum entries
+    (telemetry.h, telemetry_server.c), each with COUNT/FILL_CACHE/fill_obj
+    handler filtering on type==100+t. Category menu now supports dynamic
+    pagination adapting to terminal size. Status bar anchored to LINES-2.
+  - Graphics (OpenGL): case 100..131 in display() switch (spacegl_3dview.c)
+    with procedural color from (type-100) modular arithmetic.
+  - Graphics (Vulkan CPU-driven): type range 100-131 in recordCommandBuffer()
+    (spacegl_vulkan.c) with additive PBR push constants and per-type RGB color.
+  - Graphics (Vulkan GPU-driven): case 100..131 in gdd_visual_for()
+    (spacegl_vulkan_gdd.c) with GDD_MESH_SPHERE, scale 2.0, additive blend.
+  - Fixed ship type-range guard (type>=10 && type<200) in both Vulkan pipelines.
+  - README.md: added "Exotic Features | 83,000-83,999 | lock 83000" row.
+
 * Fri Oct 02 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.02.05
   - Network: implemented Data-Oriented Delta Compression for kinematic updates.
     Separated NetObject metadata from its kinematic properties (positions and
