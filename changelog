@@ -1,3 +1,8 @@
+* Fri Oct 02 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.02.01
+  - Vulkan client: fixed bridge camera offset using column-major access
+    of the R_ship matrix to translate correctly along local Y axis (audit
+    item B12).
+
 * Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.05
   - Vulkan client: fixed a latent out-of-bounds read of the shared-state
     object array in mainLoop() (src/spacegl_vulkan.c, audit item B8:

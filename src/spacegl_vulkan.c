@@ -4223,9 +4223,9 @@ void drawFrame(VulkanApp* app) {
         /* Camera Position: exactly on the local Y-axis, slightly above the ship */
         float ly = (app->showBridge >= 11) ? (-BRIDGE_CAMERA_OFFSET_Y * SCALE_SHIP * tactScale) : (BRIDGE_CAMERA_OFFSET_Y * SCALE_SHIP * tactScale);
         /* wx, wy, wz = ShipPos + R_ship * (0, ly, 0) */
-        float wx = ly * R_ship[1][0] + px;
+        float wx = ly * R_ship[0][1] + px;
         float wy = ly * R_ship[1][1] + py;
-        float wz = ly * R_ship[1][2] + pz;
+        float wz = ly * R_ship[2][1] + pz;
 
         /* Bridge Camera Orientation: Fixed relative to the ship.
            The ship looks along its local +X axis (Nose). The camera looks along -Z by default. */

@@ -2346,9 +2346,9 @@ static void gdd_compute_view(VulkanApp *app, mat4 view, float cam_world[3]) {
         float ly = (app->showBridge >= 11)
                  ? (-GDD_BRIDGE_CAMERA_OFFSET * tactScale)
                  : ( GDD_BRIDGE_CAMERA_OFFSET * tactScale);
-        float wx = ly * R_ship[1][0] + px;
+        float wx = ly * R_ship[0][1] + px;
         float wy = ly * R_ship[1][1] + py;
-        float wz = ly * R_ship[1][2] + pz;
+        float wz = ly * R_ship[2][1] + pz;
         cam_brg[0] = wx; cam_brg[1] = wy; cam_brg[2] = wz;
 
         mat4 R_base; mat4_identity(R_base);
