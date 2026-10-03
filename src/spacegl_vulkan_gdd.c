@@ -2581,7 +2581,7 @@ void gdd_build_frame(VulkanApp *app, float pulse) {
          * paths, which draw the same beam with GL_SRC_ALPHA/GL_ONE). */
         if (add_3f_ago > 0 && gc->additive_verts > 0 && dic[1].vertexCount > 0) {
             if (sglog_rate("gdd_funnel_ok", 2))
-                SG_INFO(SG_CAT_VULKAN,
+                SG_TRACE3(SG_CAT_VULKAN,
                         "gdd funnel OK: %u add inst -> gpu add_v=%u, draw add_vcnt=%u first_vertex=%u (same frame, -3f); funnel intact - if the beam is still invisible suspect MSAA AVERAGE resolve / depth",
                         add_3f_ago, gc->additive_verts,
                         dic[1].vertexCount, dic[1].firstVertex);

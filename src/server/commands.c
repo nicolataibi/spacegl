@@ -3393,7 +3393,7 @@ void handle_cal(int i, const char *params, bool *should_disconnect) {
                          qx, qy, qz, sx, sy, sz, h, m, q_dist);
 
             for (double f = 0.1; f <= 10.0; ) {
-                double cf = (f > 9.9) ? 9.9 : f;
+                double cf = (f > 9.999) ? 9.999 : f;
                 
                 /* Real Time Calculation (60Hz Synchronized): 
                    Distance / Speed (cf / COEFF_HYPER_DIVISOR) = Ticks per Quad
@@ -3409,12 +3409,13 @@ void handle_cal(int i, const char *params, bool *should_disconnect) {
                 else if (cf > 9.8) note = "MAX VELOCITY";
 
                 char row[128];
-                sprintf(row, " %3.1f      %6.2fs      %6.2fs      %s\n", cf, t_1q, t_total, note);
+                /* Factor rounded to 3 decimals; the last row is 9.999 */
+                sprintf(row, " %5.3f    %6.2fs      %6.2fs      %s\n", cf, t_1q, t_total, note);
                 strcat(table, row);
                 
-                if (f >= 9.9) break;
+                if (f >= 9.999) break;
                 f += 0.5;
-                if (f > 9.9) f = 9.9;
+                if (f > 9.999) f = 9.999;
             }
 
             sprintf(table + strlen(table), "-------------------------------------------------\n"

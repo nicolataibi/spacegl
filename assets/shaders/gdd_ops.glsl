@@ -96,8 +96,8 @@ void gdd_expand_box(uint base, GddInstance it) {
             vec3 unscaled_lp = vec3(GDD_BOX_SIGNS[i]);
             vec3 lp = unscaled_lp * it.b.xyz;
             vec3 bary = (uint(i) % 3u == 0u) ? vec3(1, 0, 0)
-                       : (uint(i) % 3u == 1u) ? vec3(0, 1, 0)
-                       : vec3(0, 0, 1);
+            : (uint(i) % 3u == 1u) ? vec3(0, 1, 0)
+            : vec3(0, 0, 1);
             gdd_put_bary(base + uint(i), gdd_xform(it, unscaled_lp), lp,
                          it.o * GDD_BOX_FACE_N[i / 6], it, bary);
         }
@@ -111,30 +111,79 @@ void gdd_expand_box(uint base, GddInstance it) {
     }
 }
 
+/* ------------------------------------------------------------------ */
+/* gdd_expand_sphere — UV-sphere / ellipsoid tessellation.             */
+/*                                                                     */
+/* BUG FIX 1 (2026-10): latitude sampled over [0, PI] with the wrong  */
+/* trig pairing. Original:                                              */
+/*                                                                     */
+/*     vec3 d = vec3(cos(lat)*cos(lon), sin(lat), cos(lat)*sin(lon));  */
+/*                                                                     */
+/* With lat in [0, PI], sin(lat) >= 0 for every band, so only the      */
+/* NORTHERN hemisphere was generated (southern cap missing). The       */
+/* correct pairing (already applied here) is the standard polar one:   */
+/*                                                                     */
+/*     vec3 d = vec3(sin(lat)*cos(lon), cos(lat), sin(lat)*sin(lon));  */
+/*                                                                     */
+/* which covers the whole sphere exactly once for lat in [0, PI].      */
+/*                                                                     */
+/* BUG FIX 2 (2026-10): the semi-axes were read from `it.b.x` only, so */
+/* any non-uniform scale (the accretion disks of black holes/ quasars  */
+/* use (s*3.5, s*0.02, s*3.5); shield panels use (0.5, 1.8, 1.8) * s)  */
+/* rendered as a full sphere of radius it.b.x instead of a flattened   */
+/* ellipsoid. The fix multiplies `d` component-wise by `it.b.xyz` for  */
+/* the position and uses the analytic ellipsoid normal `normalize(d /  */
+/* it.b.xyz)` (the differential-geometry normal of a parametric         */
+/* ellipsoid, valid everywhere except on the (measure-zero) degenerate */
+/* poles, where the limit direction (0, ±1, 0) is what we fall back    */
+/* to and is exactly what `normalize(d / it.b.xyz)` returns there).    */
+/*                                                                     */
+/* vLocal semantics (CPU parity): the CPU's `localPos = inPosition` is */
+/* the vertex of the UNSQUASHED unit sphere, NOT the ellipsoid point.  */
+/* The GDD now writes `lpos = d` (unit direction) to match, so        */
+/* GDD_FRAG_ACCRETION's `normalize(vLocal).xz` keeps the same latitude */
+/* meaning it has in the CPU shader. (Previously `lpos = d * r` with   */
+/* scalar r happened to give the same result after normalize, but only */
+/* because the scale was uniform; the new form is correct in general.) */
+/* Vertex count is unchanged: GDD_SPHERE_LATS * GDD_SPHERE_LONS * 6.   */
+/* ------------------------------------------------------------------ */
 void gdd_expand_sphere(uint base, GddInstance it) {
     float PI = 3.141592653589793;
-    float r = it.b.x;
+    /* Component-wise semi-axes; guarded against 0 (never zero from any
+     * call site, but cheap insurance against a future caller passing a
+     * degenerate scale for a fully flattened element). */
+    vec3 r     = max(it.b.xyz, vec3(1e-6));
+    vec3 inv_r = vec3(1.0) / r;
     for (int i = 0; i < GDD_SPHERE_LATS; i++) {
-        float lat0 = PI * float(i) / float(GDD_SPHERE_LATS);
+        /* Polar angle from +Y: 0 at north pole, PI at south pole. */
+        float lat0 = PI * float(i)     / float(GDD_SPHERE_LATS);
         float lat1 = PI * float(i + 1) / float(GDD_SPHERE_LATS);
-        float cl0 = cos(lat0), sl0 = sin(lat0);
-        float cl1 = cos(lat1), sl1 = sin(lat1);
+        float cy0 = cos(lat0), sy0 = sin(lat0);
+        float cy1 = cos(lat1), sy1 = sin(lat1);
         for (int j = 0; j < GDD_SPHERE_LONS; j++) {
-            float lon0 = 2.0 * PI * float(j) / float(GDD_SPHERE_LONS);
+            float lon0 = 2.0 * PI * float(j)     / float(GDD_SPHERE_LONS);
             float lon1 = 2.0 * PI * float(j + 1) / float(GDD_SPHERE_LONS);
             float c0 = cos(lon0), s0 = sin(lon0);
             float c1 = cos(lon1), s1 = sin(lon1);
-            vec3 d00 = vec3(cl0 * c0, sl0, cl0 * s0);
-            vec3 d10 = vec3(cl1 * c0, sl1, cl1 * s0);
-            vec3 d01 = vec3(cl0 * c1, sl0, cl0 * s1);
-            vec3 d11 = vec3(cl1 * c1, sl1, cl1 * s1);
+            /* Unit directions on the reference sphere. */
+            vec3 d00 = vec3(sy0 * c0, cy0, sy0 * s0);
+            vec3 d10 = vec3(sy1 * c0, cy1, sy1 * s0);
+            vec3 d01 = vec3(sy0 * c1, cy0, sy0 * s1);
+            vec3 d11 = vec3(sy1 * c1, cy1, sy1 * s1);
+            /* Ellipsoid normals: n ∝ d / r (component-wise), then unit. */
+            vec3 n00 = normalize(d00 * inv_r);
+            vec3 n10 = normalize(d10 * inv_r);
+            vec3 n01 = normalize(d01 * inv_r);
+            vec3 n11 = normalize(d11 * inv_r);
             uint b0 = base + uint(i * GDD_SPHERE_LONS + j) * 6u;
-            gdd_put(b0 + 0u, it.a.xyz + d00 * r, d00 * r, d00, it);
-            gdd_put(b0 + 1u, it.a.xyz + d10 * r, d10 * r, d10, it);
-            gdd_put(b0 + 2u, it.a.xyz + d01 * r, d01 * r, d01, it);
-            gdd_put(b0 + 3u, it.a.xyz + d10 * r, d10 * r, d10, it);
-            gdd_put(b0 + 4u, it.a.xyz + d11 * r, d11 * r, d11, it);
-            gdd_put(b0 + 5u, it.a.xyz + d01 * r, d01 * r, d01, it);
+            /* Position: center + d * r (component-wise ellipsoid).
+             * vLocal: the UNIT direction d, matching the CPU's localPos. */
+            gdd_put(b0 + 0u, it.a.xyz + d00 * r, d00, n00, it);
+            gdd_put(b0 + 1u, it.a.xyz + d10 * r, d10, n10, it);
+            gdd_put(b0 + 2u, it.a.xyz + d01 * r, d01, n01, it);
+            gdd_put(b0 + 3u, it.a.xyz + d10 * r, d10, n10, it);
+            gdd_put(b0 + 4u, it.a.xyz + d11 * r, d11, n11, it);
+            gdd_put(b0 + 5u, it.a.xyz + d01 * r, d01, n01, it);
         }
     }
 }
@@ -231,8 +280,8 @@ void gdd_expand_octa(uint base, GddInstance it) {
         for (int i = 0; i < 24; i++) {
             vec3 lp = f[i] * it.b.xyz;
             vec3 bary = (uint(i) % 3u == 0u) ? vec3(1, 0, 0)
-                       : (uint(i) % 3u == 1u) ? vec3(0, 1, 0)
-                       : vec3(0, 0, 1);
+            : (uint(i) % 3u == 1u) ? vec3(0, 1, 0)
+            : vec3(0, 0, 1);
             gdd_put_bary(base + uint(i), gdd_xform(it, f[i]), lp, it.o * n[i / 3], it, bary);
         }
         return;
@@ -251,8 +300,8 @@ void gdd_expand_ring(uint base, GddInstance it) {
      * When 0 → default ratio 0.75 (thick decorative rings). */
     float ht = it.p.x;
     float inner = (ht > 1e-4)
-                ? clamp(1.0 - ht / max(it.b.x, 1e-4), 0.0, 0.99)
-                : 0.75;
+    ? clamp(1.0 - ht / max(it.b.x, 1e-4), 0.0, 0.99)
+    : 0.75;
     for (int j = 0; j < GDD_RING_SEGS; j++) {
         float a0 = 6.283185307179586 * float(j) / float(GDD_RING_SEGS);
         float a1 = 6.283185307179586 * float(j + 1) / float(GDD_RING_SEGS);

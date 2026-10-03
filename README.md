@@ -1352,6 +1352,39 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
    <tr><td>87</td><td>🌳 Lyman Alpha Forest</td><td>Absorption lines from distant hydrogen</td><td><img src="readme_assets/galactic_objects/87🌳Lyman Alpha Forest, Absorption lines from distant hydrogen.png" width="150"></td></tr>
  
    <tr><td>88</td><td>📺 Cosmic Microwave Background</td><td>Remnant radiation from the Big Bang</td><td><img src="readme_assets/galactic_objects/88📺Cosmic%20Microwave%20Background,%20Remnant%20radiation%20from%20the%20Big%20Bang.png" width="150"></td></tr>
+ 
+   <tr><td>89</td><td>⚫ Black Hole</td><td>Stellar-mass</td><td><img src="readme_assets/black%20holes/1%20Stellar-mass%20black%20hole.png" width="150"></td></tr>
+   <tr><td>90</td><td>⚫ Black Hole</td><td>Intermediate-mass (IMBH)</td><td><img src="readme_assets/black%20holes/2%20Intermediate-mass%20black%20hole%20(IMBH).png" width="150"></td></tr>
+   <tr><td>91</td><td>⚫ Black Hole</td><td>Supermassive (SMBH)</td><td><img src="readme_assets/black%20holes/3%20Supermassive%20black%20hole%20(SMBH).png" width="150"></td></tr>
+   <tr><td>92</td><td>⚫ Black Hole</td><td>Ultramassive (UMBH)</td><td><img src="readme_assets/black%20holes/4%20Ultramassive%20black%20hole%20(UMBH).png" width="150"></td></tr>
+   <tr><td>93</td><td>⚫ Black Hole</td><td>Stupendously large (SLAB)</td><td><img src="readme_assets/black%20holes/5%20Stupendously%20large%20black%20hole%20(SLAB).png" width="150"></td></tr>
+   <tr><td>94</td><td>⚫ Black Hole</td><td>Primordial (PBH)</td><td><img src="readme_assets/black%20holes/6%20Primordial%20black%20hole%20(PBH).png" width="150"></td></tr>
+   <tr><td>95</td><td>⚫ Black Hole</td><td>Schwarzschild</td><td><img src="readme_assets/black%20holes/7%20Schwarzschild%20black%20hole.png" width="150"></td></tr>
+   <tr><td>96</td><td>⚫ Black Hole</td><td>Kerr</td><td><img src="readme_assets/black%20holes/8%20Kerr%20black%20hole.png" width="150"></td></tr>
+   <tr><td>97</td><td>⚫ Black Hole</td><td>Reissner–Nordström</td><td><img src="readme_assets/black%20holes/9%20Reissner%E2%80%93Nordstr%C3%B6m%20black%20hole.png" width="150"></td></tr>
+   <tr><td>98</td><td>⚫ Black Hole</td><td>Kerr–Newman</td><td><img src="readme_assets/black%20holes/10%20Kerr%E2%80%93Newman%20black%20hole.png" width="150"></td></tr>
+   <tr><td>99</td><td>⚫ Black Hole</td><td>Extremal</td><td><img src="readme_assets/black%20holes/11%20Extremal%20black%20hole.png" width="150"></td></tr>
+   <tr><td>100</td><td>⚫ Black Hole</td><td>Regular</td><td><img src="readme_assets/black%20holes/12%20Regular%20black%20hole.png" width="150"></td></tr>
+   <tr><td>101</td><td>⚫ Black Hole</td><td>Bardeen</td><td><img src="readme_assets/black%20holes/13%20Bardeen%20black%20hole.png" width="150"></td></tr>
+   <tr><td>102</td><td>⚫ Black Hole</td><td>Hayward</td><td><img src="readme_assets/black%20holes/14%20Hayward%20black%20hole.png" width="150"></td></tr>
+   <tr><td>103</td><td>⚫ Black Hole</td><td>Dymnikova</td><td><img src="readme_assets/black%20holes/15%20Dymnikova%20black%20hole.png" width="150"></td></tr>
+   <tr><td>104</td><td>⚫ Black Hole</td><td>Fan–Wang</td><td><img src="readme_assets/black%20holes/16%20Fan%E2%80%93Wang%20black%20hole.png" width="150"></td></tr>
+   <tr><td>105</td><td>⚫ Black Hole</td><td>Firewall</td><td><img src="readme_assets/black%20holes/17%20Firewall%20black%20hole.png" width="150"></td></tr>
+   <tr><td>106</td><td>⚫ Black Hole</td><td>Fuzzball</td><td><img src="readme_assets/black%20holes/18%20Fuzzball.png" width="150"></td></tr>
+   <tr><td>107</td><td>⚫ Black Hole</td><td>Quantum</td><td><img src="readme_assets/black%20holes/19%20Quantum%20black%20hole.png" width="150"></td></tr>
+   <tr><td>108</td><td>⚫ Black Hole</td><td>Micro</td><td><img src="readme_assets/black%20holes/20%20Micro%20black%20hole.png" width="150"></td></tr>
+   <tr><td>109</td><td>⚫ Black Hole</td><td>Planck</td><td><img src="readme_assets/black%20holes/21%20Planck%20black%20hole.png" width="150"></td></tr>
+   <tr><td>110</td><td>⚫ Black Hole</td><td>Gravastar</td><td><img src="readme_assets/black%20holes/22%20Gravastar.png" width="150"></td></tr>
+   <tr><td>111</td><td>⚫ Black Hole</td><td>Boson star</td><td><img src="readme_assets/black%20holes/23%20Boson%20star.png" width="150"></td></tr>
+   <tr><td>112</td><td>⚫ Black Hole</td><td>Dark star</td><td><img src="readme_assets/black%20holes/24%20Dark%20star.png" width="150"></td></tr>
+   <tr><td>113</td><td>⚫ Black Hole</td><td>Exotic compact object (ECO)</td><td><img src="readme_assets/black%20holes/25%20Exotic%20compact%20object%20(ECO).png" width="150"></td></tr>
+   <tr><td>114</td><td>⚫ Black Hole</td><td>Black-hole mimicker</td><td><img src="readme_assets/black%20holes/26%20Black-hole%20mimicker.png" width="150"></td></tr>
+   <tr><td>115</td><td>🌀 Black Hole</td><td>Wormhole</td><td><img src="readme_assets/black%20holes/27%20Wormhole.png" width="150"></td></tr>
+   <tr><td>116</td><td>⚪ Black Hole</td><td>White hole</td><td><img src="readme_assets/black%20holes/28%20White%20hole.png" width="150"></td></tr>
+   <tr><td>117</td><td>⚫ Black Hole</td><td>Naked singularity</td><td><img src="readme_assets/black%20holes/29%20Naked%20singularity.png" width="150"></td></tr>
+   <tr><td>118</td><td>⚫ Black Hole</td><td>Super-extremal solution</td><td><img src="readme_assets/black%20holes/30%20Super-extremal%20solution%20black%20hole.png" width="150"></td></tr>
+   <tr><td>119</td><td>⚫ Black Hole</td><td>Super-extremal Reissner–Nordström solution</td><td><img src="readme_assets/black%20holes/31%20Super-extremal%20Reissner%E2%80%93Nordstr%C3%B6m%20solution%20black%20hole.png" width="150"></td></tr>
+   <tr><td>120</td><td>⚫ Black Hole</td><td>Super-extremal Kerr solution</td><td><img src="readme_assets/black%20holes/32%20Super-extremal%20Kerr%20solution%20black%20hole.png" width="150"></td></tr>
   </table>
  
 *   **Dynamic Tactical HUD**: Implements a 2D-on-3D projection (via `gluProject`) to anchor labels, health bars, and IDs directly above vessels.

@@ -1,3 +1,24 @@
+* Sat Oct 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.03.03
+  - HUD (ncurses): the tactical quadrant table no longer shows a bogus faction
+    fallback for objects that do not belong to any faction. Only player/NPC
+    ships, starbases, derelicts and defense platforms (whose 'faction' field is
+    meaningful) display a faction name; stars, planets, nebulae, asteroids,
+    torpedoes, cosmic and exotic features etc. now show a class label matching
+    the object (STELLAR, PLANETARY, RELATIV., NEBULAR, DEBRIS, WEAPON, HOSTILE,
+    STRUCTURE, RELIC, ANOMALY, STORM, COSMIC, EXOTIC) via get_object_class_name()
+    / object_has_faction(). The column header (and the locked-target readout)
+    was renamed FACTION -> AFFIL. to reflect the mixed semantics.
+    README.md update galactic objects.
+  - Fix sphere tessellation in the GPU-driven rendering path
+    (assets/shaders/gdd_ops.glsl, gdd_expand_sphere):
+  - Correct the UV parameterization that previously generated only the
+    northern hemisphere (Y >= 0) and double-covered it; the full sphere
+    is now produced.
+  - Support non-uniform instance scaling by using it.b.xyz component-wise
+    for positions and deriving the analytic ellipsoid normal
+    normalize(d / it.b.xyz); this fixes flattened primitives such as
+    black-hole/quasar accretion disks and shield panels.
+
 * Sat Oct 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.03.02
   - Tests: mocked cosmic_features array in tests/quad_index_test.c and registered
     it in the qi_expect validation table to fix the undefined reference linker

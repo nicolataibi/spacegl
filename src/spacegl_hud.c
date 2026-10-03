@@ -70,6 +70,77 @@ const char* get_faction_name(int f) {
     }
 }
 
+/* Object types whose 'faction' field carries a real faction: player
+ * ships (1), NPC ships (10-20, broadcast with type == faction),
+ * starbases (3), derelicts (22) and defense platforms (25). Every other
+ * object (stars, planets, nebulae, cosmic features, ...) does not belong
+ * to any faction: the server leaves the field as an echo of the type (or
+ * zero), so it must not be displayed as one. */
+static int object_has_faction(int type) {
+    if (type == 1 || type == 3 || type == 22 || type == 25) return 1;
+    if (type >= FACTION_KORTHIAN && type <= FACTION_HIROGEN) return 1;
+    return 0;
+}
+
+/* Affiliation label for faction-less objects: a short class name
+ * consistent with the object kind, replacing the old bogus-faction
+ * fallback in the tactical table. */
+const char* get_object_class_name(int type) {
+    if (type >= 100 && type <= 131) return "EXOTIC"; /* exotic features */
+    switch (type) {
+        case 4:  return "STELLAR";   /* Star */
+        case 8:  return "STELLAR";   /* Pulsar */
+        case 29: return "STELLAR";   /* Quasar */
+        case 42: return "STELLAR";   /* Neutron Star */
+        case 75: return "STELLAR";   /* Brown Dwarf */
+        case 5:  return "PLANETARY"; /* Planet */
+        case 71: return "PLANETARY"; /* Protoplanetary Disk */
+        case 74: return "PLANETARY"; /* Rogue Planet */
+        case 76: return "PLANETARY"; /* Int.St. Object */
+        case 6:  return "RELATIV.";  /* Black Hole */
+        case 45: return "RELATIV.";  /* Quantum Singularity */
+        case 66: return "RELATIV.";  /* Event Horizon */
+        case 68: return "RELATIV.";  /* Grav Lens */
+        case 7:  return "NEBULAR";   /* Nebula */
+        case 44: return "NEBULAR";   /* Dark Matter Cloud */
+        case 51: return "NEBULAR";   /* Diffuse Nebula */
+        case 52: return "NEBULAR";   /* Dark Nebula */
+        case 53: return "NEBULAR";   /* Planetary Nebula */
+        case 55: return "NEBULAR";   /* Giant Molecular Cloud */
+        case 56: return "NEBULAR";   /* Int. Filament */
+        case 57: return "NEBULAR";   /* Int. Bubble */
+        case 58: return "NEBULAR";   /* Bok Globule */
+        case 59: return "NEBULAR";   /* Clump Core */
+        case 85: return "NEBULAR";   /* IGM */
+        case 86: return "NEBULAR";   /* CGM */
+        case 9:  return "DEBRIS";    /* Comet */
+        case 21: return "DEBRIS";    /* Asteroid */
+        case 72: return "DEBRIS";    /* Debris Disk */
+        case 73: return "DEBRIS";    /* Planetesimal */
+        case 23: return "WEAPON";    /* Mine */
+        case 27: return "WEAPON";    /* Torpedo */
+        case 30: return "HOSTILE";   /* Crystalline Entity */
+        case 31: return "HOSTILE";   /* Space Amoeba */
+        case 24: return "STRUCTURE"; /* Comm Buoy */
+        case 34: return "STRUCTURE"; /* Dyson Fragment */
+        case 35: return "STRUCTURE"; /* Trading Hub */
+        case 38: return "STRUCTURE"; /* Satellite */
+        case 41: return "STRUCTURE"; /* Warp Gate */
+        case 43: return "STRUCTURE"; /* Mega Structure */
+        case 47: return "STRUCTURE"; /* Orbital Ring */
+        case 36: return "RELIC";     /* Ancient Relic */
+        case 40: return "RELIC";     /* Alien Artifact */
+        case 26: return "ANOMALY";   /* Spatial Rift */
+        case 37: return "ANOMALY";   /* Subspace Rupture */
+        case 48: return "ANOMALY";   /* Time Anomaly */
+        case 49: return "ANOMALY";   /* Void Crystal */
+        case 50: return "ANOMALY";   /* Subspace Anomaly */
+        case 39: return "STORM";     /* Ion Storm */
+        case 46: return "STORM";     /* Plasma Storm */
+        default: return "COSMIC";    /* 54-88: SNR, disks, waves, ... */
+    }
+}
+
 const char* get_ship_class_full(int c) {
     const char* names[] = {"LEGACY", "SCOUT", "HEAVY CRUISER", "MULTI-ENGINE", "ESCORT", "EXPLORER", "FLAGSHIP", "SCIENCE", "CARRIER", "TACTICAL", "DIPLOMATIC", "RESEARCH", "FRIGATE"};
     if (c >= 0 && c <= 12) return names[c];
@@ -467,7 +538,7 @@ int main(int argc, char** argv) {
             for(int o=0; o<st->object_count; o++) if(st->objects[o].id == lock) target = &st->objects[o];
             attron(COLOR_PAIR(7) | A_BOLD); mvprintw(3, 77, ">>> LOCKED ON: ID %-6d <<<", lock); attroff(A_BOLD);
             if (target) {
-                mvprintw(4, 77, "NAME: %-15s | FRACT: %-10s", target->shm_name[0]?target->shm_name:"UNKNOWN", get_faction_name(target->faction));
+                mvprintw(4, 77, "NAME: %-15s | AFFILIATION: %-10s", target->shm_name[0]?target->shm_name:"UNKNOWN", object_has_faction(target->type)?get_faction_name(target->faction):get_object_class_name(target->type));
                 mvprintw(5, 77, "HULL: [%3d%%] | CLASS: %-15s", target->health_pct, get_ship_class_full(target->ship_class));
                 double d = sqrt(pow(target->shm_x - st->shm_s[0], 2) + pow(target->shm_y - st->shm_s[1], 2) + pow(target->shm_z - st->shm_s[2], 2));
                 mvprintw(6, 77, "DIST: %-6.1f | HEADING: %-6.1f", d, target->h);
@@ -478,7 +549,7 @@ int main(int argc, char** argv) {
             mvprintw(4, 77, "------------------------------------------");
         }
         
-        attron(COLOR_PAIR(6)); mvprintw(9, 77, "ID     | NAME       | TYPE | FACTION    | DIST | HULL"); attroff(COLOR_PAIR(6));
+        attron(COLOR_PAIR(6)); mvprintw(9, 77, "ID     | NAME       | TYPE | AFFILIATION | DIST | HULL"); attroff(COLOR_PAIR(6));
         
         int max_scroll = (st->object_count > 16) ? (st->object_count - 16) : 0;
         if (tactical_scroll_offset > max_scroll) tactical_scroll_offset = max_scroll;
@@ -511,8 +582,13 @@ int main(int argc, char** argv) {
             else if (obj->type >= 51 && obj->type <= 63) type_n = "COSM";
             else if (obj->type >= 64 && obj->type <= 88) type_n = "ENVM";
             
+            /* Faction only for objects that explicitly belong to one
+             * (ships, NPC ships, starbases, derelicts, platforms);
+             * everything else shows its class, not a bogus faction. */
+            const char* affil = object_has_faction(obj->type) ? get_faction_name(obj->faction) : get_object_class_name(obj->type);
+
             attron(COLOR_PAIR(col));
-            mvprintw(10 + i, 77, "%6d | %-10.10s | %-4.4s | %-10.10s | %4.1f | %3d%%", obj->id, obj->shm_name[0]?obj->shm_name:"Alien", type_n, get_faction_name(obj->faction), d, obj->health_pct);
+            mvprintw(10 + i, 77, "%6d | %-10.10s | %-4.4s | %-11.11s | %4.1f | %3d%%", obj->id, obj->shm_name[0]?obj->shm_name:"Alien", type_n, affil, d, obj->health_pct);
             attroff(COLOR_PAIR(col));
         }
         if (st->object_count > 16) {
