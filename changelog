@@ -1,3 +1,5 @@
+* Sat Oct 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.03.04
+  - README.md new non-blocking story.
 * Sat Oct 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.03.03
   - HUD (ncurses): the tactical quadrant table no longer shows a bogus faction
     fallback for objects that do not belong to any faction. Only player/NPC

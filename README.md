@@ -556,7 +556,7 @@ Update 3.1 introduces a revolutionary telemetry architecture, granting Commander
 *   **Advanced Telemetry Subsystem**:
     *   **Dual-Socket Architecture**: Simultaneous support for **Unix Domain Sockets** (ultra-low latency local monitoring) and **TCP Sockets** (remote multi-server dashboarding).
     *   **Server Streaming (Push Model)**: Eliminated polling overhead. The server now "pushes" tactical data to clients at the end of every tick, ensuring zero-latency awareness.
-    *   **Full Spectrum Coverage**: All 88 categories of galactic entities are now instrumented, from standard ships to exotic Dyson fragments and subspace anomalies.
+    *   **Full Spectrum Coverage**: All 120 galactic object classes (catalog IDs 0–120) are now instrumented, from standard ships to the 32 exotic compact objects and subspace anomalies.
 *   **Tactical Telemetry Client (`spacegl_telemetry`)**:
     *   A new high-performance diagnostic tool featuring an interactive `ncurses` interface.
     *   Supports dynamic category switching and remote uplink capabilities via `--tcp`.
@@ -597,7 +597,7 @@ In the secret laboratories of the Aegis research station, technicians began mapp
 
 "We must go further," Niklaus ordered. "I want Alliance command on Earth Prime to see what I see, in real-time, across thousands of light-years." Engineers opened the "TCP Pulsar," a remote uplink on frequency 5001. The signal, encrypted with PQC algorithms, began to flow through space, carrying the vital status of every single entity. Remote monitoring was no longer a dream, but an unstoppable binary stream.
 
-### Chapter 4: The 88 Sentinels
+### Chapter 4: The 120 Sentinels
 
 <table>
 <tr>
@@ -605,7 +605,7 @@ In the secret laboratories of the Aegis research station, technicians began mapp
   </tr>
 </table>
 
-The system came to life. Eighty-eight categories of objects were instrumented. Not just ships and stars, but also Dyson sphere fragments, void crystals, and temporal anomalies. Every entity began transmitting its own signature: integrity, energy, exact coordinates. The galaxy, once dark and mysterious, became an open book. The server's efficiency report marked 100%: 88 out of 88 categories were under watch.
+The system came to life. One hundred twenty object classes were instrumented. Not just ships and stars, but also Dyson sphere fragments, void crystals, temporal anomalies, and the 32 exotic compact objects catalogued from IDs 89 to 120. Every entity began transmitting its own signature: integrity, energy, exact coordinates. The galaxy, once dark and mysterious, became an open book. The server's efficiency report marked 100%: 120 out of 120 catalog entries were under watch.
 
 ### Chapter 5: Galactic Omniscience
 
@@ -632,19 +632,24 @@ The **Space GL** telemetry system is a high-performance real-time monitoring inf
 Unlike traditional polling, the server uses a **Push** model:
 *   The client subscribes to a specific category.
 *   The server pushes updates at the end of every logic tick.
-*   Dedicated multithreaded management via `epoll` to handle up to 32 simultaneous clients.
+*   A dedicated worker thread with its own `epoll` instance handles up to 32 simultaneous clients (see the non-blocking architecture section below).
 
-### 🔍 Instrumented Categories (88/88)
-The subsystem covers the entire spectrum of galactic entities:
+### 🔍 Instrumented Categories (120/120)
+The subsystem covers the entire spectrum of galactic entities. The numbered object catalog spans IDs 0–120 (IDs 19 and 22–39 are reserved), and every instrumented class is streamed in real time:
 
-| Category | Description |
+| Category | Instrumented Channels |
 | :--- | :--- |
+| **Fleets (Ships)** | 12 faction fleets: Alliance, Korthian, Xylari, Swarm, Vesperian, Ascendant, Quarzite, Saurian, Gilded, Fluidic, Cryos, Apex |
 | **Astronomical** | Star, Pulsar, Quasar, Neutron Star, Brown Dwarf, Planet, Rogue Planet, Planetesimal, Asteroid, Comet, Protoplanetary Disk, Debris Disk, Accretion Disk |
-| **Nebulae** | Nebula, Diffuse Nebula, High-Energy Nebula, Dark Matter Nebula, Gravimetric Nebula, Temporal Nebula, Interstellar Filament, Interstellar Bubble, Bok Globule, Clump Core |
+| **Nebulae & Clouds** | Nebula (subtypes: Standard, High-Energy, Dark Matter, Ionic, Gravimetric, Temporal), Diffuse Nebula, Dark Nebula, Planetary Nebula, Supernova Remnant (SNR), Giant Molecular Cloud (GMC), Interstellar Filament, Interstellar Bubble, Bok Globule, Clump Core |
 | **Astrophysical** | Black Hole, Singularity, Event Horizon, Gravitational Wave, Gravitational Lens, Ion Storm, Plasma Storm, Relativistic Jet, Gamma Ray Burst, Magnetic Reconnection, Current Sheet, Shock Wave, Stellar Bow Shock, Kilonova |
 | **Artificial** | Starbase, Trading Hub, Mega Structure, Orbital Ring, Satellite, Mine, Platform, Derelict, Dyson Fragment, Ancient Relic, Alien Artifact, Warp Gate |
-| **Cosmological** | Cosmic Void, Cosmic Filament, Cosmic String, Domain Wall, Dark Matter Halo, Intergalactic Medium, Circumgalactic Medium, Lyman Alpha Forest, Cosmic Microwave Background, Heliosphere, Termination Shock, Magnetosphere, Interstellar Object, Time Anomaly, Void Crystal, Subspace Anom |
-| **Active/Units** | Player, Space Monster |
+| **Tactical / Navigation** | Comm Buoy, Spatial Rift, Torpedo, Subspace Rupture |
+| **Cosmological** | Cosmic Void, Cosmic Filament, Cosmic String, Domain Wall, Dark Matter Halo, Intergalactic Medium, Circumgalactic Medium, Lyman Alpha Forest, Cosmic Microwave Background, Heliosphere, Termination Shock, Magnetosphere, Interstellar Object, Time Anomaly, Void Crystal, Subspace Anomaly |
+| **Active Units** | Player, Space Monster |
+| **Exotic Compact Objects (IDs 89–120)** | Stellar-Mass, Intermediate-Mass (IMBH), Supermassive (SMBH), Ultramassive (UMBH), Stupendously Large (SLAB), Primordial (PBH), Schwarzschild, Kerr, Reissner–Nordström, Kerr–Newman, Extremal, Regular, Bardeen, Hayward, Dymnikova, Fan–Wang, Firewall Black Holes, Fuzzball, Quantum, Micro, Planck Black Holes, Gravastar, Boson Star, Dark Star, Exotic Compact Object (ECO), Black-Hole Mimicker, Wormhole, White Hole, Naked Singularity, Super-Extremal Solution / Reissner–Nordström / Kerr Solutions |
+
+*The numbered catalog (IDs 0–120) is streamed over **115 independent channels**: 12 faction fleet channels + 103 non-fleet classes. The 32 Exotic Compact Objects each have their own channel, filtering the shared `cosmic_features[]` pool by visual type 100–131.*
 
 #### 🖥️ Using the Telemetry Client
 The `spacegl_telemetry` client offers an interactive `ncurses` interface to navigate data streams:
@@ -652,6 +657,944 @@ The `spacegl_telemetry` client offers an interactive `ncurses` interface to navi
 *   **Local Launch:** `./spacegl_telemetry`
 *   **Remote Launch:** `./spacegl_telemetry --tcp [SERVER_IP]`
 *   **Commands:** `[N]` Next category, `[P]` Previous category, `[Q]` Exit.
+
+---
+
+# 🌌 SPACE GL: THE UNBOUND HORIZON
+
+## Project Archive: The Birth of the Non-Blocking Architecture
+
+> *"A system is not truly alive if one silent signal can make it wait."* — Captain Lyra Vance  
+> *"We bounded the galaxy to keep it safe. Then we learned that safety was not enough. The galaxy had to remain in motion."* — High Admiral Hyperion Niklaus
+
+### Chapter 1: The Fifth Second
+
+The first warning did not arrive as an alarm.
+
+It arrived as silence.
+
+At 03:17 Galactic Standard Time, the Stellar Alliance tactical grid contained sixty-four active sessions, twelve fleet channels and thousands of telemetry objects. The simulation was stable. The reactors were nominal. The galaxy tick advanced exactly as it had for years.
+
+Then one remote client transmitted a packet header.
+
+Only the header.
+
+The body never came.
+
+On the bridge of the Aegis, nothing appeared to be wrong. No explosion. No hostile signal. No system failure.
+
+The clock continued.
+
+16 milliseconds.
+
+32.
+
+128.
+
+1000.
+
+Then the fifth second began.
+
+The game thread stopped advancing.
+
+Every other commander waited.
+
+A fleet manoeuvre remained suspended between two coordinates. A torpedo froze in front of its target. A starship disappeared from one telemetry update and failed to appear in the next. The galaxy itself seemed to inhale and forget how to exhale.
+
+Vance stared at the tactical chronometer.
+
+"Who has the packet?"
+
+"No one, Captain."
+
+"Then why are we waiting for it?"
+
+No one answered.
+
+The answer was inside the architecture.
+
+The old event loop had been designed around a simple assumption: a packet would eventually arrive if the connection was alive. A `poll()` timeout made the wait finite, but finite was not the same as harmless.
+
+Five seconds was an eternity at 60 Hz.
+
+Three hundred simulation frames.
+
+Three hundred opportunities for every other player in the galaxy to become collateral damage to a single silent connection.
+
+Niklaus looked at the frozen tactical map.
+
+"We have spent decades learning how to survive hostile fleets," he said quietly. "And we have allowed one unfinished packet to defeat an entire galaxy."
+
+The engineers called the phenomenon **the Fifth Second**.
+
+That night, the old architecture received its final audit.
+
+<table>
+<tr>
+    <td><img src="readme_assets/non-blocking/1 5s.png" alt="Black jump" width="500"/></td>
+  </tr>
+</table>
+
+---
+
+### Chapter 2: The Bounded Cage
+
+The Alliance had not built the old system carelessly.
+
+On the contrary, it had been built around limits.
+
+Everything important had a boundary.
+
+Player slots were bounded.
+
+File descriptors were bounded.
+
+Memory consumption was bounded.
+
+Telemetry clients were bounded.
+
+Even waiting itself was bounded.
+
+The connection pool could hold exactly **64 sessions**. Four times the maximum number of ordinary clients. When the pool was full, the sixty-fifth connection was rejected.
+
+It was elegant.
+
+It was predictable.
+
+It had protected the server from unbounded resource growth.
+
+The engineers called it the **Bounded Architecture**.
+
+"Bounded means controlled," K'Rath insisted during the design review.
+
+"Yes," replied Vance. "But controlled is not the same as non-blocking."
+
+She drew two diagrams on the observation glass.
+
+In the first, a malicious client consumed an additional resource.
+
+In the second, the same client consumed nothing new.
+
+It simply waited.
+
+The distinction was profound.
+
+A bounded wait could still freeze a system.
+
+A bounded buffer could still become a bottleneck.
+
+A bounded connection could still monopolize the only thread capable of serving everyone else.
+
+Niklaus approved the redesign with a single sentence:
+
+"Keep every useful bound. Remove every unnecessary wait."
+
+The command was entered into the engineering archive.
+
+**PROJECT UNBOUND**
+
+The Bounded Architecture would not be destroyed.
+
+It would become its foundation.
+
+<table>
+<tr>
+    <td><img src="readme_assets/non-blocking/2 Bouded.png" alt="Black jump" width="500"/></td>
+  </tr>
+</table>
+---
+
+### Chapter 3: The Packet That Wasn't There
+
+The breakthrough began with something almost embarrassingly small.
+
+A packet did not have to be present in memory merely because its header had arrived.
+
+The engineers stopped thinking of a packet as an object.
+
+They began thinking of it as a **state**.
+
+The first bytes became `CONN_S_HEADER`.
+
+A complete header advanced the connection to `CONN_S_BODY`.
+
+A message containing textual payload could continue into `CONN_S_TEXT`.
+
+Nothing required the entire packet to exist at once.
+
+The new connection object acquired a private RX staging area and a cursor.
+
+When `recv()` returned `EAGAIN`, the connection did not fail.
+
+It did not wait.
+
+It simply remembered where it had stopped.
+
+The event loop returned immediately to `epoll`.
+
+The galaxy continued.
+
+When `EPOLLIN` fired again, the connection resumed from the exact byte where it had stopped.
+
+No rewind.
+
+No duplicate dispatch.
+
+No discarded packet.
+
+No sleeping thread.
+
+Vance watched the first synthetic test.
+
+A hostile client sent fourteen bytes.
+
+Then nothing.
+
+The dashboard showed:
+
+```text
+CONNECTION 17
+STATE       BODY
+RX          14 / 816 bytes
+EVENT       EAGAIN
+ACTION      RETURN TO EPOLL
+```
+
+The simulation clock continued:
+
+```text
+60.000 Hz
+60.000 Hz
+60.000 Hz
+60.000 Hz
+```
+
+Vance smiled.
+
+"The packet is incomplete."
+
+"Yes."
+
+"The server is not."
+
+That sentence entered the laboratory archives as the first principle of the Unbound Architecture.
+
+**A connection may be incomplete. The simulation must never be.**
+
+<table>
+<tr>
+    <td><img src="readme_assets/non-blocking/3.png" alt="Black jump" width="500"/></td>
+  </tr>
+</table>
+---
+
+### Chapter 4: The Xylari Who Did Not Wait
+
+The first real test came from the stars.
+
+A Xylari formation appeared near the outer frontier.
+
+For generations the Alliance had regarded the Xylari as unpredictable adversaries. Their ships were fast, their communications cryptographically sophisticated, and their tactical systems capable of transmitting bursts of extraordinarily dense information.
+
+The encounter should have been a military incident.
+
+Instead, it became an engineering experiment.
+
+The Xylari opened a diplomatic channel.
+
+The first transmission contained a complete authentication header.
+
+The second transmission contained only a fraction of the body.
+
+Then silence.
+
+On the Alliance bridge, every officer expected the old behaviour.
+
+Nobody waited.
+
+The Xylari transmission occupied one connection.
+
+Nothing more.
+
+The tactical engine continued updating every other ship.
+
+Telemetry continued streaming.
+
+The 60 Hz game loop did not even notice the incomplete packet.
+
+After 470 milliseconds, another fragment arrived.
+
+The RX state machine advanced.
+
+At 612 milliseconds, the packet was complete.
+
+The dispatcher executed it exactly once.
+
+The Xylari message appeared:
+
+> **WE OBSERVED YOUR WAITING MACHINE.  
+> IT NO LONGER WAITS.  
+> WE REQUEST SCIENTIFIC CONTACT.**
+
+The bridge fell silent.
+
+"That is not a surrender," Thorne said.
+
+"No," answered Vance.
+
+She looked at the Xylari spectral signature.
+
+"It is a peer review."
+
+The Xylari had recognized what the Alliance had only recently discovered:
+
+A civilization that communicates asynchronously does not have to stop thinking while another civilization speaks.
+
+For the first time in recorded history, an alien culture and a human engineering team had arrived independently at the same architectural principle.
+
+**Progress without waiting.**
+
+The diplomatic negotiations began.
+
+So did something much stranger.
+
+The Xylari offered access to an uncharted stellar region.
+
+They called it simply:
+
+**The Exotic Systems.**
+
+<table>
+<tr>
+    <td><img src="readme_assets/non-blocking/4 Xylari.png" alt="Black jump" width="500"/></td>
+  </tr>
+</table>
+---
+
+### Chapter 5: The Supermineral
+
+The coordinates led the expedition far beyond the established mining corridors.
+
+The system contained no conventional worlds.
+
+There were no rich planets, no asteroid belts dense enough to justify industrial extraction, no familiar Aetherium deposits.
+
+Instead, the Alliance sensors detected an extraordinary concentration of exotic phenomena:
+
+Dark Matter Clouds.
+
+Gravitational distortions.
+
+Void-Essence residues.
+
+Ancient structural debris.
+
+And, buried inside a compact gravitational pocket, a mineral the Xylari had never succeeded in transporting out of the system.
+
+The Alliance called it **Noctyrite**.
+
+It was crystalline.
+
+It was extraordinarily dense.
+
+And its lattice did not behave like a conventional solid.
+
+When exposed to electromagnetic fields, the crystal barely responded.
+
+When subjected to strong gravitational gradients, however, the lattice reorganized.
+
+Its internal structure entered a metastable configuration in which energy, information and mechanical stress appeared to propagate through the crystal without the ordinary delays expected from a conventional material.
+
+K'Rath placed a fragment into the analysis chamber.
+
+"Density?"
+
+"Beyond our calibration range."
+
+"Thermal expansion?"
+
+"Indeterminate."
+
+"Conductivity?"
+
+"Not useful as a descriptor."
+
+Niklaus frowned.
+
+"What does it do?"
+
+The scientist hesitated.
+
+"It remembers a boundary."
+
+The room became still.
+
+Measurements showed something more remarkable.
+
+Noctyrite could preserve an excitation state while its environment changed.
+
+It did not behave like a simple conductor.
+
+It behaved like a **persistent state medium**.
+
+And suddenly the engineers saw something they had been missing.
+
+The Bounded Architecture had been built around resources.
+
+The Unbound Architecture would be built around **state persistence**.
+
+A connection did not need to own the CPU.
+
+It only needed to remember where it had stopped.
+
+The crystal had not invented the idea.
+
+But it had given the engineers a physical metaphor for it.
+
+<table>
+<tr>
+    <td><img src="readme_assets/non-blocking/5 Noctyrite, Cosmic Crystal Analysis.png" alt="Black jump" width="500"/></td>
+  </tr>
+</table>
+---
+
+### Chapter 6: The Dark Matter Laboratory
+
+The recovered Noctyrite was transferred to the Aegis research complex.
+
+Then came the experiment that changed the project forever.
+
+The scientists placed a microscopic fragment inside a controlled gravitational containment chamber containing a concentrated field of dark matter.
+
+The original purpose was purely astrophysical.
+
+They wanted to determine how the crystal lattice behaved in the presence of non-baryonic mass.
+
+Instead, the laboratory instruments began reporting impossible correlations.
+
+The dark-matter field was fluctuating.
+
+The crystal was responding.
+
+Not continuously.
+
+Asynchronously.
+
+A local perturbation appeared at one point in the chamber.
+
+The crystal registered it.
+
+There was no measurable propagation through the lattice in the conventional sense.
+
+Instead, another region transitioned into the corresponding state after its own local threshold had been satisfied.
+
+The engineers repeated the experiment.
+
+Same result.
+
+They introduced deliberately delayed perturbations.
+
+The crystal did not wait for a complete global sequence.
+
+It processed each valid local transition independently.
+
+Dr. Elara Vance watched the graphs on the wall.
+
+"This is not faster communication," she said.
+
+"No."
+
+"It is something more subtle."
+
+She enlarged the temporal plot.
+
+"It is independence from the previous event."
+
+The laboratory fell silent.
+
+The analogy with the server architecture was now unmistakable.
+
+A packet could arrive in pieces.
+
+A telemetry client could become slow.
+
+A worker could become occupied.
+
+A connection could disappear.
+
+None of those conditions should force unrelated operations to wait.
+
+The discovery became known as the **Dark Matter Synchrony Event**.
+
+It was not a violation of causality.
+
+It was something more useful:
+
+A system could preserve causal order where order mattered while allowing independent events to progress concurrently.
+
+The engineering team returned to the server code.
+
+The architecture became clearer.
+
+`EPOLLIN` would wake only the connections capable of making progress.
+
+`EAGAIN` would mean *not now*, never *stop everything*.
+
+`EPOLLOUT` would determine when staged data could leave.
+
+The packet dispatcher would become independent of the mechanism that supplied its body.
+
+And the simulation would retain its own clock.
+
+At the center of the laboratory, the dark-matter chamber continued to pulse.
+
+The Alliance had found a material demonstration of the same principle governing the new network engine.
+
+**Concurrency was not chaos.  
+Concurrency was controlled independence.**
+
+<table>
+<tr>
+    <td><img src="readme_assets/non-blocking/6 Dark Matter Lab Aegis.png" alt="Black jump" width="500"/></td>
+  </tr>
+</table>
+---
+
+### Chapter 7: The Gravastar
+
+There remained one question.
+
+Could the new architecture survive conditions that ordinary systems could not?
+
+The answer was waiting 18,000 light-years away.
+
+A telemetry signature identified a compact object matching the theoretical profile of a **Gravastar**.
+
+The Alliance had catalogued such objects.
+
+No crew had ever approached one closely enough to study its boundary.
+
+Lyra Vance volunteered for the expedition.
+
+The Stellar Alliance left the core systems through an ancient Warp Gate whose geometry was believed to predate the current map.
+
+The journey lasted eleven days.
+
+Beyond the final relay buoy, the galaxy became sparse.
+
+Then the Gravastar appeared.
+
+It was not a conventional black hole.
+
+There was no familiar event horizon swallowing the surrounding starfield.
+
+Instead, gravitational lensing wrapped the background universe around an almost perfect spherical boundary.
+
+Matter approaching the object appeared to slow relative to distant observers, while the external field exhibited violent gradients.
+
+The scientific ship deployed autonomous probes.
+
+Each probe transmitted independently.
+
+Some packets arrived fragmented.
+
+Some arrived out of order at the application layer.
+
+One probe disappeared entirely.
+
+The tactical server did not freeze.
+
+The telemetry worker continued.
+
+The simulation tick remained stable.
+
+Vance looked at the gravastar through the forward viewport.
+
+"Imagine," she said, "if our old server had been built like this object."
+
+Thorne raised an eyebrow.
+
+"Which part?"
+
+"The boundary."
+
+She pointed toward the luminous shell.
+
+"Everything outside it can behave independently. But the boundary determines what is allowed to cross."
+
+They were looking at the architecture again.
+
+Not literally.
+
+But conceptually.
+
+The server needed the same discipline:
+
+Hard limits.
+
+Explicit boundaries.
+
+Persistent state.
+
+Controlled admission.
+
+Independent progress.
+
+No uncontrolled waiting.
+
+At the closest observation distance, the instruments recorded a violent oscillation in the gravastar's external gravitational field.
+
+The telemetry stream split into hundreds of partial messages.
+
+The Aegis did not slow.
+
+For the first time, the engineers knew the architecture was ready.
+
+<table>
+<tr>
+    <td><img src="readme_assets/non-blocking/7 Gravastar.png" alt="Black jump" width="500"/></td>
+  </tr>
+</table>
+---
+
+### Chapter 8: The 60 Hz Horizon
+
+The final experiment was performed back at the Aegis.
+
+The engineers connected a complete tactical galaxy to the new I/O path.
+
+Thirty-two telemetry observers.
+
+Sixty-four possible connection sessions.
+
+Hundreds of fragmented packets.
+
+Deliberately slow clients.
+
+Artificial `EAGAIN` storms.
+
+Random disconnects.
+
+Partial headers.
+
+Incomplete bodies.
+
+Large outbound synchronization transfers.
+
+Sustained telemetry backpressure.
+
+The simulation continued at its fixed cadence.
+
+```text
+GAME_TICK_NSEC = 16,666,666
+```
+
+Every 16.666666 milliseconds, the game thread reached its boundary.
+
+The network could be turbulent.
+
+The galaxy could be busy.
+
+A client could be malicious.
+
+The tick remained sovereign.
+
+The architecture now separated three worlds.
+
+The game thread owned time.
+
+The connection layer owned socket state.
+
+The worker pool owned expensive blocking work.
+
+No layer was allowed to silently steal the responsibility of another.
+
+At the same time, the old limits remained.
+
+The session pool was still hard-bounded at **64**.
+
+Telemetry remained bounded.
+
+Memory remained bounded.
+
+Per-connection buffers remained explicit.
+
+The system was not becoming infinite.
+
+It was becoming **non-blocking within finite boundaries**.
+
+That distinction became the central doctrine of the new model.
+
+Niklaus wrote it into the engineering charter:
+
+> *"We do not remove limits. We remove dependency on another connection's progress."*
+
+<table>
+<tr>
+    <td><img src="readme_assets/non-blocking/8 Bridge.png" alt="Black jump" width="500"/></td>
+  </tr>
+</table>
+---
+
+### Chapter 9: The Last Block
+
+Deployment day arrived during the most dangerous tactical exercise the Alliance had conducted in years.
+
+The Swarm attacked with a distributed formation designed specifically to overload communications.
+
+Thousands of tactical events appeared simultaneously.
+
+Connections opened.
+
+Connections closed.
+
+Telemetry clients subscribed and disconnected.
+
+A remote commander deliberately transmitted incomplete packets.
+
+Another connection saturated its outbound queue.
+
+A third vanished without a clean FIN.
+
+The old architecture would have interpreted the battlefield as a sequence.
+
+The new engine saw it as a set of independent state machines.
+
+The listener itself was non-blocking.
+
+Every accepted socket entered `O_NONBLOCK`.
+
+A partial receive entered the RX staging buffer.
+
+`EAGAIN` returned control to `epoll`.
+
+The packet dispatcher consumed bytes from the staged buffer rather than waiting for the socket.
+
+Outbound data was staged.
+
+`EPOLLOUT` drained it when the kernel was ready.
+
+Large synchronization tasks moved into the persistent thread pool.
+
+A disconnected player was reclaimed.
+
+Its socket was closed.
+
+Its session state was released.
+
+The simulation never stopped.
+
+On the bridge, the tactical clock continued to pulse:
+
+```text
+59.99 Hz
+60.00 Hz
+60.00 Hz
+60.00 Hz
+```
+
+The Swarm commander finally sent a final packet.
+
+It contained one sentence:
+
+> **WHY DOES NOTHING YOU DO MAKE YOU WAIT?**
+
+Lyra Vance answered:
+
+"We stopped confusing delay with order."
+
+<table>
+<tr>
+    <td><img src="readme_assets/non-blocking/9 Battle.png" alt="Black jump" width="500"/></td>
+  </tr>
+</table>
+---
+
+### Chapter 10: The Unbound Model
+
+The Alliance never officially declared the Bounded Architecture obsolete.
+
+That would have been too simple.
+
+The old path remained.
+
+It remained because engineering history matters.
+
+Because compatibility matters.
+
+Because a proven system deserves a way home when the unknown fails.
+
+The new architecture received its production designation:
+
+**NON-BLOCKING PROFESSIONAL MODEL**
+
+Its activation switch was simple:
+
+```bash
+--io=async
+```
+
+Behind those five characters lived years of work.
+
+`O_NONBLOCK`.
+
+`epoll`.
+
+`EPOLLIN`.
+
+`EPOLLOUT`.
+
+`EAGAIN`.
+
+Persistent RX state.
+
+Staged TX buffers.
+
+A shared packet dispatcher.
+
+A bounded session pool.
+
+A persistent worker pool.
+
+Per-connection isolation.
+
+A 60 Hz simulation contract.
+
+And a rule that now appeared on every engineering console in the Aegis:
+
+```text
+NO SOCKET MAY OWN THE CLOCK.
+```
+
+The first production launch was performed from the command bridge.
+
+Niklaus entered the command.
+
+```text
+SERVER I/O MODE: ASYNC
+SESSION CAPACITY: 64
+TELEMETRY CAPACITY: 32
+SIMULATION RATE: 60 Hz
+BLOCKING SOCKETS: 0
+```
+
+The system answered:
+
+```text
+[ASYNC] listener O_NONBLOCK ............ OK
+[ASYNC] epoll loop .................... OK
+[ASYNC] RX state machines ............. OK
+[ASYNC] persistent TX staging ......... OK
+[ASYNC] thread pool ................... OK
+[ASYNC] connection isolation .......... OK
+[ASYNC] 60 Hz contract ................ LOCKED
+```
+
+Beyond the observation deck, the galaxy rotated slowly.
+
+The Exotic Systems continued to emit their impossible signatures.
+
+Noctyrite remained in the dark-matter laboratory.
+
+The Xylari waited beyond the next diplomatic corridor.
+
+The Gravastar remained thousands of light-years away, wrapped in its luminous gravitational shell.
+
+And somewhere beyond it all, the ancient Builders' structures were still sending signals that humanity had not yet learned to interpret.
+
+Lyra Vance watched the stars.
+
+"We thought the revolution would be faster networking."
+
+Niklaus shook his head.
+
+"No."
+
+He looked at the command console.
+
+"The revolution was learning that one process does not have to wait for another."
+
+The Aegis entered warp.
+
+Behind it, the server continued to process the galaxy.
+
+No packet owned the clock.
+
+No silent client owned the fleet.
+
+No incomplete message could freeze the universe.
+
+The old civilization had learned to **bound** the machine.
+
+The new one had learned to let it **move**.
+
+And in the deepest archive of the Stellar Alliance, beneath the records of the Caged Sun and the Omniscience Protocol, the engineers left only one final line:
+
+> **THE GALAXY IS FINITE.  
+> THE WAIT IS NOT.  
+> THEREFORE, WE CHOSE NOT TO WAIT.**
+
+<table>
+<tr>
+    <td><img src="readme_assets/non-blocking/10 Aegis Bridge.png" alt="Black jump" width="500"/></td>
+  </tr>
+</table>
+---
+
+## 🛠 TECHNICAL SECTION: THE NON-BLOCKING PROFESSIONAL ARCHITECTURE
+
+The 60 Hz simulation contract is the backbone of Space GL: every commander deserves a steady tick, no matter what any single client is doing. To guarantee it, the server I/O was refactored around a **fully non-blocking model** — no thread in the hot path ever waits on a socket.
+
+### ⚠️ The Problem: Blocking I/O as an App-Level DoS
+The legacy event loop (`--io=legacy`, still the default for backward compatibility) reads every client packet with a blocking `read_all()` whose only mitigation is a `poll()` with a **5 second** timeout. Inside a single-threaded epoll loop this is an **application-level DoS**: a client that transmits a packet header and then goes silent holds the whole loop for up to 5 seconds, **freezing every other player** of a 60 Hz real-time engine.
+
+### 🛡️ The Solution: `--io=async` (Professional Non-Blocking Mode)
+Selected at startup with `--io=async`, the server switches to the professional event loop (`run_epoll_loop_async`, `src/server/conn.c`). Three invariants make the loop unblockable by design:
+
+1.  **Explicitly non-blocking sockets** — every accepted client fd is put in `O_NONBLOCK` mode (`fcntl`) at session creation, and so is the listener itself.
+2.  **Handlers never wait** — the request handler contains no `while`/`poll` cycle; it returns to the epoll loop immediately.
+3.  **Persistent per-connection RX staging** — a `recv()` returning `EAGAIN`/`EWOULDBLOCK` mid-packet stores the bytes already read in the connection's persistent RX buffer. When `EPOLLIN` fires again, the RX state machine (`CONN_S_HEADER → CONN_S_BODY → CONN_S_TEXT`) resumes from the saved cursor and dispatches the packet **only once it is complete**.
+
+**Result:** a stalled (or malicious) client can at most occupy *its own session*; it can never block the loop, hence never any other player.
+
+#### 🧰 Session Layer (`include/conn.h` / `src/server/conn.c`)
+*   **Bounded session pool** — `MAX_CONNS = 4 × MAX_CLIENTS = 64` sessions: a hard cap that also acts as a DoS guard against unbounded fd growth (pool exhaustion → new connections are rejected, `conn_alloc()` returns `NULL`).
+*   **Non-blocking TX staging** — small outbound replies are staged in a per-connection TX buffer (`conn_send()`) and drained when epoll reports `EPOLLOUT`, so the handler never blocks on `send()` either.
+*   **Shared slot reclamation** — `reap_player_fd()` clears the player slot bound to a closed fd (`socket`, `active`, `radio_lock_target`, `session_key`) *before* `close(fd)`. Three close reasons codify the teardown policy:
+    *   `CONN_CLOSE_SILENT` — pre-auth failures (bad handshake signature, server full, unknown packet type);
+    *   `CONN_CLOSE_REAP` — rejects issued after the player slot was already reserved;
+    *   `CONN_CLOSE_DEPARTURE` — peer FIN/RST or transport error: departure log, slot reclamation and `save_galaxy()`.
+
+#### 📦 Shared Packet Dispatcher (`include/packets.h` / `src/server/packets.c`)
+The dispatcher was extracted verbatim from the inline legacy loop and is now **shared by both I/O modes** through a pluggable body source (`PktIO`): legacy mode reads bodies from the socket with `read_all()`, async mode consumes the staged RX buffer — one code path, zero behavioral drift between modes. In async mode the dispatcher routes system messages (`send_server_msg`) to the **thread pool**, so neither the event loop nor the 60 Hz game thread ever blocks on a write. `write_all()` gained an `EAGAIN` guard (bounded `POLLOUT` wait, 30 s total timeout) that is required for non-blocking sockets and inert on the legacy blocking ones.
+
+### 🧵 The 60 Hz Contract: Locking, Caching and Off-Loading
+The architecture keeps three layers of isolation between the simulation and the network:
+
+1.  **Fixed-Tick Game Thread** (`game_loop_thread`) — the tick boundary is anchored with `clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME)` at `GAME_TICK_NSEC = 16,666,666 ns` (60 Hz). Under `game_mutex` the loop runs `update_game_logic()` and `telemetry_sync_state()` (telemetry cache refresh); everything else — per-tick galaxy re-signing, player network updates, telemetry broadcast — runs **outside the lock**, so blocking TCP writes can never stall the simulation. Per-player static `PacketUpdate` buffers eliminate per-tick malloc at 60 Hz: the logic thread only sets a `pending_send` flag and `send_pending_updates()` drains it lock-free.
+2.  **Persistent Thread Pool** (`src/server/threadpool.c`, one worker per logical core) — absorbs heavy blocking work: the ~1 MB **Galaxy Master** login transmission (`sync_client_task`, which re-checks slot/generation before writing and before activating), broadcast cycles and background tasks, complementing the **asynchronous non-blocking persistence thread** for `galaxy.dat` documented in the optimization section.
+3.  **Per-Connection Isolation** — with `--io=async`, each stalled client degrades only itself (its own RX/TX staging buffers), while the bounded 64-session pool caps the total memory an attacker can pin.
+
+### 📡 Telemetry Subsystem: Non-Blocking by Design
+The Advanced Telemetry Subsystem above applies the same discipline to its own sockets, on a **dedicated worker thread** with its own `epoll` instance:
+
+*   **Dual non-blocking listeners** — TCP `0.0.0.0:5001` (`TCP_NODELAY`, `SO_REUSEADDR`, backlog 5) and the Unix socket `/tmp/spacegl_telemetry.sock` (`chmod 0666`); every accepted client fd is `O_NONBLOCK`.
+*   **High-volume headroom** — a **4 MB `SO_SNDBUF`** is pre-allocated per client so high-volume categories (e.g. STARS, up to `MAX_VISIBLE_TEL = 5000` objects) stream smoothly; up to **32 simultaneous telemetry clients** are served (`MAX_TEL_CLIENTS`, event batch of 34, 100 ms `epoll_wait` cycle).
+*   **Bounded EAGAIN handling** — `robust_read_all()` / `send_all()` treat `EAGAIN`/`EWOULDBLOCK` with a `poll()` wait capped at **100 ms** (and `EINTR` with an immediate retry); `send()` uses `MSG_NOSIGNAL`. No unbounded kernel wait, ever.
+*   **Push with backpressure** — the game thread refreshes the per-category caches (`cat_cache[115][5000]`, guarded by 115 per-category mutexes, tick-deduplicated) *under* `game_mutex`; the broadcast then runs *outside* the lock and performs a **zero-timeout `POLLOUT` pre-check per client** — if a client's kernel buffer is full, that client is simply skipped for the current tick instead of blocking the loop.
+*   **Chunked binary streaming** — data leaves as `TEL_PKT_DATA` chunks of **100 packed `TelemetryObject` records (164 bytes each)** followed by a per-tick `TelemetryStats` global snapshot (tick, active players/NPCs, CPU load, RAM, uptime). A client that fails a send is dropped cleanly — it is never punished onto the others.
+*   **Graceful teardown** — `telemetry_shutdown()` stops the worker, joins the thread, closes both sockets and unlinks the Unix path.
+
+### ✅ Outcome
+| Guarantee | Legacy (`--io=legacy`) | Professional (`--io=async`) |
+| :--- | :--- | :--- |
+| Silent client holding the loop | up to **5 s** (whole server frozen) | **0 s** — only its own session |
+| Mid-packet stalls | head-of-line blocking | RX buffer staging + state-machine resume |
+| Blocking writes in the hot path | possible (bounded) | none (TX staging + thread pool) |
+| fd/memory DoS surface | bounded by player slots | hard **64-session pool** |
+| Default mode | yes (backward compatible) | opt-in via `--io=async` |
+
+> The legacy mode is intentionally preserved unchanged as a reference behavior; `--io=async` is the recommended production configuration.
 
 ---
 
@@ -1217,7 +2160,7 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
 <table>
   <tr><th>ID</th><th>Object</th><th>Description</th><th>Image</th></tr>
   
-  <tr><td>1</td><td>🚀 Player</td><td>Your vessel</td><td><img src="readme_assets/galactic_objects/0🚀 Player (Cyan): Your vessel.png" width="150"></td></tr>
+  <tr><td>0</td><td>🚀 Player</td><td>Your vessel</td><td><img src="readme_assets/galactic_objects/0🚀 Player (Cyan): Your vessel.png" width="150"></td></tr>
 
   <tr><td>1</td><td>☀️ Star (Yellow)</td><td>Spectral Class Variable</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
 
@@ -2289,7 +3232,7 @@ For high-level tactical oversight, use the standalone telemetry client. It provi
 *   **Launch (Local/Unix)**: `./spacegl_telemetry` (Uses ultra-low latency IPC).
 *   **Launch (Remote/TCP)**: `./spacegl_telemetry --tcp <SERVER_IP>` (Monitor remote sectors).
 *   **Navigation**:
-    *   `[N]`: Next category (Scroll through all 12 Factions and 20+ Object types).
+    *   `[N]`: Next category (Scroll through all 12 Faction fleets and 100+ Object classes).
     *   `[P]`: Previous category.
     *   `[UP/DOWN]`: Scroll through long lists of vessels/entities.
     *   `[Q]`: Quit telemetry and return to terminal.
