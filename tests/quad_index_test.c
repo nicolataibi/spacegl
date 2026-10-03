@@ -136,6 +136,8 @@ NPCIGM igms[MAX_IGM];
 NPCCGM cgms[MAX_CGM];
 NPCLymanAlpha lyman_alphas[MAX_LYMAN_ALPHA];
 NPCCMB cmbs[MAX_CMB];
+NPCCosmicFeature cosmic_features[MAX_COSMIC_FEATURES];
+
 
 /* --- The expected static-type set (independent of the production
  * table): name, global array, element size, array length, per-
@@ -212,6 +214,7 @@ static const QIExpect qi_expect[] = {
     { "cgm",              cgms,             sizeof(NPCCGM),             MAX_CGM,              MAX_Q_CGM              },
     { "lyman_alpha",      lyman_alphas,     sizeof(NPCLymanAlpha),      MAX_LYMAN_ALPHA,      MAX_Q_LYMAN_ALPHA      },
     { "cmb",              cmbs,             sizeof(NPCCMB),             MAX_CMB,              MAX_Q_CMB              },
+    { "feature",          cosmic_features,  sizeof(NPCCosmicFeature),   MAX_COSMIC_FEATURES,  MAX_Q_FEATURES         },
 };
 
 #define QI_EXPECT_COUNT (int)(sizeof(qi_expect) / sizeof(qi_expect[0]))
