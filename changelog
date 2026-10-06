@@ -1,3 +1,18 @@
+* Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.04
+  - GDD/Graphics: fixed elliptical front/rear shield panels in
+    gdd_expand_sphere (assets/shaders/gdd_ops.glsl): vertex positions were
+    computed as `it.a.xyz + d * r` without applying the instance orientation
+    matrix `it.o`, so every ellipsoid was always axis-aligned in world space.
+    For uniform-scale callers the omission is invisible, but shield panels use
+    bsc = {0.5, 1.8, 1.8} * scale: the thin axis (X, perpendicular to the
+    face) stayed on world-X for all six sectors, making the front and rear
+    panels — whose face happens to be visible head-on — appear as a 0.5:1.8
+    ellipse instead of the intended 1.8-radius circle. Fixed by computing
+    `pos = it.a.xyz + it.o * (d * r)` and `nrm = it.o * normalize(d / r)`
+    so geometry and lighting follow the sector rotation. vLocal (= d, unit
+    direction on the reference sphere) is unchanged. Incidental benefit:
+    accretion-disk ellipsoids (bsc = {3.5, 0.02, 3.5}) and any other
+    non-uniform GDD_MESH_SPHERE instance now orient correctly as well.
 * Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.03
   - Server: bounded the /proc/net/dev interface-name sscanf in the GDIS
     telemetry display (src/spacegl_server.c) to the ifname[32] buffer

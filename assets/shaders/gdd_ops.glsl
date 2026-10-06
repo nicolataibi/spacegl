@@ -146,6 +146,17 @@ void gdd_expand_box(uint base, GddInstance it) {
 /* scalar r happened to give the same result after normalize, but only */
 /* because the scale was uniform; the new form is correct in general.) */
 /* Vertex count is unchanged: GDD_SPHERE_LATS * GDD_SPHERE_LONS * 6.   */
+/*                                                                     */
+/* BUG FIX 3 (2026-10): the instance orientation `it.o` was NOT applied*/
+/* to vertex positions or normals.  Positions were computed as          */
+/* `it.a.xyz + d * r` instead of `it.a.xyz + it.o * (d * r)`, so the  */
+/* ellipsoid was always axis-aligned in world space regardless of the   */
+/* instance rotation.  For uniform scales this is invisible, but for    */
+/* non-uniform scales (shield panels bsc={0.5,1.8,1.8}) the thin axis  */
+/* (X) always pointed along world-X: front/rear sectors showed an       */
+/* ellipse instead of a circle.  Fixed: pos = it.a.xyz + it.o*(d*r),   */
+/* nrm = it.o * normalize(d / r).  vLocal (= d, unit direction) is     */
+/* unchanged (localPos is always the unsquashed unit-sphere direction). */
 /* ------------------------------------------------------------------ */
 void gdd_expand_sphere(uint base, GddInstance it) {
     float PI = 3.141592653589793;
@@ -165,25 +176,29 @@ void gdd_expand_sphere(uint base, GddInstance it) {
             float lon1 = 2.0 * PI * float(j + 1) / float(GDD_SPHERE_LONS);
             float c0 = cos(lon0), s0 = sin(lon0);
             float c1 = cos(lon1), s1 = sin(lon1);
-            /* Unit directions on the reference sphere. */
+            /* Unit directions on the reference sphere (local frame). */
             vec3 d00 = vec3(sy0 * c0, cy0, sy0 * s0);
             vec3 d10 = vec3(sy1 * c0, cy1, sy1 * s0);
             vec3 d01 = vec3(sy0 * c1, cy0, sy0 * s1);
             vec3 d11 = vec3(sy1 * c1, cy1, sy1 * s1);
-            /* Ellipsoid normals: n ∝ d / r (component-wise), then unit. */
-            vec3 n00 = normalize(d00 * inv_r);
-            vec3 n10 = normalize(d10 * inv_r);
-            vec3 n01 = normalize(d01 * inv_r);
-            vec3 n11 = normalize(d11 * inv_r);
+            /* Ellipsoid normals in local frame: n ∝ d / r, then rotated to world. */
+            vec3 n00 = it.o * normalize(d00 * inv_r);
+            vec3 n10 = it.o * normalize(d10 * inv_r);
+            vec3 n01 = it.o * normalize(d01 * inv_r);
+            vec3 n11 = it.o * normalize(d11 * inv_r);
             uint b0 = base + uint(i * GDD_SPHERE_LONS + j) * 6u;
-            /* Position: center + d * r (component-wise ellipsoid).
+            /* Position: center + orient * (d * r).  Apply it.o so that the
+             * ellipsoid is correctly rotated in world space (non-uniform scales
+             * like shield panels {0.5,1.8,1.8} must follow the sector rotation,
+             * otherwise the thin axis stays on world-X for all sectors and
+             * front/rear panels appear flattened instead of circular).
              * vLocal: the UNIT direction d, matching the CPU's localPos. */
-            gdd_put(b0 + 0u, it.a.xyz + d00 * r, d00, n00, it);
-            gdd_put(b0 + 1u, it.a.xyz + d10 * r, d10, n10, it);
-            gdd_put(b0 + 2u, it.a.xyz + d01 * r, d01, n01, it);
-            gdd_put(b0 + 3u, it.a.xyz + d10 * r, d10, n10, it);
-            gdd_put(b0 + 4u, it.a.xyz + d11 * r, d11, n11, it);
-            gdd_put(b0 + 5u, it.a.xyz + d01 * r, d01, n01, it);
+            gdd_put(b0 + 0u, it.a.xyz + it.o * (d00 * r), d00, n00, it);
+            gdd_put(b0 + 1u, it.a.xyz + it.o * (d10 * r), d10, n10, it);
+            gdd_put(b0 + 2u, it.a.xyz + it.o * (d01 * r), d01, n01, it);
+            gdd_put(b0 + 3u, it.a.xyz + it.o * (d10 * r), d10, n10, it);
+            gdd_put(b0 + 4u, it.a.xyz + it.o * (d11 * r), d11, n11, it);
+            gdd_put(b0 + 5u, it.a.xyz + it.o * (d01 * r), d01, n01, it);
         }
     }
 }
