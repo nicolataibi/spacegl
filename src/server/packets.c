@@ -549,12 +549,20 @@ int dispatch_packet(PktIO *io, int32_t type) {
                         players[slot].generation++;
                         stask->generation = players[slot].generation;
                         stask->is_new = is_new;
-                        if (threadpool_add_task(g_pool, sync_client_task, stask) != 0) {
-                            /* Fallback if pool fails: sync synchronously */
+                        /* Enqueue under game_mutex so the generation bump is
+                           atomic with the slot state. */
+                        bool delegated = (g_pool &&
+                                          threadpool_add_task(g_pool, sync_client_task, stask) == 0);
+                        pthread_mutex_unlock(&game_mutex);
+                        if (!delegated) {
+                            /* Fallback if the pool is unavailable or the
+                               enqueue fails: sync synchronously, outside
+                               game_mutex (sync_client_task re-locks it). */
                             sync_client_task(stask);
                         }
+                    } else {
+                        pthread_mutex_unlock(&game_mutex);
                     }
-                    pthread_mutex_unlock(&game_mutex);
                 } else {
                     pthread_mutex_unlock(&game_mutex);
                 }

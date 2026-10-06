@@ -388,7 +388,7 @@ void display_system_telemetry() {
         }
         while (fgets(line, 256, f)) {
             char ifname[32]; long rx, tx, tmp;
-            if (sscanf(line, " %[^:]: %ld %ld %ld %ld %ld %ld %ld %ld %ld", ifname, &rx, &tmp, &tmp, &tmp, &tmp, &tmp, &tmp, &tmp, &tx) >= 2) {
+            if (sscanf(line, " %31[^:]: %ld %ld %ld %ld %ld %ld %ld %ld %ld", ifname, &rx, &tmp, &tmp, &tmp, &tmp, &tmp, &tmp, &tmp, &tx) >= 2) {
                 if (strcmp(ifname, "lo") == 0 || rx == 0) continue;
                 printf("%s | %s TRAFFIC (%-5s):   %sRX: %-8ld KB  TX: %-8ld KB             %s %s\n", 
                        B_MAGENTA, B_WHITE, ifname, B_GREEN, rx/1024, tx/1024, B_MAGENTA, RESET);
@@ -698,8 +698,13 @@ int main(int argc, char *argv[]) {
     /* Initialize Thread Pool for Async Tasks (Crypto, Pathfinding, I/O) */
     int nprocs = sysconf(_SC_NPROCESSORS_ONLN);
     g_pool = threadpool_create(nprocs);
-    SG_DEBUG(SG_CAT_THREAD, "thread pool: %d worker threads", nprocs);
-    printf("%s | %s THREAD POOL:       %s%d Worker Threads Active                      %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, nprocs, B_MAGENTA, RESET);
+    if (g_pool) {
+        SG_DEBUG(SG_CAT_THREAD, "thread pool: %d worker threads", nprocs);
+        printf("%s | %s THREAD POOL:       %s%d Worker Threads Active                      %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, nprocs, B_MAGENTA, RESET);
+    } else {
+        SG_WARNING(SG_CAT_THREAD, "thread pool unavailable (out of memory): async tasks run synchronously");
+        printf("%s | %s THREAD POOL:       %sUNAVAILABLE (synchronous fallback)               %s %s\n", B_MAGENTA, B_WHITE, B_RED, B_MAGENTA, RESET);
+    }
 
     if (load_galaxy()) {
         SG_INFO(SG_CAT_ASSET, "galaxy state loaded");

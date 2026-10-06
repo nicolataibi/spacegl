@@ -2154,7 +2154,8 @@ VkImageView createImageView(VkDevice device, VkImage img, VkFormat fmt, VkImageA
 static char* readShaderFile(const char* filename, size_t* pSize) { FILE* file = fopen(filename, "rb");
     if (!file) { printf("ERROR: Cannot open shader %s\n", filename); return NULL; }
     fseek(file, 0, SEEK_END); *pSize = ftell(file); fseek(file, 0, SEEK_SET);
-    char* buffer = (char*)malloc(*pSize); if(fread(buffer, 1, *pSize, file) != *pSize) { free(buffer); fclose(file); return NULL; } fclose(file);
+    char* buffer = (char*)malloc(*pSize); if (!buffer) { fclose(file); return NULL; }
+    if(fread(buffer, 1, *pSize, file) != *pSize) { free(buffer); fclose(file); return NULL; } fclose(file);
     return buffer;
 }
 
@@ -2815,6 +2816,7 @@ void pickPhysicalDevice(VulkanApp* app) {
         exit(1);
     }
     VkPhysicalDevice* devs = malloc(sizeof(VkPhysicalDevice) * count);
+    if (!devs) { fprintf(stderr, "[VK] Out of memory: device list\n"); exit(1); }
     vkEnumeratePhysicalDevices(app->instance, &count, devs);
     app->physicalDevice = devs[0];
     app->msaaSamples = getMaxUsableSampleCount(app->physicalDevice);
@@ -2902,6 +2904,7 @@ void createSwapChain(VulkanApp* app) {
     
     uint32_t modeCount; vkGetPhysicalDeviceSurfacePresentModesKHR(app->physicalDevice, app->surface, &modeCount, NULL);
     VkPresentModeKHR* modes = malloc(sizeof(VkPresentModeKHR) * modeCount);
+    if (!modes) { fprintf(stderr, "[VK] Out of memory: present modes\n"); exit(1); }
     vkGetPhysicalDeviceSurfacePresentModesKHR(app->physicalDevice, app->surface, &modeCount, modes);
     
     VkPresentModeKHR bestMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -2922,6 +2925,7 @@ void createSwapChain(VulkanApp* app) {
     if (vkCreateSwapchainKHR(app->device, &cInfo, NULL, &app->swapChain) != VK_SUCCESS) exit(1);
     vkGetSwapchainImagesKHR(app->device, app->swapChain, &app->swapChainImageCount, NULL);
     app->swapChainImages = malloc(sizeof(VkImage)*app->swapChainImageCount);
+    if (!app->swapChainImages) { fprintf(stderr, "[VK] Out of memory: swapchain images\n"); exit(1); }
     vkGetSwapchainImagesKHR(app->device, app->swapChain, &app->swapChainImageCount, app->swapChainImages);
 }
 
@@ -4138,11 +4142,13 @@ static void destroySwapChainResources(VulkanApp* app) {
 
 static void createSwapChainResources(VulkanApp* app) {
     app->swapChainImageViews = malloc(sizeof(VkImageView) * app->swapChainImageCount);
+    if (!app->swapChainImageViews) { fprintf(stderr, "[VK] Out of memory: swapchain image views\n"); exit(1); }
     for (uint32_t i = 0; i < app->swapChainImageCount; i++)
         app->swapChainImageViews[i] = createImageView(app->device, app->swapChainImages[i], app->swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     createColorResources(app);
     createDepthResources(app);
     app->swapChainFramebuffers = malloc(sizeof(VkFramebuffer) * app->swapChainImageCount);
+    if (!app->swapChainFramebuffers) { fprintf(stderr, "[VK] Out of memory: swapchain framebuffers\n"); exit(1); }
     for (uint32_t i = 0; i < app->swapChainImageCount; i++) {
         VkImageView at[] = {app->colorImageView, app->depthImageView, app->swapChainImageViews[i]};
         VkFramebufferCreateInfo fi = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, NULL, 0, app->renderPass, 3, at, app->swapChainExtent.width, app->swapChainExtent.height, 1};
@@ -4845,6 +4851,7 @@ void createStarfield(VulkanApp* app) {
     uint64_t total_inds = MAX_STARS;
     Vertex* v = malloc(total_verts * sizeof(Vertex));
     uint32_t* inds = malloc(total_inds * sizeof(uint32_t));
+    if (!v || !inds) { free(v); free(inds); fprintf(stderr, "[VK] Out of memory: starfield buffers\n"); exit(1); }
     for (uint64_t s = 0; s < MAX_STARS; s++) {
         float theta = (float)(rand() % 3600) * 0.1f * M_PI / 180.0f;
         float phi = (float)(rand() % 1800) * 0.1f * M_PI / 180.0f;
@@ -4867,6 +4874,7 @@ void createStarfield(VulkanApp* app) {
     uint64_t total_inds = (uint64_t)MAX_STARS * inds_per_star * multiplier;
     Vertex* v = malloc(total_verts * sizeof(Vertex));
     uint32_t* inds = malloc(total_inds * sizeof(uint32_t));
+    if (!v || !inds) { free(v); free(inds); fprintf(stderr, "[VK] Out of memory: starfield buffers\n"); exit(1); }
     uint64_t vc = 0, ic = 0;
     for (uint64_t s = 0; s < MAX_STARS; s++) {
         float theta = (float)(rand() % 3600) * 0.1f * M_PI / 180.0f;
@@ -4999,6 +5007,7 @@ void initVulkan(VulkanApp* app) {
     uint64_t grid_v_count = (uint64_t)(steps + 1) * (steps + 1) * 3 * 2;
     Vertex* gVerts_dyn = malloc(grid_v_count * sizeof(Vertex));
     uint32_t* gInds_dyn = malloc(grid_v_count * sizeof(uint32_t));
+    if (!gVerts_dyn || !gInds_dyn) { free(gVerts_dyn); free(gInds_dyn); fprintf(stderr, "[VK] Out of memory: tactical grid buffers\n"); exit(1); }
     uint64_t gv = 0;
     float hq = QUADRANT_SIZE / 2.0f;
     for (int i = 0; i <= steps; i++) {

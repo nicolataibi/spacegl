@@ -73,6 +73,12 @@ threadpool_t *threadpool_create(int thread_count) {
     pthread_cond_init(&(pool->notify), NULL);
 
     pool->threads = (pthread_t *)malloc(sizeof(pthread_t) * thread_count);
+    if (!pool->threads) {
+        pthread_cond_destroy(&(pool->notify));
+        pthread_mutex_destroy(&(pool->lock));
+        free(pool);
+        return NULL;
+    }
     for (int i = 0; i < thread_count; i++) {
         pthread_create(&(pool->threads[i]), NULL, threadpool_worker, (void *)pool);
     }

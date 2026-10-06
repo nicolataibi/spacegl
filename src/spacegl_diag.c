@@ -191,6 +191,7 @@ uintptr_t get_symbol_offset(const char* exe_path, const char* name, int* is_pie)
     if (is_pie) *is_pie = (ehdr.e_type == ET_DYN);
 
     Elf64_Shdr* shdrs = malloc(ehdr.e_shentsize * ehdr.e_shnum);
+    if (!shdrs) { fclose(f); return 0; }
     fseek(f, ehdr.e_shoff, SEEK_SET);
     if (fread(shdrs, ehdr.e_shentsize, ehdr.e_shnum, f) != ehdr.e_shnum) {
         free(shdrs); fclose(f); return 0;
@@ -200,6 +201,7 @@ uintptr_t get_symbol_offset(const char* exe_path, const char* name, int* is_pie)
     for (int i = 0; i < ehdr.e_shnum; i++) {
         if (shdrs[i].sh_type == SHT_SYMTAB || shdrs[i].sh_type == SHT_DYNSYM) {
             Elf64_Sym* syms = malloc(shdrs[i].sh_size);
+            if (!syms) continue;
             fseek(f, shdrs[i].sh_offset, SEEK_SET);
             if (fread(syms, 1, shdrs[i].sh_size, f) != shdrs[i].sh_size) {
                 free(syms); continue;
@@ -208,6 +210,7 @@ uintptr_t get_symbol_offset(const char* exe_path, const char* name, int* is_pie)
             int count = shdrs[i].sh_size / sizeof(Elf64_Sym);
             Elf64_Shdr str_shdr = shdrs[shdrs[i].sh_link];
             char* strtab = malloc(str_shdr.sh_size);
+            if (!strtab) { free(syms); continue; }
             fseek(f, str_shdr.sh_offset, SEEK_SET);
             if (fread(strtab, 1, str_shdr.sh_size, f) != str_shdr.sh_size) {
                 free(strtab); free(syms); continue;
@@ -412,6 +415,7 @@ int main(int argc, char** argv) {
     NPCCMB* cmb_buf = calloc(MAX_CMB, sizeof(NPCCMB));
     PlayerTorpedo* torp_buf = calloc(MAX_GLOBAL_TORPEDOES, sizeof(PlayerTorpedo));
     RenderItem* render_list = malloc(sizeof(RenderItem) * 100000);
+    if (!render_list) { printf("CRITICAL ERROR: Out of memory (render list).\n"); endwin(); return 1; }
 
     while ((ch = getch()) != 'q') {
         if (ch == 'n') { current_page = (current_page + 1) % MAX_PAGES; scroll_offset = 0; }

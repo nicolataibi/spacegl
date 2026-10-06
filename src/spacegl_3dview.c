@@ -768,6 +768,7 @@ void initVBOs() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(stars), stars, GL_STATIC_DRAW);
     int max_verts = 11 * 11 * 3 * 2; 
     float *grid_data = malloc(max_verts * 3 * sizeof(float));
+    if (!grid_data) { perror("[3D VIEW] Failed to allocate grid VBO"); exit(1); }
     int idx = 0;
     for(int i=0; i<=(int)QUADRANT_SIZE; i+=10) {
         float p = -20.0 + i;
@@ -5107,7 +5108,10 @@ void display() {
                     case 4: drawStar(0,0,0, objects[i].id); break;
                     case 5: drawPlanet(0,0,0); break;
                     case 6: drawAccretionDisk(0,0,0, pulse); drawBlackHole(0,0,0); break;
-                    case 100 ... 131: {
+                    case 100: case 101: case 102: case 103: case 104: case 105: case 106: case 107:
+                    case 108: case 109: case 110: case 111: case 112: case 113: case 114: case 115:
+                    case 116: case 117: case 118: case 119: case 120: case 121: case 122: case 123:
+                    case 124: case 125: case 126: case 127: case 128: case 129: case 130: case 131: {
                         int e_id = t - 100;
                         if (e_id % 3 == 0) drawBlackHole(0,0,0);
                         else if (e_id % 3 == 1) drawSingularity(0,0,0);

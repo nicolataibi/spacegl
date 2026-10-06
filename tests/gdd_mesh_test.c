@@ -809,6 +809,7 @@ static bool check(VkResult r, const char *what) {
 static bool make_ds_layout(uint32_t nb, const uint32_t *bind,
                            VkDescriptorSetLayout *out) {
     VkDescriptorSetLayoutBinding *b = malloc(sizeof(*b) * nb);
+    if (!b) return false;
     VkDescriptorSetLayoutCreateInfo ci = {0};
     for (uint32_t i = 0; i < nb; i++) {
         b[i].binding = bind[i];
@@ -837,6 +838,7 @@ static bool make_compute_pipeline(const char *name, VkPipelineLayout layout,
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
     uint32_t *code = malloc((size_t)sz);
+    if (!code) { fclose(f); return false; }
     if (fread(code, 1, (size_t)sz, f) != (size_t)sz) {
         free(code); fclose(f);
         return false;
@@ -883,6 +885,7 @@ static bool init_vulkan(void) {
     if (vkEnumeratePhysicalDevices(g_inst, &pdn, NULL) != VK_SUCCESS || pdn == 0)
         return false;
     pds = malloc(sizeof(VkPhysicalDevice) * pdn);
+    if (!pds) return false;
     vkEnumeratePhysicalDevices(g_inst, &pdn, pds);
     /* Same selection rule as the client's gdd_pick_queue: first family
      * with BOTH graphics and compute bits. */
@@ -890,6 +893,7 @@ static bool init_vulkan(void) {
         uint32_t qfn = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(pds[i], &qfn, NULL);
         VkQueueFamilyProperties *qf = malloc(sizeof(*qf) * qfn);
+        if (!qf) continue;
         vkGetPhysicalDeviceQueueFamilyProperties(pds[i], &qfn, qf);
         for (uint32_t k = 0; k < qfn; k++) {
             if ((qf[k].queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) ==

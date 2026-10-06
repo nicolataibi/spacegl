@@ -1439,7 +1439,8 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
                 QuadrantIndex *lq = &spatial_index[nq1][nq2][nq3];
                 
                 /* Temporary large buffer for ALL objects in quadrant */
-                NetObject *all_objs = malloc(sizeof(NetObject) * 16384); 
+                NetObject *all_objs = malloc(sizeof(NetObject) * 16384);
+                if (!all_objs) continue; /* OOM: skip this quadrant */
                 int total_count = 0;
 
                 #define ADD_LRS_OBJ(arr, count, min_id, t_val)                     for(int n=0; n<count && total_count < 16384; n++) {                         if(arr[n]->active) {                             all_objs[total_count++] = (NetObject){.net_x = arr[n]->x, .net_y = arr[n]->y, .net_z = arr[n]->z, .type = t_val, .id = arr[n]->id + min_id, .active = 1};                         }                     }

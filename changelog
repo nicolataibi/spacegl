@@ -1,3 +1,42 @@
+* Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.03
+  - Server: bounded the /proc/net/dev interface-name sscanf in the GDIS
+    telemetry display (src/spacegl_server.c) to the ifname[32] buffer
+    (" %[^:]:" -> " %31[^:]"): the scan-set conversion carried no width, so a
+    name field longer than 31 chars would have written past the stack
+    buffer. Completes the same hardening applied to the client
+    faction-name read in 2026.10.06.01.
+  - Memory: NULL-checked every remaining unchecked malloc. The cppcheck
+    nullPointer / nullPointerOutOfMemory findings are closed: the grid VBO
+    in src/spacegl_3dview.c (initVBOs), the ELF section header, symbol and
+    string table buffers in src/spacegl_diag.c (get_symbol_offset degrades
+    to its existing not-found return), the SPIR-V loader buffer in
+    src/spacegl_vulkan.c (readShaderFile), the starfield vertex/index
+    buffers in both STARFIELD_MODE branches and the tactical-grid buffers
+    in initVulkan, and the descriptor-set bindings + SPIR-V code buffers in
+    tests/gdd_mesh_test.c. The same class is closed where cppcheck cannot
+    track the dereference (macro expansion / Vulkan driver calls): the LRS
+    NetObject buffer in src/server/commands.c (skips the quadrant), the
+    render list in src/spacegl_diag.c (clean abort like the existing
+    symbol-resolution errors), the device list, present modes and
+    swapchain images/views/framebuffers in src/spacegl_vulkan.c, the
+    worker-thread array in src/server/threadpool.c (pool torn down and
+    creation returns NULL) and the physical-device + queue-family buffers
+    in tests/gdd_mesh_test.c. All 43 malloc sites in src/ and tests/ are
+    now NULL-checked and cppcheck reports no allocation-failure warning.
+  - Server: the thread-pool OOM path (now reachable from
+    threadpool_create) degrades instead of crashing: main() prints a
+    degraded THREAD POOL banner, and the PKT_LOGIN sync delegation in
+    src/server/packets.c guards g_pool before enqueueing. That path also
+    fixes a latent deadlock: the synchronous fallback called
+    sync_client_task() while still holding game_mutex, which the task
+    re-acquires internally (PTHREAD_MUTEX_INITIALIZER is non-recursive);
+    the fallback now runs outside the lock, with the enqueue (and its
+    generation bump) still atomic under it.
+  - 3D view (OpenGL): replaced the GCC range expression in the exotic
+    feature draw switch of display() (case 100 ... 131) with the explicit
+    case chain, mirroring the 2026.10.03.02 fix in
+    src/spacegl_vulkan_gdd.c: removes the last -Wpedantic build warning
+    (ISO C does not support range expressions in switch statements).
 * Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.02
   - Server: added a static_assert per object type in include/server_internal.h
     tying every MAX_* pool limit to its universal GALAXY_OBJECT ID range
