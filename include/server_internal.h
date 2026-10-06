@@ -615,8 +615,8 @@ typedef struct {
 #define MAX_RELATIVISTIC_JETS 1000
 #define MAX_SHOCK_WAVES 1000
 #define MAX_STELLAR_BOW_SHOCKS 1000
-#define MAX_COSMIC_VOIDS 200
-#define MAX_COSMIC_FILAMENTS 400
+#define MAX_COSMIC_VOIDS 1000    /* was 200: unified with the full 1000-wide ID range */
+#define MAX_COSMIC_FILAMENTS 1000 /* was 400: unified with the full 1000-wide ID range */
 #define MAX_EVENT_HORIZONS 1000
 #define MAX_KILONOVAE 1000
 #define MAX_GRAV_LENSES 1000
@@ -634,12 +634,173 @@ typedef struct {
 #define MAX_TERM_SHOCKS 1000
 #define MAX_MAGNETOSPHERES 1000
 #define MAX_COSMIC_STRINGS 1000
-#define MAX_DOMAIN_WALLS 200
+#define MAX_DOMAIN_WALLS 1000 /* was 200: unified with the full 1000-wide ID range */
 #define MAX_DM_HALO 1000
 #define MAX_IGM 1000
 #define MAX_CGM 1000
 #define MAX_LYMAN_ALPHA 1000
-#define MAX_CMB 200
+#define MAX_CMB 1000          /* was 200: unified with the full 1000-wide ID range */
+
+/* --- Compile-time consistency: pool limits vs universal ID ranges ---
+ * Every static object type has a pool (above) and a universal ID range
+ * (GALAXY_OBJECT_MIN_<TYPE> / GALAXY_OBJECT_MAX_<TYPE> in game_config.h).
+ * Target resolution converts a universal ID to a pool slot as
+ * slot = id - GALAXY_OBJECT_MIN_<TYPE> (commands.c, logic.c, targets.c),
+ * guarded only by the ID range, so each pool must span its entire range:
+ * every ID in the range must map to a valid slot. These asserts make any
+ * drift between a limit and its range a build error.
+ * A pool may legitimately exceed its range (headroom: NPC ships,
+ * asteroids); it must never fall short of it. */
+static_assert(MAX_NPC >= GALAXY_OBJECT_MAX_NPC - GALAXY_OBJECT_MIN_NPC + 1,
+              "npcs[] must span the whole NPC ID range (slot = id - GALAXY_OBJECT_MIN_NPC)");
+static_assert(MAX_PLANETS >= GALAXY_OBJECT_MAX_PLANET - GALAXY_OBJECT_MIN_PLANET + 1,
+              "planets[] must span the whole PLANET ID range (slot = id - GALAXY_OBJECT_MIN_PLANET)");
+static_assert(MAX_BASES >= GALAXY_OBJECT_MAX_STARBASE - GALAXY_OBJECT_MIN_STARBASE + 1,
+              "bases[] must span the whole STARBASE ID range (slot = id - GALAXY_OBJECT_MIN_STARBASE)");
+static_assert(MAX_STARS >= GALAXY_OBJECT_MAX_STAR - GALAXY_OBJECT_MIN_STAR + 1,
+              "stars_data[] must span the whole STAR ID range (slot = id - GALAXY_OBJECT_MIN_STAR)");
+static_assert(MAX_BH >= GALAXY_OBJECT_MAX_BLACKHOLE - GALAXY_OBJECT_MIN_BLACKHOLE + 1,
+              "black_holes[] must span the whole BLACKHOLE ID range (slot = id - GALAXY_OBJECT_MIN_BLACKHOLE)");
+static_assert(MAX_NEBULAS >= GALAXY_OBJECT_MAX_NEBULA - GALAXY_OBJECT_MIN_NEBULA + 1,
+              "nebulas[] must span the whole NEBULA ID range (slot = id - GALAXY_OBJECT_MIN_NEBULA)");
+static_assert(MAX_PULSARS >= GALAXY_OBJECT_MAX_PULSAR - GALAXY_OBJECT_MIN_PULSAR + 1,
+              "pulsars[] must span the whole PULSAR ID range (slot = id - GALAXY_OBJECT_MIN_PULSAR)");
+static_assert(MAX_QUASARS >= GALAXY_OBJECT_MAX_QUASAR - GALAXY_OBJECT_MIN_QUASAR + 1,
+              "quasars[] must span the whole QUASAR ID range (slot = id - GALAXY_OBJECT_MIN_QUASAR)");
+static_assert(MAX_COMETS >= GALAXY_OBJECT_MAX_COMET - GALAXY_OBJECT_MIN_COMET + 1,
+              "comets[] must span the whole COMET ID range (slot = id - GALAXY_OBJECT_MIN_COMET)");
+static_assert(MAX_ASTEROIDS >= GALAXY_OBJECT_MAX_ASTEROID - GALAXY_OBJECT_MIN_ASTEROID + 1,
+              "asteroids[] must span the whole ASTEROID ID range (slot = id - GALAXY_OBJECT_MIN_ASTEROID)");
+static_assert(MAX_DERELICTS >= GALAXY_OBJECT_MAX_DERELICT - GALAXY_OBJECT_MIN_DERELICT + 1,
+              "derelicts[] must span the whole DERELICT ID range (slot = id - GALAXY_OBJECT_MIN_DERELICT)");
+static_assert(MAX_MINES >= GALAXY_OBJECT_MAX_MINE - GALAXY_OBJECT_MIN_MINE + 1,
+              "mines[] must span the whole MINE ID range (slot = id - GALAXY_OBJECT_MIN_MINE)");
+static_assert(MAX_BUOYS >= GALAXY_OBJECT_MAX_BUOY - GALAXY_OBJECT_MIN_BUOY + 1,
+              "buoys[] must span the whole BUOY ID range (slot = id - GALAXY_OBJECT_MIN_BUOY)");
+static_assert(MAX_PLATFORMS >= GALAXY_OBJECT_MAX_PLATFORM - GALAXY_OBJECT_MIN_PLATFORM + 1,
+              "platforms[] must span the whole PLATFORM ID range (slot = id - GALAXY_OBJECT_MIN_PLATFORM)");
+static_assert(MAX_RIFTS >= GALAXY_OBJECT_MAX_RIFT - GALAXY_OBJECT_MIN_RIFT + 1,
+              "rifts[] must span the whole RIFT ID range (slot = id - GALAXY_OBJECT_MIN_RIFT)");
+static_assert(MAX_MONSTERS >= GALAXY_OBJECT_MAX_MONSTER - GALAXY_OBJECT_MIN_MONSTER + 1,
+              "monsters[] must span the whole MONSTER ID range (slot = id - GALAXY_OBJECT_MIN_MONSTER)");
+static_assert(MAX_DYSON >= GALAXY_OBJECT_MAX_DYSON - GALAXY_OBJECT_MIN_DYSON + 1,
+              "dysons[] must span the whole DYSON ID range (slot = id - GALAXY_OBJECT_MIN_DYSON)");
+static_assert(MAX_HUBS >= GALAXY_OBJECT_MAX_HUB - GALAXY_OBJECT_MIN_HUB + 1,
+              "hubs[] must span the whole HUB ID range (slot = id - GALAXY_OBJECT_MIN_HUB)");
+static_assert(MAX_RELICS >= GALAXY_OBJECT_MAX_RELIC - GALAXY_OBJECT_MIN_RELIC + 1,
+              "relics[] must span the whole RELIC ID range (slot = id - GALAXY_OBJECT_MIN_RELIC)");
+static_assert(MAX_RUPTURES >= GALAXY_OBJECT_MAX_RUPTURE - GALAXY_OBJECT_MIN_RUPTURE + 1,
+              "ruptures[] must span the whole RUPTURE ID range (slot = id - GALAXY_OBJECT_MIN_RUPTURE)");
+static_assert(MAX_SATELLITES >= GALAXY_OBJECT_MAX_SATELLITE - GALAXY_OBJECT_MIN_SATELLITE + 1,
+              "satellites[] must span the whole SATELLITE ID range (slot = id - GALAXY_OBJECT_MIN_SATELLITE)");
+static_assert(MAX_STORMS >= GALAXY_OBJECT_MAX_STORM - GALAXY_OBJECT_MIN_STORM + 1,
+              "storms[] must span the whole STORM ID range (slot = id - GALAXY_OBJECT_MIN_STORM)");
+static_assert(MAX_ARTIFACTS >= GALAXY_OBJECT_MAX_ARTIFACT - GALAXY_OBJECT_MIN_ARTIFACT + 1,
+              "artifacts[] must span the whole ARTIFACT ID range (slot = id - GALAXY_OBJECT_MIN_ARTIFACT)");
+static_assert(MAX_WARP_GATES >= GALAXY_OBJECT_MAX_WARP_GATE - GALAXY_OBJECT_MIN_WARP_GATE + 1,
+              "warp_gates[] must span the whole WARP_GATE ID range (slot = id - GALAXY_OBJECT_MIN_WARP_GATE)");
+static_assert(MAX_NEUTRON_STARS >= GALAXY_OBJECT_MAX_NEUTRON_STAR - GALAXY_OBJECT_MIN_NEUTRON_STAR + 1,
+              "neutron_stars[] must span the whole NEUTRON_STAR ID range (slot = id - GALAXY_OBJECT_MIN_NEUTRON_STAR)");
+static_assert(MAX_MEGA_STRUCTS >= GALAXY_OBJECT_MAX_MEGA_STRUCT - GALAXY_OBJECT_MIN_MEGA_STRUCT + 1,
+              "mega_structs[] must span the whole MEGA_STRUCT ID range (slot = id - GALAXY_OBJECT_MIN_MEGA_STRUCT)");
+static_assert(MAX_DARK_CLOUDS >= GALAXY_OBJECT_MAX_DARK_CLOUD - GALAXY_OBJECT_MIN_DARK_CLOUD + 1,
+              "dark_clouds[] must span the whole DARK_CLOUD ID range (slot = id - GALAXY_OBJECT_MIN_DARK_CLOUD)");
+static_assert(MAX_SINGULARITIES >= GALAXY_OBJECT_MAX_SINGULARITY - GALAXY_OBJECT_MIN_SINGULARITY + 1,
+              "singularities[] must span the whole SINGULARITY ID range (slot = id - GALAXY_OBJECT_MIN_SINGULARITY)");
+static_assert(MAX_PLASMA_STORMS >= GALAXY_OBJECT_MAX_PLASMA_STORM - GALAXY_OBJECT_MIN_PLASMA_STORM + 1,
+              "plasma_storms[] must span the whole PLASMA_STORM ID range (slot = id - GALAXY_OBJECT_MIN_PLASMA_STORM)");
+static_assert(MAX_ORBITAL_RINGS >= GALAXY_OBJECT_MAX_ORBITAL_RING - GALAXY_OBJECT_MIN_ORBITAL_RING + 1,
+              "orbital_rings[] must span the whole ORBITAL_RING ID range (slot = id - GALAXY_OBJECT_MIN_ORBITAL_RING)");
+static_assert(MAX_TIME_ANOMALIES >= GALAXY_OBJECT_MAX_TIME_ANOMALY - GALAXY_OBJECT_MIN_TIME_ANOMALY + 1,
+              "time_anomalies[] must span the whole TIME_ANOMALY ID range (slot = id - GALAXY_OBJECT_MIN_TIME_ANOMALY)");
+static_assert(MAX_VOID_CRYSTALS >= GALAXY_OBJECT_MAX_VOID_CRYSTAL - GALAXY_OBJECT_MIN_VOID_CRYSTAL + 1,
+              "void_crystals[] must span the whole VOID_CRYSTAL ID range (slot = id - GALAXY_OBJECT_MIN_VOID_CRYSTAL)");
+static_assert(MAX_SUBSPACE_ANOMALIES >= GALAXY_OBJECT_MAX_SUBSPACE_ANOM - GALAXY_OBJECT_MIN_SUBSPACE_ANOM + 1,
+              "subspace_anomalies[] must span the whole SUBSPACE_ANOM ID range (slot = id - GALAXY_OBJECT_MIN_SUBSPACE_ANOM)");
+static_assert(MAX_DIFFUSE_NEBULAE >= GALAXY_OBJECT_MAX_DIFFUSE_NEBULA - GALAXY_OBJECT_MIN_DIFFUSE_NEBULA + 1,
+              "diffuse_nebulae[] must span the whole DIFFUSE_NEBULA ID range (slot = id - GALAXY_OBJECT_MIN_DIFFUSE_NEBULA)");
+static_assert(MAX_DARK_NEBULAE >= GALAXY_OBJECT_MAX_DARK_NEBULA - GALAXY_OBJECT_MIN_DARK_NEBULA + 1,
+              "dark_nebulae[] must span the whole DARK_NEBULA ID range (slot = id - GALAXY_OBJECT_MIN_DARK_NEBULA)");
+static_assert(MAX_PLANETARY_NEBULAE >= GALAXY_OBJECT_MAX_PLANETARY_NEBULA - GALAXY_OBJECT_MIN_PLANETARY_NEBULA + 1,
+              "planetary_nebulae[] must span the whole PLANETARY_NEBULA ID range (slot = id - GALAXY_OBJECT_MIN_PLANETARY_NEBULA)");
+static_assert(MAX_SNR >= GALAXY_OBJECT_MAX_SNR - GALAXY_OBJECT_MIN_SNR + 1,
+              "snrs[] must span the whole SNR ID range (slot = id - GALAXY_OBJECT_MIN_SNR)");
+static_assert(MAX_GMC >= GALAXY_OBJECT_MAX_GMC - GALAXY_OBJECT_MIN_GMC + 1,
+              "gmcs[] must span the whole GMC ID range (slot = id - GALAXY_OBJECT_MIN_GMC)");
+static_assert(MAX_INTERSTELLAR_FILAMENTS >= GALAXY_OBJECT_MAX_INTERSTELLAR_FILAMENT - GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT + 1,
+              "interstellar_filaments[] must span the whole INTERSTELLAR_FILAMENT ID range (slot = id - GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT)");
+static_assert(MAX_INTERSTELLAR_BUBBLES >= GALAXY_OBJECT_MAX_INTERSTELLAR_BUBBLE - GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE + 1,
+              "interstellar_bubbles[] must span the whole INTERSTELLAR_BUBBLE ID range (slot = id - GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE)");
+static_assert(MAX_BOK_GLOBULES >= GALAXY_OBJECT_MAX_BOK_GLOBULE - GALAXY_OBJECT_MIN_BOK_GLOBULE + 1,
+              "bok_globules[] must span the whole BOK_GLOBULE ID range (slot = id - GALAXY_OBJECT_MIN_BOK_GLOBULE)");
+static_assert(MAX_CLUMP_CORES >= GALAXY_OBJECT_MAX_CLUMP_CORE - GALAXY_OBJECT_MIN_CLUMP_CORE + 1,
+              "clump_cores[] must span the whole CLUMP_CORE ID range (slot = id - GALAXY_OBJECT_MIN_CLUMP_CORE)");
+static_assert(MAX_ACCRETION_DISKS >= GALAXY_OBJECT_MAX_ACCRETION_DISK - GALAXY_OBJECT_MIN_ACCRETION_DISK + 1,
+              "accretion_disks[] must span the whole ACCRETION_DISK ID range (slot = id - GALAXY_OBJECT_MIN_ACCRETION_DISK)");
+static_assert(MAX_RELATIVISTIC_JETS >= GALAXY_OBJECT_MAX_RELATIVISTIC_JET - GALAXY_OBJECT_MIN_RELATIVISTIC_JET + 1,
+              "relativistic_jets[] must span the whole RELATIVISTIC_JET ID range (slot = id - GALAXY_OBJECT_MIN_RELATIVISTIC_JET)");
+static_assert(MAX_SHOCK_WAVES >= GALAXY_OBJECT_MAX_SHOCK_WAVE - GALAXY_OBJECT_MIN_SHOCK_WAVE + 1,
+              "shock_waves[] must span the whole SHOCK_WAVE ID range (slot = id - GALAXY_OBJECT_MIN_SHOCK_WAVE)");
+static_assert(MAX_STELLAR_BOW_SHOCKS >= GALAXY_OBJECT_MAX_STELLAR_BOW_SHOCK - GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK + 1,
+              "stellar_bow_shocks[] must span the whole STELLAR_BOW_SHOCK ID range (slot = id - GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK)");
+static_assert(MAX_COSMIC_VOIDS >= GALAXY_OBJECT_MAX_COSMIC_VOID - GALAXY_OBJECT_MIN_COSMIC_VOID + 1,
+              "cosmic_voids[] must span the whole COSMIC_VOID ID range (slot = id - GALAXY_OBJECT_MIN_COSMIC_VOID)");
+static_assert(MAX_COSMIC_FILAMENTS >= GALAXY_OBJECT_MAX_COSMIC_FILAMENT - GALAXY_OBJECT_MIN_COSMIC_FILAMENT + 1,
+              "cosmic_filaments[] must span the whole COSMIC_FILAMENT ID range (slot = id - GALAXY_OBJECT_MIN_COSMIC_FILAMENT)");
+static_assert(MAX_EVENT_HORIZONS >= GALAXY_OBJECT_MAX_EVENT_HORIZON - GALAXY_OBJECT_MIN_EVENT_HORIZON + 1,
+              "event_horizons[] must span the whole EVENT_HORIZON ID range (slot = id - GALAXY_OBJECT_MIN_EVENT_HORIZON)");
+static_assert(MAX_KILONOVAE >= GALAXY_OBJECT_MAX_KILONOVA - GALAXY_OBJECT_MIN_KILONOVA + 1,
+              "kilonovae[] must span the whole KILONOVA ID range (slot = id - GALAXY_OBJECT_MIN_KILONOVA)");
+static_assert(MAX_GRAV_LENSES >= GALAXY_OBJECT_MAX_GRAV_LENS - GALAXY_OBJECT_MIN_GRAV_LENS + 1,
+              "grav_lenses[] must span the whole GRAV_LENS ID range (slot = id - GALAXY_OBJECT_MIN_GRAV_LENS)");
+static_assert(MAX_GRB >= GALAXY_OBJECT_MAX_GRB - GALAXY_OBJECT_MIN_GRB + 1,
+              "grbs[] must span the whole GRB ID range (slot = id - GALAXY_OBJECT_MIN_GRB)");
+static_assert(MAX_GRAV_WAVES >= GALAXY_OBJECT_MAX_GRAV_WAVE - GALAXY_OBJECT_MIN_GRAV_WAVE + 1,
+              "grav_waves[] must span the whole GRAV_WAVE ID range (slot = id - GALAXY_OBJECT_MIN_GRAV_WAVE)");
+static_assert(MAX_PROTOPLANETARY_DISKS >= GALAXY_OBJECT_MAX_PROTOPLANETARY_DISK - GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK + 1,
+              "protoplanetary_disks[] must span the whole PROTOPLANETARY_DISK ID range (slot = id - GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK)");
+static_assert(MAX_DEBRIS_DISKS >= GALAXY_OBJECT_MAX_DEBRIS_DISK - GALAXY_OBJECT_MIN_DEBRIS_DISK + 1,
+              "debris_disks[] must span the whole DEBRIS_DISK ID range (slot = id - GALAXY_OBJECT_MIN_DEBRIS_DISK)");
+static_assert(MAX_PLANETESIMALS >= GALAXY_OBJECT_MAX_PLANETESIMAL - GALAXY_OBJECT_MIN_PLANETESIMAL + 1,
+              "planetesimals[] must span the whole PLANETESIMAL ID range (slot = id - GALAXY_OBJECT_MIN_PLANETESIMAL)");
+static_assert(MAX_ROGUE_PLANETS >= GALAXY_OBJECT_MAX_ROGUE_PLANET - GALAXY_OBJECT_MIN_ROGUE_PLANET + 1,
+              "rogue_planets[] must span the whole ROGUE_PLANET ID range (slot = id - GALAXY_OBJECT_MIN_ROGUE_PLANET)");
+static_assert(MAX_BROWN_DWARFS >= GALAXY_OBJECT_MAX_BROWN_DWARF - GALAXY_OBJECT_MIN_BROWN_DWARF + 1,
+              "brown_dwarfs[] must span the whole BROWN_DWARF ID range (slot = id - GALAXY_OBJECT_MIN_BROWN_DWARF)");
+static_assert(MAX_ISO >= GALAXY_OBJECT_MAX_ISO - GALAXY_OBJECT_MIN_ISO + 1,
+              "isos[] must span the whole ISO ID range (slot = id - GALAXY_OBJECT_MIN_ISO)");
+static_assert(MAX_MAG_RECONN >= GALAXY_OBJECT_MAX_MAG_RECONN - GALAXY_OBJECT_MIN_MAG_RECONN + 1,
+              "mag_reconns[] must span the whole MAG_RECONN ID range (slot = id - GALAXY_OBJECT_MIN_MAG_RECONN)");
+static_assert(MAX_CURRENT_SHEETS >= GALAXY_OBJECT_MAX_CURRENT_SHEET - GALAXY_OBJECT_MIN_CURRENT_SHEET + 1,
+              "current_sheets[] must span the whole CURRENT_SHEET ID range (slot = id - GALAXY_OBJECT_MIN_CURRENT_SHEET)");
+static_assert(MAX_HELIOSPHERES >= GALAXY_OBJECT_MAX_HELIOSPHERE - GALAXY_OBJECT_MIN_HELIOSPHERE + 1,
+              "heliospheres[] must span the whole HELIOSPHERE ID range (slot = id - GALAXY_OBJECT_MIN_HELIOSPHERE)");
+static_assert(MAX_TERM_SHOCKS >= GALAXY_OBJECT_MAX_TERM_SHOCK - GALAXY_OBJECT_MIN_TERM_SHOCK + 1,
+              "term_shocks[] must span the whole TERM_SHOCK ID range (slot = id - GALAXY_OBJECT_MIN_TERM_SHOCK)");
+static_assert(MAX_MAGNETOSPHERES >= GALAXY_OBJECT_MAX_MAGNETOSPHERE - GALAXY_OBJECT_MIN_MAGNETOSPHERE + 1,
+              "magnetospheres[] must span the whole MAGNETOSPHERE ID range (slot = id - GALAXY_OBJECT_MIN_MAGNETOSPHERE)");
+static_assert(MAX_COSMIC_STRINGS >= GALAXY_OBJECT_MAX_COSMIC_STRING - GALAXY_OBJECT_MIN_COSMIC_STRING + 1,
+              "cosmic_strings[] must span the whole COSMIC_STRING ID range (slot = id - GALAXY_OBJECT_MIN_COSMIC_STRING)");
+static_assert(MAX_DOMAIN_WALLS >= GALAXY_OBJECT_MAX_DOMAIN_WALL - GALAXY_OBJECT_MIN_DOMAIN_WALL + 1,
+              "domain_walls[] must span the whole DOMAIN_WALL ID range (slot = id - GALAXY_OBJECT_MIN_DOMAIN_WALL)");
+static_assert(MAX_DM_HALO >= GALAXY_OBJECT_MAX_DM_HALO - GALAXY_OBJECT_MIN_DM_HALO + 1,
+              "dm_halos[] must span the whole DM_HALO ID range (slot = id - GALAXY_OBJECT_MIN_DM_HALO)");
+static_assert(MAX_IGM >= GALAXY_OBJECT_MAX_IGM - GALAXY_OBJECT_MIN_IGM + 1,
+              "igms[] must span the whole IGM ID range (slot = id - GALAXY_OBJECT_MIN_IGM)");
+static_assert(MAX_CGM >= GALAXY_OBJECT_MAX_CGM - GALAXY_OBJECT_MIN_CGM + 1,
+              "cgms[] must span the whole CGM ID range (slot = id - GALAXY_OBJECT_MIN_CGM)");
+static_assert(MAX_LYMAN_ALPHA >= GALAXY_OBJECT_MAX_LYMAN_ALPHA - GALAXY_OBJECT_MIN_LYMAN_ALPHA + 1,
+              "lyman_alphas[] must span the whole LYMAN_ALPHA ID range (slot = id - GALAXY_OBJECT_MIN_LYMAN_ALPHA)");
+static_assert(MAX_CMB >= GALAXY_OBJECT_MAX_CMB - GALAXY_OBJECT_MIN_CMB + 1,
+              "cmbs[] must span the whole CMB ID range (slot = id - GALAXY_OBJECT_MIN_CMB)");
+
+/* Players are the inverse case: the pool is deliberately smaller than the
+ * ID range (only MAX_CLIENTS slots are active, IDs 1..MAX_CLIENTS, see
+ * (p - players) + GALAXY_OBJECT_MIN_PLAYER in logic.c), so the invariant
+ * runs the other way: every assignable player ID must stay inside the
+ * range reserved for players. */
+static_assert(MAX_CLIENTS <= GALAXY_OBJECT_MAX_PLAYER - GALAXY_OBJECT_MIN_PLAYER + 1,
+              "every player ID (1..MAX_CLIENTS) must stay inside the player ID range 1-999");
 
 /* Local Quadrant Limits for Spatial Index (Optimization) */
 /* Per-quadrant capacity limits — calibrated to real galaxy density:
@@ -826,7 +987,7 @@ void log_init(void);
 
 #define LOG_DEBUG(...) do { if (g_debug) { slog("DEBUG: " __VA_ARGS__); } } while (0)
 
-#define GALAXY_VERSION 20260422
+#define GALAXY_VERSION 20261006  /* 2026-10-06: four exotic pools unified to 1000 -> galaxy.dat layout change */
 
 /* Spatial Partitioning Index */
 typedef struct {

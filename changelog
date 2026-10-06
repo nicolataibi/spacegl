@@ -1,3 +1,25 @@
+* Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.02
+  - Server: added a static_assert per object type in include/server_internal.h
+    tying every MAX_* pool limit to its universal GALAXY_OBJECT ID range
+    (game_config.h): target resolution maps a universal ID to a pool slot as
+    slot = id - GALAXY_OBJECT_MIN_<TYPE> guarded only by the ID range, so each
+    pool must span its entire range (every ID in the range maps to a valid
+    slot); any drift between a limit and its range is now a build error. A
+    pool may exceed its range (headroom: NPC ships, asteroids) but never fall
+    short of it. Players get the inverse assert (MAX_CLIENTS <= player range
+    1..999): only MAX_CLIENTS slots are active and player IDs are 1..16 by
+    design.
+  - Server/Galaxy: unified the four under-sized exotic pools with their
+    1000-wide ID ranges: MAX_COSMIC_VOIDS 200 -> 1000, MAX_COSMIC_FILAMENTS
+    400 -> 1000, MAX_DOMAIN_WALLS 200 -> 1000, MAX_CMB 200 -> 1000. All
+    consumers (server, viewer, diag, telemetry, quad index) use the macros,
+    so the change is contained to server_internal.h; generated instance
+    counts (5-10, 10-20, 2-5, 1) are far below the new caps, so behavior is
+    unchanged.
+  - Galaxy: GALAXY_VERSION bumped 20260422 -> 20261006. The four unified
+    categories now persist 1000 records each in galaxy.dat, so existing
+    galaxy.dat files are rejected with a clean version mismatch at load time
+    and must be regenerated.
 * Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.01
   - Security (server): fixed out-of-bounds accesses on the players[] array
     (MAX_CLIENTS = 16) in src/server/commands.c and src/server/logic.c.
