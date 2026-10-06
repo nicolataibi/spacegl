@@ -1578,7 +1578,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
     double tx, ty, tz; bool found = false;
     int pq1=players[i].state.q1, pq2=players[i].state.q2, pq3=players[i].state.q3;
     
-    if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER && players[tid-1].active && players[tid-1].state.q1 == pq1 && players[tid-1].state.q2 == pq2 && players[tid-1].state.q3 == pq3) { tx=players[tid-1].state.s1; ty=players[tid-1].state.s2; tz=players[tid-1].state.s3; found=true; }
+    if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= MAX_CLIENTS && players[tid-1].active && players[tid-1].state.q1 == pq1 && players[tid-1].state.q2 == pq2 && players[tid-1].state.q3 == pq3) { tx=players[tid-1].state.s1; ty=players[tid-1].state.s2; tz=players[tid-1].state.s3; found=true; }
     else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC && npcs[tid-GALAXY_OBJECT_MIN_NPC].active && npcs[tid-GALAXY_OBJECT_MIN_NPC].q1 == pq1 && npcs[tid-GALAXY_OBJECT_MIN_NPC].q2 == pq2 && npcs[tid-GALAXY_OBJECT_MIN_NPC].q3 == pq3) { tx=npcs[tid-GALAXY_OBJECT_MIN_NPC].x; ty=npcs[tid-GALAXY_OBJECT_MIN_NPC].y; tz=npcs[tid-GALAXY_OBJECT_MIN_NPC].z; found=true; }
     else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM && platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].active && platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q1 == pq1 && platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q2 == pq2 && platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].q3 == pq3) { tx=platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].x; ty=platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].y; tz=platforms[tid-GALAXY_OBJECT_MIN_PLATFORM].z; found=true; }
     else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER && monsters[tid-GALAXY_OBJECT_MIN_MONSTER].active && monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q1 == pq1 && monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q2 == pq2 && monsters[tid-GALAXY_OBJECT_MIN_MONSTER].q3 == pq3) { tx=monsters[tid-GALAXY_OBJECT_MIN_MONSTER].x; ty=monsters[tid-GALAXY_OBJECT_MIN_MONSTER].y; tz=monsters[tid-GALAXY_OBJECT_MIN_MONSTER].z; found=true; }
@@ -1654,7 +1654,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
                        i, players[i].name, players[i].state.beam_count);
         }
         
-        if (tid <= 32) {
+        if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= MAX_CLIENTS) {
             ConnectedPlayer *target = &players[tid - 1];
             
             int s_idx = calculate_shield_index(players[i].gx, players[i].gy, players[i].gz,
@@ -2403,7 +2403,7 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
         
         double tx, ty, tz; bool found = false;
         /* Resolve target position and validity (Use ABSOLUTE GALACTIC coordinates for distance) */
-        if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER && players[tid - 1].active) {
+        if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= MAX_CLIENTS && players[tid - 1].active) {
             tx = players[tid - 1].gx;
             ty = players[tid - 1].gy;
             tz = players[tid - 1].gz;
@@ -2437,7 +2437,7 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
                 int success_chance = PROB_BOARD_SUCCESS_BASE + (int)(players[i].state.system_health[3] * RATIO_BOARD_H_BONUS);
 
                 /* Handle Player Boarding via Interactive Menu */
-                if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER) {
+                if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= MAX_CLIENTS) {
                     ConnectedPlayer *target = &players[tid - 1];
                     players[i].pending_bor_target = tid;
                     char menu[512];
@@ -4378,7 +4378,7 @@ bool process_command(int i, const char *cmd) {
             ConnectedPlayer *target_p = NULL;
 
             /* Resolve target position */
-            if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER) { target_p = &players[tid-1]; tx = target_p->state.s1; ty = target_p->state.s2; tz = target_p->state.s3; }
+            if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= MAX_CLIENTS) { target_p = &players[tid-1]; tx = target_p->state.s1; ty = target_p->state.s2; tz = target_p->state.s3; }
             else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) { int n_idx = tid - GALAXY_OBJECT_MIN_NPC; tx = npcs[n_idx].x; ty = npcs[n_idx].y; tz = npcs[n_idx].z; }
             else if (tid >= GALAXY_OBJECT_MIN_DERELICT && tid <= GALAXY_OBJECT_MAX_DERELICT) { int d_idx = tid - GALAXY_OBJECT_MIN_DERELICT; tx = derelicts[d_idx].x; ty = derelicts[d_idx].y; tz = derelicts[d_idx].z; }
             else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM) { int pt_idx = tid - GALAXY_OBJECT_MIN_PLATFORM; tx = platforms[pt_idx].x; ty = platforms[pt_idx].y; tz = platforms[pt_idx].z; }
@@ -4406,7 +4406,7 @@ bool process_command(int i, const char *cmd) {
                         send_server_msg(i, "SECURITY", "Crew transferred."); 
                     }
                 } else if (players[i].pending_bor_type == 2) { /* ENEMY PLAYER / NPC */
-                    if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER) {
+                    if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= MAX_CLIENTS) {
                         if (choice == 1) { int s = rand()%MAX_SYSTEMS; target_p->state.system_health[s] = 0.0; send_server_msg(i, "BOARDING", "Sabotage successful."); }
                         else if (choice == 2) { int r = 1 + rand()%MAX_RESOURCE_TYPES; int a = target_p->state.inventory[r]/(int)RATIO_ENERGY_REDUCTION; target_p->state.inventory[r] -= a; players[i].state.inventory[r] += a; send_server_msg(i, "BOARDING", "Resources seized."); }
                         else { 

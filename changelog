@@ -1,3 +1,26 @@
+* Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.01
+  - Security (server): fixed out-of-bounds accesses on the players[] array
+    (MAX_CLIENTS = 16) in src/server/commands.c and src/server/logic.c.
+    Player-target lookups guarded only by the universal ID range (1..999,
+    GALAXY_OBJECT_MAX_PLAYER) indexed players[tid-1] up to index 998 with an
+    attacker-controlled tid (pha/bor command parameters, torpedo target_id):
+    out-of-bounds reads (active/faction/name/position) and writes (beam hit
+    shields/hull at commands.c:1657, boarding confirmation energy/crew/
+    sabotage transfers, torpedo impact damage in the logic.c tick), corrupting
+    the spacegl_master global that follows players[] in the BSS. All nine sites
+    now clamp the player branch to tid <= MAX_CLIENTS, the pattern already used
+    in the correct lookups (commands.c:534/1979/2056, logic.c:757/1056/1270).
+    Legitimate gameplay is unaffected: player IDs are 1..16.
+  - Tests: gdd_mesh_test.c CPU reference for the sphere mesh expanded to
+    mirror the 2026-10 gdd_expand_sphere revision of assets/shaders/gdd_ops.glsl
+    (polar angle measured from +Y, component-wise semi-axes clamped to 1e-6,
+    unit-direction vLocal, analytic ellipsoid normal normalize(d/r)); the
+    sphere test instance now uses a squashed non-uniform scale (1.5/0.5/1.5)
+    to exercise the ellipsoid path. gdd_mesh passes 68/68 checks and the whole
+    suite is 7/7 green again.
+  - Client: bounded the faction-name sscanf in src/spacegl_client.c
+    ("%s" -> "%63s", target_name[64]) to remove an unbounded stack copy of
+    console input after the '@' message prefix.
 * Sat Oct 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.03.04
   - README.md new non-blocking story.
 * Sat Oct 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.03.03

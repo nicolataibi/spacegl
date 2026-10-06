@@ -1995,7 +1995,7 @@ int main(int argc, char *argv[]) {
                         if (msg_start[0] == '@') {
                             char target_name[64];
                             int offset = 0;
-                            sscanf(msg_start + 1, "%s%n", target_name, &offset);
+                            sscanf(msg_start + 1, "%63s%n", target_name, &offset);
                             if (offset > 0) {
                                 mpkt->scope = SCOPE_FACTION;
                                 if (strcasecmp(target_name, "Alliance")==0 || strcasecmp(target_name, "Fed")==0) mpkt->faction = FACTION_ALLIANCE;

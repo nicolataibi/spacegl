@@ -133,31 +133,52 @@ static uint32_t expand_box(const GddInstance *it, GddVertex *out) {
     return 36;
 }
 
+/* Exact mirror of gdd_expand_sphere (gdd_ops.glsl, 2026-10 revision):
+ * - polar angle measured from the +Y axis, d = (sin(lat)*cos(lon),
+ *   cos(lat), sin(lat)*sin(lon)), lat in [0, PI]: covers the whole
+ *   sphere exactly once (the pre-2026-10 mirror sampled cos/sin with
+ *   the poles on +/-X and generated only one hemisphere);
+ * - component-wise semi-axes r = max(it.b.xyz, 1e-6): a zero semi-axis
+ *   clamps to a 1e-6-thin disk, exactly like the shader;
+ * - position = pos + d * r (the implementation does NOT apply the
+ *   instance orientation to the sphere);
+ * - local = d, the UNSQUASHED unit direction (CPU parity: the CPU
+ *   sphere's localPos is the unit-sphere vertex, not the ellipsoid
+ *   point), so it is NOT scaled here;
+ * - normal = normalize(d / r), the analytic ellipsoid normal
+ *   (reduces to d for uniform scale). */
 static uint32_t expand_sphere(const GddInstance *it, GddVertex *out) {
     const float PI = 3.141592653589793f;
-    const float r = it->scale[0];
+    float r[3] = { fmaxf(it->scale[0], 1e-6f),
+                   fmaxf(it->scale[1], 1e-6f),
+                   fmaxf(it->scale[2], 1e-6f) };
+    float inv_r[3] = { 1.0f / r[0], 1.0f / r[1], 1.0f / r[2] };
     int i, j;
     for (i = 0; i < 6; i++) {
         float lat0 = PI * (float)i / 6.0f;
         float lat1 = PI * (float)(i + 1) / 6.0f;
-        float cl0 = cosf(lat0), sl0 = sinf(lat0);
-        float cl1 = cosf(lat1), sl1 = sinf(lat1);
+        float cy0 = cosf(lat0), sy0 = sinf(lat0);
+        float cy1 = cosf(lat1), sy1 = sinf(lat1);
         for (j = 0; j < 10; j++) {
             float lon0 = 2.0f * PI * (float)j / 10.0f;
             float lon1 = 2.0f * PI * (float)(j + 1) / 10.0f;
             float c0 = cosf(lon0), s0 = sinf(lon0);
             float c1 = cosf(lon1), s1 = sinf(lon1);
-            float d00[3] = { cl0 * c0, sl0, cl0 * s0 };
-            float d10[3] = { cl1 * c0, sl1, cl1 * s0 };
-            float d01[3] = { cl0 * c1, sl0, cl0 * s1 };
-            float d11[3] = { cl1 * c1, sl1, cl1 * s1 };
+            float d00[3] = { sy0 * c0, cy0, sy0 * s0 };
+            float d10[3] = { sy1 * c0, cy1, sy1 * s0 };
+            float d01[3] = { sy0 * c1, cy0, sy0 * s1 };
+            float d11[3] = { sy1 * c1, cy1, sy1 * s1 };
             const float *d[6] = { d00, d10, d01, d10, d11, d01 };
             for (int k = 0; k < 6; k++) {
-                float w[3] = { it->pos[0] + d[k][0] * r,
-                               it->pos[1] + d[k][1] * r,
-                               it->pos[2] + d[k][2] * r };
-                float lp[3] = { d[k][0] * r, d[k][1] * r, d[k][2] * r };
-                put_exp(&out[i * 60 + j * 6 + k], w, lp, d[k], it);
+                float w[3] = { it->pos[0] + d[k][0] * r[0],
+                               it->pos[1] + d[k][1] * r[1],
+                               it->pos[2] + d[k][2] * r[2] };
+                float n[3] = { d[k][0] * inv_r[0],
+                               d[k][1] * inv_r[1],
+                               d[k][2] * inv_r[2] };
+                float nl = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+                n[0] /= nl; n[1] /= nl; n[2] /= nl;
+                put_exp(&out[i * 60 + j * 6 + k], w, d[k], n, it);
             }
         }
     }
@@ -1141,7 +1162,12 @@ static void fill_test_data(void) {
     /* 1: sphere, IN range, additive */
     u_inst_dyn[1].pos[0] = 4.0f; u_inst_dyn[1].pos[2] = -3.0f;
     u_inst_dyn[1].mesh = GDD_MESH_SPHERE;
-    u_inst_dyn[1].scale[0] = 1.5f;
+    /* Squashed ellipsoid (semi-axes 1.5/0.5/1.5): exercises the
+     * component-wise axes, the 1e-6 clamp (none here) and the
+     * analytic ellipsoid normal of gdd_expand_sphere. A scale left
+     * partially zero would degenerate to a 1e-6-thin disk, which is
+     * valid per the implementation but would not test a sphere. */
+    u_inst_dyn[1].scale[0] = 1.5f; u_inst_dyn[1].scale[1] = 0.5f; u_inst_dyn[1].scale[2] = 1.5f;
     u_inst_dyn[1].flags = gdd_make_flags(0, 1, GDD_FRAG_HYPERWARP);
     u_inst_dyn[1].color[0] = 1.0f; u_inst_dyn[1].color[1] = 0.8f; u_inst_dyn[1].color[2] = 0.3f;
     u_inst_dyn[1].alpha = 1.0f;

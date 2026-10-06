@@ -1409,7 +1409,7 @@ void update_game_logic() {
             double target_gx = -1.0, target_gy = -1.0, target_gz = -1.0;
             int tid = pt->target_id; 
             
-            if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER && players[tid-1].active) { 
+            if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= MAX_CLIENTS && players[tid-1].active) { 
                 target_gx = players[tid-1].gx; target_gy = players[tid-1].gy; target_gz = players[tid-1].gz; 
             } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC && npcs[tid-GALAXY_OBJECT_MIN_NPC].active) { 
                 target_gx = npcs[tid-GALAXY_OBJECT_MIN_NPC].gx; target_gy = npcs[tid-GALAXY_OBJECT_MIN_NPC].gy; target_gz = npcs[tid-GALAXY_OBJECT_MIN_NPC].gz; 
@@ -1510,7 +1510,7 @@ void update_game_logic() {
         if (hit) {
             #pragma omp critical
             {
-                if (hit_target >= GALAXY_OBJECT_MIN_PLAYER && hit_target <= GALAXY_OBJECT_MAX_PLAYER) {
+                if (hit_target >= GALAXY_OBJECT_MIN_PLAYER && hit_target <= MAX_CLIENTS) {
                     ConnectedPlayer *p = &players[hit_target - 1];
 
                     int s_idx = calculate_shield_index(pt->gx, pt->gy, pt->gz,
@@ -1582,7 +1582,7 @@ void update_game_logic() {
                     int tid = players_torpedoes[gt].target_id;
                     if (tid > 0) {
                         double tgx = -1.0, tgy = -1.0, tgz = -1.0;
-                        if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER && players[tid-1].active) { 
+                        if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= MAX_CLIENTS && players[tid-1].active) { 
                             tgx = players[tid-1].gx; tgy = players[tid-1].gy; tgz = players[tid-1].gz; 
                         } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC && npcs[tid-GALAXY_OBJECT_MIN_NPC].active) { 
                             tgx = npcs[tid-GALAXY_OBJECT_MIN_NPC].gx; tgy = npcs[tid-GALAXY_OBJECT_MIN_NPC].gy; tgz = npcs[tid-GALAXY_OBJECT_MIN_NPC].gz; 
