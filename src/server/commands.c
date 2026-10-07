@@ -46,6 +46,7 @@
 void handle_nav(int i, const char *params, bool *should_disconnect);
 void handle_imp(int i, const char *params, bool *should_disconnect);
 void handle_pos(int i, const char *params, bool *should_disconnect);
+void handle_vec(int i, const char *params, bool *should_disconnect);
 void handle_jum(int i, const char *params, bool *should_disconnect);
 void handle_apr(int i, const char *params, bool *should_disconnect);
 void handle_cha(int i, const char *params, bool *should_disconnect);
@@ -87,6 +88,8 @@ void handle_supernova(int i, const char *params, bool *should_disconnect);
 void handle_axs(int i, const char *params, bool *should_disconnect);
 void handle_grd(int i, const char *params, bool *should_disconnect);
 void handle_bridge(int i, const char *params, bool *should_disconnect);
+void handle_pilot(int i, const char *params, bool *should_disconnect);
+
 void handle_map(int i, const char *params, bool *should_disconnect);
 void handle_red(int i, const char *params, bool *should_disconnect);
 void handle_orb(int i, const char *params, bool *should_disconnect);
@@ -500,6 +503,54 @@ void handle_pos(int i, const char *params, bool *should_disconnect) {
         players[i].align_timer = players[i].nav_timer;
         send_server_msg(i, "HELMSMAN", "Ship re-orienting.");
     } else send_server_msg(i, "COMPUTER", "Usage: pos <H> <M> [R]");
+}
+
+/* handle_vec: Vector Thrust — move along course (H, M) at speed S
+ * WITHOUT touching the ship's attitude. Unlike "imp" (3 args), there
+ * is no target alignment: van_h / van_m / van_r are left exactly as
+ * they are, the flight vector (dx, dy, dz) is set from the requested
+ * course and the ship cruises in NAV_STATE_IMPULSE along it. This is
+ * what the pilot hat-switch retro-thrusters need: translate the ship
+ * (brake / lateral / vertical) while the cockpit view stays on the
+ * current nose. "vec <H> <M> 0" releases the thrust (all stop, ship
+ * dead in space — same stop semantics as the 1-arg impulse). */
+void handle_vec(int i, const char *params, bool *should_disconnect) {
+    (void)should_disconnect;
+    double h, m, s;
+    int args = sscanf(params, "%lf %lf %lf", &h, &m, &s);
+    if (args != 3) {
+        send_server_msg(i, "COMPUTER", "Usage: vec <H> <M> <S> [S 0 to stop]");
+        return;
+    }
+    if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
+        send_server_msg(i, "ENGINEERING", "Vector thrusters system is CRITICAL.");
+        return;
+    }
+    if (players[i].state.energy < COST_ACTION_HIGH) {
+        send_server_msg(i, "COMPUTER", "Insufficient energy for vector thrust.");
+        return;
+    }
+    normalize_upright(&h, &m);
+    double rad_h = h * M_PI / 180.0;
+    double rad_m = m * M_PI / 180.0;
+    players[i].dx = cos(rad_m) * sin(rad_h);
+    players[i].dy = cos(rad_m) * -cos(rad_h);
+    players[i].dz = sin(rad_m);
+    players[i].hyper_speed = s / COEFF_IMPULSE_DIVISOR;
+    if (players[i].hyper_speed > SPEED_IMPULSE_TICK_MAX) players[i].hyper_speed = SPEED_IMPULSE_TICK_MAX;
+    players[i].target_gx = -1.0; /* unlimited cruise along the vector */
+    players[i].is_docked = 0;
+    if (players[i].hyper_speed <= 0) {
+        players[i].nav_state = NAV_STATE_IDLE;
+        players[i].dx = 0; players[i].dy = 0; players[i].dz = 0;
+        send_server_msg(i, "HELMSMAN", "Vector thrust released. All stop.");
+    } else {
+        players[i].nav_state = NAV_STATE_IMPULSE;
+        char msg[64];
+        sprintf(msg, "Vector thrust engaged at %.0f%%.", players[i].hyper_speed * COEFF_IMPULSE_DIVISOR);
+        send_server_msg(i, "HELMSMAN", msg);
+    }
+    players[i].state.energy -= COST_ACTION_HIGH;
 }
 
 void handle_apr(int i, const char *params, bool *should_disconnect) {
@@ -3820,7 +3871,63 @@ void handle_bridge(int i, const char *params, bool *should_disconnect) {
     }
 }
 
+/* ------------------------------------------------------------------ */
+/* handle_pilot: engage/disengage cockpit pilot mode (show_bridge=20)  */
+/*                                                                     */
+/* "pilot"      — toggle on/off                                        */
+/* "pilot on"   — engage                                               */
+/* "pilot off"  — disengage                                            */
+/*                                                                     */
+/* In pilot mode the Vulkan viewer drives the ship via the flight      */
+/* stick (T.16000M FCS): throttle=speed, stick=heading/mark,           */
+/* twist=roll, hat=retro-thruster, buttons=fire/lock/power.            */
+/* The server only sees ordinary imp/pha/tor/etc. commands.            */
+/* show_bridge value 20 is reserved for pilot mode; values 1-16 cover  */
+/* the existing bridge sub-views.                                      */
+/* ------------------------------------------------------------------ */
+void handle_pilot(int i, const char *params, bool *should_disconnect) {
+    (void)should_disconnect;
+    if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
+        send_server_msg(i, "COMPUTER",
+                        "HELM FAILURE: Flight control interface corrupted.");
+        return;
+    }
+    if (players[i].state.energy < COST_ACTION_LOW) {
+        send_server_msg(i, "COMPUTER",
+                        "Insufficient energy to engage pilot interface.");
+        return;
+    }
+
+    int current = players[i].state.show_bridge;
+    int new_val;
+
+    const char *p = params;
+    while (*p && (*p == ' ' || *p == '\t')) p++;
+
+    if (*p == '\0') {
+        /* bare "pilot": toggle */
+        new_val = (current == 20) ? 0 : 20;
+    } else if (strstr(p, "off")) {
+        new_val = 0;
+    } else {
+        /* "pilot on" or any other arg: engage */
+        new_val = 20;
+    }
+
+    if (new_val != current) {
+        players[i].state.energy -= COST_ACTION_LOW;
+        players[i].state.show_bridge = new_val;
+        if (new_val == 20)
+            send_server_msg(i, "HELMSMAN",
+                            "PILOT MODE: ENGAGED. Flight stick active.");
+        else
+            send_server_msg(i, "HELMSMAN",
+                            "PILOT MODE: DISENGAGED. Returning to tactical.");
+    }
+}
+
 void handle_map(int i, const char *params, bool *should_disconnect) {
+
     (void)params; (void)should_disconnect;
     if (players[i].state.system_health[6] < (THRESHOLD_SYS_CRITICAL + 5.0)) {
         send_server_msg(i, "COMPUTER", "CARTOGRAPHY FAILURE: Spatial projection mainframe damaged.");
@@ -4190,6 +4297,7 @@ static const CommandDef command_registry[] = {
     {"nav", handle_nav, "Hyperdrive Navigation (H 0-359, M -90/90, W Dist, F Factor 1-9.9)"},
     {"imp", handle_imp, "Impulse Drive (H, M, Speed 0.0-1.0). imp 0 0 0 to stop."},
     {"pos", handle_pos, "Position Ship (Align orientation without movement)"},
+    {"vec", handle_vec, "Vector Thrust (H, M, Speed 0.0-1.0): move along course without changing attitude. vec H M 0 to stop."},
     {"jum", handle_jum, "Wormhole Jump (Usage: jum [type] q1 q2 q3)"},
     {"apr", handle_apr, "Approach target autopilot (ID DIST). Works on Lock."},
     {"cha",  handle_cha, "Chase locked target (Inter-sector aware)"},
@@ -4237,6 +4345,8 @@ static const CommandDef command_registry[] = {
     {"axs",  handle_axs,  "Toggle AR Compass"},
     {"grd",  handle_grd,  "Toggle Tactical Grid"},
     {"bridge", handle_bridge, "Change Bridge View (top, bottom, up, down, left, right, rear, off)"},
+    {"pilot", handle_pilot, "Cockpit Pilot Mode: flight stick drives the ship (pilot on/off)"},
+
     {"map",    handle_map,    "Toggle Galaxy Map. Filters: st,pl,bs,en,bh,ne,pu,is,co,as,de,mi,bu,pf,ri,mo,qu"},
     {"red",    handle_red,    "Toggle Red Alert / Condition Green"},
     {"orb",    handle_orb,    "Enter orbit around target celestial body (Planet, Star, BH, Pulsar, Quasar) < 1.0"},
@@ -4501,14 +4611,17 @@ bool process_command(int i, const char *cmd) {
 
     /* 2. Docking Restrictions Logic */
     bool is_action = true;
-    const char* allowed[] = {"rad", "sta", "inv", "dam", "who", "help", "cal", "ical", "map", "axs", "grd", "bridge", "enc", "und", "exit", "quit", NULL};
+    const char* allowed[] = {"rad", "sta", "inv", "dam", "who", "help", "cal", "ical", "map", "axs", "grd", "bridge", "pilot", "enc", "und", "exit", "quit", NULL};
+
     for(int a=0; allowed[a]; a++) {
         if(strncmp(cmd, allowed[a], strlen(allowed[a])) == 0) { is_action = false; break; }
     }
 
     if (players[i].is_docked) {
         /* Any movement command will undock the ship */
-        if (strncmp(cmd, "nav", 3) == 0 || strncmp(cmd, "imp", 3) == 0 || strncmp(cmd, "pos", 3) == 0 || strncmp(cmd, "jum", 3) == 0 || strncmp(cmd, "und", 3) == 0) {
+        /* "vec" is a movement command too (vector thrust, 2026.10.07.02):
+         * handle_vec undocks, so the clamps release the same way. */
+        if (strncmp(cmd, "nav", 3) == 0 || strncmp(cmd, "imp", 3) == 0 || strncmp(cmd, "pos", 3) == 0 || strncmp(cmd, "vec", 3) == 0 || strncmp(cmd, "jum", 3) == 0 || strncmp(cmd, "und", 3) == 0) {
             players[i].is_docked = 0;
             if (strncmp(cmd, "und", 3) != 0) {
                 send_server_msg(i, "STARBASE", "Auto-Undock triggered. Docking clamps released.");

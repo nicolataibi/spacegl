@@ -224,6 +224,46 @@ typedef struct VulkanApp {
     mat4 playerT;
     int shm_inspector_page; /* 0=Off, 1=Energy/Status, 2=Galaxy/HMAC, 3=Networking */
 
+    /* ------------------------------------------------------------------ */
+    /* Pilot mode (showBridge == 20): cockpit camera + flight stick input  */
+    /* ------------------------------------------------------------------ */
+    float  pilotAnim;          /* 0.0 → 1.0 camera transition              */
+    int    showPilot;          /* 1 when shm_show_bridge == 20             */
+
+    /* Joystick (Thrustmaster T.16000M FCS, /dev/input/js0) */
+    int    jsIndex;            /* GLFW_JOYSTICK_x, -1 = not found          */
+    /* Seeded from SHM on pilot-mode entry (diagnostic reference). The   */
+    /* 2026.10.07.02 command targets are computed CLOSED-LOOP from the   */
+    /* live SHM course every frame — no open-loop accumulation.          */
+    float  pilotHeading;       /* heading seed (0..359)                    */
+    float  pilotMark;          /* mark seed (-90..+90)                     */
+    float  pilotRoll;          /* roll seed (van_r, -180..+180)            */
+    float  pilotLastSpeed;     /* last committed thrust speed (0..100)     */
+    double jsLastImpTime;      /* timestamp of last 3-arg "imp" sent       */
+    double jsLastPosTime;      /* timestamp of last "pos" sent             */
+    double jsLastPosH;         /* last sent "pos" heading (0.1 deg)        */
+    double jsLastPosM;         /* last sent "pos" mark (0.1 deg)           */
+    double jsLastPosR;         /* last sent "pos" roll (0.1 deg)           */
+    double jsLastPhaTime;      /* timestamp of last "pha" sent             */
+    double jsLastTorTime;      /* timestamp of last "tor" sent             */
+    uint8_t jsPrevBtns[16];   /* previous-frame button state (edge det.)  */
+    float  jsPrevHatX;         /* previous hat X state (edge detection)    */
+    float  jsPrevHatY;         /* previous hat Y state (edge detection)    */
+    double jsLastImpH;         /* last sent 3-arg imp heading (0.1 deg)    */
+    double jsLastImpM;         /* last sent 3-arg imp mark (0.1 deg)       */
+    double jsLastImpS;         /* last sent 3-arg imp speed (0.001)        */
+    double jsLastThrS;         /* last sent 1-arg throttle speed (0.001)   */
+    double jsLastThrTime;      /* timestamp of last 1-arg "imp" sent       */
+    double jsLastVecH;         /* last sent "vec" heading (0.1 deg)        */
+    double jsLastVecM;         /* last sent "vec" mark (0.1 deg)           */
+    double jsLastVecS;         /* last sent "vec" speed (0.001)            */
+    double jsLastVecTime;      /* timestamp of last "vec" sent             */
+    double jsRetroH;           /* captured retro vector heading (deg)      */
+    double jsRetroM;           /* captured retro vector mark (deg)         */
+    double jsRetroS;           /* captured retro speed (imp units, 0..100) */
+    int    jsRetroActive;      /* 1 while the hat stays off-center         */
+
+
     /* --- GPU-driven path (SPACEGL_GPD=1; NULL gdd => CPU-driven) --- */
     bool gdd_wanted;          /* the env var requested the GDD path */
     uint32_t gdd_queue_family;/* queue family used for the device queue */

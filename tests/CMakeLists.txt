@@ -29,6 +29,14 @@ endif()
 # Global definitions (same as the main project)
 add_compile_definitions(_XOPEN_SOURCE=700)
 
+# The target_bounds test links src/server/logic.c, whose tick loops are
+# OpenMP-parallel exactly like in the main server binary (see
+# ../CMakeLists.txt): link OpenMP when available so the pragmas behave
+# as in production (without it they are ignored and the loops run
+# sequentially, which is still a valid exercise of the code paths).
+find_package(Threads REQUIRED)
+find_package(OpenMP QUIET)
+
 if(MSVC)
     add_compile_options(/W4)
 else()
@@ -159,3 +167,60 @@ add_test(NAME pkt_length COMMAND pkt_length_test)
 add_executable(crypto_table_test crypto_table_test.c)
 target_link_libraries(crypto_table_test PRIVATE OpenSSL::Crypto)
 add_test(NAME crypto_table COMMAND crypto_table_test)
+
+# --- Server target-ID boundary regression (2026.10.06.01 clamp fix) --
+# The attacker-controlled tid (pha/bor/lock/scan/apr command parameters)
+# and PlayerTorpedo.target_id may index players[] only within
+# [0, MAX_CLIENTS): this test pins the boundary cases tid = 16 / 17 /
+# 999 and the target_id edges (16/17/999/0/-1, NPC edges 1000/3999)
+# against the REAL commands.c and logic.c. The test TU owns the global
+# object arrays at production size, with spacegl_master as the canary
+# right after players[] (the server BSS adjacency the pre-fix OOB
+# writes corrupted). Built with ASan/UBSan so any residual
+# out-of-bounds access aborts the run instead of passing silently.
+add_executable(target_bounds_test
+    target_bounds_test.c
+    ${SG_ROOT}/src/server/commands.c
+    ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/nav_math.c
+    ${SG_ROOT}/src/server/targets.c
+    ${SG_ROOT}/src/sglog.c)
+target_link_libraries(target_bounds_test PRIVATE m Threads::Threads)
+if(OpenMP_C_FOUND)
+    target_link_libraries(target_bounds_test PRIVATE OpenMP::OpenMP_C)
+endif()
+if(NOT MSVC)
+    target_compile_options(target_bounds_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(target_bounds_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME target_bounds COMMAND target_bounds_test)
+
+# --- Server vector-thrust ("vec") contract (2026.10.07.02 pilot      ---
+# --- hat-switch retro-thrusters) -------------------------------------
+# The pilot hat needs a thrust command that translates the ship
+# WITHOUT touching its attitude (the 3-arg impulse always aligns the
+# nose first — the pre-fix hat read as a 180-deg view spin and no
+# thruster ever fired). The new "vec <H> <M> <S>" command sets the
+# flight vector from the requested course and cruises IMPULSE along
+# it with van_h/van_m/van_r untouched; "vec H M 0" releases the
+# thrust. This test pins that contract against the REAL commands.c
+# (same scaffolding as target_bounds: production-size globals, the
+# send_server_msg recorder, ASan/UBSan build).
+add_executable(vec_thrust_test
+    vec_thrust_test.c
+    ${SG_ROOT}/src/server/commands.c
+    ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/nav_math.c
+    ${SG_ROOT}/src/server/targets.c
+    ${SG_ROOT}/src/sglog.c)
+target_link_libraries(vec_thrust_test PRIVATE m Threads::Threads)
+if(OpenMP_C_FOUND)
+    target_link_libraries(vec_thrust_test PRIVATE OpenMP::OpenMP_C)
+endif()
+if(NOT MSVC)
+    target_compile_options(vec_thrust_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(vec_thrust_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME vec_thrust COMMAND vec_thrust_test)

@@ -1481,9 +1481,61 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         }
     }
 
+    /* ---------------------------------------------------------------- */
+    /* 11. Pilot HUD: crosshair + throttle bar (pilot mode only)        */
+    /* ---------------------------------------------------------------- */
+    /* Both elements live in the dyn (dynamic) list, drawn in the       */
+    /* tactical view plane (map_anim < 0.99) at the ship's world        */
+    /* position with zero scale offset — they are screen-space proxies. */
+    /* The crosshair is a small sphere at scale 0 placed far along the  */
+    /* forward axis so it renders as a tiny dot at screen centre; the   */
+    /* throttle bar is a thin GDD_MESH_BOX scaled on X by throttle.     */
+    if (ctx->show_pilot && ctx->map_anim < 0.99f) {
+        /* Crosshair: two perpendicular hairline boxes centred on the    */
+        /* tactical view origin (0,0,0 in ship-relative space).         */
+        /* Scale: thin enough to look like a reticle at typical FOV.    */
+        float cw = 0.35f; /* half-width of each crosshair arm           */
+        float ct = GDD_HAIRLINE * 6.0f; /* thickness (6× hairline)      */
+        /* Horizontal arm */
+        gdd_list_add_identity(&dyn, GDD_MESH_BOX,
+                              0.0f, 0.0f, 0.0f,
+                              cw, ct, ct,
+                              0.0f, 1.0f, 0.0f, 0.85f,
+                              1, 0, GDD_FRAG_UNLIT, 0, 0);
+        /* Vertical arm */
+        gdd_list_add_identity(&dyn, GDD_MESH_BOX,
+                              0.0f, 0.0f, 0.0f,
+                              ct, cw, ct,
+                              0.0f, 1.0f, 0.0f, 0.85f,
+                              1, 0, GDD_FRAG_UNLIT, 0, 0);
+
+        /* Throttle bar: bottom-left HUD area.                          */
+        /* Rendered as a thin horizontal box whose X scale is           */
+        /* proportional to pilot_throttle (0..1).                       */
+        float bar_max = 0.8f;   /* full-width half-extent               */
+        float bar_h   = GDD_HAIRLINE * 10.0f;
+        float bar_t   = GDD_HAIRLINE * 4.0f;
+        float bar_w   = bar_max * ctx->pilot_throttle;
+        if (bar_w > 0.001f) {
+            /* Background (dim green full-width) */
+            gdd_list_add_identity(&dyn, GDD_MESH_BOX,
+                                  0.0f, -0.88f, 0.0f,
+                                  bar_max, bar_h, bar_t,
+                                  0.0f, 0.25f, 0.0f, 0.5f,
+                                  1, 0, GDD_FRAG_UNLIT, 0, 0);
+            /* Fill (bright green, width = throttle%) */
+            gdd_list_add_identity(&dyn, GDD_MESH_BOX,
+                                  (bar_w - bar_max), -0.88f, 0.0f,
+                                  bar_w, bar_h, bar_t,
+                                  0.0f, 1.0f, 0.2f, 0.9f,
+                                  1, 0, GDD_FRAG_UNLIT, 0, 0);
+        }
+    }
+
     if (ctx->dyn_count) *ctx->dyn_count = dyn.n;
     if (ctx->map_count) *ctx->map_count = map.n;
 }
+
 
 /* ================================================================== */
 /* ================================================================== */
@@ -2302,6 +2354,9 @@ void gdd_recreate_size_dependent(VulkanApp *app) {
 /* BRIDGE_CAMERA_OFFSET_Y * SCALE_SHIP of the CPU path (kept here so the
  * GDD translation stays free of project-header dependencies). */
 #define GDD_BRIDGE_CAMERA_OFFSET (0.30f * 0.45f)
+/* Pilot cockpit camera: same formula as PILOT_CAMERA_OFFSET_Y * SCALE_SHIP */
+#define GDD_PILOT_CAMERA_OFFSET  (0.12f * 0.45f)
+
 
 /* Vision cull margin: the quadrant spans [-20,20]^3 (|p| <= 34.6), so
  * cameraDist + 60 always contains the whole scene for any camera
@@ -2387,8 +2442,67 @@ static void gdd_compute_view(VulkanApp *app, mat4 view, float cam_world[3]) {
         mat4_multiply(T_inv, R_inv, m_brg);
     }
 
-    /* 3. Final view interpolation (+ the camera position follows it) */
-    if (app->bridgeAnim <= 0.001f) {
+
+    /* 3. Pilot view (show_bridge == 20, cockpit with roll)            */
+    mat4 m_pilot; mat4_identity(m_pilot);
+    float cam_pilot[3] = {0.0f, 0.0f, 0.0f};
+    if (app->showPilot && app->pilotAnim > 0.001f) {
+        float tactScale = 1.0f - app->mapAnim;
+        float px = (app->smoothObjs[0].x - 20.0f) * tactScale;
+        float py = (app->smoothObjs[0].z - 20.0f) * tactScale;
+        float pz = (20.0f - app->smoothObjs[0].y) * tactScale;
+        float ph = app->smoothObjs[0].h;
+        float pm = app->smoothObjs[0].m;
+
+        /* Fetch roll from SHM */
+        int r_idx_p = atomic_load(&app->shm->read_index);
+        float pr = (float)app->shm->buffers[r_idx_p].shm_r;
+
+        mat4 R_ship; mat4_identity(R_ship);
+        mat4_rotate(R_ship, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_ship, -ph * M_PI / 180.0f, (vec3){0, 1, 0});
+        float h_rad = ph * M_PI / 180.0f;
+        mat4_rotate(R_ship, pm * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
+        /* Roll: rotate around the ship's forward axis */
+        mat4_rotate(R_ship, pr * M_PI / 180.0f,
+                    (vec3){sinf(h_rad), 0.0f, cosf(h_rad)});
+
+        float ly = GDD_PILOT_CAMERA_OFFSET * tactScale;
+
+        float wx = ly * R_ship[0][1] + px;
+        float wy = ly * R_ship[1][1] + py;
+        float wz = ly * R_ship[2][1] + pz;
+        cam_pilot[0] = wx; cam_pilot[1] = wy; cam_pilot[2] = wz;
+
+        mat4 R_base; mat4_identity(R_base);
+        mat4_rotate(R_base, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4 R_cam_world;
+        mat4_multiply(R_base, R_ship, R_cam_world);
+
+        mat4 R_inv; mat4_identity(R_inv);
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 3; j++)
+                R_inv[i][j] = R_cam_world[j][i];
+        mat4 T_inv; mat4_translate(T_inv, (vec3){-wx, -wy, -wz});
+        mat4_multiply(T_inv, R_inv, m_pilot);
+    }
+
+    /* 4. Final view interpolation (+ camera position follows it)      */
+    if (app->showPilot && app->pilotAnim >= 0.999f) {
+        memcpy(view, m_pilot, sizeof(mat4));
+        memcpy(cam_world, cam_pilot, sizeof(cam_pilot));
+    } else if (app->showPilot && app->pilotAnim > 0.001f) {
+        /* Blend from current bridge/tactical toward pilot */
+        float *base_v = (app->bridgeAnim >= 0.999f) ? (float *)m_brg : (float *)m_std;
+        float *base_c = (app->bridgeAnim >= 0.999f) ? cam_brg : cam_orb;
+        float a = app->pilotAnim;
+        for (int i = 0; i < 4; i++)
+            for (int j = 0; j < 4; j++)
+                view[i][j] = ((float(*)[4])base_v)[i][j] * (1.0f - a)
+                            + m_pilot[i][j] * a;
+        for (int i = 0; i < 3; i++)
+            cam_world[i] = base_c[i] * (1.0f - a) + cam_pilot[i] * a;
+    } else if (app->bridgeAnim <= 0.001f) {
         memcpy(view, m_std, sizeof(mat4));
         memcpy(cam_world, cam_orb, sizeof(cam_orb));
     } else if (app->bridgeAnim >= 0.999f) {
@@ -2404,6 +2518,7 @@ static void gdd_compute_view(VulkanApp *app, mat4 view, float cam_world[3]) {
                          + cam_brg[i] * app->bridgeAnim;
     }
 }
+
 
 /* ------------------------------------------------------------------ */
 /* gdd_build_frame — the ONE small per-frame upload of the GDD path.  */
@@ -2485,6 +2600,9 @@ void gdd_build_frame(VulkanApp *app, float pulse) {
         ctx.player_q[2] = st->shm_q[2];
         ctx.show_axes = st->shm_show_axes;
         ctx.show_grid = st->shm_show_grid;
+        ctx.show_pilot    = (app->showPilot && app->pilotAnim >= 0.999f) ? 1 : 0;
+        ctx.pilot_throttle = (app->pilotLastSpeed / 100.0f); /* normalise 0..1 */
+
         ctx.galaxy = &app->shm->shm_galaxy[0][0][0];
         ctx.galaxy_size = 40; /* shm_galaxy[41][41][41], coords 1..40 */
     }

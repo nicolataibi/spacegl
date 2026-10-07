@@ -24,6 +24,7 @@ const char* get_lrs_object_name(int id);
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <errno.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <pthread.h>
@@ -356,6 +357,13 @@ struct termios orig_termios;
 
 volatile sig_atomic_t g_running = 1;
 
+/* Network-listener thread (created in main after the visualizer
+ * handshake). main joins it in the orderly shutdown BEFORE cleanup()
+ * unmaps the SHM: the listener writes g_shared_state on every server
+ * packet, and unmap-under-running-thread was the 2026.10.06.07 segfault. */
+pthread_t g_listener_thread;
+int g_listener_started = 0;
+
 void disable_raw_mode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
 }
@@ -515,11 +523,23 @@ void process_ipc_commands(int server_sock) {
 }
 
 void cleanup() {
+    /* atexit() backstop for every exit path. Idempotent (main's orderly
+     * shutdown may already have torn down), and it NULLs the SHM pointers
+     * before unmap so any thread that still references them sees NULL
+     * instead of a dangling mapping (2026.10.06.07). */
+    static int done = 0;
+    if (done) return;
+    done = 1;
+    g_shared_state = NULL;
     if (visualizer_pid > 0) kill(-visualizer_pid, SIGTERM);
-    if (g_shm) munmap(g_shm, sizeof(SharedIPC));
+    if (g_shm) {
+        munmap(g_shm, sizeof(SharedIPC));
+        g_shm = NULL;
+    }
     if (shm_fd != -1) {
         close(shm_fd);
         shm_unlink(shm_path);
+        shm_fd = -1;
     }
 }
 
@@ -536,6 +556,11 @@ int read_all(int fd, void *buf, size_t len) {
         ssize_t n = read(fd, p + total, len - total);
         if (n == 0) return 0; /* Connection closed */
         if (n < 0) {
+            /* EINTR: a signal (Ctrl+C / SIGTERM on the main thread, or the
+             * visualizer handshake SIGUSR2) interrupted the syscall. The
+             * pre-fix code returned -1, which the listener mistook for a
+             * dead connection during a perfectly healthy session. */
+            if (errno == EINTR) continue;
             perror("read_all failed");
             return -1;
         }
@@ -561,11 +586,13 @@ void *network_listener(void *arg) {
         int type;
         int r = read_all(sock, &type, sizeof(int));
         if (r <= 0) {
+            /* No exit() from the thread: main joins us in the orderly
+             * shutdown and owns the process teardown (2026.10.06.07). */
             g_running = 0;
             disable_raw_mode();
             if (r == 0) printf("\n[NET] Server closed the connection.\n");
             else printf("\n[NET] Connection lost (read error).\n");
-            exit(0);
+            break;
         }
         
         if (type == PKT_QUERY_KEY) {
@@ -581,7 +608,12 @@ void *network_listener(void *arg) {
             }
         } else if (type == PKT_MESSAGE) {
             PacketMessage *msg = malloc(sizeof(PacketMessage));
-            if (!msg) { perror("malloc failed"); exit(1); }
+            if (!msg) {
+                perror("malloc failed");
+                g_running = 0;
+                disable_raw_mode();
+                break;
+            }
             msg->type = type;
             size_t fixed_size = offsetof(PacketMessage, text);
             if (read_all(sock, ((char*)msg) + sizeof(int), fixed_size - sizeof(int)) <= 0) {
@@ -1329,7 +1361,15 @@ void *network_listener(void *arg) {
 
 void handle_sigint(int sig) {
     (void)sig;
-    exit(0);
+    /* Async-signal-safe: only set the stop flag. The main loop wakes from
+     * its blocking read (SA_RESTART is NOT set), leaves the loop and runs
+     * the orderly shutdown (join the listener, release the terminal,
+     * then cleanup()). The pre-fix exit() from the handler raced atexit's
+     * cleanup() against the still-running network-listener thread: the
+     * munmap of the SHM happened while the listener was writing it on the
+     * next 60 Hz server packet — a use-after-munmap SIGSEGV in the
+     * listener (2026.10.06.07). */
+    g_running = 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -1844,16 +1884,25 @@ int main(int argc, char *argv[]) {
         printf(B_RED "WARNING: Tactical View timed out. Proceeding in CLI-only mode.\n" RESET);
     }
 
-    /* Thread to listen to the server */
-    pthread_t thread_id;
-    pthread_create(&thread_id, NULL, network_listener, NULL);
+    /* Thread to listen to the server (joined in the orderly shutdown) */
+    pthread_create(&g_listener_thread, NULL, network_listener, NULL);
+    g_listener_started = 1;
 
     printf(B_GREEN "Connected to Galaxy Server. Command Deck ready.\n" RESET);
     enable_raw_mode();
     reprint_prompt();
 
     while (g_running) {
+        /* Drain the IPC command queue from the Vulkan viewer (pilot mode    */
+        /* joystick commands: imp, vec, pos, pha, tor, lock, pow, clo, etc.).*/
+        /* The viewer writes to g_shm->cmd_queue via vulkan_send_ipc_command;*/
+        /* this call forwards them to the server as PacketCommand packets.   */
+        /* VMIN=0 VTIME=1 makes read() return after 100ms if no key press,  */
+        /* so the drain runs at ~10 Hz — matching JS_IMP_INTERVAL.          */
+        if (g_shm) process_ipc_commands(sock);
+
         char c;
+
         if (read(STDIN_FILENO, &c, 1) > 0) {
             if (c == '\n' || c == '\r') {
                 if (g_input_ptr > 0) {
@@ -1868,8 +1917,7 @@ int main(int argc, char *argv[]) {
                         send(sock, &cpkt, sizeof(cpkt), 0);
                         usleep(50000); /* Give processes time to see the flag */
                         g_running = 0;
-                        disable_raw_mode();
-                        exit(0);
+                        break; /* orderly shutdown after the loop (2026.10.06.07) */
                     }
                     if (strcmp(g_input_buf, "axs") == 0 || 
                                strcmp(g_input_buf, "grd") == 0 || 
@@ -2129,6 +2177,19 @@ int main(int argc, char *argv[]) {
                 /* We could handle the arrows here, but for now we ignore them */
             }
         }
+    }
+    /* Orderly shutdown (2026.10.06.07): clear the stop flag, release the
+     * terminal, then JOIN the listener thread BEFORE cleanup() (atexit)
+     * unmaps the SHM — the listener writes g_shared_state on every server
+     * packet, so an unmap under a running thread is the use-after-munmap
+     * segfault. Reachable from the main loop's own exit command, from a
+     * cleared g_running (SIGINT/SIGTERM handler, emergency-shutdown flag,
+     * listener disconnect) and from the loop's natural end. */
+    g_running = 0;
+    disable_raw_mode();
+    if (g_listener_started) {
+        pthread_join(g_listener_thread, NULL);
+        g_listener_started = 0;
     }
     close(sock);
     return 0;

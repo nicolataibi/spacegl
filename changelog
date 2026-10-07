@@ -1,3 +1,283 @@
+* Wed Oct 07 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.07.02
+  - Server (command grammar): added "vec <H> <M> <S>" (handle_vec in
+    src/server/commands.c), the vector-thrust command the pilot
+    hat-switch needed: it sets the flight vector from the requested
+    course and cruises NAV_STATE_IMPULSE along it WITHOUT touching the
+    attitude — van_h/van_m/van_r stay exactly as they are, so the ship
+    translates (brake / lateral / vertical) while the cockpit view
+    stays on the current nose. "vec <H> <M> 0" releases the thrust
+    (IDLE, flight vector zeroed, "Vector thrust released. All stop.",
+    same stop semantics as the 1-arg impulse); the speed clamps to
+    SPEED_IMPULSE_TICK_MAX, the course folds through normalize_upright,
+    the cost is COST_ACTION_HIGH with the same impulse-system-critical
+    and energy guards as handle_imp; the command is registered in
+    command_registry ("help" lists it) and in the docked auto-undock
+    movement set (nav/imp/pos/jum/und + vec, so a docked ship undocks
+    on vector thrust like on any other movement command). The pre-fix
+    hat could not work without a grammar change: the 3-arg impulse
+    ALWAYS aligns the nose to the target course (NAV_STATE_ALIGN_
+    IMPULSE, up to a 1 s ramp), so "imp (h0+180) -m0 S" rolled the ship
+    180 deg — the cockpit view spun for a whole second — before any
+    burn, and in NO hat position did a thruster ever read as firing
+    (the 2026.10.07.01 latch had fixed the target source, not the
+    command's align-then-burn nature).
+  - Pilot (Vulkan): the hat switch now fires a VECTORED retro-thruster
+    for every one of its 8 directions (pilot_hat_retro →
+    pilot_send_vec, src/spacegl_vulkan.c): on the rising edge the
+    ship's live course is captured ONCE and the retro vector built
+    from it — H* = (h0 + 180) % 360, M* = -m0, the exact reverse of
+    the nose — with the per-position strengths UP 10 / RIGHT 40 /
+    LEFT 80 / DOWN 100 % and the diagonal +/-15 deg mark drift (the
+    2026.10.06.05 8-way layout, now real: each position is a distinct
+    thruster firing in its own direction while the view stays put). The
+    command fires IMMEDIATELY on the edge (force-bypass of the 10 Hz
+    gate), is re-asserted while the hat stays off-center (pilot_
+    send_vec's change-detection keeps it to one wire command per
+    actuation) with the throttle and stick branches suppressed for the
+    whole hold (the brake wins against the throttle); when the hat
+    returns to center a latched "vec H* M* 0" releases the thrust, so
+    the retro-impulse no longer outlives the hat. No view cycling is
+    bound to the hat (the manual "pilot" toggle is unchanged).
+  - Pilot (Vulkan): the stick is now a CLOSED-LOOP rate controller on
+    the ship's LIVE course (SHM, 60 Hz): the 3-arg "imp" targets
+    (live_h - ax * JS_YAW_AHEAD, live_m + ay * JS_PITCH_AHEAD), and the
+    server's 1 s alignment ramp turns the ship at (lead x deflection)
+    deg/s — JS_YAW_AHEAD 90, JS_PITCH_AHEAD 60 — continuously while
+    held, settling onto the last target on release. YAW SENSE FIXED:
+    right stick (ax > 0) now turns the nose RIGHT — the target heading
+    is BELOW the live one (the pre-fix pilotHeading += ax * JS_YAW_RATE
+    sent the nose left); pitch keeps forward = down (mark > 0,
+    2026.10.07.01). The speed is max(throttle, stick), so full stick
+    still moves the ship at 100 % even at throttle rest (2026.10.07.01's
+    vectored-thrust requirement, now honest). The pre-fix open-loop
+    accumulation (3.5 deg/frame yaw) ran far ahead of the real ship:
+    every ramp sawtoothed behind the runaway target (the stuttering
+    "pauses" in the middle of maneuvers), the dedup swallowed the
+    commands the ship had already overshot, and the twist "pos" rolled
+    a stale local pilotRoll — all three are now live-referenced (the
+    twist targets live_r + az * JS_ROLL_AHEAD at 5 Hz with a (h, m, r)
+    change-detector). The open-loop pilotHeading/Mark/Roll fields are
+    kept only as pilot-entry seeds; every command target is computed
+    from the live SHM course each frame.
+  - Pilot (Vulkan): the throttle is the 1-arg "imp <S>" (pilot_send_
+    thr): the 1-arg impulse sets the cruise speed and the flight vector
+    from the ship's CURRENT nose and never touches the attitude target,
+    so the throttle is accurate from the first percent — the ship starts
+    moving at 1 % throttle instead of only near the top — and can no
+    longer drag the nose to a stale course (the pre-fix 3-arg throttle
+    re-aimed the open-loop heading: up to a 1 s alignment to the wrong
+    course per command, no translation until the stale target caught up
+    — the "only moves near full" symptom). The change-detector keys on
+    the speed only, plus a re-assertion whenever the ship is IDLE, which
+    re-engages the cruise after a twist ("pos") or a retro release
+    stopped it; throttle at rest sends nothing (inertia kept), and the
+    ALL-STOP button syncs every channel's dedup (imp / vec / throttle)
+    with its direct "imp 0 0 0" so a re-engagement at the same rounded
+    speed is not swallowed.
+  - Conformance (all components) + Tests: the joystick block stays in
+    the single shared main loop, so the CPU-driven and the GPU-driven
+    (SPACEGL_GPD=1) architectures run the identical input handling; the
+    GDD pilot camera (gdd_compute_view) is fed by the same SHM state and
+    the GDD HUD throttle bar (pilotLastSpeed) is now updated by ALL
+    THREE thrust channels (pilot_send_imp / pilot_send_thr / pilot_
+    send_vec); spacegl_client forwards the command queue as-is (no
+    client-side grammar to update; its drain comment now lists vec);
+    the imp/pos/pilot grammar is otherwise untouched (handle_imp /
+    handle_pos / handle_pilot in src/server/commands.c); the legacy
+    front-ends (spacegl_client, spacegl_3dview, spacegl_viewer,
+    spacegl_hud, spacegl_diag) carry no joystick code (verified). Full
+    rebuild of all 8 targets clean under -Wall -Wextra -Wpedantic;
+    tests/ suite 9/9 green — including the NEW vec_thrust regression
+    (tests/vec_thrust_test.c, links the REAL commands.c + logic.c under
+    ASan/UBSan like target_bounds): engage sets the flight vector from
+    the requested course with the attitude UNTOUCHED (hat-retro case:
+    nose (90, 0) + "vec 270 0 100" → vector (-1, 0, 0), nose still 90),
+    release ("vec H M 0") zeros the vector and goes IDLE, the speed
+    clamp to SPEED_IMPULSE_TICK_MAX, the normalize_upright fold
+    (90, 120) → (270, 60), the usage / system-critical / energy guards
+    and the exact COST_ACTION_HIGH billing.
+* Wed Oct 07 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.07.01
+  - Pilot (Vulkan): the hat switch now actually executes the retro-
+    thruster. pilot_hat_retro captures the ship's live course ONCE on
+    the rising edge (the hat leaving center) and builds a FIXED target
+    from it — H* = (h0 + 180) % 360, M* = -m0 with the per-position
+    strength (UP 10 / RIGHT 40 / LEFT 80 / DOWN 100 %, diagonals
+    +/-15 deg mark) — stored in the new VulkanApp fields jsRetroH/M/S
+    (+ the jsRetroActive latch, reset in initVulkan and on pilot-mode
+    entry). While the hat stays off-center that same captured command
+    is re-asserted on the imp cadence and the throttle branch is
+    suppressed (the brake wins against the throttle, as intended by
+    the 2026.10.06.07 latch), but pilot_send_imp's change-detection
+    drops the repeats: one hat action now produces exactly ONE "imp"
+    and ONE "Course plotted. Aligning for Impulse drive." answer.
+    The pre-fix latch re-read shm_h/shm_m every frame, so the target
+    ran 180 deg ahead of the ship while it aligned: the ship chased
+    its own nose in a continuous roll (which read as a view switch —
+    the attitude flipped, no brake), emitted a fresh "imp" (and a
+    fresh "Course plotted.") every 0.1 s for the whole hold, and
+    never settled into the brake burn. The latch releases when the
+    hat returns to center; no view cycling is bound to the hat (the
+    "pilot" view toggle stays manual, as before).
+  - Pilot (Vulkan): the stick now orients the ship AND produces the
+    positional change even at throttle rest (vectored thrust): the
+    yaw/pitch deflection (dead-zone applied) adds an impulse speed
+    along the accumulated attitude — full stick = JS_STICK_SPEED_MAX
+    = 100 %, wire speed = max(throttle, stick), twist excluded (roll
+    is a rotation, not a thrust) — so pushing the stick makes the
+    ship move where the nose points. The pre-fix code sent the stick
+    "imp" only when t01 > 0 (throttle above its one-sided dead
+    zone): with the lever at rest the stick produced NEITHER
+    orientation NOR motion. The roll "pos H M R" send (5 Hz) is no
+    longer gated on t01 either, so the twist orients a resting ship.
+  - Pilot (Vulkan): pitch sign inverted (pilotMark += ay instead of
+    -= ay): stick forward (GLFW axes[1] > 0) now drives the ship
+    DOWN — mark > 0 -> dz = sin(m) > 0, and game +Z renders
+    screen-down (remap game Z -> Vulkan Y, projection flip
+    proj[1][1] *= -1) — and pulling back drives it UP; the pre-fix
+    mapping had dive and climb reversed.
+  - Conformance (all components): the joystick block sits in the
+    single shared main loop, so the CPU-driven and the GPU-driven
+    (SPACEGL_GPD=1) architectures run the identical input handling;
+    the GDD pilot camera (gdd_compute_view) and the GDD HUD throttle
+    bar (pilotLastSpeed, updated inside pilot_send_imp) are fed by
+    the same state and needed no change; the server command grammar
+    (imp H M S / pos H M R / pilot) is untouched (handle_imp /
+    handle_pos / handle_pilot in src/server/commands.c); the legacy
+    front-ends (spacegl_client, spacegl_3dview, spacegl_viewer,
+    spacegl_hud, spacegl_diag) carry no joystick code. Full rebuild
+    of all 8 targets clean under -Wall -Wextra -Wpedantic; tests/
+    suite 8/8 green (gdd_contract, gdd_mesh, nav_heading,
+    nav_roll, quad_index, pkt_length, crypto_table,
+    target_bounds).
+* Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.07
+  - Client: fixed the SIGSEGV on Ctrl+C / SIGTERM / exit (the 2026-10-06
+    pilot session core, pid 39068: kernel "spacegl_client[39090]: segfault
+    ... error 6" — a WRITE fault on a not-present page by the
+    network-listener thread while the main thread sat in the exit-handler
+    chain at _fini). Root cause: handle_sigint() called exit() from the
+    signal context, so atexit cleanup() ran kill + munmap of the SHM while
+    the listener thread was still alive (g_running was never cleared) and
+    kept writing g_shared_state on every 60 Hz PKT_UPDATE — a
+    use-after-munmap. handle_sigint now only sets g_running (async-signal
+    safe; the handler has no SA_RESTART, so the main loop's blocking
+    read(STDIN) returns EINTR and the loop exits); the post-loop shutdown
+    releases the terminal, JOINS the listener (new g_listener_thread /
+    g_listener_started globals) and only then cleanup() (now idempotent
+    and NULLing g_shm/g_shared_state before the munmap) tears the SHM
+    down. The listener's own teardown paths (server close, read error,
+    malloc failure) no longer call exit() from the thread: they set
+    g_running and break, and main() owns the process exit; the "xxx" /
+    "exit" / "quit" command path breaks to the same shutdown instead of
+    exit(0). read_all() now retries on EINTR (pre-fix a Ctrl+C in the
+    main thread surfaced in the listener as -1 and was misread as a dead
+    connection).
+  - Pilot (Vulkan): the right-thumb trigger now sends "pha <E>" with
+    PILOT_PHA_ENERGY = 250 — the one-argument form of handle_pha, which
+    resolves the currently locked target and answers "No target locked."
+    when none is held. The pre-fix bare "pha" (zero args) fell into the
+    server's args != 1 && != 2 branch and was ALWAYS rejected with
+    "Usage: pha <ID> <E>." (the repeated lines in the 2026-10-06 log): the
+    beam phasers had never fired from the stick.
+  - Pilot (Vulkan): the "imp" uplink is now rate-limited AND change-
+    detected (new pilot_send_imp, jsLastImpH/M/S sentinels on VulkanApp,
+    reset on entering pilot mode and in initVulkan): a command is re-sent
+    only when the rounded course/speed actually changes (same rounding as
+    the wire format, H/M to 0.1 deg, S to 0.001; h=360.0 is safe — the
+    server's normalize_upright folds it to 0 via fmod). The pre-fix code
+    re-sent the identical "imp" at 10 Hz while the stick sat still and the
+    server answered "Course plotted. Aligning for Impulse drive." for every
+    duplicate — the spam that drowned the command deck in the log. The ALL
+    STOP button syncs the sentinels with its direct "imp 0 0 0" send so a
+    re-engagement at the same rounded values is not swallowed by the dedup.
+  - Pilot (Vulkan): the hat-switch retro-thruster is now LATCHED
+    (pilot_hat_retro): while the hat stays off-center the retro impulse
+    (imp H+180 -M speed, per-position strengths UP 10 / RIGHT 40 / LEFT 80
+    / DOWN 100 %, diagonals +/-15 deg mark, H/M from the live SHM course) is
+    re-asserted on the imp cadence and the throttle impulse is suppressed,
+    so the brake actually slows the ship. The pre-fix one-shot fire on the
+    hat edge was overwritten by the next throttle "imp" before it could
+    bite — with any throttle above the dead zone the ship never braked.
+  - Pilot (Vulkan): the "remove after debug" DIAG prints (JS poll once per
+    second, show_bridge transitions, every queued command) are now gated
+    behind SPACEGL_PILOT_DIAG=1 (pilot_diag_on / PILOT_DIAG) and silent by
+    default.
+  - IPC command queue: both producers now copy into the 128-byte slot with
+    a bounded, NUL-terminated memcpy (vulkan_send_ipc_command in
+    src/spacegl_vulkan.c and send_ipc_command in src/spacegl_3dview.c).
+    The 3dview variant was strncpy(..., 127) with no explicit terminator —
+    a source of 127+ chars left the slot unterminated and the client's
+    drain (strncpy into PacketCommand.cmd) could over-read into the next
+    slot; the bounded copy also silences -Wstringop-truncation in the
+    Vulkan build.
+
+* Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.06
+  - Tests: added tests/target_bounds_test.c (ctest target_bounds), the
+    boundary regression for the 2026.10.06.01 players[] clamps: the
+    attacker-controlled command tid (pha/bor/lock/scan/apr) and
+    PlayerTorpedo.target_id may index players[MAX_CLIENTS] only within
+    [0, 16), and nothing guaranteed those clamps over time. The test
+    links the REAL src/server/commands.c and src/server/logic.c (plus
+    nav_math.c, targets.c and sglog.c, same pattern as the other server
+    tests) and owns the global object arrays at production size, with
+    spacegl_master declared right after players[] — the server BSS
+    adjacency the pre-fix OOB writes corrupted — and used as a 0x5A
+    canary checked after every case. Pinned cases: tid = 16 (last live
+    slot: lock/scan succeed, pha queues both NetBeams tagged
+    target_id 16 and deals its 125 shield points to players[15] only,
+    bor opens the hostile menu, apr engages), tid = 17 (MAX_CLIENTS+1:
+    every command rejects, pending_bor_target stays 0, and the torpedo
+    homing loop resolves nothing while players[15] is LIVE at the
+    homing spot) and tid = 999 (GALAXY_OBJECT_MAX_PLAYER: same
+    rejections — pre-fix the homing loop read players[998].active
+    here), tid = 1 as the low-boundary control, the target_id edges 0
+    / -1 / 1000 / 3999 (NPC range with empty pools) plus the positive
+    NPC control (a live npcs[0] still homes). The process_command
+    boarding confirm is pinned twice: the legal state
+    (pending_bor_target 16, type 2) sabotages exactly one system of
+    players[15] and nothing else, while a corrupted
+    pending_bor_target 17 cancels on the distance re-check without
+    touching any slot. Global invariants after every case: canary
+    intact and every send_server_msg (recorded by the stub) carried a
+    p_idx in [0, MAX_CLIENTS) — the pre-fix impact sends used tid-1
+    unclamped. The target is built with ASan/UBSan and OpenMP, like
+    the server, so any residual out-of-bounds access aborts the run
+    instead of passing silently: re-introducing the pre-fix condition
+    on a scratch copy makes target_id 17 mis-home (flight-vector
+    check fails) and target_id 999 segfault in update_game_logic.
+    Suite is 8/8 green.
+
+* Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.05
+  - GDD/Input: added "pilot" command and Thrustmaster T.16000M FCS flight
+    stick integration. "pilot" (toggle) / "pilot on" / "pilot off" sets
+    show_bridge=20 (reserved; existing bridge sub-views use 1-16) and
+    engages the cockpit camera in the Vulkan viewer. The camera is positioned
+    at PILOT_CAMERA_OFFSET_Y (0.12 × SCALE_SHIP) above the hull, includes
+    the ship roll (van_r) in the view matrix — which bridge view ignores —
+    and uses a wider FOV (78° vs bridge 65°) for a stronger sense of speed.
+    Transition animates at 0.04/frame (vs bridge 0.03). Flight stick support
+    (spacegl_vulkan.c): T.16000M detected by name at init; raw joystick API
+    used (glfwGetJoystickAxes / glfwGetJoystickButtons) because the device
+    has no gamecontrollerdb entry. Axis mapping: axes[0]=yaw (3.5°/frame),
+    axes[1]=pitch (2.0°/frame), axes[2]=twist/roll (1.5°/frame), axes[3]=
+    throttle (inverted, 0.000-100.000 imp units to 3 decimal places at 10Hz).
+    Throttle-at-zero sends nothing, preserving ship inertia; the hat switch
+    (axes[4]+[5], 8-way PoV) drives the retro-thruster: 4 cardinal directions
+    map to 10/40/80/100% brake intensity, 4 diagonals add ±15° mark drift for
+    lateral correction during braking. Dead zone: 0.08 (stick symmetric),
+    one-sided at throttle minimum. Rate limits: imp@10Hz, pos@5Hz,
+    pha=150ms lockout, tor=500ms lockout, hat edge-detect (no repeat).
+    Button mapping on grip: [0]=trigger→pha, [1]=pollice alto→lock next,
+    [2]=pollice basso→tor, [3]=pollice dx→lock off; base: [4]=all-stop
+    (imp 0 0 0, immediate), [5-7]=power presets, [8]=clo, [9]=xxx.
+    GDD HUD (spacegl_vulkan_gdd.c): two perpendicular hairline boxes as
+    crosshair centred on screen, bright-green throttle bar at bottom
+    (background + fill proportional to pilot_throttle). New fields in
+    GddBuildCtx: show_pilot, pilot_throttle. New fields in VulkanApp:
+    pilotAnim, showPilot, jsIndex, pilotHeading/Mark/Roll/LastSpeed,
+    jsLast*Time, jsPrevBtns[16], jsPrevHatX/Y. vulkan_send_ipc_command()
+    added (lock-free SHM enqueue, mirrors spacegl_3dview.c). "pilot" added
+    to the server command table and spectator allowed[] list.
+
 * Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.04
   - GDD/Graphics: fixed elliptical front/rear shield panels in
     gdd_expand_sphere (assets/shaders/gdd_ops.glsl): vertex positions were
@@ -13,6 +293,7 @@
     direction on the reference sphere) is unchanged. Incidental benefit:
     accretion-disk ellipsoids (bsc = {3.5, 0.02, 3.5}) and any other
     non-uniform GDD_MESH_SPHERE instance now orient correctly as well.
+
 * Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.03
   - Server: bounded the /proc/net/dev interface-name sscanf in the GDIS
     telemetry display (src/spacegl_server.c) to the ifname[32] buffer
@@ -52,6 +333,7 @@
     case chain, mirroring the 2026.10.03.02 fix in
     src/spacegl_vulkan_gdd.c: removes the last -Wpedantic build warning
     (ISO C does not support range expressions in switch statements).
+
 * Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.02
   - Server: added a static_assert per object type in include/server_internal.h
     tying every MAX_* pool limit to its universal GALAXY_OBJECT ID range
@@ -74,6 +356,7 @@
     categories now persist 1000 records each in galaxy.dat, so existing
     galaxy.dat files are rejected with a clean version mismatch at load time
     and must be regenerated.
+
 * Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.01
   - Security (server): fixed out-of-bounds accesses on the players[] array
     (MAX_CLIENTS = 16) in src/server/commands.c and src/server/logic.c.
@@ -97,8 +380,10 @@
   - Client: bounded the faction-name sscanf in src/spacegl_client.c
     ("%s" -> "%63s", target_name[64]) to remove an unbounded stack copy of
     console input after the '@' message prefix.
+
 * Sat Oct 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.03.04
   - README.md new non-blocking story.
+
 * Sat Oct 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.03.03
   - HUD (ncurses): the tactical quadrant table no longer shows a bogus faction
     fallback for objects that do not belong to any faction. Only player/NPC

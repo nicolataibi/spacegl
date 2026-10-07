@@ -375,6 +375,9 @@ typedef struct {
     int player_q[3];   /* player quadrant (map mode) */
     int show_axes;     /* shm_show_axes: draw the AR compass */
     int show_grid;     /* shm_show_grid: draw the quadrant grid */
+    int show_pilot;    /* 1 when pilot mode is fully engaged (pilotAnim >= 0.999) */
+    float pilot_throttle; /* last committed throttle 0.0..1.0 (for HUD bar)    */
+
 
     /* --- static geometry inputs --- */
     const GddStar *stars; int star_count;   /* persistent starfield */

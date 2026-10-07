@@ -564,7 +564,15 @@ void send_ipc_command(const char* cmd_str) {
     
     int next_tail = (tail + 1) % CMD_QUEUE_SIZE;
     if (next_tail != head) {
-        strncpy(g_shm->cmd_queue[tail].cmd, cmd_str, 127);
+        /* Bounded copy with guaranteed NUL termination (the pre-fix
+         * strncpy(..., 127) left a source of 127+ chars unterminated,
+         * so the client's drain could over-read into the next slot).
+         * The bounded memcpy also keeps -Wstringop-truncation quiet. */
+        size_t n = strlen(cmd_str);
+        if (n >= sizeof(g_shm->cmd_queue[tail].cmd))
+            n = sizeof(g_shm->cmd_queue[tail].cmd) - 1;
+        memcpy(g_shm->cmd_queue[tail].cmd, cmd_str, n);
+        g_shm->cmd_queue[tail].cmd[n] = '\0';
         atomic_store_explicit(&g_shm->cmd_tail, next_tail, memory_order_release);
     }
 }
