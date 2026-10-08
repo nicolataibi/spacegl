@@ -1,3 +1,39 @@
+* Thu Oct 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.08.01
+  - Build (tests): tests/ is now part of the main CMake build behind a
+    new option SPACEGL_BUILD_TESTS (default ON): the top-level
+    CMakeLists.txt calls enable_testing() + add_subdirectory(tests)
+    after the 8 product targets, and tests/CMakeLists.txt is dual-mode
+    — integrated, it only defines the 9 test targets and inherits the
+    parent's C23 + Fedora warning/security flags, Threads/OpenMP/
+    OpenSSL, the Vulkan::Vulkan alias, the GLFW_* pkg-config vars and
+    the include/ directory; standalone (cmake -B build-tests tests) it
+    recreates the same setup by itself, exactly as before. Deliberate
+    gating, not a formality: gdd_mesh compares the gdd_*.spv that
+    spacegl_shaders just compiled against the CPU reference, so a
+    shader change that breaks the GPU contract now fails every local
+    build / the RPM %check (ctest) instead of surviving until someone
+    runs the suite by hand — the gdd_expand_sphere elliptical-shield
+    bug (2026.10.06, missing it.o transform) is exactly the class that
+    slipped through because the suite was not build-gated. GDD_SPV_DIR
+    now defaults to this build tree's own shaders/ dir in integrated
+    mode (standalone keeps ../build/shaders).
+  - Conformance (spec/CI, all components): the RPM %check drops its
+    second standalone configure (cmake -S tests -B tests-build + its
+    own GDD_SPV_DIR) and just runs %ctest on the tree %cmake_build
+    already built — one build instead of two, same 9 tests; in a bare
+    chroot gdd_mesh still skips itself (exit 77), while local_check.sh
+    (rpmbuild on the host, not in a chroot) now really exercises the
+    GPU on every run. Fixed while integrating: the tests'
+    -ffp-contract=off was declared AFTER the two gdd builder targets,
+    so the very tests whose bit-exact geometry mirrors must not be
+    FMA-contracted never received it while the later server tests did
+    — it now precedes every test target (verified in flags.make, both
+    trees). spacegl.spec Version bumped 2026.10.07.02 -> 2026.10.08.01;
+    .gitignore now also skips build-tests/. Verified: full rebuild of
+    all 8 product targets + shaders + 9 test binaries clean under
+    -Wall -Wextra -Wpedantic in the integrated tree (and again in the
+    standalone tree), ctest 9/9 green with gdd_mesh running its 68 GPU
+    checks against the freshly compiled build/shaders.
 * Wed Oct 07 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.07.02
   - Server (command grammar): added "vec <H> <M> <S>" (handle_vec in
     src/server/commands.c), the vector-thrust command the pilot

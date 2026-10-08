@@ -9,6 +9,7 @@ spacegl_diag
 
 # Directory di build
 build/
+build-tests/
 _build/
 .cache/
 .ruby-lsp/

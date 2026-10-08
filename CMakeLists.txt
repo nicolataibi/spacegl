@@ -211,6 +211,21 @@ add_dependencies(spacegl_vulkan spacegl_shaders)
 add_executable(spacegl_diag src/spacegl_diag.c)
 target_link_libraries(spacegl_diag ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 
+# --- Unit tests (tests/) ---
+# The test suite is part of the main build, gated by an option (default ON):
+# with it, the 9 unit tests are configured/built alongside the 8 product
+# targets and run with `ctest --test-dir <build-dir>`. This is deliberate
+# gating, not a formality: gdd_mesh compares the gdd_*.spv that the
+# spacegl_shaders target just compiled against the CPU reference, so a
+# shader change that breaks the GPU contract now fails every local build
+# (and the RPM %check, which runs this very tree) instead of surviving
+# until someone runs the suite by hand. Disable: -DSPACEGL_BUILD_TESTS=OFF
+option(SPACEGL_BUILD_TESTS "Build the tests/ unit suite (run it with ctest)" ON)
+if(SPACEGL_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
 # --- Installazione ---
 
 include(GNUInstallDirs)

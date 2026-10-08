@@ -1,13 +1,27 @@
 # =========================================================================
-# SpaceGL - standalone unit-test project (tests/)
+# SpaceGL - unit-test suite (tests/)
 #
-# This directory is SELF-CONTAINED: the main project's CMakeLists.txt has
-# no reference to it (same layout as the DRAGONGL tests). Build and run
-# the suite independently:
+# DUAL-MODE CMake project:
 #
-#   cmake -B build-tests tests
-#   cmake --build build-tests
-#   ctest --test-dir build-tests --output-on-failure
+#   1. INTEGRATED (default): the top-level CMakeLists.txt pulls this
+#      directory in with add_subdirectory(tests), gated by the
+#      SPACEGL_BUILD_TESTS option (ON by default). In that mode this file
+#      only defines the test targets: the C23 standard, the warning/
+#      security flags, the dependency packages (Threads/OpenMP/OpenSSL),
+#      the Vulkan::Vulkan alias, the GLFW_* pkg-config variables and the
+#      include/ directory are all inherited from the parent project, and
+#      enable_testing() is called by the parent. GDD_SPV_DIR then points
+#      at THIS build tree's own shaders/ directory (the output of the
+#      parent's spacegl_shaders target), so gdd_mesh always checks the
+#      SPIR-V the build just compiled.
+#
+#   2. STANDALONE: configure this directory directly and the file
+#      recreates the same setup by itself (own project(), own flags,
+#      own Vulkan-SDK lookup, own enable_testing()):
+#
+#         cmake -B build-tests tests
+#         cmake --build build-tests
+#         ctest --test-dir build-tests --output-on-failure
 #
 # The code under test is pulled straight from ../src (the GPU-driven
 # module src/spacegl_vulkan_gdd.c) and ../include, so the tests always
@@ -15,82 +29,102 @@
 # main project (C23, same warning flags).
 # =========================================================================
 
-cmake_minimum_required(VERSION 3.16)
-project(SpaceGLTests VERSION 2026.09.18 LANGUAGES C)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    # ==================== STANDALONE MODE ====================
+    cmake_minimum_required(VERSION 3.16)
+    project(SpaceGLTests VERSION 2026.09.18 LANGUAGES C)
 
-set(CMAKE_C_STANDARD 23)
-set(CMAKE_C_STANDARD_REQUIRED ON)
+    set(CMAKE_C_STANDARD 23)
+    set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# Default to Release build if not specified.
-if(NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
-endif()
-
-# Global definitions (same as the main project)
-add_compile_definitions(_XOPEN_SOURCE=700)
-
-# The target_bounds test links src/server/logic.c, whose tick loops are
-# OpenMP-parallel exactly like in the main server binary (see
-# ../CMakeLists.txt): link OpenMP when available so the pragmas behave
-# as in production (without it they are ignored and the loops run
-# sequentially, which is still a valid exercise of the code paths).
-find_package(Threads REQUIRED)
-find_package(OpenMP QUIET)
-
-if(MSVC)
-    add_compile_options(/W4)
-else()
-    add_compile_options(-Wall -Wextra -Wpedantic -Wformat -Wformat-security)
-    if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        add_compile_options(-O3)
-    elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        add_compile_options(-O0 -g)
+    # Default to Release build if not specified.
+    if(NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
+        set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
     endif()
-endif()
 
-# Project roots (this file is tests/CMakeLists.txt)
-set(SG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+    # Global definitions (same as the main project)
+    add_compile_definitions(_XOPEN_SOURCE=700)
 
-include_directories(${SG_ROOT}/include)
+    # The target_bounds test links src/server/logic.c, whose tick loops are
+    # OpenMP-parallel exactly like in the main server binary (see
+    # ../CMakeLists.txt): link OpenMP when available so the pragmas behave
+    # as in production (without it they are ignored and the loops run
+    # sequentially, which is still a valid exercise of the code paths).
+    find_package(Threads REQUIRED)
+    find_package(OpenMP QUIET)
 
-# The crypto-table contract test exercises the shared radio cipher
-# lookup (include/radio_crypto.h), which is OpenSSL-based like the
-# production code that includes it.
-find_package(OpenSSL REQUIRED)
-
-# The GPU module links against Vulkan (device-side functions) and, in the
-# contract test, pulls the whole gdd.c TU which also references
-# glfwGetTime (frame path): link GLFW when available, stub it otherwise.
-#
-# Vulkan SDK di default (stessa decisione del progetto principale, vedi
-# ../CMakeLists.txt): SDK locale 1.4.363.0 per build riproducibili. Il
-# loader built-from-source esporta Vulkan::Loader: alias Vulkan::Vulkan.
-# Disable: -DUSE_DEFAULT_VULKAN_SDK=OFF
-set(USE_DEFAULT_VULKAN_SDK ON CACHE BOOL "Use the default local Vulkan SDK")
-set(DEFAULT_VULKAN_SDK "/home/nick/dev/c/vulkan-sdk/1.4.363.0/x86_64"
-    CACHE STRING "Root of the default Vulkan SDK (bin/include/lib/share layout)")
-if(USE_DEFAULT_VULKAN_SDK AND EXISTS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader/lib/cmake/VulkanLoader")
-    find_package(VulkanLoader REQUIRED
-        PATHS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader" NO_DEFAULT_PATH)
-    if(TARGET Vulkan::Loader)
-        target_include_directories(Vulkan::Loader INTERFACE "${DEFAULT_VULKAN_SDK}/include")
-        if(NOT TARGET Vulkan::Vulkan)
-            add_library(Vulkan::Vulkan ALIAS Vulkan::Loader)
+    if(MSVC)
+        add_compile_options(/W4)
+    else()
+        add_compile_options(-Wall -Wextra -Wpedantic -Wformat -Wformat-security)
+        if(CMAKE_BUILD_TYPE STREQUAL "Release")
+            add_compile_options(-O3)
+        elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+            add_compile_options(-O0 -g)
         endif()
     endif()
+
+    # The crypto-table contract test exercises the shared radio cipher
+    # lookup (include/radio_crypto.h), which is OpenSSL-based like the
+    # production code that includes it.
+    find_package(OpenSSL REQUIRED)
+
+    # The GPU module links against Vulkan (device-side functions) and, in the
+    # contract test, pulls the whole gdd.c TU which also references
+    # glfwGetTime (frame path): link GLFW when available, stub it otherwise.
+    #
+    # Vulkan SDK di default (stessa decisione del progetto principale, vedi
+    # ../CMakeLists.txt): SDK locale 1.4.363.0 per build riproducibili. Il
+    # loader built-from-source esporta Vulkan::Loader: alias Vulkan::Vulkan.
+    # Disable: -DUSE_DEFAULT_VULKAN_SDK=OFF
+    set(USE_DEFAULT_VULKAN_SDK ON CACHE BOOL "Use the default local Vulkan SDK")
+    set(DEFAULT_VULKAN_SDK "/home/nick/dev/c/vulkan-sdk/1.4.363.0/x86_64"
+        CACHE STRING "Root of the default Vulkan SDK (bin/include/lib/share layout)")
+    if(USE_DEFAULT_VULKAN_SDK AND EXISTS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader/lib/cmake/VulkanLoader")
+        find_package(VulkanLoader REQUIRED
+            PATHS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader" NO_DEFAULT_PATH)
+        if(TARGET Vulkan::Loader)
+            target_include_directories(Vulkan::Loader INTERFACE "${DEFAULT_VULKAN_SDK}/include")
+            if(NOT TARGET Vulkan::Vulkan)
+                add_library(Vulkan::Vulkan ALIAS Vulkan::Loader)
+            endif()
+        endif()
+    else()
+        find_package(Vulkan REQUIRED)
+    endif()
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(GLFW glfw3)
+    endif()
+
+    # Project root (this file is tests/CMakeLists.txt)
+    set(SG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+    include_directories(${SG_ROOT}/include)
+
+    enable_testing()
 else()
-    find_package(Vulkan REQUIRED)
-endif()
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(GLFW glfw3)
+    # ==================== INTEGRATED MODE ====================
+    # add_subdirectory(tests) from the top-level CMakeLists.txt (option
+    # SPACEGL_BUILD_TESTS, ON by default): the C23 standard, the Fedora
+    # warning/security flags, Threads/OpenMP/OpenSSL, the Vulkan::Vulkan
+    # alias, the GLFW_* pkg-config variables and the include/ directory all
+    # come from the parent, and enable_testing() is called by the parent.
+    set(SG_ROOT "${CMAKE_SOURCE_DIR}")
 endif()
 
-enable_testing()
+# The builder tests (gdd_contract / gdd_mesh) carry bit-exact mirrors of
+# the geometry the GLSL shaders produce: they must not be FMA-contracted,
+# -ffp-contract=off matches the non-FMA GLSL.
+#
+# NOTE on placement: add_compile_options only seeds targets CREATED AFTER
+# IT in this directory. The old file declared it right after
+# gdd_mesh_test, so the two gdd tests (the ones that need it) never got
+# the flag while the later server tests did — it now precedes every test
+# target below, in both modes (in integrated mode it only affects this
+# directory, never the product targets).
+add_compile_options(-ffp-contract=off)
 
 # --- CPU contract + instance-builder test (no device needed) -----------
-# The bit-exact geometry mirrors in the builder tests must not be
-# FMA-contracted: -ffp-contract=off matches the non-FMA GLSL shaders.
 add_executable(gdd_contract_test
     gdd_contract_test.c
     ${SG_ROOT}/src/spacegl_vulkan_gdd.c
@@ -110,9 +144,16 @@ add_test(NAME gdd_contract COMMAND gdd_contract_test)
 # Exits 0 = pass, 1 = fail, 77 = skip (no Vulkan ICD / missing .spv).
 add_executable(gdd_mesh_test gdd_mesh_test.c)
 target_link_libraries(gdd_mesh_test PRIVATE Vulkan::Vulkan m)
-add_compile_options(-ffp-contract=off)
-# Default SPIR-V location: the main project's build tree.
-set(GDD_SPV_DIR "${SG_ROOT}/build/shaders" CACHE PATH "Directory holding the gdd_*.spv binaries")
+# Default SPIR-V location: in integrated mode this build tree's own
+# shaders/ directory (the parent's spacegl_shaders output, i.e. the
+# SPIR-V this very build just compiled); standalone mode defaults to the
+# main project's build tree.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(GDD_SPV_DIR_DEFAULT "${SG_ROOT}/build/shaders")
+else()
+    set(GDD_SPV_DIR_DEFAULT "${CMAKE_BINARY_DIR}/shaders")
+endif()
+set(GDD_SPV_DIR "${GDD_SPV_DIR_DEFAULT}" CACHE PATH "Directory holding the gdd_*.spv binaries")
 add_test(NAME gdd_mesh COMMAND gdd_mesh_test "${GDD_SPV_DIR}")
 set_tests_properties(gdd_mesh PROPERTIES SKIP_RETURN_CODE 77)
 

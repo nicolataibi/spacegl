@@ -3,7 +3,7 @@
 %global _docdir_fmt %{name}
 
 Name:           spacegl
-Version:        2026.10.07.02
+Version:        2026.10.08.01
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
@@ -69,15 +69,17 @@ and additional assets explaining the SpaceGL engine and game play.
 
 
 %check
-# Build and run the self-contained unit-test project (tests/): it compiles
-# the production sources from ../src and ../include directly, so the suite
-# always exercises the real code. gdd_mesh skips itself (exit 77) when no
-# Vulkan ICD is available, so the section is safe in bare build chroots.
-cmake -S tests -B tests-build \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DGDD_SPV_DIR=%{buildroot}%{_datadir}/%{name}/shaders
-cmake --build tests-build
-ctest --test-dir tests-build --output-on-failure
+# Run the unit-test suite (tests/): since 2026.10.08.01 it is part of the
+# main CMake build (SPACEGL_BUILD_TESTS, ON by default), so the 9 test
+# binaries were already built by %cmake_build — just run them on that tree
+# (no second standalone configure). gdd_mesh compares the gdd_*.spv
+# freshly compiled in the build tree (default GDD_SPV_DIR) against the CPU
+# reference and skips itself (exit 77) when no Vulkan ICD is available, so
+# the section is safe in bare build chroots; on a local machine
+# (local_check.sh rpmbuilds on the host, not in a chroot) it really
+# exercises the GPU, so a shader change that breaks the contract fails
+# here instead of shipping.
+%ctest
 
 
 %files
