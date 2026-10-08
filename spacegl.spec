@@ -3,7 +3,7 @@
 %global _docdir_fmt %{name}
 
 Name:           spacegl
-Version:        2026.10.08.01
+Version:        2026.10.08.02
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
@@ -13,6 +13,8 @@ Source0:        %{url}/archive/refs/tags/%{version}.tar.gz#/%{name}-%{version}.t
 
 BuildRequires:  cmake
 BuildRequires:  gcc
+BuildRequires:  libasan
+BuildRequires:  libubsan
 BuildRequires:  pkgconfig(gl)
 BuildRequires:  pkgconfig(glu)
 BuildRequires:  pkgconfig(glew)
@@ -71,7 +73,7 @@ and additional assets explaining the SpaceGL engine and game play.
 %check
 # Run the unit-test suite (tests/): since 2026.10.08.01 it is part of the
 # main CMake build (SPACEGL_BUILD_TESTS, ON by default), so the 9 test
-# binaries were already built by %cmake_build — just run them on that tree
+# binaries were already built by cmake_build - just run them on that tree
 # (no second standalone configure). gdd_mesh compares the gdd_*.spv
 # freshly compiled in the build tree (default GDD_SPV_DIR) against the CPU
 # reference and skips itself (exit 77) when no Vulkan ICD is available, so
