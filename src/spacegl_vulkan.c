@@ -2779,22 +2779,55 @@ void createInstance(VulkanApp* app) {
     VkApplicationInfo aInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, NULL, "SpaceGL", 1, "NoEngine", 1, apiVer};
     uint32_t glfwExtCount = 0; const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwExtCount);
 
-    /* Optional validation layers: the names in the standard
-     * VK_INSTANCE_LAYERS environment variable (colon-separated, e.g.
-     * "VK_LAYER_KHRONOS_validation") are enabled IF the driver provides
-     * them — the canonical way to audit synchronization/pipeline errors
-     * of the GPU-driven path. Unset variable => no layers requested. */
-    const char *vk_wanted_layers = getenv("VK_INSTANCE_LAYERS");
+    /* Validation layers.
+     *
+     * Debug builds (NDEBUG not defined) request the standard
+     * "VK_LAYER_KHRONOS_validation" layer BY DEFAULT, so synchronization/
+     * barrier and pipeline errors are reported by the driver instead of
+     * surfacing later as silent GPU corruption (the class of bug that
+     * cost a manual hunt in the additive funnel). Release builds request
+     * nothing by default. The SPACEGL_VALIDATION variable overrides the
+     * build default: =0 disables, =1 enables (e.g. a Release binary
+     * audited on purpose). The standard VK_INSTANCE_LAYERS variable
+     * (colon-separated layer names) is honored as before and merged with
+     * the default. Every requested layer is enabled only if the driver
+     * actually provides it. */
+    bool vk_validation_on;
+#ifndef NDEBUG
+    vk_validation_on = true;   /* Debug build: on by default */
+#else
+    vk_validation_on = false;  /* Release build: off by default */
+#endif
+    const char *vk_env_val = getenv("SPACEGL_VALIDATION");
+    if (vk_env_val && strcmp(vk_env_val, "0") == 0) vk_validation_on = false;
+    else if (vk_env_val && strcmp(vk_env_val, "1") == 0) vk_validation_on = true;
+
+    char vk_user[512] = "";
+    const char *vk_user_layers = getenv("VK_INSTANCE_LAYERS");
+    if (vk_user_layers && vk_user_layers[0])
+        snprintf(vk_user, sizeof(vk_user), "%s", vk_user_layers);
+
+    /* Worst case of the merge: the 27-char standard layer name + ':'
+     * + the full user list (+ NUL). */
+    char vk_request[sizeof(vk_user) + 32] = "";
+    if (vk_validation_on && strstr(vk_user, "VK_LAYER_KHRONOS_validation") == NULL) {
+        snprintf(vk_request, sizeof(vk_request), "VK_LAYER_KHRONOS_validation%s%s",
+                 vk_user[0] ? ":" : "", vk_user);
+        printf("[VK] validation layer %s (override: SPACEGL_VALIDATION=0/1)\n",
+               vk_env_val ? "requested via SPACEGL_VALIDATION=1" : "enabled by default (Debug build)");
+    } else {
+        snprintf(vk_request, sizeof(vk_request), "%s", vk_user);
+    }
     const char *vk_layers[16];
     uint32_t vk_layer_count = 0;
     VkLayerProperties *vk_avail = NULL;
-    if (vk_wanted_layers && vk_wanted_layers[0]) {
+    if (vk_request[0]) {
         uint32_t avail_count = 0;
         if (vkEnumerateInstanceLayerProperties(&avail_count, NULL) == VK_SUCCESS && avail_count > 0) {
             vk_avail = malloc(sizeof(VkLayerProperties) * avail_count);
             uint32_t got = avail_count;
             if (vk_avail && vkEnumerateInstanceLayerProperties(&got, vk_avail) == VK_SUCCESS) {
-                char *tok_copy = strdup(vk_wanted_layers);
+                char *tok_copy = strdup(vk_request);
                 if (tok_copy) {
                     char *sp = NULL;
                     for (char *tok = strtok_r(tok_copy, ":", &sp);
@@ -2808,7 +2841,7 @@ void createInstance(VulkanApp* app) {
                             }
                         }
                         if (!have)
-                            fprintf(stderr, "[VK] warning: layer '%s' (VK_INSTANCE_LAYERS) not available - skipping\n", tok);
+                            fprintf(stderr, "[VK] warning: layer '%s' not available - skipping\n", tok);
                     }
                     free(tok_copy);
                 }
@@ -2816,7 +2849,7 @@ void createInstance(VulkanApp* app) {
         }
     }
     if (vk_layer_count > 0)
-        printf("[VK] enabling %u validation layer(s) from VK_INSTANCE_LAYERS\n", vk_layer_count);
+        printf("[VK] enabling %u validation layer(s)\n", vk_layer_count);
 
     VkInstanceCreateInfo cInf = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, NULL, 0, &aInfo,
                                  vk_layer_count, vk_layers, glfwExtCount, glfwExts};

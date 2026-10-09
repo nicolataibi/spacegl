@@ -443,14 +443,65 @@ void gdd_cleanup(VulkanApp *app);
 
 /* ================================================================== */
 /* Layout invariants (fail at compile time if the CPU/GPU contract    */
-/* drifts out of sync).                                               */
+/* drifts out of sync). The GLSL mirrors in gdd_common.glsl are built */
+/* from 16-byte-aligned members (each vec4 / mat3 starts on a 16 B    */
+/* boundary), so every field offset the GPU side assumes is pinned    */
+/* here, and the vec4-start fields must additionally sit on a 16-byte */
+/* boundary. gdd_contract_test re-checks the same set at runtime.     */
 /* ================================================================== */
 _Static_assert(sizeof(GddInstance) == GDD_INSTANCE_STRIDE, "GddInstance must be 112 B (GLSL a,b,c,mat3,vec4)");
 _Static_assert(sizeof(GddVertex) == GDD_VERTEX_STRIDE, "GddVertex must be 80 B (GLSL 5 x vec4)");
 _Static_assert(sizeof(GddCounts) == GDD_COUNTS_STRIDE, "GddCounts must be 16 B");
-_Static_assert(sizeof(GddPC) == GDD_PC_STRIDE, "GddPC must be 32 B");
+_Static_assert(sizeof(GddPC) == GDD_PC_STRIDE, "GddPC must be 36 B");
 _Static_assert(sizeof(GddScenePC) == GDD_SCENE_PC_STRIDE, "GddScenePC must be 84 B");
-_Static_assert(offsetof(GddVertex, local) - offsetof(GddVertex, normal) == 16, "GddVertex: mode sits at normal.w (vec4)");
-_Static_assert(offsetof(GddInstance, orient) == 48, "GddInstance: mat3 must start at offset 48");
+
+/* GddVertex (GLSL: vec4 pos; vec4 color; vec4 normal; vec4 local;
+ * vec4 params;) — every field at the offset the GLSL side reads it: */
+_Static_assert(offsetof(GddVertex, pos) == 0, "GddVertex.pos@0 (vec4)");
+_Static_assert(offsetof(GddVertex, color) == 16, "GddVertex.color@16 (vec4)");
+_Static_assert(offsetof(GddVertex, normal) == 32, "GddVertex.normal@32 (vec4)");
+_Static_assert(offsetof(GddVertex, mode) == 44, "GddVertex.mode@44 (normal.w)");
+_Static_assert(offsetof(GddVertex, local) == 48, "GddVertex.local@48 (vec4)");
+_Static_assert(offsetof(GddVertex, metallic) == 64, "GddVertex.metallic@64 (params.x)");
+_Static_assert(offsetof(GddVertex, roughness) == 68, "GddVertex.roughness@68 (params.y)");
+_Static_assert(offsetof(GddVertex, pos) % 16 == 0 &&
+               offsetof(GddVertex, color) % 16 == 0 &&
+               offsetof(GddVertex, normal) % 16 == 0 &&
+               offsetof(GddVertex, local) % 16 == 0 &&
+               offsetof(GddVertex, metallic) % 16 == 0,
+               "GddVertex: every vec4 member must start on a 16-byte boundary");
+
+/* GddInstance (GLSL: vec4 a; vec4 b; vec4 c; mat3 o; vec4 p;): */
+_Static_assert(offsetof(GddInstance, pos) == 0, "GddInstance.pos@0 (a.xyz)");
+_Static_assert(offsetof(GddInstance, mesh) == 12, "GddInstance.mesh@12 (a.w)");
+_Static_assert(offsetof(GddInstance, scale) == 16, "GddInstance.scale@16 (b.xyz)");
+_Static_assert(offsetof(GddInstance, flags) == 28, "GddInstance.flags@28 (b.w)");
+_Static_assert(offsetof(GddInstance, color) == 32, "GddInstance.color@32 (c.xyz)");
+_Static_assert(offsetof(GddInstance, alpha) == 44, "GddInstance.alpha@44 (c.w)");
+_Static_assert(offsetof(GddInstance, orient) == 48, "GddInstance.orient@48 (mat3)");
+_Static_assert(offsetof(GddInstance, pad) == 96, "GddInstance.pad@96 (vec4 p)");
+
+/* GddPC (GLSL: vec4 cull; uint list_count; uint group; uint capacity;
+ * uint pad; float line_min_wu;): */
+_Static_assert(offsetof(GddPC, cull_center) == 0, "GddPC.cull_center@0 (cull.xyz)");
+_Static_assert(offsetof(GddPC, cull_radius) == 12, "GddPC.cull_radius@12 (cull.w)");
+_Static_assert(offsetof(GddPC, list_count) == 16, "GddPC.list_count@16");
+_Static_assert(offsetof(GddPC, group) == 20, "GddPC.group@20");
+_Static_assert(offsetof(GddPC, capacity) == 24, "GddPC.capacity@24");
+_Static_assert(offsetof(GddPC, pad) == 28, "GddPC.pad@28");
+_Static_assert(offsetof(GddPC, line_min_wu) == 32, "GddPC.line_min_wu@32");
+
+/* GddCounts (GLSL: uint dyn_vis; uint map_vis; uint opaque_verts;
+ * uint additive_verts;): */
+_Static_assert(offsetof(GddCounts, dyn_vis) == 0, "GddCounts.dyn_vis@0");
+_Static_assert(offsetof(GddCounts, map_vis) == 4, "GddCounts.map_vis@4");
+_Static_assert(offsetof(GddCounts, opaque_verts) == 8, "GddCounts.opaque_verts@8");
+_Static_assert(offsetof(GddCounts, additive_verts) == 12, "GddCounts.additive_verts@12");
+
+/* GddScenePC (GLSL: mat4 mvp; float time; vec3 cam; float pad;): */
+_Static_assert(offsetof(GddScenePC, mvp) == 0, "GddScenePC.mvp@0 (mat4)");
+_Static_assert(offsetof(GddScenePC, time) == 64, "GddScenePC.time@64");
+_Static_assert(offsetof(GddScenePC, cam) == 68, "GddScenePC.cam@68");
+_Static_assert(offsetof(GddScenePC, pad) == 80, "GddScenePC.pad@80");
 
 #endif /* SPACEGL_GDD_H */

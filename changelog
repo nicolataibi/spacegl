@@ -1,3 +1,70 @@
+* Fri Oct 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.09.03
+  - GDD contract (layout): the CPU/GPU boundary contract is now pinned
+    FIELD BY FIELD, not just by size. include/spacegl_gdd.h gains the
+    full set of compile-time _Static_asserts — every field offset of
+    GddVertex (pos@0, color@16, normal@32, mode@44, local@48,
+    metallic@64, roughness@68), of GddInstance, GddPC, GddCounts and
+    GddScenePC, plus the GLSL alignment rule itself (every vec4 start
+    of GddVertex on a 16-byte boundary) — and gdd_contract_test
+    re-checks the same set at runtime (test_layout extended from 3 to
+    48 checks: sizes, per-field offsets, alignment), so a mis-compiled
+    TU or a different-compiler layout cannot sneak through. gdd_contract
+    passes with 362 checks (was 317).
+  - Vulkan (validation layers): Debug builds (CMAKE_BUILD_TYPE=Debug,
+    i.e. NDEBUG not defined) now request the standard
+    VK_LAYER_KHRONOS_validation layer BY DEFAULT in createInstance():
+    sync/barrier and pipeline errors are reported by the driver at the
+    moment they happen instead of surfacing later as silent GPU
+    corruption (the class that cost a manual hunt in the additive
+    funnel). Release builds are unchanged (no layers by default). The
+    new SPACEGL_VALIDATION variable overrides the build default (=0
+    off, =1 on — e.g. to audit a Release binary); the standard
+    VK_INSTANCE_LAYERS variable is honored as before and merged with
+    the default (a layer the driver lacks is warned and skipped).
+  - Shader (gdd_scene.frag): microguard on the PBR specular term —
+    vRough is clamped to [0, 1] before pow(dot(N,H), 32*(1-rough)):
+    if the GPU ever carried roughness > 1 the exponent went negative
+    and pow(0.0, neg) (a zero N-H dot) evaluates to inf/NaN in GLSL.
+    The builder always writes [0, 1]; the guard makes the shader total
+    anyway. Also dropped the stray "[cite: 17]" tooling markers and the
+    ragged comment indentation of gdd_scene.vert, and fixed the GddPC
+    _Static_assert message that said 32 B for the 36-B struct.
+  - Docs (new): DEVELOPMENT.md — how to build (prerequisites, the
+    Vulkan SDK chain, build types/flags, RPM spec), how to run the
+    9-test suite in BOTH modes (integrated: ctest --test-dir build;
+    standalone: cmake -B build-tests tests ...), and the contract-test
+    pattern (two-layer static/runtime invariants, linking the real
+    production sources, no framework + the 0/1/77 exit contract,
+    -ffp-contract=off mirrors, ASan/UBSan sink tests). SECURITY.md —
+    threat model (untrusted client / untrusted server / local SHM
+    consumer / radio attacker; assets; design rules) plus the living
+    audit registry of the B items (B1, B2-a/b, B3-a/b, B4, B5, B6/B7/
+    B9/B11 NOT-IN-TREE, B8, B10, B12, B13) with status, fixing version
+    and pinning test, the B2/B3 label-collision note and the open
+    items (missing tests for B2-b/B3-b/B4, graphics-pass GPU audit).
+  - Docs (README): the GDD technical section gains "The Pipeline at a
+    Glance (build → cull → expand → final → draw)" — the five stages
+    in execution order with the implementing code (gdd_build_frame /
+    gdd_cull.comp / gdd_expand.comp / gdd_final.comp / gdd_record),
+    the big-picture view the code comments only described piecewise;
+    the validation-layer note is updated (Debug default +
+    SPACEGL_VALIDATION), the test section documents both modes and
+    points to DEVELOPMENT.md, and the header carries the documentation
+    map (README / DEVELOPMENT.md / SECURITY.md / HOWTO.txt / changelog).
+  - Build: -D_FORTIFY_SOURCE=2 now goes with the Release branch
+    instead of the global flags — at -O0 (Debug) it is a no-op that
+    #warnings from <features.h> on every TU, so Debug was the only
+    build type emitting warnings in the tree. Release flag set
+    unchanged.
+  - Conformance (all components): fresh FULL rebuild of all 8 product
+    targets + 7 shaders + 9 test binaries, zero warnings under
+    -Wall -Wextra -Wpedantic in the integrated tree, in the standalone
+    tests tree and in a Debug build of the spacegl_vulkan target
+    (NDEBUG branch); full suite 9/9 in both modes (gdd_contract 362,
+    gdd_mesh 68 vs the just-compiled SPIR-V). spacegl.spec Version
+    bumped 2026.10.09.02 -> 2026.10.09.03. Smoke test: pending (run
+    by the user).
+
 * Fri Oct 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.09.02
   - 3D view (OpenGL, C23): closed the backlog item on the exotic-feature
     draw switch of display() (the case 100 ... 131 GCC range reported at

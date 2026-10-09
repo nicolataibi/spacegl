@@ -213,6 +213,11 @@ void main() {
     vec3 V = normalize(sc.cam - vPos);
     vec3 H = normalize(L + V);
     float diff = max(dot(N, L), 0.0);
-    vec3 specular = vec3(pow(max(dot(N, H), 0.0), 32.0 * (1.0 - vRough))) * vMetal;
+    /* Microguard: the roughness must stay in [0, 1]. If vRough > 1 the
+     * exponent 32.0 * (1.0 - vRough) goes negative and pow(0.0, neg)
+     * (a zero N-H dot product) evaluates to inf/NaN in GLSL. The CPU
+     * builder always writes [0, 1], this makes the guard total. */
+    float rough = clamp(vRough, 0.0, 1.0);
+    vec3 specular = vec3(pow(max(dot(N, H), 0.0), 32.0 * (1.0 - rough))) * vMetal;
     outColor = vec4(0.25 * baseColor + diff * baseColor + specular, vColor.a);
 }

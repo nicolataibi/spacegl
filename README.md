@@ -16,6 +16,8 @@
 </div>
 
 Space GL is a high-performance 3D multi-user client-server space flight and combat simulator. The engine features real-time galaxy state synchronization via shared memory (SHM), securely signed data integrity (HMAC-SHA256), a dual-socket advanced telemetry subsystem for tactical oversight, and versatile visualization front-ends built on OpenGL and Vulkan.
+
+**Documentation map**: this README (features + technical sections) · [DEVELOPMENT.md](DEVELOPMENT.md) (how to build, how to run the test suite, the contract-test pattern, the Vulkan validation layers) · [SECURITY.md](SECURITY.md) (threat model + audit registry of the B items) · `HOWTO.txt` (run instructions) · `changelog` (release log).
 ---
 
 <table align="center">
@@ -403,6 +405,49 @@ The legacy path of `spacegl_vulkan` is **CPU-driven**: for every frame the CPU r
 
 The **GPU-Driven (GDD)** architecture inverts this division of labor. The CPU is reduced to *data handling* (reading the shared-memory state, network smoothing, object classification) and performs **one compact per-frame upload**; the GPU does the actual rendering work — culling, geometry generation, draw-list construction — and finishes the frame with **two indirect draw calls**. The design mirrors the modern GPU-driven techniques used by large-scale open-world engines (persistent data, GPU culling, indirect rendering), adapted to Space GL's tactical viewer.
 
+### 🗺 The Pipeline at a Glance (build → cull → expand → final → draw)
+
+The five stages of one GDD frame, in execution order, with the code that implements each (per-stage detail — buffers, barriers, the triple-buffer invariant — in the following sections):
+
+```
+                         THE GDD PIPELINE (one frame)
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │ 1. BUILD     gdd_build_frame() / gdd_build_instances()       │
+  │             SharedIPC state + Hermite smoothing →            │
+  │             classification → GddInstance lists (112 B        │
+  │             each) → ONE memcpy into the per-frame            │
+  │             instance SSBOs (persistently mapped)             │
+  └──────────────────────────────────────────────────────────────┘
+                                 ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │ GPU — one graphics+compute queue, in-order; the              │
+  │ synchronization2 barriers sit between every stage below:     │
+  │                                                              │
+  │ 2. CULL      gdd_cull.comp — map group + dyn group           │
+  │             vision-sphere cull → compact visible index       │
+  │             lists (NEVER_CULL statics bypass the test)       │
+  │                                                              │
+  │ 3. EXPAND    gdd_expand.comp — opaque pass, then additive    │
+  │             pass (map + dyn groups in each)                  │
+  │             visible instances → device-local vertex SSBO     │
+  │             (80 B vertices, atomic reservation, 512k         │
+  │             "drop when full")                                │
+  │                                                              │
+  │ 4. FINAL     gdd_final.comp                                  │
+  │             per-frame counters → 2× VkDrawIndirectCommand    │
+  │             (GPU-side: the CPU never sees the vertex count)  │
+  │                                                              │
+  │ 5. DRAW      gdd_record(): vkCmdBeginRendering (color +      │
+  │             1-sample depth) → Pass A opaque: ONE             │
+  │             vkCmdDrawIndirect → Pass B additive: ONE         │
+  │             vkCmdDrawIndirect → PRESENT_SRC barrier →        │
+  │             vkQueuePresentKHR                                │
+  └──────────────────────────────────────────────────────────────┘
+```
+
+Stage 1 is the **only** per-frame CPU work of the path (data handling, not rendering); stages 2-5 run on the GPU and the frame finishes with exactly two draw calls regardless of how many objects are visible.
+
 ### 🎛 Selecting the Architecture: the `SPACEGL_GPD` Environment Variable
 
 Both architectures live in the **same binary**; the switch is made at startup by reading `SPACEGL_GPD`:
@@ -420,10 +465,12 @@ SPACEGL_GPD=0 ./spacegl_vulkan
 # GPU-driven (the new architecture)
 SPACEGL_GPD=1 ./spacegl_vulkan
 
-# GPU-driven with the Khronos validation layer
+# GPU-driven, validation layer requested explicitly
 # (audits the GDD synchronization / pipeline code)
 SPACEGL_GPD=1 VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation ./spacegl_vulkan
 ```
+
+**Validation layer**: **Debug builds enable `VK_LAYER_KHRONOS_validation` by default** — every synchronization/barrier or pipeline error is reported by the driver at the moment it happens, instead of surfacing later as silent GPU corruption. Override: `SPACEGL_VALIDATION=0` (off, even in Debug) or `SPACEGL_VALIDATION=1` (on, even in Release); the standard `VK_INSTANCE_LAYERS` variable is honored as well and merged with the default (details in [DEVELOPMENT.md](DEVELOPMENT.md) §4).
 
 Expected startup banners with `SPACEGL_GPD=1`:
 
@@ -535,16 +582,23 @@ The scene fragment shader (`gdd_scene.frag`) re-implements the procedural color 
 | `assets/shaders/gdd_ops.glsl` | The expand operations (box, sphere, pyramid, octa, ring, line, point). |
 | `assets/shaders/gdd_cull.comp` / `gdd_expand.comp` / `gdd_final.comp` | The three compute passes. |
 | `assets/shaders/gdd_scene.vert` / `gdd_scene.frag` | SSBO-fed scene shaders (no fixed-function vertex input). |
-| `tests/gdd_contract_test.c` | CPU-side contract test (no device): layouts/offsets, flag round-trip, builder against synthetic scenes. |
+| `tests/gdd_contract_test.c` | CPU-side contract test (no device): struct sizes, per-field offsets and vec4 16-byte alignment (the layout contract), flag round-trip, builder against synthetic scenes. |
 | `tests/gdd_mesh_test.c` | Headless GPU compute test: runs the real SPIR-V, compares readback bit-exactly vs a `-ffp-contract=off` CPU mirror (exit 77 = skip when no ICD/SPV). |
 
-Build and run the GDD test suite (the `tests/` project is self-contained and pulls the production sources straight from `../src`):
+Build and run the test suite. The suite has **two equivalent modes** — integrated into the main build (default, 9 tests alongside the 8 product targets) or standalone (the `tests/` project is self-contained and pulls the production sources straight from `../src`):
 
 ```bash
+# Integrated (the main build already configured/built)
+cmake --build build
+ctest --test-dir build --output-on-failure
+
+# Standalone
 cmake -B build-tests tests
 cmake --build build-tests
 ctest --test-dir build-tests --output-on-failure
 ```
+
+The full suite, both modes, the contract-test pattern and the build prerequisites are documented in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 The main build compiles the GDD SPIR-V with **glslc** (hard requirement) into `build/shaders/`, installed to `/usr/share/spacegl/shaders` together with the legacy shaders. The Vulkan SDK is resolved by a chain (see `cmake/SpaceGLVulkanSDK.cmake`): the `VULKAN_SDK` environment variable first, then the pinned local default SDK (project decision for reproducible builds, disable with `-DUSE_DEFAULT_VULKAN_SDK=OFF`), then the system Vulkan; glslc is taken from the resolved SDK's `bin/` before falling back to `PATH`.
 

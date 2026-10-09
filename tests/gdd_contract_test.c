@@ -18,10 +18,11 @@
  *
  * CPU-side verification of the GDD contract (no Vulkan device needed):
  *
- *   1. Layout invariants: the CPU structs must keep the exact sizes and
- *      field offsets the GLSL side assumes (spacegl_gdd.h carries the
- *      compile-time _Static_asserts; this re-checks them at runtime so
- *      a mis-compiled TU cannot sneak through).
+ *   1. Layout invariants: the CPU structs must keep the exact sizes,
+ *      per-field offsets and vec4 16-byte alignment the GLSL side
+ *      assumes (spacegl_gdd.h carries the compile-time _Static_asserts;
+ *      this re-checks the full set at runtime so a mis-compiled TU
+ *      cannot sneak through).
  *   2. Flag round-trip: gdd_make_flags / gdd_flags_to_uint /
  *      gdd_frag_mode for every (never_cull, additive, frag_mode).
  *   3. The pure-C instance builder (gdd_build_instances) against a
@@ -91,22 +92,53 @@ static void test_layout(void) {
     CHECK(sizeof(GddCounts) == GDD_COUNTS_STRIDE && GDD_COUNTS_STRIDE == 16,
           "GddCounts 16B");
     CHECK(sizeof(GddPC) == GDD_PC_STRIDE && GDD_PC_STRIDE == 36, "GddPC 36B");
-    CHECK(offsetof(GddPC, line_min_wu) == 32, "pc.line_min_wu@32 (after pad)");
     CHECK(sizeof(GddScenePC) == GDD_SCENE_PC_STRIDE && GDD_SCENE_PC_STRIDE == 84,
           "GddScenePC 84B");
-    /* GLSL struct field alignment (a/b/c, mat3@48, params@64...) */
-    CHECK(offsetof(GddInstance, pos) == 0, "inst.pos@0");
+    /* GddInstance (GLSL: vec4 a; vec4 b; vec4 c; mat3 o; vec4 p;) —
+     * every field at the offset the GLSL side reads it. */
+    CHECK(offsetof(GddInstance, pos) == 0, "inst.pos@0 (a.xyz)");
     CHECK(offsetof(GddInstance, mesh) == 12, "inst.mesh@12 (a.w)");
     CHECK(offsetof(GddInstance, scale) == 16, "inst.scale@16 (b.xyz)");
     CHECK(offsetof(GddInstance, flags) == 28, "inst.flags@28 (b.w)");
     CHECK(offsetof(GddInstance, color) == 32, "inst.color@32 (c.xyz)");
     CHECK(offsetof(GddInstance, alpha) == 44, "inst.alpha@44 (c.w)");
     CHECK(offsetof(GddInstance, orient) == 48, "inst.orient@48 (mat3)");
-    CHECK(offsetof(GddInstance, pad) == 96, "inst.pad@96 (vec4)");
-    CHECK(offsetof(GddVertex, normal) == 32, "vtx.normal@32");
-    CHECK(offsetof(GddVertex, local) - offsetof(GddVertex, normal) == 16,
-          "vtx.mode at normal.w");
+    CHECK(offsetof(GddInstance, pad) == 96, "inst.pad@96 (vec4 p)");
+    /* GddVertex (GLSL: 5 x vec4) — the full per-field layout, with the
+     * vec4 starts on 16-byte boundaries (GLSL alignment rule): a silent
+     * padding/offset drift here is the CPU/GPU contract failure this
+     * test exists to catch. */
+    CHECK(offsetof(GddVertex, pos) == 0, "vtx.pos@0 (vec4)");
+    CHECK(offsetof(GddVertex, color) == 16, "vtx.color@16 (vec4)");
+    CHECK(offsetof(GddVertex, normal) == 32, "vtx.normal@32 (vec4)");
+    CHECK(offsetof(GddVertex, mode) == 44, "vtx.mode@44 (normal.w)");
+    CHECK(offsetof(GddVertex, local) == 48, "vtx.local@48 (vec4)");
     CHECK(offsetof(GddVertex, metallic) == 64, "vtx.metallic@64 (params.x)");
+    CHECK(offsetof(GddVertex, roughness) == 68, "vtx.roughness@68 (params.y)");
+    CHECK(offsetof(GddVertex, pos) % 16 == 0, "vtx.pos 16B-aligned (vec4)");
+    CHECK(offsetof(GddVertex, color) % 16 == 0, "vtx.color 16B-aligned (vec4)");
+    CHECK(offsetof(GddVertex, normal) % 16 == 0, "vtx.normal 16B-aligned (vec4)");
+    CHECK(offsetof(GddVertex, local) % 16 == 0, "vtx.local 16B-aligned (vec4)");
+    CHECK(offsetof(GddVertex, metallic) % 16 == 0, "vtx.metallic 16B-aligned (params)");
+    /* GddPC (GLSL: vec4 cull; uint list_count; uint group; uint
+     * capacity; uint pad; float line_min_wu;). */
+    CHECK(offsetof(GddPC, cull_center) == 0, "pc.cull_center@0 (cull.xyz)");
+    CHECK(offsetof(GddPC, cull_radius) == 12, "pc.cull_radius@12 (cull.w)");
+    CHECK(offsetof(GddPC, list_count) == 16, "pc.list_count@16 (uint after vec4)");
+    CHECK(offsetof(GddPC, group) == 20, "pc.group@20");
+    CHECK(offsetof(GddPC, capacity) == 24, "pc.capacity@24");
+    CHECK(offsetof(GddPC, pad) == 28, "pc.pad@28");
+    CHECK(offsetof(GddPC, line_min_wu) == 32, "pc.line_min_wu@32");
+    /* GddCounts (GLSL: four uints in declaration order). */
+    CHECK(offsetof(GddCounts, dyn_vis) == 0, "cnt.dyn_vis@0");
+    CHECK(offsetof(GddCounts, map_vis) == 4, "cnt.map_vis@4");
+    CHECK(offsetof(GddCounts, opaque_verts) == 8, "cnt.opaque_verts@8");
+    CHECK(offsetof(GddCounts, additive_verts) == 12, "cnt.additive_verts@12");
+    /* GddScenePC (GLSL: mat4 mvp; float time; vec3 cam; float pad;). */
+    CHECK(offsetof(GddScenePC, mvp) == 0, "scpc.mvp@0 (mat4)");
+    CHECK(offsetof(GddScenePC, time) == 64, "scpc.time@64");
+    CHECK(offsetof(GddScenePC, cam) == 68, "scpc.cam@68");
+    CHECK(offsetof(GddScenePC, pad) == 80, "scpc.pad@80");
 }
 
 /* ================================================================== */

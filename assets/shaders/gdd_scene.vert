@@ -40,20 +40,21 @@ layout(location = 6) out float vRough;
 layout(location = 7) out vec4 vParams;
 
 void main() {
-    // Vulkan automatically applies the 'firstVertex' of the indirect command 
-// to the global vertex index (gl_VertexIndex). 
-// Consequently, by reading directly from gdd_scene_verts.v[gl_VertexIndex], 
-// the additive pass will correctly fetch from the offset calculated in gdd_final.comp.
-    
-    GddVertex g = gdd_scene_verts.v[gl_VertexIndex]; //[cite: 17]
-    
-    gl_Position = sc.mvp * vec4(g.pos.xyz, 1.0); //[cite: 17]
-    vColor = g.color; //[cite: 17]
-    vNormal = g.normal.xyz; //[cite: 17]
-    vPos = g.pos.xyz; //[cite: 17]
-    vLocal = g.local.xyz; //[cite: 17]
-    vMode = g.normal.w; //[cite: 17]
-    vMetal = g.params.x; //[cite: 17]
-    vRough = g.params.y; //[cite: 17]
+    // Vulkan automatically applies the 'firstVertex' of the indirect
+    // command to the global vertex index (gl_VertexIndex). Consequently,
+    // by reading directly from gdd_scene_verts.v[gl_VertexIndex], the
+    // additive pass will correctly fetch from the offset calculated in
+    // gdd_final.comp.
+
+    GddVertex g = gdd_scene_verts.v[gl_VertexIndex];
+
+    gl_Position = sc.mvp * vec4(g.pos.xyz, 1.0);
+    vColor = g.color;
+    vNormal = g.normal.xyz;
+    vPos = g.pos.xyz;
+    vLocal = g.local.xyz;
+    vMode = g.normal.w;
+    vMetal = g.params.x;
+    vRough = g.params.y;
     vParams = g.params;
 }

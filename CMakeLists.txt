@@ -32,11 +32,14 @@ else()
     add_compile_options(-fPIE)
     add_link_options(-pie)
 
-    add_compile_options(-Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security)
+    add_compile_options(-Wall -Wextra -Wpedantic -fstack-protector-strong -Wformat -Wformat-security)
     
-    # Add optimization and debug info based on build type
+    # Add optimization and debug info based on build type.
+    # -D_FORTIFY_SOURCE=2 needs at least -O1 to be effective: at -O0 it
+    # is a no-op that #warnings from <features.h> on every TU, so it
+    # goes with the optimized (Release) build only.
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        add_compile_options(-O3)
+        add_compile_options(-O3 -D_FORTIFY_SOURCE=2)
     elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_compile_options(-O0 -g)
     endif()
