@@ -73,25 +73,16 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     # contract test, pulls the whole gdd.c TU which also references
     # glfwGetTime (frame path): link GLFW when available, stub it otherwise.
     #
-    # Vulkan SDK di default (stessa decisione del progetto principale, vedi
-    # ../CMakeLists.txt): SDK locale 1.4.363.0 per build riproducibili. Il
-    # loader built-from-source esporta Vulkan::Loader: alias Vulkan::Vulkan.
-    # Disable: -DUSE_DEFAULT_VULKAN_SDK=OFF
-    set(USE_DEFAULT_VULKAN_SDK ON CACHE BOOL "Use the default local Vulkan SDK")
-    set(DEFAULT_VULKAN_SDK "/home/nick/dev/c/vulkan-sdk/1.4.363.0/x86_64"
-        CACHE STRING "Root of the default Vulkan SDK (bin/include/lib/share layout)")
-    if(USE_DEFAULT_VULKAN_SDK AND EXISTS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader/lib/cmake/VulkanLoader")
-        find_package(VulkanLoader REQUIRED
-            PATHS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader" NO_DEFAULT_PATH)
-        if(TARGET Vulkan::Loader)
-            target_include_directories(Vulkan::Loader INTERFACE "${DEFAULT_VULKAN_SDK}/include")
-            if(NOT TARGET Vulkan::Vulkan)
-                add_library(Vulkan::Vulkan ALIAS Vulkan::Loader)
-            endif()
-        endif()
-    else()
-        find_package(Vulkan REQUIRED)
-    endif()
+    # Vulkan SDK resolution: the SAME chain as the main project, from the
+    # same shared module (../cmake/SpaceGLVulkanSDK.cmake): VULKAN_SDK env
+    # variable -> pinned local 1.4.363.0 default (the documented project
+    # decision for reproducible builds; disable with
+    # -DUSE_DEFAULT_VULKAN_SDK=OFF) -> system (find_package(Vulkan), else
+    # the distro VulkanLoader package). The from-source loader exports
+    # Vulkan::Loader: alias Vulkan::Vulkan.
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
+    include(SpaceGLVulkanSDK)
+    spacegl_find_vulkan_sdk()
     find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_check_modules(GLFW glfw3)

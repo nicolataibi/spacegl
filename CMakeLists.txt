@@ -57,30 +57,24 @@ pkg_check_modules(NCURSES REQUIRED ncurses)
 
 # GLFW e Vulkan per spacegl_vulkan
 #
-# Vulkan SDK di default (decisione di progetto): si usa la SDK locale
-# 1.4.363.0 invece di quella di sistema, per build riproducibili
-# (headers, loader e glslc dalla stessa SDK). Il loader built-from-source
-# esporta il target Vulkan::Loader: lo si espone come alias Vulkan::Vulkan
-# (nome ufficiale) usato da target e test. Disable: -DUSE_DEFAULT_VULKAN_SDK=OFF
-set(USE_DEFAULT_VULKAN_SDK ON CACHE BOOL "Use the default local Vulkan SDK")
-set(DEFAULT_VULKAN_SDK "/home/nick/dev/c/vulkan-sdk/1.4.363.0/x86_64"
-    CACHE STRING "Root of the default Vulkan SDK (bin/include/lib/share layout)")
-if(USE_DEFAULT_VULKAN_SDK AND EXISTS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader/lib/cmake/VulkanLoader")
-    find_package(VulkanLoader REQUIRED
-        PATHS "${DEFAULT_VULKAN_SDK}/lib/VulkanLoader" NO_DEFAULT_PATH)
-    if(TARGET Vulkan::Loader)
-        # The from-source loader config carries no include dirs: point them
-        # at the SDK headers.
-        target_include_directories(Vulkan::Loader INTERFACE "${DEFAULT_VULKAN_SDK}/include")
-        if(NOT TARGET Vulkan::Vulkan)
-            add_library(Vulkan::Vulkan ALIAS Vulkan::Loader)
-        endif()
-    endif()
-    message(STATUS "Vulkan: using default SDK ${DEFAULT_VULKAN_SDK}")
-else()
-    find_package(Vulkan REQUIRED)
-    message(STATUS "Vulkan: using the system SDK (default SDK not found or disabled)")
-endif()
+# Vulkan SDK resolution: a CHAIN, implemented in ONE shared module so
+# that this file and the standalone tests/CMakeLists.txt can never drift
+# apart (cmake/SpaceGLVulkanSDK.cmake, see its header for the full
+# policy). The first usable entry wins:
+#   1. the VULKAN_SDK environment variable (explicit per-machine
+#      override; set and usable, it wins over everything)
+#   2. the pinned default SDK (project decision, default
+#      /home/nick/dev/c/vulkan-sdk/1.4.363.0/x86_64) - reproducible
+#      builds: headers, loader and glslc from the same SDK.
+#      Disable: -DUSE_DEFAULT_VULKAN_SDK=OFF
+#   3. the system Vulkan (find_package(Vulkan) - official config or
+#      CMake's FindVulkan module - then the distro VulkanLoader package)
+# The from-source loader exports the target Vulkan::Loader: it is
+# exposed as the alias Vulkan::Vulkan (nome ufficiale) used by targets
+# and tests.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(SpaceGLVulkanSDK)
+spacegl_find_vulkan_sdk()
 pkg_check_modules(GLFW REQUIRED glfw3)
 
 # --- Include Directories ---
@@ -90,11 +84,20 @@ include_directories(include ${OPENSSL_INCLUDE_DIR} ${OPENGL_INCLUDE_DIR} ${GLEW_
 # glslc is a hard requirement: there is NO automatic fallback to
 # glslangValidator on purpose (different CLI and SPIR-V defaults), so a
 # missing compiler must fail loudly with an actionable message.
-# Prefer the glslc of the default SDK (HINTS are searched before PATH).
-find_program(GLSLC_EXECUTABLE glslc HINTS "${DEFAULT_VULKAN_SDK}/bin")
+# The compiler follows the SAME chain as the SDK: the glslc of the
+# resolved SDK root is searched first (headers, loader and compiler from
+# the same SDK), then the system PATH (on the system leg, PATH alone).
+if(SpaceGL_VULKAN_SDK_ROOT STREQUAL "")
+    find_program(GLSLC_EXECUTABLE glslc)
+else()
+    find_program(GLSLC_EXECUTABLE glslc HINTS "${SpaceGL_VULKAN_SDK_ROOT}/bin")
+    if(NOT GLSLC_EXECUTABLE)
+        find_program(GLSLC_EXECUTABLE glslc)
+    endif()
+endif()
 if(NOT GLSLC_EXECUTABLE)
     message(FATAL_ERROR
-        "glslc not found in PATH - it is REQUIRED to compile the Vulkan shaders\n"
+        "glslc not found in the resolved SDK nor in PATH - it is REQUIRED to compile the Vulkan shaders\n"
         "(assets/shaders/shader.vert / shader.frag -> SPIR-V).\n"
         "\n"
         "Install it with your distribution package manager, e.g.:\n"

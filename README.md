@@ -546,7 +546,7 @@ cmake --build build-tests
 ctest --test-dir build-tests --output-on-failure
 ```
 
-The main build compiles the GDD SPIR-V with **glslc** (hard requirement) into `build/shaders/`, installed to `/usr/share/spacegl/shaders` together with the legacy shaders.
+The main build compiles the GDD SPIR-V with **glslc** (hard requirement) into `build/shaders/`, installed to `/usr/share/spacegl/shaders` together with the legacy shaders. The Vulkan SDK is resolved by a chain (see `cmake/SpaceGLVulkanSDK.cmake`): the `VULKAN_SDK` environment variable first, then the pinned local default SDK (project decision for reproducible builds, disable with `-DUSE_DEFAULT_VULKAN_SDK=OFF`), then the system Vulkan; glslc is taken from the resolved SDK's `bin/` before falling back to `PATH`.
 
 ---
 
@@ -4100,7 +4100,7 @@ Space GL implements enterprise-grade security for galactic state synchronization
 To compile and run the SPACE GL suite, ensure the following libraries and tools are installed:
 * **GLFW / OpenGL**: Core rendering engine and window management.
 * **GLEW**: OpenGL Extension Wrangler for advanced shader support.
-* **Vulkan SDK**: Next-gen rendering backend (requires libvulkan, libglfw, and the glslc compiler for SPIR-V shaders).
+* **Vulkan SDK**: Next-gen rendering backend (requires libvulkan, libglfw, and the glslc compiler for SPIR-V shaders). The build resolves it by a chain: the `VULKAN_SDK` environment variable, then the pinned local default SDK (the project decision for reproducible builds, `-DUSE_DEFAULT_VULKAN_SDK=OFF` to skip it), then the system Vulkan.
 * **OpenMP**: (Crucial) Required for multi-threaded physics processing and high-performance particle systems (libomp).
 * **ncurses**: Terminal-based HUD interfaces for spacegl_hud, spacegl_diag, and spacegl_telemetry (libncurses).
 * **OpenSSL**: Mandatory for the cryptographic suite (AES encryption, HMAC-SHA256 galaxy signing, and Ed25519 identity verification).
@@ -4109,7 +4109,7 @@ To compile and run the SPACE GL suite, ensure the following libraries and tools 
 
 Compilation & Build Notes:
 * **C Standard**: The project is built using the C11 standard. Ensure your compiler (GCC 7+ or Clang) is up to date.
-* **Shader Compilation**: For the Vulkan backend, the glslc utility (part of the Vulkan SDK) must be available in your system path to generate .spv binary shaders.
+* **Shader Compilation**: For the Vulkan backend, the glslc utility (part of the Vulkan SDK) is searched in the resolved SDK's `bin/` first, then in your system path, to generate .spv binary shaders.
 * **Parallelism**: The server logic utilizes OpenMP dynamic scheduling to handle thousands of concurrent entities and collision checks across multiple CPU cores.
 * **Zero-Latency IPC**: The suite uses a Direct Bridge (SDB) architecture based on POSIX Shared Memory (shm_open) to synchronize the 3D Viewer and the Client HUD
   without network overhead.

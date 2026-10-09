@@ -1,3 +1,51 @@
+* Fri Oct 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.09.01
+  - Build (Vulkan): the SDK resolution is now a documented CHAIN, in ONE
+    shared module cmake/SpaceGLVulkanSDK.cmake (spacegl_find_vulkan_sdk)
+    included by the top-level CMakeLists.txt and by the standalone
+    tests/CMakeLists.txt, so the two trees can never drift apart (the
+    pre-fix code duplicated the pinned-SDK block in both files). The
+    first usable entry wins: 1) the official VULKAN_SDK environment
+    variable - the explicit per-machine override: set and usable it
+    wins over everything, set but unusable it WARNS and the chain
+    continues, so a stale export cannot brick the build; 2) the pinned
+    default SDK - the documented project decision
+    (/home/nick/dev/c/vulkan-sdk/1.4.363.0/x86_64) for reproducible
+    builds with headers, loader and glslc from the same SDK; the
+    USE_DEFAULT_VULKAN_SDK / DEFAULT_VULKAN_SDK cache knobs are
+    preserved, the opt-out still works; 3) the system Vulkan -
+    find_package(Vulkan) (official config, else CMake's FindVulkan
+    module: libvulkan + system headers), then, as last resort, the
+    distro from-source loader package (VulkanLoader, the Vulkan::Loader
+    target + the distro vulkan/vulkan.h). That last step is what
+    actually exists on Fedora: there is no VulkanConfig.cmake, so the
+    pre-fix fallback `find_package(Vulkan REQUIRED)` could not have
+    succeeded on this machine (the build only ever worked because the
+    pinned SDK was present on the build host). The from-source loader
+    keeps exporting Vulkan::Loader, exposed as the official-name alias
+    Vulkan::Vulkan as before. glslc follows the SAME chain: the
+    resolved SDK's bin/ is searched before PATH (system leg: PATH
+    alone), same hard requirement and actionable FATAL_ERROR as before.
+  - Conformance (all components): the tests/ integrated mode needed no
+    change (it inherits Vulkan::Vulkan from the parent), the standalone
+    branch now calls the same module; spacegl.spec is already compliant
+    with the system leg (BuildRequires pkgconfig(vulkan) pulls
+    vulkan-loader-devel - the distro CMake config - which hard-requires
+    vulkan-headers, plus glslc), README build notes updated (the SDK
+    chain and the glslc search order), local_check.sh / man pages /
+    HOWTO.txt / .gitignore / src/ verified unaffected. spacegl.spec
+    Version bumped 2026.10.08.02 -> 2026.10.09.01. Verified: fresh FULL
+    rebuild of all 8 product targets + 7 shaders + 9 test binaries
+    clean under -Wall -Wextra -Wpedantic on the pinned SDK (integrated
+    tree) and in the standalone tests tree, plus a full-tree build on
+    the SYSTEM leg (-DUSE_DEFAULT_VULKAN_SDK=OFF, Fedora FindVulkan
+    1.4.341) - every chain entry exercised (configure checks: env
+    override, pinned default, unusable-env warn + fallthrough, system)
+    and the linked libvulkan confirmed per tree (pinned SDK
+    VulkanLoader/lib/libvulkan.so.1 vs /lib64/libvulkan.so.1).
+
+* Thu Oct 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.08.02
+  - Spec: Add sanitizer runtime build dependencies
+
 * Thu Oct 08 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.08.01
   - Build (tests): tests/ is now part of the main CMake build behind a
     new option SPACEGL_BUILD_TESTS (default ON): the top-level
@@ -34,6 +82,7 @@
     -Wall -Wextra -Wpedantic in the integrated tree (and again in the
     standalone tree), ctest 9/9 green with gdd_mesh running its 68 GPU
     checks against the freshly compiled build/shaders.
+
 * Wed Oct 07 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.07.02
   - Server (command grammar): added "vec <H> <M> <S>" (handle_vec in
     src/server/commands.c), the vector-thrust command the pilot
@@ -132,6 +181,7 @@
     clamp to SPEED_IMPULSE_TICK_MAX, the normalize_upright fold
     (90, 120) → (270, 60), the usage / system-critical / energy guards
     and the exact COST_ACTION_HIGH billing.
+
 * Wed Oct 07 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.07.01
   - Pilot (Vulkan): the hat switch now actually executes the retro-
     thruster. pilot_hat_retro captures the ship's live course ONCE on
@@ -185,6 +235,7 @@
     suite 8/8 green (gdd_contract, gdd_mesh, nav_heading,
     nav_roll, quad_index, pkt_length, crypto_table,
     target_bounds).
+
 * Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.07
   - Client: fixed the SIGSEGV on Ctrl+C / SIGTERM / exit (the 2026-10-06
     pilot session core, pid 39068: kernel "spacegl_client[39090]: segfault
