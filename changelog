@@ -1,3 +1,33 @@
+* Fri Oct 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.09.02
+  - 3D view (OpenGL, C23): closed the backlog item on the exotic-feature
+    draw switch of display() (the case 100 ... 131 GCC range reported at
+    src/spacegl_3dview.c:5110): the tree already carries the explicit
+    case 100-131 chain (in place per the 2026.10.06.03 note), so this
+    round audited the conformance of EVERY component dispatching on
+    visual types 100-131 and confirmed no GCC range-case extension
+    remains anywhere in src/, tests/ or include/: src/spacegl_vulkan_gdd.c
+    keeps the canonical explicit chain (2026.10.03.02),
+    src/spacegl_vulkan.c and src/spacegl_hud.c dispatch with standard
+    bounds ifs (type >= 100 && type <= 131, the EXOTIC class),
+    src/server/galaxy.c assigns the types by arithmetic (100 + t) and
+    the telemetry pair matches them the same way, and the 9 tests use
+    none of the construct. The range case was the last GCC-only
+    extension in a draw path, which is what makes the two draw TUs
+    clang-portable.
+  - Conformance (build, all components): verified with a fresh FULL
+    rebuild of all 8 product targets + 7 shaders + 9 test binaries,
+    zero warnings under -Wall -Wextra -Wpedantic (C23, gcc 16.2.1) in
+    the integrated tree and again in the standalone tests tree. Clang
+    22.1.8 portability probe on the same sources: both draw TUs
+    (spacegl_3dview.c, spacegl_vulkan_gdd.c) compile with the range-case
+    hard error gone (only informational -Watomic-alignment notes on the
+    shared-memory atomics, which GCC does not emit); a whole-tree clang
+    build is still blocked by pre-existing unrelated items - clang 22
+    cannot compile the C23 static atomic initializer in src/sglog.c and
+    the server macros use the GNU ", ##__VA_ARGS__" token-pasting - so
+    GCC remains the project standard (Fedora compliance). spacegl.spec
+    Version bumped 2026.10.09.01 -> 2026.10.09.02.
+
 * Fri Oct 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.09.01
   - Build (Vulkan): the SDK resolution is now a documented CHAIN, in ONE
     shared module cmake/SpaceGLVulkanSDK.cmake (spacegl_find_vulkan_sdk)
