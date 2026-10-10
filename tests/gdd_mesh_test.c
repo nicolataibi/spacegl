@@ -1,3 +1,4 @@
+#include <time.h>
 /*
  * SPACE GL - GPU-DRIVEN RENDERING (GDD) - headless Vulkan compute test.
  * Copyright (C) 2026 Nicola Taibi
@@ -1488,7 +1489,7 @@ int main(int argc, char **argv) {
     fill_test_data();
 
     /* ---------------- Stage 1: CULL ---------------- */
-    if (!run_cull(8192)) {
+    struct timespec t1, t2; clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_cull(8192)) {
         fprintf(stderr, "FAIL: cull stage did not complete\n");
         return 1;
     }
@@ -1529,9 +1530,9 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* ---------------- Stage 2: EXPAND ---------------- */
+    clock_gettime(CLOCK_MONOTONIC, &t2); printf("BENCHMARK: cull pass %f ms\n", (t2.tv_sec - t1.tv_sec)*1000.0 + (t2.tv_nsec - t1.tv_nsec)/1000000.0); /* ---------------- Stage 2: EXPAND ---------------- */
     memset(u_verts, 0, VMAX * sizeof(GddVertex));
-    if (!run_expand(8192)) {
+    clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_expand(8192)) {
         fprintf(stderr, "FAIL: expand stage did not complete\n");
         return 1;
     }
@@ -1548,7 +1549,7 @@ int main(int argc, char **argv) {
                     (double)v->local[0], (double)v->local[1], (double)v->local[2]);
         }
     }
-    /* Expected per-pass totals */
+    clock_gettime(CLOCK_MONOTONIC, &t2); printf("BENCHMARK: expand pass %f ms\n", (t2.tv_sec - t1.tv_sec)*1000.0 + (t2.tv_nsec - t1.tv_nsec)/1000000.0); /* Expected per-pass totals */
     uint32_t opaque_ref = 0, additive_ref = 0;
     GddVertex exp_block[1536]; /* max mesh vertex count (GDD_VCOUNT_BOOM) */
     static uint32_t used[VMAX];
@@ -1623,11 +1624,11 @@ int main(int argc, char **argv) {
           dyn_vis_ref + map_vis_ref, blocks_checked);
 
     /* ---------------- Stage 3: FINAL ---------------- */
-    if (!run_final()) {
+    clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_final()) {
         fprintf(stderr, "FAIL: final stage did not complete\n");
         return 1;
     }
-    CHECK(u_indirect[0].vertexCount == u_counts->opaque_verts,
+    clock_gettime(CLOCK_MONOTONIC, &t2); printf("BENCHMARK: final pass %f ms\n", (t2.tv_sec - t1.tv_sec)*1000.0 + (t2.tv_nsec - t1.tv_nsec)/1000000.0); CHECK(u_indirect[0].vertexCount == u_counts->opaque_verts,
           "indirect[0].vertexCount: %u vs %u",
           u_indirect[0].vertexCount, u_counts->opaque_verts);
     CHECK(u_indirect[0].instanceCount == 1 && u_indirect[0].firstVertex == 0 &&
@@ -1652,11 +1653,11 @@ int main(int argc, char **argv) {
     CHECK(g_tot <= cap, "guard: totals %u <= capacity %u", g_tot, cap);
     CHECK(g_tot < full_total,
           "guard: something dropped (%u < %u)", g_tot, (unsigned)full_total);
-    if (!run_final()) {
+    clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_final()) {
         fprintf(stderr, "FAIL: guard final stage did not complete\n");
         return 1;
     }
-    CHECK(u_indirect[0].vertexCount == u_counts->opaque_verts &&
+    clock_gettime(CLOCK_MONOTONIC, &t2); printf("BENCHMARK: final pass %f ms\n", (t2.tv_sec - t1.tv_sec)*1000.0 + (t2.tv_nsec - t1.tv_nsec)/1000000.0); CHECK(u_indirect[0].vertexCount == u_counts->opaque_verts &&
           u_indirect[1].vertexCount == u_counts->additive_verts,
           "guard: final consistent with counters");
 

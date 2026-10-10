@@ -713,7 +713,7 @@ void handle_zztop(int i, const char *params, bool *should_disconnect) {
 void handle_xxx(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     /* Formal greeting to the captain */
-    char greeting[128];
+    char greeting[256];
     snprintf(greeting, sizeof(greeting), "Saluti, Capitano %s. Protocollo di riposizionamento tattico d'emergenza inizializzato.", players[i].name);
     send_server_msg(i, "COMPUTER", greeting);
 

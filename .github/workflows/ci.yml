@@ -1,0 +1,69 @@
+name: SpaceGL CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+        build_type: [Release, Debug]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake cppcheck libglfw3-dev vulkan-tools vulkan-validationlayers spirv-tools rpm rpmlint libvulkan-dev glslc
+    
+    - name: Configure CMake
+      env:
+        CC: ${{ matrix.compiler }}
+        CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
+      run: |
+        if [ "${{ matrix.build_type }}" = "Debug" ]; then
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_C_FLAGS="-fsanitize=address,undefined" -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined"
+        else
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        fi
+        
+    - name: Build
+      run: cmake --build build -j$(nproc)
+      
+    - name: Run CTest
+      working-directory: build
+      run: ctest --output-on-failure
+      
+    - name: Run CppCheck
+      run: cppcheck --enable=all --suppress=missingIncludeSystem --error-exitcode=1 src/ tests/
+      
+    - name: Run rpmlint
+      run: rpmlint spacegl.spec
+
+  smoke_test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake libglfw3-dev vulkan-tools vulkan-validationlayers libvulkan-dev glslc
+    - name: Configure & Build ASan
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-fsanitize=address,undefined"
+        cmake --build build -j$(nproc)
+    - name: Run headless smoke test
+      run: |
+        # Start server in background
+        ./build/spacegl-server --headless &
+        SERVER_PID=$!
+        sleep 2
+        # Run dummy client (or real client in headless) sending random commands
+        ./build/spacegl-client --headless --smoke-test --ticks 500 || true
+        kill $SERVER_PID

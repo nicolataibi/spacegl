@@ -1,3 +1,14 @@
+* Sat Oct 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.10.01
+  - Core (lookup): introduced typed accessors (player_by_id, npc_by_id, etc.)
+    in server_internal.h to enforce global range checks across all target
+    resolution paths, replacing scattered array validations.
+  - CI (automation): added GitHub Actions workflow for gcc/clang builds,
+    including automated tests, cppcheck, and rpmlint. Debug builds now
+    integrate ASan and UBSan flags. Added an end-to-end headless smoke
+    test in the client (firing random dummy commands) and registered GDD
+    pass benchmarks to track performance regressions over time.
+  - Server (commands): fixed -Wformat-truncation snprintf warnings.
+
 * Fri Oct 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.09.03
   - GDD contract (layout): the CPU/GPU boundary contract is now pinned
     FIELD BY FIELD, not just by size. include/spacegl_gdd.h gains the
