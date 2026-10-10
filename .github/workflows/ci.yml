@@ -19,8 +19,22 @@ jobs:
     
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake cppcheck libglfw3-dev vulkan-tools vulkan-validationlayers spirv-tools rpm rpmlint libvulkan-dev glslc
+
+- name: Install dependencies
+  run: |
+    sudo apt-get update
+    sudo apt-get install -y \
+      cmake \
+      cppcheck \
+      libglfw3-dev \
+      libglew-dev \
+      vulkan-tools \
+      vulkan-validationlayers \
+      spirv-tools \
+      rpm \
+      rpmlint \
+      libvulkan-dev \
+      glslc
     
     - name: Configure CMake
       env:
