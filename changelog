@@ -1,3 +1,21 @@
+* Sat Oct 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.10.03
+  - Refactoring: completed physical extraction of drawing tables and command
+    handlers from monster files (commands.c, spacegl_vulkan.c,
+    spacegl_3dview.c) into dedicated .inc inclusion files, drastically
+    reducing file size and diff noise without altering static boundaries.
+
+* Sat Oct 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.10.02
+  - QA (Fuzzing): Added libFuzzer/AFL harness for network packet parsers
+    (net.c and handle_* commands) to secure the main attack surface.
+  - Rendering (SSOT): Extracted visual mapping into a shared table
+    (spacegl_visual_mapping.h) used by both CPU path and GDD path to
+    guarantee structural parity and prevent drift.
+  - Refactoring: Split monster files (commands.c, spacegl_vulkan.c,
+    spacegl_3dview.c) by moving drawing tables and command handler groups
+    into separate files, improving diffs and reviews without changing logic.
+  - Tests (Golden): Added CPU/GDD golden-image test parity with pixel-diff
+    and an MSAA-aware tolerance threshold to guarantee visual equivalence.
+
 * Sat Oct 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.10.02
   - Core: ci update.
 
