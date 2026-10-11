@@ -122,7 +122,13 @@ traceable in the changelog:
 *   `dismantle_telemetry` counters atomics (lost updates, 2026.10.02.02);
 *   server epoll architecture: bounded fd growth (`MAX_CONNS`),
     non-blocking `read_all`, EAGAIN-guarded `write_all` — the app-level
-    DoS surface (2026.10.02.04).
+    DoS surface (2026.10.02.04);
+*   packet dispatcher and wire parser fuzzer harness (libFuzzer / continuous
+    seed corpus regression suite under ASan/UBSan, 2026.10.11.01) —
+    pinned by `tests/fuzz_packets`;
+*   typed entity lookups (`player_by_id`, `npc_by_id`, `planet_by_id`,
+    `base_by_id`, `star_by_id`) enforcing global bounds validation across
+    all target resolution sites (2026.10.11.03).
 
 ## 3. Open items
 

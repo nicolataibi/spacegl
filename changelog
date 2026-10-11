@@ -1,3 +1,70 @@
+* Sun Oct 11 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.11.04
+  - Fix CI
+
+* Sun Oct 11 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.11.03
+  - Core / Security (target resolution): fully migrated all manual entity and
+    target lookups across commands.c, commands_handlers.inc, and logic.c to typed
+    accessors (player_by_id, npc_by_id, planet_by_id, base_by_id, star_by_id).
+    Replaced scattered array bounds validations and ad-hoc pointer indexing with
+    canonical global bounds enforcement, eliminating dead accessors and securing
+    wire target resolution against out-of-bounds access.
+
+* Sun Oct 11 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.11.02
+  - Fix quad_index_static_type_find() in src/server/quad_index.c: the name
+    lookup compared string-literal POINTERS (quad_static_defs[d].pub.name ==
+    name). Across translation units that identity holds only as a lucky
+    consequence of linker .rodata.str1.1 merging - true at -O3, false at
+    -O0 - so in every Debug/ASan build (the new CI matrix runs gcc/clang x
+    Release/Debug with ASan+UBSan on ctest) the lookup missed all 62 names
+    and the quad_index test crashed with a NULL descriptor dereference in
+    qi_seed. The fix is strcmp() plus the missing <string.h> include. The
+    function has no production callers (test support only), so this is a
+    CI-green fix, not a gameplay change: Release and Debug/ASan matrices
+    are now 12/12.
+* Sun Oct 11 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.11.01
+  - Test suite (fuzz, golden, benchmark): integrated test tree expanded from
+    9 to 12 tests across both integrated (build/) and standalone (build-tests/)
+    modes. Added fuzz_corpus_test regression runner under ASan/UBSan with SIGPIPE
+    protection, headless golden render test (CPU vs GDD parity and GDD golden
+    regression pin), and gdd_bench median runtime check against thresholds.
+  - CI & Compliance: fixed POSIX SHM name in GitHub Actions workflow to
+    /sg_golden_shm; aligned documentation across man pages, DEVELOPMENT.md,
+    README.md, CMakeLists.txt and spacegl.spec comments (test count 9 -> 12).
+    Updated SECURITY.md threat model and audit registry. Full clean build with
+    zero warnings, cppcheck, and rpmlint clean.
+
+* Sat Oct 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.10.03
+  - Refactoring: completed physical extraction of drawing tables and command
+    handlers from monster files (commands.c, spacegl_vulkan.c,
+    spacegl_3dview.c) into dedicated .inc inclusion files, drastically
+    reducing file size and diff noise without altering static boundaries.
+
+* Sat Oct 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.10.02
+  - QA (Fuzzing): Added libFuzzer/AFL harness for network packet parsers
+    (net.c and handle_* commands) to secure the main attack surface.
+  - Rendering (SSOT): Extracted visual mapping into a shared table
+    (spacegl_visual_mapping.h) used by both CPU path and GDD path to
+    guarantee structural parity and prevent drift.
+  - Refactoring: Split monster files (commands.c, spacegl_vulkan.c,
+    spacegl_3dview.c) by moving drawing tables and command handler groups
+    into separate files, improving diffs and reviews without changing logic.
+  - Tests (Golden): Added CPU/GDD golden-image test parity with pixel-diff
+    and an MSAA-aware tolerance threshold to guarantee visual equivalence.
+
+* Sat Oct 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.10.02
+  - Core: ci update.
+
+* Sat Oct 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.10.01
+  - Core (lookup): introduced typed accessors (player_by_id, npc_by_id, etc.)
+    in server_internal.h to enforce global range checks across all target
+    resolution paths, replacing scattered array validations.
+  - CI (automation): added GitHub Actions workflow for gcc/clang builds,
+    including automated tests, cppcheck, and rpmlint. Debug builds now
+    integrate ASan and UBSan flags. Added an end-to-end headless smoke
+    test in the client (firing random dummy commands) and registered GDD
+    pass benchmarks to track performance regressions over time.
+  - Server (commands): fixed -Wformat-truncation snprintf warnings.
+
 * Fri Oct 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.09.03
   - GDD contract (layout): the CPU/GPU boundary contract is now pinned
     FIELD BY FIELD, not just by size. include/spacegl_gdd.h gains the

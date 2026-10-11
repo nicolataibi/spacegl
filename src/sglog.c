@@ -37,7 +37,10 @@
 #define SGLOG_LINE_BUF      4096
 #define SGLOG_RATE_SLOTS    16
 
-static atomic_int sg_threshold = (atomic_int)SG_SEV_INFO; /* C23: no ATOMIC_INIT */
+/* C23: no ATOMIC_INIT; a static atomic is initialized with a plain
+ * constant of the value type (clang rejects the compound-literal cast
+ * form "(atomic_int)x" as an invalid static initializer). */
+static atomic_int sg_threshold = SG_SEV_INFO;
 static char       sg_tag[SGLOG_TAG_LEN] = "";
 static char       sg_cats[SGLOG_MAX_CATS][SGLOG_CAT_LEN];
 static int        sg_cat_count = 0;             /* 0 = all categories */

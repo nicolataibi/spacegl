@@ -81,7 +81,7 @@ cmake --build build -j
 
 ## 3. Running the test suite
 
-The suite has **9 tests**, built in two equivalent modes:
+The suite has **12 tests**, built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
@@ -94,6 +94,9 @@ The suite has **9 tests**, built in two equivalent modes:
 | 7 | `crypto_table` | B5: shared radio cipher table, slot→cipher contract, round-trip on all slots | `include/radio_crypto.h` |
 | 8 | `target_bounds` | `tid`/`target_id` clamps on `players[]` (ASan/UBSan, canary global) | `src/server/commands.c` + `logic.c` + `nav_math.c` + `targets.c` |
 | 9 | `vec_thrust` | the `vec` command contract (ASan/UBSan, same scaffolding) | same as 8 |
+| 10 | `fuzz_corpus` | packet dispatcher / session stream fuzzing seeds under ASan/UBSan | `src/server/packets.c` + `net.c` + `conn.c` |
+| 11 | `golden` | CPU-vs-GDD render parity & GDD golden regression pin (integrated only) | `src/spacegl_vulkan.c` + `src/spacegl_vulkan_gdd.c` |
+| 12 | `gdd_bench` | GDD cull/expand/final compute pass runtime benchmark against thresholds | `src/spacegl_vulkan_gdd.c` (via `gdd_mesh_test`) |
 
 ### 3.1 Integrated mode (default)
 

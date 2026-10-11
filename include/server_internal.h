@@ -913,6 +913,7 @@ extern NPCPlasmaStorm plasma_storms[MAX_PLASMA_STORMS];
 extern NPCOrbitalRing orbital_rings[MAX_ORBITAL_RINGS];
 extern NPCTimeAnomaly time_anomalies[MAX_TIME_ANOMALIES];
 extern NPCVoidCrystal void_crystals[MAX_VOID_CRYSTALS];
+
 extern NPCSubspaceAnomaly subspace_anomalies[MAX_SUBSPACE_ANOMALIES];
 
 extern NPCDiffuseNebula diffuse_nebulae[MAX_DIFFUSE_NEBULAE];
@@ -959,6 +960,7 @@ extern NPCCosmicFeature cosmic_features[MAX_COSMIC_FEATURES];
 extern int cosmic_feature_count;
 
 extern PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
+
 extern ConnectedPlayer players[MAX_CLIENTS];
 extern SpaceGLGame spacegl_master;
 extern pthread_mutex_t game_mutex;
@@ -1217,5 +1219,26 @@ int write_all(int fd, const void *buf, size_t len);
 extern char g_data_dir[SERVER_DATA_DIR_MAX];
 void server_set_data_dir(const char *dir);
 void server_data_path(char *out, size_t out_len, const char *rel);
+
+static inline ConnectedPlayer *player_by_id(int id) {
+    if (id < 1 || id > MAX_CLIENTS) return NULL;
+    return &players[id - 1];
+}
+static inline NPCShip *npc_by_id(int id) {
+    if (id < GALAXY_OBJECT_MIN_NPC || id > GALAXY_OBJECT_MAX_NPC) return NULL;
+    return &npcs[id - GALAXY_OBJECT_MIN_NPC];
+}
+static inline NPCPlanet *planet_by_id(int id) {
+    if (id < GALAXY_OBJECT_MIN_PLANET || id > GALAXY_OBJECT_MAX_PLANET) return NULL;
+    return &planets[id - GALAXY_OBJECT_MIN_PLANET];
+}
+static inline NPCBase *base_by_id(int id) {
+    if (id < GALAXY_OBJECT_MIN_STARBASE || id > GALAXY_OBJECT_MAX_STARBASE) return NULL;
+    return &bases[id - GALAXY_OBJECT_MIN_STARBASE];
+}
+static inline NPCStar *star_by_id(int id) {
+    if (id < GALAXY_OBJECT_MIN_STAR || id > GALAXY_OBJECT_MAX_STAR) return NULL;
+    return &stars_data[id - GALAXY_OBJECT_MIN_STAR];
+}
 
 #endif

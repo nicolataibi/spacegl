@@ -585,7 +585,7 @@ The scene fragment shader (`gdd_scene.frag`) re-implements the procedural color 
 | `tests/gdd_contract_test.c` | CPU-side contract test (no device): struct sizes, per-field offsets and vec4 16-byte alignment (the layout contract), flag round-trip, builder against synthetic scenes. |
 | `tests/gdd_mesh_test.c` | Headless GPU compute test: runs the real SPIR-V, compares readback bit-exactly vs a `-ffp-contract=off` CPU mirror (exit 77 = skip when no ICD/SPV). |
 
-Build and run the test suite. The suite has **two equivalent modes** — integrated into the main build (default, 9 tests alongside the 8 product targets) or standalone (the `tests/` project is self-contained and pulls the production sources straight from `../src`):
+Build and run the test suite. The suite has **two equivalent modes** — integrated into the main build (default, 12 tests alongside the 8 product targets) or standalone (the `tests/` project is self-contained and pulls the production sources straight from `../src`):
 
 ```bash
 # Integrated (the main build already configured/built)

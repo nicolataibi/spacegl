@@ -47,6 +47,7 @@
 
 #include "quad_index.h"
 #include <stddef.h>
+#include <string.h>
 
 typedef struct {
     QuadStaticTypeInfo pub;
@@ -194,7 +195,13 @@ const QuadStaticTypeInfo *quad_index_static_type_info(int index)
 
 int quad_index_static_type_find(const char *name)
 {
+    /* strcmp, NOT pointer identity: the caller passes a string literal
+     * from ITS OWN translation unit (the test suite), and pointer
+     * equality of string literals across translation units is only a
+     * lucky consequence of linker .rodata.str1.1 merging — it holds
+     * at -O3 but not at -O0, so the old `==` made the name lookup
+     * fail (and the seed dereference crash) in every Debug/ASan build. */
     for (int d = 0; d < QI_STATIC_TYPE_COUNT; d++)
-        if (quad_static_defs[d].pub.name == name) return d;
+        if (strcmp(quad_static_defs[d].pub.name, name) == 0) return d;
     return -1;
 }

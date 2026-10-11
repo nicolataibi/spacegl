@@ -201,6 +201,8 @@ typedef struct VulkanApp {
     VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT];
     VkSemaphore imageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT]; VkSemaphore renderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
     VkFence inFlightFences[MAX_FRAMES_IN_FLIGHT]; uint32_t currentFrame;
+    uint32_t lastFrameSlot;   /* slot of the frame just rendered (either path) */
+    uint32_t lastImgIdx;      /* swapchain image index of that frame (--screenshot) */
     SharedIPC* shm; int shm_fd; float angleY; float angleX; float cameraDist; bool autoRotate;
     ActiveBeam activeBeams[MAX_ACTIVE_BEAMS]; ActiveBoom activeBooms[MAX_ACTIVE_BOOMS];
     ActiveDismantle activeDismantles[MAX_ACTIVE_DISMANTLES];

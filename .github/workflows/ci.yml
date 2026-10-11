@@ -1,0 +1,252 @@
+name: SpaceGL CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# NOTE: the dependency list below is repeated per job on purpose
+# (GitHub Actions job-level env is not shared across jobs, and a folded
+# scalar in an exported env var is a footgun for word splitting).
+# mesa-vulkan-drivers provides the lavapipe (lvp) Vulkan ICD, which is
+# what makes gdd_mesh / gdd_bench / the golden render actually RUN on
+# the runner instead of skipping with exit 77.
+
+jobs:
+  # ====================================================================
+  # Full build + test matrix: gcc/clang x Release/Debug. Debug builds
+  # carry ASan+UBSan on every target (the server boundary tests are
+  # always instrumented, in both build types).
+  # ====================================================================
+  build_and_test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+        build_type: [Release, Debug]
+    env:
+      CC: ${{ matrix.compiler }}
+      CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ clang libomp-dev pkgconf \
+            libglfw3-dev libglew-dev libglu1-mesa-dev \
+            libssl-dev libncurses-dev \
+            libvulkan-dev vulkan-tools vulkan-validationlayers \
+            mesa-vulkan-drivers glslc spirv-tools \
+            cppcheck rpm rpmlint \
+            python3 python3-pil
+
+      - name: Configure CMake
+        run: |
+          if [ "${{ matrix.build_type }}" = "Debug" ]; then
+            # ASan+UBSan on every TU (for a C project CMake passes
+            # CMAKE_C_FLAGS through to the compiler driver at link time).
+            cmake -B build \
+              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          else
+            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          fi
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Run test suite (ctest)
+        working-directory: build
+        run: ctest --output-on-failure
+
+      - name: Run CppCheck
+        run: |
+          cppcheck -I include --enable=warning,portability,performance \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            --suppress=unknownMacro \
+            --suppress=intToPointerCast \
+            --inline-suppr \
+            --error-exitcode=1 src/ tests/
+
+      - name: Run rpmlint
+        run: rpmlint spacegl.spec
+
+  # ====================================================================
+  # Smoke: the REAL binaries with REAL flags. No dummy --headless
+  # switches: the server is started with its actual --data-dir flag,
+  # the client is the actual command deck driven through stdin exactly
+  # like a human (IP, name, access code, faction, class), and the
+  # assertions check what the two endpoints really print on the wire.
+  # ====================================================================
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ clang libomp-dev pkgconf \
+            libglfw3-dev libglew-dev libglu1-mesa-dev \
+            libssl-dev libncurses-dev \
+            libvulkan-dev vulkan-tools vulkan-validationlayers \
+            mesa-vulkan-drivers glslc spirv-tools
+
+      - name: Build (Release)
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(nproc)"
+
+      - name: Version flags (real binaries, real --version)
+        run: |
+          ./build/spacegl_server --version
+          ./build/spacegl_client --version
+
+      - name: End-to-end smoke on 127.0.0.1:5000
+        run: |
+          set -euo pipefail
+          export SPACEGL_KEY="ci-smoke-shared-master-key-000000"
+          DATA="$(mktemp -d)"
+          ./build/spacegl_server --data-dir "$DATA" >server.log 2>&1 &
+          SERVER_PID=$!
+          # Wait for the real TCP listener (port 5000 = DEFAULT_PORT).
+          for _ in $(seq 1 75); do
+            if (exec 3<>/dev/tcp/127.0.0.1/5000) 2>/dev/null; then break; fi
+            sleep 0.2
+          done
+          (exec 3<>/dev/tcp/127.0.0.1/5000) 2>/dev/null || {
+            echo "FAIL: server port 5000 never opened"; cat server.log; exit 1; }
+          # The real client (command deck), fresh recruit: the five
+          # interactive answers piped in the exact prompted order.
+          # No DISPLAY on the runner: the deck survives the visualizer
+          # failure in CLI-only mode (the assertions below cover that
+          # path plus the handshake/login/sync round-trip).
+          printf '127.0.0.1\nCI_SMOKE\ns3cr3t-access-code\n0\n0\n' | \
+            timeout 25 ./build/spacegl_client >client.log 2>&1 || true
+          kill "$SERVER_PID" 2>/dev/null || true
+          wait "$SERVER_PID" 2>/dev/null || true
+          echo "--- server.log (tail) ---"; tail -n 20 server.log
+          echo "--- client.log (tail) ---"; tail -n 20 client.log
+          grep -q "listening on port 5000" server.log
+          grep -q "Galaxy Map synchronized" client.log
+          grep -q "Welcome aboard, new Captain" client.log
+          grep -q "Command Deck ready" client.log
+          # The login must have persisted the captain in the data dir.
+          test -d "$DATA/captains/CI_SMOKE"
+
+  # ====================================================================
+  # Fuzz: the REAL libFuzzer harness (tests/fuzz_packets.c) driving
+  # dispatch_packet() + the command parser over a socketpair, seeded
+  # from tests/fuzz/corpus. clang is the fuzzer compiler (libFuzzer is
+  # a clang/LLVM feature); the same harness also runs as a plain corpus
+  # regression (fuzz_corpus_test, ASan/UBSan) inside ctest on EVERY
+  # matrix job, gcc included.
+  # ====================================================================
+  fuzz:
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ clang libomp-dev pkgconf \
+            libglfw3-dev libglew-dev libglu1-mesa-dev \
+            libssl-dev libncurses-dev \
+            libvulkan-dev vulkan-tools vulkan-validationlayers \
+            mesa-vulkan-drivers glslc spirv-tools
+
+      - name: Configure (clang + libFuzzer)
+        run: cmake -B build-fuzz -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build fuzz target
+        run: cmake --build build-fuzz --target fuzz_packets -j"$(nproc)"
+
+      - name: Run libFuzzer (4-minute budget, seeded corpus)
+        run: |
+          # libFuzzer exits 0 on a clean time budget and non-zero when
+          # it finds a regression; the corpus dir is the seed corpus AND
+          # the minimal unit dir (a new crash re-runs deterministically).
+          timeout 300 ./build-fuzz/tests/fuzz_packets \
+            tests/fuzz/corpus -max_total_time=240 -rss_limit_gb=2
+
+  # ====================================================================
+  # GPU: the GDD per-pass benchmark with the committed regression
+  # threshold, and the golden render: screenshots of BOTH render paths
+  # (CPU-driven and GPU-driven, one binary / SPACEGL_GPD switch)
+  # compared with tests/golden_test.py against each other and against
+  # the committed golden image. Runs on the lavapipe ICD; xvfb stands
+  # in for a display (the viewer creates a real GLFW window).
+  # ====================================================================
+  gpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ clang libomp-dev pkgconf \
+            libglfw3-dev libglew-dev libglu1-mesa-dev \
+            libssl-dev libncurses-dev \
+            libvulkan-dev vulkan-tools vulkan-validationlayers \
+            mesa-vulkan-drivers glslc spirv-tools \
+            python3 python3-pil \
+            xvfb
+
+      - name: Build (Release)
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(nproc)"
+
+      - name: GDD benchmark (time per pass + regression threshold)
+        run: |
+          ./build/tests/gdd_mesh_test ./build/shaders \
+            --benchmark 100 tests/gdd_bench_thresholds.txt
+
+      - name: Golden render (CPU + GDD paths, deterministic flags)
+        run: |
+          set -euo pipefail
+          # Fixed seed, no camera drift, fixed window: frame 30 of a
+          # headless render must be reproducible (modulo MSAA noise).
+          # The SHM name (first argument) does not name an existing
+          # segment: the viewer creates it EMPTY, which is exactly the
+          # scene both render paths must agree on (starfield + empty
+          # tactical state, no session involved).
+          xvfb-run -a env SPACEGL_GPD=0 ./build/spacegl_vulkan /sg_golden_shm \
+            --window 640x480 --seed 1 --no-rotate \
+            --screenshot /tmp/golden_cpu.ppm --screenshot-frame 30
+          xvfb-run -a env SPACEGL_GPD=1 ./build/spacegl_vulkan /sg_golden_shm \
+            --window 640x480 --seed 1 --no-rotate \
+            --screenshot /tmp/golden_gdd.ppm --screenshot-frame 30
+          # 1. The two paths of the SAME binary must render parity.
+          #    Tolerance 25.0 (NOT the 2.5 MSAA-noise tolerance): the
+          #    starfield is identical geometry/data on both paths but is
+          #    rasterized with different primitives (CPU TWINKLE mesh vs
+          #    GDD point sprite), so the cross-path RMSE floor is ~18.
+          #    25.0 still fails a dead/desynced path (black vs scene is
+          #    RMSE ~31) while tolerating the known star-shape delta.
+          python3 tests/golden_test.py /tmp/golden_cpu.ppm /tmp/golden_gdd.ppm 25.0
+          # 2. The GDD path must match the committed golden image
+          #    (same path vs same path: the real regression pin).
+          python3 tests/golden_test.py /tmp/golden_gdd.ppm tests/golden/golden_gdd.ppm 5.0
+
+      - name: Upload golden captures (artifacts)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-captures
+          path: |
+            /tmp/golden_cpu.ppm
+            /tmp/golden_gdd.ppm

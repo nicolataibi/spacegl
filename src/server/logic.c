@@ -754,11 +754,12 @@ void update_game_logic() {
             if (pq1 != players[i].last_q1 || pq2 != players[i].last_q2 || pq3 != players[i].last_q3) {
                 /* Quadrant change: release lock automatically */
                 valid = false;
-            } else if (tid >= 1 && tid <= MAX_CLIENTS) { 
-                if (players[tid - 1].active && 
-                    players[tid - 1].state.q1 == pq1 && 
-                    players[tid - 1].state.q2 == pq2 && 
-                    players[tid - 1].state.q3 == pq3) {
+            } else if (player_by_id(tid) != NULL) { 
+                ConnectedPlayer *target_p = player_by_id(tid);
+                if (target_p->active && 
+                    target_p->state.q1 == pq1 && 
+                    target_p->state.q2 == pq2 && 
+                    target_p->state.q3 == pq3) {
                     valid = true; 
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_PROBE && tid <= GALAXY_OBJECT_MAX_PROBE) {
@@ -1052,18 +1053,20 @@ void update_game_logic() {
             int q2 = players[i].state.q2;
             int q3 = players[i].state.q3;
             
-            if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= GALAXY_OBJECT_MAX_PLAYER) { 
-                if (tid <= MAX_CLIENTS && players[tid - 1].active) {
-                    tx = players[tid - 1].gx;
-                    ty = players[tid - 1].gy;
-                    tz = players[tid - 1].gz;
+            ConnectedPlayer *target_p = player_by_id(tid);
+            NPCShip *target_npc = npc_by_id(tid);
+            if (target_p) { 
+                if (target_p->active) {
+                    tx = target_p->gx;
+                    ty = target_p->gy;
+                    tz = target_p->gz;
                     found = true;
                 } 
-            } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) { 
-                if (npcs[tid - GALAXY_OBJECT_MIN_NPC].active) {
-                    tx = npcs[tid - GALAXY_OBJECT_MIN_NPC].gx;
-                    ty = npcs[tid - GALAXY_OBJECT_MIN_NPC].gy;
-                    tz = npcs[tid - GALAXY_OBJECT_MIN_NPC].gz;
+            } else if (target_npc) { 
+                if (target_npc->active) {
+                    tx = target_npc->gx;
+                    ty = target_npc->gy;
+                    tz = target_npc->gz;
                     found = true;
                 } 
             } else {
@@ -1308,8 +1311,9 @@ void update_game_logic() {
                 double dz = tz - players[i].gz;
                 double dist = sqrt(dx * dx + dy * dy + dz * dz);
                 double target_dist = 2.0; /* Default chase distance */
-                if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC) {
-                    target_dist = (npcs[tid - GALAXY_OBJECT_MIN_NPC].health > (YIELD_MINE_MAX)) ? 3.0 : 1.5;
+                NPCShip *target_npc = npc_by_id(tid);
+                if (target_npc) {
+                    target_dist = (target_npc->health > (YIELD_MINE_MAX)) ? 3.0 : 1.5;
                 } else if (tid >= GALAXY_OBJECT_MIN_COMET && tid <= GALAXY_OBJECT_MAX_COMET) {
                     target_dist = 0.5; /* Harvesting range for comets */
                 } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER) {
@@ -1409,22 +1413,27 @@ void update_game_logic() {
             double target_gx = -1.0, target_gy = -1.0, target_gz = -1.0;
             int tid = pt->target_id; 
             
-            if (tid >= GALAXY_OBJECT_MIN_PLAYER && tid <= MAX_CLIENTS && players[tid-1].active) { 
-                target_gx = players[tid-1].gx; target_gy = players[tid-1].gy; target_gz = players[tid-1].gz; 
-            } else if (tid >= GALAXY_OBJECT_MIN_NPC && tid <= GALAXY_OBJECT_MAX_NPC && npcs[tid-GALAXY_OBJECT_MIN_NPC].active) { 
-                target_gx = npcs[tid-GALAXY_OBJECT_MIN_NPC].gx; target_gy = npcs[tid-GALAXY_OBJECT_MIN_NPC].gy; target_gz = npcs[tid-GALAXY_OBJECT_MIN_NPC].gz; 
-            } else if (tid >= GALAXY_OBJECT_MIN_STARBASE && tid <= GALAXY_OBJECT_MAX_STARBASE && bases[tid-GALAXY_OBJECT_MIN_STARBASE].active) { 
-                target_gx = (bases[tid-GALAXY_OBJECT_MIN_STARBASE].q1-1)*QUADRANT_SIZE + bases[tid-GALAXY_OBJECT_MIN_STARBASE].x; 
-                target_gy = (bases[tid-GALAXY_OBJECT_MIN_STARBASE].q2-1)*QUADRANT_SIZE + bases[tid-GALAXY_OBJECT_MIN_STARBASE].y; 
-                target_gz = (bases[tid-GALAXY_OBJECT_MIN_STARBASE].q3-1)*QUADRANT_SIZE + bases[tid-GALAXY_OBJECT_MIN_STARBASE].z; 
-            } else if (tid >= GALAXY_OBJECT_MIN_PLANET && tid <= GALAXY_OBJECT_MAX_PLANET && planets[tid-GALAXY_OBJECT_MIN_PLANET].active) { 
-                target_gx = (planets[tid-GALAXY_OBJECT_MIN_PLANET].q1-1)*QUADRANT_SIZE + planets[tid-GALAXY_OBJECT_MIN_PLANET].x; 
-                target_gy = (planets[tid-GALAXY_OBJECT_MIN_PLANET].q2-1)*QUADRANT_SIZE + planets[tid-GALAXY_OBJECT_MIN_PLANET].y; 
-                target_gz = (planets[tid-GALAXY_OBJECT_MIN_PLANET].q3-1)*QUADRANT_SIZE + planets[tid-GALAXY_OBJECT_MIN_PLANET].z; 
-            } else if (tid >= GALAXY_OBJECT_MIN_STAR && tid <= GALAXY_OBJECT_MAX_STAR && stars_data[tid-GALAXY_OBJECT_MIN_STAR].active) { 
-                target_gx = (stars_data[tid-GALAXY_OBJECT_MIN_STAR].q1-1)*QUADRANT_SIZE + stars_data[tid-GALAXY_OBJECT_MIN_STAR].x; 
-                target_gy = (stars_data[tid-GALAXY_OBJECT_MIN_STAR].q2-1)*QUADRANT_SIZE + stars_data[tid-GALAXY_OBJECT_MIN_STAR].y; 
-                target_gz = (stars_data[tid-GALAXY_OBJECT_MIN_STAR].q3-1)*QUADRANT_SIZE + stars_data[tid-GALAXY_OBJECT_MIN_STAR].z; 
+            ConnectedPlayer *target_p = player_by_id(tid);
+            NPCShip *target_n = npc_by_id(tid);
+            NPCBase *target_b = base_by_id(tid);
+            NPCPlanet *target_pl = planet_by_id(tid);
+            NPCStar *target_st = star_by_id(tid);
+            if (target_p && target_p->active) { 
+                target_gx = target_p->gx; target_gy = target_p->gy; target_gz = target_p->gz; 
+            } else if (target_n && target_n->active) { 
+                target_gx = target_n->gx; target_gy = target_n->gy; target_gz = target_n->gz; 
+            } else if (target_b && target_b->active) { 
+                target_gx = (target_b->q1-1)*QUADRANT_SIZE + target_b->x; 
+                target_gy = (target_b->q2-1)*QUADRANT_SIZE + target_b->y; 
+                target_gz = (target_b->q3-1)*QUADRANT_SIZE + target_b->z; 
+            } else if (target_pl && target_pl->active) { 
+                target_gx = (target_pl->q1-1)*QUADRANT_SIZE + target_pl->x; 
+                target_gy = (target_pl->q2-1)*QUADRANT_SIZE + target_pl->y; 
+                target_gz = (target_pl->q3-1)*QUADRANT_SIZE + target_pl->z; 
+            } else if (target_st && target_st->active) { 
+                target_gx = (target_st->q1-1)*QUADRANT_SIZE + target_st->x; 
+                target_gy = (target_st->q2-1)*QUADRANT_SIZE + target_st->y; 
+                target_gz = (target_st->q3-1)*QUADRANT_SIZE + target_st->z; 
             } else if (tid >= GALAXY_OBJECT_MIN_COMET && tid <= GALAXY_OBJECT_MAX_COMET && comets[tid-GALAXY_OBJECT_MIN_COMET].active) { 
                 target_gx = (comets[tid-GALAXY_OBJECT_MIN_COMET].q1-1)*QUADRANT_SIZE + comets[tid-GALAXY_OBJECT_MIN_COMET].x; 
                 target_gy = (comets[tid-GALAXY_OBJECT_MIN_COMET].q2-1)*QUADRANT_SIZE + comets[tid-GALAXY_OBJECT_MIN_COMET].y; 
@@ -1510,9 +1519,9 @@ void update_game_logic() {
         if (hit) {
             #pragma omp critical
             {
-                if (hit_target >= GALAXY_OBJECT_MIN_PLAYER && hit_target <= MAX_CLIENTS) {
-                    ConnectedPlayer *p = &players[hit_target - 1];
-
+                ConnectedPlayer *p = player_by_id(hit_target);
+                NPCShip *target_npc = npc_by_id(hit_target);
+                if (p) {
                     int s_idx = calculate_shield_index(pt->gx, pt->gy, pt->gz,
                                                        p->gx, p->gy, p->gz,
                                                        p->state.van_h, p->state.van_m, p->state.van_r);
@@ -1545,9 +1554,9 @@ void update_game_logic() {
                     
                     p->shield_regen_delay = (3 * GAME_TICK_RATE);
                     send_server_msg(hit_target - 1, "WARNING", "TORPEDO IMPACT DETECTED!");
-                } else if (hit_target >= GALAXY_OBJECT_MIN_NPC) {
-                    npcs[hit_target - GALAXY_OBJECT_MIN_NPC].health -= (DMG_TORPEDO / YIELD_HARVEST_MAX);
-                    if (npcs[hit_target - GALAXY_OBJECT_MIN_NPC].health <= 0) npcs[hit_target - GALAXY_OBJECT_MIN_NPC].death_timer = GAME_TICK_RATE;
+                } else if (target_npc) {
+                    target_npc->health -= (DMG_TORPEDO / YIELD_HARVEST_MAX);
+                    if (target_npc->health <= 0) target_npc->death_timer = GAME_TICK_RATE;
                 }
                 broadcast_server_event(pt->q1, pt->q2, pt->q3, IPC_EV_BOOM, pt->x, pt->y, pt->z, 0, 0, 0, IPC_TORPEDO_ID_OFFSET + t); 
             }

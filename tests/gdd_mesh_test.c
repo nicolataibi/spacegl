@@ -1,3 +1,4 @@
+#include <time.h>
 /*
  * SPACE GL - GPU-DRIVEN RENDERING (GDD) - headless Vulkan compute test.
  * Copyright (C) 2026 Nicola Taibi
@@ -41,8 +42,14 @@
  *                  full, same policy as the legacy CPU path) and the
  *                  final indirect must remain consistent.
  *
- * Usage:  gdd_mesh_test [spv_dir]      (default: ./build/shaders)
- * Exit:   0 = pass, 1 = fail, 77 = skip (no Vulkan ICD / missing .spv).
+ * Usage:  gdd_mesh_test [spv_dir] [--benchmark [runs] [threshold_file]]
+ *         (spv_dir default: ./build/shaders)
+ * Exit:   0 = pass, 1 = fail, 2 = benchmark regression,
+ *         77 = skip (no Vulkan ICD / missing .spv).
+ * --benchmark switches to per-pass benchmark mode: median ms of the
+ * cull/expand/final passes over `runs` iterations (default 100), with
+ * an optional regression check against a threshold file ("pass ms")
+ * — see run_benchmark() and tests/gdd_bench_thresholds.txt.
  *
  * The CPU reference geometry intentionally mirrors gdd_ops.glsl — if
  * those change, update this file too (the contract struct comes from
@@ -967,6 +974,9 @@ static bool init_vulkan(void) {
     ps.descriptorCount = 3 * 3 + 2 * 4 + 2 * 2 + 8; /* slack */
     VkDescriptorPoolCreateInfo dpc = {0};
     dpc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    /* FREE_DESCRIPTOR_SET_BIT: cleanup_vulkan releases the sets per spec
+     * (vkFreeDescriptorSets is only valid on pools with this flag). */
+    dpc.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     dpc.maxSets = 8;
     dpc.poolSizeCount = 1;
     dpc.pPoolSizes = &ps;
@@ -1030,7 +1040,11 @@ static bool create_buffers_and_sets(void) {
     if (!make_buffer(2 * sizeof(VkDrawIndirectCommand),
                      ssbo | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
                      &b_indirect, &m_indirect, (void **)&u_indirect)) return false;
-    if (!make_buffer(GDD_COUNTS_STRIDE, ssbo, &b_counts, &m_counts, (void **)&u_counts)) return false;
+    /* The counts buffer is zeroed with vkCmdFillBuffer, which needs
+     * TRANSFER_DST in addition to STORAGE. */
+    if (!make_buffer(GDD_COUNTS_STRIDE,
+                     ssbo | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                     &b_counts, &m_counts, (void **)&u_counts)) return false;
 
     VkDescriptorSet sets[5];
     VkDescriptorSetLayout layouts[5] = { g_ds_cull, g_ds_cull, g_ds_exp, g_ds_exp, g_ds_final };
@@ -1057,7 +1071,11 @@ static bool create_buffers_and_sets(void) {
     bfin[0].buffer = b_indirect; bfin[0].offset = 0; bfin[0].range = 2 * sizeof(VkDrawIndirectCommand);
     bfin[1] = bi[2];
 
-    VkWriteDescriptorSet w[24];
+    /* Zero-initialized: pNext/flags are not set below, and a garbage
+     * pNext is a wild pointer that the validation layers (and any
+     * conformant driver) walk — that segfaulted this test the first
+     * time a layer-enabled run touched vkUpdateDescriptorSets. */
+    VkWriteDescriptorSet w[24] = {0};
     int n = 0;
     for (int k = 0; k < 3; k++) {
         w[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1095,7 +1113,14 @@ static bool create_buffers_and_sets(void) {
     return true;
 }
 
-/* One command buffer, submit, wait on a fence. */
+/* One command buffer, submit, wait on a fence. The wait budget is
+ * deliberately large (30 x 2 s = 60 s): with a COLD shader cache the
+ * software renderer (lavapipe) pays a one-time first-dispatch cost of
+ * ~10-30 s on the first expensive pass, and a fresh CI runner always
+ * starts cold (the warmup pass is exactly where that cost belongs).
+ * Steady-state passes take ~1 ms, so the budget only ever matters for
+ * that first pass; a genuinely wedged driver is still detected, just
+ * after 60 s. */
 static bool submit_wait(VkCommandBuffer cb) {
     VkSubmitInfo si = {0};
     si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1110,7 +1135,7 @@ static bool submit_wait(VkCommandBuffer cb) {
         return false;
     }
     bool ok = false;
-    for (int tries = 0; tries < 5; tries++) {
+    for (int tries = 0; tries < 30; tries++) {
         if (vkWaitForFences(g_dev, 1, &fence, VK_TRUE, 2000000000ULL) == VK_SUCCESS) {
             ok = true;
             break;
@@ -1130,6 +1155,93 @@ static bool begin_cb(VkCommandBuffer *cb) {
     VkCommandBufferBeginInfo bi = {0};
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     return check(vkBeginCommandBuffer(*cb, &bi), "begin cb");
+}
+
+/* Tear the whole context down on EVERY exit path after init succeeded.
+ * Without it the process exits with the device still alive: if a
+ * submission is still in flight (fence-wait budget exhausted) the
+ * driver's worker threads keep running during process teardown, which
+ * segfaults on lavapipe (the "Segmentation fault (core dumped)" right
+ * after "BENCH FAIL: warmup pass did not complete" in CI).
+ *
+ * Drain order: an empty sentinel submission completes only after all
+ * previously queued work has finished; the bounded wait keeps a
+ * genuinely wedged driver from blocking teardown forever. */
+static void cleanup_vulkan(void) {
+    if (!g_dev) return;
+
+    VkFence sentinel = VK_NULL_HANDLE;
+    VkFenceCreateInfo fci = {0};
+    fci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    if (vkCreateFence(g_dev, &fci, NULL, &sentinel) == VK_SUCCESS) {
+        VkCommandBuffer cb = VK_NULL_HANDLE;
+        VkCommandBufferAllocateInfo cai = {0};
+        cai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cai.commandPool = g_pool;
+        cai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cai.commandBufferCount = 1;
+        VkCommandBufferBeginInfo bi = {0};
+        bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        VkSubmitInfo si = {0};
+        si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        si.commandBufferCount = 1;
+        si.pCommandBuffers = &cb;
+        if (vkAllocateCommandBuffers(g_dev, &cai, &cb) == VK_SUCCESS &&
+            vkBeginCommandBuffer(cb, &bi) == VK_SUCCESS &&
+            vkEndCommandBuffer(cb) == VK_SUCCESS &&
+            vkQueueSubmit(g_queue, 1, &si, sentinel) == VK_SUCCESS) {
+            for (int tries = 0; tries < 30; tries++) {
+                if (vkWaitForFences(g_dev, 1, &sentinel, VK_TRUE, 2000000000ULL) == VK_SUCCESS)
+                    break;
+            }
+        }
+    }
+    vkDestroyFence(g_dev, sentinel, NULL);
+
+    /* Descriptor sets must be freed before their pool. Only the sets
+     * that were actually created: the statics are VK_NULL_HANDLE when
+     * create_buffers_and_sets failed part-way, and vkFreeDescriptorSets
+     * wants valid handles. */
+    const VkDescriptorSet all_sets[5] = {
+        set_cull_dyn, set_cull_map, set_exp_dyn, set_exp_map, set_final
+    };
+    VkDescriptorSet live[5];
+    int n_live = 0;
+    for (int i = 0; i < 5; i++)
+        if (all_sets[i] != VK_NULL_HANDLE) live[n_live++] = all_sets[i];
+    if (n_live > 0)
+        vkFreeDescriptorSets(g_dev, g_pool_desc, (uint32_t)n_live, live);
+    vkDestroyDescriptorPool(g_dev, g_pool_desc, NULL);
+    vkDestroyPipeline(g_dev, g_pipe_cull, NULL);
+    vkDestroyPipeline(g_dev, g_pipe_exp, NULL);
+    vkDestroyPipeline(g_dev, g_pipe_final, NULL);
+    vkDestroyPipelineLayout(g_dev, g_pl_cull, NULL);
+    vkDestroyPipelineLayout(g_dev, g_pl_exp, NULL);
+    vkDestroyPipelineLayout(g_dev, g_pl_final, NULL);
+    vkDestroyDescriptorSetLayout(g_dev, g_ds_cull, NULL);
+    vkDestroyDescriptorSetLayout(g_dev, g_ds_exp, NULL);
+    vkDestroyDescriptorSetLayout(g_dev, g_ds_final, NULL);
+    vkDestroyBuffer(g_dev, b_inst_dyn, NULL);  vkFreeMemory(g_dev, m_inst_dyn, NULL);
+    vkDestroyBuffer(g_dev, b_inst_map, NULL);  vkFreeMemory(g_dev, m_inst_map, NULL);
+    vkDestroyBuffer(g_dev, b_vis_dyn, NULL);   vkFreeMemory(g_dev, m_vis_dyn, NULL);
+    vkDestroyBuffer(g_dev, b_vis_map, NULL);   vkFreeMemory(g_dev, m_vis_map, NULL);
+    vkDestroyBuffer(g_dev, b_verts, NULL);     vkFreeMemory(g_dev, m_verts, NULL);
+    vkDestroyBuffer(g_dev, b_indirect, NULL);  vkFreeMemory(g_dev, m_indirect, NULL);
+    vkDestroyBuffer(g_dev, b_counts, NULL);    vkFreeMemory(g_dev, m_counts, NULL);
+    /* The pool destroy also frees every command buffer allocated from
+     * it (the per-pass buffers from begin_cb are intentionally pooled
+     * and never freed individually). */
+    vkDestroyCommandPool(g_dev, g_pool, NULL);
+    /* vkDestroyDevice is what joins the driver's worker threads (the
+     * segfault came from exiting while they were still running). */
+    vkDestroyDevice(g_dev, NULL);
+    /* Deliberately NOT vkDestroyInstance: loader 1.4.x orphans its
+     * one-time terminator_phys_devs block when the last instance is
+     * destroyed, which LeakSanitizer (the ASan CI job) reports as a
+     * 256-byte leak in the LOADER, not in this code. The instance
+     * state is reaped by the OS at process exit; everything that owns
+     * threads or device memory was destroyed above. */
+    g_dev = VK_NULL_HANDLE;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1466,29 +1578,138 @@ static bool run_final(void) {
 }
 
 /* ------------------------------------------------------------------ */
-/* main                                                                */
+/* Per-pass benchmark (2026.10.11.01)                                  */
+/*                                                                     */
+/* --benchmark [runs] [threshold_file]: times the three GDD compute    */
+/* passes (cull / expand / final) over `runs` iterations (default      */
+/* 100, warmup included) on the SAME test data as the contract stages  */
+/* (20 instances, the same scene the contract test verifies), reports  */
+/* the MEDIAN ms per pass (one fence-wait per pass, like the client    */
+/* submits each pass), and — when a threshold file is given — fails    */
+/* with exit 2 when a median exceeds its committed ceiling:            */
+/*                                                                     */
+/*     # comment                                                       */
+/*     cull 20.0                                                       */
+/*     expand 20.0                                                     */
+/*     final 20.0                                                      */
+/*                                                                     */
+/* The committed file (tests/gdd_bench_thresholds.txt) is sized for    */
+/* the CI software renderer (lavapipe): generous over the expected     */
+/* ~0.1-2 ms, so a real 10x regression trips it while a slow runner    */
+/* does not. On a real GPU the medians are ~100x under the ceiling.    */
+/* Exit: 0 = under thresholds, 2 = regression, 1 = infra failure,      */
+/* 77 = no ICD (handled by main before this runs).                     */
 /* ------------------------------------------------------------------ */
 
-int main(int argc, char **argv) {
-    if (argc > 1) {
-        strncpy(g_spv_dir, argv[1], sizeof(g_spv_dir) - 1);
-        g_spv_dir[sizeof(g_spv_dir) - 1] = 0;
-    }
+static double g_bench_cull[4096], g_bench_exp[4096], g_bench_final[4096];
 
-    printf("GDD mesh test (spv dir: %s)\n", g_spv_dir);
+static int cmp_d(const void *a, const void *b) {
+    double x = *(const double *)a, y = *(const double *)b;
+    return (x > y) - (x < y);
+}
 
-    if (!init_vulkan()) {
-        printf("SKIP: no Vulkan ICD / no graphics+compute queue family\n");
-        return 77;
-    }
-    if (!create_buffers_and_sets()) {
-        fprintf(stderr, "FAIL: buffer/descriptor setup\n");
+static double median_of(double *v, int n) {
+    qsort(v, (size_t)n, sizeof(double), cmp_d);
+    return n % 2 ? v[n / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
+}
+
+static double now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
+}
+
+static int run_benchmark(int runs, const char *thresh_file) {
+    if (runs < 1) runs = 1;
+    if (runs > 4096) runs = 4096;
+
+    /* Validate the context before any timing: a missing or half-built
+     * context must fail cleanly (exit 1), never by dereferencing an
+     * invalid handle mid-benchmark. */
+    if (!g_dev || !g_queue || !g_pipe_cull || !g_pipe_exp || !g_pipe_final) {
+        fprintf(stderr, "BENCH FAIL: invalid Vulkan state before timing\n");
         return 1;
     }
-    fill_test_data();
 
+    /* Warmup: clock gates / shader cache / the first dispatch are not
+     * representative of the steady state the client runs in. On a cold
+     * cache the first pass also pays the software renderer's one-time
+     * first-dispatch cost (submit_wait's 60 s budget covers it). A
+     * warmup that still fails after that budget is a real failure —
+     * exit 1, not a skip: skipping would silently disable the
+     * regression guard on exactly the runner it protects. */
+    if (!run_cull(8192) || !run_expand(8192) || !run_final()) {
+        fprintf(stderr, "BENCH FAIL: warmup pass did not complete\n");
+        return 1;
+    }
+
+    for (int i = 0; i < runs; i++) {
+        double t0 = now_ms();
+        if (!run_cull(8192)) { fprintf(stderr, "BENCH FAIL: cull run %d\n", i); return 1; }
+        g_bench_cull[i] = now_ms() - t0;
+        if (!run_expand(8192)) { fprintf(stderr, "BENCH FAIL: expand run %d\n", i); return 1; }
+        g_bench_exp[i] = now_ms() - t0 - g_bench_cull[i]; /* sequential: subtract */
+        double t2 = now_ms();
+        if (!run_final()) { fprintf(stderr, "BENCH FAIL: final run %d\n", i); return 1; }
+        g_bench_final[i] = now_ms() - t2;
+    }
+
+    double med_cull = median_of(g_bench_cull, runs);
+    double med_exp = median_of(g_bench_exp, runs);
+    double med_final = median_of(g_bench_final, runs);
+    printf("BENCH n=%d median_ms cull=%.4f expand=%.4f final=%.4f\n",
+           runs, med_cull, med_exp, med_final);
+
+    if (!thresh_file || !thresh_file[0]) return 0;
+
+    FILE *f = fopen(thresh_file, "r");
+    if (!f) {
+        fprintf(stderr, "BENCH FAIL: threshold file not found: %s\n", thresh_file);
+        return 1;
+    }
+    int regress = 0, checked = 0;
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        if (line[0] == '#' || line[0] == '\n') continue;
+        char nm[64] = {0};
+        double max_ms = 0.0;
+        if (sscanf(line, "%63s %lf", nm, &max_ms) != 2) continue;
+        if (strcmp(nm, "cull") == 0) {
+            checked++;
+            if (med_cull > max_ms) {
+                printf("BENCH FAIL: cull median %.4f ms > threshold %.4f ms\n", med_cull, max_ms);
+                regress = 1;
+            }
+        } else if (strcmp(nm, "expand") == 0) {
+            checked++;
+            if (med_exp > max_ms) {
+                printf("BENCH FAIL: expand median %.4f ms > threshold %.4f ms\n", med_exp, max_ms);
+                regress = 1;
+            }
+        } else if (strcmp(nm, "final") == 0) {
+            checked++;
+            if (med_final > max_ms) {
+                printf("BENCH FAIL: final median %.4f ms > threshold %.4f ms\n", med_final, max_ms);
+                regress = 1;
+            }
+        }
+    }
+    fclose(f);
+    if (checked == 0) {
+        fprintf(stderr, "BENCH FAIL: no known thresholds in %s\n", thresh_file);
+        return 1;
+    }
+    if (!regress) printf("BENCH thresholds OK (%s)\n", thresh_file);
+    return regress ? 2 : 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Contract mode (the default): the stages against the CPU reference   */
+/* ------------------------------------------------------------------ */
+
+static int run_contract(void) {
     /* ---------------- Stage 1: CULL ---------------- */
-    if (!run_cull(8192)) {
+    struct timespec t1, t2; clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_cull(8192)) {
         fprintf(stderr, "FAIL: cull stage did not complete\n");
         return 1;
     }
@@ -1529,9 +1750,9 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* ---------------- Stage 2: EXPAND ---------------- */
+    clock_gettime(CLOCK_MONOTONIC, &t2); printf("BENCHMARK: cull pass %f ms\n", (t2.tv_sec - t1.tv_sec)*1000.0 + (t2.tv_nsec - t1.tv_nsec)/1000000.0); /* ---------------- Stage 2: EXPAND ---------------- */
     memset(u_verts, 0, VMAX * sizeof(GddVertex));
-    if (!run_expand(8192)) {
+    clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_expand(8192)) {
         fprintf(stderr, "FAIL: expand stage did not complete\n");
         return 1;
     }
@@ -1548,7 +1769,7 @@ int main(int argc, char **argv) {
                     (double)v->local[0], (double)v->local[1], (double)v->local[2]);
         }
     }
-    /* Expected per-pass totals */
+    clock_gettime(CLOCK_MONOTONIC, &t2); printf("BENCHMARK: expand pass %f ms\n", (t2.tv_sec - t1.tv_sec)*1000.0 + (t2.tv_nsec - t1.tv_nsec)/1000000.0); /* Expected per-pass totals */
     uint32_t opaque_ref = 0, additive_ref = 0;
     GddVertex exp_block[1536]; /* max mesh vertex count (GDD_VCOUNT_BOOM) */
     static uint32_t used[VMAX];
@@ -1598,7 +1819,7 @@ int main(int argc, char **argv) {
             for (uint32_t k = 0; k < VMAX && printed < 5; k++) {
                 if (!used[k] && (u_verts[k].pos[0] != 0.0f || u_verts[k].pos[1] != 0.0f)) {
                     if (u_inst_dyn[i].color[0] > 0 && fabsf(u_verts[k].color[0] - u_inst_dyn[i].color[0]) > 0.001f) continue;
-                    fprintf(stderr, "  [%d] ", k);
+                    fprintf(stderr, "  [%u] ", (unsigned)k);
                     dump_vertex("", &u_verts[k]);
                     printed++;
                 }
@@ -1623,11 +1844,11 @@ int main(int argc, char **argv) {
           dyn_vis_ref + map_vis_ref, blocks_checked);
 
     /* ---------------- Stage 3: FINAL ---------------- */
-    if (!run_final()) {
+    clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_final()) {
         fprintf(stderr, "FAIL: final stage did not complete\n");
         return 1;
     }
-    CHECK(u_indirect[0].vertexCount == u_counts->opaque_verts,
+    clock_gettime(CLOCK_MONOTONIC, &t2); printf("BENCHMARK: final pass %f ms\n", (t2.tv_sec - t1.tv_sec)*1000.0 + (t2.tv_nsec - t1.tv_nsec)/1000000.0); CHECK(u_indirect[0].vertexCount == u_counts->opaque_verts,
           "indirect[0].vertexCount: %u vs %u",
           u_indirect[0].vertexCount, u_counts->opaque_verts);
     CHECK(u_indirect[0].instanceCount == 1 && u_indirect[0].firstVertex == 0 &&
@@ -1652,11 +1873,11 @@ int main(int argc, char **argv) {
     CHECK(g_tot <= cap, "guard: totals %u <= capacity %u", g_tot, cap);
     CHECK(g_tot < full_total,
           "guard: something dropped (%u < %u)", g_tot, (unsigned)full_total);
-    if (!run_final()) {
+    clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_final()) {
         fprintf(stderr, "FAIL: guard final stage did not complete\n");
         return 1;
     }
-    CHECK(u_indirect[0].vertexCount == u_counts->opaque_verts &&
+    clock_gettime(CLOCK_MONOTONIC, &t2); printf("BENCHMARK: final pass %f ms\n", (t2.tv_sec - t1.tv_sec)*1000.0 + (t2.tv_nsec - t1.tv_nsec)/1000000.0); CHECK(u_indirect[0].vertexCount == u_counts->opaque_verts &&
           u_indirect[1].vertexCount == u_counts->additive_verts,
           "guard: final consistent with counters");
 
@@ -1667,4 +1888,63 @@ int main(int argc, char **argv) {
     }
     printf("FAIL\n");
     return 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* main                                                                */
+/* ------------------------------------------------------------------ */
+
+int main(int argc, char **argv) {
+    /* Args: [spv_dir] [--benchmark [runs] [threshold_file]].
+     * --benchmark switches the binary from contract mode (the default,
+     * unchanged) to per-pass benchmark mode (see run_benchmark). */
+    int bench_mode = 0, bench_runs = 100;
+    const char *bench_thresh = NULL;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--benchmark") == 0) {
+            bench_mode = 1;
+            i++;
+            if (i < argc && argv[i][0] != '-') {
+                const char *a = argv[i];
+                int all_digits = (a[0] != '\0');
+                for (const char *p = a; *p; p++)
+                    if (*p < '0' || *p > '9') { all_digits = 0; break; }
+                if (all_digits) { bench_runs = atoi(a); i++; }
+            }
+            if (i < argc && argv[i][0] != '-') bench_thresh = argv[i];
+        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            printf("Usage: gdd_mesh_test [spv_dir] [--benchmark [runs] [threshold_file]]\n");
+            printf("  contract mode (default): the cull/expand/final stages vs CPU reference\n");
+            printf("  --benchmark: per-pass median ms (+ regression check vs threshold file)\n");
+            return 0;
+        } else {
+            strncpy(g_spv_dir, argv[i], sizeof(g_spv_dir) - 1);
+            g_spv_dir[sizeof(g_spv_dir) - 1] = 0;
+        }
+    }
+
+    printf("GDD mesh test (spv dir: %s)\n", g_spv_dir);
+
+    if (!init_vulkan()) {
+        /* No-op when no device was ever created (no ICD / no usable
+         * queue family); tears down the partial context when init
+         * failed after vkCreateDevice (e.g. a missing .spv). */
+        cleanup_vulkan();
+        printf("SKIP: no Vulkan ICD / no graphics+compute queue family\n");
+        return 77;
+    }
+    if (!create_buffers_and_sets()) {
+        fprintf(stderr, "FAIL: buffer/descriptor setup\n");
+        cleanup_vulkan();
+        return 1;
+    }
+    fill_test_data();
+
+    /* Single exit funnel: every result path tears the context down
+     * before returning (see cleanup_vulkan for why skipping this
+     * segfaults on lavapipe). */
+    int rc = bench_mode ? run_benchmark(bench_runs, bench_thresh)
+                        : run_contract();
+    cleanup_vulkan();
+    return rc;
 }

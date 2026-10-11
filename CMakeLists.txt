@@ -156,9 +156,21 @@ endforeach()
 
 add_custom_target(spacegl_shaders ALL DEPENDS ${SHADER_SPV_FILES})
 
+# libatomic: clang (unlike gcc) does not link it automatically, and its
+ # OpenMP codegen emits __atomic_* calls for `#pragma omp atomic` on
+ # 64-bit fields (logic.c energy drain) — with gcc the same symbols come
+ # from libgcc. Link it explicitly when the driver resolves it (shared
+ # resolution in cmake/SpaceGLAtomic.cmake) so the clang matrix legs
+ # (and the clang fuzz target) link.
+include(SpaceGLAtomic)
+spacegl_find_atomic_lib()
+
 # --- Definizione Target ---
 
 set(COMMON_LIBS Threads::Threads OpenMP::OpenMP_C OpenSSL::Crypto m rt)
+if(SG_ATOMIC_LIB)
+    list(APPEND COMMON_LIBS ${SG_ATOMIC_LIB})
+endif()
 
 # 1. spacegl_server
 # Explicit source list (no file(GLOB): a new file in src/server/ would
@@ -219,7 +231,7 @@ target_link_libraries(spacegl_diag ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 
 # --- Unit tests (tests/) ---
 # The test suite is part of the main build, gated by an option (default ON):
-# with it, the 9 unit tests are configured/built alongside the 8 product
+# with it, the 12 unit tests are configured/built alongside the 8 product
 # targets and run with `ctest --test-dir <build-dir>`. This is deliberate
 # gating, not a formality: gdd_mesh compares the gdd_*.spv that the
 # spacegl_shaders target just compiled against the CPU reference, so a

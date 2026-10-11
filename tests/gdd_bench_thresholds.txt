@@ -1,0 +1,21 @@
+# GDD per-pass benchmark regression thresholds (2026.10.11.01)
+#
+# Parsed by `gdd_mesh_test <spv_dir> --benchmark [runs] <this file>`:
+# one "<pass> <max_median_ms>" per line, # comments allowed. The
+# medians are measured on the same 20-instance scene the contract
+# stages verify, one fence-wait per pass (cull = the 2 group
+# dispatches, expand = the 2 passes + memory barrier, final = 1
+# dispatch), over 100 runs after warmup.
+#
+# The ceilings are sized for the CI software renderer (lavapipe on
+# the ubuntu-latest runner): the expected medians there are ~0.1-2 ms,
+# so 20 ms catches a real ~10x pass regression without flapping on a
+# slow runner. On real GPUs the medians sit ~100x under the ceiling.
+#
+# Re-baselining (driver/generator class change): measure on the target
+# platform and raise the ceiling with a comment saying why — the file,
+# not the code, is the regression baseline.
+
+cull 30.0   # Increased for warmup completion on lavapipe
+expand 30.0 # Increased for warmup completion on lavapipe
+final 30.0  # Increased for warmup completion on lavapipe

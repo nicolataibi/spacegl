@@ -2765,7 +2765,7 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
      * fixed-function line rasterizer + MSAA. Uses the ACTUAL camera position
      * (orbital / bridge blend), not cameraDist alone. */
     float fov = 45.0f * (1.0f - app->bridgeAnim) + 65.0f * app->bridgeAnim;
-    mat4 view; float cam_world[3];
+    mat4 view = {0}; float cam_world[3] = {0};
     gdd_compute_view(app, view, cam_world);
     float cam_dist = sqrtf(cam_world[0] * cam_world[0] +
                            cam_world[1] * cam_world[1] +
@@ -3062,6 +3062,8 @@ void gdd_draw_frame(VulkanApp *app) {
         return;
     }
 
+    app->lastFrameSlot = slot; /* --screenshot bookkeeping */
+    app->lastImgIdx = imgIdx;
     vkResetFences(app->device, 1, &app->inFlightFences[slot]);
     vkResetCommandBuffer(f->cmd, 0);
 

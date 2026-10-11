@@ -571,11 +571,11 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_SHIELDS) {
-        UpdateBlockShields b; memcpy(b.shields, upd->shields, sizeof(upd->shields));
+        UpdateBlockShields b = {0}; memcpy(b.shields, upd->shields, sizeof(upd->shields));
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_SYSTEMS) {
-        UpdateBlockSystems b; memcpy(b.system_health, upd->system_health, sizeof(upd->system_health));
+        UpdateBlockSystems b = {0}; memcpy(b.system_health, upd->system_health, sizeof(upd->system_health));
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_INTERNAL) {
@@ -615,7 +615,7 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_PROBES) {
-        UpdateBlockProbes b; memcpy(b.probes, upd->probes, sizeof(upd->probes));
+        UpdateBlockProbes b = {0}; memcpy(b.probes, upd->probes, sizeof(upd->probes));
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_OBJECTS) {

@@ -23,8 +23,26 @@ argument is specified. It can also be started independently to attach
 to an existing shared memory segment.
 .SH OPTIONS
 .TP
+.BI \-\-screenshot " FILE"
+Capture the backbuffer of frame N as PPM and exit.
+.TP
+.BI \-\-screenshot\-frame " N"
+Frame to capture (default 30).
+.TP
+.BI \-\-seed " N"
+Fixed RNG seed for deterministic starfield generation (golden render test).
+.TP
+.B \-\-no\-rotate
+Disable the automatic camera orbit.
+.TP
+.BI \-\-window " WxH"
+Window extent (default 1280x720).
+.TP
 .B \-\-version
 Print version information and exit.
+.TP
+.B \-h\fR,\fB \-\-help
+Print usage summary and exit.
 .SH FILES
 .TP
 .I /usr/bin/spacegl_vulkan

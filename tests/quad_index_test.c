@@ -334,7 +334,7 @@ static void test_table_contract(void)
         const QuadStaticTypeInfo *ti = quad_index_static_type_info(d);
         int known = 0;
         for (int e = 0; e < QI_EXPECT_COUNT; e++)
-            if (qi_expect[e].name == ti->name) { known = 1; break; }
+            if (strcmp(qi_expect[e].name, ti->name) == 0) { known = 1; break; }
         CHECK(known, "table: unexpected static type '%s' (not a static galactic type)",
               ti->name);
     }
