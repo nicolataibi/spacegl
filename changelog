@@ -1,3 +1,8 @@
+* Tue Oct 13 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.13.01
+  - CI / Packaging: defined fallback rpmautospec macros in CI runner environment
+    (~/.rpmmacros) to prevent unexpanded %autorelease and %autochangelog errors
+    during rpmlint execution on Ubuntu GitHub Actions runners.
+
 * Mon Oct 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.12.03
   - QA / Static Analysis: fixed duplicate VK_SHADER_STAGE_FRAGMENT_BIT in
     vkCmdPushConstants() pipeline bitmask in spacegl_vulkan.c (starfield mesh),

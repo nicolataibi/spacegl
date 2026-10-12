@@ -74,7 +74,12 @@ jobs:
             --error-exitcode=1 src/ tests/
 
       - name: Run rpmlint
-        run: rpmlint spacegl.spec
+        run: |
+          cat << 'EOF' > ~/.rpmmacros
+          %autorelease 1%{?dist}
+          %autochangelog %(cat changelog 2>/dev/null || echo "* Tue Oct 13 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - %{version}-%{release}\n- Package build")
+          EOF
+          rpmlint spacegl.spec
 
   # ====================================================================
   # Smoke: the REAL binaries with REAL flags. No dummy --headless

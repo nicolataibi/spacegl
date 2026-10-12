@@ -4114,7 +4114,7 @@ void cleanup(VulkanApp* app) {
 int main(int argc, char** argv) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--version") == 0) {
-            printf("spacegl_vulkan 2026.10.12.03\n");
+            printf("spacegl_vulkan 2026.10.13.01\n");
             return 0;
         }
     }
