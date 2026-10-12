@@ -1556,7 +1556,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
 #else
         stpc.usePushColor = 0; 
 #endif
-        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(stpc), &stpc);
+        vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(stpc), &stpc);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->starfieldVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->starfieldIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(cb, app->starfieldIndexCount, 1, 0, 0, 0);
@@ -4114,7 +4114,7 @@ void cleanup(VulkanApp* app) {
 int main(int argc, char** argv) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--version") == 0) {
-            printf("spacegl_vulkan 2026.10.12.02\n");
+            printf("spacegl_vulkan 2026.10.12.03\n");
             return 0;
         }
     }
