@@ -877,21 +877,21 @@ void createDepthResources(VulkanApp* app) {
 }
 
 void createInstance(VulkanApp* app) {
-    /* GPU-driven path (SPACEGL_GPD=1): the instance must expose the
-     * Vulkan 1.4 API (synchronization2 barriers, dynamic rendering
+    /* GPU-driven path (SPACEGL_GPD=1): the instance must expose at least the
+     * Vulkan 1.3 API (synchronization2 barriers, dynamic rendering
      * with per-attachment MSAA resolve, indirect draws). Query what
-     * the driver provides; a driver older than 1.4 cannot run the
+     * the driver provides; a driver older than 1.3 cannot run the
      * GDD path, so the client falls back to the CPU-driven one. */
     uint32_t apiVer = VK_API_VERSION_1_0;
     if (app->gdd_wanted) {
         uint32_t drvVer = 0;
-        #define VK_API_VERSION_1_4_COMPAT VK_MAKE_API_VERSION(0, 1, 4, 0)
-        if (vkEnumerateInstanceVersion(&drvVer) == VK_SUCCESS && drvVer >= VK_API_VERSION_1_4_COMPAT) {
+        #define VK_API_VERSION_1_3_COMPAT VK_MAKE_API_VERSION(0, 1, 3, 0)
+        if (vkEnumerateInstanceVersion(&drvVer) == VK_SUCCESS && drvVer >= VK_API_VERSION_1_3_COMPAT) {
             apiVer = VK_API_VERSION_1_3;
             printf("[GDD] creating Vulkan instance at API version 1.3 (driver exposes %u.%u.%u)\n",
                    VK_VERSION_MAJOR(drvVer), VK_VERSION_MINOR(drvVer), VK_VERSION_PATCH(drvVer));
         } else {
-            fprintf(stderr, "[GDD] driver Vulkan %u.%u.%u < 1.4: GPU-driven path unavailable, falling back to CPU-driven\n",
+            fprintf(stderr, "[GDD] driver Vulkan %u.%u.%u < 1.3: GPU-driven path unavailable, falling back to CPU-driven\n",
                     VK_VERSION_MAJOR(drvVer), VK_VERSION_MINOR(drvVer), VK_VERSION_PATCH(drvVer));
             app->gdd_wanted = false;
         }
@@ -4114,7 +4114,7 @@ void cleanup(VulkanApp* app) {
 int main(int argc, char** argv) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--version") == 0) {
-            printf("spacegl_vulkan 2026.10.12.01\n");
+            printf("spacegl_vulkan 2026.10.12.02\n");
             return 0;
         }
     }
@@ -4145,7 +4145,7 @@ int main(int argc, char** argv) {
     const char *gpd = getenv("SPACEGL_GPD");
     app->gdd_wanted = (gpd != NULL && atoi(gpd) == 1);
     if (app->gdd_wanted) {
-        printf("[GDD] SPACEGL_GPD=1: requesting the GPU-driven path (Vulkan 1.4)\n");
+        printf("[GDD] SPACEGL_GPD=1: requesting the GPU-driven path (Vulkan 1.3+)\n");
         SG_NOTICE(SG_CAT_VULKAN, "SPACEGL_GPD=1: requesting GPU-driven path (pid %d)", (int)getpid());
     } else {
         SG_NOTICE(SG_CAT_VULKAN, "CPU-driven path (SPACEGL_GPD unset/0, pid %d)", (int)getpid());
