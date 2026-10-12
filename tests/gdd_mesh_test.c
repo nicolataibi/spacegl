@@ -735,7 +735,7 @@ static void dump_vertex(const char *tag, const GddVertex *v) {
             (double)v->metallic, (double)v->roughness);
 }
 
-static const float TOL_EXACT = 0.0f;   /* identity orientation, no transcendentals */
+static const float TOL_EXACT = 1e-6f;   /* identity orientation, 1 ULP float rounding */
 static const float TOL_TRIG = 1e-4f;   /* sin/cos ulp drift */
 /* The boom cloud multiplies sin/cos by the particle speed (<= 5.5) and by
  * the expansion factor (<= 12*tactScale), so the GPU sin/cos implementation

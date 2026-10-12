@@ -1639,8 +1639,23 @@ static uint8_t *gdd_read_file(const char *path, size_t *size_out) {
  * installed /usr/share/spacegl/shaders). The dev path is kept as last
  * resort so the load-error message stays actionable. */
 static void gdd_resolve_spv_dir(GddState *g) {
-    const char *candidates[2] = { "build/shaders", "/usr/share/spacegl/shaders" };
-    for (int i = 0; i < 2; i++) {
+    const char *env_dir = getenv("SPACEGL_SHADERS_DIR");
+    if (env_dir && env_dir[0]) {
+        char probe[320];
+        snprintf(probe, sizeof(probe), "%s/gdd_cull.comp.spv", env_dir);
+        FILE *f = fopen(probe, "rb");
+        if (f) {
+            fclose(f);
+            snprintf(g->spv_dir, sizeof(g->spv_dir), "%s", env_dir);
+            return;
+        }
+    }
+    const char *candidates[] = {
+        "/usr/share/spacegl/shaders",
+        "build/shaders",
+        "shaders"
+    };
+    for (size_t i = 0; i < sizeof(candidates)/sizeof(candidates[0]); i++) {
         char probe[320];
         snprintf(probe, sizeof(probe), "%s/gdd_cull.comp.spv", candidates[i]);
         FILE *f = fopen(probe, "rb");
@@ -1650,7 +1665,7 @@ static void gdd_resolve_spv_dir(GddState *g) {
             return;
         }
     }
-    snprintf(g->spv_dir, sizeof(g->spv_dir), "%s", candidates[0]);
+    snprintf(g->spv_dir, sizeof(g->spv_dir), "%s", "build/shaders");
 }
 
 /* Load one SPIR-V module from g->spv_dir (prints the path on failure). */

@@ -54,7 +54,10 @@
 #include "game_config.h"
 #include "shared_state.h"
 #include "spacegl_vulkan_types.h"
+#include "spacegl_gdd.h"
 #include "sglog.h"
+
+static bool s_no_msaa = false;
 
 /* Window resolution: Full HD (1920x1080). The swapchain, viewport,
    framebuffers and projection aspect ratio all derive from these
@@ -124,10 +127,32 @@ char vertex_shader_path[512] = "/usr/share/spacegl/shaders/shader.vert.spv";
 char fragment_shader_path[512] = "/usr/share/spacegl/shaders/shader.frag.spv";
 
 void resolve_shader_paths() {
-    if (access(vertex_shader_path, F_OK) != 0) {
-        strcpy(vertex_shader_path, "build/shaders/shader.vert.spv");
-        strcpy(fragment_shader_path, "build/shaders/shader.frag.spv");
+    const char *env_dir = getenv("SPACEGL_SHADERS_DIR");
+    if (env_dir && env_dir[0]) {
+        char probe[512];
+        snprintf(probe, sizeof(probe), "%s/shader.vert.spv", env_dir);
+        if (access(probe, R_OK) == 0) {
+            snprintf(vertex_shader_path, sizeof(vertex_shader_path), "%s/shader.vert.spv", env_dir);
+            snprintf(fragment_shader_path, sizeof(fragment_shader_path), "%s/shader.frag.spv", env_dir);
+            return;
+        }
     }
+    const char *candidates[] = {
+        "/usr/share/spacegl/shaders",
+        "build/shaders",
+        "shaders"
+    };
+    for (size_t i = 0; i < sizeof(candidates)/sizeof(candidates[0]); i++) {
+        char probe[512];
+        snprintf(probe, sizeof(probe), "%s/shader.vert.spv", candidates[i]);
+        if (access(probe, R_OK) == 0) {
+            snprintf(vertex_shader_path, sizeof(vertex_shader_path), "%s/shader.vert.spv", candidates[i]);
+            snprintf(fragment_shader_path, sizeof(fragment_shader_path), "%s/shader.frag.spv", candidates[i]);
+            return;
+        }
+    }
+    strcpy(vertex_shader_path, "build/shaders/shader.vert.spv");
+    strcpy(fragment_shader_path, "build/shaders/shader.frag.spv");
 }
 
 const char* GLTF_MODEL_PATH = "spaceships/uss_shenzhou44/scene.gltf";
@@ -972,8 +997,28 @@ void pickPhysicalDevice(VulkanApp* app) {
     VkPhysicalDevice* devs = malloc(sizeof(VkPhysicalDevice) * count);
     if (!devs) { fprintf(stderr, "[VK] Out of memory: device list\n"); exit(1); }
     vkEnumeratePhysicalDevices(app->instance, &count, devs);
-    app->physicalDevice = devs[0];
-    app->msaaSamples = getMaxUsableSampleCount(app->physicalDevice);
+
+    uint32_t chosen_idx = 0;
+    if (app->gdd_wanted && count > 1) {
+        for (uint32_t i = 0; i < count; i++) {
+            uint32_t qfam = 0;
+            if (!gdd_pick_queue(devs[i], &qfam)) continue;
+            VkPhysicalDeviceVulkan13Features q13 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
+            VkPhysicalDeviceFeatures2 q = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &q13 };
+            vkGetPhysicalDeviceFeatures2(devs[i], &q);
+            if (q13.synchronization2 && q13.dynamicRendering) {
+                chosen_idx = i;
+                break;
+            }
+        }
+    }
+
+    app->physicalDevice = devs[chosen_idx];
+    if (s_no_msaa) {
+        app->msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+    } else {
+        app->msaaSamples = getMaxUsableSampleCount(app->physicalDevice);
+    }
     free(devs);
 }
 
@@ -4067,6 +4112,18 @@ void cleanup(VulkanApp* app) {
 }
 
 int main(int argc, char** argv) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--version") == 0) {
+            printf("spacegl_vulkan 2026.10.12.01\n");
+            return 0;
+        }
+    }
+
+    const char *no_msaa_env = getenv("SPACEGL_NO_MSAA");
+    if (no_msaa_env && atoi(no_msaa_env) == 1) {
+        s_no_msaa = true;
+    }
+
     if (!glfwInit()) {
         return 1;
     }
@@ -4108,6 +4165,8 @@ int main(int argc, char** argv) {
             s_rng_seed = atoi(argv[++ai]);
         } else if (strcmp(argv[ai], "--no-rotate") == 0) {
             s_no_rotate = true;
+        } else if (strcmp(argv[ai], "--no-msaa") == 0) {
+            s_no_msaa = true;
         } else if (strcmp(argv[ai], "--window") == 0 && ai + 1 < argc) {
             int ww = 0, wh = 0;
             if (sscanf(argv[++ai], "%dx%d", &ww, &wh) == 2 && ww > 0 && wh > 0) {
@@ -4121,8 +4180,11 @@ int main(int argc, char** argv) {
             printf("  --screenshot-frame N  frame to capture (default 30)\n");
             printf("  --seed N            fixed RNG seed (deterministic starfield; golden renders)\n");
             printf("  --no-rotate         disable the automatic camera orbit\n");
+            printf("  --no-msaa           disable multisampling (forces 1 sample for deterministic golden renders)\n");
             printf("  --window WxH        window extent (default %dx%d)\n",
                    VIEW_WINDOW_WIDTH, VIEW_WINDOW_HEIGHT);
+            printf("  --version           display version information and exit\n");
+            printf("  --help, -h          display this help and exit\n");
             glfwTerminate();
             free(app);
             return 0;
@@ -4238,6 +4300,12 @@ int main(int argc, char** argv) {
         app->gdd_wanted = false;
         SG_WARNING(SG_CAT_VULKAN, "GPU-driven path unavailable: falling back to CPU-driven rendering");
         printf("[GDD] GPU-driven path unavailable: falling back to CPU-driven rendering\n");
+        if (s_shot_path[0]) {
+            fprintf(stderr, "[GDD] ERROR: screenshot requested with SPACEGL_GPD=1 but GPU-driven path failed to initialize\n");
+            cleanup(app);
+            free(app);
+            return 1;
+        }
     }
     if (app->gdd) {
         SG_SUCCESS(SG_CAT_VULKAN, "GPU-driven path ACTIVE (beams/effects render via gdd_build_frame)");

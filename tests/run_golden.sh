@@ -65,6 +65,11 @@ run_viewer() { # $1 = out.ppm  $2 = GPD
         sed 's/^/    /' "$WORK/viewer_$2.log" 2>/dev/null | tail -5
         exit 77
     fi
+    if [ "$2" -eq 1 ] && ! grep -q "GPU-driven path ACTIVE" "$WORK/viewer_$2.log"; then
+        echo "FAIL: viewer requested with GPD=1 but GPU-driven path failed to activate"
+        sed 's/^/    /' "$WORK/viewer_$2.log" 2>/dev/null | tail -5
+        exit 1
+    fi
 }
 
 echo "golden: capturing CPU-driven path..."

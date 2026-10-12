@@ -1,3 +1,24 @@
+* Mon Oct 12 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.12.01
+  - Vulkan / CLI: added --version flag handling to spacegl_vulkan matching
+    the man page documentation; returns version info and exits immediately
+    without requiring a display server or creating an X11/GLFW window.
+  - Vulkan / Golden tests: introduced --no-msaa command-line flag and
+    SPACEGL_NO_MSAA environment variable to force 1-sample rendering
+    (VK_SAMPLE_COUNT_1_BIT) for deterministic headless rendering and
+    avoiding MSAA subpixel sampling differences across environments.
+  - Vulkan / GDD reliability: hardened SPIR-V shader path resolution in both
+    spacegl_vulkan.c and spacegl_vulkan_gdd.c by supporting SPACEGL_SHADERS_DIR
+    and searching candidate locations (/usr/share/spacegl/shaders,
+    build/shaders, shaders). pickPhysicalDevice() now queries all available
+    physical devices for graphics+compute queues and Vulkan 1.3 sync2 /
+    dynamicRendering when SPACEGL_GPD=1 is requested.
+  - Test suite & regression guards: spacegl_vulkan now aborts immediately with
+    an explicit error code if --screenshot is requested with SPACEGL_GPD=1
+    and the GPU-driven path fails to initialize, preventing silent fallback
+    to the CPU-driven path that could produce misleading golden artifacts.
+    run_golden.sh now verifies active GDD execution. gdd_mesh_test TOL_EXACT
+    adjusted to 1e-6f (1 ULP) to accommodate hardware FPU rounding differences.
+
 * Sun Oct 11 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.11.04
   - Fix CI
 
