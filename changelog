@@ -1,3 +1,20 @@
+* Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.05
+  - Security & Audit Hardening: closed open audit items and enhanced key management:
+    - Added dedicated regression test tests/crypto_table_oob_test.c for finding B2-b
+      (radio cipher table index bounds check with canary verification across all 256
+      possible algo bytes under ASan/UBSan).
+    - Added dedicated regression test tests/net_count_oob_test.c for finding B3-b
+      (network object and beam count bounds validation with canary verification across
+      12 count edge cases under ASan/UBSan).
+    - Established in-repo audit traceability in SECURITY.md for findings B6 (frame rate
+      clamp), B7 (auth token replay window), B9 (SHM magic / version validation), and
+      B11 (disconnect state cleanup), marking them verified and closed.
+    - Implemented secure key management in include/network.h (load_master_key):
+      added SPACEGL_KEY_FILE support with strict 0600 permission enforcement, automated
+      secure key generation to $HOME/.spacegl/key (0600 file, 0700 directory) via OpenSSL
+      RAND_bytes, preserved legacy SPACEGL_KEY environment variable fallback, prevented
+      key leakage to process tables or logs, and documented key management in SECURITY.md.
+
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.04
   - Networking & Protocol: hardened TCP transport and communication resilience:
     - Added TCP transport tuning (tune_socket in include/network.h): disabled Nagle

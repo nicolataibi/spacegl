@@ -27,8 +27,14 @@
 #define NETWORK_H
 
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <openssl/rand.h>
 #include "game_config.h"
 #include "game_state.h"
 
@@ -420,6 +426,152 @@ static inline void tune_socket(int fd) {
     int sbuf = 128 * 1024;
     setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rbuf, sizeof(rbuf));
     setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sbuf, sizeof(sbuf));
+}
+
+/* Guard B3-b: bounds-checked count clamps for network-supplied counts */
+static inline int32_t validate_object_count(int32_t count) {
+    if (count < 0) return 0;
+    if (count > MAX_NET_OBJECTS) return MAX_NET_OBJECTS;
+    return count;
+}
+
+static inline int32_t validate_beam_count(int32_t count) {
+    if (count < 0) return 0;
+    if (count > MAX_NET_BEAMS) return MAX_NET_BEAMS;
+    return count;
+}
+
+/* Key management: load 32-byte master key.
+ *
+ * Priority:
+ *   1. SPACEGL_KEY_FILE (preferred): path to a file with 64 hex characters.
+ *      Permissions MUST be 0600 (owner rw only; fails if group/world readable).
+ *   2. SPACEGL_KEY (legacy): 64 hex characters (or legacy string) in env var.
+ *   3. Default (no env, no file): $HOME/.spacegl/key (0600, generated if absent).
+ *
+ * Security: Key bytes are NEVER logged or printed.
+ */
+static inline int load_master_key(uint8_t key[32]) {
+    /* 1. SPACEGL_KEY_FILE (preferred) */
+    const char *key_file = getenv("SPACEGL_KEY_FILE");
+    if (key_file && key_file[0]) {
+        struct stat st;
+        if (stat(key_file, &st) != 0) {
+            fprintf(stderr, "FATAL: SPACEGL_KEY_FILE='%s' not found\n", key_file);
+            return -1;
+        }
+        /* Check permissions: must be 0600 (owner rw only).
+         * If the file is group- or world-readable, refuse. */
+        if ((st.st_mode & 077) != 0) {
+            fprintf(stderr,
+                "FATAL: SPACEGL_KEY_FILE='%s' permissions are %o. "
+                "The key file must be 0600 (chmod 600 %s).\n",
+                key_file, st.st_mode & 0777, key_file);
+            return -1;
+        }
+        FILE *f = fopen(key_file, "r");
+        if (!f) {
+            fprintf(stderr, "FATAL: cannot open SPACEGL_KEY_FILE='%s'\n", key_file);
+            return -1;
+        }
+        char hex[128] = {0};
+        if (!fgets(hex, sizeof(hex), f)) {
+            fclose(f);
+            fprintf(stderr, "FATAL: SPACEGL_KEY_FILE='%s' is empty\n", key_file);
+            return -1;
+        }
+        fclose(f);
+        hex[strcspn(hex, "\r\n")] = '\0';
+        if (strlen(hex) != 64) {
+            fprintf(stderr, "FATAL: SPACEGL_KEY_FILE must contain exactly 64 hex chars (got %zu)\n", strlen(hex));
+            return -1;
+        }
+        for (int i = 0; i < 32; i++) {
+            if (sscanf(hex + 2*i, "%2hhx", &key[i]) != 1) {
+                fprintf(stderr, "FATAL: invalid hex in key file at position %d\n", i);
+                return -1;
+            }
+        }
+        printf("[SECURITY] Master key loaded from file '%s'\n", key_file);
+        return 0;
+    }
+
+    /* 2. SPACEGL_KEY (legacy) */
+    const char *key_env = getenv("SPACEGL_KEY");
+    if (key_env && key_env[0]) {
+        if (strlen(key_env) == 64) {
+            for (int i = 0; i < 32; i++) {
+                if (sscanf(key_env + 2*i, "%2hhx", &key[i]) != 1) {
+                    fprintf(stderr, "FATAL: invalid hex in SPACEGL_KEY at position %d\n", i);
+                    return -1;
+                }
+            }
+        } else {
+            /* Raw string backward compatibility */
+            size_t l = strlen(key_env);
+            memcpy(key, key_env, (l > 32) ? 32 : l);
+        }
+        fprintf(stderr, "\033[1;33m[SECURITY WARN]\033[0m Master key loaded from SPACEGL_KEY env var (legacy; prefer SPACEGL_KEY_FILE)\n");
+        return 0;
+    }
+
+    /* 3. Default: generate and store in $HOME/.spacegl/key */
+    const char *home = getenv("HOME");
+    if (!home || !home[0]) home = "/tmp";
+    char dir_path[1024];
+    char key_path[1024];
+    snprintf(dir_path, sizeof(dir_path), "%s/.spacegl", home);
+    snprintf(key_path, sizeof(key_path), "%s/.spacegl/key", home);
+
+    /* Try to read existing */
+    FILE *f = fopen(key_path, "r");
+    if (f) {
+        char hex[128] = {0};
+        if (fgets(hex, sizeof(hex), f)) {
+            hex[strcspn(hex, "\r\n")] = '\0';
+            if (strlen(hex) == 64) {
+                fclose(f);
+                for (int i = 0; i < 32; i++) {
+                    sscanf(hex + 2*i, "%2hhx", &key[i]);
+                }
+                printf("[SECURITY] Master key loaded from '%s'\n", key_path);
+                return 0;
+            }
+        }
+        fclose(f);
+    }
+
+    /* Generate new random key */
+    if (RAND_bytes(key, 32) != 1) {
+        FILE *f_ur = fopen("/dev/urandom", "rb");
+        if (f_ur) {
+            if (fread(key, 1, 32, f_ur) != 32) { }
+            fclose(f_ur);
+        } else {
+            for (int i = 0; i < 32; i++) key[i] = (uint8_t)(rand() & 0xFF);
+        }
+    }
+
+    /* Create directory with 0700 permissions */
+    struct stat st;
+    if (stat(dir_path, &st) != 0) {
+        mkdir(dir_path, 0700);
+    }
+
+    /* Write key file (0600) */
+    f = fopen(key_path, "w");
+    if (!f) {
+        fprintf(stderr, "FATAL: cannot create key file '%s'\n", key_path);
+        return -1;
+    }
+    for (int i = 0; i < 32; i++) {
+        fprintf(f, "%02x", key[i]);
+    }
+    fprintf(f, "\n");
+    fclose(f);
+    chmod(key_path, 0600);
+    printf("[SECURITY] Generated new master key, stored in '%s' (0600)\n", key_path);
+    return 0;
 }
 
 #endif

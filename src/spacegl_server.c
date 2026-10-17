@@ -580,9 +580,20 @@ int main(int argc, char *argv[]) {
             printf("  --help, -h     Display this help and exit\n");
             printf("  --version      Display version information and exit\n\n");
             printf("Environment Variables:\n");
-            printf("  SPACEGL_KEY    Master Key for cryptographic synchronization (required)\n");
+            printf("  SPACEGL_KEY_FILE Master Key file path (preferred, permissions must be 0600)\n");
+            printf("  SPACEGL_KEY      Master Key hex string (legacy, fallback: ~/.spacegl/key)\n");
             return 0;
         }
+    }
+
+    /* Security Initialization: validate or generate master key */
+    if (load_master_key(MASTER_SESSION_KEY) != 0) {
+        SG_FATAL(SG_CAT_SECURITY, "Failed to load master key");
+        fprintf(stderr, "\033[1;31mSECURITY ERROR: Could not load or generate master key.\033[0m\n");
+        exit(1);
+    }
+
+    for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--data-dir") == 0) {
             if (i + 1 >= argc) {
                 fprintf(stderr, "ERROR: --data-dir requires a path argument.\n");
@@ -631,18 +642,6 @@ int main(int argc, char *argv[]) {
     }
     printf("\033[1;34m[DATA]\033[0m Data directory: %s (captains/ + galaxy.dat)\n",
            (g_data_dir[0] != '\0') ? g_data_dir : ".");
-
-    /* Security Initialization */
-    char *env_key = getenv("SPACEGL_KEY");
-    if (!env_key) {
-        SG_FATAL(SG_CAT_SECURITY, "SPACEGL_KEY not found in environment");
-        fprintf(stderr, "\033[1;31mSECURITY ERROR: Deep Space Key (SPACEGL_KEY) not found in environment.\033[0m\n");
-        fprintf(stderr, "The server requires a shared secret key to secure communications.\n");
-        exit(1);
-    }
-    memset(MASTER_SESSION_KEY, 0, 32);
-    size_t env_len = strlen(env_key);
-    memcpy(MASTER_SESSION_KEY, env_key, (env_len > 32) ? 32 : env_len);
     
     /* Auto-generate Default Global Algorithm keys */
     derive_algo_keys(MASTER_SESSION_KEY, "DEFAULT", ALGO_KEYS);

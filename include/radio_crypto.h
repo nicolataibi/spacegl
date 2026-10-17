@@ -76,11 +76,16 @@
  * Returns the cipher for the slot (never NULL; if a constructor
  * ever returned NULL the slot falls back to AES-256-GCM, keeping
  * the contract total). When is_gcm is not NULL, stores 1 if the
- * slot is an AEAD (GCM family) mode — the caller must set the
  * 16-byte IV length and fetch/set the 16-byte authentication tag —
  * 0 otherwise (CTR: no tag, the tag field is zeroed on encrypt).
  */
-static inline const EVP_CIPHER *radio_cipher_for_algo(int algo, int *is_gcm)
+typedef struct {
+    const EVP_CIPHER *cipher;
+    size_t key_len;
+    int is_gcm;
+} RadioCipher;
+
+static inline const EVP_CIPHER *radio_cipher_for_algo2(int algo, int *is_gcm)
 {
     const EVP_CIPHER *cipher;
     int gcm;
@@ -97,5 +102,29 @@ static inline const EVP_CIPHER *radio_cipher_for_algo(int algo, int *is_gcm)
     if (is_gcm) *is_gcm = gcm;
     return cipher;
 }
+
+/* Guard B2-b: bounds-checked lookup for the cipher descriptor table.
+ * Attacker-controlled algo values >= MAX_CRYPTO_ALGOS return NULL. */
+static inline const RadioCipher *radio_cipher_for_algo1(uint8_t algo)
+{
+    if (algo >= MAX_CRYPTO_ALGOS) {
+        return NULL;
+    }
+    static RadioCipher s_cipher_table[MAX_CRYPTO_ALGOS];
+    static bool s_table_init = false;
+    if (!s_table_init) {
+        for (int i = 0; i < MAX_CRYPTO_ALGOS; i++) {
+            int gcm = 0;
+            s_cipher_table[i].cipher = radio_cipher_for_algo2(i, &gcm);
+            s_cipher_table[i].key_len = 32;
+            s_cipher_table[i].is_gcm = gcm;
+        }
+        s_table_init = true;
+    }
+    return &s_cipher_table[algo];
+}
+
+#define _RC_GET_MACRO(_1, _2, NAME, ...) NAME
+#define radio_cipher_for_algo(...) _RC_GET_MACRO(__VA_ARGS__, radio_cipher_for_algo2, radio_cipher_for_algo1)(__VA_ARGS__)
 
 #endif /* RADIO_CRYPTO_H */

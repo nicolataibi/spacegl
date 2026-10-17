@@ -1561,9 +1561,21 @@ int main(int argc, char *argv[]) {
             printf("  --help, -h     Display this help and exit\n");
             printf("  --version      Display version information and exit\n\n");
             printf("Environment Variables:\n");
-            printf("  SPACEGL_KEY    Master Key for cryptographic synchronization (required)\n");
+            printf("  SPACEGL_KEY_FILE Master Key file path (preferred, permissions must be 0600)\n");
+            printf("  SPACEGL_KEY      Master Key hex string (legacy, fallback: ~/.spacegl/key)\n");
             return 0;
         }
+    }
+
+    /* Security Initialization: validate or generate master key */
+    if (load_master_key(deep_space_key) != 0) {
+        SG_FATAL(SG_CAT_SECURITY, "Failed to load master key");
+        fprintf(stderr, B_RED "SECURITY ERROR: Could not load or generate master key.\n" RESET);
+        exit(1);
+    }
+    memcpy(master_root_key, deep_space_key, 32);
+
+    for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--version") == 0) {
             printf("Space GL Client v2026.04.02.01\n");
             printf("Copyright (C) 2026 Nicola Taibi\n");
@@ -1585,19 +1597,6 @@ int main(int argc, char *argv[]) {
     }
     strcpy(g_visualizer_type, visualizer_type);
     SG_NOTICE(SG_CAT_CLIENT, "command deck starting: visualizer=%s (pid %d)", visualizer_type, (int)getpid());
-    
-    /* Security Initialization */
-    char *env_key = getenv("SPACEGL_KEY");
-    if (!env_key) {
-        SG_FATAL(SG_CAT_SECURITY, "SPACEGL_KEY not set in environment");
-        fprintf(stderr, B_RED "SECURITY ERROR: DeepSpace Key not found in environment.\n" RESET);
-        fprintf(stderr, "Please set SPACEGL_KEY environment variable before launching.\n");
-        exit(1);
-    }
-    memset(deep_space_key, 0, 32);
-    size_t env_len = strlen(env_key);
-    memcpy(deep_space_key, env_key, (env_len > 32) ? 32 : env_len);
-    memcpy(master_root_key, deep_space_key, 32);
     
     memset(g_peers, 0, sizeof(g_peers));
     g_peer_count = 0;

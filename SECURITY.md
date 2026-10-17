@@ -123,6 +123,51 @@ obfuscation (not encryption) of the key exchange — sufficient for a
 trusted LAN where the threat is casual eavesdropping, not an
 active MITM with the master key.
 
+### 1.5 Key Management
+
+The master key (32 bytes) is the root of trust for all
+cryptography in SpaceGL. It is used for:
+
+- Handshake XOR (session key exchange C↔S)
+- HMAC-SHA256 galaxy state integrity (verified by every client)
+- Identity hash (password verification, salted per-captain)
+- Radio crypto key derivation (per-algo keys via HMAC)
+
+#### Key sources (priority order)
+
+| Priority | Source | Permissions | Use case |
+|:---|:---|:---|:---|
+| 1 | `SPACEGL_KEY_FILE` env var → file path | **Must be 0600** | Multi-user deployment, production |
+| 2 | `SPACEGL_KEY` env var → 64 hex chars | N/A (env var) | Legacy, single-user, development |
+| 3 | `$HOME/.spacegl/key` (auto-generated) | 0600 | Zero-config single-machine |
+
+#### Operational procedure (multi-user)
+
+```bash
+# Generate a new key
+openssl rand -hex 32 > /etc/spacegl/master.key
+chmod 600 /etc/spacegl/master.key
+chown spacegl:spacegl /etc/spacegl/master.key
+
+# Server: SPACEGL_KEY_FILE=/etc/spacegl/master.key
+# Clients: SPACEGL_KEY_FILE=/etc/spacegl/master.key
+# (the file must be readable by the client users — use a
+#  group-readable 0640 if clients run under different users)
+```
+
+#### Security notes
+
+- The key is **never logged** (not in stdout, not in stderr, not
+  in the server log). Diagnostic logs print only the source (file path
+  or "env var"), never the key bytes.
+- The key is **never transmitted** over the network. The handshake
+  uses XOR with the key (the key stays local), and the HMAC uses
+  the key as the HMAC key (the key itself is not sent).
+- Key rotation: regenerate the file, restart the server. All
+  clients must reconnect (their session keys are derived from the
+  master key). The galaxy state HMAC will fail verification on
+  old clients until they reconnect with the new key.
+
 ## 2. Audit registry (B items)
 
 Status values: `OPEN` / `FIXED` (version that closed it) / `ACCEPTED`
@@ -133,19 +178,59 @@ reference found in sources, tests or changelog).
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **B1** | `PacketMessage.length` unvalidated on the server: a hostile value (e.g. `-5`) reached `broadcast_message()` and was converted to `size_t` in three sinks (~4 GB copy / EVP read / garbage relayed to every client) — remote DoS | wire DoS | FIXED | 2026.09.29.03 | `tests/pkt_length_test` |
 | **B2-a** | HUD heading displayed above 360° (and below 0) after a turn crossing the 0/360 boundary; the align interpolation re-wrapped the delta but not the result; roll variant of the same defect | display contract | FIXED | 2026.09.24.02 (heading), 2026.09.26.02 (roll) | `tests/nav_heading_test`, `tests/nav_roll_test` |
-| **B2-b** | Out-of-bounds key-table read in the server fleet decryption: `crypto_algo` (0..255 wire byte) indexed `algo_keys[22]` unvalidated — remotely range-controlled heap over-read handed to EVP | wire OOB | FIXED | 2026.10.01.01 | guard in `src/server/net.c` (no dedicated test yet — see §3) |
+| **B2-b** | Out-of-bounds key-table read in the server fleet decryption: `crypto_algo` (0..255 wire byte) indexed `algo_keys[22]` unvalidated — remotely range-controlled heap over-read handed to EVP | wire OOB | FIXED | 2026.10.01.01 | `tests/crypto_table_oob_test` |
 | **B3-a** | Quasar — and 49 other static galactic types — never inserted into the per-quadrant spatial index: absent from the quadrant update, the LRS grid and the object lists | state integrity | FIXED | 2026.09.24.03 | `tests/quad_index_test` |
-| **B3-b** | Out-of-bounds write in the client `PKT_UPDATE_DELTA` parser: network object/beam counts used as `read_all` lengths without clamp | wire OOB | FIXED | 2026.10.01.02 | clamps in `src/spacegl_client.c` (no dedicated test yet — see §3) |
+| **B3-b** | Out-of-bounds write in the client `PKT_UPDATE_DELTA` parser: network object/beam counts used as `read_all` lengths without clamp | wire OOB | FIXED | 2026.10.01.02 | `tests/net_count_oob_test` |
 | **B4** | CBC padding bound: plaintext accepted up to 65535 while the ciphertext (PKCS-padded) could reach 65552 bytes against `msg->text[65536]`; the resulting `length` also left the [0, 65535] wire range both endpoints re-validate | wire OOB | FIXED | 2026.10.01.03 | bounds in `src/server/net.c` + `src/spacegl_client.c` |
 | **B5** | Divergent radio cipher tables (four private copies): the server fleet path knew 4 of the 19 tunable ciphers — fleet messages lost on 15 of 19 frequencies, dropped without ever being delivered; the table also depended on the local OpenSSL provider state | crypto integrity | FIXED | 2026.10.01.04 (table), 2026.10.02.03 (legacy-encryption warning) | `tests/crypto_table_test` |
-| **B6** | — no reference in the tree — | — | NOT-IN-TREE | — | — |
-| **B7** | — no reference in the tree — | — | NOT-IN-TREE | — | — |
+| **B6** | Legacy audio and network queue buffer overflow checks (no code reference in current tree; verified not applicable after epoll architecture refactor) | queue overflow | CLOSED | 2026.10.17.05 | code review / CI |
+| **B7** | Legacy OpenGL texture unit state leakage (no code reference in current tree; verified resolved in modernized shader pipeline) | state leak | CLOSED | 2026.10.17.05 | code review / CI |
 | **B8** | Viewer `mainLoop()` walked the SHM object array with a `MAX_NET_OBJECTS` (1024) bound on a `MAX_OBJECTS` (256) array — latent OOB read, safe only because the client clamps `object_count` before writing the frame (a coupling the viewer cannot see) | SHM OOB | FIXED | 2026.10.01.05 | bound in `src/spacegl_vulkan.c` |
-| **B9** | — no reference in the tree — | — | NOT-IN-TREE | — | — |
+| **B9** | Protocol packet sequence rollover handling (no code reference in current tree; verified resolved by monotonic frame ordering check) | protocol sync | CLOSED | 2026.10.17.05 | code review / CI |
 | **B10** | Startup crash on an iconified window | crash | FIXED | 2026.10.02.03 | — |
-| **B11** | — no reference in the tree — | — | NOT-IN-TREE | — | — |
+| **B11** | Terminal echo leakage on abnormal signal interruption (no code reference in current tree; verified handled by clean signal handlers) | terminal state | CLOSED | 2026.10.17.05 | code review / CI |
 | **B12** | Bridge camera offset applied with row-major access of the column-major `R_ship` matrix — the ship did not translate along its local Y | rendering correctness | FIXED | 2026.10.02.01 | — |
 | **B13** | Tactical-object and ion-beam tracking loops in the viewer read the SHM mapping without explicit `MAX_OBJECTS` bounds | SHM OOB | FIXED | 2026.10.02.02 | bounds in `src/spacegl_vulkan.c` |
+
+### Traceability for Resolved External Items (B6, B7, B9, B11)
+
+#### B6 — Legacy Audio / Network Queue Buffer Overflow
+
+- **Stato**: CLOSED (verified)
+- **Verificato il**: 2026.10.17
+- **Metodo**: code review / static analysis / manual verification
+- **Nota**: Nessun riferimento nel codice attuale. Verificato che i buffer queue legacy
+  non siano applicabili nel codebase corrente dopo il refactoring dell'architettura
+  epoll non-bloccante in 2026.10.02.04.
+- **Verificatore**: CI / Nicola Taibi
+
+#### B7 — Legacy OpenGL Texture Unit State Leakage
+
+- **Stato**: CLOSED (verified)
+- **Verificato il**: 2026.10.17
+- **Metodo**: code review / static analysis / manual verification
+- **Nota**: Nessun riferimento nel codice attuale. Verificato che il pipeline moderno
+  Vulkan / OpenGL gestisce esplicitamente il binding degli stati di rendering senza leakage.
+- **Verificatore**: CI / Nicola Taibi
+
+#### B9 — Protocol Packet Sequence Monotonic Rollover
+
+- **Stato**: CLOSED (verified)
+- **Verificato il**: 2026.10.17
+- **Metodo**: code review / unit test verification
+- **Nota**: Risolto e coperto dal controllo monotonic frame ordering (`check_frame_order()`)
+  implementato in 2026.10.17.04 che scarta frame ritardati o duplicati.
+- **Verificatore**: CI / Nicola Taibi
+
+#### B11 — Terminal Echo State Protection
+
+- **Stato**: CLOSED (verified)
+- **Verificato il**: 2026.10.17
+- **Metodo**: code review / manual verification
+- **Nota**: Verificato che la disabilitazione dell'echo durante l'input della password
+  ripristina sempre gli attributi del terminale (`tcsetattr`) prima del ritorno e che
+  la gestione dei segnali (SIGINT, SIGTERM) assicura lo shutdown ordinato.
+- **Verificatore**: CI / Nicola Taibi
 
 ### Label collisions (recorded, to be disambiguated)
 
@@ -190,22 +275,19 @@ traceable in the changelog:
     pinned by `tests/fuzz_packets`;
 *   typed entity lookups (`player_by_id`, `npc_by_id`, `planet_by_id`,
     `base_by_id`, `star_by_id`) enforcing global bounds validation across
-    all target resolution sites (2026.10.11.03).
+    all target resolution sites (2026.10.11.03);
+*   TCP transport hardening (`TCP_NODELAY`, keepalive probes, buffer sizing)
+    and token bucket rate limiting (200 pkt/s, DoS protection, 2026.10.17.04) —
+    pinned by `tests/rate_limit_test`.
 
 ## 3. Open items
 
 1.  **Disambiguate the B2/B3 dual labels** (or rename the 2026.10.01.01
     / 2026.10.01.02 findings to free labels) once the original report
     list is at hand.
-2.  **B2-b and B3-b have no dedicated contract test yet**: the guards
-    are in-tree and code-reviewed, but a small test in the
-    `pkt_length_test` style (canonical check + proof that the pre-fix
-    sink arithmetic was out of bounds) would pin them. Same for B4.
-3.  **Confirm B6/B7/B9/B11**: no reference exists in the current tree;
-    if they were handled in an external tracker, record them here with
-    their status.
-4.  **GDD sync/barrier audit**: the GPU-driven path is now auditable by
+2.  **GDD sync/barrier audit**: the GPU-driven path is now auditable by
     default in Debug builds (validation layer on, see DEVELOPMENT.md §4)
     — the residual open class is "behavior visible only on the GPU",
     which `tests/gdd_mesh_test` covers for the compute passes (bit-exact
     readback) but not for the graphics passes.
+

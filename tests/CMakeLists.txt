@@ -357,6 +357,25 @@ if(NOT MSVC)
 endif()
 add_test(NAME rate_limit COMMAND rate_limit_test)
 
+# --- B2-b: radio cipher table index bounds (ASan/UBSan) ---
+add_executable(crypto_table_oob_test crypto_table_oob_test.c)
+target_link_libraries(crypto_table_oob_test PRIVATE OpenSSL::Crypto)
+if(NOT MSVC)
+    target_compile_options(crypto_table_oob_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(crypto_table_oob_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME crypto_table_oob COMMAND crypto_table_oob_test)
+
+# --- B3-b: network object/beam count bounds (ASan/UBSan) ---
+add_executable(net_count_oob_test net_count_oob_test.c)
+if(NOT MSVC)
+    target_compile_options(net_count_oob_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(net_count_oob_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME net_count_oob COMMAND net_count_oob_test)
+
 # 2) fuzz_packets: the real libFuzzer (clang only — libFuzzer is a
 #    clang/LLVM feature; -fsanitize=fuzzer supplies main()). CI runs it
 #    in the dedicated fuzz job: ./build/tests/fuzz_packets
@@ -419,6 +438,8 @@ set(ALL_TEST_TARGETS
     vec_thrust_test
     fuzz_corpus_test
     rate_limit_test
+    crypto_table_oob_test
+    net_count_oob_test
 )
 if(TARGET fuzz_packets)
     list(APPEND ALL_TEST_TARGETS fuzz_packets)
