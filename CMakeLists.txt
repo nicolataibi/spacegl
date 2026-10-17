@@ -186,6 +186,7 @@ set(SERVER_SRCS
     src/server/globals.c
     src/server/log.c
     src/server/logic.c
+    src/server/logic_events.c
     src/server/nav_math.c
     src/server/net.c
     src/server/packets.c
@@ -216,12 +217,16 @@ target_link_libraries(spacegl_viewer ${COMMON_LIBS})
 add_executable(spacegl_hud src/spacegl_hud.c src/sglog.c)
 target_link_libraries(spacegl_hud ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 
-# 6. spacegl_vulkan
-# The GPU-driven path (SPACEGL_GPD=1) lives in src/spacegl_vulkan_gdd.c
-# and shares the executable with the CPU-driven path (SPACEGL_GPD=0):
-# one binary, two architectures, selected at startup (with automatic
-# fallback to the CPU path when the device cannot support GDD).
-add_executable(spacegl_vulkan src/spacegl_vulkan.c src/spacegl_vulkan_gdd.c src/sglog.c)
+set(VULKAN_SRCS
+    src/vulkan_main.c
+    src/vulkan_device.c
+    src/vulkan_scene.c
+    src/vulkan_render.c
+    src/vulkan_gdd_build.c
+    src/vulkan_gdd_render.c
+    src/sglog.c
+)
+add_executable(spacegl_vulkan ${VULKAN_SRCS})
 target_link_libraries(spacegl_vulkan ${COMMON_LIBS} Vulkan::Vulkan ${GLFW_LIBRARIES})
 add_dependencies(spacegl_vulkan spacegl_shaders)
 

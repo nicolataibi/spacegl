@@ -1135,6 +1135,7 @@ void broadcast_task(void *arg);
 void send_server_msg(int p_idx, const char *from, const char *text);
 void derive_algo_keys(uint8_t *master_key, const char *name, uint8_t target_keys[MAX_CRYPTO_ALGOS + 1][32]);
 void broadcast_server_event(int q1, int q2, int q3, int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra);
+void update_npc_local_coords(int n);
 void telemetry_init(void);
 void telemetry_shutdown(void);
 
@@ -1205,6 +1206,15 @@ void send_pending_updates(void);
 int calculate_shield_index(double shooter_x, double shooter_y, double shooter_z, 
                            double target_x, double target_y, double target_z,
                            double target_h, double target_m, double target_r);
+void logic_update_death_timers(unsigned int *ai_seed);
+void logic_handle_wormhole_nav(int i);
+void logic_update_torpedoes(void);
+void logic_update_supernova(unsigned int *ai_seed);
+void logic_update_monster_attacks(void);
+void logic_update_environmental_hazards(void);
+void logic_update_starbase_defense(void);
+void logic_generate_events(unsigned int *ai_seed);
+void update_npc_ai(int n);
 
 int read_all(int fd, void *buf, size_t len);
 int write_all(int fd, const void *buf, size_t len);

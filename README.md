@@ -1,5 +1,6 @@
 <div style="text-align: center; border-bottom: 1px solid #ccc; margin-bottom: 20px;">
-<h1>Space GL: A space exploration & combat game</h1>
+
+# Space GL: A space exploration & combat game
 
 ![Version](https://img.shields.io/badge/Version-3.0-green)
 ![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)

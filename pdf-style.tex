@@ -1,0 +1,79 @@
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage[export]{adjustbox}
+\usepackage{etoolbox}
+
+% Limiti globali per evitare immagini più alte della pagina.
+\setkeys{Gin}{
+  max width=\linewidth,
+  max height=0.65\textheight,
+  keepaspectratio
+}
+
+% Tabelle più compatte.
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{0.90}
+
+% Testo ridotto nelle tabelle multipagina.
+\AtBeginEnvironment{longtable}{\fontsize{6pt}{7pt}\selectfont}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{setspace}
+
+\title{Manuale tecnico del progetto}
+\author{Documentazione software}
+\date{\today}
+
+\definecolor{HeadingBlue}{HTML}{17365D}
+\definecolor{RuleGray}{HTML}{B7C9D6}
+
+\setstretch{1.12}
+\setlength{\parskip}{4pt}
+\setlength{\headheight}{15pt}
+
+\titleformat{\section}
+  {\Large\bfseries\color{HeadingBlue}}
+  {\thesection}{0.8em}{}
+
+\titleformat{\subsection}
+  {\large\bfseries\color{HeadingBlue}}
+  {\thesubsection}{0.8em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small README}
+\fancyhead[R]{\small\leftmark}
+\fancyfoot[L]{\small User's guide}
+\fancyfoot[R]{\thepage}
+
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\renewcommand{\headrule}{%
+  {\color{RuleGray}\hrule width\headwidth height\headrulewidth}%
+}
+
+% Fallback esplicito per le emoji non presenti in DejaVu Serif.
+\usepackage{fontspec}
+\usepackage{newunicodechar}
+
+\newfontfamily\NotoEmoji{Noto Emoji}
+
+\newunicodechar{🌌}{{\NotoEmoji\symbol{"1F30C}}}
+\newunicodechar{🚀}{{\NotoEmoji\symbol{"1F680}}}
+\newunicodechar{🛠}{{\NotoEmoji\symbol{"1F6E0}}}
+\newunicodechar{📜}{{\NotoEmoji\symbol{"1F4DC}}}
+\newunicodechar{⚠}{{\NotoEmoji\symbol{"26A0}}}
+\newunicodechar{🛡}{{\NotoEmoji\symbol{"1F6E1}}}
+\newunicodechar{🖥}{{\NotoEmoji\symbol{"1F5A5}}}
+\newunicodechar{🛰}{{\NotoEmoji\symbol{"1F6F0}}}
+\newunicodechar{🎖}{{\NotoEmoji\symbol{"1F396}}}
+\newunicodechar{🌪}{{\NotoEmoji\symbol{"1F32A}}}
+% Tabelle multipagina con colonne elastiche e testo a capo.
+\usepackage{array}
+\usepackage{xltabular}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{3pt}

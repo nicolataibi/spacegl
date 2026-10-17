@@ -127,7 +127,7 @@ spacegl_find_atomic_lib()
 # --- CPU contract + instance-builder test (no device needed) -----------
 add_executable(gdd_contract_test
     gdd_contract_test.c
-    ${SG_ROOT}/src/spacegl_vulkan_gdd.c
+    ${SG_ROOT}/src/vulkan_gdd_build.c
     ${SG_ROOT}/src/sglog.c)
 target_link_libraries(gdd_contract_test PRIVATE Vulkan::Vulkan m)
 if(GLFW_FOUND)
@@ -227,6 +227,7 @@ add_executable(target_bounds_test
     target_bounds_test.c
     ${SG_ROOT}/src/server/commands.c
     ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_events.c
     ${SG_ROOT}/src/server/nav_math.c
     ${SG_ROOT}/src/server/targets.c
     ${SG_ROOT}/src/sglog.c)
@@ -259,6 +260,7 @@ add_executable(vec_thrust_test
     vec_thrust_test.c
     ${SG_ROOT}/src/server/commands.c
     ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_events.c
     ${SG_ROOT}/src/server/nav_math.c
     ${SG_ROOT}/src/server/targets.c
     ${SG_ROOT}/src/sglog.c)
@@ -297,6 +299,7 @@ set(FUZZ_DISPATCH_SRCS
     ${SG_ROOT}/src/server/threadpool.c
     ${SG_ROOT}/src/server/commands.c
     ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_events.c
     ${SG_ROOT}/src/server/nav_math.c
     ${SG_ROOT}/src/server/targets.c
     ${SG_ROOT}/src/sglog.c)

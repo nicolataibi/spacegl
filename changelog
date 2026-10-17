@@ -1,3 +1,32 @@
+* Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.01
+  - Architecture / Modularity: split monolithic translation units into clean,
+    focused modules to improve build times, reviewability, and code organization:
+    - spacegl_vulkan.c (4333 lines) split into vulkan_device.c (device setup,
+      swapchain, pipelines, sync), vulkan_scene.c (scene meshes, procedural geometry,
+      draw helpers, scene update), vulkan_render.c (render loop, command buffer recording,
+      frame execution, screenshot), and vulkan_main.c (main, GLFW window, input, flight stick),
+      coordinated by include/vulkan_device_internal.h.
+    - spacegl_vulkan_gdd.c (3131 lines) split into vulkan_gdd_build.c (CPU-side instance
+      builder and data packing) and vulkan_gdd_render.c (Vulkan device-side compute passes,
+      indirect draws, and dynamic rendering pipeline). Updated gdd_contract test.
+    - src/server/logic.c (2332 lines) split into logic.c (tick loop, quadrant OpenMP updates,
+      broadcasts) and logic_events.c (event processing: boom generation, wormholes, jump arrivals,
+      supernovae).
+  - Telemetry: verified and preserved all 114 operational telemetry categories
+    across include/telemetry.h, src/spacegl_telemetry.c, and src/telemetry_server.c,
+    ensuring full alignment with galactic asset generation in src/server/galaxy.c.
+  - Vulkan / OpenGL Parity: aligned tactical cube rotation in both CPU-driven
+    (vulkan_render.c) and GPU-driven (vulkan_gdd_render.c) rendering paths to match
+    GLFW OpenGL (spacegl_3dview.c) in both rotation direction (-app->angleY) and
+    angular velocity (VIEW_ROTATION_SPEED = 4.5 deg/s).
+  - Documentation / Build: updated build-pdf.sh to generate the technical manual
+    (README.pdf) directly inside readme_assets/, keeping the repository root clean
+    and properly packaging the PDF with the spacegl-doc RPM (%doc readme_assets/).
+    Added automated cleanup of intermediate LaTeX build artifacts (README.aux,
+    README.log, README.toc, README.out, README.tex) upon successful compilation.
+    Hardened prepare-pdf-assets.py to explicitly ignore README.pdf so that the
+    generated manual is not duplicated into pdf-assets/ on subsequent builds.
+
 * Tue Oct 13 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.13.01
   - CI / Packaging: defined fallback rpmautospec macros in CI runner environment
     (~/.rpmmacros) to prevent unexpanded %autorelease and %autochangelog errors

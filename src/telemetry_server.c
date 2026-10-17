@@ -1153,7 +1153,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                 if (idx >= 0 && idx < MAX_EVENT_HORIZONS) {
                     NPCEventHorizon* o = &event_horizons[idx];
                     snprintf(to->id, sizeof(to->id), "EH%04d", o->id);
-                    strncpy(to->name, "Event Horiz", sizeof(to->name)-1);
+                    strncpy(to->name, "Evt Horizon", sizeof(to->name)-1);
                     strncpy(to->info, "Cosmic", sizeof(to->info)-1);
                     to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
                     to->x = o->x; to->y = o->y; to->z = o->z;
@@ -1208,7 +1208,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                 if (idx >= 0 && idx < MAX_PROTOPLANETARY_DISKS) {
                     NPCProtoplanetaryDisk* o = &protoplanetary_disks[idx];
                     snprintf(to->id, sizeof(to->id), "PD%04d", o->id);
-                    strncpy(to->name, "Protoplanet", sizeof(to->name)-1);
+                    strncpy(to->name, "Protopl Disk", sizeof(to->name)-1);
                     strncpy(to->info, "Cosmic", sizeof(to->info)-1);
                     to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
                     to->x = o->x; to->y = o->y; to->z = o->z;
@@ -1229,7 +1229,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
             case TEL_CAT_PLANETESIMAL: {
                 if (idx >= 0 && idx < MAX_PLANETESIMALS) {
                     NPCPlanetesimal* o = &planetesimals[idx];
-                    snprintf(to->id, sizeof(to->id), "PT%04d", o->id);
+                    snprintf(to->id, sizeof(to->id), "PE%04d", o->id);
                     strncpy(to->name, "Planetesimal", sizeof(to->name)-1);
                     strncpy(to->info, "Cosmic", sizeof(to->info)-1);
                     to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
@@ -1263,7 +1263,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                 if (idx >= 0 && idx < MAX_ISO) {
                     NPCISO* o = &isos[idx];
                     snprintf(to->id, sizeof(to->id), "IS%04d", o->id);
-                    strncpy(to->name, "Intst Obj", sizeof(to->name)-1);
+                    strncpy(to->name, "Interst Obj", sizeof(to->name)-1);
                     strncpy(to->info, "Cosmic", sizeof(to->info)-1);
                     to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
                     to->x = o->x; to->y = o->y; to->z = o->z;
@@ -1328,8 +1328,8 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
             case TEL_CAT_COSMIC_STRING: {
                 if (idx >= 0 && idx < MAX_COSMIC_STRINGS) {
                     NPCCosmicString* o = &cosmic_strings[idx];
-                    snprintf(to->id, sizeof(to->id), "CX%04d", o->id);
-                    strncpy(to->name, "Cosm String", sizeof(to->name)-1);
+                    snprintf(to->id, sizeof(to->id), "ST%04d", o->id);
+                    strncpy(to->name, "Cosmic Str", sizeof(to->name)-1);
                     strncpy(to->info, "Cosmic", sizeof(to->info)-1);
                     to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
                     to->x = o->x; to->y = o->y; to->z = o->z;
@@ -1384,7 +1384,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                 if (idx >= 0 && idx < MAX_LYMAN_ALPHA) {
                     NPCLymanAlpha* o = &lyman_alphas[idx];
                     snprintf(to->id, sizeof(to->id), "LA%04d", o->id);
-                    strncpy(to->name, "Lyman Alpha", sizeof(to->name)-1);
+                    strncpy(to->name, "Lyman-Alpha", sizeof(to->name)-1);
                     strncpy(to->info, "Cosmic", sizeof(to->info)-1);
                     to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
                     to->x = o->x; to->y = o->y; to->z = o->z;
@@ -1402,7 +1402,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     to->color_pair = 4;
                 }
             } break;
-            case TEL_CAT_STELLAR_MASS_BLACK_HOLE: {
+                        case TEL_CAT_STELLAR_MASS_BLACK_HOLE: {
                 if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
                     NPCCosmicFeature* o = &cosmic_features[idx];
                     snprintf(to->id, sizeof(to->id), "EX%04d", o->id);
