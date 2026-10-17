@@ -682,7 +682,7 @@ int main(int argc, char** argv) {
     /* GPU-driven path: create the compute/scene pipelines and the
      * per-frame ring. On failure app->gdd stays NULL and the client
      * transparently runs the CPU-driven path. */
-    if (app->gdd_wanted && !gdd_init(app)) {
+    if (app->gdd_wanted && !gdd_init(app, s_no_msaa ? GDD_MSAA_OFF : GDD_MSAA_4X)) {
         app->gdd_wanted = false;
         SG_WARNING(SG_CAT_VULKAN, "GPU-driven path unavailable: falling back to CPU-driven rendering");
         printf("[GDD] GPU-driven path unavailable: falling back to CPU-driven rendering\n");

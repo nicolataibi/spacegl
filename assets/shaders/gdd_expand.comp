@@ -14,10 +14,11 @@
 
 layout(local_size_x = 256) in;
 
-layout(binding = 0) buffer GddInstB  { GddInstance inst[]; } gdd_insts;
-layout(binding = 1) buffer GddVisB   { uint          idx[]; } gdd_vis;
-layout(binding = 2) buffer GddCntB   { GddCounts     c; }     gdd_counts;
-layout(binding = 3) buffer GddVtxB   { GddVertex     v[]; }   gdd_verts;
+layout(binding = 0) buffer GddInstB     { GddInstance inst[]; } gdd_insts;
+layout(binding = 1) buffer GddVisB      { uint          idx[]; } gdd_vis;
+layout(binding = 2) buffer GddCntB      { GddCounts     c; }     gdd_counts;
+layout(binding = 3) buffer GddVtxB      { GddVertex     v[]; }   gdd_verts;
+layout(binding = 4) buffer GddFeedbackB { GddFrameFeedback feedback; } gdd_feedback;
 
 #include "gdd_ops.glsl"
 
@@ -48,5 +49,11 @@ void main() {
         case GDD_MESH_BOOM:    if (!gdd_reserve(it, GDD_VC_BOOM, base)) return; gdd_expand_boom(base, it); break;
         case GDD_MESH_BOXWIRE: if (!gdd_reserve(it, GDD_VC_BOXWIRE, base)) return; gdd_expand_boxwire(base, it); break;
         default:               if (!gdd_reserve(it, GDD_VC_BOX, base)) return; gdd_expand_box(base, it); break;
+    }
+
+    if (gl_GlobalInvocationID.x == 0) {
+        if (gdd_feedback.feedback.vertices_dropped > 0) {
+            gdd_feedback.feedback.overflow_frame = 1u;
+        }
     }
 }

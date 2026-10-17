@@ -153,6 +153,7 @@ typedef struct {
     VkBuffer verts;     VkDeviceMemory vert_mem;
     VkBuffer indirect;  VkDeviceMemory ind_mem;  void *indirect_ptr; /* mapped (funnel readback) */
     VkBuffer counters;  VkDeviceMemory cnt_mem;  void *counters_ptr; /* mapped (funnel readback) */
+    VkBuffer feedback;  VkDeviceMemory feed_mem; void *feedback_ptr; /* mapped (GPU feedback) */
     /* descriptor sets (written once: the buffers are stable per slot) */
     VkDescriptorSet desc_cull_dyn;
     VkDescriptorSet desc_cull_map;

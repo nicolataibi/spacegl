@@ -79,6 +79,33 @@
 #include <vulkan/vulkan.h>
 
 /* ================================================================== */
+/* MSAA configuration for the GDD path.                               */
+/*                                                                    */
+/* The GDD path uses the same MSAA as the CPU path for visual         */
+/* parity: by default 4x multisampling (matches the CPU path's        */
+/* MSAA 4x). The --no-msaa flag (shared with the CPU path) is         */
+/* forwarded as bool no_msaa to gdd_init() — no mutable global.       */
+/*                                                                    */
+/* MSAA in the GDD path requires:                                     */
+/*   - A multisample color attachment (VkFormat with MS support)      */
+/*   - A multisample depth attachment                                 */
+/*   - A resolve step in dynamic rendering (resolveMode = AVERAGE)    */
+/*     onto the 1-sample swapchain image.                             */
+/*                                                                    */
+/* The resolve step adds ~0.5 ms per frame (measured on a             */
+/* mid-range GPU with a 1920x1080 4x MSAA buffer). This is            */
+/* acceptable for a 60 fps game (16.7 ms frame budget).               */
+/* ================================================================== */
+/* MSAA mode passed to gdd_init(). The GPU sample count is capped at  */
+/* 4x by pickPhysicalDevice; the enum is the caller's intent, not the */
+/* final VkSampleCountFlagBits (which may be lower if the device does  */
+/* not support 4x — gdd_init maps GDD_MSAA_4X to the device maximum). */
+typedef enum {
+    GDD_MSAA_OFF = 0,  /* 1x — no multisample attachment, no resolve */
+    GDD_MSAA_4X  = 1,  /* 4x (default) — 4-sample color + resolve    */
+} GddMsaaMode;
+
+/* ================================================================== */
 /* Mesh ids (GddInstance.a.w). Primitives generated on the GPU by     */
 /* gdd_expand.comp from a single unit description each.               */
 /* ================================================================== */
@@ -276,15 +303,80 @@ typedef struct {
  * mid tactical<->map transition, where both static sets coexist: ~3,300
  * tactical + 64,013 map). */
 #define GDD_MAP_MAX             72000u
-/* Total generated vertices per frame (both passes). In map mode every
- * wireframe sector costs GDD_VCOUNT_BOXWIRE (288) vertices: the budget
- * covers ~14,500 wireframe sectors (a fully populated 64k-sector galaxy
- * in filter mode, where each sector is one 36-vertex PBR box, always
- * fits); beyond the budget the expand pass drops instances ("drop when
- * full", same policy as the legacy CPU path). */
-#define GDD_VERTEX_CAPACITY     4194304u
+/* Total generated vertices per frame (both passes). Sized to 512,000 vertices
+ * (16 MB SSBO at 32 B/vertex or 40 MB at 80 B/vertex). Beyond the budget the expand
+ * pass drops instances ("drop when full", same policy as the legacy CPU path). */
+#define GDD_VERTEX_CAPACITY     512000u
 #define GDD_WORKGROUP           256u
 #define GDD_STAR_COUNT          2000u /* == MAX_STARS of the CPU path */
+
+/* Vertex capacity overflow behavior:
+ *
+ * gdd_expand.comp generates geometry for all visible instances
+ * into a device-local vertex SSBO of GDD_VERTEX_CAPACITY
+ * (512,000) vertices. If the total vertex count exceeds the
+ * capacity, the excess vertices are DROPPED (not truncated:
+ * the expand loop continues but skips the write). The affected
+ * objects are the last ones in the instance list (the expand
+ * processes instances in order; the ones that hit the capacity
+ * limit are the last visible instances).
+ *
+ * Visual effect: the last N objects in the scene are missing
+ * (typically the farthest objects, since the cull pass sorts
+ * by distance — but the sort is by visibility, not by distance,
+ * so it's the last visible objects in the instance array).
+ *
+ * The overflow is reported to the CPU via the GddFrameFeedback
+ * buffer (vertices_dropped field). The CPU logs a warning
+ * (once per frame) so the developer knows geometry is being
+ * lost. The game does NOT crash or stall — it continues
+ * rendering with the available vertices.
+ *
+ * To increase the capacity: change GDD_VERTEX_CAPACITY in this
+ * header and rebuild. The vertex SSBO is allocated at init
+ * time; a larger capacity requires more GPU memory
+ * (512k vertices × 32 bytes/vertex = 16 MB; 1M vertices = 32 MB).
+ */
+
+/* ================================================================== */
+/* GPU->CPU feedback buffer: one VkBuffer mapped host-visible,        */
+/* written by gdd_expand.comp (atomic store) and read by the          */
+/* CPU after the frame is submitted. Contains 32 bytes (8 x uint32_t).*/
+/* ================================================================== */
+typedef struct {
+    uint32_t vertices_written;   /* total vertices written to the vertex SSBO this frame */
+    uint32_t vertices_dropped;   /* vertices that hit the 512k capacity guard and were dropped */
+    uint32_t instances_culled;   /* instances culled by gdd_cull.comp */
+    uint32_t instances_visible;  /* instances that passed the cull (entered the expand) */
+    uint32_t draw_opaque_verts;  /* the two VkDrawIndirectCommand vertex counts (opaque, additive) */
+    uint32_t draw_additive_verts;
+    uint32_t overflow_frame;     /* frame_id of the last frame that had an overflow (0 = none) */
+    uint32_t padding;            /* 32-byte total */
+} GddFrameFeedback;
+
+#define GDD_FEEDBACK_STRIDE 32
+_Static_assert(sizeof(GddFrameFeedback) == 32, "GddFrameFeedback must be 32 bytes");
+
+/* ================================================================== */
+/* Per-frame GDD performance metrics.                                 */
+/* Populated by the CPU after each frame (from feedback + CPU timing).*/
+/* ================================================================== */
+typedef struct {
+    uint64_t frame_id;
+    float cpu_upload_ms;       /* time for gdd_build_instances + memcpy */
+    float compute_cull_ms;     /* gdd_cull.comp GPU time (from fence) */
+    float compute_expand_ms;   /* gdd_expand.comp GPU time */
+    float compute_final_ms;    /* gdd_final.comp GPU time */
+    float draw_opaque_ms;      /* opaque indirect draw GPU time */
+    float draw_additive_ms;    /* additive indirect draw GPU time */
+    float resolve_ms;          /* MSAA resolve time (0 if no MSAA) */
+    float total_ms;            /* sum of all GPU stages */
+    uint32_t vertices_written;
+    uint32_t vertices_dropped;
+    uint32_t instances_visible;
+    uint32_t draw_opaque_verts;
+    uint32_t draw_additive_verts;
+} GddPerfMetrics;
 
 /* Persistent starfield entry (tactical background, built once at init
  * with the same distribution as the CPU path createStarfield()). */
@@ -409,8 +501,11 @@ bool gdd_pick_queue(VkPhysicalDevice pd, uint32_t *family_out);
  * pipelines (dynamic rendering: opaque + additive), per-frame buffer
  * ring and descriptor sets. Returns FALSE (and leaves app->gdd NULL)
  * if the device cannot support the GPU-driven path — the caller then
- * falls back to the CPU-driven path. */
-bool gdd_init(VulkanApp *app);
+ * falls back to the CPU-driven path.
+ *
+ * no_msaa: true  → 1-sample rendering (--no-msaa flag or headless)
+ *          false → 4x MSAA (capped to device maximum by gdd_init). */
+bool gdd_init(VulkanApp *app, GddMsaaMode msaa_mode);
 
 /* Build the instance lists of the current frame slot from the shm
  * state (classification + effects + statics + map mode). */

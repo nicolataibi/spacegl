@@ -33,6 +33,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
+
 
 /* Forward: VulkanApp fields used by the device-side functions (the
  * full definition lives in include/spacegl_vulkan_types.h; here only
@@ -100,6 +102,11 @@ struct GddState {
 
     /* owner back-pointer (VulkanApp) */
     void *app;
+
+    /* per-frame performance metrics & feedback tracking */
+    GddPerfMetrics metrics;
+    uint64_t frame_count;
+    uint64_t last_overflow_frame;
 };
 
 /* ------------------------------------------------------------------ */
@@ -240,100 +247,190 @@ static bool gdd_create_buffer(VkDevice device, VkPhysicalDevice pd,
 }
 
 /* ------------------------------------------------------------------ */
-/* depth attachment (MSAA — see GddState.msaa note)                    */
+/* MSAA and depth attachments                                          */
 /* ------------------------------------------------------------------ */
-static bool gdd_create_depth_image(GddState *g, VulkanApp *app) {
-    VkDevice d = g->device;
-    VkImageCreateInfo ii = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .imageType = VK_IMAGE_TYPE_2D,
-        .format = VK_FORMAT_D32_SFLOAT,
-        .extent = { app->swapChainExtent.width, app->swapChainExtent.height, 1 },
-        .mipLevels = 1,
-        .arrayLayers = 1,
-        .samples = g->msaa,
-        .tiling = VK_IMAGE_TILING_OPTIMAL,
-        .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    };
-    if (vkCreateImage(d, &ii, NULL, &g->depthImage) != VK_SUCCESS) return false;
-    VkMemoryRequirements mr;
-    vkGetImageMemoryRequirements(d, g->depthImage, &mr);
+static int gdd_create_msaa_attachments(
+    VkDevice device,
+    VkPhysicalDevice pd,
+    VkRenderPass render_pass,
+    uint32_t width, uint32_t height,
+    VkFormat color_fmt, VkFormat depth_fmt,
+    VkSampleCountFlagBits msaa_samples,
+    /* out */
+    VkImage *color_img, VkImageView *color_view,
+    VkImage *resolve_img, VkImageView *resolve_view,
+    VkImage *depth_img, VkImageView *depth_view,
+    VkDeviceMemory *color_mem, VkDeviceMemory *resolve_mem,
+    VkDeviceMemory *depth_mem)
+{
+    (void)render_pass;
+    (void)resolve_img;
+    (void)resolve_view;
+    (void)resolve_mem;
+
     VkPhysicalDeviceMemoryProperties mprops;
-    vkGetPhysicalDeviceMemoryProperties(g->physicalDevice, &mprops);
-    uint32_t idx = VK_MAX_MEMORY_TYPES;
-    for (uint32_t i = 0; i < mprops.memoryTypeCount; i++)
-        if ((mr.memoryTypeBits & (1u << i)) &&
-            (mprops.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
-            idx = i;
-            break;
+    vkGetPhysicalDeviceMemoryProperties(pd, &mprops);
+
+    if (msaa_samples > VK_SAMPLE_COUNT_1_BIT) {
+        if (color_img && color_view && color_mem) {
+            VkImageCreateInfo ii = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                .imageType = VK_IMAGE_TYPE_2D,
+                .format = color_fmt,
+                .extent = { width, height, 1 },
+                .mipLevels = 1,
+                .arrayLayers = 1,
+                .samples = msaa_samples,
+                .tiling = VK_IMAGE_TILING_OPTIMAL,
+                .usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            };
+            if (vkCreateImage(device, &ii, NULL, color_img) != VK_SUCCESS) return -1;
+            VkMemoryRequirements mr;
+            vkGetImageMemoryRequirements(device, *color_img, &mr);
+            uint32_t idx = VK_MAX_MEMORY_TYPES;
+            for (uint32_t i = 0; i < mprops.memoryTypeCount; i++) {
+                if ((mr.memoryTypeBits & (1u << i)) &&
+                    (mprops.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+                    idx = i;
+                    break;
+                }
+            }
+            if (idx == VK_MAX_MEMORY_TYPES) return -1;
+            VkMemoryAllocateInfo ai = {
+                .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                .allocationSize = mr.size,
+                .memoryTypeIndex = idx,
+            };
+            if (vkAllocateMemory(device, &ai, NULL, color_mem) != VK_SUCCESS) return -1;
+            if (vkBindImageMemory(device, *color_img, *color_mem, 0) != VK_SUCCESS) return -1;
+            VkImageViewCreateInfo vi = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = *color_img,
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = color_fmt,
+                .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
+            };
+            if (vkCreateImageView(device, &vi, NULL, color_view) != VK_SUCCESS) return -1;
         }
-    if (idx == VK_MAX_MEMORY_TYPES) return false;
-    VkMemoryAllocateInfo ai = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize = mr.size,
-        .memoryTypeIndex = idx,
-    };
-    if (vkAllocateMemory(d, &ai, NULL, &g->depthMemory) != VK_SUCCESS) return false;
-    if (vkBindImageMemory(d, g->depthImage, g->depthMemory, 0) != VK_SUCCESS) return false;
-    VkImageViewCreateInfo vi = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        .image = g->depthImage,
-        .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        .format = VK_FORMAT_D32_SFLOAT,
-        .subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 },
-    };
-    if (vkCreateImageView(d, &vi, NULL, &g->depthView) != VK_SUCCESS) return false;
-    return true;
+
+        if (depth_img && depth_view && depth_mem) {
+            VkImageCreateInfo ii = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                .imageType = VK_IMAGE_TYPE_2D,
+                .format = depth_fmt,
+                .extent = { width, height, 1 },
+                .mipLevels = 1,
+                .arrayLayers = 1,
+                .samples = msaa_samples,
+                .tiling = VK_IMAGE_TILING_OPTIMAL,
+                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            };
+            if (vkCreateImage(device, &ii, NULL, depth_img) != VK_SUCCESS) return -1;
+            VkMemoryRequirements mr;
+            vkGetImageMemoryRequirements(device, *depth_img, &mr);
+            uint32_t idx = VK_MAX_MEMORY_TYPES;
+            for (uint32_t i = 0; i < mprops.memoryTypeCount; i++) {
+                if ((mr.memoryTypeBits & (1u << i)) &&
+                    (mprops.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+                    idx = i;
+                    break;
+                }
+            }
+            if (idx == VK_MAX_MEMORY_TYPES) return -1;
+            VkMemoryAllocateInfo ai = {
+                .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                .allocationSize = mr.size,
+                .memoryTypeIndex = idx,
+            };
+            if (vkAllocateMemory(device, &ai, NULL, depth_mem) != VK_SUCCESS) return -1;
+            if (vkBindImageMemory(device, *depth_img, *depth_mem, 0) != VK_SUCCESS) return -1;
+            VkImageViewCreateInfo vi = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = *depth_img,
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = depth_fmt,
+                .subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 },
+            };
+            if (vkCreateImageView(device, &vi, NULL, depth_view) != VK_SUCCESS) return -1;
+        }
+    } else {
+        if (color_img) *color_img = VK_NULL_HANDLE;
+        if (color_view) *color_view = VK_NULL_HANDLE;
+        if (color_mem) *color_mem = VK_NULL_HANDLE;
+
+        if (depth_img && depth_view && depth_mem) {
+            VkImageCreateInfo ii = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                .imageType = VK_IMAGE_TYPE_2D,
+                .format = depth_fmt,
+                .extent = { width, height, 1 },
+                .mipLevels = 1,
+                .arrayLayers = 1,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .tiling = VK_IMAGE_TILING_OPTIMAL,
+                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            };
+            if (vkCreateImage(device, &ii, NULL, depth_img) != VK_SUCCESS) return -1;
+            VkMemoryRequirements mr;
+            vkGetImageMemoryRequirements(device, *depth_img, &mr);
+            uint32_t idx = VK_MAX_MEMORY_TYPES;
+            for (uint32_t i = 0; i < mprops.memoryTypeCount; i++) {
+                if ((mr.memoryTypeBits & (1u << i)) &&
+                    (mprops.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+                    idx = i;
+                    break;
+                }
+            }
+            if (idx == VK_MAX_MEMORY_TYPES) return -1;
+            VkMemoryAllocateInfo ai = {
+                .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                .allocationSize = mr.size,
+                .memoryTypeIndex = idx,
+            };
+            if (vkAllocateMemory(device, &ai, NULL, depth_mem) != VK_SUCCESS) return -1;
+            if (vkBindImageMemory(device, *depth_img, *depth_mem, 0) != VK_SUCCESS) return -1;
+            VkImageViewCreateInfo vi = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = *depth_img,
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = depth_fmt,
+                .subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 },
+            };
+            if (vkCreateImageView(device, &vi, NULL, depth_view) != VK_SUCCESS) return -1;
+        }
+    }
+    return 0;
 }
 
-/* Transient MSAA color attachment: rendered by the scene passes, then
- * resolved onto the swapchain image through the color attachment's
- * per-attachment resolve fields (see gdd_record). Same shape as the
- * CPU-driven path's createColorResources. */
+static bool gdd_create_depth_image(GddState *g, VulkanApp *app) {
+    int rc = gdd_create_msaa_attachments(
+        g->device, g->physicalDevice, VK_NULL_HANDLE,
+        app->swapChainExtent.width, app->swapChainExtent.height,
+        app->swapChainImageFormat, VK_FORMAT_D32_SFLOAT, g->msaa,
+        NULL, NULL, NULL, NULL,
+        &g->depthImage, &g->depthView,
+        NULL, NULL, &g->depthMemory);
+    return rc == 0;
+}
+
 static bool gdd_create_msaa_color_image(GddState *g, VulkanApp *app) {
-    VkDevice d = g->device;
-    VkImageCreateInfo ii = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .imageType = VK_IMAGE_TYPE_2D,
-        .format = app->swapChainImageFormat,
-        .extent = { app->swapChainExtent.width, app->swapChainExtent.height, 1 },
-        .mipLevels = 1,
-        .arrayLayers = 1,
-        .samples = g->msaa,
-        .tiling = VK_IMAGE_TILING_OPTIMAL,
-        .usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    };
-    if (vkCreateImage(d, &ii, NULL, &g->colorImage) != VK_SUCCESS) return false;
-    VkMemoryRequirements mr;
-    vkGetImageMemoryRequirements(d, g->colorImage, &mr);
-    VkPhysicalDeviceMemoryProperties mprops;
-    vkGetPhysicalDeviceMemoryProperties(g->physicalDevice, &mprops);
-    uint32_t idx = VK_MAX_MEMORY_TYPES;
-    for (uint32_t i = 0; i < mprops.memoryTypeCount; i++)
-        if ((mr.memoryTypeBits & (1u << i)) &&
-            (mprops.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
-            idx = i;
-            break;
-        }
-    if (idx == VK_MAX_MEMORY_TYPES) return false;
-    VkMemoryAllocateInfo ai = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize = mr.size,
-        .memoryTypeIndex = idx,
-    };
-    if (vkAllocateMemory(d, &ai, NULL, &g->colorMemory) != VK_SUCCESS) return false;
-    if (vkBindImageMemory(d, g->colorImage, g->colorMemory, 0) != VK_SUCCESS) return false;
-    VkImageViewCreateInfo vi = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        .image = g->colorImage,
-        .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        .format = app->swapChainImageFormat,
-        .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
-    };
-    if (vkCreateImageView(d, &vi, NULL, &g->colorView) != VK_SUCCESS) return false;
-    return true;
+    if (g->msaa <= VK_SAMPLE_COUNT_1_BIT) {
+        g->colorImage = VK_NULL_HANDLE;
+        g->colorView = VK_NULL_HANDLE;
+        g->colorMemory = VK_NULL_HANDLE;
+        return true;
+    }
+    int rc = gdd_create_msaa_attachments(
+        g->device, g->physicalDevice, VK_NULL_HANDLE,
+        app->swapChainExtent.width, app->swapChainExtent.height,
+        app->swapChainImageFormat, VK_FORMAT_D32_SFLOAT, g->msaa,
+        &g->colorImage, &g->colorView,
+        NULL, NULL, NULL, NULL,
+        &g->colorMemory, NULL, NULL);
+    return rc == 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -396,6 +493,10 @@ static bool gdd_create_frame_buffers(GddState *g, VulkanApp *app, uint32_t i) {
                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                             &f->counters, &f->cnt_mem, &f->counters_ptr);
+    ok &= gdd_create_buffer(d, pd, sizeof(GddFrameFeedback),
+                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                            &f->feedback, &f->feed_mem, &f->feedback_ptr);
     if (!ok) return false;
     /* one command buffer per slot (same triple-buffer invariant as CPU) */
     VkCommandBufferAllocateInfo cai = {
@@ -431,18 +532,20 @@ static bool gdd_create_frame_descs(GddState *g, uint32_t i) {
     f->desc_final    = sets[4];
     f->desc_scene    = sets[5];
 
-    VkDescriptorBufferInfo bi[4];
+    VkDescriptorBufferInfo bi[5];
     bi[0].buffer = f->dyn_inst;  bi[0].offset = 0; bi[0].range = GDD_DYN_MAX * GDD_INSTANCE_STRIDE;
     bi[1].buffer = f->dyn_vis;   bi[1].offset = 0; bi[1].range = GDD_DYN_MAX * sizeof(uint32_t);
     bi[2].buffer = f->counters;  bi[2].offset = 0; bi[2].range = GDD_COUNTS_STRIDE;
     bi[3].buffer = f->verts;     bi[3].offset = 0; bi[3].range = GDD_VERTEX_CAPACITY * GDD_VERTEX_STRIDE;
-    VkDescriptorBufferInfo bmap[4];
+    bi[4].buffer = f->feedback;  bi[4].offset = 0; bi[4].range = sizeof(GddFrameFeedback);
+    VkDescriptorBufferInfo bmap[5];
     bmap[0].buffer = f->map_inst; bmap[0].offset = 0; bmap[0].range = GDD_MAP_MAX * GDD_INSTANCE_STRIDE;
     bmap[1].buffer = f->map_vis;  bmap[1].offset = 0; bmap[1].range = GDD_MAP_MAX * sizeof(uint32_t);
     bmap[2] = bi[2];
     bmap[3] = bi[3];
+    bmap[4] = bi[4];
 
-    VkWriteDescriptorSet w[24];
+    VkWriteDescriptorSet w[32];
     int n = 0;
     /* cull dyn: 0 inst, 1 vis, 2 cnt */
     for (int k = 0; k < 3; k++) {
@@ -460,16 +563,16 @@ static bool gdd_create_frame_descs(GddState *g, uint32_t i) {
         w[n].descriptorCount = 1; w[n].pBufferInfo = &bmap[k];
         n++;
     }
-    /* expand dyn: 0 inst, 1 vis, 2 cnt, 3 verts */
-    for (int k = 0; k < 4; k++) {
+    /* expand dyn: 0 inst, 1 vis, 2 cnt, 3 verts, 4 feedback */
+    for (int k = 0; k < 5; k++) {
         w[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         w[n].dstSet = f->desc_exp_dyn; w[n].dstBinding = k; w[n].dstArrayElement = 0;
         w[n].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         w[n].descriptorCount = 1; w[n].pBufferInfo = &bi[k];
         n++;
     }
-    /* expand map */
-    for (int k = 0; k < 4; k++) {
+    /* expand map: 0 inst, 1 vis, 2 cnt, 3 verts, 4 feedback */
+    for (int k = 0; k < 5; k++) {
         w[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         w[n].dstSet = f->desc_exp_map; w[n].dstBinding = k; w[n].dstArrayElement = 0;
         w[n].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -509,14 +612,14 @@ static bool gdd_create_compute_pipelines(GddState *g) {
     VkPipelineLayout *pls[3] = { &g->pl_cull, &g->pl_expand, &g->pl_final };
     VkPipeline *pipes[3] = { &g->pipe_cull, &g->pipe_expand, &g->pipe_final };
     VkDescriptorSetLayout *dsls[3] = { &g->ds_cull, &g->ds_exp, &g->ds_final };
-    uint32_t bindings[3] = { 3, 4, 2 };
+    uint32_t bindings[3] = { 3, 5, 2 };
 
     for (int i = 0; i < 3; i++) {
         bool mok = true;
         mods[i] = gdd_load_module(d, g, names[i], &mok);
         if (!mok) { ok = false; break; }
         /* descriptor layout: N storage bindings (compute) */
-        VkDescriptorSetLayoutBinding lb[4];
+        VkDescriptorSetLayoutBinding lb[5];
         for (uint32_t b = 0; b < bindings[i]; b++) {
             lb[b] = (VkDescriptorSetLayoutBinding){
                 .binding = b,
@@ -716,15 +819,22 @@ static void gdd_build_starfield(GddState *g) {
 /* ------------------------------------------------------------------ */
 /* gdd_init / gdd_cleanup                                              */
 /* ------------------------------------------------------------------ */
-bool gdd_init(VulkanApp *app) {
+bool gdd_init(VulkanApp *app, GddMsaaMode msaa_mode) {
     GddState *g = calloc(1, sizeof(GddState));
     if (!g) return false;
     g->device = app->device;
     g->physicalDevice = app->physicalDevice;
     g->app = app;
-    /* MSAA count shared by both architectures (capped at 4x in
-     * pickPhysicalDevice) — must be set before the images/pipelines. */
-    g->msaa = app->msaaSamples ? app->msaaSamples : VK_SAMPLE_COUNT_1_BIT;
+    /* MSAA: GDD_MSAA_OFF → 1 sample (no multisample attachment, no
+     * resolve); GDD_MSAA_4X → 4 samples capped to device maximum.
+     * Both paths (CPU and GDD) are controlled by the same --no-msaa
+     * flag, forwarded here as msaa_mode — no global needed. */
+    if (msaa_mode == GDD_MSAA_OFF) {
+        g->msaa = VK_SAMPLE_COUNT_1_BIT;
+    } else {
+        VkSampleCountFlagBits max_s = app->msaaSamples ? app->msaaSamples : VK_SAMPLE_COUNT_4_BIT;
+        g->msaa = (max_s >= VK_SAMPLE_COUNT_4_BIT) ? VK_SAMPLE_COUNT_4_BIT : max_s;
+    }
     if (!gdd_pick_queue(app->physicalDevice, &g->queue_family)) {
         fprintf(stderr, "[GDD] no graphics+compute queue family: falling back to CPU-driven path\n");
         free(g);
@@ -736,15 +846,17 @@ bool gdd_init(VulkanApp *app) {
     bool ok = gdd_create_compute_pipelines(g);
     ok &= gdd_create_scene_pipelines(g);
     ok &= gdd_create_depth_image(g, app);
-    ok &= gdd_create_msaa_color_image(g, app);
+    if (g->msaa > VK_SAMPLE_COUNT_1_BIT) {
+        ok &= gdd_create_msaa_color_image(g, app);
+    }
     if (!ok) {
         fprintf(stderr, "[GDD] pipeline creation failed: falling back to CPU-driven path\n");
         gdd_cleanup(app);
         return false;
     }
 
-    /* descriptor pool: 3 frames x 6 sets x 4 bindings (storage) */
-    VkDescriptorPoolSize ps = { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, GDD_MAX_FRAMES * 6 * 4 + 8 };
+    /* descriptor pool: 3 frames x 6 sets x 5 bindings (storage) */
+    VkDescriptorPoolSize ps = { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, GDD_MAX_FRAMES * 6 * 5 + 8 };
     VkDescriptorPoolCreateInfo dpc = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .maxSets = GDD_MAX_FRAMES * 6,
@@ -796,6 +908,7 @@ void gdd_cleanup(VulkanApp *app) {
         if (f->verts)    { vkDestroyBuffer(d, f->verts, NULL); vkFreeMemory(d, f->vert_mem, NULL); }
         if (f->indirect) { vkDestroyBuffer(d, f->indirect, NULL); vkFreeMemory(d, f->ind_mem, NULL); }
         if (f->counters) { vkDestroyBuffer(d, f->counters, NULL); vkFreeMemory(d, f->cnt_mem, NULL); }
+        if (f->feedback) { if (f->feedback_ptr) vkUnmapMemory(d, f->feed_mem); vkDestroyBuffer(d, f->feedback, NULL); vkFreeMemory(d, f->feed_mem, NULL); }
     }
     vkDestroyDescriptorPool(d, g->desc_pool, NULL);
     if (g->pipe_scene_opaque) vkDestroyPipeline(d, g->pipe_scene_opaque, NULL);
@@ -1242,9 +1355,10 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
                                     .flags = 0 };
     vkBeginCommandBuffer(cb, &bi);
 
-    /* --- 1. zero the per-frame GPU counters (GPU-side fill: the CPU   */
-    /*        never touches the counters after creation) -------------- */
+    /* --- 1. zero the per-frame GPU counters & feedback (GPU-side fill: the CPU
+     *        never touches the counters after creation) -------------- */
     vkCmdFillBuffer(cb, f->counters, 0, GDD_COUNTS_STRIDE, 0);
+    vkCmdFillBuffer(cb, f->feedback, 0, sizeof(GddFrameFeedback), 0);
     gdd_mem_barrier(cb,
                     VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
                     VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
@@ -1394,38 +1508,60 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
         ib_color.subresourceRange = (VkImageSubresourceRange){
             .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1 };
 
-        VkImageMemoryBarrier2 ib_msaa = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-        ib_msaa.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-        ib_msaa.srcAccessMask = 0;
-        ib_msaa.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-        ib_msaa.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-        ib_msaa.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        ib_msaa.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        ib_msaa.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        ib_msaa.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        ib_msaa.image = g->colorImage;
-        ib_msaa.subresourceRange = (VkImageSubresourceRange){
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1 };
+        if (g->msaa > VK_SAMPLE_COUNT_1_BIT) {
+            VkImageMemoryBarrier2 ib_msaa = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+            ib_msaa.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+            ib_msaa.srcAccessMask = 0;
+            ib_msaa.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+            ib_msaa.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+            ib_msaa.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            ib_msaa.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            ib_msaa.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ib_msaa.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ib_msaa.image = g->colorImage;
+            ib_msaa.subresourceRange = (VkImageSubresourceRange){
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1 };
 
-        VkImageMemoryBarrier2 ib_depth = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-        ib_depth.srcStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
-        ib_depth.srcAccessMask = 0;
-        ib_depth.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
-        ib_depth.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        ib_depth.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        ib_depth.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        ib_depth.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        ib_depth.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        ib_depth.image = g->depthImage;
-        ib_depth.subresourceRange = (VkImageSubresourceRange){
-            .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .levelCount = 1, .layerCount = 1 };
+            VkImageMemoryBarrier2 ib_depth = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+            ib_depth.srcStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+            ib_depth.srcAccessMask = 0;
+            ib_depth.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+            ib_depth.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            ib_depth.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            ib_depth.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            ib_depth.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ib_depth.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ib_depth.image = g->depthImage;
+            ib_depth.subresourceRange = (VkImageSubresourceRange){
+                .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .levelCount = 1, .layerCount = 1 };
 
-        VkImageMemoryBarrier2 barriers[3] = { ib_color, ib_msaa, ib_depth };
-        VkDependencyInfo dep = { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                                 .memoryBarrierCount = 1, .pMemoryBarriers = &mb,
-                                 .imageMemoryBarrierCount = 3,
-                                 .pImageMemoryBarriers = barriers };
-        vkCmdPipelineBarrier2(cb, &dep);
+            VkImageMemoryBarrier2 barriers[3] = { ib_color, ib_msaa, ib_depth };
+            VkDependencyInfo dep = { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                                     .memoryBarrierCount = 1, .pMemoryBarriers = &mb,
+                                     .imageMemoryBarrierCount = 3,
+                                     .pImageMemoryBarriers = barriers };
+            vkCmdPipelineBarrier2(cb, &dep);
+        } else {
+            VkImageMemoryBarrier2 ib_depth = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+            ib_depth.srcStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+            ib_depth.srcAccessMask = 0;
+            ib_depth.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+            ib_depth.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            ib_depth.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            ib_depth.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            ib_depth.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ib_depth.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ib_depth.image = g->depthImage;
+            ib_depth.subresourceRange = (VkImageSubresourceRange){
+                .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .levelCount = 1, .layerCount = 1 };
+
+            VkImageMemoryBarrier2 barriers[2] = { ib_color, ib_depth };
+            VkDependencyInfo dep = { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                                     .memoryBarrierCount = 1, .pMemoryBarriers = &mb,
+                                     .imageMemoryBarrierCount = 2,
+                                     .pImageMemoryBarriers = barriers };
+            vkCmdPipelineBarrier2(cb, &dep);
+        }
     }
 
     /* --- 6. dynamic rendering with MSAA (Vulkan 1.4): one render     */
@@ -1434,23 +1570,30 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
     *        attachment; the per-attachment resolve (VkRenderingAttach-
     *        mentInfo resolve fields) averages the samples onto the
     *        1-sample swapchain image — the same MSAA + resolve the
-    *        CPU-driven render pass does. In this API the rendering's
-    *        sample count is defined by the attachments (VkRendering-
-    *        Info has no samples member); the depth attachment and the
-    *        pipeline rasterizationSamples carry the same count. */
+    *        CPU-driven render pass does. If msaa is 1x, renders directly
+    *        to the swapchain image without resolve. */
     VkRenderingAttachmentInfo color_att = { .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    color_att.imageView = g->colorView; /* MSAA transient color */
-    color_att.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    /* AVERAGE (this SDK's name for the 0x2 SAMPLE_AVERAGE bit): average
-     * the MSAA samples onto the 1-sample swapchain image. */
-    color_att.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-    color_att.resolveImageView = app->swapChainImageViews[image_idx];
-    color_att.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    color_att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    color_att.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; /* transient: only the resolve consumes it */
-    color_att.clearValue.color = (VkClearColorValue){{0,0,0,1}}; /* nero opaco, come la path CPU */
+    if (g->msaa > VK_SAMPLE_COUNT_1_BIT) {
+        color_att.imageView = g->colorView; /* MSAA transient color */
+        color_att.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        /* AVERAGE: average the MSAA samples onto the 1-sample swapchain image. */
+        color_att.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+        color_att.resolveImageView = app->swapChainImageViews[image_idx];
+        color_att.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color_att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color_att.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; /* transient: only resolve consumes it */
+        color_att.clearValue.color = (VkClearColorValue){{0,0,0,1}};
+    } else {
+        color_att.imageView = app->swapChainImageViews[image_idx];
+        color_att.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color_att.resolveMode = VK_RESOLVE_MODE_NONE;
+        color_att.resolveImageView = VK_NULL_HANDLE;
+        color_att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color_att.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color_att.clearValue.color = (VkClearColorValue){{0,0,0,1}};
+    }
     VkRenderingAttachmentInfo depth_att = { .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    depth_att.imageView = g->depthView; /* GDD MSAA depth (matches rasterizationSamples) */
+    depth_att.imageView = g->depthView; /* GDD depth (matches rasterizationSamples) */
     depth_att.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     depth_att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depth_att.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -1529,6 +1672,29 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
 }
 
 /* ------------------------------------------------------------------ */
+/* GPU feedback readback and performance monitoring                   */
+/* ------------------------------------------------------------------ */
+static void gdd_check_feedback(const GddFrameFeedback *fb, uint64_t frame_id, GddState *g) {
+    if (fb->vertices_dropped > 0) {
+        if (g->last_overflow_frame == 0 || g->last_overflow_frame != frame_id - 1) {
+            /* First overflow this frame: log a warning */
+            fprintf(stderr, "[GDD] WARNING: frame %lu: %u vertices dropped "
+                    "(capacity %u, written %u, visible %u)\n",
+                    (unsigned long)frame_id,
+                    fb->vertices_dropped,
+                    GDD_VERTEX_CAPACITY,
+                    fb->vertices_written,
+                    fb->instances_visible);
+        } else if (frame_id % 60 == 0) {
+            /* Continuous overflow (every frame): log once every 60 frames to avoid log spam */
+            fprintf(stderr, "[GDD] WARNING: frame %lu: still dropping %u vertices/frame\n",
+                    (unsigned long)frame_id, fb->vertices_dropped);
+        }
+        g->last_overflow_frame = frame_id;
+    }
+}
+
+/* ------------------------------------------------------------------ */
 /* gdd_draw_frame — full GDD frame with the SAME triple-buffer        */
 /* invariant as the CPU-driven path (one fence / one acquire semaphore */
 /* / one render semaphore per slot; the wait happens at the TOP, so   */
@@ -1544,6 +1710,40 @@ void gdd_draw_frame(VulkanApp *app) {
      * so every early-exit path below re-signals it with an empty
      * submit or the next use of the slot would wait forever. */
     vkWaitForFences(app->device, 1, &app->inFlightFences[slot], VK_TRUE, UINT64_MAX);
+
+    /* Read GPU feedback buffer from slot's previous completed frame */
+    if (f->feedback_ptr && f->counters_ptr && g->frame_count > 0) {
+        GddFrameFeedback *fb = (GddFrameFeedback *)f->feedback_ptr;
+        GddCounts *cnt = (GddCounts *)f->counters_ptr;
+        fb->draw_opaque_verts = cnt->opaque_verts;
+        fb->draw_additive_verts = cnt->additive_verts;
+        fb->instances_visible = cnt->dyn_vis + cnt->map_vis;
+        if (fb->vertices_dropped > 0) {
+            fb->overflow_frame = (uint32_t)g->frame_count;
+        }
+
+        g->metrics.vertices_written = fb->vertices_written;
+        g->metrics.vertices_dropped = fb->vertices_dropped;
+        g->metrics.instances_visible = fb->instances_visible;
+        g->metrics.draw_opaque_verts = fb->draw_opaque_verts;
+        g->metrics.draw_additive_verts = fb->draw_additive_verts;
+
+        gdd_check_feedback(fb, g->frame_count, g);
+
+        if (g->frame_count % 60 == 0) {
+            printf("[GDD perf [frame %lu]: cpu %.2f ms, total %.2f ms, verts %u/%u, visible %u, opaque %u, additive %u%s]\n",
+                   (unsigned long)g->frame_count,
+                   g->metrics.cpu_upload_ms,
+                   g->metrics.total_ms,
+                   g->metrics.vertices_written,
+                   GDD_VERTEX_CAPACITY,
+                   g->metrics.instances_visible,
+                   g->metrics.draw_opaque_verts,
+                   g->metrics.draw_additive_verts,
+                   g->metrics.vertices_dropped > 0 ? " [OVERFLOW]" : "");
+            fflush(stdout);
+        }
+    }
 
     uint32_t imgIdx = 0;
     VkResult acq = vkAcquireNextImageKHR(app->device, app->swapChain, 100000000ULL,
@@ -1569,8 +1769,20 @@ void gdd_draw_frame(VulkanApp *app) {
     vkResetFences(app->device, 1, &app->inFlightFences[slot]);
     vkResetCommandBuffer(f->cmd, 0);
 
+    g->frame_count++;
+    g->metrics.frame_id = g->frame_count;
+
+    struct timespec ts_cpu_start, ts_cpu_end;
+    clock_gettime(CLOCK_MONOTONIC, &ts_cpu_start);
+
     /* The ONE per-frame CPU upload, then the GPU takes over. */
     gdd_build_frame(app, (float)glfwGetTime());
+
+    clock_gettime(CLOCK_MONOTONIC, &ts_cpu_end);
+    g->metrics.cpu_upload_ms =
+        (ts_cpu_end.tv_sec - ts_cpu_start.tv_sec) * 1000.0f +
+        (ts_cpu_end.tv_nsec - ts_cpu_start.tv_nsec) / 1e6f;
+
     gdd_record(f->cmd, app, imgIdx);
 
     VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1605,6 +1817,12 @@ void gdd_draw_frame(VulkanApp *app) {
     } else if (pres != VK_SUCCESS && pres != VK_SUBOPTIMAL_KHR) {
         fprintf(stderr, "[GDD] vkQueuePresentKHR failed: %d\n", (int)pres);
     }
+
+    struct timespec ts_frame_end;
+    clock_gettime(CLOCK_MONOTONIC, &ts_frame_end);
+    g->metrics.total_ms =
+        (ts_frame_end.tv_sec - ts_cpu_start.tv_sec) * 1000.0f +
+        (ts_frame_end.tv_nsec - ts_cpu_start.tv_nsec) / 1e6f;
 
     g->current_frame = (slot + 1) % GDD_MAX_FRAMES;
 

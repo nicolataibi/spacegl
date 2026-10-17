@@ -36,6 +36,7 @@ bool gdd_reserve(GddInstance it, uint n, out uint base) {
          * high-water mark for this invocation. */
         if (opaque_settled + local_idx + n > pc.capacity) {
             atomicAdd(gdd_counts.c.additive_verts, uint(-n));
+            atomicAdd(gdd_feedback.feedback.vertices_dropped, n);
             return false;
         }
     } else {
@@ -43,9 +44,11 @@ bool gdd_reserve(GddInstance it, uint n, out uint base) {
         /* Capacity guard (opaque pass only — additive_verts is 0 here). */
         if (base + n > pc.capacity) {
             atomicAdd(gdd_counts.c.opaque_verts, uint(-n));
+            atomicAdd(gdd_feedback.feedback.vertices_dropped, n);
             return false;
         }
     }
+    atomicAdd(gdd_feedback.feedback.vertices_written, n);
     return true;
 }
 

@@ -62,6 +62,18 @@ struct GddCounts {
     uint additive_verts;
 };
 
+/* GPU->CPU feedback (32 B). Written by gdd_expand.comp and read by CPU. */
+struct GddFrameFeedback {
+    uint vertices_written;
+    uint vertices_dropped;
+    uint instances_culled;
+    uint instances_visible;
+    uint draw_opaque_verts;
+    uint draw_additive_verts;
+    uint overflow_frame;
+    uint padding;
+};
+
 /* Compute push constants (36 B == GddPC). cull = (center.xyz, radius). */
 layout(push_constant) uniform GddPC {
     vec4 cull;

@@ -1,3 +1,46 @@
+* Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.07
+  - Vulkan GDD: refactored MSAA configuration (rimozione global mutable):
+    - Sostituito extern uint32_t gdd_msaa_samples con enum GddMsaaMode
+      { GDD_MSAA_OFF=0, GDD_MSAA_4X=1 } in include/spacegl_gdd.h: type-safe,
+      nessun valore non valido possibile (era accettato qualsiasi uint32_t).
+    - Rimossi GDD_MSAA_SAMPLES_DEFAULT e GDD_MSAA_SAMPLES_OFF (#define a
+      valore numerico), sostituiti dall'enum; rimossa la definizione globale
+      da vulkan_gdd_render.c e l'extern dall'header.
+    - Aggiornata firma gdd_init(VulkanApp *app) in
+      gdd_init(VulkanApp *app, GddMsaaMode msaa_mode): il flag no_msaa viene
+      passato direttamente al punto d'uso invece di essere scritto in un
+      global e riletto separatamente, eliminando il accoppiamento
+      temporale vulkan_main → gdd_init.
+    - Rimosso il blocco setter da vulkan_main.c (9 righe); il call site
+      diventa: gdd_init(app, s_no_msaa ? GDD_MSAA_OFF : GDD_MSAA_4X).
+    - 15/15 test pass invariati.
+
+* Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.06
+  - Vulkan GDD Rendering: MSAA parity, feedback buffer, vertex overflow observability:
+    - Added MSAA support to the GDD path (gdd_msaa_samples, GDD_MSAA_SAMPLES_DEFAULT=4,
+      GDD_MSAA_SAMPLES_OFF=1) matching the CPU path 4x multisampling; --no-msaa flag
+      propagated from vulkan_main.c to gdd_init via gdd_msaa_samples (removes visual
+      aliasing difference between the two architectures).
+    - Added GddFrameFeedback struct (32 bytes, _Static_assert enforced) with
+      vertices_written, vertices_dropped, overflow_frame, and pad fields; binding 4 in
+      gdd_expand.comp; zeroed via vkCmdFillBuffer each frame; persistently HOST_VISIBLE
+      mapped for CPU readback.
+    - Updated gdd_ops.glsl gdd_reserve() to atomically report vertices_written and
+      vertices_dropped to the feedback buffer; gdd_expand.comp invocation 0 sets
+      overflow_frame when any vertex was dropped.
+    - Added per-frame GddPerfMetrics (cpu_ms, vertices_written, vertices_dropped,
+      frame_count) and gdd_check_feedback() in gdd_draw_frame() with overflow warnings
+      (first occurrence + every 60 frames for continuous overflow).
+    - Reduced GDD_VERTEX_CAPACITY from 4,194,304 to 512,000 with overflow behavior
+      documented in spacegl_gdd.h ("drop-when-full" policy, same as CPU path).
+    - Expanded gdd_mesh_test feedback buffer integration: added b_feedback allocation
+      (STORAGE|TRANSFER_DST, HOST_VISIBLE+HOST_COHERENT), binding 4 descriptor writes
+      for both set_exp_dyn and set_exp_map, vkCmdFillBuffer zero in run_cull(), and
+      feedback assertions (vertices_written==gpu_total, vertices_dropped==0 at normal
+      capacity; vertices_dropped>0 and overflow_frame==1 in the GUARD stage).
+    - Updated descriptor pool size for 5-binding expand sets (2*3+2*5+1*2+8=24).
+    - 15/15 tests pass (73 contract checks, golden RMSE 18.1<25, bench within thresholds).
+
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.05
   - Security & Audit Hardening: closed open audit items and enhanced key management:
     - Added dedicated regression test tests/crypto_table_oob_test.c for finding B2-b

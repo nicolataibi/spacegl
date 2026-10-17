@@ -939,13 +939,13 @@ static bool init_vulkan(void) {
         return false;
 
     /* Layouts mirror the production ones (spacegl_vulkan_gdd.c):
-     * cull {0 inst, 1 vis, 2 cnt}, expand {0 inst, 1 vis, 2 cnt, 3 verts},
+     * cull {0 inst, 1 vis, 2 cnt}, expand {0 inst, 1 vis, 2 cnt, 3 verts, 4 feedback},
      * final {0 indirect, 1 cnt}; all with the 32 B compute push constants. */
     static const uint32_t b3[3] = {0, 1, 2};
-    static const uint32_t b4[4] = {0, 1, 2, 3};
+    static const uint32_t b5[5] = {0, 1, 2, 3, 4};
     static const uint32_t b2[2] = {0, 1};
     if (!make_ds_layout(3, b3, &g_ds_cull)) return false;
-    if (!make_ds_layout(4, b4, &g_ds_exp)) return false;
+    if (!make_ds_layout(5, b5, &g_ds_exp)) return false;
     if (!make_ds_layout(2, b2, &g_ds_final)) return false;
 
     VkDescriptorSetLayout sls[3] = { g_ds_cull, g_ds_exp, g_ds_final };
@@ -971,7 +971,9 @@ static bool init_vulkan(void) {
 
     VkDescriptorPoolSize ps = {0};
     ps.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    ps.descriptorCount = 3 * 3 + 2 * 4 + 2 * 2 + 8; /* slack */
+    /* cull: 2 sets x 3 = 6, expand: 2 sets x 5 (inst,vis,cnt,verts,feedback) = 10,
+     * final: 1 x 2 = 2, slack: 8 */
+    ps.descriptorCount = 2 * 3 + 2 * 5 + 1 * 2 + 8;
     VkDescriptorPoolCreateInfo dpc = {0};
     dpc.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     /* FREE_DESCRIPTOR_SET_BIT: cleanup_vulkan releases the sets per spec
@@ -1018,15 +1020,16 @@ static bool make_buffer(VkDeviceSize size, VkBufferUsageFlags usage,
 }
 
 static VkBuffer b_inst_dyn, b_inst_map, b_vis_dyn, b_vis_map,
-                b_verts, b_indirect, b_counts;
+                b_verts, b_indirect, b_counts, b_feedback;
 static VkDeviceMemory m_inst_dyn, m_inst_map, m_vis_dyn, m_vis_map,
-                      m_verts, m_indirect, m_counts;
+                      m_verts, m_indirect, m_counts, m_feedback;
 
 static GddInstance *u_inst_dyn, *u_inst_map;
 static uint32_t *u_vis_dyn, *u_vis_map;
 static GddVertex *u_verts;
 static VkDrawIndirectCommand *u_indirect;
 static GddCounts *u_counts;
+static GddFrameFeedback *u_feedback;
 
 static VkDescriptorSet set_cull_dyn, set_cull_map, set_exp_dyn, set_exp_map, set_final;
 
@@ -1045,6 +1048,11 @@ static bool create_buffers_and_sets(void) {
     if (!make_buffer(GDD_COUNTS_STRIDE,
                      ssbo | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                      &b_counts, &m_counts, (void **)&u_counts)) return false;
+    /* Feedback buffer: HOST_VISIBLE + HOST_COHERENT (persistently mapped);
+     * TRANSFER_DST so vkCmdFillBuffer can zero it each frame. */
+    if (!make_buffer(GDD_FEEDBACK_STRIDE,
+                     ssbo | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                     &b_feedback, &m_feedback, (void **)&u_feedback)) return false;
 
     VkDescriptorSet sets[5];
     VkDescriptorSetLayout layouts[5] = { g_ds_cull, g_ds_cull, g_ds_exp, g_ds_exp, g_ds_final };
@@ -1057,16 +1065,18 @@ static bool create_buffers_and_sets(void) {
     set_cull_dyn = sets[0]; set_cull_map = sets[1]; set_exp_dyn = sets[2];
     set_exp_map = sets[3]; set_final = sets[4];
 
-    VkDescriptorBufferInfo bi[4];
+    VkDescriptorBufferInfo bi[5];
     bi[0].buffer = b_inst_dyn;  bi[0].offset = 0; bi[0].range = N_DYN * GDD_INSTANCE_STRIDE;
     bi[1].buffer = b_vis_dyn;   bi[1].offset = 0; bi[1].range = N_DYN * sizeof(uint32_t);
     bi[2].buffer = b_counts;    bi[2].offset = 0; bi[2].range = GDD_COUNTS_STRIDE;
     bi[3].buffer = b_verts;     bi[3].offset = 0; bi[3].range = VMAX * GDD_VERTEX_STRIDE;
-    VkDescriptorBufferInfo bm[4];
+    bi[4].buffer = b_feedback;  bi[4].offset = 0; bi[4].range = GDD_FEEDBACK_STRIDE;
+    VkDescriptorBufferInfo bm[5];
     bm[0].buffer = b_inst_map;  bm[0].offset = 0; bm[0].range = N_MAP * GDD_INSTANCE_STRIDE;
     bm[1].buffer = b_vis_map;   bm[1].offset = 0; bm[1].range = N_MAP * sizeof(uint32_t);
     bm[2] = bi[2];
     bm[3] = bi[3];
+    bm[4] = bi[4]; /* shared feedback buffer (same object, both groups write to it) */
     VkDescriptorBufferInfo bfin[2];
     bfin[0].buffer = b_indirect; bfin[0].offset = 0; bfin[0].range = 2 * sizeof(VkDrawIndirectCommand);
     bfin[1] = bi[2];
@@ -1075,7 +1085,8 @@ static bool create_buffers_and_sets(void) {
      * pNext is a wild pointer that the validation layers (and any
      * conformant driver) walk — that segfaulted this test the first
      * time a layer-enabled run touched vkUpdateDescriptorSets. */
-    VkWriteDescriptorSet w[24] = {0};
+    /* 3+3+5+5+2 = 18 writes total; 32-entry array gives headroom. */
+    VkWriteDescriptorSet w[32] = {0};
     int n = 0;
     for (int k = 0; k < 3; k++) {
         w[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1089,13 +1100,14 @@ static bool create_buffers_and_sets(void) {
         w[n].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         w[n].descriptorCount = 1; w[n].pBufferInfo = &bm[k]; n++;
     }
-    for (int k = 0; k < 4; k++) {
+    /* expand: 5 bindings — inst(0), vis(1), cnt(2), verts(3), feedback(4) */
+    for (int k = 0; k < 5; k++) {
         w[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         w[n].dstSet = set_exp_dyn; w[n].dstBinding = k; w[n].dstArrayElement = 0;
         w[n].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         w[n].descriptorCount = 1; w[n].pBufferInfo = &bi[k]; n++;
     }
-    for (int k = 0; k < 4; k++) {
+    for (int k = 0; k < 5; k++) {
         w[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         w[n].dstSet = set_exp_map; w[n].dstBinding = k; w[n].dstArrayElement = 0;
         w[n].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -1228,6 +1240,7 @@ static void cleanup_vulkan(void) {
     vkDestroyBuffer(g_dev, b_verts, NULL);     vkFreeMemory(g_dev, m_verts, NULL);
     vkDestroyBuffer(g_dev, b_indirect, NULL);  vkFreeMemory(g_dev, m_indirect, NULL);
     vkDestroyBuffer(g_dev, b_counts, NULL);    vkFreeMemory(g_dev, m_counts, NULL);
+    vkDestroyBuffer(g_dev, b_feedback, NULL);  vkFreeMemory(g_dev, m_feedback, NULL);
     /* The pool destroy also frees every command buffer allocated from
      * it (the per-pass buffers from begin_cb are intentionally pooled
      * and never freed individually). */
@@ -1478,7 +1491,8 @@ static bool cpu_cull_visible(const GddInstance *it) {
 static bool run_cull(uint32_t capacity) {
     VkCommandBuffer cb;
     if (!begin_cb(&cb)) return false;
-    vkCmdFillBuffer(cb, b_counts, 0, GDD_COUNTS_STRIDE, 0);
+    vkCmdFillBuffer(cb, b_counts,   0, GDD_COUNTS_STRIDE,   0);
+    vkCmdFillBuffer(cb, b_feedback, 0, GDD_FEEDBACK_STRIDE, 0);
     GddPC pc;
     memset(&pc, 0, sizeof(pc));
     pc.cull_center[0] = CULL_CX; pc.cull_center[1] = CULL_CY; pc.cull_center[2] = CULL_CZ;
@@ -1843,6 +1857,23 @@ static int run_contract(void) {
           "all %d visible blocks matched (checked %d)",
           dyn_vis_ref + map_vis_ref, blocks_checked);
 
+    /* Feedback buffer: vertices_written must equal the GPU counters,
+     * vertices_dropped must be zero (full 8192-vertex capacity), and
+     * overflow_frame must be 0 (no frame was flagged as overflowed).
+     * These checks verify that the binding-4 feedback path is wired
+     * correctly: the atomics in gdd_ops.glsl write to it, and the CPU
+     * can read them back via the HOST_VISIBLE mapping. */
+    uint32_t fb_written  = u_feedback->vertices_written;
+    uint32_t fb_dropped  = u_feedback->vertices_dropped;
+    uint32_t fb_overflow = u_feedback->overflow_frame;
+    uint32_t gpu_total   = u_counts->opaque_verts + u_counts->additive_verts;
+    CHECK(fb_written == gpu_total,
+          "feedback: vertices_written=%u == gpu_total=%u", fb_written, gpu_total);
+    CHECK(fb_dropped == 0,
+          "feedback: vertices_dropped=%u (expected 0 at full capacity)", fb_dropped);
+    CHECK(fb_overflow == 0,
+          "feedback: overflow_frame=%u (expected 0, no overflow at 8192 capacity)", fb_overflow);
+
     /* ---------------- Stage 3: FINAL ---------------- */
     clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_final()) {
         fprintf(stderr, "FAIL: final stage did not complete\n");
@@ -1873,6 +1904,13 @@ static int run_contract(void) {
     CHECK(g_tot <= cap, "guard: totals %u <= capacity %u", g_tot, cap);
     CHECK(g_tot < full_total,
           "guard: something dropped (%u < %u)", g_tot, (unsigned)full_total);
+    /* Guard feedback: vertices_dropped > 0 (capacity was set below total),
+     * overflow_frame must be 1 (invocation 0 detected overflow), and
+     * vertices_written + vertices_dropped must equal at least the full total. */
+    CHECK(u_feedback->vertices_dropped > 0,
+          "guard feedback: vertices_dropped=%u > 0 (overflow expected)", u_feedback->vertices_dropped);
+    CHECK(u_feedback->overflow_frame == 1,
+          "guard feedback: overflow_frame=%u (expected 1)", u_feedback->overflow_frame);
     clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_final()) {
         fprintf(stderr, "FAIL: guard final stage did not complete\n");
         return 1;
