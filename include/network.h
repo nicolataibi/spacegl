@@ -26,6 +26,9 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include "game_config.h"
 #include "game_state.h"
 
@@ -396,5 +399,27 @@ typedef struct {
 } PacketUpdate;
 
 #pragma pack(pop)
+
+/* Transport tuning: disable Nagle (TCP_NODELAY), enable keepalive,
+ * and configure low-latency socket buffers. */
+static inline void tune_socket(int fd) {
+    int flag = 1;
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+
+    setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(flag));
+#ifdef __linux__
+    int idle = 60;    /* first probe after 60 s idle */
+    int intvl = 10;   /* probe every 10 s */
+    int cnt = 10;     /* drop after 10 failed probes */
+    setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle));
+    setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl));
+    setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt));
+#endif
+
+    int rbuf = 256 * 1024;
+    int sbuf = 128 * 1024;
+    setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rbuf, sizeof(rbuf));
+    setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sbuf, sizeof(sbuf));
+}
 
 #endif

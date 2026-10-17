@@ -324,6 +324,39 @@ endif()
 add_test(NAME fuzz_corpus
          COMMAND fuzz_corpus_test "${CMAKE_CURRENT_SOURCE_DIR}/fuzz/corpus")
 
+# --- Rate limiting & DoS protection test (2026.10.17.04 / Prompt 3) ---
+# Verifies token bucket rate limiting (PKT_RATE_LIMIT = 200 pkt/sec,
+# PKT_DROP_THRESHOLD = 10 drops before disconnect, 1s token refill).
+set(RATE_LIMIT_SRCS
+    rate_limit_test.c
+    ${SG_ROOT}/src/server/packets.c
+    ${SG_ROOT}/src/server/net.c
+    ${SG_ROOT}/src/server/conn.c
+    ${SG_ROOT}/src/server/globals.c
+    ${SG_ROOT}/src/server/log.c
+    ${SG_ROOT}/src/server/threadpool.c
+    ${SG_ROOT}/src/server/commands.c
+    ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_events.c
+    ${SG_ROOT}/src/server/nav_math.c
+    ${SG_ROOT}/src/server/targets.c
+    ${SG_ROOT}/src/sglog.c)
+
+add_executable(rate_limit_test ${RATE_LIMIT_SRCS})
+target_link_libraries(rate_limit_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+if(OpenMP_C_FOUND)
+    target_link_libraries(rate_limit_test PRIVATE OpenMP::OpenMP_C)
+endif()
+if(SG_ATOMIC_LIB)
+    target_link_libraries(rate_limit_test PRIVATE ${SG_ATOMIC_LIB})
+endif()
+if(NOT MSVC)
+    target_compile_options(rate_limit_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(rate_limit_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME rate_limit COMMAND rate_limit_test)
+
 # 2) fuzz_packets: the real libFuzzer (clang only — libFuzzer is a
 #    clang/LLVM feature; -fsanitize=fuzzer supplies main()). CI runs it
 #    in the dedicated fuzz job: ./build/tests/fuzz_packets
@@ -385,6 +418,7 @@ set(ALL_TEST_TARGETS
     target_bounds_test
     vec_thrust_test
     fuzz_corpus_test
+    rate_limit_test
 )
 if(TARGET fuzz_packets)
     list(APPEND ALL_TEST_TARGETS fuzz_packets)

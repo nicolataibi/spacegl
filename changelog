@@ -1,3 +1,22 @@
+* Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.04
+  - Networking & Protocol: hardened TCP transport and communication resilience:
+    - Added TCP transport tuning (tune_socket in include/network.h): disabled Nagle
+      algorithm (TCP_NODELAY) for sub-frame latency game traffic, enabled TCP keepalive
+      probes (60s idle, 10s intervals, 10 probes) for dead-peer detection, and tuned
+      SO_RCVBUF (256 KB) and SO_SNDBUF (128 KB).
+    - Implemented per-connection token bucket rate limiting (PKT_RATE_LIMIT=200 pkt/s,
+      burst allowance PKT_DROP_THRESHOLD=10) in packet dispatcher (dispatch_packet /
+      pkt_rate_limit_check) to protect server against CPU exhaustion and DoS floods.
+    - Implemented monotonic frame ordering check (check_frame_order) in client to
+      drop late, out-of-order, or duplicate frames and prevent visual glitches.
+    - Added automated client reconnection with exponential backoff (1s, 2s, 4s, 8s,
+      16s, max 30s) restoring session credentials and galaxy state synchronization.
+    - Documented transport security model and application-level crypto rationale in
+      SECURITY.md (Section 1.4 Transport Security Model).
+    - Added dedicated unit test tests/rate_limit_test.c (13th test target in test
+      suite) verifying normal rate processing, burst drops, socket closure on threshold
+      violation, 1s token refill, and async staging mode.
+
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.03
   - Build System & Toolchain: brought build system to professional standards:
     - Updated .gitignore to exhaustively cover all build directories (build/, build-*/,

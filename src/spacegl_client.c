@@ -580,12 +580,184 @@ int write_all(int fd, const void *buf, size_t len) {
     return (int)total;
 }
 
+/* Frame ordering check: the server sends frames in strict
+ * increasing order (frame_id is a monotonic counter). If a
+ * frame arrives with a frame_id <= the last one we processed,
+ * it is a retransmission or an out-of-order delivery.
+ * Discards stale frames and warns after >5 consecutive stale frames. */
+static int64_t g_last_frame_id = -1;
+static int g_stale_frame_run = 0;
+
+static int check_frame_order(int64_t frame_id) {
+    if (frame_id <= g_last_frame_id) {
+        g_stale_frame_run++;
+        if (g_stale_frame_run > 5) {
+            fprintf(stderr, "\033[1;33m[WARN]\033[0m frame_id %lld <= last %lld (stale run %d)\n",
+                     (long long)frame_id, (long long)g_last_frame_id,
+                     g_stale_frame_run);
+        }
+        return 0;  /* stale: discard */
+    }
+    g_stale_frame_run = 0;
+    g_last_frame_id = frame_id;
+    return 1;  /* fresh: process */
+}
+
+/* Reconnection state and helpers */
+static char g_server_ip[64] = "127.0.0.1";
+static uint8_t g_saved_login_hash[32];
+static uint8_t g_saved_salt[16];
+static uint8_t g_saved_legacy_hash[32];
+static uint8_t g_saved_x25519_pubkey[32];
+static int g_saved_faction = 0;
+static int g_saved_ship_class = 0;
+static int g_reconnect_enabled = 0;
+
+static int connect_to_server(void) {
+    struct addrinfo hints, *res, *rp;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    char port_str[16];
+    sprintf(port_str, "%d", DEFAULT_PORT);
+
+    if (getaddrinfo(g_server_ip, port_str, &hints, &res) != 0) {
+        return 0;
+    }
+
+    if (sock > 0) {
+        close(sock);
+        sock = -1;
+    }
+
+    for (rp = res; rp != NULL; rp = rp->ai_next) {
+        sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (sock == -1) continue;
+
+        if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1) {
+            tune_socket(sock);
+            break; /* Success */
+        }
+
+        close(sock);
+        sock = -1;
+    }
+    freeaddrinfo(res);
+    return (sock != -1);
+}
+
+static int do_handshake(void) {
+    PacketHandshake h_pkt;
+    memset(&h_pkt, 0, sizeof(PacketHandshake));
+    h_pkt.type = PKT_HANDSHAKE;
+    h_pkt.pubkey_len = 32 + 32;
+
+    FILE *f_rand = fopen("/dev/urandom", "rb");
+    if (f_rand) {
+        if (fread(h_pkt.pubkey, 1, 32, f_rand) != 32) { }
+        fclose(f_rand);
+    } else {
+        for(int k=0; k<32; k++) h_pkt.pubkey[k] = rand() % 255;
+    }
+
+    memcpy(h_pkt.pubkey + 32, HANDSHAKE_MAGIC_STRING, 32);
+
+    uint8_t MY_SESSION_KEY[32];
+    memcpy(MY_SESSION_KEY, h_pkt.pubkey, 32);
+
+    for(int k=0; k<64; k++) h_pkt.pubkey[k] ^= master_root_key[k % 32];
+
+    if (write_all(sock, &h_pkt, sizeof(PacketHandshake)) <= 0) return 0;
+
+    int ack_type = 0;
+    if (read_all(sock, &ack_type, sizeof(int)) <= 0 || ack_type != PKT_HANDSHAKE) {
+        return 0;
+    }
+
+    uint8_t verify_xt[32];
+    if (read_all(sock, verify_xt, sizeof(verify_xt)) != (int)sizeof(verify_xt)) {
+        return 0;
+    }
+    for(int k=0; k<32; k++) galaxy_verify_key[k] = verify_xt[k] ^ MY_SESSION_KEY[k];
+    memset(verify_xt, 0, sizeof(verify_xt));
+
+    memcpy(deep_space_key, MY_SESSION_KEY, 32);
+    return 1;
+}
+
+static int do_login_reconnect(void) {
+    PacketLogin lpkt;
+    memset(&lpkt, 0, sizeof(PacketLogin));
+    lpkt.type = PKT_LOGIN;
+    strcpy(lpkt.name, captain_name);
+    lpkt.faction = g_saved_faction;
+    lpkt.ship_class = g_saved_ship_class;
+    memcpy(lpkt.pass_hash, g_saved_login_hash, 32);
+    memcpy(lpkt.salt, g_saved_salt, 16);
+    memcpy(lpkt.pass_hash_legacy, g_saved_legacy_hash, 32);
+    memcpy(lpkt.x25519_pubkey, g_saved_x25519_pubkey, 32);
+
+    if (write_all(sock, &lpkt, sizeof(PacketLogin)) <= 0) return 0;
+
+    SpaceGLGame *master_sync = malloc(sizeof(SpaceGLGame));
+    if (!master_sync) return 0;
+    memset(master_sync, 0, sizeof(SpaceGLGame));
+
+    int master_read = read_all(sock, master_sync, sizeof(SpaceGLGame));
+    if (master_read == sizeof(SpaceGLGame)) {
+        if (g_shared_state) {
+            memcpy(g_shm->shm_galaxy, master_sync->g, sizeof(master_sync->g));
+            g_shared_state->shm_crypto_algo = CRYPTO_NONE;
+            g_shared_state->shm_encryption_flags = master_sync->encryption_flags;
+            memcpy(g_shared_state->shm_server_signature, master_sync->server_signature, 64);
+            memcpy(g_shared_state->shm_server_pubkey, master_sync->server_pubkey, 32);
+        }
+        free(master_sync);
+        return 1;
+    }
+    free(master_sync);
+    return 0;
+}
+
+static int reconnect_with_backoff(void) {
+    int attempt = 0;
+    int delay = 1;
+    while (g_running) {
+        fprintf(stderr, "\033[1;33m[RECONNECT]\033[0m "
+                "Connection lost. Retrying in %d s (attempt %d)...\n",
+                delay, attempt + 1);
+        for (int i = 0; i < delay * 10 && g_running; i++)
+            usleep(100000);  /* 100 ms sleep, check g_running */
+        if (!g_running) return 0;
+
+        if (connect_to_server()) {
+            /* Reconnected: re-login and sync state */
+            if (do_handshake() && do_login_reconnect()) {
+                fprintf(stderr, "\033[1;32m[RECONNECT]\033[0m "
+                        "Reconnected successfully.\n");
+                g_last_frame_id = -1;  /* reset frame ordering */
+                g_stale_frame_run = 0;
+                return 1;
+            }
+        }
+        attempt++;
+        delay = (delay < 30) ? delay * 2 : 30;
+    }
+    return 0;
+}
+
 void *network_listener(void *arg) {
     (void)arg;
     while (g_running) {
         int type;
         int r = read_all(sock, &type, sizeof(int));
         if (r <= 0) {
+            if (g_reconnect_enabled && g_running) {
+                if (reconnect_with_backoff()) {
+                    continue;
+                }
+            }
             /* No exit() from the thread: main joins us in the orderly
              * shutdown and owns the process teardown (2026.10.06.07). */
             g_running = 0;
@@ -1134,7 +1306,7 @@ void *network_listener(void *arg) {
                 g_shared_state->net_last_packet_size = current_pkt_size;
             }
             
-            if (g_shared_state) {
+            if (g_shared_state && check_frame_order(current_state.frame_id)) {
                 if (current_state.object_count > MAX_OBJECTS) current_state.object_count = MAX_OBJECTS;
 
                 /* Synchronize the local state with the optimized data from the server */
@@ -1513,8 +1685,10 @@ int main(int argc, char *argv[]) {
 
         printf("Connecting to %s:%d...\n", server_ip, DEFAULT_PORT);
         fflush(stdout);
-        if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1)
+        if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1) {
+            tune_socket(sock);
             break; /* Success */
+        }
 
         close(sock);
         sock = -1;
@@ -1804,6 +1978,16 @@ int main(int argc, char *argv[]) {
         close(sock);
         exit(1);
     }
+
+    /* Save credentials for automated reconnection if connection drops */
+    snprintf(g_server_ip, sizeof(g_server_ip), "%s", server_ip);
+    g_saved_faction = my_faction;
+    g_saved_ship_class = my_ship_class;
+    memcpy(g_saved_login_hash, lpkt.pass_hash, 32);
+    memcpy(g_saved_salt, lpkt.salt, 16);
+    memcpy(g_saved_legacy_hash, lpkt.pass_hash_legacy, 32);
+    memcpy(g_saved_x25519_pubkey, lpkt.x25519_pubkey, 32);
+    g_reconnect_enabled = 1;
 
     init_shm();
     

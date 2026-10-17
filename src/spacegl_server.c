@@ -494,6 +494,8 @@ static void run_legacy_loop(int server_fd, int epoll_fd) {
                 int new_socket = accept(server_fd, (struct sockaddr *)&addr, (socklen_t*)&adlen);
                 if (new_socket == -1) { perror("accept"); continue; }
                 
+                tune_socket(new_socket);
+
                 ev.events = EPOLLIN; 
                 ev.data.fd = new_socket;
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_socket, &ev) == -1) { perror("epoll_ctl: new_socket"); close(new_socket); }
@@ -738,7 +740,9 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     
-    if (listen(server_fd, GAME_MAX_PLAYERS) < 0) {
+    /* Backlog: MAX_CLIENTS (16). If all slots are full, the
+     * SYN queue accepts up to MAX_CLIENTS half-open connections. */
+    if (listen(server_fd, MAX_CLIENTS) < 0) {
         perror("listen failed");
         exit(EXIT_FAILURE);
     }

@@ -39,6 +39,20 @@ typedef enum {
 } SpaceglIOMode;
 extern SpaceglIOMode g_io_mode;
 
+/* Per-connection rate limiting (DoS protection).
+ *
+ * The server allows up to PKT_RATE_LIMIT packets per second
+ * per connection. The counter is a simple token bucket with a
+ * 1-second refill: `tokens` starts at the limit and is refilled
+ * to the limit once per second (checked by comparing the current
+ * time against `last_refill`). Each consumed packet decrements
+ * `tokens`. When `tokens` reaches 0, the next packet is counted
+ * in `over_limit` and dropped (the connection is NOT closed
+ * immediately — a burst of 10+ consecutive drops triggers a
+ * close, which is the threshold for a real flood). */
+#define PKT_RATE_LIMIT   200   /* packets per second */
+#define PKT_DROP_THRESHOLD 10  /* consecutive drops before close */
+
 /*
  * Async (non-blocking) per-connection I/O session layer — the --io=async
  * mode of the server's single-threaded epoll loop.

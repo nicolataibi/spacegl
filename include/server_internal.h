@@ -121,6 +121,12 @@ typedef struct {
 
     uint32_t generation;
     SpaceGLGame state;
+
+    /* Rate limiting state (DoS protection). Updated by the dispatcher
+     * on every packet. */
+    uint32_t pkt_tokens;       /* remaining tokens this window */
+    uint32_t pkt_last_refill;  /* time_t of last refill */
+    uint32_t pkt_drop_run;     /* consecutive drops (0 = normal) */
 } __attribute__((aligned(64))) ConnectedPlayer;
 
 #pragma pack(push, 1)

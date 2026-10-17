@@ -61,6 +61,68 @@ pattern described in DEVELOPMENT.md §5.
     that pins the boundary — see DEVELOPMENT.md §5 — so the defect
     class cannot silently come back.
 
+### 1.4 Transport Security Model
+
+**Decision**: SpaceGL uses application-level cryptography instead of
+TLS for the game transport. This is a deliberate design choice,
+documented here with the threat model rationale.
+
+**Threat model**:
+- **Trusted LAN / home network**: the primary deployment is a single
+  LAN (home, office, game server). The risk of a man-in-the-middle
+  on the LAN is low.
+- **Low latency requirement**: the game runs at 60 fps with a
+  16 ms frame budget. A TLS 1.3 handshake (1 RTT) adds 20-50 ms
+  on a home network (acceptable for the initial connection), but
+  per-packet encryption/decryption (even AES-NI accelerated) adds
+  1-3 µs per packet. At 200 pkt/s this is 0.2-0.6 ms — negligible.
+  However, the **handshake latency** (1 RTT = 20-50 ms) is the
+  dominant cost, and for a reconnection scenario it
+  doubles the reconnect delay.
+- **Application-level crypto already provides**:
+  - **Integrity**: HMAC-SHA256 on the galaxy state (verified by the
+    client after every update).
+  - **Confidentiality**: AES-256-GCM on the radio channel (tactical
+    messages), X25519 key exchange for private links.
+  - **Authentication**: handshake with XOR master key + HMAC
+    verification.
+
+**What TLS would add**:
+- **Transport confidentiality**: encrypts the entire TCP stream
+  (including the handshake, which is currently XOR-obfuscated).
+- **Forward secrecy**: ephemeral ECDHE key exchange (X25519 is
+  already used at the application level for the tactical link).
+- **Certificate-based identity**: the server presents a certificate;
+  the client verifies it. Currently, identity is established via
+  the shared master key (less scalable for multi-server).
+
+**When TLS is required**:
+- **Internet deployment** (server and clients on different networks,
+  untrusted intermediate infrastructure).
+- **Multi-server federation** (certificate-based identity).
+- **Regulatory requirement** (GDPR data-in-transit encryption).
+
+**Future work**:
+- `--tls` flag: wrap the TCP stream in TLS 1.3 via OpenSSL
+  (already linked). The handshake and all application-level crypto
+  remain unchanged (TLS protects the transport; application crypto
+  protects the game data). This is a **transport-level** addition,
+  not a replacement.
+- **Implementation estimate**: ~200 lines in `src/server/conn.c`
+  (SSL_accept after accept, SSL_read/SSL_write replacing read/write)
+  and ~100 lines in `src/spacegl_client.c` (SSL_connect after
+  connect). The `PktIO` abstraction already isolates the I/O layer
+  from the dispatcher — the TLS layer slots into the same seam.
+
+**Current risk assessment**: for the documented threat model
+(trusted LAN), the absence of transport-level TLS is an accepted
+risk (see SECURITY.md §3, item "T1-transport"). The application-level
+HMAC-SHA256 provides integrity (an MITM cannot modify the galaxy
+state without being detected). The XOR handshake provides
+obfuscation (not encryption) of the key exchange — sufficient for a
+trusted LAN where the threat is casual eavesdropping, not an
+active MITM with the master key.
+
 ## 2. Audit registry (B items)
 
 Status values: `OPEN` / `FIXED` (version that closed it) / `ACCEPTED`

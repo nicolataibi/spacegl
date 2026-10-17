@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <pthread.h>
 #include <time.h>
 #include <errno.h>
@@ -37,6 +38,7 @@
 
 extern uint8_t deep_space_key[32];
 extern void ensure_player_algo_key(int p_idx, int k, bool private_mode);
+
 
 #include <poll.h>
 int read_all(int fd, void *buf, size_t len) {

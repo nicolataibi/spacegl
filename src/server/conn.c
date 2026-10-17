@@ -369,6 +369,7 @@ void run_epoll_loop_async(int server_fd, int epoll_fd) {
                         perror("accept");
                         break;
                     }
+                    tune_socket(new_socket);
                     Conn *c = conn_alloc(new_socket);
                     if (!c) {
                         /* Connection pool exhausted: drop the newest

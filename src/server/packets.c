@@ -105,9 +105,87 @@ static int io_close(PktIO *io, ConnCloseReason reason) {
     return 1;
 }
 
+/* Rate limiting (DoS protection).
+ *
+ * Called on every incoming packet (except handshake). Refills the token bucket once
+ * per second, then decrements. If the bucket is empty, the packet
+ * is dropped (returns 1). If the drop run exceeds PKT_DROP_THRESHOLD,
+ * returns 2 to indicate the connection should be closed. */
+static int pkt_rate_limit_check(int epoll_fd, int fd) {
+    (void)epoll_fd;
+    time_t now = time(NULL);
+
+    int slot = -1;
+    pthread_mutex_lock(&game_mutex);
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (players[i].socket == fd) { slot = i; break; }
+    }
+
+    if (slot < 0) {
+        pthread_mutex_unlock(&game_mutex);
+        return 0;  /* no slot yet (handshake): no rate limit */
+    }
+
+    ConnectedPlayer *p = &players[slot];
+    if (p->pkt_last_refill == 0 || (uint32_t)now != p->pkt_last_refill) {
+        p->pkt_last_refill = (uint32_t)now;
+        p->pkt_tokens = PKT_RATE_LIMIT;
+    }
+
+    if (p->pkt_tokens > 0) {
+        p->pkt_tokens--;
+        p->pkt_drop_run = 0;
+        pthread_mutex_unlock(&game_mutex);
+        return 0;  /* allowed */
+    }
+
+    /* Over limit: drop this packet */
+    p->pkt_drop_run++;
+    uint32_t run = p->pkt_drop_run;
+    pthread_mutex_unlock(&game_mutex);
+
+    LOG_DEBUG("RATE LIMIT: fd %d over limit (%u drops)\n", fd, run);
+    if (run > PKT_DROP_THRESHOLD) {
+        LOG_DEBUG("RATE LIMIT: fd %d exceeded drop threshold, closing\n", fd);
+        return 2; /* exceed threshold: close connection */
+    }
+    return 1;  /* drop this packet (don't process it) */
+}
+
 int dispatch_packet(PktIO *io, int32_t type) {
     int fd = io->fd;
     int p_idx = -1;
+
+    /* Rate limiting check (DoS protection). */
+    if (type != PKT_HANDSHAKE) {
+        int rl = pkt_rate_limit_check(io->epoll_fd, fd);
+        if (rl != 0) {
+            if (rl == 2) {
+                return io_close(io, CONN_CLOSE_SILENT);
+            }
+            /* Drain body if in legacy mode so next packet type aligns */
+            if (!io->rx) {
+                size_t bsz = 0;
+                switch (type) {
+                case PKT_QUERY_KEY: bsz = sizeof(PacketQueryKey) - sizeof(int32_t); break;
+                case PKT_QUERY:
+                case PKT_LOGIN:     bsz = sizeof(PacketLogin) - sizeof(int32_t); break;
+                case PKT_COMMAND:   bsz = sizeof(PacketCommand) - sizeof(int32_t); break;
+                case PKT_MESSAGE:   bsz = sizeof(PacketMessage) - sizeof(int32_t); break;
+                default:            return io_close(io, CONN_CLOSE_SILENT);
+                }
+                char dummy[512];
+                while (bsz > 0) {
+                    size_t chunk = bsz < sizeof(dummy) ? bsz : sizeof(dummy);
+                    if (!pkt_read_body(io, dummy, chunk)) {
+                        return io_close(io, CONN_CLOSE_SILENT);
+                    }
+                    bsz -= chunk;
+                }
+            }
+            return 1;
+        }
+    }
 
     if (type == PKT_HANDSHAKE) {
         LOG_DEBUG("Handshake request received from FD %d\n", fd);
