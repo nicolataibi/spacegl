@@ -1,3 +1,10 @@
+* Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.02
+  - CI / Fuzzing: fixed unrecognized libFuzzer flag (-rss_limit_gb=2 replaced
+    with canonical -rss_limit_mb=2048) and added -timeout=25 per-iteration cap
+    in .github/workflows/ci.yml. Rebalanced fuzzer campaign to 3-minute budget
+    (-max_total_time=180) within 300s timeout window, providing 120s headroom
+    to prevent SIGTERM and exit code 124 timeouts under VM scheduling load.
+
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.01
   - Architecture / Modularity: split monolithic translation units into clean,
     focused modules to improve build times, reviewability, and code organization:

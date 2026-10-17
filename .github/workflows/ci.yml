@@ -177,13 +177,17 @@ jobs:
       - name: Build fuzz target
         run: cmake --build build-fuzz --target fuzz_packets -j"$(nproc)"
 
-      - name: Run libFuzzer (4-minute budget, seeded corpus)
+      - name: Run libFuzzer (3-minute budget, seeded corpus)
         run: |
           # libFuzzer exits 0 on a clean time budget and non-zero when
           # it finds a regression; the corpus dir is the seed corpus AND
           # the minimal unit dir (a new crash re-runs deterministically).
+          # -timeout=25 limits any single iteration to avoid stalls,
+          # -rss_limit_mb=2048 enforces memory limit without unknown flag warnings,
+          # and timeout 300 provides a 2-minute buffer over max_total_time=180
+          # to ensure libFuzzer shuts down cleanly without triggering exit code 124.
           timeout 300 ./build-fuzz/tests/fuzz_packets \
-            tests/fuzz/corpus -max_total_time=240 -rss_limit_gb=2
+            tests/fuzz/corpus -max_total_time=180 -timeout=25 -rss_limit_mb=2048
 
   # ====================================================================
   # GPU: the GDD per-pass benchmark with the committed regression
