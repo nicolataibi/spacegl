@@ -1,3 +1,16 @@
+* Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.03
+  - Build System & Toolchain: brought build system to professional standards:
+    - Updated .gitignore to exhaustively cover all build directories (build/, build-*/,
+      build-tests/, build-tests-clang/), compiler outputs, test artifacts, and runtime data.
+    - Added explicit compiler flags for all CMake build types (Release, Debug,
+      RelWithDebInfo, MinSizeRel) with warning on unknown types defaulting to Release.
+    - Introduced check custom target in CMakeLists.txt and run-all in tests/CMakeLists.txt
+      for one-command local test execution.
+    - Created build.sh quick dev loop script supporting clean, debug, profiling,
+      and size-constrained configurations.
+    - Added CI check to verify no build directories or artifacts are tracked in git.
+    - Documented Build System types, workflows, and policies in DEVELOPMENT.md.
+
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.02
   - CI / Fuzzing: fixed unrecognized libFuzzer flag (-rss_limit_gb=2 replaced
     with canonical -rss_limit_mb=2048) and added -timeout=25 per-iteration cap

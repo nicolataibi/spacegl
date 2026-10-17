@@ -372,3 +372,31 @@ add_test(NAME gdd_bench
          COMMAND gdd_mesh_test "${GDD_SPV_DIR}" --benchmark 100
                  "${CMAKE_CURRENT_SOURCE_DIR}/gdd_bench_thresholds.txt")
 set_tests_properties(gdd_bench PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
+
+# --- Standalone and developer convenience targets ---
+set(ALL_TEST_TARGETS
+    gdd_contract_test
+    gdd_mesh_test
+    nav_heading_test
+    nav_roll_test
+    quad_index_test
+    pkt_length_test
+    crypto_table_test
+    target_bounds_test
+    vec_thrust_test
+    fuzz_corpus_test
+)
+if(TARGET fuzz_packets)
+    list(APPEND ALL_TEST_TARGETS fuzz_packets)
+endif()
+
+# `cmake --build build-tests --target run-all` — standalone mode:
+# build and run every test, print a summary table.
+add_custom_target(run-all
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS ${ALL_TEST_TARGETS}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    USES_TERMINAL
+    COMMENT "Running all ${CMAKE_PROJECT_NAME} tests (standalone mode)"
+)
+set(ALL_TEST_TARGETS ${ALL_TEST_TARGETS} PARENT_SCOPE)

@@ -44,6 +44,16 @@ jobs:
             cppcheck rpm rpmlint \
             python3 python3-pil
 
+      - name: Verify no build artifacts in source tree
+        run: |
+          # Fail if any build directory is tracked by git
+          if git ls-files | grep -qE '^build(-.*)?/'; then
+            echo "ERROR: build artifacts are tracked in git:"
+            git ls-files | grep -E '^build(-.*)?/'
+            exit 1
+          fi
+          echo "OK: no build artifacts in git"
+
       - name: Configure CMake
         run: |
           if [ "${{ matrix.build_type }}" = "Debug" ]; then

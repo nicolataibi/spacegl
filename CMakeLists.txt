@@ -34,14 +34,26 @@ else()
 
     add_compile_options(-Wall -Wextra -Wpedantic -fstack-protector-strong -Wformat -Wformat-security)
     
-    # Add optimization and debug info based on build type.
-    # -D_FORTIFY_SOURCE=2 needs at least -O1 to be effective: at -O0 it
-    # is a no-op that #warnings from <features.h> on every TU, so it
-    # goes with the optimized (Release) build only.
+    # Build-type-specific flags. Every CMake build type gets explicit flags
+    # so that no configuration silently falls through to no-optimization
+    # (which would lose -O3 in RelWithDebInfo and -Os in MinSizeRel).
+    #
+    # -D_FORTIFY_SOURCE=2 requires at least -O1 to be effective; it is
+    # applied to every optimized build (Release, RelWithDebInfo, MinSizeRel).
+    # At -O0 it is a no-op that #warns from <features.h> on every TU.
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
         add_compile_options(-O3 -D_FORTIFY_SOURCE=2)
     elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_compile_options(-O0 -g)
+    elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+        add_compile_options(-O2 -g -D_FORTIFY_SOURCE=2)
+    elseif(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+        add_compile_options(-Os -D_FORTIFY_SOURCE=2)
+    else()
+        message(WARNING
+            "Unknown CMAKE_BUILD_TYPE='${CMAKE_BUILD_TYPE}'. "
+            "Using Release flags (-O3 -D_FORTIFY_SOURCE=2).")
+        add_compile_options(-O3 -D_FORTIFY_SOURCE=2)
     endif()
 
     add_link_options(-Wl,-z,relro,-z,now)
@@ -247,6 +259,25 @@ option(SPACEGL_BUILD_TESTS "Build the tests/ unit suite (run it with ctest)" ON)
 if(SPACEGL_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+# --- Developer convenience targets ---
+# `cmake --build build --target spacegl` builds all 8 product targets.
+add_custom_target(${CMAKE_PROJECT_NAME}
+    DEPENDS spacegl_server spacegl_client spacegl_3dview spacegl_viewer
+            spacegl_hud spacegl_vulkan spacegl_diag spacegl_telemetry)
+
+# `cmake --build build --target check` runs the full local dev loop:
+# build everything, then run the entire test suite. One command.
+add_custom_target(check
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS ${CMAKE_PROJECT_NAME}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    USES_TERMINAL
+    COMMENT "Running full test suite (ctest --output-on-failure)"
+)
+if(TARGET run-all)
+    add_dependencies(check run-all)
 endif()
 
 # --- Installazione ---

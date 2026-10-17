@@ -6,34 +6,59 @@ spacegl_viewer
 spacegl_vulkan
 spacegl_hud
 spacegl_diag
+spacegl_telemetry
 
-# Directory di build
+# Build directories — any pattern that matches a CMake build tree
 build/
-build-tests/
+build-*/
 _build/
 .cache/
 .ruby-lsp/
-
-# Directory di spacegl
-captain
-
-# Altri file temporanei
 *.o
+*.a
+*.so
 *.d
-*.tar.gz
-*.sha256
 *.spv
-*.key
-identity.hash
+*.spvasm
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+Makefile
+*.user
+.vs/
+.idea/
+*.swp
+*.swo
+*~
 
-# Directory di sistema RPM
+# Test artifacts
+build-tests/
+build-tests-clang/
+fuzz_corpus/
+golden_out/
+
+# IDE / OS junk
+.DS_Store
+Thumbs.db
+
+# Directory e file di sistema RPM
 rpmbuild/
 _local_build/
 _srpm_test/
+*.tar.gz
+*.sha256
+
+# Runtime data (server data dir, captain files, keys)
+captain
+captains/
+galaxy.dat
+*.key
+identity.hash
 
 # File specifici da ignorare
 Niklaus.md
-galaxy.dat
 spacegl_new_revision.sh
 spacegl_new_release.sh
 local_check.sh

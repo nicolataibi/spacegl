@@ -9,6 +9,40 @@ This is an integrated source tree (not a git checkout): the 8 product
 targets, the shader sources and the `tests/` unit suite are all built
 from here.
 
+## Build System
+
+### Build types
+
+| Type | Flags | Use case |
+|:---|:---|:---|
+| `Release` (default) | `-O3 -D_FORTIFY_SOURCE=2` | Production, CI, RPM |
+| `Debug` | `-O0 -g` (+ ASan/UBSan in tests) | Development, debugging |
+| `RelWithDebInfo` | `-O2 -g -D_FORTIFY_SOURCE=2` | Profiling (perf, valgrind) |
+| `MinSizeRel` | `-Os -D_FORTIFY_SOURCE=2` | Size-constrained deployment |
+
+### Quick dev loop
+
+```bash
+./build.sh          # Release + tests (one command)
+./build.sh -d       # Debug + tests (ASan/UBSan)
+./build.sh -c       # Clean rebuild + tests
+./build.sh -t       # Tests only (skip rebuild)
+```
+
+### Standalone test build
+
+```bash
+cmake -B build-tests tests -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-tests -j$(nproc)
+ctest --test-dir build-tests --output-on-failure
+```
+
+### Build directory policy
+
+- Build directories (`build/`, `build-tests/`, `build-tests-clang/`, …) are **never committed**.
+- The `.gitignore` covers `build/` and `build-*/` (any variant).
+- CI fails if a build directory is found in the git index (`git ls-files | grep build/`).
+
 ## 1. Prerequisites
 
 Reference toolchain (Fedora, the project standard): GCC with C23
