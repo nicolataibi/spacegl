@@ -1,3 +1,12 @@
+* Sun Oct 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.18.02
+  - NEW DOCUMENTATION: Added a comprehensive GitHub-ready README.md
+    describing the SpaceGL project, its architecture, main features,
+    client/server components, OpenGL and Vulkan rendering backends, optional
+    GPU-driven rendering (GDD), build and installation procedures, configuration,
+    gameplay, testing, security considerations, contribution guidelines, and
+    licensing information. Improved project discoverability and provided a
+    clearer entry point for users, developers, and contributors.
+
 * Sun Oct 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.18.01
   - Documentation:
     - Added `FAQ.md`, `INSTALL.md`, and `BUILD.md` to document frequently
