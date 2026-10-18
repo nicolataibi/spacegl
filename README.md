@@ -1,6 +1,17 @@
 <div align="center">
 
-# SpaceGL
+# Space GL
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <div align="center">
+        <img src="readme_assets/logo/AIlogo.png" alt="AI Logo" width="400">
+        <img src="readme_assets/logo/spacegllogo.png" alt="Space GL logo" width="400">
+      </div>
+    </td>
+  </tr>
+</table>
 
 ### Persistent Galaxy Tactical Navigation & Combat Simulator
 
