@@ -1,3 +1,15 @@
+* Sun Oct 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.18.01
+  - Documentation:
+    - Added `FAQ.md`, `INSTALL.md`, and `BUILD.md` to document frequently
+      asked questions, installation procedures, and build instructions.
+    - Added `SECURITY.md`, `CODE_OF_CONDUCT.md`, and `CONTRIBUTING.md` to
+      establish security reporting procedures, community standards, and
+      contribution guidelines.
+    - Added `ACCESSIBILITY.md` to document the project's accessibility
+      objectives and feedback procedures.
+    - Improved the repository's documentation structure to support
+      maintainability, transparency, and community collaboration.
+
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.07
   - Vulkan GDD: refactored MSAA configuration (rimozione global mutable):
     - Sostituito extern uint32_t gdd_msaa_samples con enum GddMsaaMode

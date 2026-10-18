@@ -1,3 +1,54 @@
+# Security Policy
+
+## 1. Supported Versions
+
+Security updates are provided for versions that are actively maintained by the project.
+
+Users are encouraged to use the latest stable release to benefit from the most recent fixes and security improvements.
+
+The maintenance status of individual versions should be documented in the project's release notes or other relevant documentation.
+
+## 2. Reporting a Vulnerability
+
+If you discover a potential security vulnerability, please report it responsibly.
+
+Use the private vulnerability reporting feature available through GitHub, if enabled for this repository. Alternatively, follow the private reporting instructions provided by the project maintainers.
+
+**Please do not disclose suspected vulnerabilities through public issues or discussions before they have been assessed.**
+
+## 3. Information to Include
+
+To help the maintainers investigate the report, please provide, where possible:
+
+- A clear description of the potential vulnerability.
+- The affected software version or commit.
+- The operating system and relevant environment details.
+- Steps to reproduce the issue.
+- The potential security impact.
+- Any relevant logs, proof-of-concept code, or supporting evidence.
+
+Avoid including credentials, personal data, or other sensitive information in the report.
+
+## 4. Response and Resolution
+
+The maintainers will review submitted reports, assess their potential impact, and determine appropriate remediation measures.
+
+Where feasible, reporters will receive an acknowledgment and updates regarding the investigation. Confirmed vulnerabilities may be addressed through patches, security advisories, or new releases, depending on their severity and scope.
+
+Response times cannot be guaranteed unless explicitly stated by the project.
+
+## 5. Responsible Disclosure
+
+Please allow the maintainers reasonable time to investigate and address a reported vulnerability before making technical details publicly available.
+
+The project encourages responsible disclosure and appreciates the efforts of individuals who help improve its security.
+
+## 6. Scope
+
+This policy applies to security vulnerabilities affecting the project itself and its officially maintained components. Third-party dependencies may be subject to their respective security reporting procedures.
+
+Thank you for helping maintain a secure and reliable project.
+
 # SpaceGL — Security: Threat Model & Audit Registry
 
 **Living document.** Part 1 is the threat model (what we defend,
