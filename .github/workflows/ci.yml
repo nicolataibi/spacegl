@@ -155,6 +155,16 @@ jobs:
           # The login must have persisted the captain in the data dir.
           test -d "$DATA/captains/CI_SMOKE"
 
+      - name: Long-running stability (60 s server RSS leak check)
+        run: |
+          # The REAL server + REAL client (fresh recruit, then one "pos"
+          # every 2 s) for 60 s; the server RSS must not grow by more
+          # than 10 MB (a ~170 B/tick leak, i.e. ~36 MB/h, would fail).
+          # The matrix jobs also run it via ctest; this explicit step is
+          # the smoke job's long-haul pass (Prompt 6C).
+          bash tests/stability_test.sh 60 \
+            build/spacegl_server build/spacegl_client
+
   # ====================================================================
   # Fuzz: the REAL libFuzzer harness (tests/fuzz_packets.c) driving
   # dispatch_packet() + the command parser over a socketpair, seeded
@@ -250,16 +260,26 @@ jobs:
             --window 640x480 --seed 1 --no-rotate \
             --screenshot /tmp/golden_gdd.ppm --screenshot-frame 30
           # 1. The two paths of the SAME binary must render parity.
-          #    Tolerance 25.0 (NOT the 2.5 MSAA-noise tolerance): the
-          #    starfield is identical geometry/data on both paths but is
-          #    rasterized with different primitives (CPU TWINKLE mesh vs
-          #    GDD point sprite), so the cross-path RMSE floor is ~18.
-          #    25.0 still fails a dead/desynced path (black vs scene is
-          #    RMSE ~31) while tolerating the known star-shape delta.
-          python3 tests/golden_test.py /tmp/golden_cpu.ppm /tmp/golden_gdd.ppm 25.0
+          #    REGION-BASED comparison (Prompt 6A): the old single global
+          #    RMSE (25.0) let a localised artifact pass if it covered
+          #    < ~10% of the pixels. Now: a global RMSE sanity check
+          #    (30.0) plus per-region tolerances (center / top-left /
+          #    top-right / bottom), the per-region cross-path floor being
+          #    ~18 (the starfield is identical geometry/data but is
+          #    rasterized with different primitives: CPU TWINKLE mesh vs
+          #    GDD point sprite) and the tolerances sitting ~50% above
+          #    that floor. A dead/desynced path still fails (a black
+          #    region vs scene pushes the region RMSE far past its
+          #    tolerance), and a full report (per-region RMSEs) is
+          #    printed on every run.
+          python3 tests/golden_test.py /tmp/golden_cpu.ppm /tmp/golden_gdd.ppm --mode parity
           # 2. The GDD path must match the committed golden image
           #    (same path vs same path: the real regression pin).
-          python3 tests/golden_test.py /tmp/golden_gdd.ppm tests/golden/golden_gdd.ppm 5.0
+          #    Region tolerances: center 8.0 (galaxy map - the primary
+          #    content: allows minor shader-compilation color shifts,
+          #    catches a black sector or a missing object), HUD regions
+          #    5.0 (text/numbers: a missing digit is > 5.0 RMSE).
+          python3 tests/golden_test.py /tmp/golden_gdd.ppm tests/golden/golden_gdd.ppm --mode regression
 
       - name: Upload golden captures (artifacts)
         if: always()
@@ -269,3 +289,147 @@ jobs:
           path: |
             /tmp/golden_cpu.ppm
             /tmp/golden_gdd.ppm
+
+  # ====================================================================
+  # GPU (real driver): the same GDD benchmark, golden render and a 1-frame
+  # GDD smoke on a SELF-HOSTED runner that carries a real GPU (NVIDIA/
+  # AMD/Intel). lavapipe (the job above) covers the compute-pass LOGIC;
+  # this job covers DRIVER-SPECIFIC behavior (a driver that optimizes a
+  # compute pass differently, a rasterization difference, a memory-model
+  # quirk) that software rasterization can never exercise.
+  #
+  # Activation: the job is gated on BOTH
+  #   1. the repo variable GPU_RUNNER_ENABLED == "true" (set it in the
+  #      repo settings once a self-hosted runner labeled "gpu" exists;
+  #      without it the job is SKIPPED, not pending, on every push - a
+  #      job waiting for a runner that will never show up would block
+  #      the whole workflow)
+  #   2. an lspci check at runtime: a runner carrying the label but no
+  #      actual GPU passes with "No GPU detected, skipping".
+  #
+  # The thresholds are the SAME as the lavapipe job: a real GPU is
+  # expected to be FASTER than the software rasterizer, so the committed
+  # gdd_bench_thresholds.txt and the golden region tolerances (center
+  # 8.0 / HUD 5.0 / global 30.0, Prompt 6A) remain safe upper bounds.
+  # ====================================================================
+  gpu_real:
+    name: GPU (real driver)
+    runs-on: [self-hosted, linux, gpu]
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'pull_request')
+      && vars.GPU_RUNNER_ENABLED == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for GPU
+        id: check_gpu
+        run: |
+          if lspci | grep -qiE 'vga|3d|display'; then
+            echo "gpu=true" >> "$GITHUB_OUTPUT"
+            lspci | grep -iE 'vga|3d|display'
+          else
+            echo "gpu=false" >> "$GITHUB_OUTPUT"
+            echo "No GPU detected, skipping"
+          fi
+
+      - name: Skip marker (no GPU on this runner)
+        if: steps.check_gpu.outputs.gpu != 'true'
+        run: |
+          echo "gpu_real: nothing to do (no GPU on the labeled runner)"
+
+      - name: Install dependencies
+        if: steps.check_gpu.outputs.gpu == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ clang libomp-dev pkgconf \
+            libglfw3-dev libglew-dev libglu1-mesa-dev \
+            libssl-dev libncurses-dev \
+            libvulkan-dev vulkan-tools vulkan-validationlayers \
+            mesa-vulkan-drivers glslc spirv-tools \
+            python3 python3-pil \
+            xvfb
+
+      - name: Build (Release)
+        if: steps.check_gpu.outputs.gpu == 'true'
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(nproc)"
+
+      - name: GDD benchmark on real GPU
+        if: steps.check_gpu.outputs.gpu == 'true'
+        run: |
+          # Same compute passes, same committed threshold as the
+          # lavapipe job (gdd_bench_thresholds.txt): the real driver
+          # must be at least as fast as the software rasterizer.
+          ./build/tests/gdd_mesh_test ./build/shaders \
+            --benchmark 100 tests/gdd_bench_thresholds.txt
+          echo "GDD benchmark passed on real GPU"
+
+      - name: Golden render on real GPU (region-based, Prompt 6A)
+        if: steps.check_gpu.outputs.gpu == 'true'
+        run: |
+          set -euo pipefail
+          # Real GPU or xvfb (the viewer creates a real GLFW window).
+          if [ -z "${DISPLAY:-}" ]; then
+            RUNX="xvfb-run -a"
+          else
+            RUNX=""
+          fi
+          # Deterministic flags, same as the lavapipe job: frame 30 of
+          # both render paths (one binary / SPACEGL_GPD switch) over an
+          # empty SHM segment.
+          $RUNX env SPACEGL_GPD=0 ./build/spacegl_vulkan /sg_golden_shm \
+            --window 640x480 --seed 1 --no-rotate \
+            --screenshot /tmp/golden_cpu.ppm --screenshot-frame 30
+          $RUNX env SPACEGL_GPD=1 ./build/spacegl_vulkan /sg_golden_shm \
+            --window 640x480 --seed 1 --no-rotate \
+            --screenshot /tmp/golden_gdd.ppm --screenshot-frame 30
+          # 1. Cross-path parity, region-based (per-region tolerances
+          #    calibrated above the measured cross-path floor).
+          python3 tests/golden_test.py /tmp/golden_cpu.ppm /tmp/golden_gdd.ppm --mode parity
+          # 2. Same-path regression pin vs the committed golden image:
+          #    this is where a driver that rasterizes a compute pass
+          #    differently shows up (center 8.0 / HUD 5.0 / global 30).
+          python3 tests/golden_test.py /tmp/golden_gdd.ppm tests/golden/golden_gdd.ppm --mode regression
+
+      - name: GDD smoke (1 frame, screenshot not black/white)
+        if: steps.check_gpu.outputs.gpu == 'true'
+        run: |
+          set -euo pipefail
+          if [ -z "${DISPLAY:-}" ]; then
+            RUNX="xvfb-run -a"
+          else
+            RUNX=""
+          fi
+          # Render ONE frame through the GPU-driven path and capture the
+          # backbuffer: a basic "the GPU actually rendered something"
+          # check (the image must be neither all-black nor all-white).
+          timeout 30 $RUNX env SPACEGL_GPD=1 ./build/spacegl_vulkan /sg_smoke_shm \
+            --window 640x480 --seed 1 --no-rotate \
+            --screenshot /tmp/gdd_smoke.ppm --screenshot-frame 1
+          if [ ! -s /tmp/gdd_smoke.ppm ]; then
+            echo "FAIL: screenshot not created"
+            exit 1
+          fi
+          python3 - <<'EOF'
+          from PIL import Image
+          import sys
+          img = Image.open('/tmp/gdd_smoke.ppm').convert('RGB')
+          px = list(img.getdata())
+          mean = sum(sum(p) for p in px) / (len(px) * 3)
+          if mean < 10:
+              print(f'FAIL: image is nearly black (mean={mean:.1f})')
+              sys.exit(1)
+          if mean > 245:
+              print(f'FAIL: image is nearly white (mean={mean:.1f})')
+              sys.exit(1)
+          print(f'OK: image mean pixel value = {mean:.1f}')
+          EOF
+
+      - name: Upload smoke capture (artifact)
+        if: always() && steps.check_gpu.outputs.gpu == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-real-smoke
+          path: /tmp/gdd_smoke.ppm

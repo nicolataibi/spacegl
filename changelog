@@ -1,3 +1,62 @@
+* Mon Oct 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.19.01
+  - Testing & QA (Prompt 6/10): granular golden render, server tick
+    benchmark, long-running stability test, real-GPU CI job.
+    - Golden render: replaced the single global RMSE (25.0 parity /
+      5.0 regression) with a 4-region comparison in tests/golden_test.py
+      (center 0.25-0.75 / top-left / top-right / bottom, bounds as
+      fractions of the image so any resolution works) plus a global RMSE
+      sanity check (30.0). Regression mode (GDD vs committed golden,
+      same path): center 8.0, HUD 5.0 - a localised artifact (black
+      sector, missing beam, wrong ship color) can no longer hide in the
+      < ~10% of pixels the old global average tolerated. Parity mode
+      (CPU vs GDD, cross path): per-region tolerances sit ~50% above the
+      measured cross-path floor (~18, different star rasterization per
+      path). A per-region report is printed on EVERY run (CI traceability).
+      Updated: tests/golden_test.py, tests/run_golden.sh, the gpu job in
+      .github/workflows/ci.yml.
+    - NEW server tick benchmark (16th test): tests/server_tick_bench.c
+      runs 1000 ticks of the REAL game loop (update_game_logic +
+      global_tick++ + spacegl_master.frame_id++ under game_mutex, the
+      exact spacegl_server.c sequence) over a worst-case-but-stable
+      scene: 16/16 players active with full vitals, all dynamic pools at
+      production capacity (4000 NPCs with live combat AI in the players'
+      quadrants, 1000 monsters, 1000 comets, 3000 asteroids, 3000
+      derelicts, 1500 mines, 1000 buoys/platforms/rifts), all 63 static
+      arrays at capacity via the REAL production insertion (quad_index.c),
+      64/64 torpedoes. galaxy.c's rebuild_spatial_index() (called TWICE
+      per tick by logic_events.c) is mirrored line-for-line in the test
+      TU because galaxy.c owns the production globals and cannot be
+      linked; a post-run scene check fails the benchmark if a player
+      died (the scene - and the measured cost - would no longer be the
+      calibrated one). Thresholds: average < 8.0 ms and p99 < 12.0 ms
+      from tests/server_tick_thresholds.txt (half / three-quarters of
+      the 16.7 ms frame budget; the headroom covers sign_galaxy_data,
+      send_pending_updates and the epoll loop, which are not measured). A
+      refactoring that doubles the tick time is visible in the CI log;
+      one that quadruples it fails. Re-baseline: --update-thresholds.
+    - NEW long-running stability test (17th test):
+      tests/stability_test.sh runs the REAL server (throwaway
+      --data-dir) + the REAL client (fresh recruit login, then one "pos"
+      command every 2 s to keep the traffic active) for 60 s and checks
+      the server's RSS delta from /proc/<pid>/status: a growth above 10 MB
+      (~170 B/tick, i.e. ~36 MB/h leak, must fail; steady state stays
+      flat). Black-box by design: no ASan/UBSan (a sanitizer would
+      double the memory overhead and distort the RSS measurement;
+      sanitized builds are covered by the unit tests). Registered in
+      CTest (TIMEOUT 120, PASS/FAIL regular expressions, skip 77
+      without the product binaries); excluded from fast local runs with
+      ctest -E "stability", run explicitly by the CI smoke job.
+    - NEW CI job gpu_real (.github/workflows/ci.yml): the GDD benchmark
+      (same committed threshold), the region-based golden render and a
+      1-frame GDD smoke (screenshot must be neither black nor white) on
+      a SELF-HOSTED runner labeled "gpu" with a real NVIDIA/AMD/Intel
+      GPU - the driver-specific behavior lavapipe can never exercise.
+      Gated on the repo variable GPU_RUNNER_ENABLED (skipped, not
+      pending, while no GPU runner is configured) plus a runtime lspci
+      check (a labeled runner without a GPU passes with "skipping").
+    - Suite: 15 -> 17 tests (16 in the fast set + stability); the 15
+      previous tests are unchanged and pass.
+
 * Sun Oct 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.18.03
   - README Game Logos
 

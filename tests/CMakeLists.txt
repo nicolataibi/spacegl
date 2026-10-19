@@ -425,6 +425,64 @@ add_test(NAME gdd_bench
                  "${CMAKE_CURRENT_SOURCE_DIR}/gdd_bench_thresholds.txt")
 set_tests_properties(gdd_bench PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
 
+# --- Server tick rate benchmark (2026.10.18.04 / Prompt 6) -----------
+# 1000 ticks of the REAL game loop (update_game_logic + global_tick++
+# + spacegl_master.frame_id++ under game_mutex, the exact sequence of
+# spacegl_server.c's game_loop_thread) over a worst-case-but-stable
+# scene: 16/16 players active with full vitals, all dynamic pools at
+# production capacity (4000 NPCs, 1000 monsters, ...), all 63 static
+# arrays at capacity, 64/64 torpedoes. The average tick must stay under
+# threshold_ms and the p99 under p99_ms from
+# tests/server_tick_thresholds.txt (8.0 / 12.0 ms: half and three
+# quarters of the 16.7 ms frame budget, the headroom covering
+# sign_galaxy_data + send_pending_updates + epoll). A refactoring that
+# doubles the tick time is visible in the CI log; one that quadruples
+# it fails. The test TU mirrors galaxy.c's rebuild_spatial_index() (the
+# tick's two per-tick calls, see the file header) because galaxy.c owns
+# the production globals and cannot be linked; the static insertion is
+# the REAL production code (quad_index.c). OpenMP is linked so the
+# logic_events.c parallel loops behave as in the server binary.
+add_executable(server_tick_bench
+    server_tick_bench.c
+    ${SG_ROOT}/src/server/log.c
+    ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_events.c
+    ${SG_ROOT}/src/server/nav_math.c
+    ${SG_ROOT}/src/server/quad_index.c
+    ${SG_ROOT}/src/server/targets.c
+    ${SG_ROOT}/src/server/globals.c
+    ${SG_ROOT}/src/sglog.c)
+target_link_libraries(server_tick_bench PRIVATE m Threads::Threads)
+if(OpenMP_C_FOUND)
+    target_link_libraries(server_tick_bench PRIVATE OpenMP::OpenMP_C)
+endif()
+if(SG_ATOMIC_LIB)
+    target_link_libraries(server_tick_bench PRIVATE ${SG_ATOMIC_LIB})
+endif()
+add_test(NAME server_tick_bench
+         COMMAND server_tick_bench
+                 --threshold-file "${CMAKE_CURRENT_SOURCE_DIR}/server_tick_thresholds.txt")
+set_tests_properties(server_tick_bench PROPERTIES TIMEOUT 120)
+
+# --- Long-running stability test / memory-leak check (2026.10.18.04 / Prompt 6)
+# The REAL server + the REAL client (fresh recruit, "pos" every 2 s) run
+# for 60 s; the server's RSS may not grow by more than 10 MB over the
+# window (~170 B/tick = ~36 MB/h leak would fail). Runs in the default
+# ctest suite and in the CI smoke job; exclude it from a fast local run
+# with: ctest --output-on-failure -E "stability". Integrated mode only
+# (it needs the spacegl_server/spacegl_client product binaries); SKIP
+# (77) covers chroot/bare environments where the binaries are absent.
+if(TARGET spacegl_server AND TARGET spacegl_client)
+    add_test(NAME stability
+             COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/stability_test.sh" 60
+                     $<TARGET_FILE:spacegl_server> $<TARGET_FILE:spacegl_client>)
+    set_tests_properties(stability PROPERTIES
+        TIMEOUT 120
+        SKIP_RETURN_CODE 77
+        PASS_REGULAR_EXPRESSION "PASS: stability_test"
+        FAIL_REGULAR_EXPRESSION "FAIL: RSS grew")
+endif()
+
 # --- Standalone and developer convenience targets ---
 set(ALL_TEST_TARGETS
     gdd_contract_test
@@ -440,6 +498,7 @@ set(ALL_TEST_TARGETS
     rate_limit_test
     crypto_table_oob_test
     net_count_oob_test
+    server_tick_bench
 )
 if(TARGET fuzz_packets)
     list(APPEND ALL_TEST_TARGETS fuzz_packets)

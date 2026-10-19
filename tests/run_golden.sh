@@ -7,14 +7,20 @@
 # Renders the viewer headlessly in BOTH architectures (one binary, the
 # SPACEGL_GPD switch) with the deterministic flags --seed 1 --no-rotate
 # --window 640x480, captures frame 30 of each (--screenshot, PPM) and
-# compares with tests/golden_test.py:
+# compares with tests/golden_test.py, REGION-BASED (Prompt 6A): the old
+# single global RMSE let a localised artifact pass if it covered < ~10%
+# of the pixels, so the comparison is now a global RMSE sanity check
+# (30.0) plus 4 per-region tolerances (center / top-left / top-right /
+# bottom, as fractions of the image so any resolution works):
 #
-#   1. CPU vs GDD capture  (parity, tolerance 25.0: the starfields are
-#      the same geometry/data but the two paths rasterize stars with
-#      different primitives - CPU TWINKLE mesh vs GDD point sprite - so
-#      cross-path RMSE is ~18; 25.0 still catches a dead/desynced path)
+#   1. CPU vs GDD capture (--mode parity): the starfields are the same
+#      geometry/data but the two paths rasterize stars with different
+#      primitives - CPU TWINKLE mesh vs GDD point sprite - so the
+#      per-region cross-path floor is ~18 and the tolerances sit ~50%
+#      above it (see PARITY_TOLERANCES in golden_test.py)
 #   2. GDD capture vs the committed golden (tests/golden/golden_gdd.ppm,
-#      tolerance 5.0 - the real regression pin, same path to same path)
+#      --mode regression): center 8.0, HUD 5.0 - the real regression
+#      pin, same path to same path
 #
 # The SHM segment name is passed but never pre-existing: the viewer
 # creates it EMPTY (2026.10.11.01), which is the exact scene both paths
@@ -77,14 +83,14 @@ run_viewer "$WORK/golden_cpu.ppm" 0
 echo "golden: capturing GPU-driven path..."
 run_viewer "$WORK/golden_gdd.ppm" 1
 
-echo "golden: parity (CPU vs GDD, tol 25.0)"
-if ! python3 "$TESTS_DIR/golden_test.py" "$WORK/golden_cpu.ppm" "$WORK/golden_gdd.ppm" 25.0; then
-    echo "FAIL: CPU/GDD parity exceeded tolerance"
+echo "golden: parity (CPU vs GDD, region-based)"
+if ! python3 "$TESTS_DIR/golden_test.py" "$WORK/golden_cpu.ppm" "$WORK/golden_gdd.ppm" --mode parity; then
+    echo "FAIL: CPU/GDD parity exceeded a region tolerance"
     exit 1
 fi
 
-echo "golden: GDD vs committed golden (tol 5.0)"
-if ! python3 "$TESTS_DIR/golden_test.py" "$WORK/golden_gdd.ppm" "$TESTS_DIR/golden/golden_gdd.ppm" 5.0; then
+echo "golden: GDD vs committed golden (region-based: center 8.0, HUD 5.0)"
+if ! python3 "$TESTS_DIR/golden_test.py" "$WORK/golden_gdd.ppm" "$TESTS_DIR/golden/golden_gdd.ppm" --mode regression; then
     echo "FAIL: GDD render drifted from the committed golden"
     echo "      (regression, or driver change: re-baseline with"
     echo "      --screenshot tests/golden/golden_gdd.ppm on a reference machine)"

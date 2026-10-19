@@ -115,7 +115,7 @@ cmake --build build -j
 
 ## 3. Running the test suite
 
-The suite has **12 tests**, built in two equivalent modes:
+The suite has **17 tests**, built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
@@ -129,8 +129,13 @@ The suite has **12 tests**, built in two equivalent modes:
 | 8 | `target_bounds` | `tid`/`target_id` clamps on `players[]` (ASan/UBSan, canary global) | `src/server/commands.c` + `logic.c` + `nav_math.c` + `targets.c` |
 | 9 | `vec_thrust` | the `vec` command contract (ASan/UBSan, same scaffolding) | same as 8 |
 | 10 | `fuzz_corpus` | packet dispatcher / session stream fuzzing seeds under ASan/UBSan | `src/server/packets.c` + `net.c` + `conn.c` |
-| 11 | `golden` | CPU-vs-GDD render parity & GDD golden regression pin (integrated only) | `src/spacegl_vulkan.c` + `src/spacegl_vulkan_gdd.c` |
-| 12 | `gdd_bench` | GDD cull/expand/final compute pass runtime benchmark against thresholds | `src/spacegl_vulkan_gdd.c` (via `gdd_mesh_test`) |
+| 11 | `rate_limit` | DoS protection: token-bucket rate limit (200 pkt/s, 10 drops → disconnect, 1 s refill) on the real dispatcher, incl. async staged mode (ASan/UBSan) | `src/server/packets.c` + `net.c` + `conn.c` |
+| 12 | `crypto_table_oob` | B2-b: `radio_cipher_for_algo()` index bounds, all 256 algo bytes, canary byte (ASan/UBSan) | `include/radio_crypto.h` |
+| 13 | `net_count_oob` | B3-b: object/beam `count` field bounds (0 / MAX / MAX+1 / -1 / INT32_MIN / INT32_MAX), canary array (ASan/UBSan) | `src/server/packets.c` + `net.c` |
+| 14 | `golden` | CPU-vs-GDD render parity & GDD golden regression pin, **region-based** (4 regions + global sanity; a localised artifact can no longer hide in the pixel average) (integrated only) | `src/spacegl_vulkan.c` + `src/spacegl_vulkan_gdd.c` |
+| 15 | `gdd_bench` | GDD cull/expand/final compute pass runtime benchmark against thresholds | `src/spacegl_vulkan_gdd.c` (via `gdd_mesh_test`) |
+| 16 | `server_tick_bench` | server tick rate regression: 1000 ticks of the real game loop over a worst-case-but-stable scene; avg < `threshold_ms`, p99 < `p99_ms` (tests/server_tick_thresholds.txt, 8.0/12.0 ms) | `src/server/logic.c` + `logic_events.c` + `quad_index.c` + `targets.c` |
+| 17 | `stability` | long-running memory-leak check: real server + real client for 60 s, server RSS delta ≤ 10 MB (integrated only; the CI smoke job runs it explicitly too) | `build/spacegl_server` + `build/spacegl_client` (black-box) |
 
 ### 3.1 Integrated mode (default)
 

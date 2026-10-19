@@ -1,0 +1,14 @@
+# Server tick rate benchmark thresholds
+# Format: key <value_ms>
+# Updated by: tests/server_tick_bench --update-thresholds
+# Do NOT edit manually: run the benchmark with --update-thresholds
+# to regenerate after a refactoring that changes the tick time.
+# (values = measured x 1.5, rounded up to 0.1 ms)
+
+# Average tick time must stay under half the 16.7 ms frame budget of
+# the 60 Hz server loop, leaving headroom for sign_galaxy_data(),
+# send_pending_updates() and the epoll event loop.
+threshold_ms 8.0
+# 99th percentile must stay under three quarters of the frame budget
+# (a single slow tick is tolerated; a tail of slow ticks is not).
+p99_ms 12.0
