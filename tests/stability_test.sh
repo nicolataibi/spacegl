@@ -16,11 +16,12 @@
 # bounded logs) stays flat.
 #
 # Timeline:
-#   t=0        start server + client (login round-trip, galaxy sync)
-#   t=5 s      warmup done: first RSS sample (initial allocations -
-#              galaxy generation, 41^3 spatial index, thread pool,
-#              first sync copy - have settled)
-#   t=5+D      last RSS sample; delta = last - first
+#   t=0          start server + client (login round-trip, galaxy sync)
+#   t=sync+3 s   first RSS sample, after the client's sync marker is in
+#                the log (polled, <= 10 s deadline) plus a 3 s settle for
+#                the initial allocations (galaxy generation, 41^3 spatial
+#                index, thread pool, first sync copy)
+#   t=sync+3+D   last RSS sample; delta = last - first
 #
 # The client is the actual command deck driven through stdin exactly
 # like a human (IP, name, access code, faction, class - the same five
@@ -137,24 +138,41 @@ fi
 CLIENT_PID=$!
 
 # --- warmup (login + galaxy sync + first allocations) ----------------
-sleep 5
+# Poll for the sync marker instead of one fixed sleep+grep: the client's
+# stdout is block-buffered when redirected to the log, so the marker
+# reaches the file only on the client's next flush (the deck flushes
+# right after login). A one-shot check at t=5 s raced that flush on slow
+# chroots and produced false "never synchronized" failures even though the
+# login had completed. 10 s deadline: login + the full SpaceGLGame
+# transfer on the slowest build chroot completes far faster.
+synced=0
+for _ in $(seq 1 50); do
+    if grep -q "Galaxy Map synchronized" "$WORK_CLIENT_LOG" 2>/dev/null; then
+        synced=1
+        break
+    fi
+    kill -0 "$CLIENT_PID" 2>/dev/null || break   # client died while starting
+    sleep 0.2
+done
 
 # The client must have completed the login handshake: without it the
 # 60 s window measures an idle server (nothing to leak, nothing to
 # exercise) and the test would be vacuous.
-if ! grep -q "Galaxy Map synchronized" "$WORK_CLIENT_LOG" 2>/dev/null; then
+if [ "$synced" -ne 1 ]; then
     echo "FAIL: client never synchronized (login did not complete)"
     tail -n 20 "$WORK_CLIENT_LOG" 2>/dev/null
     exit 1
 fi
-
+# Let login + galaxy sync + first allocations settle before the first
+# RSS sample (the warmup the original fixed sleep provided).
+sleep 3
 RSS_START=$(get_rss_kb "$SERVER_PID")
 if [ "$RSS_START" -le 0 ]; then
     echo "FAIL: server died during warmup (RSS unreadable)"
     tail -n 20 "$WORK_SERVER_LOG" 2>/dev/null
     exit 1
 fi
-echo "Server RSS at start (t=5s): ${RSS_START} kB"
+echo "Server RSS at start (after warmup): ${RSS_START} kB"
 
 # --- measurement window ----------------------------------------------
 sleep "$DURATION"

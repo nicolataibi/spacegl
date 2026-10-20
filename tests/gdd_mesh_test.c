@@ -1905,8 +1905,9 @@ static int run_contract(void) {
     CHECK(g_tot < full_total,
           "guard: something dropped (%u < %u)", g_tot, (unsigned)full_total);
     /* Guard feedback: vertices_dropped > 0 (capacity was set below total),
-     * overflow_frame must be 1 (invocation 0 detected overflow), and
-     * vertices_written + vertices_dropped must equal at least the full total. */
+     * overflow_frame must be 1 (flagged atomically by gdd_reserve at drop
+     * time — race-free on every ICD), and vertices_written +
+     * vertices_dropped must equal at least the full total. */
     CHECK(u_feedback->vertices_dropped > 0,
           "guard feedback: vertices_dropped=%u > 0 (overflow expected)", u_feedback->vertices_dropped);
     CHECK(u_feedback->overflow_frame == 1,

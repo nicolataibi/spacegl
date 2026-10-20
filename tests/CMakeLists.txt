@@ -459,9 +459,21 @@ endif()
 if(SG_ATOMIC_LIB)
     target_link_libraries(server_tick_bench PRIVATE ${SG_ATOMIC_LIB})
 endif()
-add_test(NAME server_tick_bench
-         COMMAND server_tick_bench
-                 --threshold-file "${CMAKE_CURRENT_SOURCE_DIR}/server_tick_thresholds.txt")
+# The threshold gate applies ONLY in optimized, non-instrumented builds:
+# the CI matrix's Debug jobs carry ASan/UBSan (-fsanitize in
+# CMAKE_C_FLAGS, a 2-3x slowdown that distorts tick times), and a plain
+# -O0 Debug build is just as unrepresentative. In those the benchmark
+# runs with --report-only (the numbers are still printed in the CI log;
+# the gate stays on for Release/RelWithDebInfo/MinSizeRel without
+# sanitizers).
+set(SG_TICK_BENCH_ARGS
+    --threshold-file "${CMAKE_CURRENT_SOURCE_DIR}/server_tick_thresholds.txt")
+if(CMAKE_C_FLAGS MATCHES "sanitize" OR CMAKE_CXX_FLAGS MATCHES "sanitize")
+    list(APPEND SG_TICK_BENCH_ARGS --report-only)
+elseif(NOT CMAKE_BUILD_TYPE MATCHES "^(Release|RelWithDebInfo|MinSizeRel)$")
+    list(APPEND SG_TICK_BENCH_ARGS --report-only)
+endif()
+add_test(NAME server_tick_bench COMMAND server_tick_bench ${SG_TICK_BENCH_ARGS})
 set_tests_properties(server_tick_bench PROPERTIES TIMEOUT 120)
 
 # --- Long-running stability test / memory-leak check (2026.10.18.04 / Prompt 6)

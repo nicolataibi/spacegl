@@ -1,3 +1,36 @@
+* Tue Oct 20 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.20.01
+  - Bug fix & CI: fixes the %check failures of 2026.10.19.01 (COPR
+    Fedora 45 and the GitHub Actions matrix: stability, server_tick_bench
+    and, on the lavapipe job, gdd_mesh).
+    - stability: the client's SIGCHLD handler reaped the visualizer
+      child before the startup wait loop's waitpid() could see it, so a
+      dead viewer (execlp failed in a headless build chroot, no
+      spacegl_3dview on PATH) cost the full 5 s visualizer timeout;
+      the client's stdout is block-buffered when redirected, so the
+      first flush landed right when tests/stability_test.sh grepped for
+      "Galaxy Map synchronized" at t=5 s - a race that failed the test
+      even though the login had completed. The handler now records the
+      reap (g_visualizer_reaped) and the wait loop breaks within 10 ms;
+      stability_test.sh also polls the sync marker (10 s deadline)
+      instead of a one-shot sleep+grep.
+    - gdd_mesh: gdd_expand.comp invocation 0 read vertices_dropped to
+      set overflow_frame while the other workgroups were still running -
+      a data race that on lavapipe (serial workgroup execution,
+      invocation 0 first) deterministically left overflow_frame=0 in
+      the GUARD stage ("guard feedback: overflow_frame=0 (expected
+      1)"). The flag is now set atomically (atomicMax) at drop time in
+      gdd_reserve() (assets/shaders/gdd_ops.glsl); the racy post-pass
+      check is removed from gdd_expand.comp.
+    - server_tick_bench: the 8.0/12.0 ms thresholds were derived from
+      the 16.7 ms frame budget and did not hold on the slowest CI
+      hardware (GitHub ubuntu-latest 2-vCPU shared runner: avg 10.162
+      ms; COPR Fedora 45 shared builder: p99 21.015 ms of scheduler
+      tail noise). Re-baselined per the file convention (measured x 1.5
+      on the slowest gated hardware): threshold_ms 15.3, p99_ms 31.6.
+      The gate now applies only to optimized, non-instrumented builds
+      (new --report-only flag): the matrix's ASan/UBSan Debug jobs
+      print the numbers without gating (sanitizers distort tick times
+      2-3x).
 * Mon Oct 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.19.01
   - Testing & QA (Prompt 6/10): granular golden render, server tick
     benchmark, long-running stability test, real-GPU CI job.

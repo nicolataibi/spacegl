@@ -50,10 +50,10 @@ void main() {
         case GDD_MESH_BOXWIRE: if (!gdd_reserve(it, GDD_VC_BOXWIRE, base)) return; gdd_expand_boxwire(base, it); break;
         default:               if (!gdd_reserve(it, GDD_VC_BOX, base)) return; gdd_expand_box(base, it); break;
     }
-
-    if (gl_GlobalInvocationID.x == 0) {
-        if (gdd_feedback.feedback.vertices_dropped > 0) {
-            gdd_feedback.feedback.overflow_frame = 1u;
-        }
-    }
+    /* The overflow_frame flag is set by gdd_reserve() at drop time
+     * (atomicMax, see gdd_ops.glsl). The old post-pass check here read
+     * vertices_dropped from invocation 0 while the other workgroups were
+     * still running: on ICDs that serialize workgroups (lavapipe on some
+     * Mesa versions) invocation 0 finished before any drop happened and
+     * the flag was never set — a data race, now removed. */
 }

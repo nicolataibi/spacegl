@@ -390,10 +390,23 @@ void handle_ack(int sig) {
     g_visualizer_ready = 1;
 }
 
+/* Set when the SIGCHLD handler reaps the visualizer child. The handler
+ * MUST reap (no zombie when the viewer dies mid-session), but the parent's
+ * startup wait loop must also be able to SEE the death: waitpid(pid) only
+ * reports a child that THIS call reaps, so without the flag an instantly
+ * dead viewer (e.g. execlp failed in a headless build chroot) was reaped
+ * by the handler before the loop's waitpid() could observe it, and the
+ * loop burned the full 5 s visualizer timeout even in CLI-only mode —
+ * delaying the first stdout flush past the stability test's sync check.
+ * The visualizer is the client's only direct child (the vk path's second
+ * fork happens inside that child), so any reap is about it. */
+static volatile sig_atomic_t g_visualizer_reaped = 0;
+
 void handle_sigchld(int sig) {
     (void)sig;
     int status;
-    while (waitpid(-1, &status, WNOHANG) > 0);
+    while (waitpid(-1, &status, WNOHANG) > 0)
+        g_visualizer_reaped = 1;
 }
 
 void init_shm() {
@@ -2052,9 +2065,14 @@ int main(int argc, char *argv[]) {
     printf("Waiting for Tactical View initialization...\n");
     int timeout = 500; /* 5 seconds */
     while(!g_visualizer_ready && timeout-- > 0) {
-        /* Check if child is still alive */
+        /* Check if child is still alive: waitpid() > 0 means THIS call
+         * reaped it; g_visualizer_reaped covers the case where the
+         * SIGCHLD handler already did (see handle_sigchld). Either way
+         * the dead viewer is detected on the next 10 ms poll instead of
+         * costing the full 5 s timeout. */
         int status;
-        if (waitpid(visualizer_pid, &status, WNOHANG) > 0) {
+        if (waitpid(visualizer_pid, &status, WNOHANG) > 0 || g_visualizer_reaped) {
+            g_visualizer_reaped = 0;
             printf(B_RED "ERROR: Tactical View process terminated unexpectedly.\n" RESET);
             break;
         }

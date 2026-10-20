@@ -69,15 +69,24 @@
  *
  * Threshold: the AVERAGE tick time must stay under threshold_ms and
  * the 99th percentile under p99_ms from
- * tests/server_tick_thresholds.txt (defaults 8.0 / 12.0 = half and
- * three-quarters of the 16.7 ms frame budget). The file is rewritten
- * by `--update-thresholds` (measured avg/p99 x 1.5, rounded UP to
- * 0.1 ms) when a developer explicitly accepts a new baseline after a
- * refactoring.
+ * tests/server_tick_thresholds.txt (re-baselined 2026.10.20 to
+ * 15.3 / 31.6 = measured x 1.5 on the slowest GATED CI hardware —
+ * GitHub ubuntu-latest 2-vCPU shared runner for the average, COPR
+ * Fedora 45 builder for the p99 tail; see the file header for the
+ * full rationale. The original 8.0 / 12.0 values were derived from
+ * the 16.7 ms frame budget and assumed the tick runs at ~half a frame
+ * on every machine, which a 2-vCPU shared CI runner does not meet).
+ * The gate applies ONLY in optimized, non-instrumented builds:
+ * the CI matrix's Debug jobs carry ASan/UBSan (2-3x slowdown, distorted
+ * tick times), so CMake runs them with --report-only (numbers still
+ * printed, no gate). The file is rewritten by `--update-thresholds`
+ * (measured avg/p99 x 1.5, rounded UP to 0.1 ms) when a developer
+ * explicitly accepts a new baseline after a refactoring.
  *
- * This is a performance REGRESSION test: a refactoring that doubles
- * the tick time (2 ms -> 4 ms) passes 8.0 but is visible in the CI
- * log; one that quadruples it (8 ms -> 16 ms) fails.
+ * This is a performance REGRESSION test: on the slowest gated hardware
+ * a refactoring that doubles the tick time fails the average gate,
+ * a 2x tail regression fails p99, and every regression is at least
+ * visible in the CI log numbers.
  *
  * Determinism: global_tick starts at 1 and the tick seed is
  * ai_seed = global_tick (as in the loop), so rand_r()-driven branches
@@ -86,8 +95,14 @@
  * Usage:
  *   server_tick_bench [--ticks N] [--warmup N]
  *                     [--threshold-file PATH] [--update-thresholds]
+ *                     [--report-only]
  *
  * Exit: 0 = pass, 1 = threshold exceeded (or scene destabilized).
+ *       --report-only prints the same stats but never applies the
+ *       threshold gate (for sanitizer/unoptimized builds, where the
+ *       numbers are distorted by the instrumentation). The scene
+ *       stability check still applies: a destabilized scene makes the
+ *       numbers meaningless and fails in every mode.
  */
 
 #include <stdio.h>
@@ -927,8 +942,11 @@ static int qsort_cmp_double(const void *a, const void *b) {
 }
 
 static int run_bench(int n_ticks, int n_warmup, const char *thr_file,
-                     int update_thresholds, double dump_slow_ms) {
-    double thr_avg = 8.0, thr_p99 = 12.0;
+                     int update_thresholds, double dump_slow_ms,
+                     int report_only) {
+    /* Fallbacks (only used when the threshold file is missing) mirror
+     * the re-baselined tests/server_tick_thresholds.txt values. */
+    double thr_avg = 15.3, thr_p99 = 31.6;
     load_thresholds(thr_file, &thr_avg, &thr_p99);
 
     printf("Building worst-case scene (16 players, all dynamic pools at "
@@ -988,6 +1006,13 @@ static int run_bench(int n_ticks, int n_warmup, const char *thr_file,
 
     if (!scene_stable()) return 1;
 
+    if (report_only) {
+        printf("REPORT-ONLY: threshold gate disabled (sanitizer or "
+               "unoptimized build distorts tick times);\n"
+               "  the numbers above are informational for the CI log.\n");
+        return 0;
+    }
+
     int fail = 0;
     if (avg > thr_avg) {
         fprintf(stderr, "FAIL: average tick time %.3f ms > %.1f ms threshold\n",
@@ -1010,6 +1035,7 @@ int main(int argc, char **argv) {
     int n_ticks = 1000;
     int n_warmup = 100;
     int update_thresholds = 0;
+    int report_only = 0;
     double dump_slow_ms = 0.0;
     const char *thr_file = "tests/server_tick_thresholds.txt";
 
@@ -1022,11 +1048,13 @@ int main(int argc, char **argv) {
             thr_file = argv[++i];
         } else if (strcmp(argv[i], "--update-thresholds") == 0) {
             update_thresholds = 1;
+        } else if (strcmp(argv[i], "--report-only") == 0) {
+            report_only = 1;
         } else if (strcmp(argv[i], "--dump-slow") == 0 && i + 1 < argc) {
             dump_slow_ms = atof(argv[++i]);
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             printf("usage: %s [--ticks N] [--warmup N] [--threshold-file PATH] "
-                   "[--update-thresholds] [--dump-slow MS]\n", argv[0]);
+                   "[--update-thresholds] [--report-only] [--dump-slow MS]\n", argv[0]);
             return 0;
         } else {
             fprintf(stderr, "unknown argument: %s\n", argv[i]);
@@ -1038,5 +1066,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    return run_bench(n_ticks, n_warmup, thr_file, update_thresholds, dump_slow_ms);
+    return run_bench(n_ticks, n_warmup, thr_file, update_thresholds,
+                     dump_slow_ms, report_only);
 }

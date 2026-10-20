@@ -33,18 +33,28 @@ bool gdd_reserve(GddInstance it, uint n, out uint base) {
         base = opaque_settled + local_idx;
         /* Capacity guard: opaque_settled is final; only additive_verts
          * is still racing — use local_idx + n as the worst-case
-         * high-water mark for this invocation. */
+         * high-water mark for this invocation. The overflow flag is set
+         * HERE, at drop time: a post-pass read of vertices_dropped by a
+         * single invocation races the other workgroups (on ICDs that
+         * serialize workgroups, invocation 0 runs before any later group
+         * drops anything and never sees the drop). An atomic at the drop
+         * site is race-free: once any reservation is rolled back, the
+         * flag is 1 by the end of the dispatch. */
         if (opaque_settled + local_idx + n > pc.capacity) {
             atomicAdd(gdd_counts.c.additive_verts, uint(-n));
             atomicAdd(gdd_feedback.feedback.vertices_dropped, n);
+            atomicMax(gdd_feedback.feedback.overflow_frame, 1u);
             return false;
         }
     } else {
         base = atomicAdd(gdd_counts.c.opaque_verts, n);
-        /* Capacity guard (opaque pass only — additive_verts is 0 here). */
+        /* Capacity guard (opaque pass only — additive_verts is 0 here).
+         * overflow_frame is flagged atomically at drop time, see the
+         * additive branch above. */
         if (base + n > pc.capacity) {
             atomicAdd(gdd_counts.c.opaque_verts, uint(-n));
             atomicAdd(gdd_feedback.feedback.vertices_dropped, n);
+            atomicMax(gdd_feedback.feedback.overflow_frame, 1u);
             return false;
         }
     }
