@@ -87,7 +87,7 @@ and additional assets explaining the SpaceGL engine and game play.
 
 
 %files
-%license LICENSE.txt
+%license LICENSE
 %{_bindir}/spacegl_server
 %{_bindir}/spacegl_client
 %{_bindir}/spacegl_3dview
@@ -121,7 +121,7 @@ and additional assets explaining the SpaceGL engine and game play.
 
 
 %files doc
-%license LICENSE.txt
+%license LICENSE
 %doc README.md HOWTO.txt
 %doc readme_assets/
 
