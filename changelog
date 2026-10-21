@@ -1,3 +1,23 @@
+* Wed Oct 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.21.04
+  - CI fix: the stability test no longer aborts the server on the GitHub
+    Actions clang Debug (ASan/UBSan) job.
+    - OpenMP: a plain schedule(dynamic[, n]) is nonmonotonic since OpenMP
+      5.0 and LLVM's libomp maps it to its work-stealing algorithm
+      (kmp_sch_static_steal), whose stealing code asserted in the server
+      ("OMP: Error #13: Assertion failure at kmp_dispatch.cpp(1617)"),
+      aborting it during the 60 s stability run. The three dynamic loops
+      of logic_events.c (torpedoes, NPC AI, monster attacks) now use
+      schedule(monotonic: dynamic[, n]): the iterations are independent,
+      so the plain shared-counter dynamic schedule costs nothing and the
+      stealing path is never entered. GCC's libgomp is unaffected.
+    - stability: with clang the ASan + libomp combination adds per-thread
+      allocator state that grows with the OpenMP thread count (+11-12 MB
+      with 4 threads, constant between a 60 s and a 120 s window, so not
+      a leak; +1 MB in the Release build). The sanitized jobs now use a
+      30 MB threshold (STABILITY_LEAK_THRESHOLD_MB, set from
+      tests/CMakeLists.txt); the strict 10 MB threshold stays on the
+      non-instrumented builds.
+
 * Wed Oct 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.21.03
   - CI fix: the stability test no longer fails on the GitHub Actions Debug
     (ASan/UBSan) jobs with a false memory-leak report.

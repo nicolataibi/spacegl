@@ -43,7 +43,10 @@
 set -u
 
 DURATION="${1:-60}"
-LEAK_THRESHOLD_MB=10
+# Default 10 MB; overridable for sanitized builds, where ASan's per-thread
+# allocator state makes the RSS climb with the OpenMP thread count even
+# though nothing leaks (see tests/CMakeLists.txt).
+LEAK_THRESHOLD_MB="${STABILITY_LEAK_THRESHOLD_MB:-10}"
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 

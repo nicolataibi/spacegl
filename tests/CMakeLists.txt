@@ -513,11 +513,15 @@ if(TARGET spacegl_server AND TARGET spacegl_client)
     # default) before reusing it, so the server's RSS climbs by tens of MB
     # during the 60 s window even though nothing leaks (measured: +56 MB
     # with ASan, +1 MB in Release, +4.5 MB with the quarantine capped).
-    # Cap the quarantine so the RSS delta measures real growth again: a
-    # genuine leak (~36 MB/h) still exceeds the 10 MB threshold.
+    # Cap the quarantine so the RSS delta measures real growth again. With
+    # clang the ASan + libomp combination also adds per-thread allocator
+    # state that grows with the OpenMP thread count (measured with 4
+    # threads: +11.5 MB under clang+ASan, +1.0 MB in the Release build, so
+    # not a leak): the sanitized jobs use a wider 30 MB threshold, the
+    # strict 10 MB one stays on the non-instrumented builds.
     if(CMAKE_C_FLAGS MATCHES "sanitize" OR CMAKE_CXX_FLAGS MATCHES "sanitize")
         set_tests_properties(stability PROPERTIES
-            ENVIRONMENT "ASAN_OPTIONS=quarantine_size_mb=1")
+            ENVIRONMENT "ASAN_OPTIONS=quarantine_size_mb=1;STABILITY_LEAK_THRESHOLD_MB=30")
     endif()
 endif()
 

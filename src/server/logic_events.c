@@ -245,8 +245,17 @@ void logic_handle_wormhole_nav(int i) {
             }
 }
 
+/* OpenMP scheduling note (applies to every schedule(dynamic) loop in this
+ * file): since OpenMP 5.0 a plain schedule(dynamic[, n]) is NONMONOTONIC,
+ * and LLVM's libomp maps it to its work-stealing algorithm
+ * (kmp_sch_static_steal). Its stealing code asserts on consecutive loops
+ * with very different trip counts (observed as "OMP: Error #13: Assertion
+ * failure at kmp_dispatch.cpp(1617)" in the clang+ASan CI job, aborting the
+ * server). The iterations here are independent, so the monotonic modifier
+ * costs nothing and keeps libomp on the plain shared-counter dynamic
+ * schedule (GCC's libgomp is unaffected). */
 void logic_update_torpedoes(void) {
-    #pragma omp parallel for schedule(dynamic, 10)
+    #pragma omp parallel for schedule(monotonic: dynamic, 10)
     for (int t = 0; t < MAX_GLOBAL_TORPEDOES; t++) {
         if (!players_torpedoes[t].active) continue;
 
@@ -505,7 +514,7 @@ void logic_update_torpedoes(void) {
         }
     }
 
-#pragma omp parallel for schedule(dynamic, 10)
+#pragma omp parallel for schedule(monotonic: dynamic, 10)
     for (int n = 0; n < MAX_NPC; n++) {
         if (npcs[n].active) {
             if (npcs[n].death_timer > 0) {
@@ -660,7 +669,7 @@ void logic_update_supernova(unsigned int *ai_seed) {
 }
 
 void logic_update_monster_attacks(void) {
-    #pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(monotonic: dynamic)
     for (int mo = 0; mo < MAX_MONSTERS; mo++) {
         if (!monsters[mo].active) {
             continue;
