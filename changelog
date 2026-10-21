@@ -1,3 +1,19 @@
+* Wed Oct 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.21.03
+  - CI fix: the stability test no longer fails on the GitHub Actions Debug
+    (ASan/UBSan) jobs with a false memory-leak report.
+    - stability: the Debug matrix jobs pass -fsanitize=address,undefined in
+      CMAKE_C_FLAGS, which also instruments spacegl_server and
+      spacegl_client, the production binaries stability_test.sh runs. ASan
+      keeps every freed block in a quarantine (256 MB by default) before
+      reusing it, so the server's RSS grew by ~50 MB in the 60 s window
+      ("RSS grew by 49.45 MB (> 10 MB threshold)") although nothing leaks
+      (measured: +56 MB with ASan, +1.0 MB in Release, +4.5 MB with the
+      quarantine capped). tests/CMakeLists.txt now sets
+      ASAN_OPTIONS=quarantine_size_mb=1 for the stability test when the
+      build is sanitized, so the RSS delta measures real growth again (a
+      genuine ~36 MB/h leak still exceeds the 10 MB threshold). Release
+      and non-sanitized builds are unchanged.
+
 * Wed Oct 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.21.02
   - spec: LICENSE fix.
 

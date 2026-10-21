@@ -507,6 +507,18 @@ if(TARGET spacegl_server AND TARGET spacegl_client)
         SKIP_RETURN_CODE 77
         PASS_REGULAR_EXPRESSION "PASS: stability_test"
         FAIL_REGULAR_EXPRESSION "FAIL: RSS grew")
+    # Sanitized builds (the CI Debug jobs pass -fsanitize=address,undefined
+    # in CMAKE_C_FLAGS, which also instruments the product binaries this
+    # test runs): ASan keeps every freed block in a quarantine (256 MB by
+    # default) before reusing it, so the server's RSS climbs by tens of MB
+    # during the 60 s window even though nothing leaks (measured: +56 MB
+    # with ASan, +1 MB in Release, +4.5 MB with the quarantine capped).
+    # Cap the quarantine so the RSS delta measures real growth again: a
+    # genuine leak (~36 MB/h) still exceeds the 10 MB threshold.
+    if(CMAKE_C_FLAGS MATCHES "sanitize" OR CMAKE_CXX_FLAGS MATCHES "sanitize")
+        set_tests_properties(stability PROPERTIES
+            ENVIRONMENT "ASAN_OPTIONS=quarantine_size_mb=1")
+    endif()
 endif()
 
 # --- Standalone and developer convenience targets ---
