@@ -3,7 +3,7 @@
 %global _docdir_fmt %{name}
 
 Name:           spacegl
-Version:        2026.10.20.01
+Version:        2026.10.21.01
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
@@ -59,7 +59,9 @@ and additional assets explaining the SpaceGL engine and game play.
 
 
 %conf
-%cmake
+# The server_tick_bench wall-clock gate is meaningless on shared builders
+# (COPR/Koji): keep the report in the log, never fail the build on it.
+%cmake -DSPACEGL_TICK_BENCH_GATE=OFF
 
 
 %build

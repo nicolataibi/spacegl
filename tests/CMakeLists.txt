@@ -410,7 +410,7 @@ if(TARGET spacegl_vulkan)
     add_test(NAME golden
              COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_golden.sh
                      $<TARGET_FILE:spacegl_vulkan>)
-    set_tests_properties(golden PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
+    set_tests_properties(golden PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600 RUN_SERIAL TRUE)
 endif()
 
 # --- GDD per-pass benchmark (2026.10.11.01) --------------------------
@@ -423,7 +423,7 @@ endif()
 add_test(NAME gdd_bench
          COMMAND gdd_mesh_test "${GDD_SPV_DIR}" --benchmark 100
                  "${CMAKE_CURRENT_SOURCE_DIR}/gdd_bench_thresholds.txt")
-set_tests_properties(gdd_bench PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
+set_tests_properties(gdd_bench PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600 RUN_SERIAL TRUE)
 
 # --- Server tick rate benchmark (2026.10.18.04 / Prompt 6) -----------
 # 1000 ticks of the REAL game loop (update_game_logic + global_tick++
@@ -466,15 +466,28 @@ endif()
 # runs with --report-only (the numbers are still printed in the CI log;
 # the gate stays on for Release/RelWithDebInfo/MinSizeRel without
 # sanitizers).
+#
+# SPACEGL_TICK_BENCH_GATE (default ON): set it to OFF on shared/virtualized
+# build farms (e.g. the RPM %check on COPR/Koji) to keep the numbers in
+# the log but never fail the build on a wall-clock measurement: a timing
+# gate is only meaningful on a quiet machine.
+option(SPACEGL_TICK_BENCH_GATE
+       "Fail server_tick_bench when the tick time exceeds the thresholds" ON)
 set(SG_TICK_BENCH_ARGS
     --threshold-file "${CMAKE_CURRENT_SOURCE_DIR}/server_tick_thresholds.txt")
-if(CMAKE_C_FLAGS MATCHES "sanitize" OR CMAKE_CXX_FLAGS MATCHES "sanitize")
+if(NOT SPACEGL_TICK_BENCH_GATE)
+    list(APPEND SG_TICK_BENCH_ARGS --report-only)
+elseif(CMAKE_C_FLAGS MATCHES "sanitize" OR CMAKE_CXX_FLAGS MATCHES "sanitize")
     list(APPEND SG_TICK_BENCH_ARGS --report-only)
 elseif(NOT CMAKE_BUILD_TYPE MATCHES "^(Release|RelWithDebInfo|MinSizeRel)$")
     list(APPEND SG_TICK_BENCH_ARGS --report-only)
 endif()
 add_test(NAME server_tick_bench COMMAND server_tick_bench ${SG_TICK_BENCH_ARGS})
-set_tests_properties(server_tick_bench PROPERTIES TIMEOUT 120)
+# RUN_SERIAL: the benchmark measures wall-clock time (and its OpenMP loops
+# use every core), so it must never share the machine with other tests.
+# RPM's %ctest (and `ctest -j`) runs tests in parallel: without this the
+# tick is slowed 3-10x by the concurrent tests (avg and especially p99).
+set_tests_properties(server_tick_bench PROPERTIES TIMEOUT 120 RUN_SERIAL TRUE)
 
 # --- Long-running stability test / memory-leak check (2026.10.18.04 / Prompt 6)
 # The REAL server + the REAL client (fresh recruit, "pos" every 2 s) run
@@ -489,6 +502,7 @@ if(TARGET spacegl_server AND TARGET spacegl_client)
              COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/stability_test.sh" 60
                      $<TARGET_FILE:spacegl_server> $<TARGET_FILE:spacegl_client>)
     set_tests_properties(stability PROPERTIES
+        RUN_SERIAL TRUE
         TIMEOUT 120
         SKIP_RETURN_CODE 77
         PASS_REGULAR_EXPRESSION "PASS: stability_test"
