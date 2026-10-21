@@ -1,4 +1,7 @@
 * Wed Oct 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.21.01
+  - spec: LICENSE fix.
+
+* Wed Oct 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.21.01
   - Bug fix & CI: fixes the server_tick_bench %check failure of
     2026.10.20.01 on COPR Fedora 45 even after the threshold re-baseline.
     - server_tick_bench: the benchmark measures wall-clock time and its
