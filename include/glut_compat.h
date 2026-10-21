@@ -20,7 +20,7 @@
 #ifndef GLUT_COMPAT_H
 #define GLUT_COMPAT_H
 
-#include <GL/glew.h>
+#include "gl_loader.h"
 #include <GL/glu.h>
 
 /* Mock constants for GLUT compatibility */

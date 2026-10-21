@@ -1,3 +1,12 @@
+* Wed Oct 21 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.21.05
+  - Vulkan GDD: the periodic "[GDD perf [frame N]: ...]" line is now silent by
+    default and printed every 60 frames only with SPACEGL_GDD_PERF=1; a frame
+    that drops vertices ([OVERFLOW]) is always reported.
+  - OpenGL viewer (spacegl_3dview): replace GLEW with a loader based on
+    glfwGetProcAddress (new gl_loader.c/.h). glewInit() failed on Wayland/EGL
+    with GLEW_ERROR_NO_GLX_DISPLAY; the viewer now works on Wayland and X11.
+  - Drop the glew/glew-devel build dependency (spec, CMake, CI, documentation).
+
 * Wed Oct 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.21.04
   - CI fix: the stability test no longer aborts the server on the GitHub
     Actions clang Debug (ASan/UBSan) job.

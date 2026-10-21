@@ -37,7 +37,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             cmake g++ clang libomp-dev pkgconf \
-            libglfw3-dev libglew-dev libglu1-mesa-dev \
+            libglfw3-dev libglu1-mesa-dev \
             libssl-dev libncurses-dev \
             libvulkan-dev vulkan-tools vulkan-validationlayers \
             mesa-vulkan-drivers glslc spirv-tools \
@@ -108,7 +108,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             cmake g++ clang libomp-dev pkgconf \
-            libglfw3-dev libglew-dev libglu1-mesa-dev \
+            libglfw3-dev libglu1-mesa-dev \
             libssl-dev libncurses-dev \
             libvulkan-dev vulkan-tools vulkan-validationlayers \
             mesa-vulkan-drivers glslc spirv-tools
@@ -186,7 +186,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             cmake g++ clang libomp-dev pkgconf \
-            libglfw3-dev libglew-dev libglu1-mesa-dev \
+            libglfw3-dev libglu1-mesa-dev \
             libssl-dev libncurses-dev \
             libvulkan-dev vulkan-tools vulkan-validationlayers \
             mesa-vulkan-drivers glslc spirv-tools
@@ -227,7 +227,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             cmake g++ clang libomp-dev pkgconf \
-            libglfw3-dev libglew-dev libglu1-mesa-dev \
+            libglfw3-dev libglu1-mesa-dev \
             libssl-dev libncurses-dev \
             libvulkan-dev vulkan-tools vulkan-validationlayers \
             mesa-vulkan-drivers glslc spirv-tools \
@@ -343,7 +343,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             cmake g++ clang libomp-dev pkgconf \
-            libglfw3-dev libglew-dev libglu1-mesa-dev \
+            libglfw3-dev libglu1-mesa-dev \
             libssl-dev libncurses-dev \
             libvulkan-dev vulkan-tools vulkan-validationlayers \
             mesa-vulkan-drivers glslc spirv-tools \

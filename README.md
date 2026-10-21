@@ -172,7 +172,7 @@ Install the documented development packages:
 
 ```bash
 sudo dnf install gcc-c++ cmake pkgconf-pkg-config \
-  mesa-libGL-devel libGLU-devel glew-devel glfw-devel \
+  mesa-libGL-devel libGLU-devel glfw-devel \
   ncurses-devel openssl-devel openmp-devel \
   vulkan-loader-devel vulkan-headers glslc
 ```

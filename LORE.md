@@ -1815,7 +1815,7 @@ Ensure your package list is up to date, then install the required dependencies:
 ```bash
 sudo apt-get update
 sudo apt-get install build-essential libglfw3-dev libglu1-mesa-dev \
-                     libglew-dev libssl-dev libomp-dev \
+                     libssl-dev libomp-dev \
                      libvulkan-dev vulkan-tools glslc libncurses5-dev libncursesw5-dev
 ```
 
@@ -1824,7 +1824,7 @@ Ensure you have the EPEL repository enabled, then:
 ```bash
 sudo dnf install epel-release
 sudo dnf groupinstall "Development Tools"
-sudo dnf install glfw-devel mesa-libGLU-devel glew-devel openssl-devel libomp-devel \
+sudo dnf install glfw-devel mesa-libGLU-devel openssl-devel libomp-devel \
                  vulkan-loader-devel vulkan-validation-layers-devel glslang ncurses-devel
 ```
 
@@ -4154,7 +4154,6 @@ Space GL implements enterprise-grade security for galactic state synchronization
 ### ⚙ System Requirements & Dependencies
 To compile and run the SPACE GL suite, ensure the following libraries and tools are installed:
 * **GLFW / OpenGL**: Core rendering engine and window management.
-* **GLEW**: OpenGL Extension Wrangler for advanced shader support.
 * **Vulkan SDK**: Next-gen rendering backend (requires libvulkan, libglfw, and the glslc compiler for SPIR-V shaders). The build resolves it by a chain: the `VULKAN_SDK` environment variable, then the pinned local default SDK (the project decision for reproducible builds, `-DUSE_DEFAULT_VULKAN_SDK=OFF` to skip it), then the system Vulkan.
 * **OpenMP**: (Crucial) Required for multi-threaded physics processing and high-performance particle systems (libomp).
 * **ncurses**: Terminal-based HUD interfaces for spacegl_hud, spacegl_diag, and spacegl_telemetry (libncurses).

@@ -107,6 +107,11 @@ struct GddState {
     GddPerfMetrics metrics;
     uint64_t frame_count;
     uint64_t last_overflow_frame;
+
+    /* periodic "[GDD perf ...]" line on stdout: opt-in via
+     * SPACEGL_GDD_PERF=1 (read once in gdd_init). Overflow is always
+     * reported regardless of this flag. */
+    bool perf_log;
 };
 
 /* ------------------------------------------------------------------ */
@@ -825,6 +830,10 @@ bool gdd_init(VulkanApp *app, GddMsaaMode msaa_mode) {
     g->device = app->device;
     g->physicalDevice = app->physicalDevice;
     g->app = app;
+    {
+        const char *perf = getenv("SPACEGL_GDD_PERF");
+        g->perf_log = (perf && perf[0] == '1');
+    }
     /* MSAA: GDD_MSAA_OFF → 1 sample (no multisample attachment, no
      * resolve); GDD_MSAA_4X → 4 samples capped to device maximum.
      * Both paths (CPU and GDD) are controlled by the same --no-msaa
@@ -1730,7 +1739,8 @@ void gdd_draw_frame(VulkanApp *app) {
 
         gdd_check_feedback(fb, g->frame_count, g);
 
-        if (g->frame_count % 60 == 0) {
+        if (g->metrics.vertices_dropped > 0 ||
+            (g->perf_log && g->frame_count % 60 == 0)) {
             printf("[GDD perf [frame %lu]: cpu %.2f ms, total %.2f ms, verts %u/%u, visible %u, opaque %u, additive %u%s]\n",
                    (unsigned long)g->frame_count,
                    g->metrics.cpu_upload_ms,

@@ -53,7 +53,7 @@ Development packages:
 
 ```
 dnf install gcc-c++ cmake pkgconf-pkg-config mesa-libGL-devel \
-            libGLU-devel glew-devel glfw-devel ncurses-devel \
+            libGLU-devel glfw-devel ncurses-devel \
             openssl-devel openmp-devel vulkan-loader-devel \
             vulkan-headers glslc
 ```
@@ -186,6 +186,11 @@ Control (documented for the auditors):
 The standard `VK_INSTANCE_LAYERS` variable (colon-separated layer
 names) is honored as before and merged with the default; a requested
 layer the driver does not provide is warned and skipped.
+
+Per-frame statistics: the GDD path prints a `[GDD perf [frame N]: ...]`
+line every 60 frames **only** when `SPACEGL_GDD_PERF=1` is set (it is
+silent by default). A frame that dropped vertices (`[OVERFLOW]`) is
+always reported.
 
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Debug

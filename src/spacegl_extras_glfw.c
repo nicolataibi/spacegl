@@ -17,7 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <GL/glew.h>
+#include "gl_loader.h"
 #include "glut_compat.h"
 #include <math.h>
 #include <stdlib.h>

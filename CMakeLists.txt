@@ -64,7 +64,6 @@ find_package(Threads REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(OpenGL REQUIRED)
-find_package(GLEW REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 # Ncurses via PkgConfig
@@ -93,7 +92,7 @@ spacegl_find_vulkan_sdk()
 pkg_check_modules(GLFW REQUIRED glfw3)
 
 # --- Include Directories ---
-include_directories(include ${OPENSSL_INCLUDE_DIR} ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIR} ${NCURSES_INCLUDE_DIRS} ${GLFW_INCLUDE_DIRS})
+include_directories(include ${OPENSSL_INCLUDE_DIR} ${OPENGL_INCLUDE_DIR} ${NCURSES_INCLUDE_DIRS} ${GLFW_INCLUDE_DIRS})
 
 # --- Vulkan Shader Compiler Helper ---
 # glslc is a hard requirement: there is NO automatic fallback to
@@ -218,8 +217,8 @@ add_executable(spacegl_client src/spacegl_client.c src/sglog.c)
 target_link_libraries(spacegl_client ${COMMON_LIBS})
 
 # 3. spacegl_3dview
-add_executable(spacegl_3dview src/spacegl_3dview.c src/glut_compat.c src/spacegl_extras_glfw.c src/sglog.c)
-target_link_libraries(spacegl_3dview ${COMMON_LIBS} ${GLFW_LIBRARIES} ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES} GLU)
+add_executable(spacegl_3dview src/spacegl_3dview.c src/gl_loader.c src/glut_compat.c src/spacegl_extras_glfw.c src/sglog.c)
+target_link_libraries(spacegl_3dview ${COMMON_LIBS} ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} GLU)
 
 # 4. spacegl_viewer
 add_executable(spacegl_viewer src/spacegl_viewer.c)

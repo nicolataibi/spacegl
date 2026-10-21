@@ -18,8 +18,7 @@
  */
 
 #define _DEFAULT_SOURCE
-#define GL_GLEXT_PROTOTYPES
-#include <GL/glew.h>
+#include "gl_loader.h"
 #include <GLFW/glfw3.h>
 #include "glut_compat.h"
 #include <stdio.h>
@@ -2997,23 +2996,14 @@ int main(int argc, char** argv) {
     glfwSetFramebufferSizeCallback(window, glfw_reshape_callback);
     glfwSetKeyCallback(window, glfw_key_callback);
     
-    /* Initialize GLEW */
-    glewExperimental = GL_TRUE;
-    GLenum err = glewInit();
-    if (GLEW_OK != err) {
-        /* On some drivers, glewInit might return GLEW_ERROR_NO_GL_VERSION (1) 
-           even if context is valid when using glewExperimental. 
-           We check if the context is actually working. */
-        const GLubyte* version = glGetString(GL_VERSION);
-        if (version) {
-            printf("[3D VIEW] GLEW init reported error but context is valid. Version: %s\n", version);
-        } else {
-            fprintf(stderr, "[3D VIEW] GLEW Error: %s (Code: %d)\n", glewGetErrorString(err), err);
-            return 1;
-        }
-    } else {
-        printf("[3D VIEW] GLEW initialized. OpenGL Version: %s\n", glGetString(GL_VERSION));
+    /* Load the GL entry points through GLFW (works on X11 and Wayland/EGL;
+     * GLEW's glewInit() fails on Wayland with GLEW_ERROR_NO_GLX_DISPLAY). */
+    if (!sg_gl_load()) {
+        fprintf(stderr, "[3D VIEW] Failed to load required OpenGL functions\n");
+        glfwTerminate();
+        return 1;
     }
+    printf("[3D VIEW] OpenGL functions loaded. OpenGL Version: %s\n", glGetString(GL_VERSION));
 
     /* Initialize from the LIVE framebuffer size (may differ from the window
      * request, e.g. HiDPI): viewport, bloom FBOs and HUD font in one shot. */
