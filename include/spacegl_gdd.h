@@ -170,6 +170,11 @@ typedef enum {
  * path's fixed-function LINE_LIST wireframe pipeline). */
 #define GDD_FRAG_WIREFRAME  11 /* wireframe, unlit instance color (CPU mode 1 on the wireframe pipeline) */
 #define GDD_FRAG_WIREFRAME_PBR 12 /* wireframe, PBR metal 0.9 / rough 0.25 (CPU ships: wireframe + mode 5) */
+/* GDD-only looks (no CPU-path counterpart): */
+#define GDD_FRAG_NEBULA_IRIS 13 /* spherical iridescent nebula: warped FBM + thin-film palette + fresnel glow */
+#define GDD_FRAG_BH_DISC     14 /* black-hole accretion disk on GDD_MESH_RING: it.p.x = ring half-thickness,
+                                 * it.p.y = ring outer radius (world), instance color = the hole's palette */
+#define GDD_FRAG_RIMGLOW     15 /* fresnel halo shell (gravitational-lensing glow around a black hole) */
 
 /* Instance flags (GddInstance.b.w). The field is a float that must hold
  * exact small integer values (any integer < 2^24 is exact in float32);

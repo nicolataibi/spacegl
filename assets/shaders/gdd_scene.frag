@@ -165,6 +165,94 @@ void main() {
         return;
     }
 
+    /* MODE 13: Iridescent spherical nebula (GDD-only look).
+     *   - domain-warped FBM billows, attached to the sphere (vLocal) with a
+     *     per-object offset from the world position
+     *   - thin-film style cosine palette driven by view angle + density
+     *   - fresnel rim glow and a bright heart; the alpha fades towards the
+     *     silhouette so the low-poly sphere outline is never visible
+     *   Black holes never use this mode (they have BH_DISC / RIMGLOW). */
+    if (mode == 13) {
+        vec3 N = (length(vNormal) > 1e-6) ? normalize(vNormal) : vec3(0.0, 1.0, 0.0);
+        vec3 V = normalize(SC_CAM - vPos);
+        float ndv  = abs(dot(N, V));
+        float fres = pow(1.0 - ndv, 2.2);
+        float t = sc.time;
+
+        float ca = cos(t * 0.05), sa = sin(t * 0.05);
+        vec3 np = vLocal * 1.7 + vPos * 0.04;
+        np = vec3(ca * np.x - sa * np.z, np.y, sa * np.x + ca * np.z);
+
+        float warp    = fbm(np * 1.3 + vec3(0.0, t * 0.03, 0.0));
+        float density = fbm(np * 1.2 + vec3(warp * 1.6) + vec3(0.0, t * 0.02, 0.0));
+        float detail  = fbm(np * 3.1 - vec3(warp * 1.1) + vec3(3.1, 1.4, t * 0.04));
+        float cloud = smoothstep(0.25, 0.85, clamp(density * 0.7 + detail * 0.4, 0.0, 1.0));
+
+        vec3 pal = 0.5 + 0.5 * cos(6.2831853 * (vec3(0.0, 0.33, 0.67)
+                   + vec3(fres * 0.8 + cloud * 0.6 + warp * 0.5 + t * 0.02)));
+        vec3 base = vColor.rgb;
+        vec3 col  = mix(base, pal, 0.35 + 0.5 * fres) * (0.45 + 0.9 * cloud);
+        col += pal * fres * 0.7;
+        col += mix(base, vec3(1.0), 0.6) * pow(ndv, 3.0) * cloud * 0.5;
+        float spark = pow(smoothNoise(np * 9.0 + vec3(0.0, 0.0, t * 0.15)), 14.0) * 2.5;
+        col += pal * spark;
+        col *= 0.88 + 0.12 * sin(t * 0.9 + warp * 6.0);
+
+        float edge  = smoothstep(0.0, 0.2, ndv);
+        float alpha = clamp(((0.10 + 0.55 * cloud) + fres * 0.5) * edge, 0.0, 0.9) * vColor.a;
+        outColor = vec4(col, alpha);
+        return;
+    }
+
+    /* MODE 14: Black-hole accretion disk (flat annulus, GDD_MESH_RING).
+     * vLocal.xz is the ring position in world units, vParams.y the outer
+     * radius and vParams.x the half-thickness (inner = 1 - ht / R). The
+     * instance color is the hole's own palette: white-hot inner rim ->
+     * palette color -> hue-rotated cool outer edge. Differential rotation
+     * (inner orbits faster), spiral lanes, turbulence and a Doppler-like
+     * brighter side. Alpha fades at both edges so the 16-segment polygon
+     * outline is hidden and the disk reads as a perfect circle. */
+    if (mode == 14) {
+        float R     = max(vParams.y, 1e-4);
+        float inner = clamp(1.0 - vParams.x / R, 0.0, 0.99);
+        float rn    = length(vLocal.xz) / R;
+        float u     = clamp((rn - inner) / max(1.0 - inner, 1e-4), 0.0, 1.0);
+        float ang   = atan(vLocal.z, vLocal.x);
+
+        vec3 base  = vColor.rgb;
+        vec3 hot   = mix(base, vec3(1.0), 0.85);
+        vec3 outer = base.gbr * 0.55 + vec3(0.02, 0.0, 0.06);
+        vec3 col   = mix(hot, base, smoothstep(0.0, 0.40, u));
+        col        = mix(col, outer, smoothstep(0.55, 1.0, u));
+
+        float omega = 3.0 / (0.25 + u);
+        float swirl = ang * 3.0 + u * 9.0 - sc.time * omega * 0.35;
+        float lanes = 0.5 + 0.5 * sin(swirl * 2.0);
+        float ph    = ang - sc.time * omega * 0.1;
+        float turb  = fbm(vec3(cos(ph) * u * 4.0 + 2.0, sin(ph) * u * 4.0, u * 3.0 + sc.time * 0.05));
+        float bright  = (0.55 + 0.45 * lanes * lanes) * (0.6 + 0.8 * turb);
+        float doppler = 0.75 + 0.35 * cos(ang - 0.6);
+        float rim     = pow(1.0 - u, 6.0) * 1.2;
+        col = col * bright * doppler * 1.5 + hot * rim;
+
+        float a = smoothstep(0.0, 0.08, u) * (1.0 - smoothstep(0.78, 1.0, u));
+        outColor = vec4(col, clamp(a * (0.35 + 0.65 * bright) * vColor.a, 0.0, 1.0));
+        return;
+    }
+
+    /* MODE 15: Fresnel rim-glow shell (lensing halo around a black hole). */
+    if (mode == 15) {
+        vec3 N = (length(vNormal) > 1e-6) ? normalize(vNormal) : vec3(0.0, 1.0, 0.0);
+        vec3 V = normalize(SC_CAM - vPos);
+        float ndv  = abs(dot(N, V));
+        float rim  = pow(1.0 - ndv, 3.0);
+        float edge = smoothstep(0.0, 0.12, ndv);
+        float flick = 0.85 + 0.15 * sin(sc.time * 2.0 + vPos.x * 3.0 + vPos.z * 2.0);
+        vec3 col = mix(vColor.rgb, vec3(1.0), rim * 0.5) * rim * 1.6 * flick;
+        outColor = vec4(col, clamp(rim * edge * 0.9, 0.0, 1.0) * vColor.a);
+        return;
+    }
+
     /* MODE 10: Interstellar Filament (Electrical Discharges) */
     if (mode == 10) {
         vec3 p = vPos * 0.5;

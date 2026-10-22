@@ -1,3 +1,19 @@
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.02
+  - Vulkan GDD: new look for nebulae and black holes in the GPU-driven path
+    (CPU-driven Vulkan and OpenGL are unchanged). Nebulae (types 7 and 51-55)
+    are now spherical and iridescent: a new fragment mode,
+    GDD_FRAG_NEBULA_IRIS (13), draws domain-warped FBM clouds with a
+    view-angle-dependent thin-film palette, a fresnel rim glow, a bright core
+    and sparkles, and fades towards the silhouette so the low-poly sphere
+    outline is hidden. Type 7 now takes its colour from its sub-class as in the
+    CPU path (blue, orange; the dark purple one keeps the plain FBM cloud).
+    Black holes no longer share any nebula effect: the event horizon is a pure
+    black unlit sphere, the accretion disk is a flat, tilted, slowly precessing
+    circular ring (GDD_FRAG_BH_DISC, 14) with a white-hot inner rim, spiral
+    lanes with differential rotation and a brighter side, and a fresnel
+    lensing halo (GDD_FRAG_RIMGLOW, 15) surrounds the horizon. Each black hole
+    keeps its own colour, picked from an 8-colour palette hashed from its id.
+
 * Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.01
   - Vulkan GDD: fix the Xylari ship (and any lone ship) being drawn as a white
     sphere in an empty quadrant. The GPU-driven descriptor writes

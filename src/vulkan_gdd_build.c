@@ -250,6 +250,25 @@ static void gdd_ship_rotation(const SmoothObj *so, gdd_m3 out) {
     gdd_m3_rotate(out, r, sinf(h) * cosf(m), sinf(m), cosf(h) * cosf(m));
 }
 
+/* Characteristic palette of a black hole: a stable pick from a curated
+ * set (hashed from the object id) so every hole keeps its own color for
+ * its whole life, and neighbours differ. */
+static void gdd_bh_palette(int id, float out[3]) {
+    static const float pal[8][3] = {
+        {1.00f, 0.62f, 0.15f}, /* amber    */
+        {0.25f, 0.80f, 1.00f}, /* ice cyan */
+        {1.00f, 0.25f, 0.75f}, /* magenta  */
+        {0.20f, 1.00f, 0.50f}, /* emerald  */
+        {0.60f, 0.35f, 1.00f}, /* violet   */
+        {1.00f, 0.20f, 0.20f}, /* crimson  */
+        {1.00f, 0.90f, 0.50f}, /* gold     */
+        {0.20f, 0.50f, 1.00f}, /* cobalt   */
+    };
+    uint32_t h = (uint32_t)(id < 0 ? 0 : id) * 2654435761u;
+    const float *c = pal[h >> 29];
+    out[0] = c[0]; out[1] = c[1]; out[2] = c[2];
+}
+
 /* ================================================================== */
 /* Per-type visual classification (mirrors the CPU dispatcher)        */
 /* ================================================================== */
@@ -378,9 +397,10 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         }
         break;
 
-    case 6: /* black hole (core; the disk is added by the caller) */
-        v->scale = 2.0f; v->frag_mode = GDD_FRAG_PBR;
-        v->color[0]=0.05f; v->color[1]=0.0f; v->color[2]=0.1f;
+    case 6: /* black hole: pure black event-horizon sphere (the colored
+             * disk and the lensing halo are added by the caller) */
+        v->scale = 2.0f; v->frag_mode = GDD_FRAG_UNLIT;
+        v->color[0]=0.0f; v->color[1]=0.0f; v->color[2]=0.0f;
         break;
 
     case 29: /* quasar (core; the disk is added by the caller) */
@@ -407,9 +427,17 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         v->mesh = GDD_MESH_OCTA; v->scale = 0.6f; v->frag_mode = GDD_FRAG_UNLIT;
         break;
 
-    case 7:  /* nebula (volumetric, additive) */
-        v->scale = 5.0f; v->frag_mode = GDD_FRAG_NEBULA; v->additive = 1;
-        v->color[0]=0.3f; v->color[1]=0.5f; v->color[2]=0.9f;
+    case 7:  /* nebula (volumetric, additive): spherical + iridescent.
+              * Sub-type colors mirror the CPU drawNebula (0 blue, 1 orange,
+              * 2 dark purple); the dark one stays a plain FBM cloud. */
+        v->scale = 5.0f; v->frag_mode = GDD_FRAG_NEBULA_IRIS; v->additive = 1;
+        switch (ship_class) {
+        case 0:  v->color[0]=0.55f; v->color[1]=0.72f; v->color[2]=1.0f; break;
+        case 1:  v->color[0]=1.0f;  v->color[1]=0.40f; v->color[2]=0.2f; break;
+        case 2:  v->color[0]=0.2f;  v->color[1]=0.0f;  v->color[2]=0.4f;
+                 v->frag_mode = GDD_FRAG_NEBULA; break;
+        default: v->color[0]=0.3f;  v->color[1]=0.5f;  v->color[2]=0.9f; break;
+        }
         break;
 
     case 8:  /* pulsar (core; jets added by caller) */
@@ -534,8 +562,9 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         break;
 
     case 51: case 52: case 53: case 54: case 55:
-        /* diffuse / high-energy / dark-matter / gravimetric / temporal nebulae */
-        v->scale = 5.0f; v->frag_mode = GDD_FRAG_NEBULA; v->additive = 1;
+        /* diffuse / high-energy / dark-matter / gravimetric / temporal nebulae:
+         * same spherical iridescent look as type 7 */
+        v->scale = 5.0f; v->frag_mode = GDD_FRAG_NEBULA_IRIS; v->additive = 1;
         switch (type) {
         case 51: v->color[0]=0.4f; v->color[1]=0.5f; v->color[2]=0.9f; break;
         case 52: v->color[0]=0.9f; v->color[1]=0.4f; v->color[2]=0.2f; break;
@@ -853,11 +882,36 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             }
 
             /* --- per-type companions (CPU parity approximations) --- */
-            if (type == 6) { /* black hole accretion disk */
+            if (type == 6) {
+                /* Black hole: black sphere (above) + a flat circular disk
+                 * in the hole's own palette + a thin lensing halo. The disk
+                 * is a GDD ring: outer radius R = 3.6 s, inner edge at 1.3 s
+                 * (so it never touches the horizon); p.x = ring half
+                 * thickness, p.y = R (read by GDD_FRAG_BH_DISC). It is tilted
+                 * and slowly precesses so it reads from any camera angle. */
+                float bh_col[3];
+                gdd_bh_palette(ctx->ids ? ctx->ids[i] : 0, bh_col);
+
+                float R = s * 3.6f;
+                float inner_ratio = (s * 1.3f) / R;
+                gdd_m3 tilt, spin, md;
+                gdd_m3_identity(tilt);
+                gdd_m3_rotate(tilt, 0.35f, 1.0f, 0.0f, 0.0f);
+                gdd_m3_identity(spin);
+                gdd_m3_rotate(spin, pulse * 0.1f, 0.0f, 1.0f, 0.0f);
+                gdd_m3_multiply(tilt, spin, md);
+                float od[12];
+                gdd_orient_from_m3(od, md);
+                gdd_list_add(&dyn, GDD_MESH_RING, px, py, pz,
+                             R, R, R,
+                             bh_col[0], bh_col[1], bh_col[2], 1.0f,
+                             0, 1, GDD_FRAG_BH_DISC, od,
+                             R * (1.0f - inner_ratio), R);
+                /* Lensing halo: fresnel shell just outside the horizon */
                 gdd_list_add(&dyn, GDD_MESH_SPHERE, px, py, pz,
-                             s * 3.5f, s * 0.02f, s * 3.5f,
-                             1.0f, 0.9f, 0.6f, 0.8f,
-                             0, 1, GDD_FRAG_ACCRETION, o, 0.0f, 1.0f);
+                             s * 1.22f, s * 1.22f, s * 1.22f,
+                             bh_col[0], bh_col[1], bh_col[2], 1.0f,
+                             0, 1, GDD_FRAG_RIMGLOW, o, 0.0f, 1.0f);
             } else if (type == 29) { /* quasar accretion disk (spins with core) */
                 gdd_list_add(&dyn, GDD_MESH_SPHERE, px, py, pz,
                              s * 3.5f, s * 0.02f, s * 3.5f,
