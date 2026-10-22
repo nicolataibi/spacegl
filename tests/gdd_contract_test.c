@@ -830,11 +830,69 @@ static void test_raw_objs_fallback(void) {
           pyramids_no_raw, pyramids);
 }
 
+/* Nebulae must stay spherical and black holes must not inherit the nebula
+ * look. Regression: types 51-55 (inside the 10..199 "ship" range) used to
+ * get the ship stretch (x2.9154), heading and stern offset -> egg shape. */
+static void test_nebula_and_black_hole(void) {
+    GddBuildCtx c = base_ctx();
+    obj_at(&g_smooth[0], 20.0f, 20.0f, 20.0f, 0.0f, 0.0f, 0.0f);
+    obj_at(&g_smooth[1], 10.0f, 15.0f, 25.0f, 33.0f, 12.0f, 5.0f);
+    obj_at(&g_smooth[2], 30.0f, 10.0f, 5.0f, 0.0f, 0.0f, 0.0f);
+    obj_at(&g_smooth[3], 5.0f, 5.0f, 5.0f, 0.0f, 0.0f, 0.0f);
+    int types[4] = { 1, 51, 7, 6 };
+    int fac[4] = { 0, 0, 0, 0 };
+    int sclass[4] = { 0, 0, 0, 0 };
+    int cloak[4] = { 0, 0, 0, 0 };
+    int act[4] = { 1, 1, 1, 1 };
+    int plat[4] = { 30, 30, 30, 30 };
+    int ids[4] = { 100, 101, 102, 103 };
+    c.types = types; c.factions = fac; c.ship_classes = sclass;
+    c.cloaked = cloak; c.active = act; c.platings = plat; c.ids = ids;
+    c.object_count = 4;
+    run_builder(&c);
+
+    /* nebula type 51 at the plain mapped position (X, Z, -Y), no offset */
+    const GddInstance *neb = find_dyn(GDD_MESH_SPHERE, -10.0f, 5.0f, 5.0f, 1e-4f);
+    CHECK(neb != NULL, "nebula 51 at mapped position, no ship stern offset");
+    if (neb) {
+        CHECK(gdd_frag_mode(neb->flags) == GDD_FRAG_NEBULA_IRIS, "nebula 51 uses the iridescent mode");
+        CHECK(neb->scale[0] == neb->scale[1] && neb->scale[1] == neb->scale[2],
+              "nebula 51 is spherical (uniform scale, not stretched like a ship)");
+        CHECK(neb->orient[0] == 1.0f && neb->orient[5] == 1.0f && neb->orient[10] == 1.0f &&
+              neb->orient[1] == 0.0f, "nebula 51 ignores the object heading");
+    }
+    const GddInstance *n7 = find_dyn(GDD_MESH_SPHERE, 10.0f, -15.0f, 10.0f, 1e-4f);
+    CHECK(n7 != NULL, "nebula 7 present");
+    if (n7) {
+        CHECK(gdd_frag_mode(n7->flags) == GDD_FRAG_NEBULA_IRIS, "nebula 7 uses the iridescent mode");
+        CHECK(n7->scale[0] == n7->scale[1] && n7->scale[1] == n7->scale[2], "nebula 7 spherical");
+    }
+
+    /* black hole at (5,5,5) -> (-15, -15, 15): horizon + disk + halo, no nebula mode */
+    int bh_n = 0, bh_neb = 0, bh_disk = 0, bh_halo = 0, bh_core = 0;
+    for (uint32_t i = 0; i < g_dyn_n; i++) {
+        const GddInstance *it = &g_dyn[i];
+        if (!near_f(it->pos[0], -15.0f, 1e-4f) || !near_f(it->pos[1], -15.0f, 1e-4f) ||
+            !near_f(it->pos[2], 15.0f, 1e-4f)) continue;
+        unsigned m = gdd_frag_mode(it->flags);
+        bh_n++;
+        if (m == GDD_FRAG_NEBULA_IRIS || m == GDD_FRAG_NEBULA) bh_neb++;
+        if (m == GDD_FRAG_BH_DISC && (int)(it->mesh + 0.5f) == GDD_MESH_RING) bh_disk++;
+        if (m == GDD_FRAG_RIMGLOW) bh_halo++;
+        if (m == GDD_FRAG_UNLIT && it->color[0] == 0.0f && it->color[1] == 0.0f &&
+            it->color[2] == 0.0f) bh_core++;
+    }
+    CHECK(bh_n == 3, "black hole emits 3 instances (horizon, disk, halo): %d", bh_n);
+    CHECK(bh_neb == 0, "black hole never uses a nebula mode");
+    CHECK(bh_core == 1 && bh_disk == 1 && bh_halo == 1, "horizon/disk/halo present once each");
+}
+
 int main(void) {
     printf("GDD contract test\n");
     test_layout();
     test_flags();
     test_objects_mapping();
+    test_nebula_and_black_hole();
     test_effects();
     test_compass_and_jump();
     test_statics();

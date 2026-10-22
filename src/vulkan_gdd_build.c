@@ -786,7 +786,14 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             /* Orientation: full Euler for ships (cloaked included — the
              * CPU computes R for every ship), spin for quasars */
             gdd_m3 m;
-            int is_ship = (type == 1 || (type >= 10 && type < 200));
+            /* Only objects whose visual is the oriented nose mesh (ships,
+             * torpedo objects) get the ship stretch / stern offset /
+             * heading. Cosmic types inside 10..199 (nebulae 51-55, dark
+             * cloud 44, filaments, disks...) are symmetric volumes: without
+             * this test a nebula was stretched 2.9x along X (an "egg") and
+             * shifted along the nose axis. */
+            int is_ship = ((type == 1 || (type >= 10 && type < 200)) &&
+                           v.mesh == GDD_MESH_PYRAMID);
             if (is_ship) {
                 gdd_ship_rotation(so, m);
                 gdd_orient_from_m3(o, m);

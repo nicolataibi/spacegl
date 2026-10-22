@@ -1,3 +1,14 @@
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.03
+  - Vulkan GDD: fix nebulae drawn as an egg. The builder treated every type
+    in 10..199 as a ship, so nebulae (types 51-55) and other cosmic volumes
+    that fall in that range were stretched 2.9x along X, rotated by the
+    object heading and shifted along the nose axis. An object now gets the
+    ship stretch, heading and stern offset only when its visual is the
+    oriented nose mesh (ships and torpedo objects); nebulae are spherical
+    again and centered on their position. A new gdd_contract_test case
+    checks that nebulae stay spherical and that a black hole emits only its
+    horizon, disk and halo, with no nebula mode.
+
 * Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.02
   - Vulkan GDD: new look for nebulae and black holes in the GPU-driven path
     (CPU-driven Vulkan and OpenGL are unchanged). Nebulae (types 7 and 51-55)
