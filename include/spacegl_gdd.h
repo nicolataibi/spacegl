@@ -430,8 +430,10 @@ typedef struct { float x, y, z, life; float offsets[GDD_EXPLOSION_PIXELS][3]; fl
 typedef struct { float x, y, z, life; float scale; } ActiveDismantle;
 typedef struct { float x, y, z; float dx, dy, dz; int active; int id; } ActiveTorp;
 typedef struct { float x, y, z; float angle; float radius; float speed; int active; } ArrivalParticle;
-typedef struct { float x, y, z; double h, m; int active; int timer; int jump_type; } JumpState;
-typedef struct { float x, y, z; double h, m; int active; int jump_type; } WormholeState;
+/* age = seconds since the jump event (GPU-driven sequence phases) */
+typedef struct { float x, y, z; double h, m; int active; int timer; int jump_type; float age; } JumpState;
+/* age = seconds since the departure gate opened */
+typedef struct { float x, y, z; double h, m; int active; int jump_type; float age; } WormholeState;
 
 /* ================================================================== */
 /* Instance builder (pure C, NO Vulkan): the CPU-side half of the     */
@@ -463,6 +465,8 @@ typedef struct {
     const ActiveTorp *torps;
     const JumpState *jump_arrival;
     const WormholeState *wormhole;
+    const ArrivalParticle *arrival_particles; /* optional: inflow around the arrival gate */
+    int arrival_particle_count;
     const int *shield_timers; /* 6 entries (shield hit flash) */
 
     /* --- view / camera state --- */

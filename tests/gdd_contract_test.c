@@ -603,10 +603,100 @@ static void test_compass_and_jump(void) {
     /* Jump arrival: only object 0 (the ship + its quantum core) is drawn */
     static JumpState jump;
     memset(&jump, 0, sizeof(jump));
-    jump.active = 1; jump.timer = 500;
+    jump.active = 1; jump.timer = 500; jump.age = 3.0f;
     c.jump_arrival = &jump;
     run_builder(&c);
-    CHECK(g_dyn_n == 8, "jump arrival: ship + quantum(4) + arrival glow + wormhole(2) = %u", g_dyn_n);
+    CHECK(g_dyn_n == 21, "jump arrival (stable): ship + quantum(4) + gate(16) = %u", g_dyn_n);
+    c.jump_arrival = NULL;
+}
+
+/* ---- Wormhole jump sequence: black/white hole pair at both ends ---- */
+static int count_frag(int mode) {
+    int n = 0;
+    for (uint32_t i = 0; i < g_dyn_n; i++)
+        if (gdd_frag_mode(g_dyn[i].flags) == (uint32_t)mode) n++;
+    return n;
+}
+static float max_frag_scale(int mode) {
+    float m = 0.0f;
+    for (uint32_t i = 0; i < g_dyn_n; i++)
+        if (gdd_frag_mode(g_dyn[i].flags) == (uint32_t)mode && g_dyn[i].scale[0] > m) m = g_dyn[i].scale[0];
+    return m;
+}
+static int count_black_horizons(void) {
+    int n = 0; /* opaque black PBR sphere = event horizon */
+    for (uint32_t i = 0; i < g_dyn_n; i++) {
+        const GddInstance *it = &g_dyn[i];
+        if ((int)it->mesh == GDD_MESH_SPHERE && gdd_frag_mode(it->flags) == GDD_FRAG_PBR &&
+            it->color[0] == 0.0f && it->color[1] == 0.0f && it->color[2] == 0.0f) n++;
+    }
+    return n;
+}
+
+static void test_jump_sequence(void) {
+    GddBuildCtx c = base_ctx();
+    static WormholeState wh;
+    static JumpState jump;
+    memset(&wh, 0, sizeof(wh));
+    memset(&jump, 0, sizeof(jump));
+
+    /* Departure, gate just born (age 0): nothing visible yet */
+    wh.active = 1; wh.age = 0.0f;
+    c.wormhole = &wh;
+    run_builder(&c);
+    CHECK(count_frag(GDD_FRAG_BH_DISC) == 0 && count_black_horizons() == 0,
+          "departure age 0: gate is closed (no disk, no horizon)");
+
+    /* Departure, open: black hole dominant + white hole companion + bridge */
+    wh.age = 3.0f;
+    run_builder(&c);
+    CHECK(count_black_horizons() == 1, "departure: one black horizon (%d)", count_black_horizons());
+    CHECK(count_frag(GDD_FRAG_BH_DISC) == 1, "departure: one red accretion disk");
+    CHECK(count_frag(GDD_FRAG_RIMGLOW) == 2, "departure: black + white halo (%d)", count_frag(GDD_FRAG_RIMGLOW));
+    CHECK(count_dyn(GDD_MESH_BOX) == 2, "departure: white hole polar jets (%d box)", count_dyn(GDD_MESH_BOX));
+    CHECK(count_frag(GDD_FRAG_SHOCKWAVE) == 0, "departure: no swallow shells before 5.5 s");
+
+    /* Departure, swallow phase: contracting shock shells appear */
+    wh.age = 6.5f;
+    run_builder(&c);
+    CHECK(count_frag(GDD_FRAG_SHOCKWAVE) == 2, "departure swallow: 2 shells (%d)", count_frag(GDD_FRAG_SHOCKWAVE));
+    c.wormhole = NULL;
+
+    /* Arrival, stable: white hole dominant + black companion */
+    jump.active = 1; jump.timer = 500; jump.age = 3.0f;
+    c.jump_arrival = &jump;
+    run_builder(&c);
+    CHECK(count_black_horizons() == 1, "arrival: one black companion horizon (%d)", count_black_horizons());
+    CHECK(count_frag(GDD_FRAG_BH_DISC) == 1, "arrival: black companion has its disk");
+    CHECK(count_frag(GDD_FRAG_RIMGLOW) == 2, "arrival: white + black halo (%d)", count_frag(GDD_FRAG_RIMGLOW));
+    CHECK(count_dyn(GDD_MESH_BOX) == 2, "arrival: white hole polar jets (%d box)", count_dyn(GDD_MESH_BOX));
+    float halo_stable = max_frag_scale(GDD_FRAG_RIMGLOW);
+
+    /* Arrival burst (age 0.4 s): flash + shock shells on top of the gate */
+    jump.age = 0.4f;
+    run_builder(&c);
+    CHECK(count_frag(GDD_FRAG_SHOCKWAVE) == 2, "arrival burst: 2 expanding shells (%d)", count_frag(GDD_FRAG_SHOCKWAVE));
+
+    /* Arrival closing (90 ticks left): gate shrinks, 5-layer final flash */
+    jump.age = 8.0f; jump.timer = 90;
+    run_builder(&c);
+    CHECK(max_frag_scale(GDD_FRAG_RIMGLOW) < halo_stable, "closing: gate is smaller than when stable");
+    CHECK(count_frag(GDD_FRAG_HYPERWARP) >= 5, "closing: final flash layers present (%d)", count_frag(GDD_FRAG_HYPERWARP));
+
+    /* Inflow particles: only those inside the draw radius are emitted */
+    static ArrivalParticle parts[3];
+    memset(parts, 0, sizeof(parts));
+    parts[0].active = 1; parts[0].x = 3.0f;               /* inside  */
+    parts[1].active = 1; parts[1].x = 50.0f;              /* outside */
+    parts[2].active = 0; parts[2].x = 2.0f;               /* inactive */
+    jump.age = 3.0f; jump.timer = 500;
+    run_builder(&c);
+    int base_pts = count_dyn(GDD_MESH_POINT);
+    c.arrival_particles = parts; c.arrival_particle_count = 3;
+    run_builder(&c);
+    CHECK(count_dyn(GDD_MESH_POINT) == base_pts + 1, "inflow: 1 of 3 particles drawn (%d -> %d)",
+          base_pts, count_dyn(GDD_MESH_POINT));
+    c.arrival_particles = NULL; c.arrival_particle_count = 0;
     c.jump_arrival = NULL;
 }
 
@@ -1002,6 +1092,7 @@ int main(void) {
     test_exotic_black_holes_have_discs();
     test_effects();
     test_compass_and_jump();
+    test_jump_sequence();
     test_statics();
     test_galaxy_map();
     test_capacity_guard();

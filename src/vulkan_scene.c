@@ -1109,6 +1109,7 @@ void scene_update(VulkanApp* app, float deltaTime) {
                 app->jumpArrival.active = 1;
                 app->jumpArrival.jump_type = ev->extra;
                 app->jumpArrival.timer = 540;
+                app->jumpArrival.age = 0.0f;
                 for (int i = 0; i < MAX_ARRIVAL_PARTICLES; i++) {
                     app->arrivalParticles[i].active = 1;
                     app->arrivalParticles[i].angle = (float)(rand() % 3600) * 0.1f * M_PI / 180.0f;
@@ -1131,6 +1132,7 @@ void scene_update(VulkanApp* app, float deltaTime) {
             if (app->mapAnim < 0.0f) app->mapAnim = 0.0f;
         }
 
+        if (app->jumpArrival.active) app->jumpArrival.age += deltaTime;
         if (app->jumpArrival.active) {
             if (st->shm_nav_state == 0 || st->shm_nav_state == 9 || st->shm_nav_state == 10) {
                 if (app->jumpArrival.timer > 0) app->jumpArrival.timer--;
@@ -1211,10 +1213,13 @@ void scene_update(VulkanApp* app, float deltaTime) {
                 app->departureWormhole.h = st->shm_h;
                 app->departureWormhole.m = st->shm_m;
                 app->departureWormhole.jump_type = st->wormhole.extra;
+                app->departureWormhole.age = 0.0f;
             }
             app->departureWormhole.active = 1;
+            app->departureWormhole.age += deltaTime;
         } else {
             app->departureWormhole.active = 0;
+            app->departureWormhole.age = 0.0f;
         }
         if (!app->jumpArrival.active) {
             app->jumpArrival.h = st->shm_h;

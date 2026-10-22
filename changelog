@@ -1,3 +1,20 @@
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.09
+  - Vulkan GDD: rebuild the wormhole jump sequence. Each end of the jump is
+    now an Einstein-Rosen bridge drawn as a black/white hole pair: at
+    departure a black hole (opaque horizon, red accretion disk, violet
+    lensing halo) swallows the ship while a smaller white hole (incandescent
+    core, polar jets, counter-rotating rings) orbits it; at arrival the roles
+    swap and the white hole expels the ship. A tube with beads streams from
+    the black to the white hole. Phases are monotonic: the departure gate
+    opens, spins up and implodes with contracting shock shells; the arrival
+    bursts open with a flash and two shock shells, holds, then closes with the
+    five-layer final flash of the OpenGL path and an inflow of particles. The
+    old sequence popped in at full size, kept an opaque bubble on the ship for
+    the whole entry phase (the glow test used the frozen arrival timer) and
+    shrank over 9 s with no flash. JumpState and WormholeState gain an age in
+    seconds; the CPU-driven and OpenGL paths are unchanged. gdd_contract_test
+    gets a jump-sequence case (departure, arrival, burst, closing, particles).
+
 * Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.08
   - Server: fix random system damage always hitting the same system. The
     seed used by apply_hull_damage_impl() was built only from the player

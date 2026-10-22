@@ -1163,6 +1163,8 @@ void gdd_build_frame(VulkanApp *app, float pulse) {
     ctx.torps = app->activeTorps;
     ctx.jump_arrival = &app->jumpArrival;
     ctx.wormhole = &app->departureWormhole;
+    ctx.arrival_particles = app->arrivalParticles;
+    ctx.arrival_particle_count = MAX_ARRIVAL_PARTICLES;
     ctx.shield_timers = app->shieldHitTimers;
     ctx.map_anim = app->mapAnim;
     ctx.map_filter = app->mapFilter;
