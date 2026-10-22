@@ -1,3 +1,27 @@
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.07
+  - Vulkan GDD: the 32 exotic compact objects (types 100-131, including
+    Kerr and Kerr-Newman) now get the same black-hole look as type 6: a pure
+    black event-horizon sphere, the red iridescent accretion disk and the
+    lensing halo. They used to be drawn as a single generic metallic additive
+    sphere, so none of them had a disk. The set of black-hole types is
+    decided in one place (gdd_is_black_hole_type) so type 6 and the exotic
+    types cannot drift apart. A new gdd_contract_test case checks that all 32
+    types emit horizon, disk and halo once each and that every disk is red.
+    The OpenGL path is unchanged.
+
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.06
+  - Vulkan GDD: black-hole accretion disks are now iridescent red on every
+    hole. GDD_FRAG_BH_DISC (mode 14) keeps its white-hot inner rim, spiral
+    lanes, turbulence, differential rotation and Doppler brightening, but the
+    base color is a fixed red set by the builder instead of the per-hole
+    palette, the outer edge fades to dark red instead of a hue-rotated blue,
+    and a thin-film shimmer driven by radius, lanes, turbulence and view
+    angle sweeps the disk through red, orange and magenta. The lensing halo
+    keeps the per-hole palette. No new fragment mode is used (the 4-bit mode
+    field is full), so the instance layout is unchanged. A new
+    gdd_contract_test case checks that every black hole emits one disk,
+    horizon and halo and that every disk is red.
+
 * Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.05
   - Server: report wormhole jump damage as structural stress. The jump
     command used apply_hull_damage(), so the 1-3% stress it causes was

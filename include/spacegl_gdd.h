@@ -173,7 +173,8 @@ typedef enum {
 /* GDD-only looks (no CPU-path counterpart): */
 #define GDD_FRAG_NEBULA_IRIS 13 /* spherical iridescent nebula: warped FBM + thin-film palette + fresnel glow */
 #define GDD_FRAG_BH_DISC     14 /* black-hole accretion disk on GDD_MESH_RING: it.p.x = ring half-thickness,
-                                 * it.p.y = ring outer radius (world), instance color = the hole's palette */
+                                 * it.p.y = ring outer radius (world), instance color = disk base color
+                                 * (red for every hole; iridescent red-family shimmer) */
 #define GDD_FRAG_RIMGLOW     15 /* fresnel halo shell (gravitational-lensing glow around a black hole) */
 
 /* Instance flags (GddInstance.b.w). The field is a float that must hold

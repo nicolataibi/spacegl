@@ -207,11 +207,16 @@ void main() {
     /* MODE 14: Black-hole accretion disk (flat annulus, GDD_MESH_RING).
      * vLocal.xz is the ring position in world units, vParams.y the outer
      * radius and vParams.x the half-thickness (inner = 1 - ht / R). The
-     * instance color is the hole's own palette: white-hot inner rim ->
-     * palette color -> hue-rotated cool outer edge. Differential rotation
+     * instance color is the disk's base color (red for every hole, set by
+     * the builder): white-hot inner rim -> red -> dark red outer edge,
+     * overlaid with a thin-film iridescent shimmer that stays in the red
+     * family (the green and blue channels swing out of phase around a
+     * dominant red, so the hue travels red -> orange -> magenta -> red).
+     * The shimmer phase follows radius, spiral lanes, turbulence and the
+     * view angle, so it changes as the camera moves. Differential rotation
      * (inner orbits faster), spiral lanes, turbulence and a Doppler-like
-     * brighter side. Alpha fades at both edges so the 16-segment polygon
-     * outline is hidden and the disk reads as a perfect circle. */
+     * brighter side are kept. Alpha fades at both edges so the 16-segment
+     * polygon outline is hidden and the disk reads as a perfect circle. */
     if (mode == 14) {
         float R     = max(vParams.y, 1e-4);
         float inner = clamp(1.0 - vParams.x / R, 0.0, 0.99);
@@ -219,9 +224,13 @@ void main() {
         float u     = clamp((rn - inner) / max(1.0 - inner, 1e-4), 0.0, 1.0);
         float ang   = atan(vLocal.z, vLocal.x);
 
+        vec3 N = (length(vNormal) > 1e-6) ? normalize(vNormal) : vec3(0.0, 1.0, 0.0);
+        vec3 V = normalize(SC_CAM - vPos);
+        float fres = pow(1.0 - abs(dot(N, V)), 2.0);
+
         vec3 base  = vColor.rgb;
         vec3 hot   = mix(base, vec3(1.0), 0.85);
-        vec3 outer = base.gbr * 0.55 + vec3(0.02, 0.0, 0.06);
+        vec3 outer = base * 0.45 + vec3(0.05, 0.0, 0.03);
         vec3 col   = mix(hot, base, smoothstep(0.0, 0.40, u));
         col        = mix(col, outer, smoothstep(0.55, 1.0, u));
 
@@ -230,6 +239,15 @@ void main() {
         float lanes = 0.5 + 0.5 * sin(swirl * 2.0);
         float ph    = ang - sc.time * omega * 0.1;
         float turb  = fbm(vec3(cos(ph) * u * 4.0 + 2.0, sin(ph) * u * 4.0, u * 3.0 + sc.time * 0.05));
+
+        /* Thin-film shimmer, red-dominant. The white-hot inner rim stays
+         * untouched; the film fades in over the body of the disk. */
+        float film = 6.2831853 * (u * 0.8 + turb * 0.6 + lanes * 0.2 + fres * 0.7 + sc.time * 0.02);
+        vec3 irid  = vec3(0.80 + 0.20 * cos(film),
+                          0.08 + 0.34 * (0.5 + 0.5 * cos(film + 2.094)),
+                          0.08 + 0.38 * (0.5 + 0.5 * cos(film + 4.189)));
+        col = mix(col, irid * (0.7 + 0.6 * turb), 0.65 * smoothstep(0.08, 0.40, u));
+
         float bright  = (0.55 + 0.45 * lanes * lanes) * (0.6 + 0.8 * turb);
         float doppler = 0.75 + 0.35 * cos(ang - 0.6);
         float rim     = pow(1.0 - u, 6.0) * 1.2;

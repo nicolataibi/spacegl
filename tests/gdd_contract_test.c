@@ -887,12 +887,119 @@ static void test_nebula_and_black_hole(void) {
     CHECK(bh_core == 1 && bh_disk == 1 && bh_halo == 1, "horizon/disk/halo present once each");
 }
 
+/* Every black hole must emit its own accretion disk, and the disk must be
+ * red whatever the hole's palette (the lensing halo keeps the per-hole
+ * palette). Eight holes, one per x position, ids chosen to hit different
+ * palette entries. */
+static void test_black_hole_discs_red(void) {
+    enum { NBH = 8 };
+    GddBuildCtx c = base_ctx();
+    int types[NBH], fac[NBH], sclass[NBH], cloak[NBH], act[NBH], plat[NBH], ids[NBH];
+    for (int k = 0; k < NBH; k++) {
+        obj_at(&g_smooth[k], 5.0f + 4.0f * (float)k, 5.0f, 5.0f, 0.0f, 0.0f, 0.0f);
+        types[k] = 6; fac[k] = 0; sclass[k] = 0; cloak[k] = 0;
+        act[k] = 1; plat[k] = 30; ids[k] = 200 + k;
+    }
+    c.types = types; c.factions = fac; c.ship_classes = sclass;
+    c.cloaked = cloak; c.active = act; c.platings = plat; c.ids = ids;
+    c.object_count = NBH;
+    run_builder(&c);
+
+    int discs_total = 0, red_ok = 0, one_each = 0, halo_differs = 0;
+    float halo0[3] = { 0, 0, 0 };
+    for (int k = 0; k < NBH; k++) {
+        float hx = -15.0f + 4.0f * (float)k;
+        int disk = 0, halo = 0, core = 0;
+        const GddInstance *disk_it = NULL;
+        float halo_c[3] = { 0, 0, 0 };
+        for (uint32_t i = 0; i < g_dyn_n; i++) {
+            const GddInstance *it = &g_dyn[i];
+            if (!near_f(it->pos[0], hx, 1e-4f) || !near_f(it->pos[1], -15.0f, 1e-4f) ||
+                !near_f(it->pos[2], 15.0f, 1e-4f)) continue;
+            unsigned m = gdd_frag_mode(it->flags);
+            if (m == GDD_FRAG_BH_DISC && (int)(it->mesh + 0.5f) == GDD_MESH_RING) {
+                disk++; disk_it = it;
+            }
+            if (m == GDD_FRAG_RIMGLOW) {
+                halo++;
+                halo_c[0] = it->color[0]; halo_c[1] = it->color[1]; halo_c[2] = it->color[2];
+            }
+            if (m == GDD_FRAG_UNLIT && it->color[0] == 0.0f && it->color[1] == 0.0f &&
+                it->color[2] == 0.0f) core++;
+        }
+        discs_total += disk;
+        if (disk == 1 && halo == 1 && core == 1) one_each++;
+        if (disk_it && disk_it->color[0] >= 0.9f && disk_it->color[1] <= 0.3f &&
+            disk_it->color[2] <= 0.3f) red_ok++;
+        if (k == 0) { halo0[0] = halo_c[0]; halo0[1] = halo_c[1]; halo0[2] = halo_c[2]; }
+        else if (!near_f(halo_c[0], halo0[0], 1e-4f) || !near_f(halo_c[1], halo0[1], 1e-4f) ||
+                 !near_f(halo_c[2], halo0[2], 1e-4f)) halo_differs++;
+    }
+    CHECK(discs_total == NBH, "every black hole emits exactly one accretion disk: %d/%d", discs_total, NBH);
+    CHECK(one_each == NBH, "each hole has horizon + disk + halo once: %d/%d", one_each, NBH);
+    CHECK(red_ok == NBH, "every accretion disk is red: %d/%d", red_ok, NBH);
+    CHECK(halo_differs > 0, "halo keeps the per-hole palette (disk color is independent of it)");
+}
+
+/* The 32 exotic compact objects (types 100-131, e.g. Kerr = 107,
+ * Kerr-Newman = 109) must look like black holes: black horizon + red
+ * iridescent disk + halo, exactly once each, and no leftover metallic
+ * additive sphere from the old generic exotic look. */
+static void test_exotic_black_holes_have_discs(void) {
+    enum { NEX = 32 };
+    GddBuildCtx c = base_ctx();
+    int types[NEX], fac[NEX], sclass[NEX], cloak[NEX], act[NEX], plat[NEX], ids[NEX];
+    for (int k = 0; k < NEX; k++) {
+        obj_at(&g_smooth[k], 1.0f + 1.2f * (float)k, 5.0f, 5.0f, 0.0f, 0.0f, 0.0f);
+        types[k] = 100 + k; fac[k] = 0; sclass[k] = 0; cloak[k] = 0;
+        act[k] = 1; plat[k] = 30; ids[k] = 83000 + k;
+    }
+    c.types = types; c.factions = fac; c.ship_classes = sclass;
+    c.cloaked = cloak; c.active = act; c.platings = plat; c.ids = ids;
+    c.object_count = NEX;
+    run_builder(&c);
+
+    int one_each = 0, red_ok = 0, total_inst = 0, pbr_left = 0;
+    int kn_ok = 0; /* Kerr-Newman = type 109 */
+    for (int k = 0; k < NEX; k++) {
+        float hx = (1.0f + 1.2f * (float)k) - 20.0f;
+        int disk = 0, halo = 0, core = 0, n = 0, red = 0;
+        for (uint32_t i = 0; i < g_dyn_n; i++) {
+            const GddInstance *it = &g_dyn[i];
+            if (!near_f(it->pos[0], hx, 1e-4f) || !near_f(it->pos[1], -15.0f, 1e-4f) ||
+                !near_f(it->pos[2], 15.0f, 1e-4f)) continue;
+            unsigned m = gdd_frag_mode(it->flags);
+            n++;
+            if (m == GDD_FRAG_PBR) pbr_left++;
+            if (m == GDD_FRAG_BH_DISC && (int)(it->mesh + 0.5f) == GDD_MESH_RING) {
+                disk++;
+                if (it->color[0] >= 0.9f && it->color[1] <= 0.3f && it->color[2] <= 0.3f) red++;
+            }
+            if (m == GDD_FRAG_RIMGLOW) halo++;
+            if (m == GDD_FRAG_UNLIT && it->color[0] == 0.0f && it->color[1] == 0.0f &&
+                it->color[2] == 0.0f) core++;
+        }
+        total_inst += n;
+        int ok = (n == 3 && disk == 1 && halo == 1 && core == 1);
+        if (ok) one_each++;
+        if (red == 1) red_ok++;
+        if (k == 9 && ok && red == 1) kn_ok = 1;
+    }
+    CHECK(one_each == NEX, "all 32 exotic types emit horizon + disk + halo once: %d/%d", one_each, NEX);
+    CHECK(red_ok == NEX, "all 32 exotic accretion disks are red: %d/%d", red_ok, NEX);
+    CHECK(kn_ok == 1, "Kerr-Newman (type 109) has its accretion disk");
+    CHECK(pbr_left == 0, "no generic metallic exotic sphere is left");
+    CHECK(total_inst == NEX * 3, "exactly 3 instances per exotic object: %d", total_inst);
+}
+
 int main(void) {
     printf("GDD contract test\n");
     test_layout();
     test_flags();
     test_objects_mapping();
     test_nebula_and_black_hole();
+    test_black_hole_discs_red();
+    test_exotic_black_holes_have_discs();
     test_effects();
     test_compass_and_jump();
     test_statics();

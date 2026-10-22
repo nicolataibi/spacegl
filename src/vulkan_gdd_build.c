@@ -272,6 +272,13 @@ static void gdd_bh_palette(int id, float out[3]) {
 /* ================================================================== */
 /* Per-type visual classification (mirrors the CPU dispatcher)        */
 /* ================================================================== */
+/* Black-hole look (black horizon + accretion disk + lensing halo): the
+ * classic black hole (type 6) and the 32 exotic compact objects (types
+ * 100-131: Kerr, Kerr-Newman, Schwarzschild, ...). */
+static int gdd_is_black_hole_type(int type) {
+    return type == 6 || (type >= 100 && type <= 131);
+}
+
 typedef struct {
     int mesh;
     float scale;     /* uniform base scale (pre tactScale) */
@@ -338,11 +345,15 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
     case 108: case 109: case 110: case 111: case 112: case 113: case 114: case 115:
     case 116: case 117: case 118: case 119: case 120: case 121: case 122: case 123:
     case 124: case 125: case 126: case 127: case 128: case 129: case 130: case 131:
+        /* The 32 exotic compact objects (Kerr-Newman = 109, ...) share the
+         * black-hole look of type 6: pure black event-horizon sphere; the
+         * red iridescent disk and the lensing halo are added by the caller
+         * (see gdd_is_black_hole_type). */
         v->mesh = GDD_MESH_SPHERE;
         v->scale = 2.0f;
-        v->frag_mode = GDD_FRAG_PBR;
-        v->additive = 1;
-        v->metallic = 1.0f; v->roughness = 0.0f;
+        v->frag_mode = GDD_FRAG_UNLIT;
+        v->additive = 0;
+        v->color[0]=0.0f; v->color[1]=0.0f; v->color[2]=0.0f;
         break;
     case 1: /* player ship */
     case 10: case 11: case 12: case 13: case 14:
@@ -889,14 +900,16 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             }
 
             /* --- per-type companions (CPU parity approximations) --- */
-            if (type == 6) {
+            if (gdd_is_black_hole_type(type)) {
                 /* Black hole: black sphere (above) + a flat circular disk
-                 * in the hole's own palette + a thin lensing halo. The disk
+                 * (iridescent, red on every hole) + a thin lensing halo in
+                 * the hole's own palette. The disk
                  * is a GDD ring: outer radius R = 3.6 s, inner edge at 1.3 s
                  * (so it never touches the horizon); p.x = ring half
                  * thickness, p.y = R (read by GDD_FRAG_BH_DISC). It is tilted
                  * and slowly precesses so it reads from any camera angle. */
-                float bh_col[3];
+                static const float bh_disc_red[3] = { 1.00f, 0.16f, 0.12f };
+                float bh_col[3]; /* halo palette (per hole) */
                 gdd_bh_palette(ctx->ids ? ctx->ids[i] : 0, bh_col);
 
                 float R = s * 3.6f;
@@ -911,7 +924,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                 gdd_orient_from_m3(od, md);
                 gdd_list_add(&dyn, GDD_MESH_RING, px, py, pz,
                              R, R, R,
-                             bh_col[0], bh_col[1], bh_col[2], 1.0f,
+                             bh_disc_red[0], bh_disc_red[1], bh_disc_red[2], 1.0f,
                              0, 1, GDD_FRAG_BH_DISC, od,
                              R * (1.0f - inner_ratio), R);
                 /* Lensing halo: fresnel shell just outside the horizon */
