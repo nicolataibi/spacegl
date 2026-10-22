@@ -240,6 +240,22 @@ def main():
           auth + query_key(b"SEEDCAPTAIN") + query_key(b"NOBODY")
           + command("link NOBODY"))
 
+    # 10. Regression: huge / non-finite angles. normalize_upright() used to
+    #     subtract 360 in a loop, so "imp 0 1e12 .." took billions of
+    #     iterations and "imp 0 1e300 .." / "inf" never returned (libFuzzer
+    #     timeout in CI). Every command that parses H/M with %lf is covered.
+    write(corpus, "huge_angles.pkt",
+          auth
+          + command("imp 999999 9999999999999999 999999")
+          + command("imp 0 1e12 0.5")
+          + command("imp 0 1e300 0.5")
+          + command("vec 0 inf 0.3")
+          + command("vec 1e300 -1e300 0.3")
+          + command("nav 0 1e15 3 1.5")
+          + command("nav nan nan 3 1.5")
+          + command("tor 0 1e18")
+          + command("rot 0 1e20 1e20"))
+
     print("done.")
 
 

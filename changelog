@@ -1,3 +1,12 @@
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.10
+  - Server: fix a hang in the command parser found by the libFuzzer CI job.
+    normalize_upright() reduced the mark with while (m > 180) m -= 360, so
+    "imp 0 1e12 .." ran billions of iterations and "imp 0 1e300 .." or "inf"
+    never returned. It now uses fmod() (same result for every finite input,
+    constant time) and maps nan/inf to 0; nav_heading_at() and
+    nav_roll_at() get the same treatment. A new corpus seed,
+    tests/fuzz/corpus/huge_angles.pkt, keeps the case covered.
+
 * Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.09
   - Vulkan GDD: rebuild the wormhole jump sequence. Each end of the jump is
     now an Einstein-Rosen bridge drawn as a black/white hole pair: at

@@ -120,9 +120,17 @@ typedef struct {
 } CommandDef;
 
 void normalize_upright(double *h, double *m) {
+    /* h and m come straight from sscanf("%lf") on an untrusted command, so
+     * they can be huge, inf or nan. The old "while (*m > 180) *m -= 360"
+     * loops took billions of iterations for 1e12 and never ended for 1e300
+     * or inf (found by the libFuzzer CI job). fmod() is O(1) and gives the
+     * same result for every finite input; non-finite values become 0. */
+    if (!isfinite(*h)) *h = 0.0;
+    if (!isfinite(*m)) *m = 0.0;
     *h = fmod(*h, 360.0); if (*h < 0) *h += 360.0;
-    while (*m > 180.0) *m -= 360.0; 
-    while (*m < -180.0) *m += 360.0;
+    *m = fmod(*m, 360.0);                    /* now in (-360, 360) */
+    if (*m > 180.0) *m -= 360.0;
+    else if (*m < -180.0) *m += 360.0;
     if (*m > 90.0) { *m = 180.0 - *m; *h = fmod(*h + 180.0, 360.0); }
     else if (*m < -90.0) { *m = -180.0 - *m; *h = fmod(*h + 180.0, 360.0); }
 }

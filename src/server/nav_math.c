@@ -55,9 +55,9 @@ double nav_heading_at(double start_h, double target_h, double t) {
     /* Shortest-arc delta: exactly the while-loop the server used
      * before the extraction (d ends up in [-180, 180] when both
      * headings are in [0, 360)). */
-    double d = target_h - start_h;
-    while (d > 180.0) d -= 360.0;
-    while (d < -180.0) d += 360.0;
+    double d = fmod(target_h - start_h, 360.0);
+    if (d > 180.0) d -= 360.0;
+    else if (d < -180.0) d += 360.0;
     return nav_wrap_heading(start_h + d * t);
 }
 
@@ -65,8 +65,8 @@ double nav_roll_at(double start_r, double target_r, double t) {
     /* Same shortest-arc delta as nav_heading_at: d ends up in
      * [-180, 180] for in-range inputs, and the wrap keeps it correct
      * modulo 360 even if a caller passes an out-of-range angle. */
-    double d = target_r - start_r;
-    while (d > 180.0) d -= 360.0;
-    while (d < -180.0) d += 360.0;
+    double d = fmod(target_r - start_r, 360.0);
+    if (d > 180.0) d -= 360.0;
+    else if (d < -180.0) d += 360.0;
     return nav_wrap_heading(start_r + d * t);
 }
