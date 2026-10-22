@@ -3,12 +3,16 @@
 \usepackage[export]{adjustbox}
 \usepackage{etoolbox}
 
-% Limiti globali per evitare immagini più alte della pagina.
-\setkeys{Gin}{
-  max width=\linewidth,
-  max height=0.65\textheight,
-  keepaspectratio
-}
+% Limiti globali: nessuna immagine più larga della riga o più alta del 65% del
+% testo. \maxwidth e \maxheight sono definiti qui (non dipendono dalla versione
+% di Pandoc) e usati come chiavi predefinite di graphicx. Le chiavi "max width"
+% e "max height" di adjustbox impostate con \setkeys{Gin} NON vanno usate: con
+% Pandoc < 3.6 annullano il ridimensionamento e le immagini escono dalla pagina.
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>0.65\textheight 0.65\textheight\else\Gin@nat@height\fi}
+\makeatother
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
 
 % Tabelle più compatte.
 \setlength{\tabcolsep}{3pt}
@@ -41,7 +45,7 @@
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small README}
+\fancyhead[L]{\small Space GL}
 \fancyhead[R]{\small\leftmark}
 \fancyfoot[L]{\small User's guide}
 \fancyfoot[R]{\thepage}

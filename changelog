@@ -1,3 +1,6 @@
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.12
+  - Docs: align build-pdf.sh (README.pdf)
+
 * Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.11
   - Docs: align README.md and the guides with the tree. README now documents
     SPACEGL_KEY_FILE (mode 0600, lookup order KEY_FILE > KEY > ~/.spacegl/key),

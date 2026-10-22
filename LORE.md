@@ -2,7 +2,7 @@
 
 # Space GL: A space exploration & combat game
 
-![Version](https://img.shields.io/badge/Version-3.0-green)
+![Version](https://img.shields.io/badge/Version-3.2-green)
 ![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
 ![Language](https://img.shields.io/badge/Language-C-blue)
 ![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
@@ -19,6 +19,7 @@
 Space GL is a high-performance 3D multi-user client-server space flight and combat simulator. The engine features real-time galaxy state synchronization via shared memory (SHM), securely signed data integrity (HMAC-SHA256), a dual-socket advanced telemetry subsystem for tactical oversight, and versatile visualization front-ends built on OpenGL and Vulkan.
 
 **Documentation map**: this README (features + technical sections) · [DEVELOPMENT.md](DEVELOPMENT.md) (how to build, how to run the test suite, the contract-test pattern, the Vulkan validation layers) · [SECURITY.md](SECURITY.md) (threat model + audit registry of the B items) · `HOWTO.txt` (run instructions) · `changelog` (release log).
+
 ---
 
 <table align="center">

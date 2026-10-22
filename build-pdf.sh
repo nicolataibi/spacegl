@@ -4,7 +4,8 @@ set -Eeuo pipefail
 
 cd "$(dirname "$0")"
 
-INPUT="README.md"
+# Il PDF contiene entrambi i documenti, nell'ordine: README.md, poi LORE.md.
+INPUTS=(README.md LORE.md)
 OUTPUT_DIR="readme_assets"
 OUTPUT_NAME="README.pdf"
 OUTPUT="${OUTPUT_DIR}/${OUTPUT_NAME}"
@@ -22,7 +23,7 @@ for cmd in pandoc xelatex python3 perl; do
     }
 done
 
-for file in "$INPUT" cover.tex pdf-style.tex html-assets.lua \
+for file in "${INPUTS[@]}" cover.tex pdf-style.tex html-assets.lua \
             prepare-pdf-assets.py emoji-fallback.tex; do
     [[ -f "$file" ]] || {
         printf 'Errore: file mancante: %s\n' "$file" >&2
@@ -35,58 +36,141 @@ python3 prepare-pdf-assets.py
 
 printf '\n%s\n' '===== PREPARAZIONE README PER PDF ====='
 
-python3 - "$INPUT" "$PDF_INPUT" <<'PY'
+python3 - "$PDF_INPUT" "${INPUTS[@]}" <<'PY'
 from pathlib import Path
+from urllib.parse import unquote
 import re
 import sys
 
-source = Path(sys.argv[1]).read_text(encoding="utf-8")
-lines = source.splitlines()
+REPO_BLOB = "https://github.com/nicolataibi/spacegl/blob/main/"
+PAGEBREAK = '<div class="pdf-pagebreak"></div>'
 
-labels = {
-    "Version": "**Versione:** 3.0",
-    "License": "**Licenza:** GPL 3.0",
-    "Language": "**Linguaggio:** C",
-    "Graphics": "**Grafica:** Vulkan / OpenGL",
-    "Platform": "**Piattaforma:** Fedora 44",
-    "Status": "**Stato:** Verified HMAC-SHA256",
-    "Alliance": "**Flotta:** Stellar Alliance",
-    "Security": "**Cifratura:** AES / ChaCha / Blowfish",
+output = Path(sys.argv[1])
+sources = [Path(name) for name in sys.argv[2:]]
+
+LABELS = {
+    "version": "Versione",
+    "license": "Licenza",
+    "language": "Linguaggio",
+    "graphics": "Grafica",
+    "platform": "Piattaforma",
+    "status": "Stato",
+    "fleet": "Flotta",
+    "alliance": "Flotta",
+    "encryption": "Cifratura",
+    "security": "Cifratura",
 }
 
-result = []
-badge_group = []
+BADGE_URL = re.compile(r"\((https?://img\.shields\.io/badge/[^)\s]+)\)")
+LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
+FENCE = re.compile(r"^\s*(```|~~~)")
 
-def flush_badges():
-    if badge_group:
-        result.append("  ·  ".join(badge_group))
-        badge_group.clear()
 
-for line in lines:
-    if "img.shields.io/badge/" in line:
-        match = re.search(r"!\[([^\]]+)\]", line)
-        name = match.group(1) if match else ""
-        label = labels.get(name)
+def badge_label(url):
+    """Ricava 'etichetta: valore' dall'URL di un badge shields.io."""
+    slug = unquote(url.split("/badge/", 1)[1].split("?", 1)[0])
+    slug = re.sub(r"\.(svg|png)$", "", slug)
+    slug = slug.replace("--", "\0").replace("__", "\1")
+    parts = slug.split("-")
+    if len(parts) < 2:
+        return None
 
-        if label:
-            badge_group.append(label)
-        else:
-            flush_badges()
+    def clean(text):
+        return (text.replace("_", " ")
+                    .replace("\1", "_")
+                    .replace("\0", "-")
+                    .replace("|", r"\|"))
+
+    name, value = clean(parts[0]), clean(parts[1])
+    return f"**{LABELS.get(name.lower(), name)}:** {value}"
+
+
+def first_h1_id(text):
+    """Identificatore GFM del primo titolo di livello 1 fuori dai blocchi di codice."""
+    in_fence = False
+    for line in text.splitlines():
+        if FENCE.match(line):
+            in_fence = not in_fence
+        elif not in_fence and line.startswith("# "):
+            title = re.sub(r"[*_`]", "", line[2:]).strip().lower()
+            title = re.sub(r"[^\w\s-]", "", title)
+            return re.sub(r"\s", "-", title)
+    return None
+
+
+texts = {path.name: path.read_text(encoding="utf-8") for path in sources}
+anchors = {name: first_h1_id(text) for name, text in texts.items()}
+stats = {"badge": 0, "internal": 0, "external": 0}
+
+
+def rewrite_link(match):
+    label, target = match.group(1), match.group(2)
+    if target.startswith(("http://", "https://", "#", "mailto:")):
+        return match.group(0)
+
+    path, _, fragment = target.partition("#")
+    clean = unquote(path).lstrip("./")
+    name = Path(clean).name
+
+    if name in anchors and anchors[name] and clean == name:
+        stats["internal"] += 1
+        return f"[{label}](#{anchors[name]})"
+
+    if clean and Path(clean).exists():
+        stats["external"] += 1
+        suffix = f"#{fragment}" if fragment else ""
+        return f"[{label}]({REPO_BLOB}{clean}{suffix})"
+
+    return match.group(0)
+
+
+def prepare(text):
+    result = []
+    badges = []
+    in_fence = False
+
+    def flush():
+        if badges:
+            result.append("  ·  ".join(badges))
+            badges.clear()
+
+    for line in text.splitlines():
+        if FENCE.match(line):
+            flush()
+            in_fence = not in_fence
             result.append(line)
-        continue
+            continue
 
-    flush_badges()
-    result.append(line)
+        if in_fence:
+            result.append(line)
+            continue
 
-flush_badges()
+        found = BADGE_URL.search(line) if "img.shields.io/badge/" in line else None
+        if found:
+            label = badge_label(found.group(1))
+            if label:
+                badges.append(label)
+                stats["badge"] += 1
+                continue
 
-Path(sys.argv[2]).write_text(
-    "\n".join(result) + "\n",
+        flush()
+        result.append(LINK.sub(rewrite_link, line))
+
+    flush()
+    return "\n".join(result)
+
+
+parts = [prepare(texts[path.name]) for path in sources]
+output.write_text(
+    f"\n\n{PAGEBREAK}\n\n".join(parts) + "\n",
     encoding="utf-8"
 )
 
-print("README originale preservato.")
-print("Badge remoti convertiti in etichette testuali per il PDF.")
+print("Documenti uniti: " + " + ".join(path.name for path in sources))
+print("Originali preservati.")
+print(f"Badge remoti convertiti in etichette testuali: {stats['badge']}")
+print(f"Link tra documenti resi interni: {stats['internal']}")
+print(f"Link a file del repository resi assoluti: {stats['external']}")
 PY
 
 printf '\n%s\n' '===== GENERAZIONE LATEX ====='
@@ -113,7 +197,7 @@ pandoc "$PDF_INPUT" \
   -V colorlinks=true \
   -V linkcolor=HeadingBlue \
   -V urlcolor=HeadingBlue \
-  -V title="SPACE GL — README" \
+  -V title="SPACE GL — README e LORE" \
   -V author="Nicola Taibi" \
   -V subject="" \
   --output="$TEX_OUTPUT"
@@ -213,11 +297,25 @@ mkdir -p "$OUTPUT_DIR"
 # Evita di confondere un PDF parziale precedente con il nuovo risultato.
 rm -f "$OUTPUT" "$OUTPUT_NAME"
 
-xelatex -interaction=nonstopmode -halt-on-error \
-    -file-line-error "$TEX_OUTPUT"
+run_xelatex() {
+    xelatex -interaction=nonstopmode -halt-on-error \
+        -file-line-error "$TEX_OUTPUT"
+}
 
-xelatex -interaction=nonstopmode -halt-on-error \
-    -file-line-error "$TEX_OUTPUT"
+# Due passate bastano per indice e riferimenti; con un documento lungo e molte
+# tabelle (xltabular) ne possono servire altre: massimo 4 in totale.
+run_xelatex
+run_xelatex
+
+for _ in 1 2; do
+    if grep -qE 'Rerun to get|Label\(s\) may have changed|Table widths have changed' \
+            "${TEX_OUTPUT%.tex}.log"; then
+        printf '%s\n' 'Riferimenti o larghezze tabella cambiati: passata aggiuntiva.'
+        run_xelatex
+    else
+        break
+    fi
+done
 
 if [[ -f "$OUTPUT_NAME" ]]; then
     mv -f "$OUTPUT_NAME" "$OUTPUT"

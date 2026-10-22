@@ -88,6 +88,11 @@ function RawBlock(el)
         return nil
     end
 
+    -- Separatore inserito da build-pdf.sh fra README.md e LORE.md.
+    if el.text:match("pdf%-pagebreak") then
+        return pandoc.RawBlock("latex", "\\clearpage")
+    end
+
     if not (
         el.text:match("<%s*[Tt][Aa][Bb][Ll][Ee]")
         or el.text:match("<%s*[Tt][Rr][%s>]")

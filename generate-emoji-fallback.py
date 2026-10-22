@@ -6,7 +6,7 @@ import unicodedata
 from fontTools.ttLib import TTFont
 
 ROOT = Path.cwd()
-README = ROOT / "README.md"
+SOURCES = [ROOT / "README.md", ROOT / "LORE.md"]
 OUTPUT = ROOT / "emoji-fallback.tex"
 
 def font_path(family):
@@ -38,7 +38,7 @@ base_fonts = [
 emoji = cmap_for("Noto Emoji")
 symbols = cmap_for("Noto Sans Symbols 2")
 
-source = README.read_text(encoding="utf-8")
+source = "\n".join(path.read_text(encoding="utf-8") for path in SOURCES)
 characters = OrderedDict.fromkeys(source)
 
 
