@@ -1,3 +1,16 @@
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.11
+  - Docs: align README.md and the guides with the tree. README now documents
+    SPACEGL_KEY_FILE (mode 0600, lookup order KEY_FILE > KEY > ~/.spacegl/key),
+    the launcher scripts, build.sh -n, the COST_* and GALAXY_OBJECT_* knobs of
+    game_config.h and the maintainer-local pinned Vulkan SDK; the Documentation
+    table lists every guide and drops the "if present" hedges. DEVELOPMENT.md:
+    fix stale source names (spacegl_vulkan_gdd.c -> vulkan_gdd_build.c), drop
+    the missing local_check.sh, "9-test" -> 17-test suite. SECURITY.md: key
+    files must be 0600, group-readable 0640 is rejected by load_master_key().
+    HOWTO.txt: the master key is 256 bits (64 hex chars), not 128. Remove the
+    tracked vulkan_gdd_render.c.orig and golden_test .pyc and ignore
+    __pycache__/, *.pyc and *.orig.
+
 * Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.10
   - Server: fix a hang in the command parser found by the libFuzzer CI job.
     normalize_upright() reduced the mark with while (m > 180) m -= 360, so

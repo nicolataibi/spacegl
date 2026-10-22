@@ -5,7 +5,7 @@ behind the contract tests. The product overview, feature lore and
 runtime usage live in README.md; the threat model and the audit
 registry live in SECURITY.md.
 
-This is an integrated source tree (not a git checkout): the 8 product
+This is an integrated source tree: the 8 product
 targets, the shader sources and the `tests/` unit suite are all built
 from here.
 
@@ -68,8 +68,9 @@ trees can never drift apart). The first usable entry wins:
     it warns and the chain continues (a stale export cannot brick the
     build);
 2.  the pinned default SDK (project decision for reproducible builds —
-    headers, loader and glslc from the same SDK:
-    `/home/nick/dev/c/vulkan-sdk/1.4.363.0/x86_64`); opt out with
+    headers, loader and glslc from the same SDK; the default root is the
+    maintainer-local `DEFAULT_VULKAN_SDK` cache variable, and when that
+    path does not exist the step is skipped silently); opt out with
     `-DUSE_DEFAULT_VULKAN_SDK=OFF`;
 3.  the system Vulkan — `find_package(Vulkan)` (official config, else
     CMake's FindVulkan module: libvulkan + system headers), then the
@@ -109,8 +110,7 @@ cmake --build build -j
 *   **Server sources are an explicit list** (no `file(GLOB)`): a new
     file in `src/server/` must be added to `SERVER_SRCS` in the
     top-level CMakeLists.txt or it is silently not built.
-*   **RPM packaging**: `spacegl.spec` + `local_check.sh` (local mock
-    build tree + rpmlint). The spec's `%check` runs the very unit
+*   **RPM packaging**: `spacegl.spec`. The spec's `%check` runs the very unit
     suite of §3, so a contract failure also fails the package build.
 
 ## 3. Running the test suite
@@ -119,8 +119,8 @@ The suite has **17 tests**, built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
-| 1 | `gdd_contract` | CPU/GPU boundary: struct sizes, **per-field offsets**, vec4 16-byte alignment, flag round-trip, instance builder vs synthetic scenes | `src/spacegl_vulkan_gdd.c` (full TU) |
-| 2 | `gdd_mesh` | headless GPU: the real cull/expand/final SPIR-V vs a bit-exact CPU mirror (exit 77 = skip without an ICD/SPV) | `build/shaders/gdd_*.spv` |
+| 1 | `gdd_contract` | CPU/GPU boundary: struct sizes, **per-field offsets**, vec4 16-byte alignment, flag round-trip, instance builder vs synthetic scenes | `src/vulkan_gdd_build.c` (full TU) |
+| 2 | `gdd_mesh` | headless GPU: the real cull/expand/final SPIR-V vs a bit-exact CPU mirror (exit 77 = skip without an ICD/SPV) | `build/shaders/gdd_*.spv` (test is self-contained; no production `.c` linked) |
 | 3 | `nav_heading` | B2: HUD heading stays in [0, 360) across the 0/360 wrap | `src/server/nav_math.c` |
 | 4 | `nav_roll` | HUD roll stays in [0, 360) (`pos` normalization + align re-wrap) | `src/server/nav_math.c` |
 | 5 | `quad_index` | B3: all 62 static galactic types (quasar & co.) indexed per quadrant | `src/server/quad_index.c` |
@@ -132,8 +132,8 @@ The suite has **17 tests**, built in two equivalent modes:
 | 11 | `rate_limit` | DoS protection: token-bucket rate limit (200 pkt/s, 10 drops → disconnect, 1 s refill) on the real dispatcher, incl. async staged mode (ASan/UBSan) | `src/server/packets.c` + `net.c` + `conn.c` |
 | 12 | `crypto_table_oob` | B2-b: `radio_cipher_for_algo()` index bounds, all 256 algo bytes, canary byte (ASan/UBSan) | `include/radio_crypto.h` |
 | 13 | `net_count_oob` | B3-b: object/beam `count` field bounds (0 / MAX / MAX+1 / -1 / INT32_MIN / INT32_MAX), canary array (ASan/UBSan) | `src/server/packets.c` + `net.c` |
-| 14 | `golden` | CPU-vs-GDD render parity & GDD golden regression pin, **region-based** (4 regions + global sanity; a localised artifact can no longer hide in the pixel average) (integrated only) | `src/spacegl_vulkan.c` + `src/spacegl_vulkan_gdd.c` |
-| 15 | `gdd_bench` | GDD cull/expand/final compute pass runtime benchmark against thresholds | `src/spacegl_vulkan_gdd.c` (via `gdd_mesh_test`) |
+| 14 | `golden` | CPU-vs-GDD render parity & GDD golden regression pin, **region-based** (4 regions + global sanity; a localised artifact can no longer hide in the pixel average) (integrated only) | `build/spacegl_vulkan` (product binary, black-box) |
+| 15 | `gdd_bench` | GDD cull/expand/final compute pass runtime benchmark against thresholds | none (self-contained `gdd_mesh_test --benchmark`) |
 | 16 | `server_tick_bench` | server tick rate regression: 1000 ticks of the real game loop over a worst-case-but-stable scene; avg < `threshold_ms`, p99 < `p99_ms` (tests/server_tick_thresholds.txt, 8.0/12.0 ms) | `src/server/logic.c` + `logic_events.c` + `quad_index.c` + `targets.c` |
 | 17 | `stability` | long-running memory-leak check: real server + real client for 60 s, server RSS delta ≤ 10 MB (integrated only; the CI smoke job runs it explicitly too) | `build/spacegl_server` + `build/spacegl_client` (black-box) |
 
@@ -216,7 +216,7 @@ production code itself — never a copy. The pattern:
     different layout — cannot sneak through.
 2.  **Link the real sources.** The test target compiles the production
     `.c` files it pins (`nav_math.c`, `quad_index.c`,
-    `commands.c`+`logic.c`, or the whole `spacegl_vulkan_gdd.c` TU with
+    `commands.c`+`logic.c`, or the whole `vulkan_gdd_build.c` TU with
     small stubs for the device-side references the test never calls —
     `recreateSwapChain`, `glfwGetTime`). When the module indexes
     globals owned by a file that is not linked (e.g. the server object
@@ -252,13 +252,13 @@ SECURITY.md if it pins an audit item.
 
 | Path | What |
 | :--- | :--- |
-| `src/` | the 8 product TUs (server in `src/server/`, GDD in `src/spacegl_vulkan_gdd.c`) |
+| `src/` | the 8 product TUs (server in `src/server/`, GDD in `src/vulkan_gdd_build.c` and `src/vulkan_gdd_render.c`) |
 | `include/` | shared headers; `spacegl_gdd.h` is the CPU/GPU contract, `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks |
 | `assets/shaders/` | GLSL sources (legacy `shader.*` + GDD `gdd_*`, shared `gdd_common.glsl`/`gdd_ops.glsl`) |
-| `tests/` | the 9-test suite (dual-mode CMake project) |
+| `tests/` | the 17-test suite (dual-mode CMake project) |
 | `cmake/SpaceGLVulkanSDK.cmake` | the shared Vulkan SDK resolution chain |
 | `man/` | man pages (one per product binary) |
-| `spacegl.spec` / `local_check.sh` | RPM spec + local compliance check |
+| `spacegl.spec` | RPM spec (its `%check` runs the unit suite) |
 | `changelog` | the release log (versioned per change, `YYYY.MM.DD.NN`) |
 | `README.md` | product overview + technical sections |
 | `SECURITY.md` | threat model + audit registry (B items) |

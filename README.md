@@ -122,7 +122,7 @@ The source tree documents eight product executables:
 
 The CMake build also defines `spacegl_shaders`, which compiles the project's GLSL shader sources to SPIR-V with `glslc`.
 
-> The executable names produced by CMake use underscores. The runtime commands in the usage guide (`spacegl-server` and `spacegl-client`) may be launcher scripts or packaged entry points. Check the files installed by your checkout/package before assuming the names are interchangeable.
+> The executable names produced by CMake use underscores. The hyphenated commands in the usage guide (`spacegl-server`, `spacegl-client`, `spacegl-diag`) are launcher scripts shipped in the repository root. Each looks for the matching underscore binary in `./build/`, then in the current directory, then in `PATH`, so build the project first.
 
 ## GPU-driven rendering
 
@@ -215,6 +215,7 @@ The included `build.sh` wraps configuration, compilation, and test execution:
 ./build.sh -s    # MinSizeRel + tests
 ./build.sh -c    # Clean build directory, rebuild, and test
 ./build.sh -t    # Run tests only; requires an existing configured build
+./build.sh -n    # Build only, skip the test suite (options can be combined, e.g. -cn)
 ./build.sh -h    # Show help
 ```
 
@@ -225,7 +226,7 @@ The clean option removes the local `build/` directory before rebuilding. Do not 
 The build system resolves Vulkan dependencies through the shared `cmake/SpaceGLVulkanSDK.cmake` module. As documented in `DEVELOPMENT.md`, it checks:
 
 1. A usable `VULKAN_SDK` environment variable.
-2. The project's pinned default SDK, unless disabled.
+2. The project's pinned default SDK (`DEFAULT_VULKAN_SDK`, a maintainer-local path), unless disabled. If that path does not exist on your machine, CMake skips it silently and continues to the system Vulkan.
 3. The system Vulkan package and loader.
 
 To opt out of the pinned SDK and use system discovery, configure with:
@@ -238,7 +239,7 @@ If `VULKAN_SDK` is set to a stale or unusable path, CMake warns and continues th
 
 ## Quick start
 
-The repository's `HOWTO.txt` documents starting the server and connecting a client using the same `SPACEGL_KEY`. Start the server and each client in separate terminals. The exact launcher names can vary between a source build and a package; use the commands supplied by the checkout you are running.
+The repository's `HOWTO.txt` documents starting the server and connecting a client using the same `SPACEGL_KEY`. Start the server and each client in separate terminals. Run the commands from the repository root after building (see above).
 
 ### 1. Generate a shared secret
 
@@ -278,9 +279,9 @@ export SPACEGL_KEY="<same-secret-value>"
 ./spacegl-client vk
 ```
 
-The handshake is expected to fail if the server and client use different key values. Do not place a real key directly in shell history or in source control. For persistent deployments, prefer a protected environment file or secret-management mechanism with appropriate permissions.
+The handshake is expected to fail if the server and client use different key values. Do not place a real key directly in shell history or in source control. For persistent or multi-user deployments, prefer `SPACEGL_KEY_FILE` instead: point it to a file containing the 64 hexadecimal characters of the key. The file must have mode `0600`; the server and client refuse to start if it is group- or world-accessible. Key lookup order is `SPACEGL_KEY_FILE`, then `SPACEGL_KEY`, then an auto-generated `$HOME/.spacegl/key`. See `SECURITY.md`.
 
-> These commands follow `HOWTO.txt`. If your build only produces the CMake targets listed above and does not provide the hyphenated launcher scripts, consult the package contents and `DEVELOPMENT.md` for the correct entry points.
+> These commands follow `HOWTO.txt`. The launcher scripts are in the repository root; if you installed from a package, use the entry points that package provides.
 
 ## Testing
 
@@ -326,6 +327,8 @@ Documented configuration areas include:
 - Weapon damage and system integrity.
 - Mining, harvesting, docking, and boarding interaction distances.
 - NPC and environmental-event behavior.
+- Action energy costs (`COST_*`, including cloak, hyperdrive, wormhole, boarding, probe launch, and encryption shifts).
+- Galaxy population ranges for every object type (`GALAXY_OBJECT_MIN_*` / `GALAXY_OBJECT_MAX_*`) and for objects created at runtime (`GALAXY_CREATE_OBJECT_*`).
 
 The game includes navigation, scanning, tactical combat, communications, resource gathering, docking, salvage, and galactic-map functions. The full command reference and the lore/encyclopedia are maintained in `LORE.md`; this README intentionally provides an overview rather than duplicating the complete manual.
 
@@ -333,28 +336,35 @@ The game includes navigation, scanning, tactical combat, communications, resourc
 
 Security-related behavior is described in the project documentation and should be reviewed before exposing a server to an untrusted network.
 
-- The runtime handshake expects the same `SPACEGL_KEY` on the server and authorized clients.
+- The runtime handshake expects the same master key on the server and authorized clients, supplied through `SPACEGL_KEY_FILE` (preferred, mode `0600`) or `SPACEGL_KEY`.
 - The project documents HMAC-SHA256 integrity mechanisms and per-session keying.
 - Radio encryption options documented in the game include AES-256-GCM, ChaCha20-Poly1305, and an `enc off` cleartext mode.
 - Keep secrets out of Git, logs, screenshots, public issue reports, and command examples containing real values.
 - Do not interpret badges or descriptive phrases as a substitute for a security review. Review the implementation and threat model before relying on it for sensitive communications.
 
-See `SECURITY.md` for the threat model and audit registry, if present in the checkout. If that file is absent, verify whether it is maintained in another branch or release before linking it in project documentation.
+See `SECURITY.md` for the vulnerability-reporting policy, the threat model, and the audit registry.
 
 ## Documentation
 
 | File | Contents |
 |---|---|
 | `README.md` | Project introduction, architecture, build, usage, and key rendering options |
-| `DEVELOPMENT.md` | Dependencies, CMake build types, tests, Vulkan validation, and contribution workflow |
+| `INSTALL.md` | Installation instructions |
+| `BUILD.md` | Generic build instructions |
+| `DEVELOPMENT.md` | Dependencies, CMake build types, Vulkan SDK resolution, test suite, Vulkan validation, contract-test pattern, and repository map |
+| `CONTRIBUTING.md` | Contribution guidelines |
+| `CODE_OF_CONDUCT.md` | Community code of conduct |
 | `HOWTO.txt` | Basic server/client startup instructions |
+| `FAQ.md` | Frequently asked questions |
+| `ACCESSIBILITY.md` | Accessibility statement |
 | `LORE.md` | Gameplay reference, command manual, universe encyclopedia, historical lore, and release notes |
-| `SECURITY.md` | Security threat model and audit registry, if included in the checkout |
-| `changelog` | Versioned change history, if included in the checkout |
+| `SECURITY.md` | Vulnerability-reporting policy, security threat model, and audit registry |
+| `changelog` | Versioned change history (RPM-style, `YYYY.MM.DD.NN`) |
+| `man/man1/` | Manual pages for the product binaries |
 
 ## Contributing
 
-Contributions that improve correctness, stability, performance, documentation, or test coverage are welcome.
+Contributions that improve correctness, stability, performance, documentation, or test coverage are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guidelines and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 Before opening a pull request:
 

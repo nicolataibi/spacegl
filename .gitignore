@@ -63,3 +63,10 @@ spacegl_new_revision.sh
 spacegl_new_release.sh
 local_check.sh
 wrap.py
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Editor/merge leftovers
+*.orig

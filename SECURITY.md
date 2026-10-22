@@ -202,8 +202,9 @@ chown spacegl:spacegl /etc/spacegl/master.key
 
 # Server: SPACEGL_KEY_FILE=/etc/spacegl/master.key
 # Clients: SPACEGL_KEY_FILE=/etc/spacegl/master.key
-# (the file must be readable by the client users — use a
-#  group-readable 0640 if clients run under different users)
+# (the file must have mode 0600 and be owned by the user running the
+#  process: group- or world-accessible key files are rejected, so each
+#  user running a client needs their own 0600 copy of the key)
 ```
 
 #### Security notes

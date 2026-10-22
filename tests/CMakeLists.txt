@@ -24,7 +24,7 @@
 #         ctest --test-dir build-tests --output-on-failure
 #
 # The code under test is pulled straight from ../src (the GPU-driven
-# module src/spacegl_vulkan_gdd.c) and ../include, so the tests always
+# module src/vulkan_gdd_build.c) and ../include, so the tests always
 # exercise the real production sources. Compile settings mirror the
 # main project (C23, same warning flags).
 # =========================================================================
