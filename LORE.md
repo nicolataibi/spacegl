@@ -2660,7 +2660,7 @@ Below is the complete list of available commands, grouped by function.
     *   `jum <QX> <QY> <QZ>`: **Wormhole Jump (Einstein-Rosen Bridge)**. Generates a wormhole for an instant jump to the destination quadrant.
     *   **Requirements**: 5000 units of Energy, 1 Aetherium Crystal, and minimum 50% health for both **Hyperdrive (ID 0)** and **Sensors (ID 2)**.
     *   **Risks**: Chance of collapse and resource loss if integrity is below 75%.
-    *   **Dynamics**: Causes 1-3% structural stress damage to the hull upon initiation.
+    *   **Dynamics**: Causes 1-3% structural stress damage to the hull upon initiation. The strain also damages one randomly chosen ship system (1-5% of its integrity), reported as a `Wormhole stress` message.
     *   **Procedure**: Requires a singularity stabilization sequence of about 15 seconds.
 *   `apr <ID> [DIST]`: **Approach Autopilot**. Automatic approach to target ID up to DIST distance.
     *   **Requirements**: Minimum 10% integrity for both **Impulse Drive (ID 1)** and **Computer (ID 6)**.

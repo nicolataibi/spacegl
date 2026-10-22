@@ -1,3 +1,13 @@
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.05
+  - Server: report wormhole jump damage as structural stress. The jump
+    command used apply_hull_damage(), so the 1-3% stress it causes was
+    announced as "Hull impact!", which was misleading since nothing hits the
+    ship. The damage logic is now shared through an internal helper and a new
+    apply_jump_stress_damage() reports it as "Wormhole stress: hull strained
+    X%, system Y damaged by Z%." Gameplay values are unchanged; combat and
+    hazard damage keep the original message. LORE.md now documents that a jump
+    also damages one random ship system by 1-5%.
+
 * Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.04
   - Server: fix wormhole jump never being executed. update_game_logic()
     contained a duplicated NAV_STATE_WORMHOLE branch whose first copy had an

@@ -1206,6 +1206,7 @@ bool target_visible(const TargetRangeDef *r, const void *e, int my_faction);
 void push_server_event(int p_idx, int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra);
 bool is_player_in_nebula(int p_idx);
 void apply_hull_damage(int p_idx, double amount);
+void apply_jump_stress_damage(int p_idx, double amount);
 void send_optimized_update(int p_idx, PacketUpdate *upd);
 void send_pending_updates(void);
 

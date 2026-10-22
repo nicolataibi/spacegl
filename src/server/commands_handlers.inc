@@ -3530,7 +3530,7 @@ void handle_jum(int i, const char *params, bool *should_disconnect) {
 
         /* 3. Stress damage (1-3% hull) */
         double stress = 1.0 + (rand() % 200) / (double)YIELD_HARVEST_MAX;
-        apply_hull_damage(i, stress);
+        apply_jump_stress_damage(i, stress);
 
         /* 4. Positional Uncertainty based on sensor damage */
         double off_x = 0, off_y = 0, off_z = 0;

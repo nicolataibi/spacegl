@@ -866,7 +866,10 @@ void logic_update_starbase_defense(void) {
     /* Reset transient effects for NPCs and other entities after all updates have been sent */
 }
 
-void apply_hull_damage(int i, double amount) {
+/* Shared implementation: reduces hull integrity and damages one random
+ * subsystem (1-5%). 'stress' selects the report wording: false for impacts
+ * (combat, hazards), true for structural stress (wormhole jump). */
+static void apply_hull_damage_impl(int i, double amount, bool stress) {
     if (i < 0 || i >= MAX_CLIENTS || !players[i].active) return;
     
     players[i].state.hull_integrity -= amount;
@@ -881,8 +884,21 @@ void apply_hull_damage(int i, double amount) {
     
     const char* sys_names[] = {"Hyperdrive", "Impulse", "Sensors", "Transporters", "Ion Beams", "Torpedoes", "Computer", "Life Support", "Shields", "Auxiliary"};
     char msg[128];
-    sprintf(msg, "Hull impact! System %s damaged by %.1f%%.", sys_names[sys], sys_dmg);
+    if (stress)
+        snprintf(msg, sizeof(msg), "Wormhole stress: hull strained %.1f%%, system %s damaged by %.1f%%.", amount, sys_names[sys], sys_dmg);
+    else
+        snprintf(msg, sizeof(msg), "Hull impact! System %s damaged by %.1f%%.", sys_names[sys], sys_dmg);
     send_server_msg(i, "DAMAGE", msg);
+}
+
+void apply_hull_damage(int i, double amount) {
+    apply_hull_damage_impl(i, amount, false);
+}
+
+/* Structural stress from a wormhole jump: same effect as apply_hull_damage(),
+ * but reported as jump stress instead of a hull impact. */
+void apply_jump_stress_damage(int i, double amount) {
+    apply_hull_damage_impl(i, amount, true);
 }
 
 int calculate_shield_index(double shooter_x, double shooter_y, double shooter_z,
