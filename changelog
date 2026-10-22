@@ -1,3 +1,12 @@
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.04
+  - Server: fix wormhole jump never being executed. update_game_logic()
+    contained a duplicated NAV_STATE_WORMHOLE branch whose first copy had an
+    empty body, so it always matched and the second copy, which calls
+    logic_handle_wormhole_nav(), was unreachable. Players in the wormhole
+    navigation state were therefore never processed. The stray empty branch
+    is removed, so logic_handle_wormhole_nav() is now invoked as intended
+    on every tick.
+
 * Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.03
   - Vulkan GDD: fix nebulae drawn as an egg. The builder treated every type
     in 10..199 as a ship, so nebulae (types 51-55) and other cosmic volumes

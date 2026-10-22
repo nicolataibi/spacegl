@@ -1078,7 +1078,6 @@ void update_game_logic() {
             players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * QUADRANT_SIZE);
             players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * QUADRANT_SIZE);
         } else if (players[i].nav_state == NAV_STATE_WORMHOLE) {
-        } else if (players[i].nav_state == NAV_STATE_WORMHOLE) {
             logic_handle_wormhole_nav(i);
         } else if (players[i].nav_state == NAV_STATE_CHASE) {
             int tid = players[i].state.lock_target;
