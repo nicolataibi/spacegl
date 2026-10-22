@@ -1,3 +1,14 @@
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.08
+  - Server: fix random system damage always hitting the same system. The
+    seed used by apply_hull_damage_impl() was built only from the player
+    index and the address of a local variable, so every call restarted
+    rand_r() from the same state and a player always lost the same system
+    (for example Torpedoes on every wormhole jump) by the same amount. The
+    seed now also depends on the time and on an atomic call counter, so the
+    damaged system and the 1-5% amount vary between hits. The counter keeps
+    the code thread-safe inside OpenMP regions. Gameplay values are
+    unchanged.
+
 * Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.07
   - Vulkan GDD: the 32 exotic compact objects (types 100-131, including
     Kerr and Kerr-Newman) now get the same black-hole look as type 6: a pure

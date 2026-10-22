@@ -876,7 +876,14 @@ static void apply_hull_damage_impl(int i, double amount, bool stress) {
     if (players[i].state.hull_integrity < 0) players[i].state.hull_integrity = 0;
     
     /* Random system damage (1-5% per hit) */
-    unsigned int ai_seed = (unsigned int)i ^ (unsigned int)(uintptr_t)&i;
+    /* The seed must change on every call: deriving it only from the player
+     * index and a stack address made rand_r() return the same system and the
+     * same damage each time. A shared atomic counter keeps it thread-safe
+     * (this code can run inside OpenMP regions). */
+    static unsigned int dmg_counter = 0;
+    unsigned int n = __atomic_add_fetch(&dmg_counter, 1u, __ATOMIC_RELAXED);
+    unsigned int ai_seed = (unsigned int)time(NULL) ^ ((unsigned int)i * 2654435761u) ^ (n * 40503u);
+    ai_seed ^= ai_seed >> 16; ai_seed *= 0x45d9f3bu; ai_seed ^= ai_seed >> 16;
     int sys = rand_r(&ai_seed) % MAX_SYSTEMS;
     double sys_dmg = 1.0 + (rand_r(&ai_seed) % 400) / (double)YIELD_HARVEST_MAX;
     players[i].state.system_health[sys] -= sys_dmg;
