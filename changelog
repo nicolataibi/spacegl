@@ -1,3 +1,22 @@
+* Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.01
+  - Vulkan GDD: fix the Xylari ship (and any lone ship) being drawn as a white
+    sphere in an empty quadrant. The GPU-driven descriptor writes
+    (VkWriteDescriptorSet w[32] in gdd_create_frame_descs) were left
+    uninitialized, so a garbage pNext reached vkUpdateDescriptorSets; the array
+    is now zeroed. The scene push-constant block also did not match the C
+    struct (GLSL vec3 is 16-byte aligned: block 96 B vs the 84 B GddScenePC),
+    so the fragment shader read the camera position from the wrong offset;
+    gdd_scene.vert/.frag now use scalar cam_x/cam_y/cam_z, and the vertex
+    storage buffer is declared readonly (VUID-RuntimeSpirv-NonWritable-06341).
+  - Vulkan validation clean-up: the GDD counters buffer gets
+    VK_BUFFER_USAGE_TRANSFER_DST_BIT (it is zeroed with vkCmdFillBuffer), and
+    the render-finished semaphores are now one per swapchain image instead of
+    one per frame in flight (CPU and GDD paths), as required for safe
+    presentation semaphore reuse.
+  - build.sh: re-executes itself under bash when started with "sh", always
+    runs from the repository root, and gains -n (build without running the
+    test suite).
+
 * Wed Oct 21 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.21.05
   - Vulkan GDD: the periodic "[GDD perf [frame N]: ...]" line is now silent by
     default and printed every 60 frames only with SPACEGL_GDD_PERF=1; a frame

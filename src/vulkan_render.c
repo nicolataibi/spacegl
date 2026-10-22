@@ -1325,14 +1325,14 @@ void drawFrame(VulkanApp* app) {
     
     void* d; vkMapMemory(app->device, app->uniformBuffersMemory[app->currentFrame], 0, sizeof(ubo), 0, &d); memcpy(d, &ubo, sizeof(ubo)); vkUnmapMemory(app->device, app->uniformBuffersMemory[app->currentFrame]);
     VkPipelineStageFlags w = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO, NULL, 1, &app->imageAvailableSemaphores[app->currentFrame], &w, 1, &app->commandBuffers[app->currentFrame], 1, &app->renderFinishedSemaphores[app->currentFrame]};
+    VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO, NULL, 1, &app->imageAvailableSemaphores[app->currentFrame], &w, 1, &app->commandBuffers[app->currentFrame], 1, &app->imageRenderFinished[imgIdx]};
     /* No fence on the render submit: vkQueuePresentKHR takes no fence,
        and the render's fence would signal while the present operation
        (which consumes renderFinishedSemaphores and the swapchain image)
        is still pending, so reusing the slot 3 frames later would
        re-signal the semaphore while the old present still uses it. */
     vkQueueSubmit(app->graphicsQueue, 1, &si, VK_NULL_HANDLE);
-    VkSwapchainKHR sw = app->swapChain; VkPresentInfoKHR pi = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, NULL, 1, &app->renderFinishedSemaphores[app->currentFrame], 1, &sw, &imgIdx, NULL};
+    VkSwapchainKHR sw = app->swapChain; VkPresentInfoKHR pi = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, NULL, 1, &app->imageRenderFinished[imgIdx], 1, &sw, &imgIdx, NULL};
     VkResult pres_res = vkQueuePresentKHR(app->graphicsQueue, &pi);
     /* Queue ops run in order: this empty submit (and its fence)
        completes only once the PRESENT is done, so the slot can be

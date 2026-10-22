@@ -27,9 +27,12 @@ layout(location = 0) out vec4 outColor;
 layout(push_constant) uniform GddScenePC {
     mat4 mvp;
     float time;
-    vec3 cam;
+    /* vec3 would be 16-byte aligned (offset 80, block 96 B) and no longer
+     * match the 84 B C struct GddScenePC; use scalars to keep cam@68. */
+    float cam_x, cam_y, cam_z;
     float pad;
 } sc;
+#define SC_CAM vec3(sc.cam_x, sc.cam_y, sc.cam_z)
 
 /* --- Procedural Noise Utilities (ported from shader.frag) --- */
 
@@ -198,7 +201,7 @@ void main() {
         if (line < 0.5) discard;
         vec3 N = (length(vNormal) > 1e-6) ? normalize(vNormal) : vec3(0, 1, 0);
         vec3 L = normalize(vec3(50.0, 100.0, 50.0) - vPos);
-        vec3 V = normalize(sc.cam - vPos);
+        vec3 V = normalize(SC_CAM - vPos);
         vec3 H = normalize(L + V);
         float diff = max(dot(N, L), 0.0);
         vec3 specular = vec3(pow(max(dot(N, H), 0.0), 32.0 * (1.0 - 0.25))) * 0.9;
@@ -210,7 +213,7 @@ void main() {
     vec3 baseColor = vColor.rgb;
     vec3 N = (length(vNormal) > 1e-6) ? normalize(vNormal) : vec3(0, 1, 0);
     vec3 L = normalize(vec3(50.0, 100.0, 50.0) - vPos);
-    vec3 V = normalize(sc.cam - vPos);
+    vec3 V = normalize(SC_CAM - vPos);
     vec3 H = normalize(L + V);
     float diff = max(dot(N, L), 0.0);
     /* Microguard: the roughness must stay in [0, 1]. If vRough > 1 the

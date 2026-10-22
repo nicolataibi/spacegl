@@ -447,6 +447,11 @@ void destroySwapChainResources(VulkanApp* app) {
         vkDestroyImageView(app->device, app->swapChainImageViews[i], NULL);
     free(app->swapChainImageViews); app->swapChainImageViews = NULL;
     free(app->swapChainImages); app->swapChainImages = NULL;
+    if (app->imageRenderFinished) {
+        for (uint32_t i = 0; i < app->swapChainImageCount; i++)
+            vkDestroySemaphore(app->device, app->imageRenderFinished[i], NULL);
+        free(app->imageRenderFinished); app->imageRenderFinished = NULL;
+    }
     vkDestroySwapchainKHR(app->device, app->swapChain, NULL); app->swapChain = VK_NULL_HANDLE;
     vkDestroyImageView(app->device, app->colorImageView, NULL);
     vkDestroyImage(app->device, app->colorImage, NULL);
@@ -461,6 +466,16 @@ void createSwapChainResources(VulkanApp* app) {
     if (!app->swapChainImageViews) { fprintf(stderr, "[VK] Out of memory: swapchain image views\n"); exit(1); }
     for (uint32_t i = 0; i < app->swapChainImageCount; i++)
         app->swapChainImageViews[i] = createImageView(app->device, app->swapChainImages[i], app->swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    /* Present-wait semaphores are per swapchain image (not per frame in
+     * flight): the presentation engine may still hold the semaphore of an
+     * image until that image is re-acquired. */
+    app->imageRenderFinished = malloc(sizeof(VkSemaphore) * app->swapChainImageCount);
+    if (!app->imageRenderFinished) { fprintf(stderr, "[VK] Out of memory: render-finished semaphores\n"); exit(1); }
+    {
+        VkSemaphoreCreateInfo rsi = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, NULL, 0};
+        for (uint32_t i = 0; i < app->swapChainImageCount; i++)
+            if (vkCreateSemaphore(app->device, &rsi, NULL, &app->imageRenderFinished[i]) != VK_SUCCESS) exit(1);
+    }
     createColorResources(app);
     createDepthResources(app);
     app->swapChainFramebuffers = malloc(sizeof(VkFramebuffer) * app->swapChainImageCount);

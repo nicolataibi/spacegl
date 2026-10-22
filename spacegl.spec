@@ -3,7 +3,7 @@
 %global _docdir_fmt %{name}
 
 Name:           spacegl
-Version:        2026.10.21.05
+Version:        2026.10.22.01
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 

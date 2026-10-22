@@ -201,6 +201,7 @@ typedef struct VulkanApp {
     VkDescriptorPool descriptorPool; VkDescriptorSet descriptorSets[MAX_FRAMES_IN_FLIGHT];
     VkCommandBuffer commandBuffers[MAX_FRAMES_IN_FLIGHT];
     VkSemaphore imageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT]; VkSemaphore renderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
+    VkSemaphore* imageRenderFinished; /* one per swapchain image, indexed by the acquired image index */
     VkFence inFlightFences[MAX_FRAMES_IN_FLIGHT]; uint32_t currentFrame;
     uint32_t lastFrameSlot;   /* slot of the frame just rendered (either path) */
     uint32_t lastImgIdx;      /* swapchain image index of that frame (--screenshot) */

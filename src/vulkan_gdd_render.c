@@ -495,7 +495,7 @@ static bool gdd_create_frame_buffers(GddState *g, VulkanApp *app, uint32_t i) {
                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                             &f->indirect, &f->ind_mem, &f->indirect_ptr);
     ok &= gdd_create_buffer(d, pd, GDD_COUNTS_STRIDE,
-                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                             &f->counters, &f->cnt_mem, &f->counters_ptr);
     ok &= gdd_create_buffer(d, pd, sizeof(GddFrameFeedback),
@@ -551,6 +551,7 @@ static bool gdd_create_frame_descs(GddState *g, uint32_t i) {
     bmap[4] = bi[4];
 
     VkWriteDescriptorSet w[32];
+    memset(w, 0, sizeof(w));
     int n = 0;
     /* cull dyn: 0 inst, 1 vis, 2 cnt */
     for (int k = 0; k < 3; k++) {
@@ -1210,6 +1211,13 @@ void gdd_build_frame(VulkanApp *app, float pulse) {
             platings[o] = obj->plating;
             ids[o] = obj->id;
         }
+        /* DIAG: type/faction/active of object 0 as seen by the builder,
+         * logged every 2 s while the player is the only object. */
+        if (n >= 1 && sglog_rate("gdd_obj0_diag", 2))
+            SG_TRACE3(SG_CAT_VULKAN,
+                "gdd obj0: count=%d type=%d faction=%d class=%d active=%d id=%d first=%d",
+                n, types[0], factions[0], ship_classes[0], active[0], ids[0],
+                (int)app->smoothObjs[0].first);
         ctx.types = types;
         ctx.factions = factions;
         ctx.ship_classes = ship_classes;
@@ -1803,7 +1811,7 @@ void gdd_draw_frame(VulkanApp *app) {
                         .commandBufferCount = 1,
                         .pCommandBuffers = &f->cmd,
                         .signalSemaphoreCount = 1,
-                        .pSignalSemaphores = &app->renderFinishedSemaphores[slot] };
+                        .pSignalSemaphores = &app->imageRenderFinished[imgIdx] };
     /* No fence on the render submit: vkQueuePresentKHR takes no fence,
      * and the render's fence would signal while the present op is
      * still pending, racing the next use of this slot. */
@@ -1811,7 +1819,7 @@ void gdd_draw_frame(VulkanApp *app) {
 
     VkPresentInfoKHR pi = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
                             .waitSemaphoreCount = 1,
-                            .pWaitSemaphores = &app->renderFinishedSemaphores[slot],
+                            .pWaitSemaphores = &app->imageRenderFinished[imgIdx],
                             .swapchainCount = 1,
                             .pSwapchains = &app->swapChain,
                             .pImageIndices = &imgIdx };

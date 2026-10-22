@@ -19,14 +19,17 @@ struct GddVertex {
     vec4 params;
 };
 
-layout(binding = 0) buffer GddSceneVtx { GddVertex v[]; } gdd_scene_verts;
+layout(binding = 0) readonly buffer GddSceneVtx { GddVertex v[]; } gdd_scene_verts;
 
 layout(push_constant) uniform GddScenePC {
     mat4 mvp;
     float time;
-    vec3 cam;
+    /* vec3 would be 16-byte aligned (offset 80, block 96 B) and no longer
+     * match the 84 B C struct GddScenePC; use scalars to keep cam@68. */
+    float cam_x, cam_y, cam_z;
     float pad;
 } sc;
+#define SC_CAM vec3(sc.cam_x, sc.cam_y, sc.cam_z)
 
 layout(location = 0) out vec4 vColor;
 layout(location = 1) out vec3 vNormal;
