@@ -163,6 +163,40 @@
 #define OBJ_EVOLVED_GIANT_LAST   4    /* 0..4  giants / supergiants      */
 #define OBJ_EVOLVED_PULSATOR_MIN 14   /* 14..16 pulsating white dwarfs   */
 
+/* Protostellar objects & Young Stellar Objects (YSO): 16 consecutive types
+ * (type = OBJ_PROTOSTELLAR_FIRST + index) in slots 149..164, stored in the
+ * generic cosmic_features[] array like exotic objects, evolved stars and moons.
+ * Order:
+ *   0..1   Class 0 (Dense Core, Bipolar Outflow)
+ *   2..3   Class I (Infalling Envelope, Protostellar Jet)
+ *   4..5   Herbig-Haro (HH Shock Knot, HH Bow Shock)
+ *   6..7   T Tauri (Classical CTTS, Weak-line WTTS)
+ *   8..9   Herbig Ae/Be (PMS Intermediate-Mass)
+ *   10..11 Accretion Outbursts (FU Orionis, EX Lupi)
+ *   12..15 Circumstellar Structures (Collapsing Core, Cavity, Disk, Column)
+ * Names live here only: the server galaxy generator and the viewers use this list. */
+#define OBJECT_PROTOSTELLAR_NAME_LIST \
+    "Class 0 Protostar (Dense Core)", \
+    "Class 0 Bipolar Outflow", \
+    "Class I Protostar (Infalling Envelope)", \
+    "Class I Protostellar Jet", \
+    "Herbig-Haro Object (HH Shock Knot)", \
+    "Herbig-Haro Bow Shock", \
+    "Classical T Tauri Star (CTTS)", \
+    "Weak-line T Tauri Star (WTTS)", \
+    "Herbig Ae Star (PMS Intermediate)", \
+    "Herbig Be Star (PMS Intermediate)", \
+    "FU Orionis Star (Accretion Outburst)", \
+    "EX Lupi Star (Episodic Accretion)", \
+    "Pre-Stellar Collapsing Core", \
+    "Protostellar Envelope Cavity", \
+    "Protoplanetary Accretion Disk", \
+    "Magnetospheric Accretion Column"
+
+#define OBJ_PROTOSTELLAR_FIRST 149
+#define OBJ_PROTOSTELLAR_COUNT 16
+#define OBJ_PROTOSTELLAR_LAST  (OBJ_PROTOSTELLAR_FIRST + OBJ_PROTOSTELLAR_COUNT - 1)   /* 164 */
+
 /* Natural moons: 10 consecutive types (type = OBJ_MOON_FIRST + index) in the
  * free slots 89..98, stored in the generic cosmic_features[] array like the
  * exotic objects and the evolved stars. 99 stays free. Order:
@@ -193,7 +227,7 @@ typedef enum ObjectType {
 #define OBJECT_TYPE_ENUM_ENTRY(name, value, label) name = value,
     OBJECT_TYPE_LIST(OBJECT_TYPE_ENUM_ENTRY)
 #undef OBJECT_TYPE_ENUM_ENTRY
-    OBJ_TYPE_LAST = OBJ_EVOLVED_LAST
+    OBJ_TYPE_LAST = OBJ_PROTOSTELLAR_LAST
 } ObjectType;
 
 /* ------------------------------------------------------------------ */
@@ -213,6 +247,11 @@ static inline int obj_type_is_exotic(int t) {
 /* One of the 17 evolved stars (132..148). */
 static inline int obj_type_is_evolved_star(int t) {
     return t >= OBJ_EVOLVED_FIRST && t <= OBJ_EVOLVED_LAST;
+}
+
+/* One of the 16 protostellar objects / YSO (149..164). */
+static inline int obj_type_is_protostellar(int t) {
+    return t >= OBJ_PROTOSTELLAR_FIRST && t <= OBJ_PROTOSTELLAR_LAST;
 }
 
 /* One of the 10 natural moons (89..98). */
@@ -263,6 +302,8 @@ static inline const char *obj_type_name(int t) {
     if (obj_type_is_exotic(t)) return exotic_names[t - OBJ_EXOTIC_FIRST];
     static const char *const evolved_names[OBJ_EVOLVED_COUNT] = { OBJECT_EVOLVED_NAME_LIST };
     if (obj_type_is_evolved_star(t)) return evolved_names[t - OBJ_EVOLVED_FIRST];
+    static const char *const proto_names[OBJ_PROTOSTELLAR_COUNT] = { OBJECT_PROTOSTELLAR_NAME_LIST };
+    if (obj_type_is_protostellar(t)) return proto_names[t - OBJ_PROTOSTELLAR_FIRST];
     static const char *const moon_names[OBJ_MOON_COUNT] = { OBJECT_MOON_NAME_LIST };
     if (obj_type_is_moon(t)) return moon_names[t - OBJ_MOON_FIRST];
     switch (t) {
@@ -275,6 +316,39 @@ static inline const char *obj_type_name(int t) {
 
 static inline int obj_type_is_known(int t) {
     return obj_type_name(t) != (const char *)0;
+}
+
+/* Protostellar objects & YSO: colour and scale palette (149..164). */
+static inline const float *obj_protostellar_rgb(int index) {
+    static const float rgb[OBJ_PROTOSTELLAR_COUNT][3] = {
+        {1.0f, 0.45f, 0.10f},   /* 0 Class 0 Protostar        infrared amber    */
+        {0.2f, 0.80f, 1.00f},   /* 1 Class 0 Outflow          shock blue-cyan   */
+        {1.0f, 0.65f, 0.15f},   /* 2 Class I Protostar        bright amber-gold */
+        {0.3f, 0.90f, 0.90f},   /* 3 Class I Jet              collimated teal   */
+        {1.0f, 0.20f, 0.40f},   /* 4 Herbig-Haro Knot         H-alpha pink-red  */
+        {0.8f, 1.00f, 0.20f},   /* 5 Herbig-Haro Bow Shock    shock green-amber */
+        {1.0f, 0.80f, 0.30f},   /* 6 CTTS                     solar warm orange */
+        {1.0f, 0.50f, 0.20f},   /* 7 WTTS                     reddish orange    */
+        {0.8f, 0.90f, 1.00f},   /* 8 Herbig Ae Star           white-cyan        */
+        {0.4f, 0.60f, 1.00f},   /* 9 Herbig Be Star           electric blue     */
+        {1.0f, 0.95f, 0.70f},   /* 10 FUor Star               radiant white-gold*/
+        {1.0f, 0.70f, 0.20f},   /* 11 EXor Star               pulsing yellow-org*/
+        {0.6f, 0.35f, 0.20f},   /* 12 Pre-Stellar Core        dark dusty brown  */
+        {0.7f, 0.40f, 0.90f},   /* 13 Envelope Cavity         ethereal violet   */
+        {0.85f, 0.55f, 0.30f},  /* 14 Protoplanet Disk        dusty terracotta  */
+        {0.9f, 0.30f, 0.80f}    /* 15 Accretion Column        magnetic magenta  */
+    };
+    if (index < 0 || index >= OBJ_PROTOSTELLAR_COUNT) index = 0;
+    return rgb[index];
+}
+
+static inline float obj_protostellar_scale(int index) {
+    static const float scale[OBJ_PROTOSTELLAR_COUNT] = {
+        1.2f, 1.8f, 1.3f, 1.5f, 0.9f, 1.6f, 1.4f, 1.1f,
+        2.0f, 2.4f, 2.8f, 1.5f, 1.7f, 2.2f, 1.9f, 1.3f
+    };
+    if (index < 0 || index >= OBJ_PROTOSTELLAR_COUNT) index = 0;
+    return scale[index];
 }
 
 /* Moons: colour and size (relative to a planet = 1.0) shared by the OpenGL

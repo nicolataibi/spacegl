@@ -89,6 +89,7 @@ static int object_has_faction(int type) {
 const char* get_object_class_name(int type) {
     if (obj_type_is_exotic(type)) return "EXOTIC"; /* exotic features */
     if (obj_type_is_evolved_star(type)) return "STELLAR"; /* giants, white dwarfs */
+    if (obj_type_is_protostellar(type)) return "PROTOST."; /* protostellar & YSO */
     if (obj_type_is_moon(type)) return "PLANETARY"; /* natural moons */
     switch (type) {
         case OBJ_STAR:  return "STELLAR";   /* Star */

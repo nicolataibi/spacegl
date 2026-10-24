@@ -1,3 +1,13 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.17
+  - Protostellar & Young Stellar Objects (YSO): full scientific implementation (Option B) across engine, server, and clients:
+      * Astronomical Classification (include/object_types.h): added 16 protostellar & YSO classes (types 149..164): Class 0 Protostar, Class 0 Bipolar Outflow, Class I Protostar, Class I Jet, Herbig-Haro Knot, Herbig-Haro Bow Shock, Classical T Tauri Star (CTTS), Weak-Lined T Tauri Star (WTTS), Herbig Ae Star, Herbig Be Star, FU Orionis Variable, EX Lupi Variable, Pre-Stellar Core, Envelope Cavity, Accretion Disk, and Accretion Column Stream with scientific color palettes and scale metrics.
+      * Astrophysical Nursery Clustering & Persistence (src/server/galaxy.c, include/game_config.h): added nursery-based spawning clustered within Giant Molecular Clouds and Dark Nebulae with automatic seeding and backward-compatible loading of existing galaxy saves.
+      * Vulkan Graphics & PBR Plasma Hyper-Warp Shaders (src/vulkan_gdd_build.c, src/vulkan_render.c): full Vulkan GDD metadata visual pipeline mapping with dedicated Hyper-Warp plasma shaders, infrared emission palettes, and sphere buffer bindings.
+      * 3D Viewer & HUD Integration (src/spacegl_3dview.c, src/spacegl_hud.c): added fallback drawing, HUD targeting class identification ("PROTOST."), and 3D overlay rendering.
+      * File Inspector (src/spacegl_viewer.c): integrated protostellar stats counting, quadrant listing, searching, and formatted astrometric reporting.
+      * Real-Time Diagnostics (src/spacegl_diag.c): added dedicated "PROTOSTELLAR OBJECTS (YSO)" diagnostic page (CAT_PROTOSTELLAR) and integration in CAT_COSMIC_ALL with live memory inspection (YSxxxx).
+      * Telemetry Subsystem (include/telemetry.h, src/telemetry_server.c, src/spacegl_telemetry.c): added 16 protostellar telemetry categories to server monitors, object descriptors, cache populator, and Ncurses tactical telemetry client.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.16
   - Tactical Real-time Scanner (spacegl_diag): fixed navigation menu layout, responsiveness, and completeness (src/spacegl_diag.c):
       * Responsive multi-column layout: eliminated hardcoded 4-column 22-row grid that exceeded terminal boundaries (>170 columns width) and caused line wrapping to overwrite/truncate the first column on the left.

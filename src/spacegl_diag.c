@@ -57,7 +57,7 @@ typedef enum {
     CAT_ROGUE_PLANET, CAT_BROWN_DWARF, CAT_ISO, CAT_MAG_RECONN, CAT_CURRENT_SHEET,
     CAT_HELIOSPHERE, CAT_TERM_SHOCK, CAT_MAGNETOSPHERE, CAT_COSMIC_STRING, CAT_DOMAIN_WALL,
     CAT_DM_HALO, CAT_IGM, CAT_CGM, CAT_LYMAN_ALPHA, CAT_CMB,
-    CAT_COSMIC_ALL, CAT_MOON, CAT_EXOTIC, CAT_EVOLVED_STAR
+    CAT_COSMIC_ALL, CAT_MOON, CAT_EXOTIC, CAT_EVOLVED_STAR, CAT_PROTOSTELLAR
 } DiagCat;
 
 typedef struct {
@@ -144,6 +144,7 @@ DiagPage pages[MAX_PAGES] = {
     {CAT_MOON, 0, "NATURAL MOONS (ORBITING)"},
     {CAT_EXOTIC, 0, "EXOTIC COMPACT OBJECTS"},
     {CAT_EVOLVED_STAR, 0, "EVOLVED STARS"},
+    {CAT_PROTOSTELLAR, 0, "PROTOSTELLAR OBJECTS (YSO)"},
     {CAT_SHIP, FACTION_ALLIANCE, "ALLIANCE (PLAYER)"},
     {CAT_SHIP, FACTION_KORTHIAN, "KORTHIAN EMPIRE"},
     {CAT_SHIP, FACTION_XYLARI,   "XYLARI HEGEMONY"},
@@ -589,7 +590,8 @@ int main(int argc, char** argv) {
                 case CAT_COSMIC_ALL:
                 case CAT_MOON:
                 case CAT_EXOTIC:
-                case CAT_EVOLVED_STAR: {
+                case CAT_EVOLVED_STAR:
+                case CAT_PROTOSTELLAR: {
                     if (a_cosmic_features) {
                         int cnt = MAX_COSMIC_FEATURES;
                         if (a_cosmic_feature_count) {
@@ -605,6 +607,7 @@ int main(int argc, char** argv) {
                                     if (obj_type_is_moon(t)) rtype = 89;
                                     else if (obj_type_is_exotic(t)) rtype = 100;
                                     else if (obj_type_is_evolved_star(t)) rtype = 132;
+                                    else if (obj_type_is_protostellar(t)) rtype = 149;
                                     render_list[total_items].type = rtype;
                                     render_list[total_items].index = i;
                                     total_items++;
@@ -618,6 +621,10 @@ int main(int argc, char** argv) {
                                     total_items++;
                                 } else if (cat == CAT_EVOLVED_STAR && obj_type_is_evolved_star(t)) {
                                     render_list[total_items].type = 132;
+                                    render_list[total_items].index = i;
+                                    total_items++;
+                                } else if (cat == CAT_PROTOSTELLAR && obj_type_is_protostellar(t)) {
+                                    render_list[total_items].type = 149;
                                     render_list[total_items].index = i;
                                     total_items++;
                                 }
@@ -789,6 +796,7 @@ int main(int argc, char** argv) {
                     case 89: { NPCCosmicFeature* m = &feat_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "MN%04d", m->id); snprintf(name, sizeof(name), "%s", m->name[0]?m->name:obj_type_name(m->type)); snprintf(info, sizeof(info), "Moon (Type %d)", m->type); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", m->q1, m->q2, m->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", m->x, m->y, m->z); snprintf(extra, sizeof(extra), "Orbit"); } break;
                     case 100: { NPCCosmicFeature* e = &feat_buf[item.index]; cp=4; snprintf(sid, sizeof(sid), "EX%04d", e->id); snprintf(name, sizeof(name), "%s", e->name[0]?e->name:obj_type_name(e->type)); snprintf(info, sizeof(info), "Exotic Compact"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", e->q1, e->q2, e->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", e->x, e->y, e->z); snprintf(extra, sizeof(extra), "Grav"); } break;
                     case 132: { NPCCosmicFeature* s = &feat_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "EV%04d", s->id); snprintf(name, sizeof(name), "%s", s->name[0]?s->name:obj_type_name(s->type)); snprintf(info, sizeof(info), "Evolved Star"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); snprintf(extra, sizeof(extra), "Stellar"); } break;
+                    case 149: { NPCCosmicFeature* p = &feat_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "YS%04d", p->id); snprintf(name, sizeof(name), "%s", p->name[0]?p->name:obj_type_name(p->type)); snprintf(info, sizeof(info), "Protostellar YSO"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", p->x, p->y, p->z); snprintf(extra, sizeof(extra), "Accretion"); } break;
                     default: break;
                 }
 

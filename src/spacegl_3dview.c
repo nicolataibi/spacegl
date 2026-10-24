@@ -1802,6 +1802,30 @@ void display() {
                     case OBJ_TIME_ANOMALY: drawTimeAnomaly(0,0,0); break;
                     case OBJ_VOID_CRYSTAL: drawVoidCrystal(0,0,0); break;
                     case OBJ_SUBSPACE_ANOMALY: drawSubspaceAnomaly(0,0,0); break;
+                    default:
+                        if (obj_type_is_protostellar(objects[i].type)) {
+                            int p_id = objects[i].type - OBJ_PROTOSTELLAR_FIRST;
+                            const float *rgb = obj_protostellar_rgb(p_id);
+                            float sc = obj_protostellar_scale(p_id);
+                            glScalef(sc, sc, sc);
+                            glColor3f(rgb[0], rgb[1], rgb[2]);
+                            drawStar(0, 0, 0, 4);
+                        } else if (obj_type_is_evolved_star(objects[i].type)) {
+                            int e_id = objects[i].type - OBJ_EVOLVED_FIRST;
+                            const float *rgb = obj_evolved_star_rgb(e_id);
+                            float sc = obj_evolved_star_scale(e_id);
+                            glScalef(sc, sc, sc);
+                            glColor3f(rgb[0], rgb[1], rgb[2]);
+                            drawStar(0, 0, 0, 4);
+                        } else if (obj_type_is_moon(objects[i].type)) {
+                            int m_id = objects[i].type - OBJ_MOON_FIRST;
+                            const float *rgb = obj_moon_rgb(m_id);
+                            float sc = obj_moon_scale(m_id);
+                            glScalef(sc, sc, sc);
+                            glColor3f(rgb[0], rgb[1], rgb[2]);
+                            drawPlanet(0, 0, 0, 0);
+                        }
+                        break;
                 }
                 glPopMatrix();
             }
@@ -2392,7 +2416,7 @@ void display() {
                     case OBJ_LYMAN_ALPHA: t_name = "LYMAN ALPHA"; break;
                     case OBJ_CMB: t_name = "CMB"; break;
                     case OBJ_SUBSPACE_ANOMALY: t_name = "ANOMALY"; break;
-                    default: t_name = obj_type_is_evolved_star(objects[i].type) ? "EVOLVED" : (obj_type_is_moon(objects[i].type) ? "MOON" : "UNKNOWN"); break;
+                    default: t_name = obj_type_is_protostellar(objects[i].type) ? "PROTOSTAR" : (obj_type_is_evolved_star(objects[i].type) ? "EVOLVED" : (obj_type_is_moon(objects[i].type) ? "MOON" : "UNKNOWN")); break;
                 }
                 
                 if (objects[i].type == OBJ_PLAYER) sprintf(buf, "[%03d] %s", objects[i].id, objects[i].name);

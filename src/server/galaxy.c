@@ -504,8 +504,9 @@ void save_galaxy() { save_galaxy_async(); }
  * types existed (same file layout, no evolved stars in it), by load_galaxy(). */
 static_assert(MAX_COSMIC_FEATURES >= OBJ_EXOTIC_COUNT * GALAXY_CREATE_EXOTIC_PER_TYPE +
                                      OBJ_EVOLVED_COUNT * GALAXY_CREATE_EVOLVED_STAR_PER_TYPE +
-                                     OBJ_MOON_COUNT * GALAXY_CREATE_MOON_PER_TYPE,
-              "cosmic_features[] too small for the exotic + evolved star + moon instances");
+                                     OBJ_MOON_COUNT * GALAXY_CREATE_MOON_PER_TYPE +
+                                     OBJ_PROTOSTELLAR_COUNT * GALAXY_CREATE_PROTOSTELLAR_PER_TYPE,
+              "cosmic_features[] too small for the exotic + evolved star + moon + protostellar instances");
 
 static void spawn_evolved_stars(void) {
     const char *evolved_names[OBJ_EVOLVED_COUNT] = { OBJECT_EVOLVED_NAME_LIST };
@@ -524,6 +525,55 @@ static void spawn_evolved_stars(void) {
                 .active = 1
             };
             strncpy(cosmic_features[cosmic_feature_count].name, evolved_names[t], 63);
+            cosmic_features[cosmic_feature_count].name[63] = '\0';
+            cosmic_feature_count++;
+        }
+    }
+}
+
+/* Protostellar objects & YSO (Class 0 .. Accretion Columns): 16 types stored in the
+ * generic cosmic_features[] array, type = OBJ_PROTOSTELLAR_FIRST + index,
+ * GALAXY_CREATE_PROTOSTELLAR_PER_TYPE instances of each. Clustered near GMCs,
+ * Dark Nebulae and Bok Globules when available, or seeded throughout the galaxy. */
+static void spawn_protostellar_objects(void) {
+    const char *proto_names[OBJ_PROTOSTELLAR_COUNT] = { OBJECT_PROTOSTELLAR_NAME_LIST };
+    for (int t = 0; t < OBJ_PROTOSTELLAR_COUNT; t++) {
+        for (int i = 0; i < GALAXY_CREATE_PROTOSTELLAR_PER_TYPE; i++) {
+            if (cosmic_feature_count >= MAX_COSMIC_FEATURES) return;
+            int q1 = 1 + rand() % GALAXY_SIZE;
+            int q2 = 1 + rand() % GALAXY_SIZE;
+            int q3 = 1 + rand() % GALAXY_SIZE;
+            double x = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
+            double y = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
+            double z = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
+
+            /* Cluster in star-forming nurseries (GMC, Dark Nebula) */
+            int gmc_idx = (t * GALAXY_CREATE_PROTOSTELLAR_PER_TYPE + i) % MAX_GMC;
+            int dark_idx = (t * GALAXY_CREATE_PROTOSTELLAR_PER_TYPE + i) % MAX_DARK_NEBULAE;
+            if (gmcs[gmc_idx].active && IS_Q_VALID(gmcs[gmc_idx].q1, gmcs[gmc_idx].q2, gmcs[gmc_idx].q3)) {
+                q1 = gmcs[gmc_idx].q1; q2 = gmcs[gmc_idx].q2; q3 = gmcs[gmc_idx].q3;
+                x = gmcs[gmc_idx].x + ((rand() % 600) - 300);
+                y = gmcs[gmc_idx].y + ((rand() % 600) - 300);
+                z = gmcs[gmc_idx].z + ((rand() % 600) - 300);
+            } else if (dark_nebulae[dark_idx].active && IS_Q_VALID(dark_nebulae[dark_idx].q1, dark_nebulae[dark_idx].q2, dark_nebulae[dark_idx].q3)) {
+                q1 = dark_nebulae[dark_idx].q1; q2 = dark_nebulae[dark_idx].q2; q3 = dark_nebulae[dark_idx].q3;
+                x = dark_nebulae[dark_idx].x + ((rand() % 400) - 200);
+                y = dark_nebulae[dark_idx].y + ((rand() % 400) - 200);
+                z = dark_nebulae[dark_idx].z + ((rand() % 400) - 200);
+            }
+
+            cosmic_features[cosmic_feature_count] = (NPCCosmicFeature){
+                .id = GALAXY_OBJECT_MIN_FEATURE + cosmic_feature_count,
+                .type = OBJ_PROTOSTELLAR_FIRST + t,
+                .q1 = q1,
+                .q2 = q2,
+                .q3 = q3,
+                .x = x,
+                .y = y,
+                .z = z,
+                .active = 1
+            };
+            strncpy(cosmic_features[cosmic_feature_count].name, proto_names[t], 63);
             cosmic_features[cosmic_feature_count].name[63] = '\0';
             cosmic_feature_count++;
         }
@@ -784,6 +834,18 @@ int load_galaxy() {
     }
     /* Parent planet and orbit of every moon (deterministic assignment) */
     attach_moons_to_planets();
+
+    /* galaxy.dat saved before protostellar objects existed: add them now */
+    {
+        int has_protostellar = 0;
+        for (int i = 0; i < MAX_COSMIC_FEATURES && !has_protostellar; i++)
+            if (cosmic_features[i].active && obj_type_is_protostellar(cosmic_features[i].type)) has_protostellar = 1;
+        if (!has_protostellar && cosmic_feature_count >= 0 && cosmic_feature_count <= MAX_COSMIC_FEATURES) {
+            int before = cosmic_feature_count;
+            spawn_protostellar_objects();
+            printf("[GALAXY] added %d protostellar objects to the loaded galaxy\n", cosmic_feature_count - before);
+        }
+    }
     
     for(int i=0; i<MAX_CLIENTS; i++) {
         players[i].active = 0;
@@ -811,6 +873,8 @@ int load_galaxy() {
     int moon_type_counts[OBJ_MOON_COUNT] = {0};
     int evolved_star_count = 0;
     int evolved_type_counts[OBJ_EVOLVED_COUNT] = {0};
+    int protostellar_count = 0;
+    int proto_type_counts[OBJ_PROTOSTELLAR_COUNT] = {0};
     int exotic_feature_count = 0;
     for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
         if (!cosmic_features[i].active) continue;
@@ -823,6 +887,10 @@ int load_galaxy() {
             evolved_star_count++;
             int idx = t - OBJ_EVOLVED_FIRST;
             if (idx >= 0 && idx < OBJ_EVOLVED_COUNT) evolved_type_counts[idx]++;
+        } else if (obj_type_is_protostellar(t)) {
+            protostellar_count++;
+            int idx = t - OBJ_PROTOSTELLAR_FIRST;
+            if (idx >= 0 && idx < OBJ_PROTOSTELLAR_COUNT) proto_type_counts[idx]++;
         } else if (obj_type_is_exotic(t)) {
             exotic_feature_count++;
         }
@@ -832,7 +900,19 @@ int load_galaxy() {
     printf("%s | %s 🏚️ TOTAL WRECKS:  %s%-5d %s| %s 🛰️ Starbases:          %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, active_derelicts, B_CYAN, B_WHITE, B_GREEN, active_bases, B_CYAN);
     printf("%s | %s 🪐 Planets:       %s%-5d %s| %s ✨ Stars:              %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, active_planets, B_CYAN, B_WHITE, B_GREEN, active_stars, B_CYAN);
     printf("%s | %s 🌙 NATURAL MOONS: %s%-5d %s| %s ⭐ EVOLVED STARS:      %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, moon_count, B_CYAN, B_WHITE, B_GREEN, evolved_star_count, B_CYAN);
-    printf("%s | %s 🌌 EXOTIC FEAT.:  %s%-5d %s| %s 📦 TOTAL FEATURES:     %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, exotic_feature_count, B_CYAN, B_WHITE, B_GREEN, cosmic_feature_count, B_CYAN);
+    printf("%s | %s ☀️ PROTOSTELLAR:  %s%-5d %s| %s 🌌 EXOTIC FEAT.:       %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, protostellar_count, B_CYAN, B_WHITE, B_GREEN, exotic_feature_count, B_CYAN);
+    printf("%s | %s 📦 TOTAL FEATURES: %s%-5d %s| %s ✨ STARS:              %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, cosmic_feature_count, B_CYAN, B_WHITE, B_GREEN, active_stars, B_CYAN);
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ PROTOSTELLAR OBJECTS & YSO ]                                 %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    const char *proto_names[OBJ_PROTOSTELLAR_COUNT] = { OBJECT_PROTOSTELLAR_NAME_LIST };
+    for (int p = 0; p < OBJ_PROTOSTELLAR_COUNT; p += 2) {
+        char p1[32], p2[32] = "";
+        strncpy(p1, proto_names[p], 20); p1[20] = '\0';
+        if (p + 1 < OBJ_PROTOSTELLAR_COUNT) { strncpy(p2, proto_names[p + 1], 20); p2[20] = '\0'; }
+        printf("%s | %s %-20s: %s%-4d %s| %s %-20s: %s%-4d %s|\n",
+               B_CYAN, B_WHITE, p1, B_GREEN, proto_type_counts[p], B_CYAN,
+               B_WHITE, p2, B_GREEN, (p + 1 < OBJ_PROTOSTELLAR_COUNT) ? proto_type_counts[p + 1] : 0, B_CYAN);
+    }
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     printf("%s | %s [ NATURAL MOONS (IN ORBIT) ]                                   %s|\n", B_CYAN, B_YELLOW, B_CYAN);
     const char *moon_names[OBJ_MOON_COUNT] = { OBJECT_MOON_NAME_LIST };
@@ -1711,6 +1791,9 @@ void generate_galaxy() {
      * same generic array. */
     spawn_evolved_stars();
 
+    /* Protostellar objects & YSO: 16 types in the same array. */
+    spawn_protostellar_objects();
+
     /* Natural moons (shepherd .. submoon): 10 types in the same array. */
     spawn_moons();
     attach_moons_to_planets();
@@ -1722,6 +1805,8 @@ void generate_galaxy() {
     int moon_type_counts[OBJ_MOON_COUNT] = {0};
     int evolved_star_count = 0;
     int evolved_type_counts[OBJ_EVOLVED_COUNT] = {0};
+    int protostellar_count = 0;
+    int proto_type_counts[OBJ_PROTOSTELLAR_COUNT] = {0};
     int exotic_feature_count = 0;
     for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
         if (!cosmic_features[i].active) continue;
@@ -1734,6 +1819,10 @@ void generate_galaxy() {
             evolved_star_count++;
             int idx = t - OBJ_EVOLVED_FIRST;
             if (idx >= 0 && idx < OBJ_EVOLVED_COUNT) evolved_type_counts[idx]++;
+        } else if (obj_type_is_protostellar(t)) {
+            protostellar_count++;
+            int idx = t - OBJ_PROTOSTELLAR_FIRST;
+            if (idx >= 0 && idx < OBJ_PROTOSTELLAR_COUNT) proto_type_counts[idx]++;
         } else if (obj_type_is_exotic(t)) {
             exotic_feature_count++;
         }
@@ -1746,7 +1835,19 @@ void generate_galaxy() {
     printf("%s | %s 🚀 TOTAL VESSELS: %s%-5d %s| %s 🪐 Planets:            %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, n_count, B_CYAN, B_WHITE, B_GREEN, p_count, B_CYAN);
     printf("%s | %s 🌋 SUBSPACE RUPT: %s%-5d %s| %s 📡 SATELLITES:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, rupture_count, B_CYAN, B_WHITE, B_GREEN, satellite_count, B_CYAN);
     printf("%s | %s 🌙 NATURAL MOONS: %s%-5d %s| %s ⭐ EVOLVED STARS:      %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, moon_count, B_CYAN, B_WHITE, B_GREEN, evolved_star_count, B_CYAN);
-    printf("%s | %s 🌌 EXOTIC FEAT.:  %s%-5d %s| %s ✨ STARS:              %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, exotic_feature_count, B_CYAN, B_WHITE, B_GREEN, s_count, B_CYAN);
+    printf("%s | %s ☀️ PROTOSTELLAR:  %s%-5d %s| %s 🌌 EXOTIC FEAT.:       %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, protostellar_count, B_CYAN, B_WHITE, B_GREEN, exotic_feature_count, B_CYAN);
+    printf("%s | %s 📦 TOTAL FEATURES: %s%-5d %s| %s ✨ STARS:              %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, cosmic_feature_count, B_CYAN, B_WHITE, B_GREEN, s_count, B_CYAN);
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ PROTOSTELLAR OBJECTS & YSO ]                                 %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    const char *proto_names[OBJ_PROTOSTELLAR_COUNT] = { OBJECT_PROTOSTELLAR_NAME_LIST };
+    for (int p = 0; p < OBJ_PROTOSTELLAR_COUNT; p += 2) {
+        char p1[32], p2[32] = "";
+        strncpy(p1, proto_names[p], 20); p1[20] = '\0';
+        if (p + 1 < OBJ_PROTOSTELLAR_COUNT) { strncpy(p2, proto_names[p + 1], 20); p2[20] = '\0'; }
+        printf("%s | %s %-20s: %s%-4d %s| %s %-20s: %s%-4d %s|\n",
+               B_CYAN, B_WHITE, p1, B_GREEN, proto_type_counts[p], B_CYAN,
+               B_WHITE, p2, B_GREEN, (p + 1 < OBJ_PROTOSTELLAR_COUNT) ? proto_type_counts[p + 1] : 0, B_CYAN);
+    }
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     
     printf("%s | %s [ STAR SPECTRAL TYPES ]    %s| %s [ NEBULA CLASSIFICATION ]  %s|\n", B_CYAN, B_YELLOW, B_CYAN, B_YELLOW, B_CYAN);

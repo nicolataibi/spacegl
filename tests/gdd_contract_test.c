@@ -1015,6 +1015,9 @@ static void test_object_types(void) {
     CHECK(OBJ_EVOLVED_FIRST > OBJ_EXOTIC_LAST, "evolved star block must not overlap the exotic block");
     for (int t = OBJ_EVOLVED_FIRST; t <= OBJ_EVOLVED_LAST; t++)
         CHECK(obj_type_name(t) != NULL && !seen[t], "evolved star type %d named and not shadowed", t);
+    CHECK(OBJ_PROTOSTELLAR_FIRST > OBJ_EVOLVED_LAST, "protostellar block must not overlap the evolved star block");
+    for (int t = OBJ_PROTOSTELLAR_FIRST; t <= OBJ_PROTOSTELLAR_LAST; t++)
+        CHECK(obj_type_name(t) != NULL && !seen[t], "protostellar type %d named and not shadowed", t);
 
     /* 2. every known type outside the cosmic band has a dedicated look */
     int generic = 0;
@@ -1059,7 +1062,7 @@ static void test_object_types(void) {
         int legacy = (t == OBJ_PLAYER) || (t >= 10 && t <= 88);
         CHECK(obj_type_uses_cpu_hull_path(t) == legacy,
               "type %d: cpu hull path %d, want %d", t, obj_type_uses_cpu_hull_path(t), legacy);
-        if (obj_type_is_exotic(t) || obj_type_is_evolved_star(t) || (t >= 89 && t <= 99) || t >= 149)
+        if (obj_type_is_exotic(t) || obj_type_is_evolved_star(t) || obj_type_is_protostellar(t) || (t >= 89 && t <= 99) || t > OBJ_PROTOSTELLAR_LAST)
             CHECK(!obj_type_uses_cpu_hull_path(t), "type %d must not use the cpu hull path", t);
         if (obj_type_has_ship_hull(t))
             CHECK(obj_type_uses_cpu_hull_path(t), "hull type %d must use the cpu hull path", t);

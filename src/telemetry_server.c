@@ -112,7 +112,11 @@ const char* cat_names_diag[] = {
     "WHITE DWARF (C-O CORE)", "WHITE DWARF (O-NE-MG CORE)", "DA WHITE DWARF (HYDROGEN)",
     "DB WHITE DWARF (HELIUM)", "DO WHITE DWARF (HOT)", "DQ WHITE DWARF (CARBON)",
     "DZ WHITE DWARF (METALS)", "DC WHITE DWARF (CONTINUUM)", "DX WHITE DWARF (UNKNOWN)",
-    "DAV PULSATING WHITE DWARF", "DBV PULSATING WHITE DWARF", "GW VIR PULSATING STAR"
+    "DAV PULSATING WHITE DWARF", "DBV PULSATING WHITE DWARF", "GW VIR PULSATING STAR",
+    "CLASS 0 PROTOSTAR", "CLASS 0 BIPOLAR OUTFLOW", "CLASS I PROTOSTAR", "CLASS I JET",
+    "HERBIG-HARO KNOT", "HERBIG-HARO BOW SHOCK", "CLASSICAL T TAURI STAR", "WEAK-LINED T TAURI STAR",
+    "HERBIG AE STAR", "HERBIG BE STAR", "FU ORIONIS VARIABLE", "EX LUPI VARIABLE",
+    "PRE-STELLAR CORE", "ENVELOPE CAVITY", "ACCRETION DISK (YSO)", "ACCRETION COLUMN"
 };
 
 static pthread_mutex_t cat_mutexes[TEL_CAT_COUNT];
@@ -602,6 +606,27 @@ void telemetry_init() {
                         int e_type = OBJ_EVOLVED_FIRST + (c - TEL_CAT_EVOLVED_RED_GIANT);
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                             if (cosmic_features[k].active && cosmic_features[k].type == e_type) count++;
+                        }
+                    } break;
+                    case TEL_CAT_PROTO_CLASS_0:
+                    case TEL_CAT_PROTO_CLASS_0_OUTFLOW:
+                    case TEL_CAT_PROTO_CLASS_I:
+                    case TEL_CAT_PROTO_CLASS_I_JET:
+                    case TEL_CAT_PROTO_HH_KNOT:
+                    case TEL_CAT_PROTO_HH_BOW_SHOCK:
+                    case TEL_CAT_PROTO_CTTS:
+                    case TEL_CAT_PROTO_WTTS:
+                    case TEL_CAT_PROTO_HERBIG_AE:
+                    case TEL_CAT_PROTO_HERBIG_BE:
+                    case TEL_CAT_PROTO_FUOR:
+                    case TEL_CAT_PROTO_EXOR:
+                    case TEL_CAT_PROTO_PRESTELLAR_CORE:
+                    case TEL_CAT_PROTO_ENVELOPE_CAVITY:
+                    case TEL_CAT_PROTO_ACCRETION_DISK:
+                    case TEL_CAT_PROTO_ACCRETION_COLUMN: {
+                        int p_type = OBJ_PROTOSTELLAR_FIRST + (c - TEL_CAT_PROTO_CLASS_0);
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == p_type) count++;
                         }
                     } break;
                 }
@@ -1846,6 +1871,32 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     to->color_pair = 4;
                 }
             } break;
+            case TEL_CAT_PROTO_CLASS_0:
+            case TEL_CAT_PROTO_CLASS_0_OUTFLOW:
+            case TEL_CAT_PROTO_CLASS_I:
+            case TEL_CAT_PROTO_CLASS_I_JET:
+            case TEL_CAT_PROTO_HH_KNOT:
+            case TEL_CAT_PROTO_HH_BOW_SHOCK:
+            case TEL_CAT_PROTO_CTTS:
+            case TEL_CAT_PROTO_WTTS:
+            case TEL_CAT_PROTO_HERBIG_AE:
+            case TEL_CAT_PROTO_HERBIG_BE:
+            case TEL_CAT_PROTO_FUOR:
+            case TEL_CAT_PROTO_EXOR:
+            case TEL_CAT_PROTO_PRESTELLAR_CORE:
+            case TEL_CAT_PROTO_ENVELOPE_CAVITY:
+            case TEL_CAT_PROTO_ACCRETION_DISK:
+            case TEL_CAT_PROTO_ACCRETION_COLUMN: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "YS%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Protostellar YSO", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 5;
+                }
+            } break;
             default: break;
         }
     }
@@ -2214,6 +2265,29 @@ static void update_category_cache(int cat) {
                 int e_type = OBJ_EVOLVED_FIRST + (cat - TEL_CAT_EVOLVED_RED_GIANT);
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == e_type) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_PROTO_CLASS_0:
+            case TEL_CAT_PROTO_CLASS_0_OUTFLOW:
+            case TEL_CAT_PROTO_CLASS_I:
+            case TEL_CAT_PROTO_CLASS_I_JET:
+            case TEL_CAT_PROTO_HH_KNOT:
+            case TEL_CAT_PROTO_HH_BOW_SHOCK:
+            case TEL_CAT_PROTO_CTTS:
+            case TEL_CAT_PROTO_WTTS:
+            case TEL_CAT_PROTO_HERBIG_AE:
+            case TEL_CAT_PROTO_HERBIG_BE:
+            case TEL_CAT_PROTO_FUOR:
+            case TEL_CAT_PROTO_EXOR:
+            case TEL_CAT_PROTO_PRESTELLAR_CORE:
+            case TEL_CAT_PROTO_ENVELOPE_CAVITY:
+            case TEL_CAT_PROTO_ACCRETION_DISK:
+            case TEL_CAT_PROTO_ACCRETION_COLUMN: {
+                int p_type = OBJ_PROTOSTELLAR_FIRST + (cat - TEL_CAT_PROTO_CLASS_0);
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == p_type) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }

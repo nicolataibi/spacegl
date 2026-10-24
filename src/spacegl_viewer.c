@@ -557,12 +557,14 @@ int main(int argc, char *argv[]) {
 
         int moon_active = 0;
         int evolved_active = 0;
+        int protostellar_active = 0;
         int exotic_active = 0;
         for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
             if (!cosmic_features[i].active) continue;
             int t = cosmic_features[i].type;
             if (obj_type_is_moon(t)) moon_active++;
             else if (obj_type_is_evolved_star(t)) evolved_active++;
+            else if (obj_type_is_protostellar(t)) protostellar_active++;
             else if (obj_type_is_exotic(t)) exotic_active++;
         }
         for (int i = 0; i < MAX_NPC; i++) {
@@ -718,6 +720,7 @@ int main(int argc, char *argv[]) {
         printf("  Astrophysical Misc:%d\n", astro_misc_active);
         printf("  Natural Moons:     %d\n", moon_active);
         printf("  Evolved Stars:     %d\n", evolved_active);
+        printf("  Protostellar (YSO):%d\n", protostellar_active);
         printf("  Exotic Objects:    %d\n", exotic_active);
 
         printf("\nFaction Counts (SpaceGL Master):\n");
@@ -1111,6 +1114,7 @@ int main(int argc, char *argv[]) {
         }
         int moon_count = 0;
         int evolved_count = 0;
+        int protostellar_count = 0;
         int exotic_count = 0;
         for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
             if (!cosmic_features[i].active) continue;
@@ -1122,6 +1126,9 @@ int main(int argc, char *argv[]) {
             } else if (obj_type_is_evolved_star(t)) {
                 label = "EVOLVED";
                 evolved_count++;
+            } else if (obj_type_is_protostellar(t)) {
+                label = "PROTOST";
+                protostellar_count++;
             } else if (obj_type_is_exotic(t)) {
                 label = "EXOTIC";
                 exotic_count++;
@@ -1141,7 +1148,7 @@ int main(int argc, char *argv[]) {
         int astro_sum = 0;
         for (int i = 33; i <= 70; i++) astro_sum += counts[i];
         printf("AstrophysicalMisc: %d\n", astro_sum);
-        printf("NaturalMoons: %d, EvolvedStars: %d, ExoticObjects: %d\n", moon_count, evolved_count, exotic_count);
+        printf("NaturalMoons: %d, EvolvedStars: %d, Protostellar: %d, ExoticObjects: %d\n", moon_count, evolved_count, protostellar_count, exotic_count);
     }
     else if (strcmp(argv[1], "map") == 0 && argc == 3) {
         int q3 = atoi(argv[2]);
@@ -1354,6 +1361,7 @@ int main(int argc, char *argv[]) {
                 const char *label = "COSMIC";
                 if (obj_type_is_moon(t)) label = "MOON";
                 else if (obj_type_is_evolved_star(t)) label = "EVOLVED";
+                else if (obj_type_is_protostellar(t)) label = "PROTOST";
                 else if (obj_type_is_exotic(t)) label = "EXOTIC";
                 const char *nm = cosmic_features[i].name[0] ? cosmic_features[i].name : obj_type_name(t);
                 printf("[%s] ID:%d Type:%s Coord:%.1f,%.1f,%.1f Name:%s\n",
@@ -1406,6 +1414,7 @@ int main(int argc, char *argv[]) {
                 const char *label = "COSMIC";
                 if (obj_type_is_moon(t)) label = "MOON";
                 else if (obj_type_is_evolved_star(t)) label = "EVOLVED";
+                else if (obj_type_is_protostellar(t)) label = "PROTOST";
                 else if (obj_type_is_exotic(t)) label = "EXOTIC";
                 printf("[%s] Found: %s ID:%d in Quadrant [%d,%d,%d] Coord:%.1f,%.1f,%.1f\n",
                        label, cosmic_features[i].name, cosmic_features[i].id,

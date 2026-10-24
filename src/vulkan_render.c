@@ -303,6 +303,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             /* Evolved stars: a star-sized sphere scaled by stage (giants big, white dwarfs tiny) */
             if (obj_type_is_evolved_star(obj->type))
                 s = SCALE_STAR * obj_evolved_star_scale(obj->type - OBJ_EVOLVED_FIRST);
+            /* Protostellar objects: scaled by evolutionary stage and accretion volume */
+            if (obj_type_is_protostellar(obj->type))
+                s = SCALE_STAR * obj_protostellar_scale(obj->type - OBJ_PROTOSTELLAR_FIRST);
             /* Moons: a planet-sized sphere scaled by kind (submoons tiny, ocean/atmosphere moons large) */
             if (obj_type_is_moon(obj->type))
                 s = SCALE_PLANET * obj_moon_scale(obj->type - OBJ_MOON_FIRST);
@@ -594,6 +597,10 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 float ev_k = 1.0f;
                 if (obj_type_is_pulsating_wd(obj->type)) ev_k = 0.75f + 0.25f * sinf(pulse * 6.0f + (float)obj->id); /* non-radial pulsation */
                 opc.color[0]=ev_rgb[0]*ev_k; opc.color[1]=ev_rgb[1]*ev_k; opc.color[2]=ev_rgb[2]*ev_k;
+            } else if (obj_type_is_protostellar(obj->type)) { // Protostellar object / YSO
+                opc.metallic = 0.0f; opc.roughness = 0.8f; opc.usePushColor = 6; /* Hyper-Warp plasma glow */
+                const float *proto_rgb = obj_protostellar_rgb(obj->type - OBJ_PROTOSTELLAR_FIRST);
+                opc.color[0]=proto_rgb[0]; opc.color[1]=proto_rgb[1]; opc.color[2]=proto_rgb[2];
             } else if (obj_type_is_moon(obj->type)) { // Natural moon
                 opc.metallic = 0.0f; opc.roughness = 0.9f;
                 const float *moon_rgb = obj_moon_rgb(obj->type - OBJ_MOON_FIRST);
@@ -672,7 +679,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     vb = app->torpVertexBuffer;
                     ib = app->torpIndexBuffer;
                     cnt = sizeof(torpIndices)/4;
-                } else if (obj->type == OBJ_STAR || obj->type == OBJ_PLANET || obj_type_is_exotic(obj->type) || obj_type_is_evolved_star(obj->type) || obj_type_is_moon(obj->type)) {
+                } else if (obj->type == OBJ_STAR || obj->type == OBJ_PLANET || obj_type_is_exotic(obj->type) || obj_type_is_evolved_star(obj->type) || obj_type_is_moon(obj->type) || obj_type_is_protostellar(obj->type)) {
                     vb = app->sphereVertexBuffer;
                     ib = app->sphereIndexBuffer;
                     cnt = SPHERE_LATS * SPHERE_LONGS * 6;

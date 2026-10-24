@@ -368,6 +368,19 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         return;
     }
 
+    if (obj_type_is_protostellar(type)) {
+        /* Protostellar objects & YSO: active accretion, energetic plasma/jet,
+         * or circumstellar structure (hyperwarp/glow shader, palette from object_types.h). */
+        int p_id = type - OBJ_PROTOSTELLAR_FIRST;
+        const float *rgb = obj_protostellar_rgb(p_id);
+        v->mesh = GDD_MESH_SPHERE;
+        v->scale = 2.2f * obj_protostellar_scale(p_id);
+        v->frag_mode = GDD_FRAG_HYPERWARP;
+        v->additive = 1; v->metallic = 0.0f; v->roughness = 0.8f;
+        v->color[0] = rgb[0]; v->color[1] = rgb[1]; v->color[2] = rgb[2];
+        return;
+    }
+
     if (obj_type_is_moon(type)) {
         /* Natural moons: planet-style PBR sphere, colour and size by kind
          * (object_types.h, shared with the CPU Vulkan path and the OpenGL
