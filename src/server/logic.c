@@ -1286,7 +1286,7 @@ void update_game_logic() {
         }
         /* ... celestial objects ... */
         for(int s=0; s<lq->star_count && o_idx < MAX_NET_OBJECTS; s++) { NPCStar *st = lq->stars[s]; if(!st->active) continue; upd->objects[o_idx++] = (NetObject){st->x, st->y, st->z, 0, 0, 0, OBJ_STAR, ((unsigned)st->faction < 7u ? st->faction : 4), 1, 100, 0, 0, 100, OBJ_STAR, st->id + GALAXY_OBJECT_MIN_STAR, 0, "Star", 0,0,0}; }
-        for(int p=0; p<lq->planet_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlanet *pl = lq->planets[p]; if(!pl->active) continue; upd->objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, OBJ_PLANET, pl->resource_type, 1, 100, pl->amount, 0, 100, OBJ_PLANET, pl->id + GALAXY_OBJECT_MIN_PLANET, 0, "Planet", 0,0,0}; }
+        for(int p=0; p<lq->planet_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlanet *pl = lq->planets[p]; if(!pl->active) continue; upd->objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, OBJ_PLANET, ((unsigned)pl->planet_class < (unsigned)PLANET_CLASS_COUNT ? pl->planet_class : PLANET_CLASS_TERRESTRIAL), 1, 100, pl->amount, pl->resource_type, 100, OBJ_PLANET, pl->id + GALAXY_OBJECT_MIN_PLANET, 0, "Planet", 0,0,0}; }
         for(int b=0; b<lq->base_count && o_idx < MAX_NET_OBJECTS; b++) { 
             NPCBase *ba = lq->bases[b]; if(!ba->active) continue; 
             upd->objects[o_idx] = (NetObject){ba->x, ba->y, ba->z, 0, 0, 0, OBJ_BASE, 1, 1, (int)(ba->health/(COST_ACTION_MED * 2)), 0, 0, (int)(ba->health/(COST_ACTION_MED * 2)), ba->faction, ba->id + GALAXY_OBJECT_MIN_STARBASE, 0, "", 0,0,0}; 

@@ -403,6 +403,7 @@ typedef struct {
     double z; 
     int resource_type;
     int amount;
+    int planet_class;   /* PLANET_CLASS_* (game_state.h), independent of resource_type */
     int active; 
 } NPCPlanet;
 
@@ -995,7 +996,7 @@ void log_init(void);
 
 #define LOG_DEBUG(...) do { if (g_debug) { slog("DEBUG: " __VA_ARGS__); } } while (0)
 
-#define GALAXY_VERSION 20261006  /* 2026-10-06: four exotic pools unified to 1000 -> galaxy.dat layout change */
+#define GALAXY_VERSION 20261024  /* 2026-10-24: NPCPlanet.planet_class added -> galaxy.dat layout change (2026-10-06: four exotic pools unified to 1000) */
 
 /* Spatial Partitioning Index */
 typedef struct {

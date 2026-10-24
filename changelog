@@ -1,3 +1,34 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.05
+  - Planets: real planet class. NPCPlanet gains planet_class (Terrestrial,
+    Gas Giant, Ice, Molten, Desert), drawn at galaxy generation with equal
+    probability and independent of the mineable resource. galaxy.dat layout
+    change: GALAXY_VERSION 20261024, a galaxy.dat of an older version is
+    rejected and a new galaxy is generated (player progress included), so
+    back up galaxy.dat before the first start.
+  - Network and viewers: the class travels in NetObject.ship_class for
+    OBJ_PLANET and the resource type moves to NetObject.plating. Before, the
+    resource (1-8) was sent in ship_class and the Vulkan viewers read it as
+    a class, so the colour followed the resource, the "Terrestrial" class
+    never appeared and five resources out of eight were all drawn as desert;
+    the OpenGL viewer drew every planet blue. All three renderers (OpenGL,
+    CPU Vulkan, GPU-driven builder) now use one palette,
+    obj_planet_class_rgb() in object_types.h, which also holds the class
+    enum and planet_class_name(); game_state.h includes it. The 3D viewer
+    target label shows "PLANET: <class> (<resource>)" with the full resource
+    names (the old table had stale abbreviations and showed resources 7 and
+    8 as "Xen").
+  - Server output: the scan listing and the planetary survey print the real
+    class instead of the hard-coded "Class-H Planet" / "Class-H Habitable";
+    telemetry and spacegl_diag show class and resource.
+  - LORE.md: planet information checked against the code. "Class-H" removed
+    (resource table, planetary mining); a planet holds one of the eight
+    resources whatever its class; scan reports class and reserves, not the
+    resource type; 800-1,000 planets per galaxy, 1,000 units of initial
+    reserve, up to 500 units per mining cycle, 5 classes with colours;
+    persistence note on GALAXY_VERSION.
+  - Tests: gdd_contract_test checks the planet palette and the fallback of an
+    out-of-range class.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.04
   - Object types: new include/object_types.h is the single source of truth
     for the `type` field of the objects exchanged between server and

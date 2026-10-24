@@ -631,7 +631,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     NPCPlanet* p = &planets[idx];
                     snprintf(to->id, sizeof(to->id), "PL%04d", p->id);
                     strncpy(to->name, "Planet", sizeof(to->name)-1);
-                    snprintf(to->info, sizeof(to->info), "Res:%d", p->resource_type);
+                    snprintf(to->info, sizeof(to->info), "%s Res:%d", planet_class_name(p->planet_class), p->resource_type);
                     to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
                     to->x = p->x; to->y = p->y; to->z = p->z;
                     snprintf(to->extra, sizeof(to->extra), "Amt:%d", p->amount);

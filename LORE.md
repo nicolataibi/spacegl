@@ -2156,7 +2156,7 @@ This is the game's "engine". It manages the entire universe of 1000 quadrants.
 *   **Centralized Configuration**: All balancing parameters (mining distances, weapon damage, buoy and nebula ranges) are now gathered in `include/game_config.h`. This allows admins to modify the entire game physics from a single point.
 *   **Security & Stability**: The codebase has been audited to eliminate Buffer Overflow risks by systematically using `snprintf` and dynamic tactical buffer management.
 *   **Spatial Partitioning**: Uses a 3D spatial index (Grid Index) for object management. This allows the server to scan only objects local to the player, guaranteeing constant performance ($O(1)$) regardless of the total number of entities in the galaxy.
-*   **Persistence**: Saves the state of the entire universe, including player progress, in `galaxy.dat` with binary version control.
+*   **Persistence**: Saves the state of the entire universe, including player progress, in `galaxy.dat` with binary version control. A change of the binary layout bumps `GALAXY_VERSION`; a `galaxy.dat` with a different version is rejected and a new galaxy is generated.
 *   **Generation Diagnostics**: When creating a new galaxy, the system produces a detailed **Astrometrics Report**, including a census of planet types (resource-based), a breakdown of wrecks by class and faction, and the mapping of Class-Omega threats.
 
 ### 2. The Command Bridge (`stellar_client`)
@@ -2539,7 +2539,9 @@ Every star in the galaxy belongs to the **main sequence**: adult stars whose rad
 | **M** | Red (Red Dwarf) | Small, cool, and the most common stellar objects in the universe. | Proxima Centauri |
 
 > *Note:* the real-world examples are illustrative only. In the simulation the 7 classes are currently drawn with equal probability, and stars are not given individual mass, temperature, or luminosity values.
-*   **Planets**: Celestial bodies rich in minerals. They can be scanned and mined (`min`) for Aetherium, Neo-Titanium, and other vital resources.
+*   **Planets**: Celestial bodies rich in minerals (800 to 1,000 are generated per galaxy, global IDs 5,000-6,999). They can be scanned and mined (`min`) for Aetherium, Neo-Titanium, and the other vital resources. Each planet has a physical **class** and holds exactly one mineable resource; the two are drawn independently.
+    *   **Classes**: **Terrestrial** (blue), **Gas Giant** (brown), **Ice** (pale blue), **Molten** (red) and **Desert** (sand). The five classes are drawn with equal probability and use the same colours in the OpenGL and Vulkan viewers. The `scan` command lists the class of each planet in the quadrant and reports it in the planetary survey of a locked planet.
+    *   **Reserves**: every planet starts with 1,000 units of its resource; each mining cycle extracts up to 500 units and depletes the reserve.
 *   **Black Holes**: Gravitational singularities with accretion disks. They are the primary source of Plasma Reserves (`har`), but their pull can be fatal.
 *   **Nebulas**: Large clouds of ionized gases (Standard, High-Energy, Dark Matter, etc.). They provide tactical cover (natural cloaking) but disrupt sensors.
 *   **Pulsars**: Neutron stars emitting deadly radiation. Navigating too close damages systems and crew.
@@ -2568,7 +2570,7 @@ Everything that is *not* a main-sequence star falls into one of four groups: obj
 | **2. Substellar objects** ("failed stars") | Brown dwarfs | **Brown Dwarf** (#75) | Halfway between a giant planet and a star; too light for stable hydrogen fusion. |
 | **3. Pre-main-sequence** (still accreting or contracting) | Protostars | *Not modelled* | Closest related objects: **Clump Core** (#59, dense region of star formation), **Bok Globule** (#58), **Giant Molecular Cloud** and **Protoplanetary Disk** (#71). |
 | | T Tauri stars, Herbig-Haro objects | *Not modelled* | Young unstable stars and their jets have no object of their own. |
-| **4. Non-stellar bodies** | Planets | **Planet** (#2), **Rogue Planet** (#74), **Planetesimal** (#73) | Also **Asteroid** (#9), **Comet** (#8) and **Debris Disk** (#72). |
+| **4. Non-stellar bodies** | Planets | **Planet** (#2, 5 classes: Terrestrial, Gas Giant, Ice, Molten, Desert), **Rogue Planet** (#74), **Planetesimal** (#73) | Also **Asteroid** (#9), **Comet** (#8) and **Debris Disk** (#72). |
 | | Natural moons | *Not modelled* | The **Satellite** (#20) is an artificial monitoring or relay station, not a moon. |
 | | Nebulae | **Nebula** (#5, 6 tactical classes), variants #51-#55, plus Dark Nebula, Planetary Nebula, Supernova Remnant (SNR) | Gas and dust clouds; they provide tactical cover and disrupt sensors. |
 | | Galaxies and clusters | *Not modelled as objects* | The whole play area is one galaxy of 64,000 quadrants. Large-scale structure appears as **Cosmic Void** (#64), **Cosmic Filament** (#65), **Dark Matter Halo** (#84) and **Quasar** (#7). |
@@ -2645,11 +2647,11 @@ The galaxy is rich in raw materials and exotic elements essential for ship maint
 | **4** | **Graphene** | Planets / Asteroids | `min` | **Field Hull Repairs** (`fix`) |
 | **5** | **Synaptics** | Derelicts / Wrecks | `bor` / `dis` | Complex System Repairs (`rep`) |
 | **6** | **Nebular Gas** | Comets / Nebulae | `cha` (Tail) / `min` | High-efficiency Energy conversion (`con 6`) |
-| **7** | **Composite** | Class-H Planets | `min` | **Hull Reinforcement** (`hull`) |
+| **7** | **Composite** | Planets | `min` | **Hull Reinforcement** (`hull`) |
 | **8** | **Dark-Matter** | Rare Asteroids/Stars | `min` / `sco` | Ultra-dense Energy source (`con 8`) |
 
 ### Detailed Resource Acquisition
-*   **Planetary Mining (`min`)**: Scanning planets with `scan` reveals their resource type. Use `min` at close range (< 3.1) to extract minerals. **Composite** is typically found on Class-H planets.
+*   **Planetary Mining (`min`)**: Every planet holds one resource type (1-8, assigned at random when the galaxy is created and independent of the planet class), so any of the eight resources can be found on any planet; the "Primary Source" column above lists the main sources, not the only ones. `scan` on a locked planet reports its class and remaining reserves. The resource type appears in the 3D viewer's target label and is revealed when mining. Use `min` at close range (< 3.1) to extract up to 500 units per cycle.
 *   **Salvaging Wrecks (`dis`)**: After combat, use `dis` on vessel debris to recover **Neo-Titanium** and **Synaptics Chips**.
 *   **Boarding Ops (`bor`)**: Sending teams to derelict ships or disabled enemies can yield high-tech components like **Synaptics** or rare **Aetherium** crystals.
 *   **Comet Interception**: Chasing a comet (`cha`) and flying through its tail (< 0.6 units) automatically collects **Nebular Gas**.

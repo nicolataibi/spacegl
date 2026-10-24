@@ -23,6 +23,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "object_types.h"   /* OBJ_* types, star and planet classes */
+
 /* Header-wide packing removed in favor of individual blocks */
 
 #define MAX_NET_OBJECTS 1024
@@ -43,11 +45,11 @@ typedef struct {
     double net_x, net_y, net_z;
     double h, m, r;
     int32_t type;       /* 1=Player, 3=Base, 4=Star, 5=Planet, etc */
-    int32_t ship_class; /* Specifies the 3D model (e.g., Galaxy, Constitution) */
+    int32_t ship_class; /* 3D model (ships); class of stars (0..6), planets (PLANET_CLASS_*), quasars, nebulae */
     int32_t active;
     int32_t health_pct; /* 0-100% Health/Energy status for HUD */
     uint64_t energy;     /* Remaining energy units */
-    int32_t plating;    /* Composite Plating */
+    int32_t plating;    /* Composite Plating (planets: resource type 1..8) */
     int32_t hull_integrity; /* Physical Hull % */
     int32_t faction;    /* Faction ID */
     int32_t id;         /* Universal Target ID */

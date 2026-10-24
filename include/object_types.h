@@ -216,4 +216,38 @@ static inline const float *obj_star_class_rgb(int spectral_class) {
     return rgb[spectral_class];
 }
 
+/* Planet classes carried in NetObject.ship_class of an OBJ_PLANET (and
+ * stored in NPCPlanet.planet_class, saved in galaxy.dat). The class is the
+ * physical kind of the planet and is independent of its mineable resource,
+ * which travels in NetObject.plating for planets. One palette for the
+ * OpenGL viewer, the CPU Vulkan path and the GPU-driven builder; out-of-range
+ * values fall back to Terrestrial. */
+enum {
+    PLANET_CLASS_TERRESTRIAL = 0,
+    PLANET_CLASS_GAS_GIANT   = 1,
+    PLANET_CLASS_ICE         = 2,
+    PLANET_CLASS_MOLTEN      = 3,
+    PLANET_CLASS_DESERT      = 4,
+    PLANET_CLASS_COUNT       = 5
+};
+
+static inline const char *planet_class_name(int c) {
+    static const char *const names[PLANET_CLASS_COUNT] =
+        { "Terrestrial", "Gas Giant", "Ice", "Molten", "Desert" };
+    return (c >= 0 && c < PLANET_CLASS_COUNT) ? names[c] : "Unknown";
+}
+
+static inline const float *obj_planet_class_rgb(int planet_class) {
+    static const float rgb[PLANET_CLASS_COUNT][3] = {
+        {0.2f, 0.5f, 1.0f},   /* Terrestrial  blue       */
+        {0.8f, 0.6f, 0.4f},   /* Gas Giant    brown      */
+        {0.7f, 0.9f, 1.0f},   /* Ice          pale blue  */
+        {0.8f, 0.2f, 0.1f},   /* Molten       red        */
+        {0.8f, 0.7f, 0.5f}    /* Desert       sand       */
+    };
+    if (planet_class < 0 || planet_class >= PLANET_CLASS_COUNT)
+        planet_class = PLANET_CLASS_TERRESTRIAL;
+    return rgb[planet_class];
+}
+
 #endif /* OBJECT_TYPES_H */

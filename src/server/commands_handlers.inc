@@ -779,7 +779,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         if (plid == locked_id) {
             strcat(status, RED "[LOCKED]" RESET);
         }
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪐 %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Class-H Planet %s\n", "Planet", plid, pl->x, pl->y, pl->z, d, h, m, status);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪐 %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     %s Planet %s\n", "Planet", plid, pl->x, pl->y, pl->z, d, h, m, planet_class_name(pl->planet_class), status);
     }
 
     /* 5. Stars */
@@ -2015,7 +2015,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                 for (int p = 0; p < lq->planet_count; p++) {
                     if (lq->planets[p]->id + GALAXY_OBJECT_MIN_PLANET == tid) {
                         found = true;
-                        sprintf(rep, GREEN "\n--- PLANETARY SURVEY ---" RESET "\nTYPE: Class-H Habitable\nRESERVES: %d units\n", scrambled ? 0 : lq->planets[p]->amount);
+                        sprintf(rep, GREEN "\n--- PLANETARY SURVEY ---" RESET "\nCLASS: %s\nRESERVES: %d units\n", scrambled ? "Unknown" : planet_class_name(lq->planets[p]->planet_class), scrambled ? 0 : lq->planets[p]->amount);
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_STAR && tid <= GALAXY_OBJECT_MAX_STAR) {

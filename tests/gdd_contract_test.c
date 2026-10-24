@@ -287,8 +287,18 @@ static void test_objects_mapping(void) {
     /* Planet (30,10,5) -> (10, -15, 15) */
     const GddInstance *planet = find_dyn(GDD_MESH_SPHERE, 10.0f, -15.0f, 15.0f, 1e-4f);
     CHECK(planet != NULL, "planet at mapped position (10,-15,15)");
-    if (planet)
+    if (planet) {
         CHECK_F("planet scale", planet->scale[0], 1.8f, 1e-5f, "planet scale");
+        CHECK_F("planet color.r", planet->color[0], 0.2f, 1e-5f, "planet color.r (class 0 = Terrestrial)");
+        CHECK_F("planet color.b", planet->color[2], 1.0f, 1e-5f, "planet color.b (class 0 = Terrestrial)");
+    }
+    CHECK(obj_planet_class_rgb(-1) == obj_planet_class_rgb(PLANET_CLASS_TERRESTRIAL) &&
+          obj_planet_class_rgb(99) == obj_planet_class_rgb(PLANET_CLASS_TERRESTRIAL),
+          "planet class out of range falls back to Terrestrial");
+    CHECK(obj_planet_class_rgb(PLANET_CLASS_MOLTEN)[0] == 0.8f &&
+          obj_planet_class_rgb(PLANET_CLASS_ICE)[2] == 1.0f &&
+          obj_planet_class_rgb(PLANET_CLASS_DESERT)[1] == 0.7f,
+          "planet class palette (Molten red, Ice pale blue, Desert sand)");
 
     /* Quantum core: octahedron wireframe at -0.46*GDD_SHIP_SCALE along
      * the nose axis (here +Z), radius 0.20*GDD_SHIP_SCALE */

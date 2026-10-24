@@ -720,7 +720,7 @@ float stars[8000][3];
 
 /* Prototypes */
 void drawStarbase(double x, double y, double z, int faction);
-void drawPlanet(double x, double y, double z);
+void drawPlanet(double x, double y, double z, int planet_class);
 void drawGrid();
 void drawKorthian(double x, double y, double z);
 void drawXylari(double x, double y, double z);
@@ -1678,7 +1678,7 @@ void display() {
                 switch(t) {
                     case OBJ_BASE: drawStarbase(0,0,0, objects[i].faction); break;
                     case OBJ_STAR: drawStar(0,0,0, objects[i].ship_class); break; /* ship_class = spectral class 0..6 (O,B,A,F,G,K,M) */
-                    case OBJ_PLANET: drawPlanet(0,0,0); break;
+                    case OBJ_PLANET: drawPlanet(0,0,0, objects[i].ship_class); break; /* ship_class = PLANET_CLASS_* */
                     case OBJ_BLACK_HOLE: drawAccretionDisk(0,0,0, pulse); drawBlackHole(0,0,0); break;
                     case 100: case 101: case 102: case 103: case 104: case 105: case 106: case 107:
                     case 108: case 109: case 110: case 111: case 112: case 113: case 114: case 115:
@@ -2393,9 +2393,10 @@ void display() {
                     int c_idx = objects[i].ship_class; if(c_idx<0)c_idx=0; if(c_idx>6)c_idx=6;
                     sprintf(buf, "[%03d] STAR: Class %s", objects[i].id, st_cls[c_idx]);
                 } else if (objects[i].type == OBJ_PLANET) {
-                    const char* p_res[] = {"None", "Dil", "Tri", "Ver", "Per", "Anti", "Xen"};
-                    int r_idx = objects[i].ship_class; if(r_idx<0)r_idx=0; if(r_idx>6)r_idx=6;
-                    sprintf(buf, "[%03d] PLANET: %s", objects[i].id, p_res[r_idx]);
+                    /* ship_class = planet class (PLANET_CLASS_*), plating = resource type 1..8 */
+                    const char* p_res[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
+                    int r_idx = objects[i].plating; if(r_idx<0)r_idx=0; if(r_idx>8)r_idx=8;
+                    sprintf(buf, "[%03d] PLANET: %s (%s)", objects[i].id, planet_class_name(objects[i].ship_class), p_res[r_idx]);
                 } else if (objects[i].type == OBJ_QUASAR) {
                     const char* q_cls[] = {"Radio-loud", "Radio-quiet", "BAL", "Type 2", "Red", "OVV", "Weak-Em"};
                     int q_idx = objects[i].ship_class; if(q_idx<0) q_idx=0; if(q_idx>6) q_idx=6;

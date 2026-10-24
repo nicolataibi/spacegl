@@ -389,12 +389,9 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
     case OBJ_PLANET: /* planet */
         v->scale = 1.8f; v->frag_mode = GDD_FRAG_PBR;
         v->metallic = 0.0f; v->roughness = 0.9f;
-        switch (ship_class) {
-        case 0:  v->color[0]=0.2f; v->color[1]=0.5f; v->color[2]=1.0f; break;
-        case 1:  v->color[0]=0.8f; v->color[1]=0.6f; v->color[2]=0.4f; break;
-        case 2:  v->color[0]=0.7f; v->color[1]=0.9f; v->color[2]=1.0f; break;
-        case 3:  v->color[0]=0.8f; v->color[1]=0.2f; v->color[2]=0.1f; break;
-        default: v->color[0]=0.8f; v->color[1]=0.7f; v->color[2]=0.5f; break;
+        {   /* ship_class = planet class: 0:Terrestrial 1:Gas Giant 2:Ice 3:Molten 4:Desert */
+            const float *rgb = obj_planet_class_rgb(ship_class);
+            v->color[0] = rgb[0]; v->color[1] = rgb[1]; v->color[2] = rgb[2];
         }
         break;
 

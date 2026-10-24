@@ -908,7 +908,8 @@ void generate_galaxy() {
     for (int i = 0; i < target_planets && p_count < MAX_PLANETS; i++) {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
         int r_type = (rand() % 8) + 1;
-        planets[p_count] = (NPCPlanet){.id=p_count, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .resource_type=r_type, .amount=MAX_TORPEDO_CAPACITY, .active=1};
+        int p_class = rand() % PLANET_CLASS_COUNT;
+        planets[p_count] = (NPCPlanet){.id=p_count, .planet_class=p_class, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .resource_type=r_type, .amount=MAX_TORPEDO_CAPACITY, .active=1};
         planet_type_counts[r_type]++;
         p_count++;
     }

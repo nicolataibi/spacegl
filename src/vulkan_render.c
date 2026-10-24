@@ -584,12 +584,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 opc.color[0]=star_rgb[0]; opc.color[1]=star_rgb[1]; opc.color[2]=star_rgb[2];
             } else if (obj->type == OBJ_PLANET) { // Planet
                 opc.metallic = 0.0f; opc.roughness = 0.9f;
-                /* Planet Classes: 0:Terrestrial, 1:Gas Giant, 2:Ice, 3:Molten, 4:Desert */
-                if (obj->ship_class == 0) { opc.color[0]=0.2f; opc.color[1]=0.5f; opc.color[2]=1.0f; } /* Earth-like */
-                else if (obj->ship_class == 1) { opc.color[0]=0.8f; opc.color[1]=0.6f; opc.color[2]=0.4f; } /* Jupiter-like */
-                else if (obj->ship_class == 2) { opc.color[0]=0.7f; opc.color[1]=0.9f; opc.color[2]=1.0f; } /* Ice */
-                else if (obj->ship_class == 3) { opc.color[0]=0.8f; opc.color[1]=0.2f; opc.color[2]=0.1f; } /* Molten */
-                else { opc.color[0]=0.8f; opc.color[1]=0.7f; opc.color[2]=0.5f; } /* Desert */
+                /* Planet classes (ship_class = NPCPlanet.planet_class): 0:Terrestrial 1:Gas Giant 2:Ice 3:Molten 4:Desert */
+                const float *planet_rgb = obj_planet_class_rgb(obj->ship_class);
+                opc.color[0]=planet_rgb[0]; opc.color[1]=planet_rgb[1]; opc.color[2]=planet_rgb[2];
             } else if (obj->type == OBJ_TORPEDO) { // Torpedo
                 opc.metallic = 0.8f; opc.roughness = 0.1f;
             } else {

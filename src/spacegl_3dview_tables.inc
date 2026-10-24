@@ -1168,12 +1168,14 @@ void drawStar(double x, double y, double z, int spectral) {
     glPopAttrib();
 }
 
-void drawPlanet(double x, double y, double z) { (void)x; (void)y; (void)z;
+void drawPlanet(double x, double y, double z, int planet_class) { (void)x; (void)y; (void)z;
     GLfloat spec[] = {0.3, 0.3, 0.3, 1.0};
     glMaterialfv(GL_FRONT, GL_SPECULAR, spec);
     glMateriali(GL_FRONT, GL_SHININESS, 50);
-    
-    glColor3f(0.2, 0.6, 1.0);
+
+    /* Planet class colour (PLANET_CLASS_*), same palette as the Vulkan viewers */
+    const float *prgb = obj_planet_class_rgb(planet_class);
+    glColor3f(prgb[0], prgb[1], prgb[2]);
     glutSolidSphere(0.3, 24, 24);
     
     /* Atmosphere */
