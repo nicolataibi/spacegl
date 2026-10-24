@@ -578,7 +578,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             }
 
             /* PBR Parameters based on object type */
-            if (obj->type == OBJ_PLAYER || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) { // Ships
+            if (obj_type_uses_cpu_hull_path(obj->type)) { // Ships
                 opc.metallic = 0.9f; opc.roughness = 0.25f;
             } else if (obj->type == OBJ_STAR) { // Star
                 opc.metallic = 0.0f; opc.roughness = 1.0f; opc.usePushColor = 6; /* Hyper-Warp for surface plasma */
@@ -610,14 +610,14 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
 
 
 
-            if (obj->faction == 12 && (obj->type == OBJ_PLAYER || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200)))) {
+            if (obj->faction == 12 && obj_type_uses_cpu_hull_path(obj->type)) {
                 drawSwarmCube(cb, app, opc.model, pulse);
                 continue;
             }
 
             /* Draw Standard Object (Ship, Base, Planet, Star, Asteroid, etc.) */
             PushConstants ship_opc = opc;
-                if (obj->type == OBJ_PLAYER || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) {
+                if (obj_type_uses_cpu_hull_path(obj->type)) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
                     float shipScale = 0.55f * tactScale;
                     mat4 S_ship;
@@ -681,7 +681,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 vkCmdBindVertexBuffers(cb, 0, 1, &vb, &off);
                 vkCmdBindIndexBuffer(cb, ib, 0, it);
                 vkCmdDrawIndexed(cb, cnt, 1, 0, 0, 0);
-                if (obj->type == OBJ_PLAYER || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) {
+                if (obj_type_uses_cpu_hull_path(obj->type)) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
                 }
 
@@ -690,7 +690,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 int is_alliance = 0;
                 if (obj->faction == 0 || obj->faction == 1) is_alliance = 1;
 
-                if ((obj->type == OBJ_PLAYER || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) && is_alliance) {
+                if (obj_type_uses_cpu_hull_path(obj->type) && is_alliance) {
                     /* Our pyramid is scaled by 0.55f * tactScale and its stern is at local X = -0.7288f.
                      * So in opc.model space, the tail is at -0.7288f * 0.55f * tactScale = -0.40084f * tactScale.
                      * We place the quantum core exactly there */

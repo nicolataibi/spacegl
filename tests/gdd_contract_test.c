@@ -1052,6 +1052,18 @@ static void test_object_types(void) {
     }
     CHECK(!obj_type_is_known(0) && !obj_type_is_known(210) && !obj_type_is_known(255),
           "unassigned types 0/210/255 must not be known");
+
+    /* 4. CPU Vulkan hull path: same set as before for every assigned type,
+     * and the free slots (89..99, 149..255) must stay outside it. */
+    for (int t = 0; t < 256; t++) {
+        int legacy = (t == OBJ_PLAYER) || (t >= 10 && t <= 88);
+        CHECK(obj_type_uses_cpu_hull_path(t) == legacy,
+              "type %d: cpu hull path %d, want %d", t, obj_type_uses_cpu_hull_path(t), legacy);
+        if (obj_type_is_exotic(t) || obj_type_is_evolved_star(t) || (t >= 89 && t <= 99) || t >= 149)
+            CHECK(!obj_type_uses_cpu_hull_path(t), "type %d must not use the cpu hull path", t);
+        if (obj_type_has_ship_hull(t))
+            CHECK(obj_type_uses_cpu_hull_path(t), "hull type %d must use the cpu hull path", t);
+    }
 }
 
 /* Stars: ship_class is the spectral class 0..6 (O,B,A,F,G,K,M); the GDD

@@ -1,3 +1,20 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.07
+  - CPU Vulkan path: the "ship" test in vulkan_render.c was a bare range,
+    type >= 10 && (type < 100 || type >= 200), repeated five times (ship PBR
+    look, swarm cube, wireframe pipeline and 0.55 scale, quantum core). It
+    swallowed the free slots 89-99 and 200-255, so a new non-ship object
+    placed there would have been drawn as a ship. Replaced by
+    obj_type_uses_cpu_hull_path() in object_types.h: the player plus the
+    legacy block OBJ_NPC_FIRST..OBJ_CMB (10..88). Same result for every type
+    assigned today, so no rendering change; the free slots 89-99 and
+    149-255 are now safe for new object kinds.
+  - Tests: gdd_contract_test checks the predicate on all 256 values (legacy
+    set unchanged, exotic and evolved stars, 89-99 and 149+ outside the hull
+    path, every ship hull inside it).
+  - Not changed on purpose: spacegl_3dview.c (trails, rotation smoothing) and
+    the HUD list colour still use type >= 10 as a generic "not a base/star"
+    test; they only affect trails and colour, not the look of the object.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.06
   - Evolved stars: 17 new object types, 132-148, in object_types.h (block of
     consecutive types like the 32 exotic ones, names in

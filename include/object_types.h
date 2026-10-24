@@ -220,6 +220,17 @@ static inline int obj_type_is_live_ship(int t) {
     return t == OBJ_PLAYER || obj_type_is_npc_ship(t);
 }
 
+/* CPU Vulkan "hull path" (src/vulkan_render.c): ship PBR look, wireframe
+ * pipeline, 0.55 scale, swarm cube and quantum core. It covers the player
+ * and every type from OBJ_NPC_FIRST up to OBJ_CMB, i.e. the legacy block
+ * 10..88 the renderer has always sent down that path. It stops at the last
+ * assigned legacy type on purpose: the free slots 89..99 and 149..255 must
+ * NOT be swallowed by it (before, 89..99 and >= 200 were). Tests:
+ * tests/gdd_contract_test.c (test_object_types). */
+static inline int obj_type_uses_cpu_hull_path(int t) {
+    return t == OBJ_PLAYER || (t >= OBJ_NPC_FIRST && t <= OBJ_CMB);
+}
+
 /* Display name of a type, NULL when the type is not assigned. */
 static inline const char *obj_type_name(int t) {
     static const char *const exotic_names[OBJ_EXOTIC_COUNT] = { OBJECT_EXOTIC_NAME_LIST };
