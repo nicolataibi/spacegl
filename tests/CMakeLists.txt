@@ -184,6 +184,13 @@ add_executable(nav_roll_test nav_roll_test.c ${SG_ROOT}/src/server/nav_math.c)
 target_link_libraries(nav_roll_test PRIVATE m)
 add_test(NAME nav_roll COMMAND nav_roll_test)
 
+# --- Moon orbits (types 89..98): one planet and one orbit per moon, at most
+# 4 moons per planet, slow, always inside the planet's quadrant, same parents
+# after a restart (header-only, include/moon_orbits.h) ------------------------
+add_executable(moon_orbit_test moon_orbit_test.c)
+target_link_libraries(moon_orbit_test PRIVATE m)
+add_test(NAME moon_orbit COMMAND moon_orbit_test)
+
 # --- Server spatial index contract (B3: the quasar and the other
 # static galactic objects must be inserted into the per-quadrant
 # index, otherwise the per-frame update / LRS grid never send them)

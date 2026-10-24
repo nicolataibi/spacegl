@@ -1130,6 +1130,8 @@ static inline int get_q_from_g(double g) {
 /* Function Prototypes */
 void normalize_upright(double *h, double *m);
 void generate_galaxy();
+void attach_moons_to_planets(void);   /* parent planet + orbit of every moon (galaxy.c) */
+void update_moon_orbits(void);        /* move the moons along their orbits, every tick */
 int load_galaxy();
 void save_galaxy();
 void save_galaxy_async();

@@ -169,7 +169,9 @@
  *   0 Shepherd, 1 Trojan, 2 Co-orbital, 3 Volcanic, 4 Ocean, 5 With
  *   atmosphere, 6 Exomoon, 7 Regular, 8 Irregular, 9 Submoon.
  * Names live here only: the server galaxy generator and the viewers use
- * this list. */
+ * this list. Every moon orbits a planet (max 4 per planet, one orbit each,
+ * slow): the server derives parent and orbit from the moon id, nothing is
+ * saved, see include/moon_orbits.h. */
 #define OBJECT_MOON_NAME_LIST \
     "Shepherd Moon", "Trojan Moon", "Co-orbital Moon", "Volcanic Moon", \
     "Ocean Moon", "Moon with Atmosphere", "Exomoon", "Regular Moon", \

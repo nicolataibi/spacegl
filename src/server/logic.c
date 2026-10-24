@@ -440,6 +440,9 @@ void update_game_logic() {
         save_galaxy_async();
     }
 
+    /* Natural moons: slow individual orbits around their planet */
+    update_moon_orbits();
+
     /* Refresh LRS Grid once per second */
     if (global_tick % GAME_TICK_RATE == 0) {
         extern void refresh_lrs_grid();

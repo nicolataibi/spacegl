@@ -28,6 +28,7 @@
 #include "server_internal.h"
 #include "object_types.h"
 #include "quad_index.h"
+#include "moon_orbits.h"
 #include "ui.h"
 
 NPCStar stars_data[MAX_STARS];
@@ -531,7 +532,8 @@ static void spawn_evolved_stars(void) {
 
 /* Moons (shepherd .. submoon): 10 types stored in the generic cosmic_features[]
  * array, type = OBJ_MOON_FIRST + index, GALAXY_CREATE_MOON_PER_TYPE instances of
- * each. Used by the galaxy generator and, for a galaxy.dat saved before the
+ * each. The position given here is only a placeholder: attach_moons_to_planets()
+ * moves every moon onto an orbit around its planet. Used by the galaxy generator and, for a galaxy.dat saved before the
  * moons existed (same file layout), by load_galaxy(). */
 static void spawn_moons(void) {
     const char *moon_names[OBJ_MOON_COUNT] = { OBJECT_MOON_NAME_LIST };
@@ -553,6 +555,70 @@ static void spawn_moons(void) {
             cosmic_features[cosmic_feature_count].name[63] = '\0';
             cosmic_feature_count++;
         }
+    }
+}
+
+/* Moon orbits (runtime only, rebuilt from the galaxy after load/generation:
+ * nothing of this is saved, see moon_orbits.h). Indexed like cosmic_features[]. */
+typedef struct { int valid; int planet; MoonOrbit orbit; } MoonLink;
+static MoonLink moon_links[MAX_COSMIC_FEATURES];
+
+/* Give every moon a parent planet and its own orbit. Deterministic: the same
+ * planets and the same moon slots always give the same result, so a restart
+ * keeps every moon on the same planet. At most MOON_MAX_PER_PLANET per planet.
+ * Moves each moon into its planet's quadrant, so it must run before
+ * init_static_spatial_index(). A moon that cannot be placed is deactivated. */
+void attach_moons_to_planets(void) {
+    memset(moon_links, 0, sizeof(moon_links));
+
+    static int elig[MAX_PLANETS];
+    static int pcount[MAX_PLANETS];
+    int ne = 0;
+    for (int p = 0; p < MAX_PLANETS; p++) {
+        if (!IS_Q_VALID(planets[p].q1, planets[p].q2, planets[p].q3)) continue;   /* empty slot */
+        if (!moon_planet_eligible(planets[p].x, planets[p].y, planets[p].z, QUADRANT_SIZE)) continue;
+        pcount[ne] = 0;
+        elig[ne++] = p;
+    }
+
+    int attached = 0, dropped = 0;
+    for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
+        NPCCosmicFeature *f = &cosmic_features[i];
+        if (!obj_type_is_moon(f->type)) continue;
+        int j = moon_pick_planet((unsigned)f->id, ne, pcount);
+        if (j < 0) { f->active = 0; dropped++; continue; }
+        const NPCPlanet *pl = &planets[elig[j]];
+        moon_orbit_make((unsigned)f->id, f->type - OBJ_MOON_FIRST, pcount[j]++, &moon_links[i].orbit);
+        moon_links[i].valid = 1;
+        moon_links[i].planet = elig[j];
+        f->q1 = pl->q1; f->q2 = pl->q2; f->q3 = pl->q3;
+        double off[3];
+        moon_orbit_offset(&moon_links[i].orbit, 0.0, off);
+        f->x = pl->x + off[0]; f->y = pl->y + off[1]; f->z = pl->z + off[2];
+        attached++;
+    }
+    printf("[GALAXY] moons: %d in orbit around %d eligible planets, %d without a planet\n",
+           attached, ne, dropped);
+}
+
+/* Move every moon along its orbit (called every tick). The angle comes from
+ * the wall clock, so the orbits go on across restarts. A moon never leaves its
+ * planet's quadrant (see moon_planet_eligible), so the per-quadrant index
+ * needs no update. When the planet is destroyed (supernova), its moons go
+ * with it. */
+void update_moon_orbits(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    double t = (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
+    for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
+        if (!moon_links[i].valid) continue;
+        NPCCosmicFeature *f = &cosmic_features[i];
+        if (!f->active) continue;
+        const NPCPlanet *pl = &planets[moon_links[i].planet];
+        if (!pl->active) { f->active = 0; continue; }
+        double off[3];
+        moon_orbit_offset(&moon_links[i].orbit, t, off);
+        f->x = pl->x + off[0]; f->y = pl->y + off[1]; f->z = pl->z + off[2];
     }
 }
 
@@ -675,6 +741,9 @@ int load_galaxy() {
             printf("[GALAXY] added %d moons to the loaded galaxy\n", cosmic_feature_count - before);
         }
     }
+    /* Parent planet and orbit of every moon (also for moons saved by 2026.10.24.08,
+     * which were scattered at random). */
+    attach_moons_to_planets();
     
     for(int i=0; i<MAX_CLIENTS; i++) {
         players[i].active = 0;
@@ -1548,6 +1617,7 @@ void generate_galaxy() {
 
     /* Natural moons (shepherd .. submoon): 10 types in the same array. */
     spawn_moons();
+    attach_moons_to_planets();
 
     rebuild_spatial_index();
     refresh_lrs_grid();

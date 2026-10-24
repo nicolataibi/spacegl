@@ -1,3 +1,32 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.09
+  - Moons in orbit: every natural moon (types 89-98) now orbits a planet
+    instead of floating at a random point. At most 4 moons per planet
+    (MOON_MAX_PER_PLANET), each on an orbit of its own: the radius grows with
+    the moon's order around the planet (1.5 + 0.9 per moon, plus a random
+    extra up to 0.25), so two moons of one planet never share an orbit.
+    Slow: the period is 20 minutes at the innermost radius and grows with
+    r^1.5 (about 100 minutes at the outermost), top speed under 0.01
+    units/s. Regular moons are nearly equatorial, irregular moons are
+    steeply inclined and retrograde.
+  - Nothing is saved: galaxy.dat does not change. Parent planet and orbit are
+    derived from the moon id (hash) and the order of the moons, so the same
+    galaxy gives the same orbits after a restart, and the angle comes from the
+    wall clock, so the moons keep moving while the server is off. Moons saved
+    by 2026.10.24.08 at random positions are attached on load.
+  - Server: attach_moons_to_planets() runs after load or generation and before
+    init_static_spatial_index(): it moves each moon into its planet's quadrant.
+    update_moon_orbits() runs every tick. Only planets at least 4.45 units
+    from every face of the quadrant can have moons (largest orbit), so a moon
+    never changes quadrant and the static per-quadrant index stays valid.
+    If a planet is destroyed (supernova) its moons are deactivated; a moon
+    that finds no free planet is deactivated at load (with 800-1000 planets
+    this does not happen).
+  - New include/moon_orbits.h (header-only): hash, eligibility, planet choice
+    and orbit maths, shared by the server and the new tests/moon_orbit_test.c
+    (single orbits, max 4 per planet, deterministic parents, slow, always
+    inside the quadrant).
+  - LORE.md: natural moons row updated.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.08
   - Natural moons: 10 new object types, 89-98, in object_types.h (block of
     consecutive types like the exotic and evolved ones, names in

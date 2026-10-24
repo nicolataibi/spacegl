@@ -174,6 +174,7 @@ void spawn_derelict(int q1, int q2, int q3, double x, double y, double z,
 const char *get_species_name(int s) { (void)s; return "TEST"; }
 void rebuild_spatial_index(void) {}
 void refresh_lrs_grid(void) {}
+void update_moon_orbits(void) {}
 
 /* Helper to wait for the system second to tick */
 static void wait_next_second(void) {
