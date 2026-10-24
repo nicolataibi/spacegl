@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <poll.h>
+#include "object_types.h"
 #include "telemetry.h"
 #include "server_internal.h"
 
@@ -401,162 +402,162 @@ void telemetry_init() {
                     case TEL_CAT_CMB: COUNT_CAT(cmbs, MAX_CMB); break;
                                         case TEL_CAT_STELLAR_MASS_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 0) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 0) count++;
                         }
                     } break;
                     case TEL_CAT_INTERMEDIATE_MASS_BLACK_HOLE_IMBH: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 1) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 1) count++;
                         }
                     } break;
                     case TEL_CAT_SUPERMASSIVE_BLACK_HOLE_SMBH: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 2) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 2) count++;
                         }
                     } break;
                     case TEL_CAT_ULTRAMASSIVE_BLACK_HOLE_UMBH: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 3) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 3) count++;
                         }
                     } break;
                     case TEL_CAT_STUPENDOUSLY_LARGE_BLACK_HOLE_SLAB: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 4) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 4) count++;
                         }
                     } break;
                     case TEL_CAT_PRIMORDIAL_BLACK_HOLE_PBH: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 5) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 5) count++;
                         }
                     } break;
                     case TEL_CAT_SCHWARZSCHILD_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 6) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 6) count++;
                         }
                     } break;
                     case TEL_CAT_KERR_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 7) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 7) count++;
                         }
                     } break;
                     case TEL_CAT_REISSNER_NORDSTROM_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 8) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 8) count++;
                         }
                     } break;
                     case TEL_CAT_KERR_NEWMAN_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 9) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 9) count++;
                         }
                     } break;
                     case TEL_CAT_EXTREMAL_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 10) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 10) count++;
                         }
                     } break;
                     case TEL_CAT_REGULAR_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 11) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 11) count++;
                         }
                     } break;
                     case TEL_CAT_BARDEEN_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 12) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 12) count++;
                         }
                     } break;
                     case TEL_CAT_HAYWARD_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 13) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 13) count++;
                         }
                     } break;
                     case TEL_CAT_DYMNIKOVA_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 14) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 14) count++;
                         }
                     } break;
                     case TEL_CAT_FAN_WANG_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 15) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 15) count++;
                         }
                     } break;
                     case TEL_CAT_FIREWALL_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 16) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 16) count++;
                         }
                     } break;
                     case TEL_CAT_FUZZBALL: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 17) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 17) count++;
                         }
                     } break;
                     case TEL_CAT_QUANTUM_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 18) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 18) count++;
                         }
                     } break;
                     case TEL_CAT_MICRO_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 19) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 19) count++;
                         }
                     } break;
                     case TEL_CAT_PLANCK_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 20) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 20) count++;
                         }
                     } break;
                     case TEL_CAT_GRAVASTAR: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 21) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 21) count++;
                         }
                     } break;
                     case TEL_CAT_BOSON_STAR: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 22) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 22) count++;
                         }
                     } break;
                     case TEL_CAT_DARK_STAR: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 23) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 23) count++;
                         }
                     } break;
                     case TEL_CAT_EXOTIC_COMPACT_OBJECT_ECO: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 24) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 24) count++;
                         }
                     } break;
                     case TEL_CAT_BLACK_HOLE_MIMICKER: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 25) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 25) count++;
                         }
                     } break;
                     case TEL_CAT_WORMHOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 26) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 26) count++;
                         }
                     } break;
                     case TEL_CAT_WHITE_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 27) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 27) count++;
                         }
                     } break;
                     case TEL_CAT_NAKED_SINGULARITY: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 28) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 28) count++;
                         }
                     } break;
                     case TEL_CAT_SUPER_EXTREMAL_SOLUTION_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 29) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 29) count++;
                         }
                     } break;
                     case TEL_CAT_SUPER_EXTREMAL_REISSNER_NORDSTROM_SOLUTION_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 30) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 30) count++;
                         }
                     } break;
                     case TEL_CAT_SUPER_EXTREMAL_KERR_SOLUTION_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                            if (cosmic_features[k].active && cosmic_features[k].type == 100 + 31) count++;
+                            if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 31) count++;
                         }
                     } break;
                 }
@@ -1863,224 +1864,224 @@ static void update_category_cache(int cat) {
             case TEL_CAT_CMB: FILL_CACHE_CAT(cmbs, MAX_CMB); break;
                         case TEL_CAT_STELLAR_MASS_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 0) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 0) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_INTERMEDIATE_MASS_BLACK_HOLE_IMBH: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 1) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 1) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_SUPERMASSIVE_BLACK_HOLE_SMBH: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 2) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 2) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_ULTRAMASSIVE_BLACK_HOLE_UMBH: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 3) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 3) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_STUPENDOUSLY_LARGE_BLACK_HOLE_SLAB: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 4) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 4) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_PRIMORDIAL_BLACK_HOLE_PBH: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 5) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 5) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_SCHWARZSCHILD_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 6) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 6) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_KERR_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 7) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 7) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_REISSNER_NORDSTROM_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 8) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 8) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_KERR_NEWMAN_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 9) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 9) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_EXTREMAL_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 10) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 10) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_REGULAR_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 11) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 11) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_BARDEEN_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 12) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 12) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_HAYWARD_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 13) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 13) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_DYMNIKOVA_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 14) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 14) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_FAN_WANG_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 15) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 15) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_FIREWALL_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 16) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 16) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_FUZZBALL: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 17) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 17) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_QUANTUM_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 18) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 18) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_MICRO_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 19) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 19) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_PLANCK_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 20) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 20) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_GRAVASTAR: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 21) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 21) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_BOSON_STAR: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 22) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 22) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_DARK_STAR: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 23) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 23) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_EXOTIC_COMPACT_OBJECT_ECO: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 24) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 24) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_BLACK_HOLE_MIMICKER: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 25) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 25) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_WORMHOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 26) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 26) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_WHITE_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 27) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 27) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_NAKED_SINGULARITY: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 28) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 28) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_SUPER_EXTREMAL_SOLUTION_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 29) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 29) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_SUPER_EXTREMAL_REISSNER_NORDSTROM_SOLUTION_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 30) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 30) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
             } break;
             case TEL_CAT_SUPER_EXTREMAL_KERR_SOLUTION_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
-                    if (cosmic_features[k].active && cosmic_features[k].type == 100 + 31) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 31) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }

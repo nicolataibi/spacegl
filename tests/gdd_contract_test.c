@@ -35,6 +35,7 @@
  * Exit: 0 = pass, 1 = fail.
  */
 
+#include "object_types.h"
 #include "spacegl_gdd.h"
 #include "shared_state.h"
 
@@ -249,7 +250,7 @@ static void test_objects_mapping(void) {
     if (star) {
         CHECK_F("star scale", star->scale[0], 2.5f, 1e-5f, "star scale");
         CHECK_F("star color.r", star->color[0], 1.0f, 1e-5f, "star color.r");
-        CHECK_F("star color.b", star->color[2], 0.4f, 1e-5f, "star color.b (class 2)");
+        CHECK_F("star color.b", star->color[2], 1.0f, 1e-5f, "star color.b (class 2 = A, white)");
         CHECK(star->alpha == 1.0f, "star alpha");
         CHECK(gdd_flag_bit(star->flags, 1) == 1, "star is additive");
         CHECK(gdd_frag_mode(star->flags) == GDD_FRAG_HYPERWARP, "star frag mode");
@@ -953,6 +954,121 @@ static void test_ship_visual_audit(void) {
     CHECK(bad == 0, "ship audit: %d/%d type/faction/class/cloak combos do not render as a ship hull", bad, total);
 }
 
+/* ---- object_types.h contract ------------------------------------- */
+_Static_assert(OBJ_PLAYER == 1 && OBJ_BASE == 3 && OBJ_BLACK_HOLE == 6,
+               "wire values of the base object types changed");
+_Static_assert(OBJ_NPC_FIRST == 10 && OBJ_NPC_LAST == 20,
+               "NPC ship types must coincide with FACTION_KORTHIAN..FACTION_HIROGEN");
+_Static_assert(OBJ_DERELICT == 22 && OBJ_TORPEDO == 27 && OBJ_QUASAR == 29,
+               "wire values of the object types changed");
+_Static_assert(OBJ_EXOTIC_FIRST == 100 && OBJ_EXOTIC_LAST == 131,
+               "exotic compact objects must span 100..131");
+
+/* The visual a type gets when gdd_visual_for() has no dedicated case: the
+ * generic cosmic object (unlit sphere 1.5, colour 0.6/0.6/0.8). */
+static int is_generic_cosmic_look(const GddInstance *g) {
+    return (int)(g->mesh + 0.5f) == GDD_MESH_SPHERE &&
+           fabsf(g->scale[0] - 1.5f) < 1e-3f &&
+           fabsf(g->color[0] - 0.6f) < 1e-3f && fabsf(g->color[1] - 0.6f) < 1e-3f &&
+           fabsf(g->color[2] - 0.8f) < 1e-3f;
+}
+
+static void build_single_type(int type, GddInstance *first) {
+    GddBuildCtx c = base_ctx();
+    obj_at(&g_smooth[0], 20.0f, 20.0f, 20.0f, 0.0f, 0.0f, 0.0f);
+    int t[1] = { type }, f[1] = { 0 }, sc[1] = { 0 }, ck[1] = { 0 },
+        act[1] = { 1 }, pl[1] = { 100 }, id[1] = { 1 };
+    c.types = t; c.factions = f; c.ship_classes = sc;
+    c.cloaked = ck; c.active = act; c.platings = pl; c.ids = id;
+    c.object_count = 1;
+    run_builder(&c);
+    memset(first, 0, sizeof(*first));
+    if (g_dyn_n > 0) *first = g_dyn[0];
+}
+
+/* Regression for "a type nobody taught the builder falls into the generic
+ * sphere" (derelict, type 22): every type in object_types.h that is not a
+ * cosmic environment (64..88, which share the generic look on purpose) must
+ * have a dedicated visual, and unknown types must be recognised as such. */
+static void test_object_types(void) {
+    /* 1. the list has unique values and every one has a name */
+    int seen[256] = {0}, dup = 0, unnamed = 0, n = 0;
+#define OT_CHECK(name, value, label) \
+    do { n++; if (seen[value]++) dup++; if (!obj_type_name(value)) unnamed++; } while (0);
+    OBJECT_TYPE_LIST(OT_CHECK)
+#undef OT_CHECK
+    CHECK(dup == 0, "object_types.h: %d duplicated type value(s)", dup);
+    CHECK(unnamed == 0, "object_types.h: %d type(s) without a name", unnamed);
+    CHECK(n >= 80, "object_types.h: only %d types listed", n);
+    for (int t = OBJ_EXOTIC_FIRST; t <= OBJ_EXOTIC_LAST; t++)
+        CHECK(obj_type_name(t) != NULL && !seen[t], "exotic type %d named and not shadowed", t);
+
+    /* 2. every known type outside the cosmic band has a dedicated look */
+    int generic = 0;
+    for (int t = 0; t < 256; t++) {
+        if (!obj_type_is_known(t) || obj_type_is_exotic(t)) continue;
+        if (t >= OBJ_COSMIC_VOID && t <= OBJ_CMB) continue;
+        GddInstance g;
+        build_single_type(t, &g);
+        if (is_generic_cosmic_look(&g)) {
+            fprintf(stderr, "  object type %d (%s) renders with the generic cosmic look\n",
+                    t, obj_type_name(t));
+            generic++;
+        }
+    }
+    CHECK(generic == 0, "%d known object type(s) fall into the generic cosmic look", generic);
+
+    /* 3. predicates agree with the builder */
+    for (int t = 0; t < 256; t++) {
+        GddInstance g;
+        build_single_type(t, &g);
+        int pyr = 0, black_sphere = 0;
+        for (uint32_t i = 0; i < g_dyn_n; i++) {
+            if ((int)(g_dyn[i].mesh + 0.5f) == GDD_MESH_PYRAMID) pyr++;
+            if ((int)(g_dyn[i].mesh + 0.5f) == GDD_MESH_SPHERE &&
+                g_dyn[i].color[0] == 0.0f && g_dyn[i].color[1] == 0.0f &&
+                g_dyn[i].color[2] == 0.0f) black_sphere++;
+        }
+        if (obj_type_has_ship_hull(t))
+            CHECK(pyr == 1, "hull type %d (%s): %d pyramid(s), want 1", t,
+                  obj_type_name(t) ? obj_type_name(t) : "?", pyr);
+        if (obj_type_is_exotic(t))
+            CHECK(black_sphere >= 1, "exotic type %d has no black event-horizon sphere", t);
+        if (t != 0 && !obj_type_is_known(t))
+            CHECK(g_dyn_n >= 1, "unknown type %d must still produce a visible instance", t);
+    }
+    CHECK(!obj_type_is_known(0) && !obj_type_is_known(210) && !obj_type_is_known(255),
+          "unassigned types 0/210/255 must not be known");
+}
+
+/* Stars: ship_class is the spectral class 0..6 (O,B,A,F,G,K,M); the GDD
+ * builder must use the same palette as the CPU Vulkan path and the OpenGL
+ * viewer, and an out-of-range class must fall back to G. */
+static void test_star_spectral_palette(void) {
+    static const float want[7][3] = {
+        {0.4f,0.6f,1.0f}, {0.7f,0.8f,1.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f,0.7f},
+        {1.0f,0.9f,0.1f}, {1.0f,0.6f,0.2f}, {1.0f,0.2f,0.1f} };
+    for (int cls = -1; cls <= 8; cls++) {
+        GddBuildCtx c = base_ctx();
+        obj_at(&g_smooth[0], 20.0f, 20.0f, 20.0f, 0.0f, 0.0f, 0.0f);
+        int t[1] = { OBJ_STAR }, f[1] = { 0 }, sc[1] = { cls }, ck[1] = { 0 },
+            act[1] = { 1 }, pl[1] = { 100 }, id[1] = { 1 };
+        c.types = t; c.factions = f; c.ship_classes = sc;
+        c.cloaked = ck; c.active = act; c.platings = pl; c.ids = id;
+        c.object_count = 1;
+        run_builder(&c);
+        const float *w = want[(cls >= 0 && cls < 7) ? cls : 4];
+        int ok = 0;
+        for (uint32_t i = 0; i < g_dyn_n; i++)
+            if ((int)(g_dyn[i].mesh + 0.5f) == GDD_MESH_SPHERE &&
+                fabsf(g_dyn[i].scale[0] - 2.5f) < 1e-4f &&
+                fabsf(g_dyn[i].color[0] - w[0]) < 1e-5f &&
+                fabsf(g_dyn[i].color[1] - w[1]) < 1e-5f &&
+                fabsf(g_dyn[i].color[2] - w[2]) < 1e-5f) ok = 1;
+        CHECK(ok, "star spectral class %d has the shared palette colour", cls);
+    }
+}
+
 static void test_capacity_guard(void) {
     GddBuildCtx c = base_ctx();
     for (int i = 0; i < 3; i++)
@@ -1234,6 +1350,8 @@ int main(void) {
     test_galaxy_map_dense();
     test_derelict();
     test_ship_visual_audit();
+    test_object_types();
+    test_star_spectral_palette();
     test_capacity_guard();
     test_raw_objs_fallback();
     printf("  %d checks passed, %d failed\n", g_pass, g_fail);

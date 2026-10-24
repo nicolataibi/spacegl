@@ -142,6 +142,14 @@ if(SG_ATOMIC_LIB)
 endif()
 add_test(NAME gdd_contract COMMAND gdd_contract_test)
 
+# object types: the server must send OBJ_* names from include/object_types.h
+# (no bare numbers), see tests/object_types_lint.py.
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME object_types_lint
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/object_types_lint.py)
+endif()
+
 # --- headless GPU compute test (cull/expand/final vs CPU reference) ----
 # Self-contained: no production sources linked (its CPU mirrors of the
 # GLSL ops live in the test file, like the DRAGONGL gpu_mesh_test).

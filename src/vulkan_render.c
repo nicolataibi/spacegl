@@ -24,6 +24,7 @@
  * Peer modules: vulkan_device.c, vulkan_scene.c, vulkan_main.c.
  */
 
+#include "object_types.h"
 #include "vulkan_device_internal.h"
 #include <time.h>
 
@@ -333,13 +334,13 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             
             /* Cosmic Objects Dispatcher (51-88) */
             if (obj->type >= 51 && obj->type <= 53) { drawNebula(cb, app, T, obj->type - 51, pulse, tactScale); continue; }
-            if (obj->type == 54) { drawNebula(cb, app, T, 4, pulse, tactScale); continue; }
-            if (obj->type == 55) { drawNebula(cb, app, T, 5, pulse, tactScale); continue; }
-            if (obj->type == 56) { drawInterstellarFilament(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 57) { drawInterstellarBubble_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 58) { drawBokGlobule_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 59) { drawClumpCore_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 60) {
+            if (obj->type == OBJ_SUPERNOVA_REMNANT) { drawNebula(cb, app, T, 4, pulse, tactScale); continue; }
+            if (obj->type == OBJ_GIANT_MOLECULAR_CLOUD) { drawNebula(cb, app, T, 5, pulse, tactScale); continue; }
+            if (obj->type == OBJ_INTERSTELLAR_FILAMENT) { drawInterstellarFilament(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_INTERSTELLAR_BUBBLE) { drawInterstellarBubble_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_BOK_GLOBULE) { drawBokGlobule_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_CLUMP_CORE) { drawClumpCore_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_ACCRETION_DISK) {
                 /* ACCRETION DISK (Type 60): Singularity Core + Volumetric Accretion Disk + Jets */
                 PushConstants apc = opc; 
                 mat4 M_core; mat4_scale(S, (vec3){1.5f * tactScale, 1.5f * tactScale, 1.5f * tactScale});
@@ -361,160 +362,160 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 drawRelativisticJet_Vulkan(cb, app, T, tactScale, pulse);
                 continue;
             }
-            if (obj->type == 61) { drawRelativisticJet_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 62) { drawShockWave_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 63) { drawStellarBowShock_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 64) { drawCosmicVoid_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 65) { drawCosmicFilament_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 66) { drawEventHorizon_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 67) { drawKilonova_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 68) { drawGravLens_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 69) { drawGRB_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 70) { drawGravWave_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 71) { drawProtoplanetaryDisk_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 72) { drawDebrisDisk_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 73) { drawPlanetesimal_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 74) { drawRoguePlanet_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 75) { drawBrownDwarf_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 76) { drawISO_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 77) { drawMagReconn_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 78) { drawCurrentSheet_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 79) { drawHeliosphere_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 80) { drawTermShock_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 81) { drawMagnetosphere_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 82) { drawCosmicString_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 83) { drawDomainWall_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 84) { drawDMHalo_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 85) { drawIGM_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 86) { drawCGM_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 87) { drawLymanAlpha_Vulkan(cb, app, T, tactScale, pulse); continue; }
-            if (obj->type == 88) { drawCMB_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_RELATIVISTIC_JET) { drawRelativisticJet_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_SHOCK_WAVE) { drawShockWave_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_STELLAR_BOW_SHOCK) { drawStellarBowShock_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_COSMIC_VOID) { drawCosmicVoid_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_COSMIC_FILAMENT) { drawCosmicFilament_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_EVENT_HORIZON) { drawEventHorizon_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_KILONOVA) { drawKilonova_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_GRAV_LENS) { drawGravLens_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_GRB) { drawGRB_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_GRAV_WAVE) { drawGravWave_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_PROTOPLANETARY_DISK) { drawProtoplanetaryDisk_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_DEBRIS_DISK) { drawDebrisDisk_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_PLANETESIMAL) { drawPlanetesimal_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_ROGUE_PLANET) { drawRoguePlanet_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_BROWN_DWARF) { drawBrownDwarf_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_INTERSTELLAR_OBJECT) { drawISO_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_MAG_RECONNECTION) { drawMagReconn_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_CURRENT_SHEET) { drawCurrentSheet_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_HELIOSPHERE) { drawHeliosphere_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_TERMINATION_SHOCK) { drawTermShock_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_MAGNETOSPHERE) { drawMagnetosphere_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_COSMIC_STRING) { drawCosmicString_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_DOMAIN_WALL) { drawDomainWall_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_DM_HALO) { drawDMHalo_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_IGM) { drawIGM_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_CGM) { drawCGM_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_LYMAN_ALPHA) { drawLymanAlpha_Vulkan(cb, app, T, tactScale, pulse); continue; }
+            if (obj->type == OBJ_CMB) { drawCMB_Vulkan(cb, app, T, tactScale, pulse); continue; }
             /* Mapping all categories from telemetry */
             
             
 
-            if (obj->type == 39) {
+            if (obj->type == OBJ_ION_STORM) {
                 drawIonStorm(cb, app, T, tactScale, pulse, 0);
                 continue;
             }
 
-            if (obj->type == 48) {
+            if (obj->type == OBJ_TIME_ANOMALY) {
                 drawTimeAnomaly(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 46) {
+            if (obj->type == OBJ_PLASMA_STORM) {
                 drawPlasmaStorm(cb, app, T, tactScale, pulse);
                 continue;
             }
 
 
-            if (obj->type == 44) {
+            if (obj->type == OBJ_DARK_CLOUD) {
                 drawDarkMatterCloud(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 37) {
+            if (obj->type == OBJ_SUBSPACE_RUPTURE) {
                 drawSubspaceRupture(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 36) {
+            if (obj->type == OBJ_ANCIENT_RELIC) {
                 drawAncientRelic(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 34) {
+            if (obj->type == OBJ_DYSON_FRAGMENT) {
                 drawDysonFragment(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 38) {
+            if (obj->type == OBJ_SATELLITE) {
                 drawSatellite(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 49) {
+            if (obj->type == OBJ_VOID_CRYSTAL) {
                 drawVoidCrystal(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 43) {
+            if (obj->type == OBJ_MEGA_STRUCTURE) {
                 drawMegaStructure(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 40) {
+            if (obj->type == OBJ_ALIEN_ARTIFACT) {
                 drawAlienArtifact(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 45) {
+            if (obj->type == OBJ_SINGULARITY) {
                 drawSingularity(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 50) {
+            if (obj->type == OBJ_SUBSPACE_ANOMALY) {
                 drawSubspaceAnomaly(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 42) {
+            if (obj->type == OBJ_NEUTRON_STAR) {
                 drawNeutronStar(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 26) {
+            if (obj->type == OBJ_RIFT) {
                 drawRift(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 25) {
+            if (obj->type == OBJ_PLATFORM) {
                 drawPlatform(cb, app, T, obj->faction, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 24) {
+            if (obj->type == OBJ_BUOY) {
                 drawCommBuoy(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 23) {
+            if (obj->type == OBJ_MINE) {
                 drawMine(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 35) {
+            if (obj->type == OBJ_TRADING_HUB) {
                 drawTradingHub(cb, app, T, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 30 || obj->type == 31) {
+            if (obj->type == OBJ_CRYSTALLINE_ENTITY || obj->type == OBJ_SPACE_AMOEBA) {
                 drawMonster(cb, app, T, obj->type, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 21) {
+            if (obj->type == OBJ_ASTEROID) {
                 drawAsteroid(cb, app, T, (float)obj->plating / 100.0f, obj->ship_class, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 9) {
+            if (obj->type == OBJ_COMET) {
                 drawComet(cb, app, T, oh, om, tactScale, pulse);
                 continue;
             }
 
-            if (obj->type == 8) {
+            if (obj->type == OBJ_PULSAR) {
                 drawPulsar(cb, app, T, tactScale, pulse, obj->ship_class);
                 continue;
             }
 
-            if (obj->type == 3) {
+            if (obj->type == OBJ_BASE) {
                 drawStarbase(cb, app, T, tactScale, pulse, obj->faction);
                 continue;
             }
 
-            if (obj->type == 6) {
+            if (obj->type == OBJ_BLACK_HOLE) {
                 /* Draw Black Hole Event Horizon (Black Sphere) */
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(opc), &opc);
                 VkBuffer vb = app->sphereVertexBuffer; VkBuffer ib = app->sphereIndexBuffer; uint32_t cnt = SPHERE_LATS * SPHERE_LONGS * 6;
@@ -524,7 +525,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 continue;
             }
 
-            if (obj->type == 7) {
+            if (obj->type == OBJ_NEBULA) {
                 /* Draw Volumetric Nebula (Hidden during the arrival sequence to eliminate green cloud artifacts) */
                 if (!app->jumpArrival.active) {
                     drawNebula(cb, app, T, obj->ship_class, pulse, tactScale);
@@ -532,7 +533,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 continue;
             }
 
-            if (obj->type == 29) {
+            if (obj->type == OBJ_QUASAR) {
                 /* QUASAR: Self-Spinning Sphere + Accretion Disk (No Jets) */
                 mat4 R_q; mat4_identity(R_q);
                 /* Spin like a top around vertical axis */
@@ -574,17 +575,14 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             }
 
             /* PBR Parameters based on object type */
-            if (obj->type == 1 || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) { // Ships
+            if (obj->type == OBJ_PLAYER || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) { // Ships
                 opc.metallic = 0.9f; opc.roughness = 0.25f;
-            } else if (obj->type == 4) { // Star
+            } else if (obj->type == OBJ_STAR) { // Star
                 opc.metallic = 0.0f; opc.roughness = 1.0f; opc.usePushColor = 6; /* Hyper-Warp for surface plasma */
                 /* Spectral classes (ship_class): 0:O 1:B 2:A 3:F 4:G 5:K 6:M -- same palette as the OpenGL viewer */
-                static const float star_rgb[7][3] = {
-                    {0.4f,0.6f,1.0f}, {0.7f,0.8f,1.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f,0.7f},
-                    {1.0f,0.9f,0.1f}, {1.0f,0.6f,0.2f}, {1.0f,0.2f,0.1f} };
-                int sc = (obj->ship_class >= 0 && obj->ship_class < 7) ? obj->ship_class : 4;
-                opc.color[0]=star_rgb[sc][0]; opc.color[1]=star_rgb[sc][1]; opc.color[2]=star_rgb[sc][2];
-            } else if (obj->type == 5) { // Planet
+                const float *star_rgb = obj_star_class_rgb(obj->ship_class);
+                opc.color[0]=star_rgb[0]; opc.color[1]=star_rgb[1]; opc.color[2]=star_rgb[2];
+            } else if (obj->type == OBJ_PLANET) { // Planet
                 opc.metallic = 0.0f; opc.roughness = 0.9f;
                 /* Planet Classes: 0:Terrestrial, 1:Gas Giant, 2:Ice, 3:Molten, 4:Desert */
                 if (obj->ship_class == 0) { opc.color[0]=0.2f; opc.color[1]=0.5f; opc.color[2]=1.0f; } /* Earth-like */
@@ -592,7 +590,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 else if (obj->ship_class == 2) { opc.color[0]=0.7f; opc.color[1]=0.9f; opc.color[2]=1.0f; } /* Ice */
                 else if (obj->ship_class == 3) { opc.color[0]=0.8f; opc.color[1]=0.2f; opc.color[2]=0.1f; } /* Molten */
                 else { opc.color[0]=0.8f; opc.color[1]=0.7f; opc.color[2]=0.5f; } /* Desert */
-            } else if (obj->type == 27) { // Torpedo
+            } else if (obj->type == OBJ_TORPEDO) { // Torpedo
                 opc.metallic = 0.8f; opc.roughness = 0.1f;
             } else {
                 opc.metallic = 0.5f; opc.roughness = 0.5f;
@@ -606,14 +604,14 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
 
 
 
-            if (obj->faction == 12 && (obj->type == 1 || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200)))) {
+            if (obj->faction == 12 && (obj->type == OBJ_PLAYER || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200)))) {
                 drawSwarmCube(cb, app, opc.model, pulse);
                 continue;
             }
 
             /* Draw Standard Object (Ship, Base, Planet, Star, Asteroid, etc.) */
             PushConstants ship_opc = opc;
-                if (obj->type == 1 || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) {
+                if (obj->type == OBJ_PLAYER || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
                     float shipScale = 0.55f * tactScale;
                     mat4 S_ship;
@@ -622,28 +620,28 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 }
                 
                 /* Specialized Rendering for new types in Vulkan */
-                if (obj->type == 34 || obj->type == 37 || obj->type == 39) { // Dyson, Rupture, Storm (GLOW)
+                if (obj->type == OBJ_DYSON_FRAGMENT || obj->type == OBJ_SUBSPACE_RUPTURE || obj->type == OBJ_ION_STORM) { // Dyson, Rupture, Storm (GLOW)
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
                     ship_opc.usePushColor = 6; // Pulse mode
-                    if (obj->type == 34) { ship_opc.color[0]=1; ship_opc.color[1]=0.8f; ship_opc.color[2]=0.2f; }
-                    if (obj->type == 37) { ship_opc.color[0]=0.6f; ship_opc.color[1]=0; ship_opc.color[2]=0.8f; }
-                    if (obj->type == 39) { ship_opc.color[0]=0.4f; ship_opc.color[1]=0.4f; ship_opc.color[2]=1; }
-                } else if (obj->type == 36) { // Ancient Relic (WIREFRAME)
+                    if (obj->type == OBJ_DYSON_FRAGMENT) { ship_opc.color[0]=1; ship_opc.color[1]=0.8f; ship_opc.color[2]=0.2f; }
+                    if (obj->type == OBJ_SUBSPACE_RUPTURE) { ship_opc.color[0]=0.6f; ship_opc.color[1]=0; ship_opc.color[2]=0.8f; }
+                    if (obj->type == OBJ_ION_STORM) { ship_opc.color[0]=0.4f; ship_opc.color[1]=0.4f; ship_opc.color[2]=1; }
+                } else if (obj->type == OBJ_ANCIENT_RELIC) { // Ancient Relic (WIREFRAME)
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
                     ship_opc.color[0]=0; ship_opc.color[1]=1; ship_opc.color[2]=0.8f;
-                } else if (obj->type >= 40 && obj->type <= 49 && obj->type != 45 && obj->type != 46) {
+                } else if (obj->type >= 40 && obj->type <= 49 && obj->type != OBJ_SINGULARITY && obj->type != OBJ_PLASMA_STORM) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
                     ship_opc.usePushColor = 1;
-                    if (obj->type == 40) { ship_opc.color[0]=1.0f; ship_opc.color[1]=0.5f; ship_opc.color[2]=0.0f; } // Artifact
-                    else if (obj->type == 41) { ship_opc.color[0]=0.0f; ship_opc.color[1]=0.5f; ship_opc.color[2]=1.0f; } // Warp Gate
-                    else if (obj->type == 42) { ship_opc.color[0]=0.8f; ship_opc.color[1]=0.8f; ship_opc.color[2]=1.0f; } // Neutron Star
-                    else if (obj->type == 43) { ship_opc.color[0]=0.5f; ship_opc.color[1]=0.5f; ship_opc.color[2]=0.5f; } // Mega Struct
-                    else if (obj->type == 44) { ship_opc.color[0]=0.2f; ship_opc.color[1]=0.0f; ship_opc.color[2]=0.4f; } // Dark Cloud
-                    else if (obj->type == 47) { ship_opc.color[0]=0.7f; ship_opc.color[1]=0.7f; ship_opc.color[2]=0.0f; } // Orbital Ring
-                    else if (obj->type == 48) { ship_opc.color[0]=0.0f; ship_opc.color[1]=1.0f; ship_opc.color[2]=0.5f; } // Time Anomaly
-                    else if (obj->type == 49) { ship_opc.color[0]=0.9f; ship_opc.color[1]=0.0f; ship_opc.color[2]=0.9f; } // Void Crystal
-                    else if (obj->type >= 100 && obj->type <= 131) { 
-                        int e_id = obj->type - 100;
+                    if (obj->type == OBJ_ALIEN_ARTIFACT) { ship_opc.color[0]=1.0f; ship_opc.color[1]=0.5f; ship_opc.color[2]=0.0f; } // Artifact
+                    else if (obj->type == OBJ_WARP_GATE) { ship_opc.color[0]=0.0f; ship_opc.color[1]=0.5f; ship_opc.color[2]=1.0f; } // Warp Gate
+                    else if (obj->type == OBJ_NEUTRON_STAR) { ship_opc.color[0]=0.8f; ship_opc.color[1]=0.8f; ship_opc.color[2]=1.0f; } // Neutron Star
+                    else if (obj->type == OBJ_MEGA_STRUCTURE) { ship_opc.color[0]=0.5f; ship_opc.color[1]=0.5f; ship_opc.color[2]=0.5f; } // Mega Struct
+                    else if (obj->type == OBJ_DARK_CLOUD) { ship_opc.color[0]=0.2f; ship_opc.color[1]=0.0f; ship_opc.color[2]=0.4f; } // Dark Cloud
+                    else if (obj->type == OBJ_ORBITAL_RING) { ship_opc.color[0]=0.7f; ship_opc.color[1]=0.7f; ship_opc.color[2]=0.0f; } // Orbital Ring
+                    else if (obj->type == OBJ_TIME_ANOMALY) { ship_opc.color[0]=0.0f; ship_opc.color[1]=1.0f; ship_opc.color[2]=0.5f; } // Time Anomaly
+                    else if (obj->type == OBJ_VOID_CRYSTAL) { ship_opc.color[0]=0.9f; ship_opc.color[1]=0.0f; ship_opc.color[2]=0.9f; } // Void Crystal
+                    else if (obj_type_is_exotic(obj->type)) { 
+                        int e_id = obj->type - OBJ_EXOTIC_FIRST;
                         ship_opc.color[0]= (e_id % 3) * 0.5f; 
                         ship_opc.color[1]= (e_id % 4) * 0.33f; 
                         ship_opc.color[2]= (e_id % 5) * 0.25f + 0.2f; 
@@ -657,15 +655,15 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 VkBuffer ib;
                 uint32_t cnt;
                 VkIndexType it = VK_INDEX_TYPE_UINT32;
-                if (obj->type == 27) {
+                if (obj->type == OBJ_TORPEDO) {
                     vb = app->torpVertexBuffer;
                     ib = app->torpIndexBuffer;
                     cnt = sizeof(torpIndices)/4;
-                } else if (obj->type == 4 || obj->type == 5 || (obj->type >= 100 && obj->type <= 131)) {
+                } else if (obj->type == OBJ_STAR || obj->type == OBJ_PLANET || obj_type_is_exotic(obj->type)) {
                     vb = app->sphereVertexBuffer;
                     ib = app->sphereIndexBuffer;
                     cnt = SPHERE_LATS * SPHERE_LONGS * 6;
-                } else if (obj->type == 41 || obj->type == 47) {
+                } else if (obj->type == OBJ_WARP_GATE || obj->type == OBJ_ORBITAL_RING) {
                     vb = app->circleVertexBuffer;
                     ib = app->circleIndexBuffer;
                     cnt = CIRCLE_SEGMENTS * 2;
@@ -677,7 +675,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 vkCmdBindVertexBuffers(cb, 0, 1, &vb, &off);
                 vkCmdBindIndexBuffer(cb, ib, 0, it);
                 vkCmdDrawIndexed(cb, cnt, 1, 0, 0, 0);
-                if (obj->type == 1 || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) {
+                if (obj->type == OBJ_PLAYER || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
                 }
 
@@ -686,7 +684,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 int is_alliance = 0;
                 if (obj->faction == 0 || obj->faction == 1) is_alliance = 1;
 
-                if ((obj->type == 1 || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) && is_alliance) {
+                if ((obj->type == OBJ_PLAYER || (obj->type >= 10 && (obj->type < 100 || obj->type >= 200))) && is_alliance) {
                     /* Our pyramid is scaled by 0.55f * tactScale and its stern is at local X = -0.7288f.
                      * So in opc.model space, the tail is at -0.7288f * 0.55f * tactScale = -0.40084f * tactScale.
                      * We place the quantum core exactly there */

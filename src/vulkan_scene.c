@@ -24,6 +24,7 @@
  * Peer modules: vulkan_device.c, vulkan_render.c, vulkan_main.c.
  */
 
+#include "object_types.h"
 #include "vulkan_device_internal.h"
 #include <time.h>
 
@@ -139,7 +140,7 @@ const uint32_t vectorIndices[] = {
 void getObjectColor(int type, int faction, float* r, float* g, float* b) {
     *r = 1.0f; *g = 1.0f; *b = 1.0f;
     
-    if ((type == 1 || (type >= 10 && type < 200)) && (faction >= 10 && faction <= 20)) {
+    if (obj_type_is_live_ship(type) && (faction >= OBJ_NPC_FIRST && faction <= OBJ_NPC_LAST)) {
         switch(faction) {
             case 10: *r = 1.0f; *g = 0.1f; *b = 0.0f; break; /* Korthian */
             case 11: *r = 0.0f; *g = 1.0f; *b = 0.2f; break; /* Xylari */
@@ -157,20 +158,20 @@ void getObjectColor(int type, int faction, float* r, float* g, float* b) {
         return;
     }
     
-    if (type == 1) { *r = 0.0f; *g = 1.0f; *b = 1.0f; }
-    else if (type == 4) { *r = 1.0f; *g = 1.0f; *b = 0.0f; }
-    else if (type == 5) { *r = 0.0f; *g = 1.0f; *b = 0.5f; }
-    else if (type == 3) { *r = 0.0f; *g = 1.0f; *b = 0.0f; }
-    else if (type == 6) { *r = 0.5f; *g = 0.0f; *b = 1.0f; }
-    else if (type == 29) { *r = 1.0f; *g = 0.0f; *b = 1.0f; }
-    else if (type == 21) { *r = 0.5f; *g = 0.35f; *b = 0.25f; }
-    else if (type == 35) { *r = 0.6f; *g = 0.6f; *b = 0.7f; } /* Hub */
-    else if (type == 23) { *r = 0.3f; *g = 0.3f; *b = 0.35f; } /* Mine */
-    else if (type == 24) { *r = 0.8f; *g = 0.8f; *b = 0.9f; } /* Buoy */
-    else if (type == 25) { *r = 0.4f; *g = 0.4f; *b = 0.45f; } /* Platform */
-    else if (type == 26) { *r = 0.5f; *g = 0.0f; *b = 0.8f; } /* Rift */
-    else if (type == 40) { *r = 0.0f; *g = 0.8f; *b = 0.6f; } /* Artifact */
-    else if (type == 50) { *r = 0.0f; *g = 1.0f; *b = 0.5f; }
+    if (type == OBJ_PLAYER) { *r = 0.0f; *g = 1.0f; *b = 1.0f; }
+    else if (type == OBJ_STAR) { *r = 1.0f; *g = 1.0f; *b = 0.0f; }
+    else if (type == OBJ_PLANET) { *r = 0.0f; *g = 1.0f; *b = 0.5f; }
+    else if (type == OBJ_BASE) { *r = 0.0f; *g = 1.0f; *b = 0.0f; }
+    else if (type == OBJ_BLACK_HOLE) { *r = 0.5f; *g = 0.0f; *b = 1.0f; }
+    else if (type == OBJ_QUASAR) { *r = 1.0f; *g = 0.0f; *b = 1.0f; }
+    else if (type == OBJ_ASTEROID) { *r = 0.5f; *g = 0.35f; *b = 0.25f; }
+    else if (type == OBJ_TRADING_HUB) { *r = 0.6f; *g = 0.6f; *b = 0.7f; } /* Hub */
+    else if (type == OBJ_MINE) { *r = 0.3f; *g = 0.3f; *b = 0.35f; } /* Mine */
+    else if (type == OBJ_BUOY) { *r = 0.8f; *g = 0.8f; *b = 0.9f; } /* Buoy */
+    else if (type == OBJ_PLATFORM) { *r = 0.4f; *g = 0.4f; *b = 0.45f; } /* Platform */
+    else if (type == OBJ_RIFT) { *r = 0.5f; *g = 0.0f; *b = 0.8f; } /* Rift */
+    else if (type == OBJ_ALIEN_ARTIFACT) { *r = 0.0f; *g = 0.8f; *b = 0.6f; } /* Artifact */
+    else if (type == OBJ_SUBSPACE_ANOMALY) { *r = 0.0f; *g = 1.0f; *b = 0.5f; }
 }
 
 void drawWormholeCore_v1(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse, int type) {
@@ -182,7 +183,7 @@ void drawWormholeCore_v1(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, flo
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
     PushConstants pc = {0}; mat4 S_core; mat4_scale(S_core, (vec3){0.35f, 0.35f, 0.35f});
     mat4_multiply(S_core, M_rot, pc.model);
-    if (type == 1) { pc.color[0]=1.0f; pc.color[1]=1.0f; pc.color[2]=1.0f; }
+    if (type == OBJ_PLAYER) { pc.color[0]=1.0f; pc.color[1]=1.0f; pc.color[2]=1.0f; }
     else { pc.color[0]=0.05f; pc.color[1]=0.05f; pc.color[2]=0.05f; }
     pc.color[3]=1.0f; pc.usePushColor=1;
     pc.metallic = 1.0f; pc.roughness = 0.1f;
@@ -210,7 +211,7 @@ void drawWormholeCore_v2(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, flo
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
     PushConstants pc2 = {0}; mat4 S_core; mat4_scale(S_core, (vec3){0.75f, 0.75f, 0.75f});
     mat4_multiply(S_core, M_rot, pc2.model);
-    if (type == 1) { pc2.color[0]=1.0f; pc2.color[1]=1.0f; pc2.color[2]=1.0f; }
+    if (type == OBJ_PLAYER) { pc2.color[0]=1.0f; pc2.color[1]=1.0f; pc2.color[2]=1.0f; }
     else { pc2.color[0]=0.0f; pc2.color[1]=0.0f; pc2.color[2]=0.0f; }
     pc2.color[3]=1.0f; pc2.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc2), &pc2);
@@ -275,7 +276,7 @@ void drawWormhole_v1(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
 
     PushConstants pc = {0};
     pc.time = pulse; pc.usePushColor = 4;
-    if (type == 1) { pc.color[0]=0.2f; pc.color[1]=0.8f; pc.color[2]=1.0f; }
+    if (type == OBJ_PLAYER) { pc.color[0]=0.2f; pc.color[1]=0.8f; pc.color[2]=1.0f; }
     else { pc.color[0]=1.0f; pc.color[1]=0.2f; pc.color[2]=0.8f; }
 
     VkDeviceSize off = 0;
@@ -340,7 +341,7 @@ void drawWormhole_v2(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
 
     PushConstants pc = {0};
     pc.time = pulse; pc.usePushColor = 4;
-    if (type == 1) { pc.color[0]=0.1f; pc.color[1]=0.6f; pc.color[2]=1.0f; }
+    if (type == OBJ_PLAYER) { pc.color[0]=0.1f; pc.color[1]=0.6f; pc.color[2]=1.0f; }
     else { pc.color[0]=1.0f; pc.color[1]=0.1f; pc.color[2]=0.4f; }
 
     VkDeviceSize off = 0;

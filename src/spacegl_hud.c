@@ -33,6 +33,7 @@
 #include <math.h>
 #include <stdatomic.h>
 #include <inttypes.h>
+#include "object_types.h"
 #include "game_config.h"
 #include "shared_state.h"
 #include "../include/network.h"
@@ -77,8 +78,8 @@ const char* get_faction_name(int f) {
  * to any faction: the server leaves the field as an echo of the type (or
  * zero), so it must not be displayed as one. */
 static int object_has_faction(int type) {
-    if (type == 1 || type == 3 || type == 22 || type == 25) return 1;
-    if (type >= FACTION_KORTHIAN && type <= FACTION_HIROGEN) return 1;
+    if (type == OBJ_PLAYER || type == OBJ_BASE || type == OBJ_DERELICT || type == OBJ_PLATFORM) return 1;
+    if (obj_type_is_npc_ship(type)) return 1;
     return 0;
 }
 
@@ -86,57 +87,57 @@ static int object_has_faction(int type) {
  * consistent with the object kind, replacing the old bogus-faction
  * fallback in the tactical table. */
 const char* get_object_class_name(int type) {
-    if (type >= 100 && type <= 131) return "EXOTIC"; /* exotic features */
+    if (obj_type_is_exotic(type)) return "EXOTIC"; /* exotic features */
     switch (type) {
-        case 4:  return "STELLAR";   /* Star */
-        case 8:  return "STELLAR";   /* Pulsar */
-        case 29: return "STELLAR";   /* Quasar */
-        case 42: return "STELLAR";   /* Neutron Star */
-        case 75: return "STELLAR";   /* Brown Dwarf */
-        case 5:  return "PLANETARY"; /* Planet */
-        case 71: return "PLANETARY"; /* Protoplanetary Disk */
-        case 74: return "PLANETARY"; /* Rogue Planet */
-        case 76: return "PLANETARY"; /* Int.St. Object */
-        case 6:  return "RELATIV.";  /* Black Hole */
-        case 45: return "RELATIV.";  /* Quantum Singularity */
-        case 66: return "RELATIV.";  /* Event Horizon */
-        case 68: return "RELATIV.";  /* Grav Lens */
-        case 7:  return "NEBULAR";   /* Nebula */
-        case 44: return "NEBULAR";   /* Dark Matter Cloud */
-        case 51: return "NEBULAR";   /* Diffuse Nebula */
-        case 52: return "NEBULAR";   /* Dark Nebula */
-        case 53: return "NEBULAR";   /* Planetary Nebula */
-        case 55: return "NEBULAR";   /* Giant Molecular Cloud */
-        case 56: return "NEBULAR";   /* Int. Filament */
-        case 57: return "NEBULAR";   /* Int. Bubble */
-        case 58: return "NEBULAR";   /* Bok Globule */
-        case 59: return "NEBULAR";   /* Clump Core */
-        case 85: return "NEBULAR";   /* IGM */
-        case 86: return "NEBULAR";   /* CGM */
-        case 9:  return "DEBRIS";    /* Comet */
-        case 21: return "DEBRIS";    /* Asteroid */
-        case 72: return "DEBRIS";    /* Debris Disk */
-        case 73: return "DEBRIS";    /* Planetesimal */
-        case 23: return "WEAPON";    /* Mine */
-        case 27: return "WEAPON";    /* Torpedo */
-        case 30: return "HOSTILE";   /* Crystalline Entity */
-        case 31: return "HOSTILE";   /* Space Amoeba */
-        case 24: return "STRUCTURE"; /* Comm Buoy */
-        case 34: return "STRUCTURE"; /* Dyson Fragment */
-        case 35: return "STRUCTURE"; /* Trading Hub */
-        case 38: return "STRUCTURE"; /* Satellite */
-        case 41: return "STRUCTURE"; /* Warp Gate */
-        case 43: return "STRUCTURE"; /* Mega Structure */
-        case 47: return "STRUCTURE"; /* Orbital Ring */
-        case 36: return "RELIC";     /* Ancient Relic */
-        case 40: return "RELIC";     /* Alien Artifact */
-        case 26: return "ANOMALY";   /* Spatial Rift */
-        case 37: return "ANOMALY";   /* Subspace Rupture */
-        case 48: return "ANOMALY";   /* Time Anomaly */
-        case 49: return "ANOMALY";   /* Void Crystal */
-        case 50: return "ANOMALY";   /* Subspace Anomaly */
-        case 39: return "STORM";     /* Ion Storm */
-        case 46: return "STORM";     /* Plasma Storm */
+        case OBJ_STAR:  return "STELLAR";   /* Star */
+        case OBJ_PULSAR:  return "STELLAR";   /* Pulsar */
+        case OBJ_QUASAR: return "STELLAR";   /* Quasar */
+        case OBJ_NEUTRON_STAR: return "STELLAR";   /* Neutron Star */
+        case OBJ_BROWN_DWARF: return "STELLAR";   /* Brown Dwarf */
+        case OBJ_PLANET:  return "PLANETARY"; /* Planet */
+        case OBJ_PROTOPLANETARY_DISK: return "PLANETARY"; /* Protoplanetary Disk */
+        case OBJ_ROGUE_PLANET: return "PLANETARY"; /* Rogue Planet */
+        case OBJ_INTERSTELLAR_OBJECT: return "PLANETARY"; /* Int.St. Object */
+        case OBJ_BLACK_HOLE:  return "RELATIV.";  /* Black Hole */
+        case OBJ_SINGULARITY: return "RELATIV.";  /* Quantum Singularity */
+        case OBJ_EVENT_HORIZON: return "RELATIV.";  /* Event Horizon */
+        case OBJ_GRAV_LENS: return "RELATIV.";  /* Grav Lens */
+        case OBJ_NEBULA:  return "NEBULAR";   /* Nebula */
+        case OBJ_DARK_CLOUD: return "NEBULAR";   /* Dark Matter Cloud */
+        case OBJ_DIFFUSE_NEBULA: return "NEBULAR";   /* Diffuse Nebula */
+        case OBJ_DARK_NEBULA: return "NEBULAR";   /* Dark Nebula */
+        case OBJ_PLANETARY_NEBULA: return "NEBULAR";   /* Planetary Nebula */
+        case OBJ_GIANT_MOLECULAR_CLOUD: return "NEBULAR";   /* Giant Molecular Cloud */
+        case OBJ_INTERSTELLAR_FILAMENT: return "NEBULAR";   /* Int. Filament */
+        case OBJ_INTERSTELLAR_BUBBLE: return "NEBULAR";   /* Int. Bubble */
+        case OBJ_BOK_GLOBULE: return "NEBULAR";   /* Bok Globule */
+        case OBJ_CLUMP_CORE: return "NEBULAR";   /* Clump Core */
+        case OBJ_IGM: return "NEBULAR";   /* IGM */
+        case OBJ_CGM: return "NEBULAR";   /* CGM */
+        case OBJ_COMET:  return "DEBRIS";    /* Comet */
+        case OBJ_ASTEROID: return "DEBRIS";    /* Asteroid */
+        case OBJ_DEBRIS_DISK: return "DEBRIS";    /* Debris Disk */
+        case OBJ_PLANETESIMAL: return "DEBRIS";    /* Planetesimal */
+        case OBJ_MINE: return "WEAPON";    /* Mine */
+        case OBJ_TORPEDO: return "WEAPON";    /* Torpedo */
+        case OBJ_CRYSTALLINE_ENTITY: return "HOSTILE";   /* Crystalline Entity */
+        case OBJ_SPACE_AMOEBA: return "HOSTILE";   /* Space Amoeba */
+        case OBJ_BUOY: return "STRUCTURE"; /* Comm Buoy */
+        case OBJ_DYSON_FRAGMENT: return "STRUCTURE"; /* Dyson Fragment */
+        case OBJ_TRADING_HUB: return "STRUCTURE"; /* Trading Hub */
+        case OBJ_SATELLITE: return "STRUCTURE"; /* Satellite */
+        case OBJ_WARP_GATE: return "STRUCTURE"; /* Warp Gate */
+        case OBJ_MEGA_STRUCTURE: return "STRUCTURE"; /* Mega Structure */
+        case OBJ_ORBITAL_RING: return "STRUCTURE"; /* Orbital Ring */
+        case OBJ_ANCIENT_RELIC: return "RELIC";     /* Ancient Relic */
+        case OBJ_ALIEN_ARTIFACT: return "RELIC";     /* Alien Artifact */
+        case OBJ_RIFT: return "ANOMALY";   /* Spatial Rift */
+        case OBJ_SUBSPACE_RUPTURE: return "ANOMALY";   /* Subspace Rupture */
+        case OBJ_TIME_ANOMALY: return "ANOMALY";   /* Time Anomaly */
+        case OBJ_VOID_CRYSTAL: return "ANOMALY";   /* Void Crystal */
+        case OBJ_SUBSPACE_ANOMALY: return "ANOMALY";   /* Subspace Anomaly */
+        case OBJ_ION_STORM: return "STORM";     /* Ion Storm */
+        case OBJ_PLASMA_STORM: return "STORM";     /* Plasma Storm */
         default: return "COSMIC";    /* 54-88: SNR, disks, waves, ... */
     }
 }
@@ -560,25 +561,25 @@ int main(int argc, char** argv) {
 
             SharedObject *obj = &st->objects[o];
             double d = sqrt(pow(obj->shm_x - st->shm_s[0], 2) + pow(obj->shm_y - st->shm_s[1], 2) + pow(obj->shm_z - st->shm_s[2], 2));
-            int col = (obj->id == st->shm_lock_target)?7:(obj->type == 1?1:(obj->type >= 10?3:2));
+            int col = (obj->id == st->shm_lock_target)?7:(obj->type == OBJ_PLAYER?1:(obj->type >= 10?3:2));
 
             const char* type_n = "UNKN";
-            if (obj->type == 1) type_n = "SHIP";
-            else if (obj->type == 3) type_n = "BASE";
-            else if (obj->type == 4) type_n = "STAR";
-            else if (obj->type == 5) type_n = "PLAN";
-            else if (obj->type == 6) type_n = "BHOL";
-            else if (obj->type == 21) type_n = "ASTE";
-            else if (obj->type == 27) type_n = "TORP";
-            else if (obj->type == 51) type_n = "DNEB";
-            else if (obj->type == 52) type_n = "DRKN";
-            else if (obj->type == 53) type_n = "PNEB";
-            else if (obj->type == 54) type_n = "SNRA";
-            else if (obj->type == 55) type_n = "GMC ";
-            else if (obj->type == 56) type_n = "IFIL";
-            else if (obj->type == 57) type_n = "IBUB";
-            else if (obj->type == 58) type_n = "BOKG";
-            else if (obj->type == 59) type_n = "CLMP";
+            if (obj->type == OBJ_PLAYER) type_n = "SHIP";
+            else if (obj->type == OBJ_BASE) type_n = "BASE";
+            else if (obj->type == OBJ_STAR) type_n = "STAR";
+            else if (obj->type == OBJ_PLANET) type_n = "PLAN";
+            else if (obj->type == OBJ_BLACK_HOLE) type_n = "BHOL";
+            else if (obj->type == OBJ_ASTEROID) type_n = "ASTE";
+            else if (obj->type == OBJ_TORPEDO) type_n = "TORP";
+            else if (obj->type == OBJ_DIFFUSE_NEBULA) type_n = "DNEB";
+            else if (obj->type == OBJ_DARK_NEBULA) type_n = "DRKN";
+            else if (obj->type == OBJ_PLANETARY_NEBULA) type_n = "PNEB";
+            else if (obj->type == OBJ_SUPERNOVA_REMNANT) type_n = "SNRA";
+            else if (obj->type == OBJ_GIANT_MOLECULAR_CLOUD) type_n = "GMC ";
+            else if (obj->type == OBJ_INTERSTELLAR_FILAMENT) type_n = "IFIL";
+            else if (obj->type == OBJ_INTERSTELLAR_BUBBLE) type_n = "IBUB";
+            else if (obj->type == OBJ_BOK_GLOBULE) type_n = "BOKG";
+            else if (obj->type == OBJ_CLUMP_CORE) type_n = "CLMP";
             else if (obj->type >= 51 && obj->type <= 63) type_n = "COSM";
             else if (obj->type >= 64 && obj->type <= 88) type_n = "ENVM";
             

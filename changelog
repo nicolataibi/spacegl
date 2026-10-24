@@ -1,3 +1,41 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.04
+  - Object types: new include/object_types.h is the single source of truth
+    for the `type` field of the objects exchanged between server and
+    clients (X-macro list of 84 types plus the 32 exotic compact objects
+    100-131, OBJ_* enum, obj_type_name() and the predicates
+    obj_type_is_npc_ship / is_exotic / is_black_hole / has_ship_hull /
+    is_live_ship). The same mapping was duplicated in the server, the HUD,
+    the OpenGL viewer, the CPU Vulkan path and the GPU-driven builder, and a
+    type missing from one of them silently fell into the generic cosmic
+    look: this is how the derelict (type 22) became a polyhedron instead of
+    the grey ship hull. logic.c, galaxy.c (exotic names), the HUD,
+    spacegl_3dview, vulkan_render, vulkan_scene and telemetry now use the
+    OBJ_* names instead of bare numbers; get_species_name() no longer
+    carries its own outdated numbering (28 = Dyson Fragment, ...) and falls
+    back to obj_type_name().
+  - Vulkan GDD: gdd_visual_for() classifies ships with
+    obj_type_has_ship_hull() (player, NPC 10-20, derelict 22) in a single
+    place; the dead 210-255 case labels, never emitted by the server, and
+    the type < 200 test that contradicted the "10..255" comment are gone.
+    An object type that is not in object_types.h is still drawn (generic
+    cosmic look) but now logs a rate-limited warning instead of failing
+    silently.
+  - Vulkan GDD: stars follow the 2026.10.24.02 spectral classes (ship_class
+    0..6 = O,B,A,F,G,K,M): the GPU-driven builder still used the old
+    4-class palette; builder and CPU Vulkan path now share one palette
+    (obj_star_class_rgb() in object_types.h, same colours as drawStar in
+    the OpenGL viewer), out-of-range classes fall back to G.
+  - OpenGL viewer: the torpedo is type 27 as in the HUD, the CPU Vulkan path
+    and the GDD builder (the viewer used 28 for it and drew type 27 as an
+    alien artifact).
+  - Tests: gdd_contract_test gains test_object_types (unique values, every
+    type named, every non-cosmic type has a dedicated visual, hull and
+    exotic types agree with the builder, unknown types stay visible), the star
+    spectral palette test and the
+    exhaustive ship audit (1092 type/faction/class/cloak combinations); new
+    object_types_lint test rejects bare numeric NetObject types in logic.c.
+    The suite is now 18 tests; DEVELOPMENT.md and spacegl.spec updated.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.03
   - Docs: LORE.md gains an "Objects Outside the Main Sequence" section in the
     Galactic Encyclopedia, next to the Main-Sequence Stars one. It maps the

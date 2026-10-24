@@ -86,7 +86,7 @@ void drawHUD(int obj_idx) {
     GLdouble winX, winY, winZ;
 
     /* Project slightly above the ship (Y is height in viewer) */
-    float v_off = (type == 21) ? 0.4 : 0.8;
+    float v_off = (type == OBJ_ASTEROID) ? 0.4 : 0.8;
     if (gluProject(x, y + v_off, z, hud_model, hud_proj, hud_view, &winX, &winY, &winZ) == GL_TRUE) {
         /* Check if behind camera or too close to clip plane */
         if (winZ < 0.0 || winZ > 1.0) return;
@@ -100,7 +100,7 @@ void drawHUD(int obj_idx) {
         /* Draw Name/ID - Use a fixed offset from winY to keep it above health bar */
         char buf[128];
         bool handled_custom = false;
-        if (type == 1) {
+        if (type == OBJ_PLAYER) {
             /* Player: Faction - Class (Captain) */
             if (obj->faction == 0) { // FACTION_ALLIANCE
                 sprintf(buf, "Alliance - %s (%s)", getClassName(obj->ship_class), obj->name);
@@ -110,7 +110,7 @@ void drawHUD(int obj_idx) {
             glColor3f(0.0, 1.0, 1.0); /* Cyan for player */
         } else if (type >= 10 && type < 21) {
             /* NPC: Species [ID] */
-            if (type == 12) { /* Swarm Special */
+            if (type == OBJ_SHIP_SWARM) { /* Swarm Special */
                 sprintf(buf, "Swarm CUBE [%d]", id);
                 glColor3f(0.0, 1.0, 0.0); /* Green for Swarm */
             } else {
@@ -167,7 +167,7 @@ void drawHUD(int obj_idx) {
                 } break;
                 case 30: 
                 case 31: {
-                    type_name = (type == 30) ? "CRYSTALLINE ENTITY" : "SPACE AMOEBA";
+                    type_name = (type == OBJ_CRYSTALLINE_ENTITY) ? "CRYSTALLINE ENTITY" : "SPACE AMOEBA";
                     glColor3f(1.0, 1.0, 1.0);
                     sprintf(buf, "%s [%d]", type_name, id);
                 } break;
@@ -185,7 +185,7 @@ void drawHUD(int obj_idx) {
         for(size_t i=0; i<strlen(buf); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, buf[i]);
 
         /* Draw Health Bar (Ships, Bases, Platforms, Monsters) */
-        if (type == 1 || type == 3 || (type >= 10 && type <= 20) || type == 22 || type == 25 || type >= 30) {
+        if (type == OBJ_PLAYER || type == OBJ_BASE || obj_type_is_npc_ship(type) || type == OBJ_DERELICT || type == OBJ_PLATFORM || type >= 30) {
             double w = QUADRANT_SIZE;
             double h = 4.0;
             double bar = (hp / (double)YIELD_HARVEST_MAX) * w;

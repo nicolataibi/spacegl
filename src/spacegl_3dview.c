@@ -18,6 +18,7 @@
  */
 
 #define _DEFAULT_SOURCE
+#include "object_types.h"
 #include "gl_loader.h"
 #include <GLFW/glfw3.h>
 #include "glut_compat.h"
@@ -1488,7 +1489,7 @@ void display() {
         /* Find a star for dynamic lighting */
         double lX = 50.0, lY = 50.0, lZ = 50.0; /* Default distant light */
         for(int i=0; i<MAX_OBJECTS; i++) {
-            if (objects[i].type == 4) {
+            if (objects[i].type == OBJ_STAR) {
                 lX = objects[i].x; lY = objects[i].y; lZ = objects[i].z;
                 break;
             }
@@ -1584,7 +1585,7 @@ void display() {
 
         /* Trails */
         for(int k=0; k<MAX_OBJECTS; k++) {
-            if (objects[k].type == 1 || objects[k].type >= 10) drawShipTrail(k);
+            if (objects[k].type == OBJ_PLAYER || objects[k].type >= 10) drawShipTrail(k);
         }
 
         /* Objects (Solids) */
@@ -1616,7 +1617,7 @@ void display() {
                 glLineWidth(1.0);
             }
 
-            if (objects[i].type == 1) { 
+            if (objects[i].type == OBJ_PLAYER) { 
                 /* Apply materialization glow if emerging from wormhole (Local player is always at index 0) */
                 bool is_emerging = (g_jump_arrival.timer > 180 && i == 0);
                 
@@ -1671,14 +1672,14 @@ void display() {
                 
                 bool use_hull = false;
                 int t = objects[i].type;
-                if (t == 3 || t == 10 || t == 21 || t == 22 || t == 23 || t == 24 || t == 25 || (t >= 11 && t <= 20)) use_hull = true;
+                if (t == OBJ_BASE || t == OBJ_SHIP_KORTHIAN || t == OBJ_ASTEROID || t == OBJ_DERELICT || t == OBJ_MINE || t == OBJ_BUOY || t == OBJ_PLATFORM || (t > OBJ_NPC_FIRST && t <= OBJ_NPC_LAST)) use_hull = true;
                 
                 if (use_hull && !g_is_cloaked_rendering) glUseProgram(hullShaderProgram);
                 switch(t) {
-                    case 3: drawStarbase(0,0,0, objects[i].faction); break;
-                    case 4: drawStar(0,0,0, objects[i].ship_class); break; /* ship_class = spectral class 0..6 (O,B,A,F,G,K,M) */
-                    case 5: drawPlanet(0,0,0); break;
-                    case 6: drawAccretionDisk(0,0,0, pulse); drawBlackHole(0,0,0); break;
+                    case OBJ_BASE: drawStarbase(0,0,0, objects[i].faction); break;
+                    case OBJ_STAR: drawStar(0,0,0, objects[i].ship_class); break; /* ship_class = spectral class 0..6 (O,B,A,F,G,K,M) */
+                    case OBJ_PLANET: drawPlanet(0,0,0); break;
+                    case OBJ_BLACK_HOLE: drawAccretionDisk(0,0,0, pulse); drawBlackHole(0,0,0); break;
                     case 100: case 101: case 102: case 103: case 104: case 105: case 106: case 107:
                     case 108: case 109: case 110: case 111: case 112: case 113: case 114: case 115:
                     case 116: case 117: case 118: case 119: case 120: case 121: case 122: case 123:
@@ -1699,49 +1700,49 @@ void display() {
                         drawGlow(4.0 + (e_id % 3), r, g, b, 0.6);
                         break;
                     }
-                    case 7: drawStellarNebula(0,0,0, objects[i].ship_class); break;
-                    case 8: drawPulsar(0,0,0); break;
-                    case 9: drawComet(0,0,0); break;
-                    case 51: drawStellarNebula(0,0,0, 3); break; // Diffuse
-                    case 52: drawStellarNebula(0,0,0, 2); break; // Dark
-                    case 53: drawStellarNebula(0,0,0, 4); break; // Planetary
-                    case 54: drawStellarNebula(0,0,0, 4); break; // SNR
-                    case 55: drawStellarNebula(0,0,0, 5); break; // GMC
-                    case 56: drawInterstellarFilament(); break;
-                    case 57: drawInterstellarBubble(0,0,0, pulse); break;
-                    case 58: drawBokGlobule(0,0,0); break;
-                    case 59: drawClumpCore(0,0,0); break;
-                    case 60: drawAccretionDisk(0,0,0, pulse); break;
-                    case 61: drawRelativisticJet(0,0,0, pulse); break;
-                    case 62: drawShockWave(0,0,0, pulse); break;
-                    case 63: drawStellarBowShock(0,0,0, pulse); break;
-                    case 64: drawCosmicVoid(0,0,0); break;
-                    case 65: drawCosmicFilament(0,0,0, pulse); break;
-                    case 66: drawEventHorizon(0,0,0); break;
-                    case 67: drawKilonova(0,0,0, pulse); break;
-                    case 68: drawGravLens(0,0,0, pulse); break;
-                    case 69: drawGRB(0,0,0, pulse); break;
-                    case 70: drawGravWave(0,0,0, pulse); break;
-                    case 71: drawProtoplanetaryDisk(0,0,0, pulse); break;
-                    case 72: drawDebrisDisk(0,0,0, pulse); break;
-                    case 73: drawPlanetesimal(0,0,0, pulse); break;
-                    case 74: drawRoguePlanet(0,0,0); break;
-                    case 75: drawBrownDwarf(0,0,0); break;
-                    case 76: drawISO(0,0,0, pulse); break;
-                    case 77: drawMagReconn(0,0,0, pulse); break;
-                    case 78: drawCurrentSheet(0,0,0, pulse); break;
-                    case 79: drawHeliosphere(0,0,0); break;
-                    case 80: drawTermShock(0,0,0, pulse); break;
-                    case 81: drawMagnetosphere(0,0,0, pulse); break;
-                    case 82: drawCosmicString(0,0,0, pulse); break;
-                    case 83: drawDomainWall(0,0,0, pulse); break;
-                    case 84: drawDMHalo(0,0,0); break;
-                    case 85: drawIGM(0,0,0, pulse); break;
-                    case 86: drawCGM(0,0,0, pulse); break;
-                    case 87: drawLymanAlpha(0,0,0, pulse); break;
-                    case 88: drawCMB(0,0,0); break;
-                    case 10: drawKorthian(0,0,0); break;
-                    case 21: 
+                    case OBJ_NEBULA: drawStellarNebula(0,0,0, objects[i].ship_class); break;
+                    case OBJ_PULSAR: drawPulsar(0,0,0); break;
+                    case OBJ_COMET: drawComet(0,0,0); break;
+                    case OBJ_DIFFUSE_NEBULA: drawStellarNebula(0,0,0, 3); break; // Diffuse
+                    case OBJ_DARK_NEBULA: drawStellarNebula(0,0,0, 2); break; // Dark
+                    case OBJ_PLANETARY_NEBULA: drawStellarNebula(0,0,0, 4); break; // Planetary
+                    case OBJ_SUPERNOVA_REMNANT: drawStellarNebula(0,0,0, 4); break; // SNR
+                    case OBJ_GIANT_MOLECULAR_CLOUD: drawStellarNebula(0,0,0, 5); break; // GMC
+                    case OBJ_INTERSTELLAR_FILAMENT: drawInterstellarFilament(); break;
+                    case OBJ_INTERSTELLAR_BUBBLE: drawInterstellarBubble(0,0,0, pulse); break;
+                    case OBJ_BOK_GLOBULE: drawBokGlobule(0,0,0); break;
+                    case OBJ_CLUMP_CORE: drawClumpCore(0,0,0); break;
+                    case OBJ_ACCRETION_DISK: drawAccretionDisk(0,0,0, pulse); break;
+                    case OBJ_RELATIVISTIC_JET: drawRelativisticJet(0,0,0, pulse); break;
+                    case OBJ_SHOCK_WAVE: drawShockWave(0,0,0, pulse); break;
+                    case OBJ_STELLAR_BOW_SHOCK: drawStellarBowShock(0,0,0, pulse); break;
+                    case OBJ_COSMIC_VOID: drawCosmicVoid(0,0,0); break;
+                    case OBJ_COSMIC_FILAMENT: drawCosmicFilament(0,0,0, pulse); break;
+                    case OBJ_EVENT_HORIZON: drawEventHorizon(0,0,0); break;
+                    case OBJ_KILONOVA: drawKilonova(0,0,0, pulse); break;
+                    case OBJ_GRAV_LENS: drawGravLens(0,0,0, pulse); break;
+                    case OBJ_GRB: drawGRB(0,0,0, pulse); break;
+                    case OBJ_GRAV_WAVE: drawGravWave(0,0,0, pulse); break;
+                    case OBJ_PROTOPLANETARY_DISK: drawProtoplanetaryDisk(0,0,0, pulse); break;
+                    case OBJ_DEBRIS_DISK: drawDebrisDisk(0,0,0, pulse); break;
+                    case OBJ_PLANETESIMAL: drawPlanetesimal(0,0,0, pulse); break;
+                    case OBJ_ROGUE_PLANET: drawRoguePlanet(0,0,0); break;
+                    case OBJ_BROWN_DWARF: drawBrownDwarf(0,0,0); break;
+                    case OBJ_INTERSTELLAR_OBJECT: drawISO(0,0,0, pulse); break;
+                    case OBJ_MAG_RECONNECTION: drawMagReconn(0,0,0, pulse); break;
+                    case OBJ_CURRENT_SHEET: drawCurrentSheet(0,0,0, pulse); break;
+                    case OBJ_HELIOSPHERE: drawHeliosphere(0,0,0); break;
+                    case OBJ_TERMINATION_SHOCK: drawTermShock(0,0,0, pulse); break;
+                    case OBJ_MAGNETOSPHERE: drawMagnetosphere(0,0,0, pulse); break;
+                    case OBJ_COSMIC_STRING: drawCosmicString(0,0,0, pulse); break;
+                    case OBJ_DOMAIN_WALL: drawDomainWall(0,0,0, pulse); break;
+                    case OBJ_DM_HALO: drawDMHalo(0,0,0); break;
+                    case OBJ_IGM: drawIGM(0,0,0, pulse); break;
+                    case OBJ_CGM: drawCGM(0,0,0, pulse); break;
+                    case OBJ_LYMAN_ALPHA: drawLymanAlpha(0,0,0, pulse); break;
+                    case OBJ_CMB: drawCMB(0,0,0); break;
+                    case OBJ_SHIP_KORTHIAN: drawKorthian(0,0,0); break;
+                    case OBJ_ASTEROID: 
                         if (asteroidInstanceCount < 1000) {
                             /* World position (quadrant-centered): must match the
                                position used by drawHUD()/gluProject for the label,
@@ -1753,43 +1754,42 @@ void display() {
                             asteroidData[asteroidInstanceCount].rot = pulse * 2.0 + (objects[i].id * 0.1);
                             asteroidInstanceCount++;
                         } break;
-                    case 22: drawDerelict(objects[i].ship_class, objects[i].faction); break;
-                    case 23: drawMine(0,0,0); break;
-                    case 24: drawBuoy(0,0,0); break;
-                    case 25: drawPlatform(0,0,0); break;
-                    case 26: drawRift(0,0,0); break;
-                    case 30: drawMonster(30,0,0,0); break;
-                    case 31: drawMonster(31,0,0,0); break;
-                    case 11: drawXylari(0,0,0); break;
-                    case 12: drawSwarm(0,0,0); break;
-                    case 13: drawVesperian(0,0,0); break;
-                    case 14: drawAscendant(0,0,0); break;
-                    case 15: drawQuarzite(0,0,0); break;
-                    case 16: drawSaurian(0,0,0); break;
-                    case 17: drawGilded(0,0,0); break;
-                    case 18: drawFluidicVoid(0,0,0); break;
-                    case 19: drawCryos(0,0,0); break;
-                    case 20: drawApex(0,0,0); break;
-                    case 27: { drawAlienArtifact(0,0,0); break; }
-                    case 28: { /* Torpedo: Skip rendering here, handled by drawTorpedo() */ break; }
-                    case 29: drawQuasar(0,0,0, objects[i].ship_class); break;
-                    case 34: drawDysonFragment(0,0,0); break;
-                    case 35: drawTradingHub(0,0,0); break;
-                    case 36: drawAncientRelic(0,0,0); break;
-                    case 37: drawSubspaceRupture(0,0,0); break;
-                    case 38: drawSatellite(0,0,0); break;
-                    case 39: drawIonStorm(0,0,0); break;
-                    case 40: drawAlienArtifact(0,0,0); break;
-                    case 41: drawWarpGate(0,0,0); break;
-                    case 42: drawNeutronStar(0,0,0); break;
-                    case 43: drawMegaStructure(0,0,0); break;
-                    case 44: drawDarkCloud(0,0,0); break;
-                    case 45: drawSingularity(0,0,0); break;
-                    case 46: drawPlasmaStorm(0,0,0); break;
-                    case 47: drawOrbitalRing(0,0,0); break;
-                    case 48: drawTimeAnomaly(0,0,0); break;
-                    case 49: drawVoidCrystal(0,0,0); break;
-                    case 50: drawSubspaceAnomaly(0,0,0); break;
+                    case OBJ_DERELICT: drawDerelict(objects[i].ship_class, objects[i].faction); break;
+                    case OBJ_MINE: drawMine(0,0,0); break;
+                    case OBJ_BUOY: drawBuoy(0,0,0); break;
+                    case OBJ_PLATFORM: drawPlatform(0,0,0); break;
+                    case OBJ_RIFT: drawRift(0,0,0); break;
+                    case OBJ_CRYSTALLINE_ENTITY: drawMonster(30,0,0,0); break;
+                    case OBJ_SPACE_AMOEBA: drawMonster(31,0,0,0); break;
+                    case OBJ_SHIP_XYLARI: drawXylari(0,0,0); break;
+                    case OBJ_SHIP_SWARM: drawSwarm(0,0,0); break;
+                    case OBJ_SHIP_VESPERIAN: drawVesperian(0,0,0); break;
+                    case OBJ_SHIP_ASCENDANT: drawAscendant(0,0,0); break;
+                    case OBJ_SHIP_QUARZITE: drawQuarzite(0,0,0); break;
+                    case OBJ_SHIP_SAURIAN: drawSaurian(0,0,0); break;
+                    case OBJ_SHIP_GILDED: drawGilded(0,0,0); break;
+                    case OBJ_SHIP_FLUIDIC_VOID: drawFluidicVoid(0,0,0); break;
+                    case OBJ_SHIP_CRYOS: drawCryos(0,0,0); break;
+                    case OBJ_SHIP_APEX: drawApex(0,0,0); break;
+                    case OBJ_TORPEDO: { /* Skip rendering here, handled by drawTorpedo() */ break; }
+                    case OBJ_QUASAR: drawQuasar(0,0,0, objects[i].ship_class); break;
+                    case OBJ_DYSON_FRAGMENT: drawDysonFragment(0,0,0); break;
+                    case OBJ_TRADING_HUB: drawTradingHub(0,0,0); break;
+                    case OBJ_ANCIENT_RELIC: drawAncientRelic(0,0,0); break;
+                    case OBJ_SUBSPACE_RUPTURE: drawSubspaceRupture(0,0,0); break;
+                    case OBJ_SATELLITE: drawSatellite(0,0,0); break;
+                    case OBJ_ION_STORM: drawIonStorm(0,0,0); break;
+                    case OBJ_ALIEN_ARTIFACT: drawAlienArtifact(0,0,0); break;
+                    case OBJ_WARP_GATE: drawWarpGate(0,0,0); break;
+                    case OBJ_NEUTRON_STAR: drawNeutronStar(0,0,0); break;
+                    case OBJ_MEGA_STRUCTURE: drawMegaStructure(0,0,0); break;
+                    case OBJ_DARK_CLOUD: drawDarkCloud(0,0,0); break;
+                    case OBJ_SINGULARITY: drawSingularity(0,0,0); break;
+                    case OBJ_PLASMA_STORM: drawPlasmaStorm(0,0,0); break;
+                    case OBJ_ORBITAL_RING: drawOrbitalRing(0,0,0); break;
+                    case OBJ_TIME_ANOMALY: drawTimeAnomaly(0,0,0); break;
+                    case OBJ_VOID_CRYSTAL: drawVoidCrystal(0,0,0); break;
+                    case OBJ_SUBSPACE_ANOMALY: drawSubspaceAnomaly(0,0,0); break;
                 }
                 glPopMatrix();
             }
@@ -2015,18 +2015,18 @@ void display() {
             glColor3f(0.0, 1.0, 1.0); /* Bright Cyan */
             const char* st_name = "ACTIVE";
             switch(g_nav_state) {
-                case 1:  st_name = "ALIGNING"; break;
+                case OBJ_PLAYER:  st_name = "ALIGNING"; break;
                 case 2:  st_name = "HYPERDRIVE"; break;
-                case 3:  st_name = "REALIGNING"; break;
-                case 4:  st_name = "IMPULSE"; break;
-                case 5:  st_name = "CHASING"; break;
-                case 6:  st_name = "ALIGNING (IMP)"; break;
-                case 7:  st_name = "WORMHOLE JUMP"; break;
-                case 8:  st_name = "RE-ORIENTING"; break;
-                case 9:  st_name = "DOCKING SEQUENCE"; break;
-                case 10: st_name = "DRIFTING (EMERGENCY)"; break;
-                case 11: st_name = "ORBITING"; break;
-                case 12: st_name = "GRAV-SLINGSHOT"; break;
+                case OBJ_BASE:  st_name = "REALIGNING"; break;
+                case OBJ_STAR:  st_name = "IMPULSE"; break;
+                case OBJ_PLANET:  st_name = "CHASING"; break;
+                case OBJ_BLACK_HOLE:  st_name = "ALIGNING (IMP)"; break;
+                case OBJ_NEBULA:  st_name = "WORMHOLE JUMP"; break;
+                case OBJ_PULSAR:  st_name = "RE-ORIENTING"; break;
+                case OBJ_COMET:  st_name = "DOCKING SEQUENCE"; break;
+                case OBJ_SHIP_KORTHIAN: st_name = "DRIFTING (EMERGENCY)"; break;
+                case OBJ_SHIP_XYLARI: st_name = "ORBITING"; break;
+                case OBJ_SHIP_SWARM: st_name = "GRAV-SLINGSHOT"; break;
                 default: st_name = "ACTIVE"; break;
             }
             sprintf(buf, "SHIP STATUS: %s", st_name);
@@ -2311,106 +2311,106 @@ void display() {
         
         for(int i=0; i<MAX_OBJECTS; i++) {
             if (objects[i].id != 0 && objects[i].type != 0) {
-                if (objects[i].type == 1) glColor3f(0, 1, 1);
+                if (objects[i].type == OBJ_PLAYER) glColor3f(0, 1, 1);
                 else if (objects[i].type >= 10 && objects[i].type <= 20) glColor3f(1, 0, 0);
                 else glColor3f(0.8, 0.8, 0.8);
 
                 const char* t_name = "Object";
 
                 switch (objects[i].type) {
-                    case 1: t_name = "PLAYER"; break;
-                    case 3: t_name = "BASE"; break;
-                    case 4: t_name = "STAR"; break;
-                    case 5: t_name = "PLANET"; break;
-                    case 6: t_name = "BLACKHOLE"; break;
-                    case 10: t_name = "Korthian"; break;
-                    case 11: t_name = "Xylari"; break;
-                    case 12: t_name = "Swarm"; break;
-                    case 13: t_name = "Vesperian"; break;
-                    case 14: t_name = "Ascendant"; break;
-                    case 15: t_name = "Quarzite"; break;
-                    case 16: t_name = "Saurian"; break;
-                    case 17: t_name = "Gilded"; break;
-                    case 18: t_name = "Fluidic Void"; break;
-                    case 19: t_name = "Cryos"; break;
-                    case 20: t_name = "Apex"; break;
-                    case 21: t_name = "ASTEROID"; break;
-                    case 22: t_name = "DERELICT"; break;
-                    case 24: t_name = "BUOY"; break;
-                    case 25: t_name = "PLATFORM"; break;
-                    case 29: t_name = "QUASAR"; break;
-                    case 30: t_name = "ENTITY"; break;
-                    case 31: t_name = "AMOEBA"; break;
-                    case 51: t_name = "DIFFUSE NEBULA"; break;
-                    case 52: t_name = "DARK NEBULA"; break;
-                    case 53: t_name = "PLANETARY NEBULA"; break;
-                    case 54: t_name = "SNR"; break;
-                    case 55: t_name = "GMC"; break;
-                    case 56: t_name = "INT FILAMENT"; break;
-                    case 57: t_name = "INT BUBBLE"; break;
-                    case 58: t_name = "BOK GLOBULE"; break;
-                    case 59: t_name = "CLUMP CORE"; break;
-                    case 60: t_name = "ACCRETION DISK"; break;
-                    case 61: t_name = "RELATIVISTIC JET"; break;
-                    case 62: t_name = "SHOCK WAVE"; break;
-                    case 63: t_name = "BOW SHOCK"; break;
-                    case 64: t_name = "COSMIC VOID"; break;
-                    case 65: t_name = "COSMIC FILAMENT"; break;
-                    case 66: t_name = "EVENT HORIZON"; break;
-                    case 67: t_name = "KILONOVA"; break;
-                    case 68: t_name = "GRAV LENS"; break;
-                    case 69: t_name = "GRB"; break;
-                    case 70: t_name = "GRAV WAVE"; break;
-                    case 71: t_name = "PROTOPLANET DISK"; break;
-                    case 72: t_name = "DEBRIS DISK"; break;
-                    case 73: t_name = "PLANETESIMAL"; break;
-                    case 74: t_name = "ROGUE PLANET"; break;
-                    case 75: t_name = "BROWN DWARF"; break;
-                    case 76: t_name = "ISO"; break;
-                    case 77: t_name = "MAG RECONN"; break;
-                    case 78: t_name = "CURRENT SHEET"; break;
-                    case 79: t_name = "HELIOSPHERE"; break;
-                    case 80: t_name = "TERM SHOCK"; break;
-                    case 81: t_name = "MAGNETOSPHERE"; break;
-                    case 82: t_name = "COSMIC STRING"; break;
-                    case 83: t_name = "DOMAIN WALL"; break;
-                    case 84: t_name = "DM HALO"; break;
-                    case 85: t_name = "IGM"; break;
-                    case 86: t_name = "CGM"; break;
-                    case 87: t_name = "LYMAN ALPHA"; break;
-                    case 88: t_name = "CMB"; break;
-                    case 50: t_name = "ANOMALY"; break;
+                    case OBJ_PLAYER: t_name = "PLAYER"; break;
+                    case OBJ_BASE: t_name = "BASE"; break;
+                    case OBJ_STAR: t_name = "STAR"; break;
+                    case OBJ_PLANET: t_name = "PLANET"; break;
+                    case OBJ_BLACK_HOLE: t_name = "BLACKHOLE"; break;
+                    case OBJ_SHIP_KORTHIAN: t_name = "Korthian"; break;
+                    case OBJ_SHIP_XYLARI: t_name = "Xylari"; break;
+                    case OBJ_SHIP_SWARM: t_name = "Swarm"; break;
+                    case OBJ_SHIP_VESPERIAN: t_name = "Vesperian"; break;
+                    case OBJ_SHIP_ASCENDANT: t_name = "Ascendant"; break;
+                    case OBJ_SHIP_QUARZITE: t_name = "Quarzite"; break;
+                    case OBJ_SHIP_SAURIAN: t_name = "Saurian"; break;
+                    case OBJ_SHIP_GILDED: t_name = "Gilded"; break;
+                    case OBJ_SHIP_FLUIDIC_VOID: t_name = "Fluidic Void"; break;
+                    case OBJ_SHIP_CRYOS: t_name = "Cryos"; break;
+                    case OBJ_SHIP_APEX: t_name = "Apex"; break;
+                    case OBJ_ASTEROID: t_name = "ASTEROID"; break;
+                    case OBJ_DERELICT: t_name = "DERELICT"; break;
+                    case OBJ_BUOY: t_name = "BUOY"; break;
+                    case OBJ_PLATFORM: t_name = "PLATFORM"; break;
+                    case OBJ_QUASAR: t_name = "QUASAR"; break;
+                    case OBJ_CRYSTALLINE_ENTITY: t_name = "ENTITY"; break;
+                    case OBJ_SPACE_AMOEBA: t_name = "AMOEBA"; break;
+                    case OBJ_DIFFUSE_NEBULA: t_name = "DIFFUSE NEBULA"; break;
+                    case OBJ_DARK_NEBULA: t_name = "DARK NEBULA"; break;
+                    case OBJ_PLANETARY_NEBULA: t_name = "PLANETARY NEBULA"; break;
+                    case OBJ_SUPERNOVA_REMNANT: t_name = "SNR"; break;
+                    case OBJ_GIANT_MOLECULAR_CLOUD: t_name = "GMC"; break;
+                    case OBJ_INTERSTELLAR_FILAMENT: t_name = "INT FILAMENT"; break;
+                    case OBJ_INTERSTELLAR_BUBBLE: t_name = "INT BUBBLE"; break;
+                    case OBJ_BOK_GLOBULE: t_name = "BOK GLOBULE"; break;
+                    case OBJ_CLUMP_CORE: t_name = "CLUMP CORE"; break;
+                    case OBJ_ACCRETION_DISK: t_name = "ACCRETION DISK"; break;
+                    case OBJ_RELATIVISTIC_JET: t_name = "RELATIVISTIC JET"; break;
+                    case OBJ_SHOCK_WAVE: t_name = "SHOCK WAVE"; break;
+                    case OBJ_STELLAR_BOW_SHOCK: t_name = "BOW SHOCK"; break;
+                    case OBJ_COSMIC_VOID: t_name = "COSMIC VOID"; break;
+                    case OBJ_COSMIC_FILAMENT: t_name = "COSMIC FILAMENT"; break;
+                    case OBJ_EVENT_HORIZON: t_name = "EVENT HORIZON"; break;
+                    case OBJ_KILONOVA: t_name = "KILONOVA"; break;
+                    case OBJ_GRAV_LENS: t_name = "GRAV LENS"; break;
+                    case OBJ_GRB: t_name = "GRB"; break;
+                    case OBJ_GRAV_WAVE: t_name = "GRAV WAVE"; break;
+                    case OBJ_PROTOPLANETARY_DISK: t_name = "PROTOPLANET DISK"; break;
+                    case OBJ_DEBRIS_DISK: t_name = "DEBRIS DISK"; break;
+                    case OBJ_PLANETESIMAL: t_name = "PLANETESIMAL"; break;
+                    case OBJ_ROGUE_PLANET: t_name = "ROGUE PLANET"; break;
+                    case OBJ_BROWN_DWARF: t_name = "BROWN DWARF"; break;
+                    case OBJ_INTERSTELLAR_OBJECT: t_name = "ISO"; break;
+                    case OBJ_MAG_RECONNECTION: t_name = "MAG RECONN"; break;
+                    case OBJ_CURRENT_SHEET: t_name = "CURRENT SHEET"; break;
+                    case OBJ_HELIOSPHERE: t_name = "HELIOSPHERE"; break;
+                    case OBJ_TERMINATION_SHOCK: t_name = "TERM SHOCK"; break;
+                    case OBJ_MAGNETOSPHERE: t_name = "MAGNETOSPHERE"; break;
+                    case OBJ_COSMIC_STRING: t_name = "COSMIC STRING"; break;
+                    case OBJ_DOMAIN_WALL: t_name = "DOMAIN WALL"; break;
+                    case OBJ_DM_HALO: t_name = "DM HALO"; break;
+                    case OBJ_IGM: t_name = "IGM"; break;
+                    case OBJ_CGM: t_name = "CGM"; break;
+                    case OBJ_LYMAN_ALPHA: t_name = "LYMAN ALPHA"; break;
+                    case OBJ_CMB: t_name = "CMB"; break;
+                    case OBJ_SUBSPACE_ANOMALY: t_name = "ANOMALY"; break;
                     default: t_name = "UNKNOWN"; break;
                 }
                 
-                if (objects[i].type == 1) sprintf(buf, "[%03d] %s", objects[i].id, objects[i].name);
-                else if (objects[i].type == 10 || (objects[i].type >= 11 && objects[i].type <= 20) || objects[i].type == 22) {
+                if (objects[i].type == OBJ_PLAYER) sprintf(buf, "[%03d] %s", objects[i].id, objects[i].name);
+                else if (objects[i].type == OBJ_SHIP_KORTHIAN || (objects[i].type >= 11 && objects[i].type <= 20) || objects[i].type == OBJ_DERELICT) {
                     if (objects[i].name[0] != '\0') sprintf(buf, "[%03d] %s: %s", objects[i].id, t_name, objects[i].name);
                     else sprintf(buf, "[%03d] %s Vessel", objects[i].id, t_name);
                 }
-                else if (objects[i].type == 4) {
+                else if (objects[i].type == OBJ_STAR) {
                     const char* st_cls[] = {"O", "B", "A", "F", "G", "K", "M"};
                     int c_idx = objects[i].ship_class; if(c_idx<0)c_idx=0; if(c_idx>6)c_idx=6;
                     sprintf(buf, "[%03d] STAR: Class %s", objects[i].id, st_cls[c_idx]);
-                } else if (objects[i].type == 5) {
+                } else if (objects[i].type == OBJ_PLANET) {
                     const char* p_res[] = {"None", "Dil", "Tri", "Ver", "Per", "Anti", "Xen"};
                     int r_idx = objects[i].ship_class; if(r_idx<0)r_idx=0; if(r_idx>6)r_idx=6;
                     sprintf(buf, "[%03d] PLANET: %s", objects[i].id, p_res[r_idx]);
-                } else if (objects[i].type == 29) {
+                } else if (objects[i].type == OBJ_QUASAR) {
                     const char* q_cls[] = {"Radio-loud", "Radio-quiet", "BAL", "Type 2", "Red", "OVV", "Weak-Em"};
                     int q_idx = objects[i].ship_class; if(q_idx<0) q_idx=0; if(q_idx>6) q_idx=6;
                     sprintf(buf, "[%03d] QUASAR: %s", objects[i].id, q_cls[q_idx]);
-                } else if (objects[i].type == 7) {
+                } else if (objects[i].type == OBJ_NEBULA) {
                     const char* n_cls[] = {"Mutara", "Metreon", "Dark Matter Cloud", "Paulson", "McAllister", "Arachnia"};
                     int n_idx = objects[i].ship_class; if(n_idx<0) n_idx=0; if(n_idx>5) n_idx=5;
                     sprintf(buf, "[%03d] NEBULA: %s", objects[i].id, n_cls[n_idx]);
-                } else if (objects[i].type == 21) {
+                } else if (objects[i].type == OBJ_ASTEROID) {
                     const char* as_res[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
                     int r_idx = objects[i].ship_class; if(r_idx<0) r_idx=0; if(r_idx>8) r_idx=8;
                     sprintf(buf, "[%03d] ASTEROID: %s", objects[i].id, as_res[r_idx]);
-                } else if (objects[i].type == 24) {
+                } else if (objects[i].type == OBJ_BUOY) {
                     sprintf(buf, "[%03d] COMM BUOY", objects[i].id);
-                } else if (objects[i].type == 50) {
+                } else if (objects[i].type == OBJ_SUBSPACE_ANOMALY) {
                     sprintf(buf, "[%03d] SUBSPACE ANOMALY", objects[i].id);
                 }
                 else sprintf(buf, "[%03d] %s (%s)", objects[i].id, objects[i].name, t_name);
@@ -2575,8 +2575,8 @@ void display() {
             if (objects[i].id != 0 && objects[i].type != 0) {
                 double d = sqrt(pow(objects[i].x-PlayerX,2)+pow(objects[i].y-PlayerY,2)+pow(objects[i].z-PlayerZ,2));
                 if (d < 5.0) {
-                    if (objects[i].type == 4 || objects[i].type == 6) grav += (5.0 - d) * 0.2;
-                    if (objects[i].type == 7 || objects[i].type == 25) chron += (5.0 - d) * 0.15;
+                    if (objects[i].type == OBJ_STAR || objects[i].type == OBJ_BLACK_HOLE) grav += (5.0 - d) * 0.2;
+                    if (objects[i].type == OBJ_NEBULA || objects[i].type == OBJ_PLATFORM) chron += (5.0 - d) * 0.15;
                 }
             }
         }
@@ -2771,7 +2771,7 @@ void timer(int v) { (void)v;
         objects[i].m += (objects[i].tm - objects[i].m) * INTERP_SPEED_ROT * deltaTime;
         objects[i].r += (objects[i].tr - objects[i].r) * INTERP_SPEED_ROT * deltaTime;
         
-        if (objects[i].type == 1 || objects[i].type >= 10) {
+        if (objects[i].type == OBJ_PLAYER || objects[i].type >= 10) {
             /* Check for jump only if we have a history */
             if (objects[i].trail_count > 0) {
                 double lastX = objects[i].trail[(objects[i].trail_ptr - 1 + MAX_TRAIL) % MAX_TRAIL][0];

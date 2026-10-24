@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 
+#include "object_types.h"
 #include "spacegl_gdd.h"
 #include "spacegl_vulkan_types.h"
 #include "sglog.h"
@@ -272,13 +273,6 @@ static void gdd_bh_palette(int id, float out[3]) {
 /* ================================================================== */
 /* Per-type visual classification (mirrors the CPU dispatcher)        */
 /* ================================================================== */
-/* Black-hole look (black horizon + accretion disk + lensing halo): the
- * classic black hole (type 6) and the 32 exotic compact objects (types
- * 100-131: Kerr, Kerr-Newman, Schwarzschild, ...). */
-static int gdd_is_black_hole_type(int type) {
-    return type == 6 || (type >= 100 && type <= 131);
-}
-
 typedef struct {
     int mesh;
     float scale;     /* uniform base scale (pre tactScale) */
@@ -304,7 +298,7 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
     v->spin = 0;
 
     /* Base type colors (getObjectColor, src/spacegl_vulkan.c) */
-    if ((type == 1 || (type >= 10 && type < 200)) && faction >= 10 && faction <= 20) {
+    if (obj_type_is_live_ship(type) && faction >= OBJ_NPC_FIRST && faction <= OBJ_NPC_LAST) {
         switch (faction) {
         case 10: v->color[0]=1.0f; v->color[1]=0.1f; v->color[2]=0.0f; break;
         case 11: v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.2f; break;
@@ -319,96 +313,80 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         case 20: v->color[0]=0.6f; v->color[1]=0.2f; v->color[2]=0.1f; break;
         default: v->color[0]=1.0f; v->color[1]=0.5f; v->color[2]=0.5f; break;
         }
-    } else if (type == 1)            { v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=1.0f; }
-    else if (type == 4)             { v->color[0]=1.0f; v->color[1]=1.0f; v->color[2]=0.0f; }
-    else if (type == 5)             { v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.5f; }
-    else if (type == 3)             { v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.0f; }
-    else if (type == 6)             { v->color[0]=0.5f; v->color[1]=0.0f; v->color[2]=1.0f; }
-    else if (type == 29)            { v->color[0]=1.0f; v->color[1]=0.0f; v->color[2]=1.0f; }
-    else if (type == 21)            { v->color[0]=0.5f; v->color[1]=0.35f; v->color[2]=0.25f; }
-    else if (type == 35)            { v->color[0]=0.6f; v->color[1]=0.6f; v->color[2]=0.7f; }
-    else if (type == 23)            { v->color[0]=0.3f; v->color[1]=0.3f; v->color[2]=0.35f; }
-    else if (type == 24)            { v->color[0]=0.8f; v->color[1]=0.8f; v->color[2]=0.9f; }
-    else if (type == 25)            { v->color[0]=0.4f; v->color[1]=0.4f; v->color[2]=0.45f; }
-    else if (type == 26)            { v->color[0]=0.5f; v->color[1]=0.0f; v->color[2]=0.8f; }
-    else if (type == 40)            { v->color[0]=0.0f; v->color[1]=0.8f; v->color[2]=0.6f; }
-    else if (type == 50)            { v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.5f; }
-    else if (type >= 100 && type <= 131) {
-        int e_id = type - 100;
+    } else if (type == OBJ_PLAYER)            { v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=1.0f; }
+    else if (type == OBJ_STAR)             { v->color[0]=1.0f; v->color[1]=1.0f; v->color[2]=0.0f; }
+    else if (type == OBJ_PLANET)             { v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.5f; }
+    else if (type == OBJ_BASE)             { v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.0f; }
+    else if (type == OBJ_BLACK_HOLE)             { v->color[0]=0.5f; v->color[1]=0.0f; v->color[2]=1.0f; }
+    else if (type == OBJ_QUASAR)            { v->color[0]=1.0f; v->color[1]=0.0f; v->color[2]=1.0f; }
+    else if (type == OBJ_ASTEROID)            { v->color[0]=0.5f; v->color[1]=0.35f; v->color[2]=0.25f; }
+    else if (type == OBJ_TRADING_HUB)            { v->color[0]=0.6f; v->color[1]=0.6f; v->color[2]=0.7f; }
+    else if (type == OBJ_MINE)            { v->color[0]=0.3f; v->color[1]=0.3f; v->color[2]=0.35f; }
+    else if (type == OBJ_BUOY)            { v->color[0]=0.8f; v->color[1]=0.8f; v->color[2]=0.9f; }
+    else if (type == OBJ_PLATFORM)            { v->color[0]=0.4f; v->color[1]=0.4f; v->color[2]=0.45f; }
+    else if (type == OBJ_RIFT)            { v->color[0]=0.5f; v->color[1]=0.0f; v->color[2]=0.8f; }
+    else if (type == OBJ_ALIEN_ARTIFACT)            { v->color[0]=0.0f; v->color[1]=0.8f; v->color[2]=0.6f; }
+    else if (type == OBJ_SUBSPACE_ANOMALY)            { v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.5f; }
+    else if (obj_type_is_exotic(type)) {
+        int e_id = type - OBJ_EXOTIC_FIRST;
         v->color[0] = (e_id % 3) * 0.5f;
         v->color[1] = (e_id % 4) * 0.33f;
         v->color[2] = (e_id % 5) * 0.25f + 0.2f;
     }
 
-    switch (type) {
-    case 100: case 101: case 102: case 103: case 104: case 105: case 106: case 107:
-    case 108: case 109: case 110: case 111: case 112: case 113: case 114: case 115:
-    case 116: case 117: case 118: case 119: case 120: case 121: case 122: case 123:
-    case 124: case 125: case 126: case 127: case 128: case 129: case 130: case 131:
-        /* The 32 exotic compact objects (Kerr-Newman = 109, ...) share the
-         * black-hole look of type 6: pure black event-horizon sphere; the
-         * red iridescent disk and the lensing halo are added by the caller
-         * (see gdd_is_black_hole_type). */
+    /* Unknown type (0 is an empty slot): keep the object visible (generic cosmic look below) but
+     * make the omission loud in the log instead of silently drawing a sphere. */
+    if (type != 0 && !obj_type_is_known(type) && sglog_rate("gdd_unknown_object_type", 10))
+        SG_WARNING(SG_CAT_GPU, "gdd: object type %d is not in object_types.h, "
+                   "drawn as a generic cosmic object", type);
+
+    if (obj_type_is_exotic(type)) {
+        /* The 32 exotic compact objects share the black-hole look of type 6:
+         * pure black event-horizon sphere; the red iridescent disk and the
+         * lensing halo are added by the caller (see
+         * obj_type_is_black_hole). */
         v->mesh = GDD_MESH_SPHERE;
         v->scale = 2.0f;
         v->frag_mode = GDD_FRAG_UNLIT;
         v->additive = 0;
         v->color[0]=0.0f; v->color[1]=0.0f; v->color[2]=0.0f;
-        break;
-    case 1: /* player ship */
-    case 10: case 11: case 12: case 13: case 14:
-    case 15: case 16: case 17: case 18: case 19:
-    case 20: case 210: case 211: case 212: case 213: case 214:
-    case 215: case 216: case 217: case 218: case 219:
-    case 220: case 221: case 222: case 223: case 224: case 225:
-    case 226: case 227: case 228: case 229: case 230:
-    case 231: case 232: case 233: case 234: case 235: case 236:
-    case 237: case 238: case 239:
-    case 240: case 241: case 242: case 243: case 244: case 245:
-    case 246: case 247: case 248: case 249: case 250:
-    case 251: case 252: case 253: case 254: case 255:
-        /* any (type >= 10 && type < 200) is a ship in the CPU path (10..255) */
-        if (type == 1 || (type >= 10 && type < 200)) {
-            v->mesh = GDD_MESH_PYRAMID;
-            v->scale = GDD_SHIP_SCALE;
-            /* CPU: wireframe LINE_LIST pipeline + PBR (mode 5,
-             * metal 0.9 / roughness 0.25) — the barycentric wireframe
-             * fragment mode re-implements exactly that look. */
-            v->frag_mode = GDD_FRAG_WIREFRAME_PBR;
-            v->metallic = 0.9f; v->roughness = 0.25f;
-            if (cloaked) {
-                /* CPU: cyan wireframe, pulsing alpha, standard blending */
-                v->color[0]=0.0f; v->color[1]=0.8f; v->color[2]=1.0f;
-                v->additive = 1; v->frag_mode = GDD_FRAG_WIREFRAME;
-            }
-        }
-        break;
+        return;
+    }
 
-    case 22: /* derelict: the dead hull of a destroyed ship. Same mesh
-              * as the ship it came from (GDD ships are pyramids), dark
-              * grey and dull like the GLFW drawDerelict (colour 0.3 /
-              * 0.3 / 0.32, no emissive lights) instead of the generic
-              * white/faction-coloured sphere of the default branch. */
+    if (obj_type_has_ship_hull(type)) {
+        /* Player ships, NPC ships and derelicts share the hull mesh. */
         v->mesh = GDD_MESH_PYRAMID;
         v->scale = GDD_SHIP_SCALE;
+        /* CPU: wireframe LINE_LIST pipeline + PBR (mode 5,
+         * metal 0.9 / roughness 0.25) - the barycentric wireframe
+         * fragment mode re-implements exactly that look. */
         v->frag_mode = GDD_FRAG_WIREFRAME_PBR;
-        v->metallic = 0.3f; v->roughness = 0.8f;
-        v->color[0] = 0.3f; v->color[1] = 0.3f; v->color[2] = 0.32f;
-        break;
+        v->metallic = 0.9f; v->roughness = 0.25f;
+        if (type == OBJ_DERELICT) {
+            /* Dead hull of a destroyed ship: the same mesh as the ship it
+             * came from, dark grey and dull like the OpenGL drawDerelict
+             * (0.3 / 0.3 / 0.32, no emissive lights), not the generic
+             * cosmic-object sphere it used to fall into. */
+            v->metallic = 0.3f; v->roughness = 0.8f;
+            v->color[0] = 0.3f; v->color[1] = 0.3f; v->color[2] = 0.32f;
+        } else if (cloaked) {
+            /* CPU: cyan wireframe, pulsing alpha, standard blending */
+            v->color[0]=0.0f; v->color[1]=0.8f; v->color[2]=1.0f;
+            v->additive = 1; v->frag_mode = GDD_FRAG_WIREFRAME;
+        }
+        return;
+    }
 
-    case 4: /* star */
+    switch (type) {
+    case OBJ_STAR: { /* star: ship_class = spectral class 0..6 (O,B,A,F,G,K,M) */
+        const float *rgb = obj_star_class_rgb(ship_class);
         v->scale = 2.5f; v->frag_mode = GDD_FRAG_HYPERWARP;
         v->additive = 1; v->metallic = 0.0f; v->roughness = 1.0f;
-        switch (ship_class) {
-        case 0:  v->color[0]=0.4f; v->color[1]=0.6f; v->color[2]=1.0f; break;
-        case 1:  v->color[0]=0.9f; v->color[1]=0.9f; v->color[2]=1.0f; break;
-        case 2:  v->color[0]=1.0f; v->color[1]=1.0f; v->color[2]=0.4f; break;
-        case 3:  v->color[0]=1.0f; v->color[1]=0.7f; v->color[2]=0.2f; break;
-        default: v->color[0]=1.0f; v->color[1]=0.3f; v->color[2]=0.2f; break;
-        }
+        v->color[0] = rgb[0]; v->color[1] = rgb[1]; v->color[2] = rgb[2];
         break;
+    }
 
-    case 5: /* planet */
+    case OBJ_PLANET: /* planet */
         v->scale = 1.8f; v->frag_mode = GDD_FRAG_PBR;
         v->metallic = 0.0f; v->roughness = 0.9f;
         switch (ship_class) {
@@ -420,13 +398,13 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         }
         break;
 
-    case 6: /* black hole: pure black event-horizon sphere (the colored
+    case OBJ_BLACK_HOLE: /* black hole: pure black event-horizon sphere (the colored
              * disk and the lensing halo are added by the caller) */
         v->scale = 2.0f; v->frag_mode = GDD_FRAG_UNLIT;
         v->color[0]=0.0f; v->color[1]=0.0f; v->color[2]=0.0f;
         break;
 
-    case 29: /* quasar (core; the disk is added by the caller) */
+    case OBJ_QUASAR: /* quasar (core; the disk is added by the caller) */
         v->scale = 2.2f; v->frag_mode = GDD_FRAG_HYPERWARP;
         v->additive = 1; v->spin = 1;
         switch (ship_class) {
@@ -440,17 +418,17 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         }
         break;
 
-    case 21: /* asteroid */
+    case OBJ_ASTEROID: /* asteroid */
         v->scale = 0.08f * (plating > 0 ? (float)plating / 100.0f : 0.3f);
         if (v->scale < 0.02f) v->scale = 0.08f;
         v->frag_mode = GDD_FRAG_PBR;
         break;
 
-    case 3:  /* starbase: octahedron core (arms/ring added by caller) */
+    case OBJ_BASE:  /* starbase: octahedron core (arms/ring added by caller) */
         v->mesh = GDD_MESH_OCTA; v->scale = 0.6f; v->frag_mode = GDD_FRAG_UNLIT;
         break;
 
-    case 7:  /* nebula (volumetric, additive): spherical + iridescent.
+    case OBJ_NEBULA:  /* nebula (volumetric, additive): spherical + iridescent.
               * Sub-type colors mirror the CPU drawNebula (0 blue, 1 orange,
               * 2 dark purple); the dark one stays a plain FBM cloud. */
         v->scale = 5.0f; v->frag_mode = GDD_FRAG_NEBULA_IRIS; v->additive = 1;
@@ -463,148 +441,148 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         }
         break;
 
-    case 8:  /* pulsar (core; jets added by caller) */
+    case OBJ_PULSAR:  /* pulsar (core; jets added by caller) */
         v->scale = 0.6f; v->frag_mode = GDD_FRAG_HYPERWARP; v->additive = 1;
         v->color[0]=1.0f; v->color[1]=0.5f; v->color[2]=0.0f;
         break;
 
-    case 9:  /* comet (head; tail added by caller) */
+    case OBJ_COMET:  /* comet (head; tail added by caller) */
         v->scale = 0.35f; v->frag_mode = GDD_FRAG_UNLIT;
         v->color[0]=0.5f; v->color[1]=0.8f; v->color[2]=1.0f;
         break;
 
-    case 23: /* mine */
+    case OBJ_MINE: /* mine */
         v->scale = 0.35f; v->frag_mode = GDD_FRAG_PBR;
         break;
 
-    case 24: /* comm buoy */
+    case OBJ_BUOY: /* comm buoy */
         v->mesh = GDD_MESH_OCTA; v->scale = 0.4f; v->frag_mode = GDD_FRAG_UNLIT;
         break;
 
-    case 25: /* platform */
+    case OBJ_PLATFORM: /* platform */
         v->mesh = GDD_MESH_BOX; v->scale = 0.6f; v->frag_mode = GDD_FRAG_PBR;
         break;
 
-    case 26: /* rift */
+    case OBJ_RIFT: /* rift */
         v->mesh = GDD_MESH_RING; v->scale = 1.2f; v->frag_mode = GDD_FRAG_UNLIT;
         v->additive = 1;
         break;
 
-    case 27: /* torpedo (object form) */
+    case OBJ_TORPEDO: /* torpedo (object form) */
         v->mesh = GDD_MESH_PYRAMID; v->scale = 0.3f; v->frag_mode = GDD_FRAG_UNLIT;
         v->color[0]=1.0f; v->color[1]=1.0f; v->color[2]=0.0f;
         v->metallic = 0.8f; v->roughness = 0.1f;
         break;
 
-    case 30: /* monster */
-    case 31:
+    case OBJ_CRYSTALLINE_ENTITY: /* monster */
+    case OBJ_SPACE_AMOEBA:
         v->scale = 0.8f; v->frag_mode = GDD_FRAG_UNLIT;
         v->color[0]=1.0f; v->color[1]=1.0f; v->color[2]=1.0f;
         break;
 
-    case 34: /* dyson fragment (glow) */
+    case OBJ_DYSON_FRAGMENT: /* dyson fragment (glow) */
         v->scale = 1.5f; v->frag_mode = GDD_FRAG_HYPERWARP; v->additive = 1;
         v->color[0]=1.0f; v->color[1]=0.8f; v->color[2]=0.2f;
         break;
 
-    case 35: /* trading hub (core; ring added by caller) */
+    case OBJ_TRADING_HUB: /* trading hub (core; ring added by caller) */
         v->mesh = GDD_MESH_BOX; v->scale = 0.5f; v->frag_mode = GDD_FRAG_PBR;
         break;
 
-    case 36: /* ancient relic (wireframe look) */
+    case OBJ_ANCIENT_RELIC: /* ancient relic (wireframe look) */
         v->scale = 0.8f; v->frag_mode = GDD_FRAG_UNLIT;
         v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.8f;
         break;
 
-    case 37: /* subspace rupture (glow) */
+    case OBJ_SUBSPACE_RUPTURE: /* subspace rupture (glow) */
         v->scale = 1.2f; v->frag_mode = GDD_FRAG_HYPERWARP; v->additive = 1;
         v->color[0]=0.6f; v->color[1]=0.0f; v->color[2]=0.8f;
         break;
 
-    case 38: /* satellite (core; ring added by caller) */
+    case OBJ_SATELLITE: /* satellite (core; ring added by caller) */
         v->mesh = GDD_MESH_BOX; v->scale = 0.3f; v->frag_mode = GDD_FRAG_PBR;
         break;
 
-    case 39: /* ion storm (glow) */
+    case OBJ_ION_STORM: /* ion storm (glow) */
         v->scale = 1.4f; v->frag_mode = GDD_FRAG_HYPERWARP; v->additive = 1;
         v->color[0]=0.4f; v->color[1]=0.4f; v->color[2]=1.0f;
         break;
 
-    case 40: /* alien artifact (wireframe look) */
+    case OBJ_ALIEN_ARTIFACT: /* alien artifact (wireframe look) */
         v->scale = 0.6f; v->frag_mode = GDD_FRAG_UNLIT;
         v->color[0]=1.0f; v->color[1]=0.5f; v->color[2]=0.0f;
         break;
 
-    case 41: /* warp gate */
+    case OBJ_WARP_GATE: /* warp gate */
         v->mesh = GDD_MESH_RING; v->scale = 1.0f; v->frag_mode = GDD_FRAG_UNLIT;
         v->color[0]=0.0f; v->color[1]=0.5f; v->color[2]=1.0f;
         break;
 
-    case 42: /* neutron star (core; jet ring added by caller) */
+    case OBJ_NEUTRON_STAR: /* neutron star (core; jet ring added by caller) */
         v->scale = 0.5f; v->frag_mode = GDD_FRAG_UNLIT;
         v->color[0]=0.8f; v->color[1]=0.8f; v->color[2]=1.0f;
         break;
 
-    case 43: /* mega structure (core; ring added by caller) */
+    case OBJ_MEGA_STRUCTURE: /* mega structure (core; ring added by caller) */
         v->mesh = GDD_MESH_BOX; v->scale = 0.5f; v->frag_mode = GDD_FRAG_UNLIT;
         v->color[0]=0.5f; v->color[1]=0.5f; v->color[2]=0.5f;
         break;
 
-    case 44: /* dark cloud (translucent) */
+    case OBJ_DARK_CLOUD: /* dark cloud (translucent) */
         v->scale = 2.5f; v->frag_mode = GDD_FRAG_NEBULA; v->additive = 1;
         v->color[0]=0.2f; v->color[1]=0.0f; v->color[2]=0.4f;
         break;
 
-    case 45: /* singularity (core; ring added by caller) */
+    case OBJ_SINGULARITY: /* singularity (core; ring added by caller) */
         v->scale = 2.0f; v->frag_mode = GDD_FRAG_PBR;
         v->color[0]=0.0f; v->color[1]=0.3f; v->color[2]=0.1f;
         break;
 
-    case 46: /* plasma storm (glow) */
+    case OBJ_PLASMA_STORM: /* plasma storm (glow) */
         v->scale = 1.6f; v->frag_mode = GDD_FRAG_HYPERWARP; v->additive = 1;
         v->color[0]=1.0f; v->color[1]=0.0f; v->color[2]=1.0f;
         break;
 
-    case 47: /* orbital ring */
+    case OBJ_ORBITAL_RING: /* orbital ring */
         v->mesh = GDD_MESH_RING; v->scale = 1.5f; v->frag_mode = GDD_FRAG_UNLIT;
         v->color[0]=0.7f; v->color[1]=0.7f; v->color[2]=0.0f;
         break;
 
-    case 48: /* time anomaly (glow) */
+    case OBJ_TIME_ANOMALY: /* time anomaly (glow) */
         v->scale = 1.2f; v->frag_mode = GDD_FRAG_HYPERWARP; v->additive = 1;
         v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.5f;
         break;
 
-    case 49: /* void crystal */
+    case OBJ_VOID_CRYSTAL: /* void crystal */
         v->mesh = GDD_MESH_OCTA; v->scale = 0.7f; v->frag_mode = GDD_FRAG_UNLIT;
         v->color[0]=0.9f; v->color[1]=0.0f; v->color[2]=0.9f;
         break;
 
-    case 50: /* subspace anomaly */
+    case OBJ_SUBSPACE_ANOMALY: /* subspace anomaly */
         v->scale = 0.6f; v->frag_mode = GDD_FRAG_UNLIT;
         break;
 
-    case 51: case 52: case 53: case 54: case 55:
+    case OBJ_DIFFUSE_NEBULA: case OBJ_DARK_NEBULA: case OBJ_PLANETARY_NEBULA: case OBJ_SUPERNOVA_REMNANT: case OBJ_GIANT_MOLECULAR_CLOUD:
         /* diffuse / high-energy / dark-matter / gravimetric / temporal nebulae:
          * same spherical iridescent look as type 7 */
         v->scale = 5.0f; v->frag_mode = GDD_FRAG_NEBULA_IRIS; v->additive = 1;
         switch (type) {
-        case 51: v->color[0]=0.4f; v->color[1]=0.5f; v->color[2]=0.9f; break;
-        case 52: v->color[0]=0.9f; v->color[1]=0.4f; v->color[2]=0.2f; break;
-        case 53: v->color[0]=0.3f; v->color[1]=0.1f; v->color[2]=0.5f; break;
-        case 54: v->color[0]=0.1f; v->color[1]=0.5f; v->color[2]=0.2f; break;
+        case OBJ_DIFFUSE_NEBULA: v->color[0]=0.4f; v->color[1]=0.5f; v->color[2]=0.9f; break;
+        case OBJ_DARK_NEBULA: v->color[0]=0.9f; v->color[1]=0.4f; v->color[2]=0.2f; break;
+        case OBJ_PLANETARY_NEBULA: v->color[0]=0.3f; v->color[1]=0.1f; v->color[2]=0.5f; break;
+        case OBJ_SUPERNOVA_REMNANT: v->color[0]=0.1f; v->color[1]=0.5f; v->color[2]=0.2f; break;
         default: v->color[0]=0.8f; v->color[1]=0.3f; v->color[2]=0.8f; break;
         }
         break;
 
-    case 56: case 57: case 58: case 59: case 62: case 63:
-    case 65: case 67: case 69: case 70: case 77: case 78:
+    case OBJ_INTERSTELLAR_FILAMENT: case OBJ_INTERSTELLAR_BUBBLE: case OBJ_BOK_GLOBULE: case OBJ_CLUMP_CORE: case OBJ_SHOCK_WAVE: case OBJ_STELLAR_BOW_SHOCK:
+    case OBJ_COSMIC_FILAMENT: case OBJ_KILONOVA: case OBJ_GRB: case OBJ_GRAV_WAVE: case OBJ_MAG_RECONNECTION: case OBJ_CURRENT_SHEET:
         /* filaments / shocks / waves: electrical discharge look */
         v->scale = 2.0f; v->frag_mode = GDD_FRAG_FILAMENT; v->additive = 1;
         v->color[0]=0.5f; v->color[1]=0.4f; v->color[2]=0.9f;
         break;
 
-    case 60: case 61: case 71: case 72:
+    case OBJ_ACCRETION_DISK: case OBJ_RELATIVISTIC_JET: case OBJ_PROTOPLANETARY_DISK: case OBJ_DEBRIS_DISK:
         /* accretion disks / relativistic jets / protoplanetary disks */
         v->scale = 2.5f; v->frag_mode = GDD_FRAG_ACCRETION; v->additive = 1;
         v->color[0]=1.0f; v->color[1]=0.8f; v->color[2]=0.5f;
@@ -927,7 +905,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             float px = (so->x - GDD_QUADRANT) * ts;
             float py = (so->z - GDD_QUADRANT) * ts;
             float pz = (GDD_QUADRANT - so->y) * ts;
-            if (type == 5) {
+            if (type == OBJ_PLANET) {
                 pz = (GDD_QUADRANT - so->z) * ts;
             }
             
@@ -945,11 +923,11 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
              * cloud 44, filaments, disks...) are symmetric volumes: without
              * this test a nebula was stretched 2.9x along X (an "egg") and
              * shifted along the nose axis. */
-            int is_ship = ((type == 1 || (type >= 10 && type < 200)) &&
+            int is_ship = ((obj_type_has_ship_hull(type) || type == OBJ_TORPEDO) &&
                            v.mesh == GDD_MESH_PYRAMID);
             if (is_ship) {
                 gdd_ship_rotation(so, m);
-                if (type == 22) {
+                if (type == OBJ_DERELICT) {
                     /* Derelict: slow drift in the hull's local frame
                      * (GLFW: glRotatef(pulse * 2deg, 0.3, 1, 0.2)). */
                     gdd_m3_rotate(m, pulse * 2.0f * (float)M_PI / 180.0f,
@@ -995,7 +973,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
              * core is a class-dependent N-side bipyramid (N = 3+(13-cl)*6,
              * 81 for Legacy down to 3 for Sentinel); the GDD approximates
              * it with the 4-side bipyramid (octahedron) wireframe. */
-            if (is_ship && type != 22 && (faction == 0 || faction == 1)) {
+            if (obj_type_is_live_ship(type) && (faction == 0 || faction == 1)) {
                 int cl = sclass;
                 if (cl < 0 || cl > 13) cl = 13;
 
@@ -1048,7 +1026,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             }
 
             /* --- per-type companions (CPU parity approximations) --- */
-            if (gdd_is_black_hole_type(type)) {
+            if (obj_type_is_black_hole(type)) {
                 /* Black hole: black sphere (above) + a flat circular disk
                  * (iridescent, red on every hole) + a thin lensing halo in
                  * the hole's own palette. The disk
@@ -1080,24 +1058,24 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                              s * 1.22f, s * 1.22f, s * 1.22f,
                              bh_col[0], bh_col[1], bh_col[2], 1.0f,
                              0, 1, GDD_FRAG_RIMGLOW, o, 0.0f, 1.0f);
-            } else if (type == 29) { /* quasar accretion disk (spins with core) */
+            } else if (type == OBJ_QUASAR) { /* quasar accretion disk (spins with core) */
                 gdd_list_add(&dyn, GDD_MESH_SPHERE, px, py, pz,
                              s * 3.5f, s * 0.02f, s * 3.5f,
                              v.color[0], v.color[1], v.color[2], 0.5f,
                              0, 1, GDD_FRAG_ACCRETION, o, 0.0f, 1.0f);
-            } else if (type == 3) { /* starbase ring */
+            } else if (type == OBJ_BASE) { /* starbase ring */
                 gdd_list_add(&dyn, GDD_MESH_RING, px, py, pz,
                              2.0f * ts, 2.0f * ts, 2.0f * ts,
                              1.0f, 0.0f, 1.0f, 0.8f,
                              0, 1, GDD_FRAG_UNLIT, o, 0.0f, 1.0f);
-            } else if (type == 8) { /* pulsar jets (two thin boxes) */
+            } else if (type == OBJ_PULSAR) { /* pulsar jets (two thin boxes) */
                 gdd_list_add(&dyn, GDD_MESH_BOX, px, py + 1.6f * ts, pz,
                              0.12f * ts, 1.4f * ts, 0.12f * ts,
                              1.0f, 0.6f, 0.1f, 0.9f, 0, 1, GDD_FRAG_HYPERWARP, o, 0.0f, 1.0f);
                 gdd_list_add(&dyn, GDD_MESH_BOX, px, py - 1.6f * ts, pz,
                              0.12f * ts, 1.4f * ts, 0.12f * ts,
                              1.0f, 0.6f, 0.1f, 0.9f, 0, 1, GDD_FRAG_HYPERWARP, o, 0.0f, 1.0f);
-            } else if (type == 9) { /* comet tail (thin box along heading) */
+            } else if (type == OBJ_COMET) { /* comet tail (thin box along heading) */
                 gdd_m3 m;
                 float h = so->h * M_PI / 180.0f;
                 float mrot = so->m * M_PI / 180.0f;
@@ -1111,24 +1089,24 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                              px - d[0] * back, py - d[1] * back, pz - d[2] * back,
                              back, 0.15f * ts, 0.15f * ts,
                              0.5f, 0.8f, 1.0f, 0.7f, 0, 1, GDD_FRAG_UNLIT, o, 0.0f, 1.0f);
-            } else if (type == 35) { /* trading hub ring */
+            } else if (type == OBJ_TRADING_HUB) { /* trading hub ring */
                 gdd_list_add(&dyn, GDD_MESH_RING, px, py, pz,
                              1.0f * ts, 1.0f * ts, 1.0f * ts,
                              v.color[0], v.color[1], v.color[2], 0.9f,
                              0, 0, GDD_FRAG_UNLIT, o, 0.5f, 0.5f);
-            } else if (type == 38) { /* satellite ring (dish) */
+            } else if (type == OBJ_SATELLITE) { /* satellite ring (dish) */
                 gdd_list_add(&dyn, GDD_MESH_RING, px, py + 0.35f * ts, pz,
                              0.45f * ts, 0.45f * ts, 0.45f * ts,
                              0.7f, 0.8f, 0.9f, 0.9f, 0, 0, GDD_FRAG_UNLIT, o, 0.5f, 0.5f);
-            } else if (type == 42) { /* neutron star jet ring */
+            } else if (type == OBJ_NEUTRON_STAR) { /* neutron star jet ring */
                 gdd_list_add(&dyn, GDD_MESH_RING, px, py, pz,
                              1.2f * ts, 1.2f * ts, 1.2f * ts,
                              0.8f, 0.8f, 1.0f, 0.8f, 0, 1, GDD_FRAG_UNLIT, o, 0.0f, 1.0f);
-            } else if (type == 43) { /* mega structure ring */
+            } else if (type == OBJ_MEGA_STRUCTURE) { /* mega structure ring */
                 gdd_list_add(&dyn, GDD_MESH_RING, px, py, pz,
                              1.2f * ts, 1.2f * ts, 1.2f * ts,
                              0.5f, 0.5f, 0.5f, 0.9f, 0, 0, GDD_FRAG_UNLIT, o, 0.5f, 0.5f);
-            } else if (type == 45) { /* singularity ring */
+            } else if (type == OBJ_SINGULARITY) { /* singularity ring */
                 gdd_list_add(&dyn, GDD_MESH_RING, px, py, pz,
                              2.5f * ts, 2.5f * ts, 2.5f * ts,
                              0.0f, 1.0f, 0.3f, 0.9f, 0, 1, GDD_FRAG_ACCRETION, o, 0.0f, 1.0f);

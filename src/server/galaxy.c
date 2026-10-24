@@ -26,6 +26,7 @@
 #include <stdatomic.h>
 #include <pthread.h>
 #include "server_internal.h"
+#include "object_types.h"
 #include "quad_index.h"
 #include "ui.h"
 
@@ -628,20 +629,13 @@ const char* get_species_name(int s) {
         case FACTION_SPECIES_8472: return "Fluidic Void";
         case FACTION_BREEN:      return "Cryos"; 
         case FACTION_HIROGEN:    return "Apex";
-        case 4: return "Star"; case 5: return "Planet"; case 6: return "Black Hole";
-        case 7: return "Tactical Cruiser"; case 8: return "Pulsar"; case 9: return "Comet";
-        case 21: return "Asteroid";
-        case 23: return "Mine";
-        case 24: return "Comm Buoy";
-        case 25: return "Defense Platform";
-        case 26: return "Spatial Rift";
-        case 28: return "Dyson Fragment";
-        case 29: return "Trading Hub";
-        case 30: return "Ancient Relic";
-        case 31: return "Subspace Rupture";
-        case 32: return "Satellite";
-        case 33: return "Ion Storm";
-        default: return "Unknown";
+        default: {
+            /* Non-faction values echo the object type (object_types.h):
+             * the old hand-written table here used a numbering that no
+             * longer matched the real types (28 = Dyson Fragment, ...). */
+            const char *n = obj_type_name(s);
+            return n ? n : "Unknown";
+        }
     }
 }
 
@@ -1437,24 +1431,7 @@ void generate_galaxy() {
                 }
 
     /* Insert 32 new types of cosmic features (10 instances each) */
-    const char *new_feature_names[32] = {
-        "Stellar-mass black hole", "Intermediate-mass black hole (IMBH)",
-        "Supermassive black hole (SMBH)", "Ultramassive black hole (UMBH)",
-        "Stupendously large black hole (SLAB)", "Primordial black hole (PBH)",
-        "Schwarzschild black hole", "Kerr black hole",
-        "Reissner-Nordstrom black hole", "Kerr-Newman black hole",
-        "Extremal black hole", "Regular black hole",
-        "Bardeen black hole", "Hayward black hole",
-        "Dymnikova black hole", "Fan-Wang black hole",
-        "Firewall black hole", "Fuzzball",
-        "Quantum black hole", "Micro black hole",
-        "Planck black hole", "Gravastar",
-        "Boson star", "Dark star",
-        "Exotic compact object (ECO)", "Black-hole mimicker",
-        "Wormhole", "White hole",
-        "Naked singularity", "Super-extremal solution black hole",
-        "Super-extremal Reissner-Nordstrom solution black hole", "Super-extremal Kerr solution black hole"
-    };
+    const char *new_feature_names[OBJ_EXOTIC_COUNT] = { OBJECT_EXOTIC_NAME_LIST };
 
     for (int t = 0; t < 32; t++) {
         for (int i = 0; i < 10; i++) {
@@ -1468,7 +1445,7 @@ void generate_galaxy() {
             
             cosmic_features[cosmic_feature_count] = (NPCCosmicFeature){
                 .id = 83000 + cosmic_feature_count, 
-                .type = 100 + t,                    
+                .type = OBJ_EXOTIC_FIRST + t,                    
                 .q1 = q1, .q2 = q2, .q3 = q3,
                 .x = x, .y = y, .z = z,
                 .active = 1

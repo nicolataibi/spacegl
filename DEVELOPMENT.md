@@ -115,7 +115,7 @@ cmake --build build -j
 
 ## 3. Running the test suite
 
-The suite has **17 tests**, built in two equivalent modes:
+The suite has **18 tests**, built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
@@ -136,6 +136,7 @@ The suite has **17 tests**, built in two equivalent modes:
 | 15 | `gdd_bench` | GDD cull/expand/final compute pass runtime benchmark against thresholds | none (self-contained `gdd_mesh_test --benchmark`) |
 | 16 | `server_tick_bench` | server tick rate regression: 1000 ticks of the real game loop over a worst-case-but-stable scene; avg < `threshold_ms`, p99 < `p99_ms` (tests/server_tick_thresholds.txt, 8.0/12.0 ms) | `src/server/logic.c` + `logic_events.c` + `quad_index.c` + `targets.c` |
 | 17 | `stability` | long-running memory-leak check: real server + real client for 60 s, server RSS delta ≤ 10 MB (integrated only; the CI smoke job runs it explicitly too) | `build/spacegl_server` + `build/spacegl_client` (black-box) |
+| 18 | `object_types_lint` | every object `type` sent by the server is an `OBJ_*` name from `include/object_types.h` (no bare numbers, no duplicated values); needs only Python 3 | `src/server/logic.c`, `include/object_types.h` |
 
 ### 3.1 Integrated mode (default)
 
@@ -253,9 +254,10 @@ SECURITY.md if it pins an audit item.
 | Path | What |
 | :--- | :--- |
 | `src/` | the 8 product TUs (server in `src/server/`, GDD in `src/vulkan_gdd_build.c` and `src/vulkan_gdd_render.c`) |
-| `include/` | shared headers; `spacegl_gdd.h` is the CPU/GPU contract, `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks |
+| `include/` | shared headers; `spacegl_gdd.h` is the CPU/GPU contract, `object_types.h` the single table of object `type` values (X-macro; server, HUD, viewers and the GDD builder all use its `OBJ_*` names and predicates),
+  `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks |
 | `assets/shaders/` | GLSL sources (legacy `shader.*` + GDD `gdd_*`, shared `gdd_common.glsl`/`gdd_ops.glsl`) |
-| `tests/` | the 17-test suite (dual-mode CMake project) |
+| `tests/` | the 18-test suite (dual-mode CMake project) |
 | `cmake/SpaceGLVulkanSDK.cmake` | the shared Vulkan SDK resolution chain |
 | `man/` | man pages (one per product binary) |
 | `spacegl.spec` | RPM spec (its `%check` runs the unit suite) |
