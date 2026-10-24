@@ -2355,38 +2355,100 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
  
    <tr><td>88</td><td>📺 Cosmic Microwave Background</td><td>Remnant radiation from the Big Bang</td><td><img src="readme_assets/galactic_objects/88📺Cosmic%20Microwave%20Background,%20Remnant%20radiation%20from%20the%20Big%20Bang.png" width="150"></td></tr>
  
-   <tr><td>89</td><td>⚫ Black Hole</td><td>Stellar-mass</td><td><img src="readme_assets/black%20holes/1%20Stellar-mass%20black%20hole.png" width="150"></td></tr>
-   <tr><td>90</td><td>⚫ Black Hole</td><td>Intermediate-mass (IMBH)</td><td><img src="readme_assets/black%20holes/2%20Intermediate-mass%20black%20hole%20(IMBH).png" width="150"></td></tr>
-   <tr><td>91</td><td>⚫ Black Hole</td><td>Supermassive (SMBH)</td><td><img src="readme_assets/black%20holes/3%20Supermassive%20black%20hole%20(SMBH).png" width="150"></td></tr>
-   <tr><td>92</td><td>⚫ Black Hole</td><td>Ultramassive (UMBH)</td><td><img src="readme_assets/black%20holes/4%20Ultramassive%20black%20hole%20(UMBH).png" width="150"></td></tr>
-   <tr><td>93</td><td>⚫ Black Hole</td><td>Stupendously large (SLAB)</td><td><img src="readme_assets/black%20holes/5%20Stupendously%20large%20black%20hole%20(SLAB).png" width="150"></td></tr>
-   <tr><td>94</td><td>⚫ Black Hole</td><td>Primordial (PBH)</td><td><img src="readme_assets/black%20holes/6%20Primordial%20black%20hole%20(PBH).png" width="150"></td></tr>
-   <tr><td>95</td><td>⚫ Black Hole</td><td>Schwarzschild</td><td><img src="readme_assets/black%20holes/7%20Schwarzschild%20black%20hole.png" width="150"></td></tr>
-   <tr><td>96</td><td>⚫ Black Hole</td><td>Kerr</td><td><img src="readme_assets/black%20holes/8%20Kerr%20black%20hole.png" width="150"></td></tr>
-   <tr><td>97</td><td>⚫ Black Hole</td><td>Reissner–Nordström</td><td><img src="readme_assets/black%20holes/9%20Reissner%E2%80%93Nordstr%C3%B6m%20black%20hole.png" width="150"></td></tr>
-   <tr><td>98</td><td>⚫ Black Hole</td><td>Kerr–Newman</td><td><img src="readme_assets/black%20holes/10%20Kerr%E2%80%93Newman%20black%20hole.png" width="150"></td></tr>
-   <tr><td>99</td><td>⚫ Black Hole</td><td>Extremal</td><td><img src="readme_assets/black%20holes/11%20Extremal%20black%20hole.png" width="150"></td></tr>
-   <tr><td>100</td><td>⚫ Black Hole</td><td>Regular</td><td><img src="readme_assets/black%20holes/12%20Regular%20black%20hole.png" width="150"></td></tr>
-   <tr><td>101</td><td>⚫ Black Hole</td><td>Bardeen</td><td><img src="readme_assets/black%20holes/13%20Bardeen%20black%20hole.png" width="150"></td></tr>
-   <tr><td>102</td><td>⚫ Black Hole</td><td>Hayward</td><td><img src="readme_assets/black%20holes/14%20Hayward%20black%20hole.png" width="150"></td></tr>
-   <tr><td>103</td><td>⚫ Black Hole</td><td>Dymnikova</td><td><img src="readme_assets/black%20holes/15%20Dymnikova%20black%20hole.png" width="150"></td></tr>
-   <tr><td>104</td><td>⚫ Black Hole</td><td>Fan–Wang</td><td><img src="readme_assets/black%20holes/16%20Fan%E2%80%93Wang%20black%20hole.png" width="150"></td></tr>
-   <tr><td>105</td><td>⚫ Black Hole</td><td>Firewall</td><td><img src="readme_assets/black%20holes/17%20Firewall%20black%20hole.png" width="150"></td></tr>
-   <tr><td>106</td><td>⚫ Black Hole</td><td>Fuzzball</td><td><img src="readme_assets/black%20holes/18%20Fuzzball.png" width="150"></td></tr>
-   <tr><td>107</td><td>⚫ Black Hole</td><td>Quantum</td><td><img src="readme_assets/black%20holes/19%20Quantum%20black%20hole.png" width="150"></td></tr>
-   <tr><td>108</td><td>⚫ Black Hole</td><td>Micro</td><td><img src="readme_assets/black%20holes/20%20Micro%20black%20hole.png" width="150"></td></tr>
-   <tr><td>109</td><td>⚫ Black Hole</td><td>Planck</td><td><img src="readme_assets/black%20holes/21%20Planck%20black%20hole.png" width="150"></td></tr>
-   <tr><td>110</td><td>⚫ Black Hole</td><td>Gravastar</td><td><img src="readme_assets/black%20holes/22%20Gravastar.png" width="150"></td></tr>
-   <tr><td>111</td><td>⚫ Black Hole</td><td>Boson star</td><td><img src="readme_assets/black%20holes/23%20Boson%20star.png" width="150"></td></tr>
-   <tr><td>112</td><td>⚫ Black Hole</td><td>Dark star</td><td><img src="readme_assets/black%20holes/24%20Dark%20star.png" width="150"></td></tr>
-   <tr><td>113</td><td>⚫ Black Hole</td><td>Exotic compact object (ECO)</td><td><img src="readme_assets/black%20holes/25%20Exotic%20compact%20object%20(ECO).png" width="150"></td></tr>
-   <tr><td>114</td><td>⚫ Black Hole</td><td>Black-hole mimicker</td><td><img src="readme_assets/black%20holes/26%20Black-hole%20mimicker.png" width="150"></td></tr>
-   <tr><td>115</td><td>🌀 Black Hole</td><td>Wormhole</td><td><img src="readme_assets/black%20holes/27%20Wormhole.png" width="150"></td></tr>
-   <tr><td>116</td><td>⚪ Black Hole</td><td>White hole</td><td><img src="readme_assets/black%20holes/28%20White%20hole.png" width="150"></td></tr>
-   <tr><td>117</td><td>⚫ Black Hole</td><td>Naked singularity</td><td><img src="readme_assets/black%20holes/29%20Naked%20singularity.png" width="150"></td></tr>
-   <tr><td>118</td><td>⚫ Black Hole</td><td>Super-extremal solution</td><td><img src="readme_assets/black%20holes/30%20Super-extremal%20solution%20black%20hole.png" width="150"></td></tr>
-   <tr><td>119</td><td>⚫ Black Hole</td><td>Super-extremal Reissner–Nordström solution</td><td><img src="readme_assets/black%20holes/31%20Super-extremal%20Reissner%E2%80%93Nordstr%C3%B6m%20solution%20black%20hole.png" width="150"></td></tr>
-   <tr><td>120</td><td>⚫ Black Hole</td><td>Super-extremal Kerr solution</td><td><img src="readme_assets/black%20holes/32%20Super-extremal%20Kerr%20solution%20black%20hole.png" width="150"></td></tr>
+   <tr><td>89</td><td>🌙 Shepherd Moon</td><td>Maintains sharp planetary ring boundaries</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>90</td><td>🌙 Trojan Moon</td><td>Librates around L4/L5 triangular Lagrange points</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>91</td><td>🌙 Co-orbital Moon</td><td>Shares orbit in horseshoe/tadpole exchange</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>92</td><td>🌋 Volcanic Moon</td><td>Active silicate volcanism and sulfur magma oceans (Io-type)</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>93</td><td>🌊 Ocean Moon</td><td>Global surface liquid hydrosphere</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>94</td><td>🌫️ Moon with Atmosphere</td><td>Dense hazy atmospheric envelope with visible halo (Titan-type)</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>95</td><td>🪐 Exomoon</td><td>Extra-solar satellite bound to rogue or distant exoplanet</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>96</td><td>⚪ Regular Moon</td><td>Prograde, low-inclination circular equatorial orbit</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>97</td><td>🪨 Irregular Moon</td><td>Steeply inclined, eccentric, retrograde captured orbit</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>98</td><td>🌑 Submoon</td><td>Sub-satellite orbiting another natural moon</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+
+   <tr><td>99</td><td>—</td><td>Unassigned reserved slot</td><td>—</td></tr>
+
+   <tr><td>100</td><td>⚫ Black Hole</td><td>Stellar-mass</td><td><img src="readme_assets/black%20holes/1%20Stellar-mass%20black%20hole.png" width="150"></td></tr>
+   <tr><td>101</td><td>⚫ Black Hole</td><td>Intermediate-mass (IMBH)</td><td><img src="readme_assets/black%20holes/2%20Intermediate-mass%20black%20hole%20(IMBH).png" width="150"></td></tr>
+   <tr><td>102</td><td>⚫ Black Hole</td><td>Supermassive (SMBH)</td><td><img src="readme_assets/black%20holes/3%20Supermassive%20black%20hole%20(SMBH).png" width="150"></td></tr>
+   <tr><td>103</td><td>⚫ Black Hole</td><td>Ultramassive (UMBH)</td><td><img src="readme_assets/black%20holes/4%20Ultramassive%20black%20hole%20(UMBH).png" width="150"></td></tr>
+   <tr><td>104</td><td>⚫ Black Hole</td><td>Stupendously large (SLAB)</td><td><img src="readme_assets/black%20holes/5%20Stupendously%20large%20black%20hole%20(SLAB).png" width="150"></td></tr>
+   <tr><td>105</td><td>⚫ Black Hole</td><td>Primordial (PBH)</td><td><img src="readme_assets/black%20holes/6%20Primordial%20black%20hole%20(PBH).png" width="150"></td></tr>
+   <tr><td>106</td><td>⚫ Black Hole</td><td>Schwarzschild</td><td><img src="readme_assets/black%20holes/7%20Schwarzschild%20black%20hole.png" width="150"></td></tr>
+   <tr><td>107</td><td>⚫ Black Hole</td><td>Kerr</td><td><img src="readme_assets/black%20holes/8%20Kerr%20black%20hole.png" width="150"></td></tr>
+   <tr><td>108</td><td>⚫ Black Hole</td><td>Reissner–Nordström</td><td><img src="readme_assets/black%20holes/9%20Reissner%E2%80%93Nordstr%C3%B6m%20black%20hole.png" width="150"></td></tr>
+   <tr><td>109</td><td>⚫ Black Hole</td><td>Kerr–Newman</td><td><img src="readme_assets/black%20holes/10%20Kerr%E2%80%93Newman%20black%20hole.png" width="150"></td></tr>
+   <tr><td>110</td><td>⚫ Black Hole</td><td>Extremal</td><td><img src="readme_assets/black%20holes/11%20Extremal%20black%20hole.png" width="150"></td></tr>
+   <tr><td>111</td><td>⚫ Black Hole</td><td>Regular</td><td><img src="readme_assets/black%20holes/12%20Regular%20black%20hole.png" width="150"></td></tr>
+   <tr><td>112</td><td>⚫ Black Hole</td><td>Bardeen</td><td><img src="readme_assets/black%20holes/13%20Bardeen%20black%20hole.png" width="150"></td></tr>
+   <tr><td>113</td><td>⚫ Black Hole</td><td>Hayward</td><td><img src="readme_assets/black%20holes/14%20Hayward%20black%20hole.png" width="150"></td></tr>
+   <tr><td>114</td><td>⚫ Black Hole</td><td>Dymnikova</td><td><img src="readme_assets/black%20holes/15%20Dymnikova%20black%20hole.png" width="150"></td></tr>
+   <tr><td>115</td><td>⚫ Black Hole</td><td>Fan–Wang</td><td><img src="readme_assets/black%20holes/16%20Fan%E2%80%93Wang%20black%20hole.png" width="150"></td></tr>
+   <tr><td>116</td><td>⚫ Black Hole</td><td>Firewall</td><td><img src="readme_assets/black%20holes/17%20Firewall%20black%20hole.png" width="150"></td></tr>
+   <tr><td>117</td><td>⚫ Black Hole</td><td>Fuzzball</td><td><img src="readme_assets/black%20holes/18%20Fuzzball.png" width="150"></td></tr>
+   <tr><td>118</td><td>⚫ Black Hole</td><td>Quantum</td><td><img src="readme_assets/black%20holes/19%20Quantum%20black%20hole.png" width="150"></td></tr>
+   <tr><td>119</td><td>⚫ Black Hole</td><td>Micro</td><td><img src="readme_assets/black%20holes/20%20Micro%20black%20hole.png" width="150"></td></tr>
+   <tr><td>120</td><td>⚫ Black Hole</td><td>Planck</td><td><img src="readme_assets/black%20holes/21%20Planck%20black%20hole.png" width="150"></td></tr>
+   <tr><td>121</td><td>⚫ Black Hole</td><td>Gravastar</td><td><img src="readme_assets/black%20holes/22%20Gravastar.png" width="150"></td></tr>
+   <tr><td>122</td><td>⚫ Black Hole</td><td>Boson star</td><td><img src="readme_assets/black%20holes/23%20Boson%20star.png" width="150"></td></tr>
+   <tr><td>123</td><td>⚫ Black Hole</td><td>Dark star</td><td><img src="readme_assets/black%20holes/24%20Dark%20star.png" width="150"></td></tr>
+   <tr><td>124</td><td>⚫ Black Hole</td><td>Exotic compact object (ECO)</td><td><img src="readme_assets/black%20holes/25%20Exotic%20compact%20object%20(ECO).png" width="150"></td></tr>
+   <tr><td>125</td><td>⚫ Black Hole</td><td>Black-hole mimicker</td><td><img src="readme_assets/black%20holes/26%20Black-hole%20mimicker.png" width="150"></td></tr>
+   <tr><td>126</td><td>🌀 Black Hole</td><td>Wormhole</td><td><img src="readme_assets/black%20holes/27%20Wormhole.png" width="150"></td></tr>
+   <tr><td>127</td><td>⚪ Black Hole</td><td>White hole</td><td><img src="readme_assets/black%20holes/28%20White%20hole.png" width="150"></td></tr>
+   <tr><td>128</td><td>⚫ Black Hole</td><td>Naked singularity</td><td><img src="readme_assets/black%20holes/29%20Naked%20singularity.png" width="150"></td></tr>
+   <tr><td>129</td><td>⚫ Black Hole</td><td>Super-extremal solution</td><td><img src="readme_assets/black%20holes/30%20Super-extremal%20solution%20black%20hole.png" width="150"></td></tr>
+   <tr><td>130</td><td>⚫ Black Hole</td><td>Super-extremal Reissner–Nordström solution</td><td><img src="readme_assets/black%20holes/31%20Super-extremal%20Reissner%E2%80%93Nordstr%C3%B6m%20solution%20black%20hole.png" width="150"></td></tr>
+   <tr><td>131</td><td>⚫ Black Hole</td><td>Super-extremal Kerr solution</td><td><img src="readme_assets/black%20holes/32%20Super-extremal%20Kerr%20solution%20black%20hole.png" width="150"></td></tr>
+
+   <tr><td>132</td><td>🔴 Red Giant</td><td>Post-main-sequence giant fusing shell hydrogen</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>133</td><td>🟠 Red Clump Star</td><td>Core helium-burning horizontal branch star</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>134</td><td>🟡 Horizontal Branch Star</td><td>Intermediate-mass post-RGB helium-burning star</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>135</td><td>🔴 AGB Star</td><td>Asymptotic Giant Branch double-shell burning star</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>136</td><td>🔴 Red Supergiant</td><td>Massive evolved supergiant star (Betelgeuse archetype)</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>137</td><td>⚪ White Dwarf (C-O Core)</td><td>Compact degenerate remnant with Carbon-Oxygen core</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+   <tr><td>138</td><td>⚪ White Dwarf (O-Ne-Mg Core)</td><td>Massive compact remnant with Oxygen-Neon-Magnesium core</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+   <tr><td>139</td><td>⚪ White Dwarf DA</td><td>Hydrogen-dominated atmosphere white dwarf</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+   <tr><td>140</td><td>⚪ White Dwarf DB</td><td>Neutral helium-dominated atmosphere white dwarf</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+   <tr><td>141</td><td>⚪ White Dwarf DO</td><td>Hot ionized helium-dominated atmosphere white dwarf</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+   <tr><td>142</td><td>⚪ White Dwarf DQ</td><td>Carbon spectral features in atmosphere</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+   <tr><td>143</td><td>⚪ White Dwarf DZ</td><td>Metal-polluted atmosphere white dwarf</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+   <tr><td>144</td><td>⚪ White Dwarf DC</td><td>Featureless continuous spectrum white dwarf</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+   <tr><td>145</td><td>⚪ White Dwarf DX</td><td>Unclassified or unusual lines white dwarf</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+   <tr><td>146</td><td>💫 ZZ Ceti Pulsator (DAV)</td><td>Non-radial pulsating hydrogen-atmosphere white dwarf</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+   <tr><td>147</td><td>💫 V777 Her Pulsator (DBV)</td><td>Non-radial pulsating helium-atmosphere white dwarf</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+   <tr><td>148</td><td>💫 GW Vir Pulsator (DOV)</td><td>Pre-white dwarf planetary nebula central pulsator</td><td><img src="readme_assets/galactic_objects/42⭐%20Neutron%20Star%20(White):%20Dense%20stellar:%20Dense%20stellar%20remnant.png" width="150"></td></tr>
+
+   <tr><td>149</td><td>☀️ Class 0 Protostar</td><td>Deeply embedded dense hydrostatic collapsing core</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>150</td><td>💨 Class 0 Bipolar Outflow</td><td>Supersonic molecular gas outflow cavity</td><td><img src="readme_assets/galactic_objects/61🏹Relativistic%20Jet,%20Powerful%20beam%20of%20ionized%20matter.png" width="150"></td></tr>
+   <tr><td>151</td><td>☀️ Class I Protostar</td><td>Infalling circumstellar envelope stage</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>152</td><td>⚡ Class I Protostellar Jet</td><td>Collimated magnetohydrodynamic high-speed jet</td><td><img src="readme_assets/galactic_objects/61🏹Relativistic%20Jet,%20Powerful%20beam%20of%20ionized%20matter.png" width="150"></td></tr>
+   <tr><td>153</td><td>💥 Herbig-Haro Knot</td><td>Shock-ionized nebular emission clump (H-alpha)</td><td><img src="readme_assets/galactic_objects/62🌊Shock%20Wave,%20High-speed%20disturbance%20in%20space.png" width="150"></td></tr>
+   <tr><td>154</td><td>🌊 Herbig-Haro Bow Shock</td><td>Interstellar shock front colliding with ambient gas</td><td><img src="readme_assets/galactic_objects/62🌊Shock%20Wave,%20High-speed%20disturbance%20in%20space.png" width="150"></td></tr>
+   <tr><td>155</td><td>☀️ Classical T Tauri Star (CTTS)</td><td>Active circumstellar disk magnetospheric accretion</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>156</td><td>☀️ Weak-line T Tauri Star (WTTS)</td><td>Disk-dissipated magnetic flaring young star</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>157</td><td>☀️ Herbig Ae Star</td><td>Intermediate-mass pre-main-sequence star (white-cyan)</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>158</td><td>☀️ Herbig Be Star</td><td>Luminous intermediate-mass PMS star with disk (electric blue)</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>159</td><td>🌟 FU Orionis Star (FUor)</td><td>Giant thermal-viscous accretion outburst star</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>160</td><td>🌟 EX Lupi Star (EXor)</td><td>Repetitive episodic accretion flaring variable</td><td><img src="readme_assets/galactic_objects/1☀️%20Star%20(Yellow):%20Spectral%20Class%20Variable.png" width="150"></td></tr>
+   <tr><td>161</td><td>🌑 Pre-Stellar Collapsing Core</td><td>Gravitationally bound dense starless core in nursery</td><td><img src="readme_assets/galactic_objects/58🌑Bok%20Globule,%20Dense,%20dark%20cloud%20of%20dust%20and%20gas.png" width="150"></td></tr>
+   <tr><td>162</td><td>🌌 Protostellar Envelope Cavity</td><td>Bipolar outflow-carved cavity in circumstellar envelope</td><td><img src="readme_assets/galactic_objects/51🌌%20Diffuse%20Nebula,%20Cool%20blue-white%20gas%20cloud.png" width="150"></td></tr>
+   <tr><td>163</td><td>🪐 Protoplanetary Accretion Disk</td><td>Viscous Keplerian gas and dust accretion disk</td><td><img src="readme_assets/galactic_objects/60🥏Accretion%20Disk,%20Orbital%20material%20around%20a%20central%20mass.png" width="150"></td></tr>
+   <tr><td>164</td><td>🧲 Magnetospheric Accretion Column</td><td>Magnetic funnel stream channeling matter onto stellar surface</td><td><img src="readme_assets/galactic_objects/77⚡Magnetic%20Reconnection,%20Sudden%20release%20of%20magnetic%20energy.png" width="150"></td></tr>
+
+   <tr><td>165</td><td>🌙 Retrograde Moon</td><td>Orbits opposite to planetary rotation with high inclination</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>166</td><td>🌙 Resonant Moon</td><td>Orbital period locked in Laplace harmonic resonance</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>167</td><td>🌙 Tidally Locked Moon</td><td>Synchronous 1:1 rotation showing identical face to planet</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>168</td><td>🌙 Chaotic Rotator Moon</td><td>Non-spherical tumbling rotation dynamics (Hyperion archetype)</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>169</td><td>🌙 Embedded Moonlet</td><td>Orbits directly inside planetary ring, clearing gap (Pan/Daphnis)</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>170</td><td>🌙 Captured Moon</td><td>High-inclination gravitational capture from Kuiper belt</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>171</td><td>🧊 Cryovolcanic Moon</td><td>Active volatile vapor and ice geysers (Enceladus/Triton archetype)</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>172</td><td>🌋 Tidal-Heated Moon</td><td>Intense tidal flexing driving internal heating and volcanism (Io)</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>173</td><td>🪨 Differentiated Moon</td><td>Layered metallic core, silicate mantle, and ice crust</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>174</td><td>🌙 Binary Moon</td><td>Twin satellite system co-orbiting mutual barycenter</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>175</td><td>💍 Ringed Moon</td><td>Satellite possessing its own circum-lunar ring system (Rhea archetype)</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>176</td><td>🌊 Subsurface Ocean Moon</td><td>Fractured icy crust overlying global liquid water ocean (Europa archetype)</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
+   <tr><td>177</td><td>💥 Disrupted Moon</td><td>Tidally disrupted rubble-pile orbiting near Roche limit</td><td><img src="readme_assets/galactic_objects/2🪐%20Planet%20(Cyan):%20Resource%20rich%20planet.png" width="150"></td></tr>
   </table>
  
 *   **Dynamic Tactical HUD**: Implements a 2D-on-3D projection (via `gluProject`) to anchor labels, health bars, and IDs directly above vessels.
