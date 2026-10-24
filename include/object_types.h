@@ -215,6 +215,26 @@
 #define OBJ_MOON_COUNT 10
 #define OBJ_MOON_LAST  (OBJ_MOON_FIRST + OBJ_MOON_COUNT - 1)   /* 98 */
 
+/* Extended natural moons: 13 consecutive types (type = OBJ_MOON_EXT_FIRST + index)
+ * in slots 165..177, stored in the generic cosmic_features[] array like the
+ * base moons and evolved stars.
+ * Order:
+ *   0 Retrograde Moon, 1 Resonant Moon, 2 Tidally Locked Moon,
+ *   3 Chaotic Rotator Moon, 4 Embedded Moonlet, 5 Captured Moon,
+ *   6 Cryovolcanic Moon, 7 Tidal-Heated Moon, 8 Differentiated Moon,
+ *   9 Binary Moon, 10 Ringed Moon, 11 Subsurface Ocean Moon, 12 Disrupted Moon.
+ */
+#define OBJECT_MOON_EXT_NAME_LIST \
+    "Retrograde Moon", "Resonant Moon", "Tidally Locked Moon", \
+    "Chaotic Rotator Moon", "Embedded Moonlet", "Captured Moon", \
+    "Cryovolcanic Moon", "Tidal-Heated Moon", "Differentiated Moon", \
+    "Binary Moon", "Ringed Moon", "Subsurface Ocean Moon", \
+    "Disrupted Moon"
+
+#define OBJ_MOON_EXT_FIRST 165
+#define OBJ_MOON_EXT_COUNT 13
+#define OBJ_MOON_EXT_LAST  (OBJ_MOON_EXT_FIRST + OBJ_MOON_EXT_COUNT - 1)   /* 177 */
+
 /* Index of the moon that carries a visible atmosphere halo. */
 #define OBJ_MOON_ATMOSPHERE_INDEX 5
 
@@ -227,7 +247,7 @@ typedef enum ObjectType {
 #define OBJECT_TYPE_ENUM_ENTRY(name, value, label) name = value,
     OBJECT_TYPE_LIST(OBJECT_TYPE_ENUM_ENTRY)
 #undef OBJECT_TYPE_ENUM_ENTRY
-    OBJ_TYPE_LAST = OBJ_PROTOSTELLAR_LAST
+    OBJ_TYPE_LAST = OBJ_MOON_EXT_LAST
 } ObjectType;
 
 /* ------------------------------------------------------------------ */
@@ -254,9 +274,61 @@ static inline int obj_type_is_protostellar(int t) {
     return t >= OBJ_PROTOSTELLAR_FIRST && t <= OBJ_PROTOSTELLAR_LAST;
 }
 
-/* One of the 10 natural moons (89..98). */
-static inline int obj_type_is_moon(int t) {
+/* One of the 10 base natural moons (89..98). */
+static inline int obj_type_is_moon_base(int t) {
     return t >= OBJ_MOON_FIRST && t <= OBJ_MOON_LAST;
+}
+
+/* One of the 13 extended natural moons (165..177). */
+static inline int obj_type_is_moon_ext(int t) {
+    return t >= OBJ_MOON_EXT_FIRST && t <= OBJ_MOON_EXT_LAST;
+}
+
+/* Any natural moon (base 89..98 or extended 165..177). */
+static inline int obj_type_is_moon(int t) {
+    return (t >= OBJ_MOON_FIRST && t <= OBJ_MOON_LAST) ||
+           (t >= OBJ_MOON_EXT_FIRST && t <= OBJ_MOON_EXT_LAST);
+}
+
+/* Predicates for shared astronomical properties */
+static inline int obj_type_is_retrograde_moon(int t) {
+    return t == (OBJ_MOON_FIRST + 8) || t == (OBJ_MOON_EXT_FIRST + 0) || t == (OBJ_MOON_EXT_FIRST + 5);
+}
+
+static inline int obj_type_is_ocean_moon(int t) {
+    return t == (OBJ_MOON_FIRST + 4) || t == (OBJ_MOON_EXT_FIRST + 11);
+}
+
+static inline int obj_type_is_volcanic_moon(int t) {
+    return t == (OBJ_MOON_FIRST + 3) || t == (OBJ_MOON_EXT_FIRST + 6) || t == (OBJ_MOON_EXT_FIRST + 7);
+}
+
+static inline int obj_type_is_tidally_locked_moon(int t) {
+    return t == (OBJ_MOON_FIRST + 7) || t == (OBJ_MOON_EXT_FIRST + 2) || t == (OBJ_MOON_EXT_FIRST + 8);
+}
+
+static inline int obj_type_is_chaotic_rotator_moon(int t) {
+    return t == (OBJ_MOON_EXT_FIRST + 3);
+}
+
+static inline int obj_type_is_embedded_moon(int t) {
+    return t == (OBJ_MOON_FIRST + 0) || t == (OBJ_MOON_EXT_FIRST + 4);
+}
+
+static inline int obj_type_is_captured_moon(int t) {
+    return t == (OBJ_MOON_FIRST + 8) || t == (OBJ_MOON_EXT_FIRST + 5);
+}
+
+static inline int obj_type_is_binary_moon(int t) {
+    return t == (OBJ_MOON_EXT_FIRST + 9);
+}
+
+static inline int obj_type_is_ringed_moon(int t) {
+    return t == (OBJ_MOON_EXT_FIRST + 10);
+}
+
+static inline int obj_type_is_disrupted_moon(int t) {
+    return t == (OBJ_MOON_EXT_FIRST + 12);
 }
 
 /* White dwarf or pre-white dwarf (evolved index 5..16). */
@@ -304,8 +376,10 @@ static inline const char *obj_type_name(int t) {
     if (obj_type_is_evolved_star(t)) return evolved_names[t - OBJ_EVOLVED_FIRST];
     static const char *const proto_names[OBJ_PROTOSTELLAR_COUNT] = { OBJECT_PROTOSTELLAR_NAME_LIST };
     if (obj_type_is_protostellar(t)) return proto_names[t - OBJ_PROTOSTELLAR_FIRST];
+    static const char *const moon_ext_names[OBJ_MOON_EXT_COUNT] = { OBJECT_MOON_EXT_NAME_LIST };
+    if (obj_type_is_moon_ext(t)) return moon_ext_names[t - OBJ_MOON_EXT_FIRST];
     static const char *const moon_names[OBJ_MOON_COUNT] = { OBJECT_MOON_NAME_LIST };
-    if (obj_type_is_moon(t)) return moon_names[t - OBJ_MOON_FIRST];
+    if (obj_type_is_moon_base(t)) return moon_names[t - OBJ_MOON_FIRST];
     switch (t) {
 #define OBJECT_TYPE_NAME_CASE(name, value, label) case value: return label;
     OBJECT_TYPE_LIST(OBJECT_TYPE_NAME_CASE)
@@ -378,6 +452,53 @@ static inline float obj_moon_scale(int index) {
     };
     if (index < 0 || index >= OBJ_MOON_COUNT) index = 7;
     return scale[index];
+}
+
+/* Extended moons: colour and size (165..177). */
+static inline const float *obj_moon_ext_rgb(int index) {
+    static const float rgb[OBJ_MOON_EXT_COUNT][3] = {
+        {0.60f, 0.65f, 0.75f},   /* 0 Retrograde        rocky grey-blue        */
+        {0.78f, 0.72f, 0.58f},   /* 1 Resonant          pale ochre             */
+        {0.75f, 0.75f, 0.75f},   /* 2 Tidally Locked    cratered silver-grey   */
+        {0.72f, 0.55f, 0.42f},   /* 3 Chaotic Rotator   sponge tan-red         */
+        {0.85f, 0.88f, 0.95f},   /* 4 Embedded          bright ring icy white  */
+        {0.45f, 0.45f, 0.48f},   /* 5 Captured          dark carbonaceous      */
+        {0.65f, 0.85f, 0.98f},   /* 6 Cryovolcanic      cyan geyser ice        */
+        {0.92f, 0.75f, 0.25f},   /* 7 Tidal-Heated      sulfur magma yellow    */
+        {0.68f, 0.62f, 0.55f},   /* 8 Differentiated    silicate basalt brown  */
+        {0.55f, 0.65f, 0.72f},   /* 9 Binary            twin slate-blue        */
+        {0.82f, 0.80f, 0.88f},   /* 10 Ringed           pearlescent moonlet    */
+        {0.70f, 0.80f, 0.92f},   /* 11 Subsurface Ocean fractured cerulean ice */
+        {0.58f, 0.45f, 0.40f}    /* 12 Disrupted        rubble-pile dark red   */
+    };
+    if (index < 0 || index >= OBJ_MOON_EXT_COUNT) index = 2;
+    return rgb[index];
+}
+
+static inline float obj_moon_ext_scale(int index) {
+    static const float scale[OBJ_MOON_EXT_COUNT] = {
+        0.30f, 0.35f, 0.38f, 0.22f, 0.15f, 0.28f, 0.32f, 0.36f, 0.42f, 0.25f, 0.34f, 0.35f, 0.20f
+    };
+    if (index < 0 || index >= OBJ_MOON_EXT_COUNT) index = 2;
+    return scale[index];
+}
+
+/* Unified RGB for any moon type (base 89..98 or ext 165..177). */
+static inline const float *obj_moon_any_rgb(int t) {
+    if (t >= OBJ_MOON_FIRST && t <= OBJ_MOON_LAST)
+        return obj_moon_rgb(t - OBJ_MOON_FIRST);
+    if (t >= OBJ_MOON_EXT_FIRST && t <= OBJ_MOON_EXT_LAST)
+        return obj_moon_ext_rgb(t - OBJ_MOON_EXT_FIRST);
+    return obj_moon_rgb(7);
+}
+
+/* Unified scale for any moon type (base 89..98 or ext 165..177). */
+static inline float obj_moon_any_scale(int t) {
+    if (t >= OBJ_MOON_FIRST && t <= OBJ_MOON_LAST)
+        return obj_moon_scale(t - OBJ_MOON_FIRST);
+    if (t >= OBJ_MOON_EXT_FIRST && t <= OBJ_MOON_EXT_LAST)
+        return obj_moon_ext_scale(t - OBJ_MOON_EXT_FIRST);
+    return obj_moon_scale(7);
 }
 
 /* Star spectral classes carried in NetObject.ship_class of an OBJ_STAR:

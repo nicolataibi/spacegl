@@ -308,7 +308,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 s = SCALE_STAR * obj_protostellar_scale(obj->type - OBJ_PROTOSTELLAR_FIRST);
             /* Moons: a planet-sized sphere scaled by kind (submoons tiny, ocean/atmosphere moons large) */
             if (obj_type_is_moon(obj->type))
-                s = SCALE_PLANET * obj_moon_scale(obj->type - OBJ_MOON_FIRST);
+                s = SCALE_PLANET * obj_moon_any_scale(obj->type);
             /* Scale the object itself by tactScale */
             s *= tactScale;
             mat4_scale(S, (vec3){s,s,s});
@@ -603,7 +603,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 opc.color[0]=proto_rgb[0]; opc.color[1]=proto_rgb[1]; opc.color[2]=proto_rgb[2];
             } else if (obj_type_is_moon(obj->type)) { // Natural moon
                 opc.metallic = 0.0f; opc.roughness = 0.9f;
-                const float *moon_rgb = obj_moon_rgb(obj->type - OBJ_MOON_FIRST);
+                const float *moon_rgb = obj_moon_any_rgb(obj->type);
                 opc.color[0]=moon_rgb[0]; opc.color[1]=moon_rgb[1]; opc.color[2]=moon_rgb[2];
             } else if (obj->type == OBJ_PLANET) { // Planet
                 opc.metallic = 0.0f; opc.roughness = 0.9f;

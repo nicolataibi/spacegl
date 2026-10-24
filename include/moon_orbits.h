@@ -76,18 +76,25 @@ static inline int moon_pick_planet(unsigned moon_id, int n_elig, const int *pcou
     return -1;
 }
 
-/* Orbit of a moon. moon_index = type - OBJ_MOON_FIRST (0..9), ordinal = how
- * many moons the planet already had (0..3): the radius grows with the
+/* Orbit of a moon. moon_type_or_index = type or (type - OBJ_MOON_FIRST),
+ * ordinal = how many moons the planet already had (0..3): the radius grows with the
  * ordinal, so the orbits of one planet never coincide. Regular moons are
- * nearly equatorial, irregular moons (index 8) are steeply inclined and
- * retrograde, as real irregular moons are. */
-static inline void moon_orbit_make(unsigned moon_id, int moon_index, int ordinal, MoonOrbit *o) {
+ * nearly equatorial, irregular moons (index 8) and retrograde/captured moons are
+ * steeply inclined and retrograde. */
+static inline void moon_orbit_make(unsigned moon_id, int moon_type_or_index, int ordinal, MoonOrbit *o) {
     const double TWO_PI = 6.283185307179586;
     double incl_max = 0.6;                      /* rad */
     double incl_min = 0.0;
     int retro = 0;
-    if (moon_index == 7)      incl_max = 0.2;   /* regular            */
-    else if (moon_index == 8) { incl_min = 0.9; incl_max = 1.4; retro = 1; } /* irregular */
+    if (moon_type_or_index == 7 || moon_type_or_index == 89 + 7) {
+        incl_max = 0.2;   /* regular            */
+    } else if (moon_type_or_index == 8 || moon_type_or_index == 89 + 8 ||
+               moon_type_or_index == 165 + 0 ||  /* Retrograde Moon    */
+               moon_type_or_index == 165 + 5) {  /* Captured Moon      */
+        incl_min = 0.9; incl_max = 1.4; retro = 1; /* irregular / retrograde */
+    } else if (moon_type_or_index == 165 + 4) {  /* Embedded Moonlet   */
+        incl_max = 0.05;                         /* equatorial in ring */
+    }
 
     double incl = incl_min + (incl_max - incl_min) * moon_h01(moon_id, 3u);
     double node = TWO_PI * moon_h01(moon_id, 4u);
@@ -95,6 +102,9 @@ static inline void moon_orbit_make(unsigned moon_id, int moon_index, int ordinal
     o->r = MOON_ORBIT_MIN_RADIUS + MOON_ORBIT_STEP * ordinal
          + MOON_ORBIT_JITTER * moon_h01(moon_id, 2u);
     double period = MOON_ORBIT_BASE_PERIOD_S * pow(o->r / MOON_ORBIT_MIN_RADIUS, 1.5);
+    if (moon_type_or_index == 165 + 1) {         /* Resonant Moon      */
+        period = MOON_ORBIT_BASE_PERIOD_S * (1.0 + (double)ordinal);
+    }
     o->omega = (retro ? -1.0 : 1.0) * TWO_PI / period;
     o->phase = TWO_PI * moon_h01(moon_id, 5u);
 

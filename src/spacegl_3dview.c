@@ -1818,12 +1818,14 @@ void display() {
                             glColor3f(rgb[0], rgb[1], rgb[2]);
                             drawStar(0, 0, 0, 4);
                         } else if (obj_type_is_moon(objects[i].type)) {
-                            int m_id = objects[i].type - OBJ_MOON_FIRST;
-                            const float *rgb = obj_moon_rgb(m_id);
-                            float sc = obj_moon_scale(m_id);
+                            const float *rgb = obj_moon_any_rgb(objects[i].type);
+                            float sc = obj_moon_any_scale(objects[i].type);
                             glScalef(sc, sc, sc);
                             glColor3f(rgb[0], rgb[1], rgb[2]);
                             drawPlanet(0, 0, 0, 0);
+                            if (obj_type_is_ringed_moon(objects[i].type)) {
+                                drawOrbitalRing(0, 0, 0);
+                            }
                         }
                         break;
                 }

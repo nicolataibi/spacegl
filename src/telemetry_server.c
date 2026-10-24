@@ -116,7 +116,11 @@ const char* cat_names_diag[] = {
     "CLASS 0 PROTOSTAR", "CLASS 0 BIPOLAR OUTFLOW", "CLASS I PROTOSTAR", "CLASS I JET",
     "HERBIG-HARO KNOT", "HERBIG-HARO BOW SHOCK", "CLASSICAL T TAURI STAR", "WEAK-LINED T TAURI STAR",
     "HERBIG AE STAR", "HERBIG BE STAR", "FU ORIONIS VARIABLE", "EX LUPI VARIABLE",
-    "PRE-STELLAR CORE", "ENVELOPE CAVITY", "ACCRETION DISK (YSO)", "ACCRETION COLUMN"
+    "PRE-STELLAR CORE", "ENVELOPE CAVITY", "ACCRETION DISK (YSO)", "ACCRETION COLUMN",
+    "RETROGRADE MOON", "RESONANT MOON", "TIDALLY LOCKED MOON", "CHAOTIC ROTATOR MOON",
+    "EMBEDDED MOONLET", "CAPTURED MOON", "CRYOVOLCANIC MOON", "TIDAL-HEATED MOON",
+    "DIFFERENTIATED MOON", "BINARY MOON", "RINGED MOON", "SUBSURFACE OCEAN MOON",
+    "DISRUPTED MOON"
 };
 
 static pthread_mutex_t cat_mutexes[TEL_CAT_COUNT];
@@ -627,6 +631,24 @@ void telemetry_init() {
                         int p_type = OBJ_PROTOSTELLAR_FIRST + (c - TEL_CAT_PROTO_CLASS_0);
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                             if (cosmic_features[k].active && cosmic_features[k].type == p_type) count++;
+                        }
+                    } break;
+                    case TEL_CAT_MOON_RETROGRADE:
+                    case TEL_CAT_MOON_RESONANT:
+                    case TEL_CAT_MOON_TIDALLY_LOCKED:
+                    case TEL_CAT_MOON_CHAOTIC_ROTATOR:
+                    case TEL_CAT_MOON_EMBEDDED:
+                    case TEL_CAT_MOON_CAPTURED:
+                    case TEL_CAT_MOON_CRYOVOLCANIC:
+                    case TEL_CAT_MOON_TIDAL_HEATED:
+                    case TEL_CAT_MOON_DIFFERENTIATED:
+                    case TEL_CAT_MOON_BINARY:
+                    case TEL_CAT_MOON_RINGED:
+                    case TEL_CAT_MOON_SUBSURFACE_OCEAN:
+                    case TEL_CAT_MOON_DISRUPTED: {
+                        int m_type = OBJ_MOON_EXT_FIRST + (c - TEL_CAT_MOON_RETROGRADE);
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == m_type) count++;
                         }
                     } break;
                 }
@@ -1897,6 +1919,29 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     to->color_pair = 5;
                 }
             } break;
+            case TEL_CAT_MOON_RETROGRADE:
+            case TEL_CAT_MOON_RESONANT:
+            case TEL_CAT_MOON_TIDALLY_LOCKED:
+            case TEL_CAT_MOON_CHAOTIC_ROTATOR:
+            case TEL_CAT_MOON_EMBEDDED:
+            case TEL_CAT_MOON_CAPTURED:
+            case TEL_CAT_MOON_CRYOVOLCANIC:
+            case TEL_CAT_MOON_TIDAL_HEATED:
+            case TEL_CAT_MOON_DIFFERENTIATED:
+            case TEL_CAT_MOON_BINARY:
+            case TEL_CAT_MOON_RINGED:
+            case TEL_CAT_MOON_SUBSURFACE_OCEAN:
+            case TEL_CAT_MOON_DISRUPTED: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "MN%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Extended Moon", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
             default: break;
         }
     }
@@ -2288,6 +2333,26 @@ static void update_category_cache(int cat) {
                 int p_type = OBJ_PROTOSTELLAR_FIRST + (cat - TEL_CAT_PROTO_CLASS_0);
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == p_type) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_MOON_RETROGRADE:
+            case TEL_CAT_MOON_RESONANT:
+            case TEL_CAT_MOON_TIDALLY_LOCKED:
+            case TEL_CAT_MOON_CHAOTIC_ROTATOR:
+            case TEL_CAT_MOON_EMBEDDED:
+            case TEL_CAT_MOON_CAPTURED:
+            case TEL_CAT_MOON_CRYOVOLCANIC:
+            case TEL_CAT_MOON_TIDAL_HEATED:
+            case TEL_CAT_MOON_DIFFERENTIATED:
+            case TEL_CAT_MOON_BINARY:
+            case TEL_CAT_MOON_RINGED:
+            case TEL_CAT_MOON_SUBSURFACE_OCEAN:
+            case TEL_CAT_MOON_DISRUPTED: {
+                int m_type = OBJ_MOON_EXT_FIRST + (cat - TEL_CAT_MOON_RETROGRADE);
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == m_type) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }

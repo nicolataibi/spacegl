@@ -385,10 +385,9 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         /* Natural moons: planet-style PBR sphere, colour and size by kind
          * (object_types.h, shared with the CPU Vulkan path and the OpenGL
          * viewer). */
-        int m_id = type - OBJ_MOON_FIRST;
-        const float *rgb = obj_moon_rgb(m_id);
+        const float *rgb = obj_moon_any_rgb(type);
         v->mesh = GDD_MESH_SPHERE;
-        v->scale = 1.8f * obj_moon_scale(m_id);
+        v->scale = 1.8f * obj_moon_any_scale(type);
         v->frag_mode = GDD_FRAG_PBR;
         v->metallic = 0.0f; v->roughness = 0.9f;
         v->color[0] = rgb[0]; v->color[1] = rgb[1]; v->color[2] = rgb[2];

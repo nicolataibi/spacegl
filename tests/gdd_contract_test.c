@@ -1018,6 +1018,9 @@ static void test_object_types(void) {
     CHECK(OBJ_PROTOSTELLAR_FIRST > OBJ_EVOLVED_LAST, "protostellar block must not overlap the evolved star block");
     for (int t = OBJ_PROTOSTELLAR_FIRST; t <= OBJ_PROTOSTELLAR_LAST; t++)
         CHECK(obj_type_name(t) != NULL && !seen[t], "protostellar type %d named and not shadowed", t);
+    CHECK(OBJ_MOON_EXT_FIRST > OBJ_PROTOSTELLAR_LAST, "extended moon block must not overlap the protostellar block");
+    for (int t = OBJ_MOON_EXT_FIRST; t <= OBJ_MOON_EXT_LAST; t++)
+        CHECK(obj_type_name(t) != NULL && !seen[t], "extended moon type %d named and not shadowed", t);
 
     /* 2. every known type outside the cosmic band has a dedicated look */
     int generic = 0;
@@ -1062,7 +1065,7 @@ static void test_object_types(void) {
         int legacy = (t == OBJ_PLAYER) || (t >= 10 && t <= 88);
         CHECK(obj_type_uses_cpu_hull_path(t) == legacy,
               "type %d: cpu hull path %d, want %d", t, obj_type_uses_cpu_hull_path(t), legacy);
-        if (obj_type_is_exotic(t) || obj_type_is_evolved_star(t) || obj_type_is_protostellar(t) || (t >= 89 && t <= 99) || t > OBJ_PROTOSTELLAR_LAST)
+        if (obj_type_is_exotic(t) || obj_type_is_evolved_star(t) || obj_type_is_protostellar(t) || obj_type_is_moon(t) || (t >= 89 && t <= 99) || t > OBJ_MOON_EXT_LAST)
             CHECK(!obj_type_uses_cpu_hull_path(t), "type %d must not use the cpu hull path", t);
         if (obj_type_has_ship_hull(t))
             CHECK(obj_type_uses_cpu_hull_path(t), "hull type %d must use the cpu hull path", t);
@@ -1177,6 +1180,35 @@ static void test_moons(void) {
           "moon palette: out-of-range index falls back to the regular moon");
     CHECK(!obj_type_is_moon(OBJ_MOON_FIRST - 1) && !obj_type_is_moon(OBJ_MOON_LAST + 1),
           "moon range edges");
+}
+
+/* Extended natural moons (types 165..177): dedicated looks, unique names */
+static void test_moons_ext(void) {
+    CHECK(OBJ_MOON_EXT_COUNT == 13, "13 extended moon types, got %d", OBJ_MOON_EXT_COUNT);
+    CHECK(OBJ_MOON_EXT_FIRST > OBJ_PROTOSTELLAR_LAST, "extended moon block sits after protostellar block");
+    for (int t = OBJ_MOON_EXT_FIRST; t <= OBJ_MOON_EXT_LAST; t++) {
+        CHECK(obj_type_is_moon(t) && obj_type_is_moon_ext(t) && obj_type_is_known(t) &&
+              !obj_type_is_exotic(t) && !obj_type_is_evolved_star(t) && !obj_type_is_protostellar(t) &&
+              !obj_type_has_ship_hull(t) && !obj_type_uses_cpu_hull_path(t),
+              "ext moon type %d is only a moon", t);
+        for (int u = t + 1; u <= OBJ_MOON_EXT_LAST; u++)
+            CHECK(strcmp(obj_type_name(t), obj_type_name(u)) != 0,
+                  "ext moon names %d and %d are unique", t, u);
+        build_single_type(t, &(GddInstance){0});
+        const float *w = obj_moon_any_rgb(t);
+        int ok = 0, generic = 0;
+        for (uint32_t i = 0; i < g_dyn_n; i++) {
+            if (is_generic_cosmic_look(&g_dyn[i])) generic = 1;
+            if ((int)(g_dyn[i].mesh + 0.5f) == GDD_MESH_SPHERE &&
+                fabsf(g_dyn[i].scale[0] - 1.8f * obj_moon_any_scale(t)) < 1e-4f &&
+                fabsf(g_dyn[i].color[0] - w[0]) < 1e-5f &&
+                fabsf(g_dyn[i].color[1] - w[1]) < 1e-5f &&
+                fabsf(g_dyn[i].color[2] - w[2]) < 1e-5f) ok = 1;
+        }
+        CHECK(ok, "ext moon type %d (%s) uses the shared palette and size", t, obj_type_name(t));
+        CHECK(!generic, "ext moon type %d must not use the generic cosmic look", t);
+        CHECK(obj_moon_any_scale(t) < 1.0f, "ext moon %d is smaller than a planet", t);
+    }
 }
 
 static void test_capacity_guard(void) {
@@ -1464,6 +1496,7 @@ int main(void) {
     test_star_spectral_palette();
     test_evolved_stars();
     test_moons();
+    test_moons_ext();
     test_capacity_guard();
     test_raw_objs_fallback();
     printf("  %d checks passed, %d failed\n", g_pass, g_fail);

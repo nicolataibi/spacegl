@@ -505,7 +505,8 @@ void save_galaxy() { save_galaxy_async(); }
 static_assert(MAX_COSMIC_FEATURES >= OBJ_EXOTIC_COUNT * GALAXY_CREATE_EXOTIC_PER_TYPE +
                                      OBJ_EVOLVED_COUNT * GALAXY_CREATE_EVOLVED_STAR_PER_TYPE +
                                      OBJ_MOON_COUNT * GALAXY_CREATE_MOON_PER_TYPE +
-                                     OBJ_PROTOSTELLAR_COUNT * GALAXY_CREATE_PROTOSTELLAR_PER_TYPE,
+                                     OBJ_PROTOSTELLAR_COUNT * GALAXY_CREATE_PROTOSTELLAR_PER_TYPE +
+                                     OBJ_MOON_EXT_COUNT * 10,
               "cosmic_features[] too small for the exotic + evolved star + moon + protostellar instances");
 
 static void spawn_evolved_stars(void) {
@@ -587,6 +588,8 @@ static void spawn_protostellar_objects(void) {
  * attach_moons_to_planets() moves every moon onto an orbit around its planet. */
 static void spawn_moons(void) {
     const char *moon_names[OBJ_MOON_COUNT] = { OBJECT_MOON_NAME_LIST };
+    const char *moon_ext_names[OBJ_MOON_EXT_COUNT] = { OBJECT_MOON_EXT_NAME_LIST };
+    int total_types = OBJ_MOON_COUNT + OBJ_MOON_EXT_COUNT;
     int active_planets = 0;
     for (int p = 0; p < MAX_PLANETS; p++) {
         if (IS_Q_VALID(planets[p].q1, planets[p].q2, planets[p].q3) && planets[p].active)
@@ -598,16 +601,26 @@ static void spawn_moons(void) {
             current_moons++;
     }
     int target_moons = active_planets + (active_planets / 5);
-    if (target_moons < OBJ_MOON_COUNT * GALAXY_CREATE_MOON_PER_TYPE)
-        target_moons = OBJ_MOON_COUNT * GALAXY_CREATE_MOON_PER_TYPE;
+    if (target_moons < total_types * 45)
+        target_moons = total_types * 45;
 
     int needed = target_moons - current_moons;
     for (int k = 0; k < needed; k++) {
         if (cosmic_feature_count >= MAX_COSMIC_FEATURES) break;
-        int t = (current_moons + k) % OBJ_MOON_COUNT;
+        int t = (current_moons + k) % total_types;
+        int obj_type;
+        const char *name;
+        if (t < OBJ_MOON_COUNT) {
+            obj_type = OBJ_MOON_FIRST + t;
+            name = moon_names[t];
+        } else {
+            int ext_idx = t - OBJ_MOON_COUNT;
+            obj_type = OBJ_MOON_EXT_FIRST + ext_idx;
+            name = moon_ext_names[ext_idx];
+        }
         cosmic_features[cosmic_feature_count] = (NPCCosmicFeature){
             .id = GALAXY_OBJECT_MIN_FEATURE + cosmic_feature_count,
-            .type = OBJ_MOON_FIRST + t,
+            .type = obj_type,
             .q1 = 1 + rand() % GALAXY_SIZE,
             .q2 = 1 + rand() % GALAXY_SIZE,
             .q3 = 1 + rand() % GALAXY_SIZE,
@@ -616,7 +629,7 @@ static void spawn_moons(void) {
             .z = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
             .active = 1
         };
-        strncpy(cosmic_features[cosmic_feature_count].name, moon_names[t], 63);
+        strncpy(cosmic_features[cosmic_feature_count].name, name, 63);
         cosmic_features[cosmic_feature_count].name[63] = '\0';
         cosmic_feature_count++;
     }
@@ -661,7 +674,7 @@ void attach_moons_to_planets(void) {
         int j = moon_pick_planet((unsigned)f->id, ne, pcount);
         if (j < 0) { f->active = 0; dropped++; continue; }
         const NPCPlanet *pl = &planets[elig[j]];
-        moon_orbit_make((unsigned)f->id, f->type - OBJ_MOON_FIRST, pcount[j]++, &moon_links[i].orbit);
+        moon_orbit_make((unsigned)f->id, f->type, pcount[j]++, &moon_links[i].orbit);
         moon_links[i].valid = 1;
         moon_links[i].planet = elig[j];
         f->q1 = pl->q1; f->q2 = pl->q2; f->q3 = pl->q3;
@@ -846,6 +859,39 @@ int load_galaxy() {
             printf("[GALAXY] added %d protostellar objects to the loaded galaxy\n", cosmic_feature_count - before);
         }
     }
+
+    /* galaxy.dat saved before extended moons existed: add them now */
+    {
+        int has_ext_moons = 0;
+        for (int i = 0; i < MAX_COSMIC_FEATURES && !has_ext_moons; i++)
+            if (cosmic_features[i].active && obj_type_is_moon_ext(cosmic_features[i].type)) has_ext_moons = 1;
+        if (!has_ext_moons && cosmic_feature_count >= 0 && cosmic_feature_count < MAX_COSMIC_FEATURES) {
+            int before = cosmic_feature_count;
+            const char *moon_ext_names[OBJ_MOON_EXT_COUNT] = { OBJECT_MOON_EXT_NAME_LIST };
+            for (int k = 0; k < OBJ_MOON_EXT_COUNT * 5; k++) {
+                if (cosmic_feature_count >= MAX_COSMIC_FEATURES) break;
+                int ext_idx = k % OBJ_MOON_EXT_COUNT;
+                cosmic_features[cosmic_feature_count] = (NPCCosmicFeature){
+                    .id = GALAXY_OBJECT_MIN_FEATURE + cosmic_feature_count,
+                    .type = OBJ_MOON_EXT_FIRST + ext_idx,
+                    .q1 = 1 + rand() % GALAXY_SIZE,
+                    .q2 = 1 + rand() % GALAXY_SIZE,
+                    .q3 = 1 + rand() % GALAXY_SIZE,
+                    .x = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+                    .y = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+                    .z = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+                    .active = 1
+                };
+                strncpy(cosmic_features[cosmic_feature_count].name, moon_ext_names[ext_idx], 63);
+                cosmic_features[cosmic_feature_count].name[63] = '\0';
+                cosmic_feature_count++;
+            }
+            if (cosmic_feature_count > before) {
+                printf("[GALAXY] added %d extended moons to the loaded galaxy\n", cosmic_feature_count - before);
+                attach_moons_to_planets();
+            }
+        }
+    }
     
     for(int i=0; i<MAX_CLIENTS; i++) {
         players[i].active = 0;
@@ -871,6 +917,7 @@ int load_galaxy() {
 
     int moon_count = 0;
     int moon_type_counts[OBJ_MOON_COUNT] = {0};
+    int moon_ext_type_counts[OBJ_MOON_EXT_COUNT] = {0};
     int evolved_star_count = 0;
     int evolved_type_counts[OBJ_EVOLVED_COUNT] = {0};
     int protostellar_count = 0;
@@ -879,10 +926,14 @@ int load_galaxy() {
     for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
         if (!cosmic_features[i].active) continue;
         int t = cosmic_features[i].type;
-        if (obj_type_is_moon(t)) {
+        if (obj_type_is_moon_base(t)) {
             moon_count++;
             int idx = t - OBJ_MOON_FIRST;
             if (idx >= 0 && idx < OBJ_MOON_COUNT) moon_type_counts[idx]++;
+        } else if (obj_type_is_moon_ext(t)) {
+            moon_count++;
+            int idx = t - OBJ_MOON_EXT_FIRST;
+            if (idx >= 0 && idx < OBJ_MOON_EXT_COUNT) moon_ext_type_counts[idx]++;
         } else if (obj_type_is_evolved_star(t)) {
             evolved_star_count++;
             int idx = t - OBJ_EVOLVED_FIRST;
@@ -923,6 +974,17 @@ int load_galaxy() {
         printf("%s | %s %-20s: %s%-4d %s| %s %-20s: %s%-4d %s|\n",
                B_CYAN, B_WHITE, m1, B_GREEN, moon_type_counts[m], B_CYAN,
                B_WHITE, m2, B_GREEN, (m + 1 < OBJ_MOON_COUNT) ? moon_type_counts[m + 1] : 0, B_CYAN);
+    }
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ EXTENDED NATURAL MOONS ]                                      %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    const char *moon_ext_names[OBJ_MOON_EXT_COUNT] = { OBJECT_MOON_EXT_NAME_LIST };
+    for (int m = 0; m < OBJ_MOON_EXT_COUNT; m += 2) {
+        char m1[32], m2[32] = "";
+        strncpy(m1, moon_ext_names[m], 20); m1[20] = '\0';
+        if (m + 1 < OBJ_MOON_EXT_COUNT) { strncpy(m2, moon_ext_names[m + 1], 20); m2[20] = '\0'; }
+        printf("%s | %s %-20s: %s%-4d %s| %s %-20s: %s%-4d %s|\n",
+               B_CYAN, B_WHITE, m1, B_GREEN, moon_ext_type_counts[m], B_CYAN,
+               B_WHITE, m2, B_GREEN, (m + 1 < OBJ_MOON_EXT_COUNT) ? moon_ext_type_counts[m + 1] : 0, B_CYAN);
     }
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     printf("%s | %s [ EVOLVED STARS ]                                            %s|\n", B_CYAN, B_YELLOW, B_CYAN);
@@ -1803,6 +1865,7 @@ void generate_galaxy() {
 
     int moon_count = 0;
     int moon_type_counts[OBJ_MOON_COUNT] = {0};
+    int moon_ext_type_counts[OBJ_MOON_EXT_COUNT] = {0};
     int evolved_star_count = 0;
     int evolved_type_counts[OBJ_EVOLVED_COUNT] = {0};
     int protostellar_count = 0;
@@ -1811,10 +1874,14 @@ void generate_galaxy() {
     for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
         if (!cosmic_features[i].active) continue;
         int t = cosmic_features[i].type;
-        if (obj_type_is_moon(t)) {
+        if (obj_type_is_moon_base(t)) {
             moon_count++;
             int idx = t - OBJ_MOON_FIRST;
             if (idx >= 0 && idx < OBJ_MOON_COUNT) moon_type_counts[idx]++;
+        } else if (obj_type_is_moon_ext(t)) {
+            moon_count++;
+            int idx = t - OBJ_MOON_EXT_FIRST;
+            if (idx >= 0 && idx < OBJ_MOON_EXT_COUNT) moon_ext_type_counts[idx]++;
         } else if (obj_type_is_evolved_star(t)) {
             evolved_star_count++;
             int idx = t - OBJ_EVOLVED_FIRST;
@@ -1929,6 +1996,17 @@ void generate_galaxy() {
         printf("%s | %s %-20s: %s%-4d %s| %s %-20s: %s%-4d %s|\n",
                B_CYAN, B_WHITE, m1, B_GREEN, moon_type_counts[m], B_CYAN,
                B_WHITE, m2, B_GREEN, (m + 1 < OBJ_MOON_COUNT) ? moon_type_counts[m + 1] : 0, B_CYAN);
+    }
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ EXTENDED NATURAL MOONS ]                                      %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    const char *moon_ext_names[OBJ_MOON_EXT_COUNT] = { OBJECT_MOON_EXT_NAME_LIST };
+    for (int m = 0; m < OBJ_MOON_EXT_COUNT; m += 2) {
+        char m1[32], m2[32] = "";
+        strncpy(m1, moon_ext_names[m], 20); m1[20] = '\0';
+        if (m + 1 < OBJ_MOON_EXT_COUNT) { strncpy(m2, moon_ext_names[m + 1], 20); m2[20] = '\0'; }
+        printf("%s | %s %-20s: %s%-4d %s| %s %-20s: %s%-4d %s|\n",
+               B_CYAN, B_WHITE, m1, B_GREEN, moon_ext_type_counts[m], B_CYAN,
+               B_WHITE, m2, B_GREEN, (m + 1 < OBJ_MOON_EXT_COUNT) ? moon_ext_type_counts[m + 1] : 0, B_CYAN);
     }
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     printf("%s | %s [ EVOLVED STARS ]                                            %s|\n", B_CYAN, B_YELLOW, B_CYAN);
