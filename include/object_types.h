@@ -163,6 +163,25 @@
 #define OBJ_EVOLVED_GIANT_LAST   4    /* 0..4  giants / supergiants      */
 #define OBJ_EVOLVED_PULSATOR_MIN 14   /* 14..16 pulsating white dwarfs   */
 
+/* Natural moons: 10 consecutive types (type = OBJ_MOON_FIRST + index) in the
+ * free slots 89..98, stored in the generic cosmic_features[] array like the
+ * exotic objects and the evolved stars. 99 stays free. Order:
+ *   0 Shepherd, 1 Trojan, 2 Co-orbital, 3 Volcanic, 4 Ocean, 5 With
+ *   atmosphere, 6 Exomoon, 7 Regular, 8 Irregular, 9 Submoon.
+ * Names live here only: the server galaxy generator and the viewers use
+ * this list. */
+#define OBJECT_MOON_NAME_LIST \
+    "Shepherd Moon", "Trojan Moon", "Co-orbital Moon", "Volcanic Moon", \
+    "Ocean Moon", "Moon with Atmosphere", "Exomoon", "Regular Moon", \
+    "Irregular Moon", "Submoon"
+
+#define OBJ_MOON_FIRST 89
+#define OBJ_MOON_COUNT 10
+#define OBJ_MOON_LAST  (OBJ_MOON_FIRST + OBJ_MOON_COUNT - 1)   /* 98 */
+
+/* Index of the moon that carries a visible atmosphere halo. */
+#define OBJ_MOON_ATMOSPHERE_INDEX 5
+
 /* NPC ships use their faction number as object type (FACTION_KORTHIAN ..
  * FACTION_HIROGEN in network.h). */
 #define OBJ_NPC_FIRST    OBJ_SHIP_KORTHIAN
@@ -192,6 +211,11 @@ static inline int obj_type_is_exotic(int t) {
 /* One of the 17 evolved stars (132..148). */
 static inline int obj_type_is_evolved_star(int t) {
     return t >= OBJ_EVOLVED_FIRST && t <= OBJ_EVOLVED_LAST;
+}
+
+/* One of the 10 natural moons (89..98). */
+static inline int obj_type_is_moon(int t) {
+    return t >= OBJ_MOON_FIRST && t <= OBJ_MOON_LAST;
 }
 
 /* White dwarf or pre-white dwarf (evolved index 5..16). */
@@ -237,6 +261,8 @@ static inline const char *obj_type_name(int t) {
     if (obj_type_is_exotic(t)) return exotic_names[t - OBJ_EXOTIC_FIRST];
     static const char *const evolved_names[OBJ_EVOLVED_COUNT] = { OBJECT_EVOLVED_NAME_LIST };
     if (obj_type_is_evolved_star(t)) return evolved_names[t - OBJ_EVOLVED_FIRST];
+    static const char *const moon_names[OBJ_MOON_COUNT] = { OBJECT_MOON_NAME_LIST };
+    if (obj_type_is_moon(t)) return moon_names[t - OBJ_MOON_FIRST];
     switch (t) {
 #define OBJECT_TYPE_NAME_CASE(name, value, label) case value: return label;
     OBJECT_TYPE_LIST(OBJECT_TYPE_NAME_CASE)
@@ -247,6 +273,35 @@ static inline const char *obj_type_name(int t) {
 
 static inline int obj_type_is_known(int t) {
     return obj_type_name(t) != (const char *)0;
+}
+
+/* Moons: colour and size (relative to a planet = 1.0) shared by the OpenGL
+ * viewer, the CPU Vulkan path and the GPU-driven builder. Index = type -
+ * OBJ_MOON_FIRST; out of range falls back to the regular moon. */
+static inline const float *obj_moon_rgb(int index) {
+    static const float rgb[OBJ_MOON_COUNT][3] = {
+        {0.65f, 0.60f, 0.55f},   /* 0 Shepherd       dusty grey-brown  */
+        {0.55f, 0.52f, 0.50f},   /* 1 Trojan         dark grey         */
+        {0.70f, 0.68f, 0.65f},   /* 2 Co-orbital     light grey        */
+        {0.90f, 0.60f, 0.15f},   /* 3 Volcanic       sulphur orange    */
+        {0.45f, 0.65f, 0.85f},   /* 4 Ocean          icy blue          */
+        {0.80f, 0.60f, 0.30f},   /* 5 Atmosphere     hazy amber        */
+        {0.55f, 0.80f, 0.70f},   /* 6 Exomoon        teal              */
+        {0.78f, 0.78f, 0.80f},   /* 7 Regular        silver            */
+        {0.50f, 0.45f, 0.42f},   /* 8 Irregular      dark rock         */
+        {0.60f, 0.60f, 0.62f}    /* 9 Submoon        grey              */
+    };
+    if (index < 0 || index >= OBJ_MOON_COUNT) index = 7;
+    return rgb[index];
+}
+
+static inline float obj_moon_scale(int index) {
+    static const float scale[OBJ_MOON_COUNT] = {
+        0.30f, 0.35f, 0.40f, 0.50f, 0.55f,   /* shepherd .. ocean        */
+        0.60f, 0.60f, 0.45f, 0.30f, 0.20f    /* atmosphere .. submoon    */
+    };
+    if (index < 0 || index >= OBJ_MOON_COUNT) index = 7;
+    return scale[index];
 }
 
 /* Star spectral classes carried in NetObject.ship_class of an OBJ_STAR:

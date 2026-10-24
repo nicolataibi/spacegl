@@ -23,6 +23,8 @@
 /* The OpenGL object switch lists the evolved-star types as literal case labels. */
 _Static_assert(OBJ_EVOLVED_FIRST == 132 && OBJ_EVOLVED_LAST == 148,
                "update the case 132..148 labels in the object draw switch");
+_Static_assert(OBJ_MOON_FIRST == 89 && OBJ_MOON_LAST == 98,
+               "update the case 89..98 labels in the object draw switch");
 #include "gl_loader.h"
 #include <GLFW/glfw3.h>
 #include "glut_compat.h"
@@ -1687,6 +1689,9 @@ void display() {
                     case 132: case 133: case 134: case 135: case 136: case 137: case 138: case 139:
                     case 140: case 141: case 142: case 143: case 144: case 145: case 146: case 147:
                     case 148: drawEvolvedStar(t - OBJ_EVOLVED_FIRST); break; /* evolved stars (object_types.h) */
+                    case 89: case 90: case 91: case 92: case 93:
+                    case 94: case 95: case 96: case 97:
+                    case 98: drawMoon(t - OBJ_MOON_FIRST); break; /* natural moons (object_types.h) */
                     case 100: case 101: case 102: case 103: case 104: case 105: case 106: case 107:
                     case 108: case 109: case 110: case 111: case 112: case 113: case 114: case 115:
                     case 116: case 117: case 118: case 119: case 120: case 121: case 122: case 123:
@@ -2387,7 +2392,7 @@ void display() {
                     case OBJ_LYMAN_ALPHA: t_name = "LYMAN ALPHA"; break;
                     case OBJ_CMB: t_name = "CMB"; break;
                     case OBJ_SUBSPACE_ANOMALY: t_name = "ANOMALY"; break;
-                    default: t_name = obj_type_is_evolved_star(objects[i].type) ? "EVOLVED" : "UNKNOWN"; break;
+                    default: t_name = obj_type_is_evolved_star(objects[i].type) ? "EVOLVED" : (obj_type_is_moon(objects[i].type) ? "MOON" : "UNKNOWN"); break;
                 }
                 
                 if (objects[i].type == OBJ_PLAYER) sprintf(buf, "[%03d] %s", objects[i].id, objects[i].name);

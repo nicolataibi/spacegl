@@ -89,6 +89,7 @@ static int object_has_faction(int type) {
 const char* get_object_class_name(int type) {
     if (obj_type_is_exotic(type)) return "EXOTIC"; /* exotic features */
     if (obj_type_is_evolved_star(type)) return "STELLAR"; /* giants, white dwarfs */
+    if (obj_type_is_moon(type)) return "PLANETARY"; /* natural moons */
     switch (type) {
         case OBJ_STAR:  return "STELLAR";   /* Star */
         case OBJ_PULSAR:  return "STELLAR";   /* Pulsar */
@@ -569,6 +570,7 @@ int main(int argc, char** argv) {
             else if (obj->type == OBJ_BASE) type_n = "BASE";
             else if (obj->type == OBJ_STAR) type_n = "STAR";
             else if (obj->type == OBJ_PLANET) type_n = "PLAN";
+            else if (obj_type_is_moon(obj->type)) type_n = "MOON";
             else if (obj->type == OBJ_BLACK_HOLE) type_n = "BHOL";
             else if (obj->type == OBJ_ASTEROID) type_n = "ASTE";
             else if (obj->type == OBJ_TORPEDO) type_n = "TORP";

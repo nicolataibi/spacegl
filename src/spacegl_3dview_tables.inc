@@ -1216,6 +1216,38 @@ void drawEvolvedStar(int index) {
     glPopAttrib();
 }
 
+/* Natural moons (types 89..98): shepherd, Trojan, co-orbital, volcanic, ocean,
+ * atmosphere, exomoon, regular, irregular, submoon. Same lit sphere as
+ * drawPlanet, colour and size from object_types.h by kind; volcanic moons
+ * glow, the moon with an atmosphere gets a haze halo. */
+void drawMoon(int index) {
+    const float *rgb = obj_moon_rgb(index);
+    double r = rgb[0], g = rgb[1], b = rgb[2];
+    double k = obj_moon_scale(index);   /* planet = 1.0 */
+
+    GLfloat spec[] = {0.3, 0.3, 0.3, 1.0};
+    glMaterialfv(GL_FRONT, GL_SPECULAR, spec);
+    glMateriali(GL_FRONT, GL_SHININESS, index == 4 ? 90 : 30);
+    glColor3f(r, g, b);
+    glutSolidSphere(0.3 * k, 24, 24);
+
+    if (index == 3 || index == OBJ_MOON_ATMOSPHERE_INDEX) {
+        glPushAttrib(GL_ALL_ATTRIB_BITS);
+        glDisable(GL_LIGHTING);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        glDepthMask(GL_FALSE);
+        if (index == 3) {   /* volcanic: pulsing lava glow */
+            glColor4f(1.0, 0.35, 0.05, 0.18 + 0.08 * sin(pulse * 4.0));
+            glutSolidSphere(0.3 * k * 1.08, 16, 16);
+        } else {            /* atmosphere haze */
+            glColor4f(r, g, b, 0.25);
+            glutSolidSphere(0.3 * k * 1.15, 16, 16);
+        }
+        glPopAttrib();
+    }
+}
+
 void drawPlanet(double x, double y, double z, int planet_class) { (void)x; (void)y; (void)z;
     GLfloat spec[] = {0.3, 0.3, 0.3, 1.0};
     glMaterialfv(GL_FRONT, GL_SPECULAR, spec);

@@ -502,8 +502,9 @@ void save_galaxy() { save_galaxy_async(); }
  * each. Used by the galaxy generator and, for a galaxy.dat saved before these
  * types existed (same file layout, no evolved stars in it), by load_galaxy(). */
 static_assert(MAX_COSMIC_FEATURES >= OBJ_EXOTIC_COUNT * GALAXY_CREATE_EXOTIC_PER_TYPE +
-                                     OBJ_EVOLVED_COUNT * GALAXY_CREATE_EVOLVED_STAR_PER_TYPE,
-              "cosmic_features[] too small for the exotic + evolved star instances");
+                                     OBJ_EVOLVED_COUNT * GALAXY_CREATE_EVOLVED_STAR_PER_TYPE +
+                                     OBJ_MOON_COUNT * GALAXY_CREATE_MOON_PER_TYPE,
+              "cosmic_features[] too small for the exotic + evolved star + moon instances");
 
 static void spawn_evolved_stars(void) {
     const char *evolved_names[OBJ_EVOLVED_COUNT] = { OBJECT_EVOLVED_NAME_LIST };
@@ -522,6 +523,33 @@ static void spawn_evolved_stars(void) {
                 .active = 1
             };
             strncpy(cosmic_features[cosmic_feature_count].name, evolved_names[t], 63);
+            cosmic_features[cosmic_feature_count].name[63] = '\0';
+            cosmic_feature_count++;
+        }
+    }
+}
+
+/* Moons (shepherd .. submoon): 10 types stored in the generic cosmic_features[]
+ * array, type = OBJ_MOON_FIRST + index, GALAXY_CREATE_MOON_PER_TYPE instances of
+ * each. Used by the galaxy generator and, for a galaxy.dat saved before the
+ * moons existed (same file layout), by load_galaxy(). */
+static void spawn_moons(void) {
+    const char *moon_names[OBJ_MOON_COUNT] = { OBJECT_MOON_NAME_LIST };
+    for (int t = 0; t < OBJ_MOON_COUNT; t++) {
+        for (int i = 0; i < GALAXY_CREATE_MOON_PER_TYPE; i++) {
+            if (cosmic_feature_count >= MAX_COSMIC_FEATURES) return;
+            cosmic_features[cosmic_feature_count] = (NPCCosmicFeature){
+                .id = GALAXY_OBJECT_MIN_FEATURE + cosmic_feature_count,
+                .type = OBJ_MOON_FIRST + t,
+                .q1 = 1 + rand() % GALAXY_SIZE,
+                .q2 = 1 + rand() % GALAXY_SIZE,
+                .q3 = 1 + rand() % GALAXY_SIZE,
+                .x = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+                .y = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+                .z = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+                .active = 1
+            };
+            strncpy(cosmic_features[cosmic_feature_count].name, moon_names[t], 63);
             cosmic_features[cosmic_feature_count].name[63] = '\0';
             cosmic_feature_count++;
         }
@@ -633,6 +661,18 @@ int load_galaxy() {
             int before = cosmic_feature_count;
             spawn_evolved_stars();
             printf("[GALAXY] added %d evolved stars to the loaded galaxy\n", cosmic_feature_count - before);
+        }
+    }
+
+    /* galaxy.dat saved before the moons existed: same idea, same layout. */
+    {
+        int has_moon = 0;
+        for (int i = 0; i < MAX_COSMIC_FEATURES && !has_moon; i++)
+            if (cosmic_features[i].active && obj_type_is_moon(cosmic_features[i].type)) has_moon = 1;
+        if (!has_moon && cosmic_feature_count >= 0 && cosmic_feature_count <= MAX_COSMIC_FEATURES) {
+            int before = cosmic_feature_count;
+            spawn_moons();
+            printf("[GALAXY] added %d moons to the loaded galaxy\n", cosmic_feature_count - before);
         }
     }
     
@@ -1505,6 +1545,9 @@ void generate_galaxy() {
     /* Evolved stars (red giants .. pulsating white dwarfs): 17 types in the
      * same generic array. */
     spawn_evolved_stars();
+
+    /* Natural moons (shepherd .. submoon): 10 types in the same array. */
+    spawn_moons();
 
     rebuild_spatial_index();
     refresh_lrs_grid();

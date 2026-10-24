@@ -303,6 +303,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             /* Evolved stars: a star-sized sphere scaled by stage (giants big, white dwarfs tiny) */
             if (obj_type_is_evolved_star(obj->type))
                 s = SCALE_STAR * obj_evolved_star_scale(obj->type - OBJ_EVOLVED_FIRST);
+            /* Moons: a planet-sized sphere scaled by kind (submoons tiny, ocean/atmosphere moons large) */
+            if (obj_type_is_moon(obj->type))
+                s = SCALE_PLANET * obj_moon_scale(obj->type - OBJ_MOON_FIRST);
             /* Scale the object itself by tactScale */
             s *= tactScale;
             mat4_scale(S, (vec3){s,s,s});
@@ -591,6 +594,10 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 float ev_k = 1.0f;
                 if (obj_type_is_pulsating_wd(obj->type)) ev_k = 0.75f + 0.25f * sinf(pulse * 6.0f + (float)obj->id); /* non-radial pulsation */
                 opc.color[0]=ev_rgb[0]*ev_k; opc.color[1]=ev_rgb[1]*ev_k; opc.color[2]=ev_rgb[2]*ev_k;
+            } else if (obj_type_is_moon(obj->type)) { // Natural moon
+                opc.metallic = 0.0f; opc.roughness = 0.9f;
+                const float *moon_rgb = obj_moon_rgb(obj->type - OBJ_MOON_FIRST);
+                opc.color[0]=moon_rgb[0]; opc.color[1]=moon_rgb[1]; opc.color[2]=moon_rgb[2];
             } else if (obj->type == OBJ_PLANET) { // Planet
                 opc.metallic = 0.0f; opc.roughness = 0.9f;
                 /* Planet classes (ship_class = NPCPlanet.planet_class): 0:Terrestrial 1:Gas Giant 2:Ice 3:Molten 4:Desert */
@@ -665,7 +672,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     vb = app->torpVertexBuffer;
                     ib = app->torpIndexBuffer;
                     cnt = sizeof(torpIndices)/4;
-                } else if (obj->type == OBJ_STAR || obj->type == OBJ_PLANET || obj_type_is_exotic(obj->type) || obj_type_is_evolved_star(obj->type)) {
+                } else if (obj->type == OBJ_STAR || obj->type == OBJ_PLANET || obj_type_is_exotic(obj->type) || obj_type_is_evolved_star(obj->type) || obj_type_is_moon(obj->type)) {
                     vb = app->sphereVertexBuffer;
                     ib = app->sphereIndexBuffer;
                     cnt = SPHERE_LATS * SPHERE_LONGS * 6;

@@ -2571,7 +2571,7 @@ Everything that is *not* a main-sequence star falls into one of four groups: obj
 | **3. Pre-main-sequence** (still accreting or contracting) | Protostars | *Not modelled* | Closest related objects: **Clump Core** (#59, dense region of star formation), **Bok Globule** (#58), **Giant Molecular Cloud** and **Protoplanetary Disk** (#71). |
 | | T Tauri stars, Herbig-Haro objects | *Not modelled* | Young unstable stars and their jets have no object of their own. |
 | **4. Non-stellar bodies** | Planets | **Planet** (#2, 5 classes: Terrestrial, Gas Giant, Ice, Molten, Desert), **Rogue Planet** (#74), **Planetesimal** (#73) | Also **Asteroid** (#9), **Comet** (#8) and **Debris Disk** (#72). |
-| | Natural moons | *Not modelled* | The **Satellite** (#20) is an artificial monitoring or relay station, not a moon. |
+| | Natural moons | **Shepherd Moon** (#89), **Trojan Moon** (#90), **Co-orbital Moon** (#91), **Volcanic Moon** (#92), **Ocean Moon** (#93), **Moon with Atmosphere** (#94), **Exomoon** (#95), **Regular Moon** (#96), **Irregular Moon** (#97), **Submoon** (#98) | Drawn as planet-style spheres by kind (volcanic moons glow, the moon with an atmosphere has a haze halo). The **Satellite** (#20) is still an artificial monitoring or relay station, not a moon. |
 | | Nebulae | **Nebula** (#5, 6 tactical classes), variants #51-#55, plus Dark Nebula, Planetary Nebula, Supernova Remnant (SNR) | Gas and dust clouds; they provide tactical cover and disrupt sensors. |
 | | Galaxies and clusters | *Not modelled as objects* | The whole play area is one galaxy of 64,000 quadrants. Large-scale structure appears as **Cosmic Void** (#64), **Cosmic Filament** (#65), **Dark Matter Halo** (#84) and **Quasar** (#7). |
 

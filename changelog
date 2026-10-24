@@ -1,3 +1,29 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.08
+  - Natural moons: 10 new object types, 89-98, in object_types.h (block of
+    consecutive types like the exotic and evolved ones, names in
+    OBJECT_MOON_NAME_LIST): Shepherd, Trojan, Co-orbital, Volcanic, Ocean,
+    Moon with Atmosphere, Exomoon, Regular, Irregular, Submoon. They use the
+    free slots freed by the 07 hull-path fix; 99 stays free. New predicate
+    obj_type_is_moon and one palette and size table (obj_moon_rgb /
+    obj_moon_scale, size relative to a planet) shared by the OpenGL viewer,
+    the CPU Vulkan path and the GPU-driven builder.
+  - Server: stored in the generic cosmic_features[] array, so no new array
+    and no galaxy.dat layout change (GALAXY_VERSION unchanged). 10 of each
+    type per galaxy (GALAXY_CREATE_MOON_PER_TYPE), ids continue the feature
+    range 83000+slot. A galaxy.dat saved before this version gets the 100
+    moons added at load. The static_assert on MAX_COSMIC_FEATURES (1024) now
+    counts them: 320 exotic + 170 evolved + 100 moons = 590.
+  - Viewers: planet-style lit spheres coloured by kind; volcanic moons glow,
+    the moon with an atmosphere gets a haze halo; HUD class "PLANETARY",
+    label MOON; the OpenGL label no longer says UNKNOWN. In the CPU Vulkan
+    path the moons use the sphere mesh (without it a new type falls back to
+    the ship pyramid).
+  - Tests: gdd_contract_test checks the block range, unique names, that
+    moons stay outside the CPU hull path, the shared palette and size in the
+    GPU-driven builder and that none of them falls into the generic cosmic
+    look.
+  - LORE.md: natural moons moved from "Not modelled" to the new objects.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.07
   - CPU Vulkan path: the "ship" test in vulkan_render.c was a bare range,
     type >= 10 && (type < 100 || type >= 200), repeated five times (ship PBR
