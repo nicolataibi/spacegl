@@ -1492,7 +1492,7 @@ void generate_galaxy() {
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     
     printf("%s | %s [ STAR SPECTRAL TYPES ]    %s| %s [ NEBULA CLASSIFICATION ]  %s|\n", B_CYAN, B_YELLOW, B_CYAN, B_YELLOW, B_CYAN);
-    const char* spectrals[] = {"O (Blue)", "B (White)", "A (White)", "F (Yellow)", "G (Yellow)", "K (Orange)", "M (Red)"};
+    const char* spectrals[] = {"O (Blue)", "B (Blue)", "A (White)", "F (Y-White)", "G (Yellow)", "K (Orange)", "M (Red)"};
     const char* neb_classes[] = {"Standard", "High-Energy", "Dark Matter", "Ionic", "Gravimetric", "Temporal"};
     for(int k=0; k<7; k++) {
         const char* s_name = spectrals[k];

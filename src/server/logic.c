@@ -1284,7 +1284,7 @@ void update_game_logic() {
             snprintf(upd->objects[o_idx].name, 64, "%s", p->name); o_idx++;
         }
         /* ... celestial objects ... */
-        for(int s=0; s<lq->star_count && o_idx < MAX_NET_OBJECTS; s++) { NPCStar *st = lq->stars[s]; if(!st->active) continue; upd->objects[o_idx++] = (NetObject){st->x, st->y, st->z, 0, 0, 0, 4, 1, 1, 100, 0, 0, 100, 4, st->id + GALAXY_OBJECT_MIN_STAR, 0, "Star", 0,0,0}; }
+        for(int s=0; s<lq->star_count && o_idx < MAX_NET_OBJECTS; s++) { NPCStar *st = lq->stars[s]; if(!st->active) continue; upd->objects[o_idx++] = (NetObject){st->x, st->y, st->z, 0, 0, 0, 4, ((unsigned)st->faction < 7u ? st->faction : 4), 1, 100, 0, 0, 100, 4, st->id + GALAXY_OBJECT_MIN_STAR, 0, "Star", 0,0,0}; }
         for(int p=0; p<lq->planet_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlanet *pl = lq->planets[p]; if(!pl->active) continue; upd->objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, 5, pl->resource_type, 1, 100, pl->amount, 0, 100, 5, pl->id + GALAXY_OBJECT_MIN_PLANET, 0, "Planet", 0,0,0}; }
         for(int b=0; b<lq->base_count && o_idx < MAX_NET_OBJECTS; b++) { 
             NPCBase *ba = lq->bases[b]; if(!ba->active) continue; 

@@ -1,3 +1,22 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.02
+  - Stars: make the spectral class consistent between server and viewers and
+    document the main-sequence classification. The class (O, B, A, F, G, K, M)
+    was drawn by the server (rand() % 7, NPCStar.faction) but never sent to the
+    clients: the OpenGL viewer derived the colour from id % 7, so it matched
+    the server class only by chance, and the Vulkan viewer received a constant
+    ship_class and a 5-class palette, drawing every star white. The server now
+    sends the class in NetObject.ship_class (faction is left untouched, the
+    lock panel reads it as a faction name); drawStar() uses it instead of the
+    object id, and the Vulkan viewer uses the same 7-colour palette as OpenGL.
+    The class is clamped to 0..6 on both sides. Also fix the star table at
+    server start-up (B is Blue, F is Y-White, labels kept within the %-12s
+    column) and the "Class H - Red" comment (Class M). LORE.md: stars are
+    main-sequence stars; new "Main-Sequence Stars" section with the O/B, A/F,
+    G, K and M classes, colours and real-world examples (Spica, Regulus,
+    Sirius A, Vega, Alpha Centauri B, Proxima Centauri), noting that the 7
+    classes are drawn with equal probability and that stars have no mass,
+    temperature or luminosity values.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.01
   - Vulkan GDD: fix the galaxy map (command "map") and the rendering of
     derelicts. The galaxy frame (GDD_MESH_BOXWIRE) was drawn at half size:

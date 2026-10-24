@@ -1676,7 +1676,7 @@ void display() {
                 if (use_hull && !g_is_cloaked_rendering) glUseProgram(hullShaderProgram);
                 switch(t) {
                     case 3: drawStarbase(0,0,0, objects[i].faction); break;
-                    case 4: drawStar(0,0,0, objects[i].id); break;
+                    case 4: drawStar(0,0,0, objects[i].ship_class); break; /* ship_class = spectral class 0..6 (O,B,A,F,G,K,M) */
                     case 5: drawPlanet(0,0,0); break;
                     case 6: drawAccretionDisk(0,0,0, pulse); drawBlackHole(0,0,0); break;
                     case 100: case 101: case 102: case 103: case 104: case 105: case 106: case 107:

@@ -1105,20 +1105,20 @@ void drawStarbase(double x, double y, double z, int faction) { (void)x; (void)y;
     }
 }
 
-void drawStar(double x, double y, double z, int id) {
+void drawStar(double x, double y, double z, int spectral) {
     glPushAttrib(GL_ALL_ATTRIB_BITS);
     glDisable(GL_LIGHTING);
 
-    /* Spectral Class Color based on ID */
+    /* Spectral class colour: 0..6 = O,B,A,F,G,K,M (as assigned by the server) */
     double r = 1.0, g = 1.0, b = 1.0;
-    int type = id % 7;
+    int type = ((spectral % 7) + 7) % 7;
     if (type == 0) { r=0.4; g=0.6; b=1.0; }      /* Class O - Blue */
-    else if (type == 1) { r=0.7; g=0.8; b=1.0; } /* Class B - Light Blue */
+    else if (type == 1) { r=0.7; g=0.8; b=1.0; } /* Class B - Blue-White */
     else if (type == 2) { r=1.0; g=1.0; b=1.0; } /* Class A - White */
     else if (type == 3) { r=1.0; g=1.0; b=0.7; } /* Class F - Yellow-White */
     else if (type == 4) { r=1.0; g=0.9; b=0.1; } /* Class G - Yellow (Sol) */
     else if (type == 5) { r=1.0; g=0.6; b=0.2; } /* Class K - Orange */
-                        else { r=1.0; g=0.2; b=0.1; }                /* Class H - Red */
+                        else { r=1.0; g=0.2; b=0.1; }                /* Class M - Red */
     /* 3. Core */
     double core_size = 0.38;
     

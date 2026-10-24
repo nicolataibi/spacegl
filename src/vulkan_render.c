@@ -578,12 +578,12 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 opc.metallic = 0.9f; opc.roughness = 0.25f;
             } else if (obj->type == 4) { // Star
                 opc.metallic = 0.0f; opc.roughness = 1.0f; opc.usePushColor = 6; /* Hyper-Warp for surface plasma */
-                /* Spectral Types: 0:Blue, 1:White, 2:Yellow, 3:Orange, 4:Red */
-                if (obj->ship_class == 0) { opc.color[0]=0.4f; opc.color[1]=0.6f; opc.color[2]=1.0f; }
-                else if (obj->ship_class == 1) { opc.color[0]=0.9f; opc.color[1]=0.9f; opc.color[2]=1.0f; }
-                else if (obj->ship_class == 2) { opc.color[0]=1.0f; opc.color[1]=1.0f; opc.color[2]=0.4f; }
-                else if (obj->ship_class == 3) { opc.color[0]=1.0f; opc.color[1]=0.7f; opc.color[2]=0.2f; }
-                else { opc.color[0]=1.0f; opc.color[1]=0.3f; opc.color[2]=0.2f; }
+                /* Spectral classes (ship_class): 0:O 1:B 2:A 3:F 4:G 5:K 6:M -- same palette as the OpenGL viewer */
+                static const float star_rgb[7][3] = {
+                    {0.4f,0.6f,1.0f}, {0.7f,0.8f,1.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f,0.7f},
+                    {1.0f,0.9f,0.1f}, {1.0f,0.6f,0.2f}, {1.0f,0.2f,0.1f} };
+                int sc = (obj->ship_class >= 0 && obj->ship_class < 7) ? obj->ship_class : 4;
+                opc.color[0]=star_rgb[sc][0]; opc.color[1]=star_rgb[sc][1]; opc.color[2]=star_rgb[sc][2];
             } else if (obj->type == 5) { // Planet
                 opc.metallic = 0.0f; opc.roughness = 0.9f;
                 /* Planet Classes: 0:Terrestrial, 1:Gas Giant, 2:Ice, 3:Molten, 4:Desert */
