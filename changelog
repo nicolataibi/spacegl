@@ -1,3 +1,12 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.16
+  - Tactical Real-time Scanner (spacegl_diag): fixed navigation menu layout, responsiveness, and completeness (src/spacegl_diag.c):
+      * Responsive multi-column layout: eliminated hardcoded 4-column 22-row grid that exceeded terminal boundaries (>170 columns width) and caused line wrapping to overwrite/truncate the first column on the left.
+      * Screen boundary safety & auto-fitting: menu items, headers, and table rows are dynamically bounded and safely formatted to never exceed LINES or COLS on any terminal geometry.
+      * Multi-page menu pagination: integrated menu screen pagination (with PgUp/PgDn, P/N, Home/End support) ensuring all 88 categories are fully reachable regardless of terminal size (80x24, 120x30, 140x40, etc.).
+      * Directional navigation: adjusted KEY_LEFT/KEY_RIGHT and KEY_UP/KEY_DOWN to adapt dynamically to visible column row counts with wraparound.
+      * Comprehensive cosmic features: added 'ALL COSMIC FEATURES' (CAT_COSMIC_ALL) page in addition to dedicated sub-category pages for Natural Moons, Exotic Compact Objects, and Evolved Stars.
+      * Standardized category names: expanded abbreviated titles to full descriptive terminology.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.15
   - Tactical Real-time Scanner (spacegl_diag): integrated cosmic features into
     the live Ncurses diagnostic tool (src/spacegl_diag.c):

@@ -57,7 +57,7 @@ typedef enum {
     CAT_ROGUE_PLANET, CAT_BROWN_DWARF, CAT_ISO, CAT_MAG_RECONN, CAT_CURRENT_SHEET,
     CAT_HELIOSPHERE, CAT_TERM_SHOCK, CAT_MAGNETOSPHERE, CAT_COSMIC_STRING, CAT_DOMAIN_WALL,
     CAT_DM_HALO, CAT_IGM, CAT_CGM, CAT_LYMAN_ALPHA, CAT_CMB,
-    CAT_MOON, CAT_EXOTIC, CAT_EVOLVED_STAR
+    CAT_COSMIC_ALL, CAT_MOON, CAT_EXOTIC, CAT_EVOLVED_STAR
 } DiagCat;
 
 typedef struct {
@@ -92,7 +92,7 @@ DiagPage pages[MAX_PAGES] = {
     {CAT_RIFT, 0, "SPATIAL RIFTS"},
     {CAT_TORPEDO, 0, "ACTIVE TORPEDOES"},
     {CAT_ARTIFACT, 0, "ALIEN ARTIFACTS"},
-    {CAT_WARP_GATE, 0, "WARP GATES (STAGATE)"},
+    {CAT_WARP_GATE, 0, "WARP GATES (STARGATE)"},
     {CAT_NEUTRON_STAR, 0, "NEUTRON STARS"},
     {CAT_MEGA_STRUCT, 0, "MEGA STRUCTURES"},
     {CAT_DARK_CLOUD, 0, "DARK MATTER CLOUDS"},
@@ -102,44 +102,45 @@ DiagPage pages[MAX_PAGES] = {
     {CAT_TIME_ANOMALY, 0, "TIME ANOMALIES"},
     {CAT_VOID_CRYSTAL, 0, "VOID CRYSTALS"},
     {CAT_ANOMALY, 0, "SUBSPACE ANOMALIES"},
-    {CAT_DIFFUSE_NEBULA, 0, "DIFFUSE NEBULA"},
-    {CAT_DARK_NEBULA, 0, "DARK NEBULA"},
-    {CAT_PLANETARY_NEBULA, 0, "PLANET NEB"},
-    {CAT_SNR, 0, "SNR"},
-    {CAT_GMC, 0, "GMC"},
-    {CAT_INTERSTELLAR_FILAMENT, 0, "INT FILAMENT"},
-    {CAT_INTERSTELLAR_BUBBLE, 0, "INT BUBBLE"},
-    {CAT_BOK_GLOBULE, 0, "BOK GLOBULE"},
-    {CAT_CLUMP_CORE, 0, "CLUMP/CORE"},
-    {CAT_ACCRETION_DISK, 0, "ACCRET DISK"},
-    {CAT_RELATIVISTIC_JET, 0, "RELATIV JET"},
-    {CAT_SHOCK_WAVE, 0, "SHOCK WAVE"},
-    {CAT_STELLAR_BOW_SHOCK, 0, "BOW SHOCK"},
-    {CAT_COSMIC_VOID, 0, "COSMIC VOID"},
-    {CAT_COSMIC_FILAMENT, 0, "COSMIC FIL"},
-    {CAT_EVENT_HORIZON, 0, "EVENT HORIZ"},
-    {CAT_KILONOVA, 0, "KILONOVA"},
-    {CAT_GRAV_LENS, 0, "GRAV LENS"},
-    {CAT_GRB, 0, "GRB"},
-    {CAT_GRAV_WAVE, 0, "GRAV WAVE"},
-    {CAT_PROTOPLANETARY_DISK, 0, "PROTOPLANET"},
-    {CAT_DEBRIS_DISK, 0, "DEBRIS DISK"},
-    {CAT_PLANETESIMAL, 0, "PLANETESIMAL"},
-    {CAT_ROGUE_PLANET, 0, "ROGUE PLANET"},
-    {CAT_BROWN_DWARF, 0, "BROWN DWARF"},
-    {CAT_ISO, 0, "INTERST OBJ"},
-    {CAT_MAG_RECONN, 0, "MAG RECONN"},
-    {CAT_CURRENT_SHEET, 0, "CUR SHEET"},
-    {CAT_HELIOSPHERE, 0, "HELIOSPHERE"},
-    {CAT_TERM_SHOCK, 0, "TERM SHOCK"},
-    {CAT_MAGNETOSPHERE, 0, "MAGNETOSPH"},
-    {CAT_COSMIC_STRING, 0, "COSM STRING"},
-    {CAT_DOMAIN_WALL, 0, "DOMAIN WALL"},
-    {CAT_DM_HALO, 0, "DM HALO"},
-    {CAT_IGM, 0, "IGM"},
-    {CAT_CGM, 0, "CGM"},
-    {CAT_LYMAN_ALPHA, 0, "LYMAN ALPHA"},
-    {CAT_CMB, 0, "CMB"},
+    {CAT_DIFFUSE_NEBULA, 0, "DIFFUSE NEBULAE"},
+    {CAT_DARK_NEBULA, 0, "DARK NEBULAE"},
+    {CAT_PLANETARY_NEBULA, 0, "PLANETARY NEBULAE"},
+    {CAT_SNR, 0, "SUPERNOVA REMNANTS"},
+    {CAT_GMC, 0, "GIANT MOLECULAR CLOUDS"},
+    {CAT_INTERSTELLAR_FILAMENT, 0, "INTERSTELLAR FILAMENTS"},
+    {CAT_INTERSTELLAR_BUBBLE, 0, "INTERSTELLAR BUBBLES"},
+    {CAT_BOK_GLOBULE, 0, "BOK GLOBULES"},
+    {CAT_CLUMP_CORE, 0, "CLUMP CORES"},
+    {CAT_ACCRETION_DISK, 0, "ACCRETION DISKS"},
+    {CAT_RELATIVISTIC_JET, 0, "RELATIVISTIC JETS"},
+    {CAT_SHOCK_WAVE, 0, "SHOCK WAVES"},
+    {CAT_STELLAR_BOW_SHOCK, 0, "STELLAR BOW SHOCKS"},
+    {CAT_COSMIC_VOID, 0, "COSMIC VOIDS"},
+    {CAT_COSMIC_FILAMENT, 0, "COSMIC FILAMENTS"},
+    {CAT_EVENT_HORIZON, 0, "EVENT HORIZONS"},
+    {CAT_KILONOVA, 0, "KILONOVAE"},
+    {CAT_GRAV_LENS, 0, "GRAVITATIONAL LENSES"},
+    {CAT_GRB, 0, "GAMMA-RAY BURSTS"},
+    {CAT_GRAV_WAVE, 0, "GRAVITATIONAL WAVES"},
+    {CAT_PROTOPLANETARY_DISK, 0, "PROTOPLANETARY DISKS"},
+    {CAT_DEBRIS_DISK, 0, "DEBRIS DISKS"},
+    {CAT_PLANETESIMAL, 0, "PLANETESIMALS"},
+    {CAT_ROGUE_PLANET, 0, "ROGUE PLANETS"},
+    {CAT_BROWN_DWARF, 0, "BROWN DWARFS"},
+    {CAT_ISO, 0, "INTERSTELLAR OBJECTS"},
+    {CAT_MAG_RECONN, 0, "MAGNETIC RECONNECTIONS"},
+    {CAT_CURRENT_SHEET, 0, "CURRENT SHEETS"},
+    {CAT_HELIOSPHERE, 0, "HELIOSPHERES"},
+    {CAT_TERM_SHOCK, 0, "TERMINATION SHOCKS"},
+    {CAT_MAGNETOSPHERE, 0, "MAGNETOSPHERES"},
+    {CAT_COSMIC_STRING, 0, "COSMIC STRINGS"},
+    {CAT_DOMAIN_WALL, 0, "DOMAIN WALLS"},
+    {CAT_DM_HALO, 0, "DARK MATTER HALOS"},
+    {CAT_IGM, 0, "INTERGALACTIC MEDIUM"},
+    {CAT_CGM, 0, "CIRCUMGALACTIC MEDIUM"},
+    {CAT_LYMAN_ALPHA, 0, "LYMAN-ALPHA FORESTS"},
+    {CAT_CMB, 0, "CMB COLD SPOTS"},
+    {CAT_COSMIC_ALL, 0, "ALL COSMIC FEATURES"},
     {CAT_MOON, 0, "NATURAL MOONS (ORBITING)"},
     {CAT_EXOTIC, 0, "EXOTIC COMPACT OBJECTS"},
     {CAT_EVOLVED_STAR, 0, "EVOLVED STARS"},
@@ -425,33 +426,76 @@ int main(int argc, char** argv) {
     RenderItem* render_list = malloc(sizeof(RenderItem) * 100000);
     if (!render_list) { printf("CRITICAL ERROR: Out of memory (render list).\n"); endwin(); return 1; }
 
+    int total_pages = 0;
+    while (total_pages < MAX_PAGES && pages[total_pages].name != NULL) total_pages++;
+    int total_menu_items = total_pages - 1;
+
     while ((ch = getch()) != 'q') {
-        if (ch == 'n') { current_page = (current_page + 1) % MAX_PAGES; scroll_offset = 0; }
-        if (ch == 'p') { current_page = (current_page - 1 + MAX_PAGES) % MAX_PAGES; scroll_offset = 0; }
-        
-        while (current_page < MAX_PAGES && pages[current_page].name == NULL) current_page = (current_page + 1) % MAX_PAGES;
+        if (ch == KEY_RESIZE) {
+            erase();
+            refresh();
+            continue;
+        }
+
         DiagCat cat = pages[current_page].cat;
 
+        int menu_start_y = 7;
+        int avail_rows = LINES - menu_start_y - 2;
+        if (avail_rows < 5) avail_rows = 5;
+        int num_cols = (COLS - 4) / 38;
+        if (num_cols < 1) num_cols = 1;
+        if (num_cols > 4) num_cols = 4;
+        int items_per_screen = avail_rows * num_cols;
+        if (items_per_screen < 1) items_per_screen = 1;
+
         if (cat == CAT_MENU) {
-            if (ch == KEY_UP && menu_selection > 1) menu_selection--;
-            if (ch == KEY_DOWN && menu_selection < MAX_PAGES - 1) {
-                if (pages[menu_selection + 1].name != NULL) menu_selection++;
-            }
-            if (ch == KEY_RIGHT && menu_selection + 22 < MAX_PAGES) {
-                if (pages[menu_selection + 22].name != NULL) menu_selection += 22;
-            }
-            if (ch == KEY_LEFT && menu_selection - 22 >= 1) menu_selection -= 22;
-            if (ch == 10 || ch == 13 || ch == KEY_ENTER) {
+            if (ch == KEY_UP) {
+                if (menu_selection > 1) menu_selection--;
+                else menu_selection = total_menu_items;
+            } else if (ch == KEY_DOWN) {
+                if (menu_selection < total_menu_items) menu_selection++;
+                else menu_selection = 1;
+            } else if (ch == KEY_RIGHT) {
+                if (menu_selection + avail_rows <= total_menu_items) menu_selection += avail_rows;
+                else if (menu_selection < total_menu_items) menu_selection = total_menu_items;
+            } else if (ch == KEY_LEFT) {
+                if (menu_selection - avail_rows >= 1) menu_selection -= avail_rows;
+                else if (menu_selection > 1) menu_selection = 1;
+            } else if (ch == KEY_NPAGE || ch == 'n') {
+                if (menu_selection + items_per_screen <= total_menu_items) menu_selection += items_per_screen;
+                else menu_selection = total_menu_items;
+            } else if (ch == KEY_PPAGE || ch == 'p') {
+                if (menu_selection - items_per_screen >= 1) menu_selection -= items_per_screen;
+                else menu_selection = 1;
+            } else if (ch == KEY_HOME) {
+                menu_selection = 1;
+            } else if (ch == KEY_END) {
+                menu_selection = total_menu_items;
+            } else if (ch == 10 || ch == 13 || ch == KEY_ENTER) {
                 current_page = menu_selection;
                 scroll_offset = 0;
             }
         } else {
-            if (ch == KEY_UP && scroll_offset > 0) scroll_offset--;
-            if (ch == KEY_DOWN) scroll_offset++;
-            if (ch == KEY_PPAGE) scroll_offset -= (LINES - 6);
-            if (ch == KEY_NPAGE) scroll_offset += (LINES - 6);
+            if (ch == 'n') {
+                current_page = (current_page + 1) % total_pages;
+                if (current_page == 0) current_page = 1;
+                scroll_offset = 0;
+            } else if (ch == 'p') {
+                current_page = (current_page - 1 + total_pages) % total_pages;
+                if (current_page == 0) current_page = total_pages - 1;
+                scroll_offset = 0;
+            } else if (ch == KEY_UP && scroll_offset > 0) {
+                scroll_offset--;
+            } else if (ch == KEY_DOWN) {
+                scroll_offset++;
+            } else if (ch == KEY_PPAGE) {
+                scroll_offset -= (LINES - 6);
+            } else if (ch == KEY_NPAGE) {
+                scroll_offset += (LINES - 6);
+            } else if (ch == 27 || ch == 'm' || ch == 'M') {
+                current_page = 0;
+            }
             if (scroll_offset < 0) scroll_offset = 0;
-            if (ch == 27 || ch == 'm') { current_page = 0; } /* Go back to menu */
         }
 
         int tick = 0;
@@ -542,6 +586,7 @@ int main(int argc, char** argv) {
                 case CAT_CGM: READ_CAT(cgm_buf, a_cgms, MAX_CGM, 86); break;
                 case CAT_LYMAN_ALPHA: READ_CAT(lya_buf, a_lyman_alphas, MAX_LYMAN_ALPHA, 87); break;
                 case CAT_CMB: READ_CAT(cmb_buf, a_cmbs, MAX_CMB, 88); break;
+                case CAT_COSMIC_ALL:
                 case CAT_MOON:
                 case CAT_EXOTIC:
                 case CAT_EVOLVED_STAR: {
@@ -555,7 +600,15 @@ int main(int argc, char** argv) {
                             for (int i = 0; i < cnt; i++) {
                                 if (!feat_buf[i].active) continue;
                                 int t = feat_buf[i].type;
-                                if (cat == CAT_MOON && obj_type_is_moon(t)) {
+                                if (cat == CAT_COSMIC_ALL) {
+                                    int rtype = 89;
+                                    if (obj_type_is_moon(t)) rtype = 89;
+                                    else if (obj_type_is_exotic(t)) rtype = 100;
+                                    else if (obj_type_is_evolved_star(t)) rtype = 132;
+                                    render_list[total_items].type = rtype;
+                                    render_list[total_items].index = i;
+                                    total_items++;
+                                } else if (cat == CAT_MOON && obj_type_is_moon(t)) {
                                     render_list[total_items].type = 89;
                                     render_list[total_items].index = i;
                                     total_items++;
@@ -582,35 +635,74 @@ int main(int argc, char** argv) {
 
         erase();
         attron(COLOR_PAIR(2) | A_BOLD);
-        mvprintw(1, 2, "SPACE GL GLOBAL SCANNER | TICK: %d | PAGE %d/%d: %s | ITEMS: %d | SYMS: %s", 
-                tick, current_page+1, MAX_PAGES, pages[current_page].name ? pages[current_page].name : "UNKNOWN", total_items, 
-                (unresolved_count==0)?"OK":"MISSING");
+        mvprintw(1, 2, "SPACE GL GLOBAL SCANNER | TICK: %d | PAGE %d/%d: %-26.26s | ITEMS: %d | SYMS: %s", 
+                tick, current_page + 1, total_pages, pages[current_page].name ? pages[current_page].name : "UNKNOWN", total_items, 
+                (unresolved_count == 0) ? "OK" : "MISSING");
         mvhline(2, 0, ACS_HLINE, COLS); attroff(A_BOLD);
 
         int y = 4;
         if (cat == CAT_MENU) {
             attron(COLOR_PAIR(3) | A_BOLD);
-            mvprintw(y++, 4, "--- NAVIGATION MENU ---");
+            mvprintw(y++, 2, "--- NAVIGATION MENU --- (%d Object Categories)", total_menu_items);
             attroff(A_BOLD);
-            mvprintw(y++, 4, "Use ARROWS to select and ENTER to jump. Press 'm' to return here.");
+            attron(COLOR_PAIR(5));
+            mvprintw(y++, 2, "Use ARROWS to select, ENTER to open, [PgUp/PgDn] or [P/N] to page menu.");
+            attroff(COLOR_PAIR(5));
             y++;
+
             int start_y = y;
-            for (int i = 1; i < MAX_PAGES; i++) {
+            int avail_rows = LINES - start_y - 2;
+            if (avail_rows < 5) avail_rows = 5;
+
+            int col_w = 38;
+            int num_cols = (COLS - 4) / col_w;
+            if (num_cols < 1) num_cols = 1;
+            if (num_cols > 4) num_cols = 4;
+            col_w = (COLS - 4) / num_cols;
+            if (col_w > 42) col_w = 42;
+            int name_w = col_w - 5;
+            if (name_w < 10) name_w = 10;
+
+            int items_per_screen = avail_rows * num_cols;
+            if (items_per_screen < 1) items_per_screen = 1;
+            int menu_page = (menu_selection - 1) / items_per_screen;
+            int total_menu_screens = (total_menu_items + items_per_screen - 1) / items_per_screen;
+            if (total_menu_screens < 1) total_menu_screens = 1;
+
+            int page_start = 1 + menu_page * items_per_screen;
+            int page_end = page_start + items_per_screen - 1;
+            if (page_end > total_menu_items) page_end = total_menu_items;
+
+            for (int i = page_start; i <= page_end; i++) {
                 if (pages[i].name == NULL) continue;
-                int col = (i - 1) / 22;
-                int row = (i - 1) % 22;
-                int x_pos = 4 + (col * 42);
+                int offset = i - page_start;
+                int row = offset % avail_rows;
+                int col = offset / avail_rows;
+                int x_pos = 2 + (col * col_w);
+                int y_pos = start_y + row;
+
+                char item_buf[80];
                 if (i == menu_selection) {
-                    attron(COLOR_PAIR(1) | A_REVERSE);
-                    mvprintw(start_y + row, x_pos, " > %-36.36s ", pages[i].name);
-                    attroff(COLOR_PAIR(1) | A_REVERSE);
+                    snprintf(item_buf, sizeof(item_buf), " > %-*.*s ", name_w, name_w, pages[i].name);
+                    attron(COLOR_PAIR(1) | A_REVERSE | A_BOLD);
+                    mvprintw(y_pos, x_pos, "%s", item_buf);
+                    attroff(COLOR_PAIR(1) | A_REVERSE | A_BOLD);
                 } else {
-                    mvprintw(start_y + row, x_pos, "   %-36.36s ", pages[i].name);
+                    snprintf(item_buf, sizeof(item_buf), "   %-*.*s ", name_w, name_w, pages[i].name);
+                    mvprintw(y_pos, x_pos, "%s", item_buf);
                 }
             }
+
+            mvhline(LINES - 2, 0, ACS_HLINE, COLS);
+            attron(COLOR_PAIR(2));
+            mvprintw(LINES - 1, 2, "MENU PAGE %d/%d (ITEMS %d-%d OF %d) | [ARROWS] Select | [ENTER] Open | [PGUP/PGDN] Page | [Q] Quit",
+                     menu_page + 1, total_menu_screens, page_start, page_end, total_menu_items);
+            attroff(COLOR_PAIR(2));
         } else {
+            char hdr_buf[512];
+            snprintf(hdr_buf, sizeof(hdr_buf), "%-6s | %-20s | %-15s | %-12s | %-12s | %-4s | %-12s", "ID", "NAME", "TYPE/INFO", "QUADRANT", "SECTOR", "INTEG", "ENERGY/EXTRA");
             attron(A_BOLD | COLOR_PAIR(5));
-            mvprintw(y++, 2, "%-6s | %-20s | %-15s | %-12s | %-12s | %-4s | %-12s", "ID", "NAME", "TYPE/INFO", "QUADRANT", "SECTOR", "INTEG", "ENERGY/EXTRA");
+            mvprintw(y++, 2, "%-*.*s", (COLS > 4 ? COLS - 4 : 10), (COLS > 4 ? COLS - 4 : 10), hdr_buf);
             mvhline(y++, 0, ACS_HLINE, COLS); attroff(A_BOLD);
 
             for (int i = 0; i < max_visible_lines; i++) {
@@ -700,13 +792,18 @@ int main(int argc, char** argv) {
                     default: break;
                 }
 
+                char row_buf[512];
+                snprintf(row_buf, sizeof(row_buf), "%-6s | %-20.20s | %-15.15s | %-12s | %-12s | %-4s | %-12s", sid, name, info, qstr, sstr, integ, extra);
                 attron(COLOR_PAIR(cp));
-                mvprintw(y++, 2, "%-6s | %-20.20s | %-15.15s | %-12s | %-12s | %-4s | %-12s", sid, name, info, qstr, sstr, integ, extra);
+                mvprintw(y++, 2, "%-*.*s", (COLS > 4 ? COLS - 4 : 10), (COLS > 4 ? COLS - 4 : 10), row_buf);
                 attroff(COLOR_PAIR(cp));
             }
+            attron(COLOR_PAIR(2));
+            mvprintw(LINES - 1, 2, "TOTAL: %d | VISIBLE: %d-%d | [UP/DWN] Scroll | [N/P] Page | [M] Menu | [Q] Quit",
+                     total_items, total_items ? scroll_offset + 1 : 0,
+                     (scroll_offset + max_visible_lines > total_items) ? total_items : scroll_offset + max_visible_lines);
+            attroff(COLOR_PAIR(2));
         }
-        attron(COLOR_PAIR(2));
-        mvprintw(LINES-1, 2, "TOTAL: %d | VISIBLE: %d-%d | [UP/DWN] Scroll | [N/P] Page | [Q] Quit", total_items, scroll_offset+1, (scroll_offset+max_visible_lines > total_items)?total_items:scroll_offset+max_visible_lines);
         refresh(); usleep(100000);
     }
     endwin(); return 0;
