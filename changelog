@@ -1,3 +1,46 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.11
+  - OpenGL viewer planet scale: enlarged planet dimensions by 100% in the OpenGL
+    rendering path (src/spacegl_3dview_tables.inc drawPlanet), increasing planet sphere
+    radius from 0.3 to 0.6 and atmosphere envelope from 0.32 to 0.64.
+  - Moon orbit spacing & Vulkan clearance: updated orbital parameters in
+    include/moon_orbits.h. Innermost orbit distance (MOON_ORBIT_MIN_RADIUS) increased
+    by 50% from 1.5 to 2.25 to provide clean clearance outside the Vulkan planet mesh
+    (radius 1.8). The orbital step between consecutive orbits (MOON_ORBIT_STEP) is now
+    set to 2.43 (exactly 1.5x the diameter of a regular moon in Vulkan: 1.5 * 1.62 = 2.43),
+    establishing proportional multi-moon spacing. MOON_ORBIT_MAX_RADIUS safely bounded
+    at 9.79 within the 40-unit quadrant.
+
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.10
+  - Guaranteed moons per planet: every planet in the galaxy is now guaranteed to
+    have at least one natural moon orbiting around it. The deterministic assignment
+    algorithm in include/moon_orbits.h (moon_pick_planet) now operates with a two-pass
+    approach, giving each eligible planet its first moon before allocating secondary
+    or multi-moon systems (up to MOON_MAX_PER_PLANET = 4).
+  - Orbital speed acceleration: the base orbital period (MOON_ORBIT_BASE_PERIOD_S)
+    has been calibrated from 1200 s (20 min) down to 60.0 s (1 min) for the innermost
+    orbit, while preserving Keplerian scaling (~ r^1.5) for outer orbits. The orbital
+    motion is now clearly observable in real-time in both Vulkan and OpenGL 3D viewers.
+  - Quadrant boundary safety & planet eligibility: all active planets are safely
+    bounded to [MOON_ORBIT_MAX_RADIUS, QUADRANT_SIZE - MOON_ORBIT_MAX_RADIUS] both at
+    galaxy generation and during load, making 100% of galaxy planets eligible to host
+    moons without orbits ever crossing quadrant boundaries.
+  - Scaled moon generation & dynamic backward compatibility: spawn_moons() now dynamically
+    ensures enough moon instances are generated to cover all active planets plus multi-moon
+    systems (GALAXY_CREATE_MOON_PER_TYPE = 100, MAX_COSMIC_FEATURES expanded to 2048).
+    load_galaxy() reads legacy and updated galaxy.dat files smoothly and automatically
+    tops up any loaded galaxy lacking enough moons.
+  - Vulkan GDD planet coordinate fix: removed a rogue override in vulkan_gdd_build.c
+    that mapped planet depth from Z instead of Y. Because the planet was offset along
+    the depth axis by (Z_planet - Y_planet) away from the true center of the moon's
+    orbit, moons appeared to oscillate back and forth along an arc off to one side of
+    the planet rather than circling around it. Planets now correctly use the standard
+    (X, Z, -Y) centered mapping in parity with the CPU path, placing the planet precisely
+    at the geometric center of all its orbiting moons.
+  - Tests: moon_orbit_test updated with speed checks for the 60 s base period and a new
+    verification that every planet receives >= 1 moon when moon count >= planet count.
+    gdd_contract_test objects mapping verified with corrected centered coordinates.
+    LORE.md updated.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.09
   - Moons in orbit: every natural moon (types 89-98) now orbits a planet
     instead of floating at a random point. At most 4 moons per planet

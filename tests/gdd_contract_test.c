@@ -284,9 +284,9 @@ static void test_objects_mapping(void) {
               "ship RotY(90deg) orientation (nose +Z)");
     }
 
-    /* Planet (30,10,5) -> (10, -15, 15) */
-    const GddInstance *planet = find_dyn(GDD_MESH_SPHERE, 10.0f, -15.0f, 15.0f, 1e-4f);
-    CHECK(planet != NULL, "planet at mapped position (10,-15,15)");
+    /* Planet (30,10,5) -> (10, -15, 10) */
+    const GddInstance *planet = find_dyn(GDD_MESH_SPHERE, 10.0f, -15.0f, 10.0f, 1e-4f);
+    CHECK(planet != NULL, "planet at mapped position (10,-15,10)");
     if (planet) {
         CHECK_F("planet scale", planet->scale[0], 1.8f, 1e-5f, "planet scale");
         CHECK_F("planet color.r", planet->color[0], 0.2f, 1e-5f, "planet color.r (class 0 = Terrestrial)");

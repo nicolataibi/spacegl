@@ -8,11 +8,11 @@
  * always gives the same orbits. The angle comes from the wall clock, so the
  * moons keep moving across server restarts and need no state.
  *
- * Orbits are slow (about 20 minutes for the innermost moon, longer outward,
- * Kepler-like period ~ r^1.5) and always stay inside the planet's quadrant:
- * only planets at least MOON_ORBIT_MAX_RADIUS away from every face of the
- * quadrant can have moons, so a moon never changes quadrant and the static
- * per-quadrant index stays valid.
+ * Orbits are fast enough to observe in real-time (60 seconds for the innermost
+ * moon, longer outward, Kepler-like period ~ r^1.5) and always stay inside the
+ * planet's quadrant: only planets at least MOON_ORBIT_MAX_RADIUS away from
+ * every face of the quadrant can have moons, so a moon never changes quadrant
+ * and the static per-quadrant index stays valid.
  *
  * Header-only, C99, depends only on <math.h>. Tests: tests/moon_orbit_test.c.
  */
@@ -22,12 +22,12 @@
 #include <math.h>
 
 #define MOON_MAX_PER_PLANET      4      /* at most 4 moons around a planet     */
-#define MOON_ORBIT_MIN_RADIUS    1.5    /* innermost orbit (sector units)      */
-#define MOON_ORBIT_STEP          0.9    /* distance between two orbits         */
+#define MOON_ORBIT_MIN_RADIUS    2.25   /* innermost orbit (sector units, +50% from 1.5) */
+#define MOON_ORBIT_STEP          2.43   /* distance between two orbits (1.5x moon diameter: 1.5 * 1.62) */
 #define MOON_ORBIT_JITTER        0.25   /* random extra radius, < STEP         */
 #define MOON_ORBIT_MAX_RADIUS \
     (MOON_ORBIT_MIN_RADIUS + MOON_ORBIT_STEP * (MOON_MAX_PER_PLANET - 1) + MOON_ORBIT_JITTER)
-#define MOON_ORBIT_BASE_PERIOD_S 1200.0 /* period of a MIN_RADIUS orbit, seconds */
+#define MOON_ORBIT_BASE_PERIOD_S 60.0   /* period of a MIN_RADIUS orbit, seconds (1 min) */
 
 typedef struct {
     double r;          /* orbit radius                                   */
@@ -58,12 +58,17 @@ static inline int moon_planet_eligible(double x, double y, double z, double quad
 }
 
 /* Pick the parent among n_elig eligible planets: start from a hash of the
- * moon id and probe forward to the first planet with fewer than
- * MOON_MAX_PER_PLANET moons. pcount[j] = moons already given to eligible
- * planet j. Returns j, or -1 when every eligible planet is full. */
+ * moon id. In the first pass, probe forward to the first planet with 0 moons
+ * so that every planet receives at least one moon. In the second pass, probe
+ * to planets with fewer than MOON_MAX_PER_PLANET moons. pcount[j] = moons
+ * already given to eligible planet j. Returns j, or -1 when full. */
 static inline int moon_pick_planet(unsigned moon_id, int n_elig, const int *pcount) {
     if (n_elig <= 0) return -1;
     int start = (int)(moon_hash(moon_id, 1u) % (unsigned)n_elig);
+    for (int k = 0; k < n_elig; k++) {
+        int j = (start + k) % n_elig;
+        if (pcount[j] == 0) return j;
+    }
     for (int k = 0; k < n_elig; k++) {
         int j = (start + k) % n_elig;
         if (pcount[j] < MOON_MAX_PER_PLANET) return j;

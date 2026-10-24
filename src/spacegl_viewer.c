@@ -438,6 +438,13 @@ int main(int argc, char *argv[]) {
     CHECK_READ(cgms, sizeof(NPCCGM), MAX_CGM, f);
     CHECK_READ(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
     CHECK_READ(cmbs, sizeof(NPCCMB), MAX_CMB, f);
+    /* Skip cosmic_features to reach players block */
+    fseek(f, 0, SEEK_END);
+    long file_size = ftell(f);
+    long players_bytes = (long)sizeof(ConnectedPlayer) * MAX_CLIENTS;
+    if (file_size >= players_bytes) {
+        fseek(f, file_size - players_bytes, SEEK_SET);
+    }
     CHECK_READ(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
 

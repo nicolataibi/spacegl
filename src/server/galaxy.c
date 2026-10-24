@@ -531,30 +531,44 @@ static void spawn_evolved_stars(void) {
 }
 
 /* Moons (shepherd .. submoon): 10 types stored in the generic cosmic_features[]
- * array, type = OBJ_MOON_FIRST + index, GALAXY_CREATE_MOON_PER_TYPE instances of
- * each. The position given here is only a placeholder: attach_moons_to_planets()
- * moves every moon onto an orbit around its planet. Used by the galaxy generator and, for a galaxy.dat saved before the
- * moons existed (same file layout), by load_galaxy(). */
+ * array, type = OBJ_MOON_FIRST + index. Enough instances are created so that
+ * every active planet has at least one moon, plus multi-moon systems up to
+ * MOON_MAX_PER_PLANET. The position given here is only a placeholder:
+ * attach_moons_to_planets() moves every moon onto an orbit around its planet. */
 static void spawn_moons(void) {
     const char *moon_names[OBJ_MOON_COUNT] = { OBJECT_MOON_NAME_LIST };
-    for (int t = 0; t < OBJ_MOON_COUNT; t++) {
-        for (int i = 0; i < GALAXY_CREATE_MOON_PER_TYPE; i++) {
-            if (cosmic_feature_count >= MAX_COSMIC_FEATURES) return;
-            cosmic_features[cosmic_feature_count] = (NPCCosmicFeature){
-                .id = GALAXY_OBJECT_MIN_FEATURE + cosmic_feature_count,
-                .type = OBJ_MOON_FIRST + t,
-                .q1 = 1 + rand() % GALAXY_SIZE,
-                .q2 = 1 + rand() % GALAXY_SIZE,
-                .q3 = 1 + rand() % GALAXY_SIZE,
-                .x = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
-                .y = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
-                .z = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
-                .active = 1
-            };
-            strncpy(cosmic_features[cosmic_feature_count].name, moon_names[t], 63);
-            cosmic_features[cosmic_feature_count].name[63] = '\0';
-            cosmic_feature_count++;
-        }
+    int active_planets = 0;
+    for (int p = 0; p < MAX_PLANETS; p++) {
+        if (IS_Q_VALID(planets[p].q1, planets[p].q2, planets[p].q3) && planets[p].active)
+            active_planets++;
+    }
+    int current_moons = 0;
+    for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
+        if (cosmic_features[i].active && obj_type_is_moon(cosmic_features[i].type))
+            current_moons++;
+    }
+    int target_moons = active_planets + (active_planets / 5);
+    if (target_moons < OBJ_MOON_COUNT * GALAXY_CREATE_MOON_PER_TYPE)
+        target_moons = OBJ_MOON_COUNT * GALAXY_CREATE_MOON_PER_TYPE;
+
+    int needed = target_moons - current_moons;
+    for (int k = 0; k < needed; k++) {
+        if (cosmic_feature_count >= MAX_COSMIC_FEATURES) break;
+        int t = (current_moons + k) % OBJ_MOON_COUNT;
+        cosmic_features[cosmic_feature_count] = (NPCCosmicFeature){
+            .id = GALAXY_OBJECT_MIN_FEATURE + cosmic_feature_count,
+            .type = OBJ_MOON_FIRST + t,
+            .q1 = 1 + rand() % GALAXY_SIZE,
+            .q2 = 1 + rand() % GALAXY_SIZE,
+            .q3 = 1 + rand() % GALAXY_SIZE,
+            .x = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+            .y = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+            .z = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+            .active = 1
+        };
+        strncpy(cosmic_features[cosmic_feature_count].name, moon_names[t], 63);
+        cosmic_features[cosmic_feature_count].name[63] = '\0';
+        cosmic_feature_count++;
     }
 }
 
@@ -576,6 +590,15 @@ void attach_moons_to_planets(void) {
     int ne = 0;
     for (int p = 0; p < MAX_PLANETS; p++) {
         if (!IS_Q_VALID(planets[p].q1, planets[p].q2, planets[p].q3)) continue;   /* empty slot */
+        if (!planets[p].active) continue;
+        /* Ensure planet is safely within bounds so moon orbits never cross quadrant boundaries */
+        if (planets[p].x < MOON_ORBIT_MAX_RADIUS) planets[p].x = MOON_ORBIT_MAX_RADIUS;
+        if (planets[p].x > QUADRANT_SIZE - MOON_ORBIT_MAX_RADIUS) planets[p].x = QUADRANT_SIZE - MOON_ORBIT_MAX_RADIUS;
+        if (planets[p].y < MOON_ORBIT_MAX_RADIUS) planets[p].y = MOON_ORBIT_MAX_RADIUS;
+        if (planets[p].y > QUADRANT_SIZE - MOON_ORBIT_MAX_RADIUS) planets[p].y = QUADRANT_SIZE - MOON_ORBIT_MAX_RADIUS;
+        if (planets[p].z < MOON_ORBIT_MAX_RADIUS) planets[p].z = MOON_ORBIT_MAX_RADIUS;
+        if (planets[p].z > QUADRANT_SIZE - MOON_ORBIT_MAX_RADIUS) planets[p].z = QUADRANT_SIZE - MOON_ORBIT_MAX_RADIUS;
+
         if (!moon_planet_eligible(planets[p].x, planets[p].y, planets[p].z, QUADRANT_SIZE)) continue;
         pcount[ne] = 0;
         elig[ne++] = p;
@@ -711,8 +734,21 @@ int load_galaxy() {
     CHECK_READ(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
     CHECK_READ(cmbs, sizeof(NPCCMB), MAX_CMB, f);
     if (fread(&cosmic_feature_count, sizeof(int), 1, f) != 1) { cosmic_feature_count = 0; }
-    if (fread(cosmic_features, sizeof(NPCCosmicFeature), MAX_COSMIC_FEATURES, f) != (size_t)MAX_COSMIC_FEATURES) {
-        memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
+    /* Dynamically read cosmic_features handling legacy size (1024) and current size (MAX_COSMIC_FEATURES) */
+    memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
+    long feat_pos = ftell(f);
+    fseek(f, 0, SEEK_END);
+    long file_size = ftell(f);
+    fseek(f, feat_pos, SEEK_SET);
+    long remaining_bytes = file_size - feat_pos;
+    long players_bytes = (long)sizeof(ConnectedPlayer) * MAX_CLIENTS;
+    long available_feat_bytes = remaining_bytes - players_bytes;
+    int feats_in_file = (available_feat_bytes > 0) ? (int)(available_feat_bytes / sizeof(NPCCosmicFeature)) : 0;
+    if (feats_in_file > MAX_COSMIC_FEATURES) feats_in_file = MAX_COSMIC_FEATURES;
+    if (feats_in_file > 0) {
+        if (fread(cosmic_features, sizeof(NPCCosmicFeature), feats_in_file, f) != (size_t)feats_in_file) {
+            memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
+        }
     }
     CHECK_READ(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
@@ -730,19 +766,23 @@ int load_galaxy() {
         }
     }
 
-    /* galaxy.dat saved before the moons existed: same idea, same layout. */
+    /* galaxy.dat saved before moons existed or with fewer moons than planets:
+     * ensure that EVERY active planet gets at least one moon. */
     {
-        int has_moon = 0;
-        for (int i = 0; i < MAX_COSMIC_FEATURES && !has_moon; i++)
-            if (cosmic_features[i].active && obj_type_is_moon(cosmic_features[i].type)) has_moon = 1;
-        if (!has_moon && cosmic_feature_count >= 0 && cosmic_feature_count <= MAX_COSMIC_FEATURES) {
+        int existing_moons = 0;
+        for (int i = 0; i < MAX_COSMIC_FEATURES; i++)
+            if (cosmic_features[i].active && obj_type_is_moon(cosmic_features[i].type)) existing_moons++;
+        int active_planets = 0;
+        for (int p = 0; p < MAX_PLANETS; p++)
+            if (IS_Q_VALID(planets[p].q1, planets[p].q2, planets[p].q3) && planets[p].active) active_planets++;
+        if (existing_moons < active_planets && cosmic_feature_count >= 0 && cosmic_feature_count <= MAX_COSMIC_FEATURES) {
             int before = cosmic_feature_count;
             spawn_moons();
-            printf("[GALAXY] added %d moons to the loaded galaxy\n", cosmic_feature_count - before);
+            printf("[GALAXY] added %d moons to the loaded galaxy (total: %d for %d planets)\n",
+                   cosmic_feature_count - before, existing_moons + (cosmic_feature_count - before), active_planets);
         }
     }
-    /* Parent planet and orbit of every moon (also for moons saved by 2026.10.24.08,
-     * which were scattered at random). */
+    /* Parent planet and orbit of every moon (deterministic assignment) */
     attach_moons_to_planets();
     
     for(int i=0; i<MAX_CLIENTS; i++) {
@@ -1063,7 +1103,11 @@ void generate_galaxy() {
         int q1 = 1 + rand() % GALAXY_SIZE, q2 = 1 + rand() % GALAXY_SIZE, q3 = 1 + rand() % GALAXY_SIZE;
         int r_type = (rand() % 8) + 1;
         int p_class = rand() % PLANET_CLASS_COUNT;
-        planets[p_count] = (NPCPlanet){.id=p_count, .planet_class=p_class, .q1=q1, .q2=q2, .q3=q3, .x=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .y=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .z=(rand()%(int)(QUADRANT_SIZE * RATIO_COORD_RANDOM))/RATIO_COORD_RANDOM, .resource_type=r_type, .amount=MAX_TORPEDO_CAPACITY, .active=1};
+        double p_span = QUADRANT_SIZE - 2.0 * MOON_ORBIT_MAX_RADIUS;
+        double px = MOON_ORBIT_MAX_RADIUS + (rand() % (int)(p_span * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
+        double py = MOON_ORBIT_MAX_RADIUS + (rand() % (int)(p_span * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
+        double pz = MOON_ORBIT_MAX_RADIUS + (rand() % (int)(p_span * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
+        planets[p_count] = (NPCPlanet){.id=p_count, .planet_class=p_class, .q1=q1, .q2=q2, .q3=q3, .x=px, .y=py, .z=pz, .resource_type=r_type, .amount=MAX_TORPEDO_CAPACITY, .active=1};
         planet_type_counts[r_type]++;
         p_count++;
     }

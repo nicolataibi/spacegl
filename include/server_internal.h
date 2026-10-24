@@ -535,7 +535,7 @@ typedef struct {
     char name[64]; /* Optional override, or handled globally by type */
 } NPCCosmicFeature;
 
-#define MAX_COSMIC_FEATURES 1024
+#define MAX_COSMIC_FEATURES 2048
 #define MAX_Q_FEATURES 32
 
 typedef struct { 

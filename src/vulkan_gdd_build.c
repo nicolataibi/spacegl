@@ -931,9 +931,6 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             float px = (so->x - GDD_QUADRANT) * ts;
             float py = (so->z - GDD_QUADRANT) * ts;
             float pz = (GDD_QUADRANT - so->y) * ts;
-            if (type == OBJ_PLANET) {
-                pz = (GDD_QUADRANT - so->z) * ts;
-            }
             
             
 

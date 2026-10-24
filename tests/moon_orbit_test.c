@@ -74,7 +74,7 @@ static void test_geometry_and_speed(void) {
               "moon %u is not periodic", id);
         CHECK(T >= MOON_ORBIT_BASE_PERIOD_S - 1e-6, "moon %u period %.0fs shorter than the base period", id, T);
     }
-    CHECK(maxspeed < 0.02, "moons are slow: top speed %.4f units/s", maxspeed);
+    CHECK(maxspeed < 0.5, "moons orbit speed: top speed %.4f units/s", maxspeed);
 }
 
 static void test_stays_in_quadrant(void) {
@@ -130,6 +130,15 @@ static void test_assignment(void) {
     int used = 0, seen[400] = {0};
     for (int s = 0; s < 100; s++) if (pa[s] >= 0 && !seen[pa[s]]++) used++;
     CHECK(used >= 40, "moons concentrated on only %d planets", used);
+
+    /* every planet gets at least one moon when moon count >= planet count */
+    int p80[100];
+    assign_all(80, p80, &placed, &maxc);
+    int pcount_check[80] = {0};
+    for (int s = 0; s < 100; s++) if (p80[s] >= 0) pcount_check[p80[s]]++;
+    int zero_moons = 0;
+    for (int j = 0; j < 80; j++) if (pcount_check[j] == 0) zero_moons++;
+    CHECK(zero_moons == 0, "every planet must have at least one moon, got %d with none", zero_moons);
 }
 
 int main(void) {
