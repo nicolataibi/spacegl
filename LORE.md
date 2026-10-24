@@ -2556,6 +2556,23 @@ Every star in the galaxy belongs to the **main sequence**: adult stars whose rad
 *   **Magnetic Phenomena (Magnetospheres, Heliospheres, Current Sheets)**: Complex magnetic structures that protect planets and stars, interacting with solar winds.
 *   **Interstellar Visitors (ISO & Rogue Planets)**: Transient objects and planet-sized wanderers traveling between star systems.
 
+#### 🌠 Objects Outside the Main Sequence
+Everything that is *not* a main-sequence star falls into one of four groups: objects that have not yet started hydrogen fusion, objects that have finished it, bodies too light to sustain it, and non-stellar bodies. The table shows how each group maps onto the simulation (numbers are catalog IDs from the object tables above).
+
+| Group | Real-world object | In SpaceGL | Notes |
+| :--- | :--- | :--- | :--- |
+| **1. Evolved stars** (core hydrogen exhausted, heavier elements fused or fusion ended) | Red giants and supergiants (e.g. Aldebaran, Betelgeuse) | *Not modelled* | Stars are never given an evolutionary stage; every star is a main-sequence star. |
+| | White dwarfs (e.g. Sirius B) | *Not modelled* | Dense, hot remnants of low-to-medium mass stars with no nuclear energy source. |
+| | Neutron stars and pulsars | **Neutron Star** (#42), **Pulsar** (#6) | Collapsed cores of massive stars. Pulsars come in 3 scientific classes: Rotation-Powered, Accretion-Powered, Magnetar. |
+| | Stellar black holes | **Black Hole, Stellar-mass** (#89) | Final gravitational collapse of extremely massive stars. A star that goes supernova is replaced by a permanent black hole. |
+| **2. Substellar objects** ("failed stars") | Brown dwarfs | **Brown Dwarf** (#75) | Halfway between a giant planet and a star; too light for stable hydrogen fusion. |
+| **3. Pre-main-sequence** (still accreting or contracting) | Protostars | *Not modelled* | Closest related objects: **Clump Core** (#59, dense region of star formation), **Bok Globule** (#58), **Giant Molecular Cloud** and **Protoplanetary Disk** (#71). |
+| | T Tauri stars, Herbig-Haro objects | *Not modelled* | Young unstable stars and their jets have no object of their own. |
+| **4. Non-stellar bodies** | Planets | **Planet** (#2), **Rogue Planet** (#74), **Planetesimal** (#73) | Also **Asteroid** (#9), **Comet** (#8) and **Debris Disk** (#72). |
+| | Natural moons | *Not modelled* | The **Satellite** (#20) is an artificial monitoring or relay station, not a moon. |
+| | Nebulae | **Nebula** (#5, 6 tactical classes), variants #51-#55, plus Dark Nebula, Planetary Nebula, Supernova Remnant (SNR) | Gas and dust clouds; they provide tactical cover and disrupt sensors. |
+| | Galaxies and clusters | *Not modelled as objects* | The whole play area is one galaxy of 64,000 quadrants. Large-scale structure appears as **Cosmic Void** (#64), **Cosmic Filament** (#65), **Dark Matter Halo** (#84) and **Quasar** (#7). |
+
 ### 🚩 Factions and Galactic Powers
 
 The galaxy of Space GL is a mosaic of conflicting ideologies. Your choice of faction determines not only the color of your hull but your position in the delicate balance of power.

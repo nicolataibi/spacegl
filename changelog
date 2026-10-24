@@ -1,3 +1,16 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.03
+  - Docs: LORE.md gains an "Objects Outside the Main Sequence" section in the
+    Galactic Encyclopedia, next to the Main-Sequence Stars one. It maps the
+    four groups of non-main-sequence objects (evolved stars, substellar
+    objects, pre-main-sequence objects, non-stellar bodies) onto the catalog:
+    neutron stars, pulsars, stellar-mass black holes, brown dwarfs, planets,
+    rogue planets, planetesimals, nebulae and the large-scale structure
+    objects are listed with their catalog IDs, while red giants and
+    supergiants, white dwarfs, protostars, T Tauri stars, Herbig-Haro
+    objects, natural moons and galaxies or clusters are explicitly marked as
+    not modelled (the Satellite, ID 20, is an artificial relay station).
+    Documentation only, no code change.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.02
   - Stars: make the spectral class consistent between server and viewers and
     document the main-sequence classification. The class (O, B, A, F, G, K, M)
