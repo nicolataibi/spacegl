@@ -1,3 +1,13 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.15
+  - Tactical Real-time Scanner (spacegl_diag): integrated cosmic features into
+    the live Ncurses diagnostic tool (src/spacegl_diag.c):
+      * Symbol resolution: dynamically resolve cosmic_features and cosmic_feature_count
+        symbols in the running spacegl_server process via ELF symbol table scanning.
+      * Category & Page navigation: added dedicated diagnostic pages for Natural Moons
+        (CAT_MOON), Exotic Compact Objects (CAT_EXOTIC), and Evolved Stars (CAT_EVOLVED_STAR).
+      * Process VM reading: inspect and display active instances from remote server memory
+        with IDs (MNxxxx, EXxxxx, EVxxxx), exact coordinates, sector positions, and status flags.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.14
   - SpaceGL Galaxy File Inspector (spacegl_viewer): integrated cosmic features
     and all astrophysical entities into src/spacegl_viewer.c:

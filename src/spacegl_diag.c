@@ -38,6 +38,7 @@
 #include "shared_state.h"
 #include "network.h"
 #include "server_internal.h"
+#include "object_types.h"
 
 #define MAX_PAGES 150
 #define sym_type(i) ((i) & 0xf)
@@ -55,7 +56,8 @@ typedef enum {
     CAT_GRB, CAT_GRAV_WAVE, CAT_PROTOPLANETARY_DISK, CAT_DEBRIS_DISK, CAT_PLANETESIMAL,
     CAT_ROGUE_PLANET, CAT_BROWN_DWARF, CAT_ISO, CAT_MAG_RECONN, CAT_CURRENT_SHEET,
     CAT_HELIOSPHERE, CAT_TERM_SHOCK, CAT_MAGNETOSPHERE, CAT_COSMIC_STRING, CAT_DOMAIN_WALL,
-    CAT_DM_HALO, CAT_IGM, CAT_CGM, CAT_LYMAN_ALPHA, CAT_CMB
+    CAT_DM_HALO, CAT_IGM, CAT_CGM, CAT_LYMAN_ALPHA, CAT_CMB,
+    CAT_MOON, CAT_EXOTIC, CAT_EVOLVED_STAR
 } DiagCat;
 
 typedef struct {
@@ -138,6 +140,9 @@ DiagPage pages[MAX_PAGES] = {
     {CAT_CGM, 0, "CGM"},
     {CAT_LYMAN_ALPHA, 0, "LYMAN ALPHA"},
     {CAT_CMB, 0, "CMB"},
+    {CAT_MOON, 0, "NATURAL MOONS (ORBITING)"},
+    {CAT_EXOTIC, 0, "EXOTIC COMPACT OBJECTS"},
+    {CAT_EVOLVED_STAR, 0, "EVOLVED STARS"},
     {CAT_SHIP, FACTION_ALLIANCE, "ALLIANCE (PLAYER)"},
     {CAT_SHIP, FACTION_KORTHIAN, "KORTHIAN EMPIRE"},
     {CAT_SHIP, FACTION_XYLARI,   "XYLARI HEGEMONY"},
@@ -323,6 +328,8 @@ int main(int argc, char** argv) {
     RESOLVE(cgms);
     RESOLVE(lyman_alphas);
     RESOLVE(cmbs);
+    RESOLVE(cosmic_features);
+    RESOLVE(cosmic_feature_count);
 
     if (unresolved_count > 30) {
         printf("CRITICAL ERROR: Failed to resolve %d symbols. Ensure spacegl_server has symbols.\n", unresolved_count);
@@ -413,6 +420,7 @@ int main(int argc, char** argv) {
     NPCCGM* cgm_buf = calloc(MAX_CGM, sizeof(NPCCGM));
     NPCLymanAlpha* lya_buf = calloc(MAX_LYMAN_ALPHA, sizeof(NPCLymanAlpha));
     NPCCMB* cmb_buf = calloc(MAX_CMB, sizeof(NPCCMB));
+    NPCCosmicFeature* feat_buf = calloc(MAX_COSMIC_FEATURES, sizeof(NPCCosmicFeature));
     PlayerTorpedo* torp_buf = calloc(MAX_GLOBAL_TORPEDOES, sizeof(PlayerTorpedo));
     RenderItem* render_list = malloc(sizeof(RenderItem) * 100000);
     if (!render_list) { printf("CRITICAL ERROR: Out of memory (render list).\n"); endwin(); return 1; }
@@ -534,6 +542,36 @@ int main(int argc, char** argv) {
                 case CAT_CGM: READ_CAT(cgm_buf, a_cgms, MAX_CGM, 86); break;
                 case CAT_LYMAN_ALPHA: READ_CAT(lya_buf, a_lyman_alphas, MAX_LYMAN_ALPHA, 87); break;
                 case CAT_CMB: READ_CAT(cmb_buf, a_cmbs, MAX_CMB, 88); break;
+                case CAT_MOON:
+                case CAT_EXOTIC:
+                case CAT_EVOLVED_STAR: {
+                    if (a_cosmic_features) {
+                        int cnt = MAX_COSMIC_FEATURES;
+                        if (a_cosmic_feature_count) {
+                            read_remote(pid, a_cosmic_feature_count, &cnt, sizeof(int));
+                            if (cnt < 0 || cnt > MAX_COSMIC_FEATURES) cnt = MAX_COSMIC_FEATURES;
+                        }
+                        if (read_remote(pid, a_cosmic_features, feat_buf, sizeof(NPCCosmicFeature) * cnt) > 0) {
+                            for (int i = 0; i < cnt; i++) {
+                                if (!feat_buf[i].active) continue;
+                                int t = feat_buf[i].type;
+                                if (cat == CAT_MOON && obj_type_is_moon(t)) {
+                                    render_list[total_items].type = 89;
+                                    render_list[total_items].index = i;
+                                    total_items++;
+                                } else if (cat == CAT_EXOTIC && obj_type_is_exotic(t)) {
+                                    render_list[total_items].type = 100;
+                                    render_list[total_items].index = i;
+                                    total_items++;
+                                } else if (cat == CAT_EVOLVED_STAR && obj_type_is_evolved_star(t)) {
+                                    render_list[total_items].type = 132;
+                                    render_list[total_items].index = i;
+                                    total_items++;
+                                }
+                            }
+                        }
+                    }
+                } break;
                 default: break;
             }
         }
@@ -656,6 +694,9 @@ int main(int argc, char** argv) {
                     case 86: { NPCCGM* s = &cgm_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "CG%04d", s->id); snprintf(name, sizeof(name), "CGM"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
                     case 87: { NPCLymanAlpha* s = &lya_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "LY%04d", s->id); snprintf(name, sizeof(name), "Lyman Alpha"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
                     case 88: { NPCCMB* s = &cmb_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "CM%04d", s->id); snprintf(name, sizeof(name), "CMB"); snprintf(info, sizeof(info), "Cosmic"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 89: { NPCCosmicFeature* m = &feat_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "MN%04d", m->id); snprintf(name, sizeof(name), "%s", m->name[0]?m->name:obj_type_name(m->type)); snprintf(info, sizeof(info), "Moon (Type %d)", m->type); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", m->q1, m->q2, m->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", m->x, m->y, m->z); snprintf(extra, sizeof(extra), "Orbit"); } break;
+                    case 100: { NPCCosmicFeature* e = &feat_buf[item.index]; cp=4; snprintf(sid, sizeof(sid), "EX%04d", e->id); snprintf(name, sizeof(name), "%s", e->name[0]?e->name:obj_type_name(e->type)); snprintf(info, sizeof(info), "Exotic Compact"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", e->q1, e->q2, e->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", e->x, e->y, e->z); snprintf(extra, sizeof(extra), "Grav"); } break;
+                    case 132: { NPCCosmicFeature* s = &feat_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "EV%04d", s->id); snprintf(name, sizeof(name), "%s", s->name[0]?s->name:obj_type_name(s->type)); snprintf(info, sizeof(info), "Evolved Star"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); snprintf(extra, sizeof(extra), "Stellar"); } break;
                     default: break;
                 }
 
