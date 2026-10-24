@@ -27,6 +27,7 @@
 #include "../include/game_state.h"
 #include "../include/server_internal.h"
 #include "../include/network.h"
+#include "../include/object_types.h"
 
 SpaceGLGame spacegl_master;
 NPCShip npcs[MAX_NPC];
@@ -99,6 +100,9 @@ NPCPlasmaStorm plasma_storms[MAX_PLASMA_STORMS];
 NPCOrbitalRing orbital_rings[MAX_ORBITAL_RINGS];
 NPCTimeAnomaly time_anomalies[MAX_TIME_ANOMALIES];
 NPCVoidCrystal void_crystals[MAX_VOID_CRYSTALS];
+NPCSubspaceAnomaly subspace_anomalies[MAX_SUBSPACE_ANOMALIES];
+NPCCosmicFeature cosmic_features[MAX_COSMIC_FEATURES];
+int cosmic_feature_count = 0;
 ConnectedPlayer players[MAX_CLIENTS];
 
 const char* get_faction_name(int faction) {
@@ -154,7 +158,11 @@ const char* get_faction_name(int faction) {
         case 86: return "CGM";
         case 87: return "Lyman-Alpha Forest";
         case 88: return "CMB";
-        default: return "Unknown";
+        default: {
+            const char *name = obj_type_name(faction);
+            if (name) return name;
+            return "Unknown";
+        }
     }
 }
 
@@ -226,7 +234,7 @@ const char* get_quasar_class_name(int type) {
 }
 
 void print_help() {
-    printf("Usage: ./stellar_viewer [command]\n");
+    printf("Usage: spacegl_viewer [command]\n");
     printf("Commands:\n");
     printf("  stats             Show global galaxy statistics and security status\n");
     printf("  master            Show global Master Ship status and resources\n");
@@ -256,7 +264,7 @@ int main(int argc, char *argv[]) {
             return 0;
         }
         if (strcmp(argv[1], "--version") == 0) {
-            printf("spacegl_viewer 2026.04.12\n");
+            printf("spacegl_viewer 2026.10.24.14\n");
             return 0;
         }
     }
@@ -316,6 +324,7 @@ int main(int argc, char *argv[]) {
                          (long)sizeof(NPCOrbitalRing) * MAX_ORBITAL_RINGS +
                          (long)sizeof(NPCTimeAnomaly) * MAX_TIME_ANOMALIES +
                          (long)sizeof(NPCVoidCrystal) * MAX_VOID_CRYSTALS +
+                         (long)sizeof(NPCSubspaceAnomaly) * MAX_SUBSPACE_ANOMALIES +
                          (long)sizeof(NPCDiffuseNebula) * MAX_DIFFUSE_NEBULAE +
                          (long)sizeof(NPCDarkNebula) * MAX_DARK_NEBULAE +
                          (long)sizeof(NPCPlanetaryNebula) * MAX_PLANETARY_NEBULAE +
@@ -400,6 +409,7 @@ int main(int argc, char *argv[]) {
     CHECK_READ(orbital_rings, sizeof(NPCOrbitalRing), MAX_ORBITAL_RINGS, f);
     CHECK_READ(time_anomalies, sizeof(NPCTimeAnomaly), MAX_TIME_ANOMALIES, f);
     CHECK_READ(void_crystals, sizeof(NPCVoidCrystal), MAX_VOID_CRYSTALS, f);
+    CHECK_READ(subspace_anomalies, sizeof(NPCSubspaceAnomaly), MAX_SUBSPACE_ANOMALIES, f);
     CHECK_READ(diffuse_nebulae, sizeof(NPCDiffuseNebula), MAX_DIFFUSE_NEBULAE, f);
     CHECK_READ(dark_nebulae, sizeof(NPCDarkNebula), MAX_DARK_NEBULAE, f);
     CHECK_READ(planetary_nebulae, sizeof(NPCPlanetaryNebula), MAX_PLANETARY_NEBULAE, f);
@@ -438,12 +448,22 @@ int main(int argc, char *argv[]) {
     CHECK_READ(cgms, sizeof(NPCCGM), MAX_CGM, f);
     CHECK_READ(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
     CHECK_READ(cmbs, sizeof(NPCCMB), MAX_CMB, f);
-    /* Skip cosmic_features to reach players block */
+    if (fread(&cosmic_feature_count, sizeof(int), 1, f) != 1) { cosmic_feature_count = 0; }
+    /* Dynamically read cosmic_features handling legacy size (1024) and current size (MAX_COSMIC_FEATURES) */
+    memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
+    long feat_pos = ftell(f);
     fseek(f, 0, SEEK_END);
     long file_size = ftell(f);
+    fseek(f, feat_pos, SEEK_SET);
+    long remaining_bytes = file_size - feat_pos;
     long players_bytes = (long)sizeof(ConnectedPlayer) * MAX_CLIENTS;
-    if (file_size >= players_bytes) {
-        fseek(f, file_size - players_bytes, SEEK_SET);
+    long available_feat_bytes = remaining_bytes - players_bytes;
+    int feats_in_file = (available_feat_bytes > 0) ? (int)(available_feat_bytes / sizeof(NPCCosmicFeature)) : 0;
+    if (feats_in_file > MAX_COSMIC_FEATURES) feats_in_file = MAX_COSMIC_FEATURES;
+    if (feats_in_file > 0) {
+        if (fread(cosmic_features, sizeof(NPCCosmicFeature), feats_in_file, f) != (size_t)feats_in_file) {
+            memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
+        }
     }
     CHECK_READ(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
@@ -492,10 +512,59 @@ int main(int argc, char *argv[]) {
         int gmc_active = 0;
 
         for (int i = 0; i < MAX_VOID_CRYSTALS; i++) if (void_crystals[i].active) voi_active++;
+        int sub_anom_active = 0;
+        for (int i = 0; i < MAX_SUBSPACE_ANOMALIES; i++) if (subspace_anomalies[i].active) sub_anom_active++;
         for (int i = 0; i < MAX_DIFFUSE_NEBULAE; i++) if (diffuse_nebulae[i].active) diffuse_active++;
         for (int i = 0; i < MAX_DARK_NEBULAE; i++) if (dark_nebulae[i].active) dark_active++;
         for (int i = 0; i < MAX_SNR; i++) if (snrs[i].active) snr_active++;
         for (int i = 0; i < MAX_GMC; i++) if (gmcs[i].active) gmc_active++;
+        int planetary_active = 0;
+        int astro_misc_active = 0;
+        for (int i = 0; i < MAX_PLANETARY_NEBULAE; i++) if (planetary_nebulae[i].active) planetary_active++;
+        for (int i = 0; i < MAX_INTERSTELLAR_FILAMENTS; i++) if (interstellar_filaments[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_INTERSTELLAR_BUBBLES; i++) if (interstellar_bubbles[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_BOK_GLOBULES; i++) if (bok_globules[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_CLUMP_CORES; i++) if (clump_cores[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_ACCRETION_DISKS; i++) if (accretion_disks[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_RELATIVISTIC_JETS; i++) if (relativistic_jets[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_SHOCK_WAVES; i++) if (shock_waves[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_STELLAR_BOW_SHOCKS; i++) if (stellar_bow_shocks[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_COSMIC_VOIDS; i++) if (cosmic_voids[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_COSMIC_FILAMENTS; i++) if (cosmic_filaments[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_EVENT_HORIZONS; i++) if (event_horizons[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_KILONOVAE; i++) if (kilonovae[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_GRAV_LENSES; i++) if (grav_lenses[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_GRB; i++) if (grbs[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_GRAV_WAVES; i++) if (grav_waves[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_PROTOPLANETARY_DISKS; i++) if (protoplanetary_disks[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_DEBRIS_DISKS; i++) if (debris_disks[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_PLANETESIMALS; i++) if (planetesimals[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_ROGUE_PLANETS; i++) if (rogue_planets[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_BROWN_DWARFS; i++) if (brown_dwarfs[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_ISO; i++) if (isos[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_MAG_RECONN; i++) if (mag_reconns[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_CURRENT_SHEETS; i++) if (current_sheets[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_HELIOSPHERES; i++) if (heliospheres[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_TERM_SHOCKS; i++) if (term_shocks[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_MAGNETOSPHERES; i++) if (magnetospheres[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_COSMIC_STRINGS; i++) if (cosmic_strings[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_DOMAIN_WALLS; i++) if (domain_walls[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_DM_HALO; i++) if (dm_halos[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_IGM; i++) if (igms[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_CGM; i++) if (cgms[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_LYMAN_ALPHA; i++) if (lyman_alphas[i].active) astro_misc_active++;
+        for (int i = 0; i < MAX_CMB; i++) if (cmbs[i].active) astro_misc_active++;
+
+        int moon_active = 0;
+        int evolved_active = 0;
+        int exotic_active = 0;
+        for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
+            if (!cosmic_features[i].active) continue;
+            int t = cosmic_features[i].type;
+            if (obj_type_is_moon(t)) moon_active++;
+            else if (obj_type_is_evolved_star(t)) evolved_active++;
+            else if (obj_type_is_exotic(t)) exotic_active++;
+        }
         for (int i = 0; i < MAX_NPC; i++) {
             if (npcs[i].active) {
                 n_active++;
@@ -640,10 +709,16 @@ int main(int argc, char *argv[]) {
         printf("  Orbital Rings:     %d\n", orb_active);
         printf("  Time Anomalies:    %d\n", tim_active);
         printf("  Void Crystals:     %d\n", voi_active);
+        printf("  Subspace Anomalies:%d\n", sub_anom_active);
         printf("  Diffuse Nebulae:   %d\n", diffuse_active);
         printf("  Dark Nebulae:      %d\n", dark_active);
+        printf("  Planetary Nebulae: %d\n", planetary_active);
         printf("  SNR:               %d\n", snr_active);
         printf("  GMC:               %d\n", gmc_active);
+        printf("  Astrophysical Misc:%d\n", astro_misc_active);
+        printf("  Natural Moons:     %d\n", moon_active);
+        printf("  Evolved Stars:     %d\n", evolved_active);
+        printf("  Exotic Objects:    %d\n", exotic_active);
 
         printf("\nFaction Counts (SpaceGL Master):\n");
         for (int i = 0; i <= 10; i++) {
@@ -710,7 +785,7 @@ int main(int argc, char *argv[]) {
         printf("--- GALAXY LOCALIZATION REPORT ---\n");
         printf("%-10s %-8s %-15s %-12s %s\n", "TYPE", "ID", "COORD", "FACTION", "NAME/INFO");
         
-        int counts[71] = {0}; /* 71 object categories, indices 0..70 (CMB) */
+        int counts[72] = {0}; /* 72 object categories, indices 0..70 (CMB), 71 (SUB_ANOM) */
 
         for(int i=0; i<MAX_CLIENTS; i++) if(players[i].name[0] != '\0') {
             printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "PLAYER", i, players[i].state.q1, players[i].state.q2, players[i].state.q3, get_faction_name(players[i].faction), players[i].name);
@@ -877,6 +952,11 @@ int main(int argc, char *argv[]) {
             counts[32]++;
         }
 
+        for(int i=0; i<MAX_SUBSPACE_ANOMALIES; i++) if(subspace_anomalies[i].active) {
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "SUB_ANOM", subspace_anomalies[i].id+GALAXY_OBJECT_MIN_SUBSPACE_ANOM, subspace_anomalies[i].q1, subspace_anomalies[i].q2, subspace_anomalies[i].q3, "None", "Subspace Anomaly");
+            counts[71]++;
+        }
+
         for(int i=0; i<MAX_DIFFUSE_NEBULAE; i++) if(diffuse_nebulae[i].active) {
             printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "DIFFUSE_NE", diffuse_nebulae[i].id+GALAXY_OBJECT_MIN_DIFFUSE_NEBULA, diffuse_nebulae[i].q1, diffuse_nebulae[i].q2, diffuse_nebulae[i].q3, "None", "Diffuse Nebula");
             counts[33]++;
@@ -1028,14 +1108,40 @@ int main(int argc, char *argv[]) {
         for(int i=0; i<MAX_CMB; i++) if(cmbs[i].active) {
             printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "CMB", cmbs[i].id+GALAXY_OBJECT_MIN_CMB, cmbs[i].q1, cmbs[i].q2, cmbs[i].q3, "None", "CMB");
             counts[70]++;
-        }        
+        }
+        int moon_count = 0;
+        int evolved_count = 0;
+        int exotic_count = 0;
+        for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
+            if (!cosmic_features[i].active) continue;
+            int t = cosmic_features[i].type;
+            const char *label = "COSMIC";
+            if (obj_type_is_moon(t)) {
+                label = "MOON";
+                moon_count++;
+            } else if (obj_type_is_evolved_star(t)) {
+                label = "EVOLVED";
+                evolved_count++;
+            } else if (obj_type_is_exotic(t)) {
+                label = "EXOTIC";
+                exotic_count++;
+            }
+            const char *obj_nm = cosmic_features[i].name[0] ? cosmic_features[i].name : obj_type_name(t);
+            printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n",
+                   label, cosmic_features[i].id, cosmic_features[i].q1, cosmic_features[i].q2, cosmic_features[i].q3,
+                   "None", obj_nm ? obj_nm : "Unknown");
+        }
         printf("\n--- Summary ---\n");
         printf("Players: %d, NPCs: %d, Bases: %d, Planets: %d, Stars: %d\n", counts[0], counts[1], counts[2], counts[3], counts[4]);
         printf("BlackHoles: %d, Nebulas: %d, Pulsars: %d, Quasars: %d, Comets: %d, Asteroids: %d\n", counts[5], counts[6], counts[7], counts[16], counts[8], counts[9]);
         printf("Derelicts: %d, Mines: %d, Buoys: %d, Platforms: %d, Rifts: %d, Monsters: %d\n", counts[10], counts[11], counts[12], counts[13], counts[14], counts[15]);
         printf("Dysons: %d, Hubs: %d, Relics: %d, Ruptures: %d, Satellites: %d, Storms: %d\n", counts[17], counts[18], counts[19], counts[20], counts[21], counts[22]);
         printf("Artifacts: %d, WarpGates: %d, NeutronStars: %d, MegaStructs: %d, DarkClouds: %d, Singularities: %d\n", counts[23], counts[24], counts[25], counts[26], counts[27], counts[28]);
-        printf("PlasmaStorms: %d, OrbitalRings: %d, TimeAnomalies: %d, VoidCrystals: %d\n", counts[29], counts[30], counts[31], counts[32]);
+        printf("PlasmaStorms: %d, OrbitalRings: %d, TimeAnomalies: %d, VoidCrystals: %d, SubAnomalies: %d\n", counts[29], counts[30], counts[31], counts[32], counts[71]);
+        int astro_sum = 0;
+        for (int i = 33; i <= 70; i++) astro_sum += counts[i];
+        printf("AstrophysicalMisc: %d\n", astro_sum);
+        printf("NaturalMoons: %d, EvolvedStars: %d, ExoticObjects: %d\n", moon_count, evolved_count, exotic_count);
     }
     else if (strcmp(argv[1], "map") == 0 && argc == 3) {
         int q3 = atoi(argv[2]);
@@ -1180,6 +1286,81 @@ int main(int argc, char *argv[]) {
 
         for(int i=0; i<3; i++) if(spacegl_master.probes[i].active && spacegl_master.probes[i].q1 == q1 && spacegl_master.probes[i].q2 == q2 && spacegl_master.probes[i].q3 == q3)
             printf("[PROBE] Index:%d Status:%d ETA:%.1f Coord:%.1f,%.1f,%.1f\n", i, spacegl_master.probes[i].status, spacegl_master.probes[i].eta, spacegl_master.probes[i].s1, spacegl_master.probes[i].s2, spacegl_master.probes[i].s3);
+
+#define PRINT_Q_LIST(arr, max_cnt, label, offset) \
+        for(int i=0; i<max_cnt; i++) if(arr[i].active && arr[i].q1 == q1 && arr[i].q2 == q2 && arr[i].q3 == q3) \
+            printf("[%s] ID:%d Coord:%.1f,%.1f,%.1f\n", label, arr[i].id + (offset), arr[i].x, arr[i].y, arr[i].z);
+
+        PRINT_Q_LIST(dysons, MAX_DYSON, "DYSON", GALAXY_OBJECT_MIN_DYSON);
+        PRINT_Q_LIST(hubs, MAX_HUBS, "HUB", GALAXY_OBJECT_MIN_HUB);
+        PRINT_Q_LIST(relics, MAX_RELICS, "RELIC", GALAXY_OBJECT_MIN_RELIC);
+        PRINT_Q_LIST(ruptures, MAX_RUPTURES, "RUPTURE", GALAXY_OBJECT_MIN_RUPTURE);
+        PRINT_Q_LIST(satellites, MAX_SATELLITES, "SATELLITE", GALAXY_OBJECT_MIN_SATELLITE);
+        PRINT_Q_LIST(storms, MAX_STORMS, "STORM", GALAXY_OBJECT_MIN_STORM);
+        PRINT_Q_LIST(artifacts, MAX_ARTIFACTS, "ARTIFACT", GALAXY_OBJECT_MIN_ARTIFACT);
+        PRINT_Q_LIST(warp_gates, MAX_WARP_GATES, "WARP_GATE", GALAXY_OBJECT_MIN_WARP_GATE);
+        PRINT_Q_LIST(neutron_stars, MAX_NEUTRON_STARS, "N_STAR", GALAXY_OBJECT_MIN_NEUTRON_STAR);
+        PRINT_Q_LIST(mega_structs, MAX_MEGA_STRUCTS, "M_STRUCT", GALAXY_OBJECT_MIN_MEGA_STRUCT);
+        PRINT_Q_LIST(dark_clouds, MAX_DARK_CLOUDS, "D_CLOUD", GALAXY_OBJECT_MIN_DARK_CLOUD);
+        PRINT_Q_LIST(singularities, MAX_SINGULARITIES, "SINGULAR", GALAXY_OBJECT_MIN_SINGULARITY);
+        PRINT_Q_LIST(plasma_storms, MAX_PLASMA_STORMS, "P_STORM", GALAXY_OBJECT_MIN_PLASMA_STORM);
+        PRINT_Q_LIST(orbital_rings, MAX_ORBITAL_RINGS, "O_RING", GALAXY_OBJECT_MIN_ORBITAL_RING);
+        PRINT_Q_LIST(time_anomalies, MAX_TIME_ANOMALIES, "T_ANOMALY", GALAXY_OBJECT_MIN_TIME_ANOMALY);
+        PRINT_Q_LIST(void_crystals, MAX_VOID_CRYSTALS, "V_CRYSTAL", GALAXY_OBJECT_MIN_VOID_CRYSTAL);
+        PRINT_Q_LIST(subspace_anomalies, MAX_SUBSPACE_ANOMALIES, "SUB_ANOM", GALAXY_OBJECT_MIN_SUBSPACE_ANOM);
+        PRINT_Q_LIST(diffuse_nebulae, MAX_DIFFUSE_NEBULAE, "DIFFUSE_NE", GALAXY_OBJECT_MIN_DIFFUSE_NEBULA);
+        PRINT_Q_LIST(dark_nebulae, MAX_DARK_NEBULAE, "DARK_NEBUL", GALAXY_OBJECT_MIN_DARK_NEBULA);
+        PRINT_Q_LIST(planetary_nebulae, MAX_PLANETARY_NEBULAE, "PLANETARY_", GALAXY_OBJECT_MIN_PLANETARY_NEBULA);
+        PRINT_Q_LIST(snrs, MAX_SNR, "SNR", GALAXY_OBJECT_MIN_SNR);
+        PRINT_Q_LIST(gmcs, MAX_GMC, "GMC", GALAXY_OBJECT_MIN_GMC);
+        PRINT_Q_LIST(interstellar_filaments, MAX_INTERSTELLAR_FILAMENTS, "INTERSTELL", GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT);
+        PRINT_Q_LIST(interstellar_bubbles, MAX_INTERSTELLAR_BUBBLES, "INTERSTELL", GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE);
+        PRINT_Q_LIST(bok_globules, MAX_BOK_GLOBULES, "BOK_GLOBUL", GALAXY_OBJECT_MIN_BOK_GLOBULE);
+        PRINT_Q_LIST(clump_cores, MAX_CLUMP_CORES, "CLUMP_CORE", GALAXY_OBJECT_MIN_CLUMP_CORE);
+        PRINT_Q_LIST(accretion_disks, MAX_ACCRETION_DISKS, "ACCRETION_", GALAXY_OBJECT_MIN_ACCRETION_DISK);
+        PRINT_Q_LIST(relativistic_jets, MAX_RELATIVISTIC_JETS, "RELATIVIST", GALAXY_OBJECT_MIN_RELATIVISTIC_JET);
+        PRINT_Q_LIST(shock_waves, MAX_SHOCK_WAVES, "SHOCK_WAVE", GALAXY_OBJECT_MIN_SHOCK_WAVE);
+        PRINT_Q_LIST(stellar_bow_shocks, MAX_STELLAR_BOW_SHOCKS, "STELLAR_BO", GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK);
+        PRINT_Q_LIST(cosmic_voids, MAX_COSMIC_VOIDS, "COSMIC_VOI", GALAXY_OBJECT_MIN_COSMIC_VOID);
+        PRINT_Q_LIST(cosmic_filaments, MAX_COSMIC_FILAMENTS, "COSMIC_FIL", GALAXY_OBJECT_MIN_COSMIC_FILAMENT);
+        PRINT_Q_LIST(event_horizons, MAX_EVENT_HORIZONS, "EVENT_HORI", GALAXY_OBJECT_MIN_EVENT_HORIZON);
+        PRINT_Q_LIST(kilonovae, MAX_KILONOVAE, "KILONOVA", GALAXY_OBJECT_MIN_KILONOVA);
+        PRINT_Q_LIST(grav_lenses, MAX_GRAV_LENSES, "GRAV_LENS", GALAXY_OBJECT_MIN_GRAV_LENS);
+        PRINT_Q_LIST(grbs, MAX_GRB, "GRB", GALAXY_OBJECT_MIN_GRB);
+        PRINT_Q_LIST(grav_waves, MAX_GRAV_WAVES, "GRAV_WAVE", GALAXY_OBJECT_MIN_GRAV_WAVE);
+        PRINT_Q_LIST(protoplanetary_disks, MAX_PROTOPLANETARY_DISKS, "PROTOPLANE", GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK);
+        PRINT_Q_LIST(debris_disks, MAX_DEBRIS_DISKS, "DEBRIS_DIS", GALAXY_OBJECT_MIN_DEBRIS_DISK);
+        PRINT_Q_LIST(planetesimals, MAX_PLANETESIMALS, "PLANETESIM", GALAXY_OBJECT_MIN_PLANETESIMAL);
+        PRINT_Q_LIST(rogue_planets, MAX_ROGUE_PLANETS, "ROGUE_PLAN", GALAXY_OBJECT_MIN_ROGUE_PLANET);
+        PRINT_Q_LIST(brown_dwarfs, MAX_BROWN_DWARFS, "BROWN_DWAR", GALAXY_OBJECT_MIN_BROWN_DWARF);
+        PRINT_Q_LIST(isos, MAX_ISO, "ISO", GALAXY_OBJECT_MIN_ISO);
+        PRINT_Q_LIST(mag_reconns, MAX_MAG_RECONN, "MAG_RECONN", GALAXY_OBJECT_MIN_MAG_RECONN);
+        PRINT_Q_LIST(current_sheets, MAX_CURRENT_SHEETS, "CURRENT_SH", GALAXY_OBJECT_MIN_CURRENT_SHEET);
+        PRINT_Q_LIST(heliospheres, MAX_HELIOSPHERES, "HELIOSPHER", GALAXY_OBJECT_MIN_HELIOSPHERE);
+        PRINT_Q_LIST(term_shocks, MAX_TERM_SHOCKS, "TERM_SHOCK", GALAXY_OBJECT_MIN_TERM_SHOCK);
+        PRINT_Q_LIST(magnetospheres, MAX_MAGNETOSPHERES, "MAGNETOSPH", GALAXY_OBJECT_MIN_MAGNETOSPHERE);
+        PRINT_Q_LIST(cosmic_strings, MAX_COSMIC_STRINGS, "COSMIC_STR", GALAXY_OBJECT_MIN_COSMIC_STRING);
+        PRINT_Q_LIST(domain_walls, MAX_DOMAIN_WALLS, "DOMAIN_WAL", GALAXY_OBJECT_MIN_DOMAIN_WALL);
+        PRINT_Q_LIST(dm_halos, MAX_DM_HALO, "DM_HALO", GALAXY_OBJECT_MIN_DM_HALO);
+        PRINT_Q_LIST(igms, MAX_IGM, "IGM", GALAXY_OBJECT_MIN_IGM);
+        PRINT_Q_LIST(cgms, MAX_CGM, "CGM", GALAXY_OBJECT_MIN_CGM);
+        PRINT_Q_LIST(lyman_alphas, MAX_LYMAN_ALPHA, "LYMAN_ALPH", GALAXY_OBJECT_MIN_LYMAN_ALPHA);
+        PRINT_Q_LIST(cmbs, MAX_CMB, "CMB", GALAXY_OBJECT_MIN_CMB);
+#undef PRINT_Q_LIST
+
+        for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
+            if (cosmic_features[i].active && cosmic_features[i].q1 == q1 && cosmic_features[i].q2 == q2 && cosmic_features[i].q3 == q3) {
+                int t = cosmic_features[i].type;
+                const char *label = "COSMIC";
+                if (obj_type_is_moon(t)) label = "MOON";
+                else if (obj_type_is_evolved_star(t)) label = "EVOLVED";
+                else if (obj_type_is_exotic(t)) label = "EXOTIC";
+                const char *nm = cosmic_features[i].name[0] ? cosmic_features[i].name : obj_type_name(t);
+                printf("[%s] ID:%d Type:%s Coord:%.1f,%.1f,%.1f Name:%s\n",
+                       label, cosmic_features[i].id, obj_type_name(t) ? obj_type_name(t) : "Unknown",
+                       cosmic_features[i].x, cosmic_features[i].y, cosmic_features[i].z, nm ? nm : "");
+            }
+        }
     }
     else if (strcmp(argv[1], "players") == 0) {
         printf("--- Persistent Players ---\n");
@@ -1217,6 +1398,19 @@ int main(int argc, char *argv[]) {
             if (npcs[i].active && npcs[i].name[0] != '\0' && strcasestr(npcs[i].name, name)) {
                 printf("[NPC] Found: %s ID:%d in Quadrant [%d,%d,%d] %s\n", npcs[i].name, npcs[i].id+GALAXY_OBJECT_MIN_NPC, npcs[i].q1, npcs[i].q2, npcs[i].q3,
                        npcs[i].is_cloaked ? "[CLOAKED]" : "");
+            }
+        }
+        for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
+            if (cosmic_features[i].active && cosmic_features[i].name[0] != '\0' && strcasestr(cosmic_features[i].name, name)) {
+                int t = cosmic_features[i].type;
+                const char *label = "COSMIC";
+                if (obj_type_is_moon(t)) label = "MOON";
+                else if (obj_type_is_evolved_star(t)) label = "EVOLVED";
+                else if (obj_type_is_exotic(t)) label = "EXOTIC";
+                printf("[%s] Found: %s ID:%d in Quadrant [%d,%d,%d] Coord:%.1f,%.1f,%.1f\n",
+                       label, cosmic_features[i].name, cosmic_features[i].id,
+                       cosmic_features[i].q1, cosmic_features[i].q2, cosmic_features[i].q3,
+                       cosmic_features[i].x, cosmic_features[i].y, cosmic_features[i].z);
             }
         }
     }

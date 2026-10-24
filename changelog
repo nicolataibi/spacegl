@@ -1,3 +1,18 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.14
+  - SpaceGL Galaxy File Inspector (spacegl_viewer): integrated cosmic features
+    and all astrophysical entities into src/spacegl_viewer.c:
+      * Galaxy persistence read: load cosmic_features array from galaxy.dat alongside
+        legacy and current sizes instead of skipping it with fseek, and restored missing
+        subspace_anomalies block to maintain exact byte alignment with server file format.
+      * Extended statistics (stats): count and display active totals for all 38
+        astrophysical features, 10 Natural Moons, 17 Evolved Stars, and 32 Exotic Compact Objects.
+      * Complete report: localize and report all active cosmic_features (MOON, EVOLVED,
+        EXOTIC) with their IDs, names, and coordinates in 'spacegl_viewer report'.
+      * Comprehensive quadrant listing (list) & search: list all astrophysical objects and
+        cosmic features in quadrant slices, and search cosmic entities by name.
+      * Faction & type resolver: updated get_faction_name to resolve all object types
+        via obj_type_name().
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.13
   - Telemetry Server & Client coverage table: extended telemetry subsystem (include/telemetry.h,
     src/telemetry_server.c, src/spacegl_telemetry.c) to register and display all 10 Natural Moons
