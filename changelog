@@ -1,3 +1,10 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.13
+  - Telemetry Server & Client coverage table: extended telemetry subsystem (include/telemetry.h,
+    src/telemetry_server.c, src/spacegl_telemetry.c) to register and display all 10 Natural Moons
+    (types 89..98) and 17 Evolved Stars (types 132..148) in the server diagnostic coverage table
+    (CATEGORY | STATUS | ACTIVE ENTITIES), active object descriptors (MNxxxx / EVxxxx), and
+    Ncurses telemetry client category navigation.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.12
   - OpenGL viewer planet scale: enlarged planet dimensions again by 100% in the
     OpenGL rendering path (src/spacegl_3dview_tables.inc drawPlanet), doubling planet sphere
@@ -12,6 +19,7 @@
       * Natural Moons in orbit (total count and complete breakdown for all 10 moon classes).
       * Evolved Stars (total count and complete breakdown for all 17 stellar classes).
       * Dedicated summary slots for Natural Moons and Evolved Stars in the top report banner.
+
 
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.11
   - OpenGL viewer planet scale: enlarged planet dimensions by 100% in the OpenGL

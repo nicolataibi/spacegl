@@ -105,7 +105,14 @@ const char* cat_names_diag[] = {
     "NAKED SINGULARITY",
     "SUPER-EXTREMAL SOLUTION BLACK HOLE",
     "SUPER-EXTREMAL REISSNER-NORDSTROM SOLUTION BLACK HOLE",
-    "SUPER-EXTREMAL KERR SOLUTION BLACK HOLE"
+    "SUPER-EXTREMAL KERR SOLUTION BLACK HOLE",
+    "SHEPHERD MOON", "TROJAN MOON", "CO-ORBITAL MOON", "VOLCANIC MOON", "OCEAN MOON",
+    "MOON WITH ATMOSPHERE", "EXOMOON", "REGULAR MOON", "IRREGULAR MOON", "SUBMOON",
+    "RED GIANT", "RED CLUMP STAR", "HORIZONTAL BRANCH STAR", "AGB STAR", "RED SUPERGIANT",
+    "WHITE DWARF (C-O CORE)", "WHITE DWARF (O-NE-MG CORE)", "DA WHITE DWARF (HYDROGEN)",
+    "DB WHITE DWARF (HELIUM)", "DO WHITE DWARF (HOT)", "DQ WHITE DWARF (CARBON)",
+    "DZ WHITE DWARF (METALS)", "DC WHITE DWARF (CONTINUUM)", "DX WHITE DWARF (UNKNOWN)",
+    "DAV PULSATING WHITE DWARF", "DBV PULSATING WHITE DWARF", "GW VIR PULSATING STAR"
 };
 
 static pthread_mutex_t cat_mutexes[TEL_CAT_COUNT];
@@ -558,6 +565,43 @@ void telemetry_init() {
                     case TEL_CAT_SUPER_EXTREMAL_KERR_SOLUTION_BLACK_HOLE: {
                         for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                             if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 31) count++;
+                        }
+                    } break;
+                    case TEL_CAT_MOON_SHEPHERD:
+                    case TEL_CAT_MOON_TROJAN:
+                    case TEL_CAT_MOON_CO_ORBITAL:
+                    case TEL_CAT_MOON_VOLCANIC:
+                    case TEL_CAT_MOON_OCEAN:
+                    case TEL_CAT_MOON_ATMOSPHERE:
+                    case TEL_CAT_MOON_EXOMOON:
+                    case TEL_CAT_MOON_REGULAR:
+                    case TEL_CAT_MOON_IRREGULAR:
+                    case TEL_CAT_MOON_SUBMOON: {
+                        int m_type = OBJ_MOON_FIRST + (c - TEL_CAT_MOON_SHEPHERD);
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == m_type) count++;
+                        }
+                    } break;
+                    case TEL_CAT_EVOLVED_RED_GIANT:
+                    case TEL_CAT_EVOLVED_RED_CLUMP:
+                    case TEL_CAT_EVOLVED_HORIZONTAL_BRANCH:
+                    case TEL_CAT_EVOLVED_AGB:
+                    case TEL_CAT_EVOLVED_RED_SUPERGIANT:
+                    case TEL_CAT_EVOLVED_WD_CO_CORE:
+                    case TEL_CAT_EVOLVED_WD_ONE_MG_CORE:
+                    case TEL_CAT_EVOLVED_WD_DA_HYDROGEN:
+                    case TEL_CAT_EVOLVED_WD_DB_HELIUM:
+                    case TEL_CAT_EVOLVED_WD_DO_HOT:
+                    case TEL_CAT_EVOLVED_WD_DQ_CARBON:
+                    case TEL_CAT_EVOLVED_WD_DZ_METALS:
+                    case TEL_CAT_EVOLVED_WD_DC_CONTINUUM:
+                    case TEL_CAT_EVOLVED_WD_DX_UNKNOWN:
+                    case TEL_CAT_EVOLVED_WD_DAV_PULSATING:
+                    case TEL_CAT_EVOLVED_WD_DBV_PULSATING:
+                    case TEL_CAT_EVOLVED_GW_VIR_PULSATING: {
+                        int e_type = OBJ_EVOLVED_FIRST + (c - TEL_CAT_EVOLVED_RED_GIANT);
+                        for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                            if (cosmic_features[k].active && cosmic_features[k].type == e_type) count++;
                         }
                     } break;
                 }
@@ -1755,6 +1799,53 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     to->color_pair = 5;
                 }
             } break;
+            case TEL_CAT_MOON_SHEPHERD:
+            case TEL_CAT_MOON_TROJAN:
+            case TEL_CAT_MOON_CO_ORBITAL:
+            case TEL_CAT_MOON_VOLCANIC:
+            case TEL_CAT_MOON_OCEAN:
+            case TEL_CAT_MOON_ATMOSPHERE:
+            case TEL_CAT_MOON_EXOMOON:
+            case TEL_CAT_MOON_REGULAR:
+            case TEL_CAT_MOON_IRREGULAR:
+            case TEL_CAT_MOON_SUBMOON: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "MN%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Natural Moon", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_EVOLVED_RED_GIANT:
+            case TEL_CAT_EVOLVED_RED_CLUMP:
+            case TEL_CAT_EVOLVED_HORIZONTAL_BRANCH:
+            case TEL_CAT_EVOLVED_AGB:
+            case TEL_CAT_EVOLVED_RED_SUPERGIANT:
+            case TEL_CAT_EVOLVED_WD_CO_CORE:
+            case TEL_CAT_EVOLVED_WD_ONE_MG_CORE:
+            case TEL_CAT_EVOLVED_WD_DA_HYDROGEN:
+            case TEL_CAT_EVOLVED_WD_DB_HELIUM:
+            case TEL_CAT_EVOLVED_WD_DO_HOT:
+            case TEL_CAT_EVOLVED_WD_DQ_CARBON:
+            case TEL_CAT_EVOLVED_WD_DZ_METALS:
+            case TEL_CAT_EVOLVED_WD_DC_CONTINUUM:
+            case TEL_CAT_EVOLVED_WD_DX_UNKNOWN:
+            case TEL_CAT_EVOLVED_WD_DAV_PULSATING:
+            case TEL_CAT_EVOLVED_WD_DBV_PULSATING:
+            case TEL_CAT_EVOLVED_GW_VIR_PULSATING: {
+                if (idx >= 0 && idx < MAX_COSMIC_FEATURES) {
+                    NPCCosmicFeature* o = &cosmic_features[idx];
+                    snprintf(to->id, sizeof(to->id), "EV%04d", o->id);
+                    strncpy(to->name, o->name, sizeof(to->name)-1);
+                    strncpy(to->info, "Evolved Star", sizeof(to->info)-1);
+                    to->q1 = o->q1; to->q2 = o->q2; to->q3 = o->q3;
+                    to->x = o->x; to->y = o->y; to->z = o->z;
+                    to->color_pair = 4;
+                }
+            } break;
             default: break;
         }
     }
@@ -2082,6 +2173,47 @@ static void update_category_cache(int cat) {
             case TEL_CAT_SUPER_EXTREMAL_KERR_SOLUTION_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 31) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_MOON_SHEPHERD:
+            case TEL_CAT_MOON_TROJAN:
+            case TEL_CAT_MOON_CO_ORBITAL:
+            case TEL_CAT_MOON_VOLCANIC:
+            case TEL_CAT_MOON_OCEAN:
+            case TEL_CAT_MOON_ATMOSPHERE:
+            case TEL_CAT_MOON_EXOMOON:
+            case TEL_CAT_MOON_REGULAR:
+            case TEL_CAT_MOON_IRREGULAR:
+            case TEL_CAT_MOON_SUBMOON: {
+                int m_type = OBJ_MOON_FIRST + (cat - TEL_CAT_MOON_SHEPHERD);
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == m_type) {
+                        fill_obj(&cat_cache[cat][count++], cat, k);
+                    }
+                }
+            } break;
+            case TEL_CAT_EVOLVED_RED_GIANT:
+            case TEL_CAT_EVOLVED_RED_CLUMP:
+            case TEL_CAT_EVOLVED_HORIZONTAL_BRANCH:
+            case TEL_CAT_EVOLVED_AGB:
+            case TEL_CAT_EVOLVED_RED_SUPERGIANT:
+            case TEL_CAT_EVOLVED_WD_CO_CORE:
+            case TEL_CAT_EVOLVED_WD_ONE_MG_CORE:
+            case TEL_CAT_EVOLVED_WD_DA_HYDROGEN:
+            case TEL_CAT_EVOLVED_WD_DB_HELIUM:
+            case TEL_CAT_EVOLVED_WD_DO_HOT:
+            case TEL_CAT_EVOLVED_WD_DQ_CARBON:
+            case TEL_CAT_EVOLVED_WD_DZ_METALS:
+            case TEL_CAT_EVOLVED_WD_DC_CONTINUUM:
+            case TEL_CAT_EVOLVED_WD_DX_UNKNOWN:
+            case TEL_CAT_EVOLVED_WD_DAV_PULSATING:
+            case TEL_CAT_EVOLVED_WD_DBV_PULSATING:
+            case TEL_CAT_EVOLVED_GW_VIR_PULSATING: {
+                int e_type = OBJ_EVOLVED_FIRST + (cat - TEL_CAT_EVOLVED_RED_GIANT);
+                for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
+                    if (cosmic_features[k].active && cosmic_features[k].type == e_type) {
                         fill_obj(&cat_cache[cat][count++], cat, k);
                     }
                 }
