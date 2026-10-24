@@ -384,6 +384,18 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         }
         break;
 
+    case 22: /* derelict: the dead hull of a destroyed ship. Same mesh
+              * as the ship it came from (GDD ships are pyramids), dark
+              * grey and dull like the GLFW drawDerelict (colour 0.3 /
+              * 0.3 / 0.32, no emissive lights) instead of the generic
+              * white/faction-coloured sphere of the default branch. */
+        v->mesh = GDD_MESH_PYRAMID;
+        v->scale = GDD_SHIP_SCALE;
+        v->frag_mode = GDD_FRAG_WIREFRAME_PBR;
+        v->metallic = 0.3f; v->roughness = 0.8f;
+        v->color[0] = 0.3f; v->color[1] = 0.3f; v->color[2] = 0.32f;
+        break;
+
     case 4: /* star */
         v->scale = 2.5f; v->frag_mode = GDD_FRAG_HYPERWARP;
         v->additive = 1; v->metallic = 0.0f; v->roughness = 1.0f;
@@ -937,6 +949,12 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                            v.mesh == GDD_MESH_PYRAMID);
             if (is_ship) {
                 gdd_ship_rotation(so, m);
+                if (type == 22) {
+                    /* Derelict: slow drift in the hull's local frame
+                     * (GLFW: glRotatef(pulse * 2deg, 0.3, 1, 0.2)). */
+                    gdd_m3_rotate(m, pulse * 2.0f * (float)M_PI / 180.0f,
+                                  0.3f, 1.0f, 0.2f);
+                }
                 gdd_orient_from_m3(o, m);
             } else if (v.spin) {
                 gdd_m3_identity(m);
@@ -977,7 +995,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
              * core is a class-dependent N-side bipyramid (N = 3+(13-cl)*6,
              * 81 for Legacy down to 3 for Sentinel); the GDD approximates
              * it with the 4-side bipyramid (octahedron) wireframe. */
-            if (is_ship && (faction == 0 || faction == 1)) {
+            if (is_ship && type != 22 && (faction == 0 || faction == 1)) {
                 int cl = sclass;
                 if (cl < 0 || cl > 13) cl = 13;
 
@@ -1573,7 +1591,23 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                               0.4f, 0.4f, 1.0f, 0.8f, 1, 0, GDD_FRAG_UNLIT,
                               GDD_HAIRLINE, 0);
 
-        /* 2. Sectors */
+        /* 2. Sectors.
+         * LOD: a populated galaxy easily has thousands of non-zero sectors
+         * and a BOXWIRE costs 288 vertices, so the marker mesh is chosen
+         * from the sector count to stay inside GDD_MAP_VERT_BUDGET
+         * (otherwise the expand pass drops instances in a non-deterministic
+         * order and the map flickers / loses sectors). */
+        uint32_t n_sectors = 0;
+        int lod_mesh = GDD_MESH_BOXWIRE;
+        if (ctx->galaxy) {
+            for (int z = 1; z <= gs; z++)
+                for (int y = 1; y <= gs; y++)
+                    for (int x = 1; x <= gs; x++)
+                        if (ctx->galaxy[x * stride * stride + y * stride + z] != 0) n_sectors++;
+            if (n_sectors * GDD_VCOUNT_BOXWIRE > GDD_MAP_VERT_BUDGET)
+                lod_mesh = (n_sectors * GDD_VCOUNT_BOX <= GDD_MAP_VERT_BUDGET)
+                           ? GDD_MESH_BOX : GDD_MESH_POINT;
+        }
         if (ctx->galaxy && ctx->map_anim > 0.01f) {
             for (int z = 1; z <= gs; z++) {
                 for (int y = 1; y <= gs; y++) {
@@ -1666,7 +1700,17 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                                                           GDD_FRAG_PBR, 0.5f, 0.5f);
                             }
                         } else if (val != 0) {
-                            if (wire)
+                            if (lod_mesh == GDD_MESH_POINT)
+                                gdd_list_add_identity(&map, GDD_MESH_POINT, pxm, pym, pzm,
+                                                      scale, scale, scale,
+                                                      cr, cg, cb, 1.0f, 1, 0,
+                                                      GDD_FRAG_UNLIT, 0, 0);
+                            else if (wire && lod_mesh == GDD_MESH_BOX)
+                                gdd_list_add_identity(&map, GDD_MESH_BOX, pxm, pym, pzm,
+                                                      scale, scale, scale,
+                                                      cr, cg, cb, 1.0f, 1, 0,
+                                                      GDD_FRAG_WIREFRAME, 0, 0);
+                            else if (wire)
                                 gdd_list_add_identity(&map, GDD_MESH_BOXWIRE, pxm, pym, pzm,
                                                       scale, scale, scale,
                                                       cr, cg, cb, 1.0f, 1, 0,

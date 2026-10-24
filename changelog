@@ -1,3 +1,24 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.01
+  - Vulkan GDD: fix the galaxy map (command "map") and the rendering of
+    derelicts. The galaxy frame (GDD_MESH_BOXWIRE) was drawn at half size:
+    the shader scaled a +-0.5 edge table by the half-extents documented as
+    +-1 (GDD_MESH_BOX convention), so the cube spanned +-12 instead of +-24
+    while the sector markers reached +-23.4 and appeared outside it. The edge
+    table is now +-1. The map also overflowed the 512000-vertex buffer (about
+    9200 populated sectors x 288 vertices of a BOXWIRE = 2M vertices, with
+    instances dropped in a non-deterministic order). The builder now counts
+    the populated sectors and picks the marker mesh within
+    GDD_MAP_VERT_BUDGET (400000): BOXWIRE, then a barycentric-wireframe BOX
+    (36 vertices), then POINT (6 vertices). A derelict (object type 22,
+    left by a destroyed ship) had no visual case and fell into the generic
+    white sphere; it is now the ship hull (pyramid) in dark grey, drifting
+    slowly like the OpenGL drawDerelict, without the Alliance quantum core.
+    gdd_contract_test and gdd_mesh_test gain regression cases: dense galaxies
+    (500 to 64000 sectors) stay inside the vertex budget and inside the
+    frame, the BOXWIRE extent equals the half-extent, derelicts render as a
+    grey hull, and every ship type/faction/class/cloak combination (1092)
+    renders as a hull.
+
 * Thu Oct 22 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.22.12
   - Docs: align build-pdf.sh (README.pdf)
 

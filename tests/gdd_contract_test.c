@@ -817,6 +817,142 @@ static void test_galaxy_map(void) {
     CHECK(g_dyn_n == 0, "map mode: objects hidden (%u)", g_dyn_n);
 }
 
+/* Regression: a densely populated 40^3 galaxy must (a) stay inside the
+ * map vertex budget (LOD: BOXWIRE -> wireframe BOX -> POINT) and (b) have
+ * every sector marker enclosed by the galaxy frame. */
+static GddInstance g_map_big[GDD_MAP_MAX];
+static int64_t g_gal_big[41][41][41];
+
+static uint32_t map_vertex_cost(int mesh) {
+    switch (mesh) {
+    case GDD_MESH_BOXWIRE: return GDD_VCOUNT_BOXWIRE;
+    case GDD_MESH_BOX:     return GDD_VCOUNT_BOX;
+    case GDD_MESH_POINT:   return GDD_VCOUNT_POINT;
+    default:               return 0;
+    }
+}
+
+static void test_galaxy_map_dense(void) {
+    static const uint32_t counts[] = { 500, 9200, 30000, 64000 };
+    for (unsigned t = 0; t < sizeof(counts) / sizeof(counts[0]); t++) {
+        GddBuildCtx c = base_ctx();
+        c.map_anim = 1.0f;
+        c.player_q[0] = 20; c.player_q[1] = 20; c.player_q[2] = 20;
+        memset(g_gal_big, 0, sizeof(g_gal_big));
+        uint32_t left = counts[t];
+        for (int x = 1; x <= 40 && left; x++)
+            for (int y = 1; y <= 40 && left; y++)
+                for (int z = 1; z <= 40 && left; z++) {
+                    if ((x == 20 && y == 20 && z == 20)) continue;
+                    g_gal_big[x][y][z] = 1; left--;
+                }
+        c.galaxy = &g_gal_big[0][0][0];
+        c.galaxy_size = 40;
+
+        g_dyn_n = g_map_n = 0;
+        c.dyn_out = g_dyn; c.dyn_cap = T_MAX; c.dyn_count = &g_dyn_n;
+        c.map_out = g_map_big; c.map_cap = GDD_MAP_MAX; c.map_count = &g_map_n;
+        gdd_build_instances(&c);
+
+        uint64_t verts = 0;
+        float frame_half = g_map_big[0].scale[0];
+        CHECK((int)(g_map_big[0].mesh + 0.5f) == GDD_MESH_BOXWIRE,
+              "dense map %u: instance 0 is the frame", counts[t]);
+        CHECK(near_f(frame_half, 24.0f, 1e-3f),
+              "dense map %u: frame half-extent %.3f (want 24)", counts[t], frame_half);
+        int outside = 0;
+        for (uint32_t i = 0; i < g_map_n; i++) {
+            verts += map_vertex_cost((int)(g_map_big[i].mesh + 0.5f));
+            if (i == 0) continue;
+            for (int a = 0; a < 3; a++)
+                if (fabsf(g_map_big[i].pos[a]) > frame_half + 1e-3f) outside++;
+        }
+        CHECK(outside == 0, "dense map %u: %d marker(s) outside the frame", counts[t], outside);
+        CHECK(verts <= GDD_VERTEX_CAPACITY,
+              "dense map %u: %llu vertices exceed capacity %u", counts[t],
+              (unsigned long long)verts, GDD_VERTEX_CAPACITY);
+        CHECK(verts <= GDD_MAP_VERT_BUDGET + 2u * GDD_VCOUNT_BOXWIRE + GDD_VCOUNT_BOXWIRE,
+              "dense map %u: %llu vertices exceed the map budget", counts[t],
+              (unsigned long long)verts);
+    }
+}
+
+/* Regression: a derelict (type 22, left by a ship destroyed with phasers)
+ * must render as the ship hull in dark grey — not as the generic sphere —
+ * and must not get the Alliance quantum core. */
+static void test_derelict(void) {
+    for (int fac_v = 0; fac_v <= 11; fac_v += 11) {
+        GddBuildCtx c = base_ctx();
+        obj_at(&g_smooth[0], 20.0f, 20.0f, 20.0f, 0.0f, 0.0f, 0.0f);
+        int types[1] = { 22 }, fac[1] = { fac_v }, sclass[1] = { 3 }, cloak[1] = { 0 },
+            act[1] = { 1 }, plat[1] = { 100 }, ids[1] = { 15000 };
+        c.types = types; c.factions = fac; c.ship_classes = sclass;
+        c.cloaked = cloak; c.active = act; c.platings = plat; c.ids = ids;
+        c.object_count = 1;
+        run_builder(&c);
+
+        int pyr = 0, spheres = 0, octas = 0;
+        const GddInstance *hull = NULL;
+        for (uint32_t i = 0; i < g_dyn_n; i++) {
+            int m = (int)(g_dyn[i].mesh + 0.5f);
+            if (m == GDD_MESH_PYRAMID) { pyr++; hull = &g_dyn[i]; }
+            else if (m == GDD_MESH_SPHERE) spheres++;
+            else if (m == GDD_MESH_OCTA) octas++;
+        }
+        CHECK(pyr == 1, "derelict (faction %d): %d hull mesh(es) (want 1)", fac_v, pyr);
+        CHECK(spheres == 0, "derelict (faction %d): no generic sphere (%d)", fac_v, spheres);
+        CHECK(octas == 0, "derelict (faction %d): no quantum core (%d)", fac_v, octas);
+        if (hull) {
+            CHECK(hull->color[0] < 0.4f && hull->color[1] < 0.4f && hull->color[2] < 0.4f &&
+                  fabsf(hull->color[0] - hull->color[1]) < 0.05f,
+                  "derelict (faction %d) is dark grey (%.2f %.2f %.2f)", fac_v,
+                  hull->color[0], hull->color[1], hull->color[2]);
+            CHECK(gdd_flag_bit(hull->flags, 1) == 0, "derelict hull is not additive");
+        }
+    }
+}
+
+/* Audit: every object that is (or becomes) a ship must render as the ship
+ * hull — player ships (type 1), NPC ships (type = faction 10..20) and their
+ * derelicts (type 22) — for every faction / class / cloak combination. A
+ * type missing from gdd_visual_for falls into the generic white sphere. */
+static void test_ship_visual_audit(void) {
+    int bad = 0, total = 0;
+    static const int types[] = { 1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22 };
+    for (unsigned ti = 0; ti < sizeof(types) / sizeof(types[0]); ti++) {
+        for (int fac_v = 0; fac_v <= 20; fac_v++) {
+            if (fac_v > 0 && fac_v < 10) continue; /* not a game faction */
+            for (int cl_v = 0; cl_v <= 13; cl_v++) {
+                for (int cloaked = 0; cloaked <= 1; cloaked++) {
+                    if (cloaked && types[ti] == 22) continue; /* wrecks never cloak */
+                    GddBuildCtx c = base_ctx();
+                    obj_at(&g_smooth[0], 20.0f, 20.0f, 20.0f, 0.0f, 0.0f, 0.0f);
+                    int t[1] = { types[ti] }, f[1] = { fac_v }, sc[1] = { cl_v },
+                        ck[1] = { cloaked }, act[1] = { 1 }, pl[1] = { 100 }, id[1] = { 1 };
+                    c.types = t; c.factions = f; c.ship_classes = sc;
+                    c.cloaked = ck; c.active = act; c.platings = pl; c.ids = id;
+                    c.object_count = 1;
+                    run_builder(&c);
+                    int pyr = 0, sph = 0;
+                    for (uint32_t i = 0; i < g_dyn_n; i++) {
+                        int m = (int)(g_dyn[i].mesh + 0.5f);
+                        if (m == GDD_MESH_PYRAMID) pyr++;
+                        else if (m == GDD_MESH_SPHERE) sph++;
+                    }
+                    total++;
+                    if (pyr != 1 || sph != 0) {
+                        if (bad < 10)
+                            fprintf(stderr, "  ship audit: type %d faction %d class %d cloaked %d -> %d pyramid, %d sphere\n",
+                                    types[ti], fac_v, cl_v, cloaked, pyr, sph);
+                        bad++;
+                    }
+                }
+            }
+        }
+    }
+    CHECK(bad == 0, "ship audit: %d/%d type/faction/class/cloak combos do not render as a ship hull", bad, total);
+}
+
 static void test_capacity_guard(void) {
     GddBuildCtx c = base_ctx();
     for (int i = 0; i < 3; i++)
@@ -1095,6 +1231,9 @@ int main(void) {
     test_jump_sequence();
     test_statics();
     test_galaxy_map();
+    test_galaxy_map_dense();
+    test_derelict();
+    test_ship_visual_audit();
     test_capacity_guard();
     test_raw_objs_fallback();
     printf("  %d checks passed, %d failed\n", g_pass, g_fail);

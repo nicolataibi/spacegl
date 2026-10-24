@@ -405,24 +405,24 @@ static uint32_t expand_line(const GddInstance *it, GddVertex *out) {
     return 24;
 }
 
-/* 12 edges of the unit box (±0.5)^3 as start/end pairs — same table
+/* 12 edges of the box (±1)^3 (scaled by the half-extents) as start/end pairs — same table
  * as GDD_BOXWIRE_EDGES in gdd_common.glsl. */
 static const float BOXWIRE_EDGES[24][3] = {
-    /* X edges (y = ±0.5, z = ±0.5) */
-    {-0.5f, -0.5f, -0.5f}, { 0.5f, -0.5f, -0.5f},
-    {-0.5f,  0.5f, -0.5f}, { 0.5f,  0.5f, -0.5f},
-    {-0.5f, -0.5f,  0.5f}, { 0.5f, -0.5f,  0.5f},
-    {-0.5f,  0.5f,  0.5f}, { 0.5f,  0.5f,  0.5f},
-    /* Y edges (x = ±0.5, z = ±0.5) */
-    {-0.5f, -0.5f, -0.5f}, {-0.5f,  0.5f, -0.5f},
-    { 0.5f, -0.5f, -0.5f}, { 0.5f,  0.5f, -0.5f},
-    {-0.5f, -0.5f,  0.5f}, {-0.5f,  0.5f,  0.5f},
-    { 0.5f, -0.5f,  0.5f}, { 0.5f,  0.5f,  0.5f},
-    /* Z edges (x = ±0.5, y = ±0.5) */
-    {-0.5f, -0.5f, -0.5f}, {-0.5f, -0.5f,  0.5f},
-    { 0.5f, -0.5f, -0.5f}, { 0.5f, -0.5f,  0.5f},
-    {-0.5f,  0.5f, -0.5f}, {-0.5f,  0.5f,  0.5f},
-    { 0.5f,  0.5f, -0.5f}, { 0.5f,  0.5f,  0.5f}
+    /* X edges (y = ±1, z = ±1) */
+    {-1.0f, -1.0f, -1.0f}, { 1.0f, -1.0f, -1.0f},
+    {-1.0f,  1.0f, -1.0f}, { 1.0f,  1.0f, -1.0f},
+    {-1.0f, -1.0f,  1.0f}, { 1.0f, -1.0f,  1.0f},
+    {-1.0f,  1.0f,  1.0f}, { 1.0f,  1.0f,  1.0f},
+    /* Y edges (x = ±1, z = ±1) */
+    {-1.0f, -1.0f, -1.0f}, {-1.0f,  1.0f, -1.0f},
+    { 1.0f, -1.0f, -1.0f}, { 1.0f,  1.0f, -1.0f},
+    {-1.0f, -1.0f,  1.0f}, {-1.0f,  1.0f,  1.0f},
+    { 1.0f, -1.0f,  1.0f}, { 1.0f,  1.0f,  1.0f},
+    /* Z edges (x = ±1, y = ±1) */
+    {-1.0f, -1.0f, -1.0f}, {-1.0f, -1.0f,  1.0f},
+    { 1.0f, -1.0f, -1.0f}, { 1.0f, -1.0f,  1.0f},
+    {-1.0f,  1.0f, -1.0f}, {-1.0f,  1.0f,  1.0f},
+    { 1.0f,  1.0f, -1.0f}, { 1.0f,  1.0f,  1.0f}
 };
 
 /* Mirror of gdd_expand_boxwire (gdd_ops.glsl): 12 edge tubes, same
@@ -1721,7 +1721,28 @@ static int run_benchmark(int runs, const char *thresh_file) {
 /* Contract mode (the default): the stages against the CPU reference   */
 /* ------------------------------------------------------------------ */
 
+/* Regression (galaxy map frame drawn at half size): GDD_MESH_BOXWIRE must
+ * span exactly +-half-extent (GDD_MESH_BOX convention) on every axis,
+ * plus the tube half-thickness. Mirror of gdd_expand_boxwire, whose edge
+ * table is checked against the GPU output by the contract stages below. */
+static void check_boxwire_extent(void) {
+    GddInstance it;
+    memset(&it, 0, sizeof(it));
+    it.scale[0] = 24.0f; it.scale[1] = 24.0f; it.scale[2] = 24.0f;
+    it.pad[0] = 0.02f;
+    set_identity_orient(it.orient);
+    GddVertex vtx[288];
+    uint32_t n = expand_boxwire(&it, vtx);
+    float mx = 0.0f;
+    for (uint32_t i = 0; i < n; i++)
+        for (int a = 0; a < 3; a++)
+            if (fabsf(vtx[i].pos[a]) > mx) mx = fabsf(vtx[i].pos[a]);
+    CHECK(n == 288, "boxwire emits %u vertices (want 288)", n);
+    CHECK(fabsf(mx - 24.02f) < 1e-3f, "boxwire extent %.4f (want half-extent 24 + tube 0.02)", mx);
+}
+
 static int run_contract(void) {
+    check_boxwire_extent();
     /* ---------------- Stage 1: CULL ---------------- */
     struct timespec t1, t2; clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_cull(8192)) {
         fprintf(stderr, "FAIL: cull stage did not complete\n");

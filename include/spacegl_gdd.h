@@ -313,6 +313,12 @@ typedef struct {
  * (16 MB SSBO at 32 B/vertex or 40 MB at 80 B/vertex). Beyond the budget the expand
  * pass drops instances ("drop when full", same policy as the legacy CPU path). */
 #define GDD_VERTEX_CAPACITY     512000u
+/* Vertex budget the galaxy map may use for its sector markers (the rest
+ * of GDD_VERTEX_CAPACITY is left to the starfield, the frame and the
+ * tactical statics that coexist during the tactical<->map transition).
+ * The instance builder picks the cheapest marker mesh that fits it:
+ * BOXWIRE (288 v) -> BOX + barycentric wireframe (36 v) -> POINT (6 v). */
+#define GDD_MAP_VERT_BUDGET     400000u
 #define GDD_WORKGROUP           256u
 #define GDD_STAR_COUNT          2000u /* == MAX_STARS of the CPU path */
 

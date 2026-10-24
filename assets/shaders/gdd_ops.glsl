@@ -471,7 +471,7 @@ void gdd_expand_line(uint base, GddInstance it) {
 }
 
 void gdd_expand_boxwire(uint base, GddInstance it) {
-    /* The 12 edges of the unit box (±0.5)^3 (it.b.xyz = half-extents,
+    /* The 12 edges of the box (±1)^3 scaled by it.b.xyz (= half-extents,
      * same convention as GDD_MESH_BOX), each edge a square tube built
      * EXACTLY like gdd_expand_line — the GDD counterpart of the CPU
      * path's LINE_LIST cube (cubeIndices, 24 indices = 12 edges). One
