@@ -22,7 +22,7 @@
 #include <math.h>
 
 #define MOON_MAX_PER_PLANET      4      /* at most 4 moons around a planet     */
-#define MOON_ORBIT_MIN_RADIUS    2.25   /* innermost orbit (sector units, +50% from 1.5) */
+#define MOON_ORBIT_MIN_RADIUS    3.375  /* innermost orbit (sector units, +50% from 2.25) */
 #define MOON_ORBIT_STEP          2.43   /* distance between two orbits (1.5x moon diameter: 1.5 * 1.62) */
 #define MOON_ORBIT_JITTER        0.25   /* random extra radius, < STEP         */
 #define MOON_ORBIT_MAX_RADIUS \

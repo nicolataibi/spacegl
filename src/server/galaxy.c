@@ -800,9 +800,61 @@ int load_galaxy() {
     int active_bases = 0;
     for (int i = 0; i < MAX_BASES; i++) if (bases[i].active) active_bases++;
 
+    int active_planets = 0;
+    for (int p = 0; p < MAX_PLANETS; p++)
+        if (IS_Q_VALID(planets[p].q1, planets[p].q2, planets[p].q3) && planets[p].active) active_planets++;
+    int active_stars = 0;
+    for (int s = 0; s < MAX_STARS; s++)
+        if (IS_Q_VALID(stars_data[s].q1, stars_data[s].q2, stars_data[s].q3) && stars_data[s].active) active_stars++;
+
+    int moon_count = 0;
+    int moon_type_counts[OBJ_MOON_COUNT] = {0};
+    int evolved_star_count = 0;
+    int evolved_type_counts[OBJ_EVOLVED_COUNT] = {0};
+    int exotic_feature_count = 0;
+    for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
+        if (!cosmic_features[i].active) continue;
+        int t = cosmic_features[i].type;
+        if (obj_type_is_moon(t)) {
+            moon_count++;
+            int idx = t - OBJ_MOON_FIRST;
+            if (idx >= 0 && idx < OBJ_MOON_COUNT) moon_type_counts[idx]++;
+        } else if (obj_type_is_evolved_star(t)) {
+            evolved_star_count++;
+            int idx = t - OBJ_EVOLVED_FIRST;
+            if (idx >= 0 && idx < OBJ_EVOLVED_COUNT) evolved_type_counts[idx]++;
+        } else if (obj_type_is_exotic(t)) {
+            exotic_feature_count++;
+        }
+    }
+
     printf("\n%s .--- PERSISTENT GALAXY: ASTROMETRICS REPORT -----------------.%s\n", B_CYAN, RESET);
     printf("%s | %s 🏚️ TOTAL WRECKS:  %s%-5d %s| %s 🛰️ Starbases:          %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, active_derelicts, B_CYAN, B_WHITE, B_GREEN, active_bases, B_CYAN);
-    printf("%s | %s 🌌 EXOTIC FEAT.:  %s%-5d %s| %s                       %s      %s|\n", B_CYAN, B_WHITE, B_GREEN, cosmic_feature_count, B_CYAN, B_WHITE, B_GREEN, B_CYAN);
+    printf("%s | %s 🪐 Planets:       %s%-5d %s| %s ✨ Stars:              %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, active_planets, B_CYAN, B_WHITE, B_GREEN, active_stars, B_CYAN);
+    printf("%s | %s 🌙 NATURAL MOONS: %s%-5d %s| %s ⭐ EVOLVED STARS:      %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, moon_count, B_CYAN, B_WHITE, B_GREEN, evolved_star_count, B_CYAN);
+    printf("%s | %s 🌌 EXOTIC FEAT.:  %s%-5d %s| %s 📦 TOTAL FEATURES:     %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, exotic_feature_count, B_CYAN, B_WHITE, B_GREEN, cosmic_feature_count, B_CYAN);
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ NATURAL MOONS (IN ORBIT) ]                                   %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    const char *moon_names[OBJ_MOON_COUNT] = { OBJECT_MOON_NAME_LIST };
+    for (int m = 0; m < OBJ_MOON_COUNT; m += 2) {
+        char m1[32], m2[32] = "";
+        strncpy(m1, moon_names[m], 20); m1[20] = '\0';
+        if (m + 1 < OBJ_MOON_COUNT) { strncpy(m2, moon_names[m + 1], 20); m2[20] = '\0'; }
+        printf("%s | %s %-20s: %s%-4d %s| %s %-20s: %s%-4d %s|\n",
+               B_CYAN, B_WHITE, m1, B_GREEN, moon_type_counts[m], B_CYAN,
+               B_WHITE, m2, B_GREEN, (m + 1 < OBJ_MOON_COUNT) ? moon_type_counts[m + 1] : 0, B_CYAN);
+    }
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ EVOLVED STARS ]                                            %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    const char *evolved_names[OBJ_EVOLVED_COUNT] = { OBJECT_EVOLVED_NAME_LIST };
+    for (int e = 0; e < OBJ_EVOLVED_COUNT; e += 2) {
+        char e1[32], e2[32] = "";
+        strncpy(e1, evolved_names[e], 20); e1[20] = '\0';
+        if (e + 1 < OBJ_EVOLVED_COUNT) { strncpy(e2, evolved_names[e + 1], 20); e2[20] = '\0'; }
+        printf("%s | %s %-20s: %s%-4d %s| %s %-20s: %s%-4d %s|\n",
+               B_CYAN, B_WHITE, e1, B_GREEN, evolved_type_counts[e], B_CYAN,
+               B_WHITE, e2, B_GREEN, (e + 1 < OBJ_EVOLVED_COUNT) ? evolved_type_counts[e + 1] : 0, B_CYAN);
+    }
     printf("%s '---------------------------------------------------------------'%s\n\n", B_CYAN, RESET);
 
     rebuild_spatial_index();
@@ -1666,13 +1718,35 @@ void generate_galaxy() {
     rebuild_spatial_index();
     refresh_lrs_grid();
 
+    int moon_count = 0;
+    int moon_type_counts[OBJ_MOON_COUNT] = {0};
+    int evolved_star_count = 0;
+    int evolved_type_counts[OBJ_EVOLVED_COUNT] = {0};
+    int exotic_feature_count = 0;
+    for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
+        if (!cosmic_features[i].active) continue;
+        int t = cosmic_features[i].type;
+        if (obj_type_is_moon(t)) {
+            moon_count++;
+            int idx = t - OBJ_MOON_FIRST;
+            if (idx >= 0 && idx < OBJ_MOON_COUNT) moon_type_counts[idx]++;
+        } else if (obj_type_is_evolved_star(t)) {
+            evolved_star_count++;
+            int idx = t - OBJ_EVOLVED_FIRST;
+            if (idx >= 0 && idx < OBJ_EVOLVED_COUNT) evolved_type_counts[idx]++;
+        } else if (obj_type_is_exotic(t)) {
+            exotic_feature_count++;
+        }
+    }
+
     printf("\n%s .--- GALAXY GENERATION COMPLETED: ASTROMETRICS REPORT ----------.%s\n", B_CYAN, RESET);
     printf("%s | %s 🏚️ TOTAL WRECKS:  %s%-5d %s| %s 🛰️ Starbases:          %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, der_count, B_CYAN, B_WHITE, B_GREEN, b_count, B_CYAN);
     printf("%s | %s 🏛️ DYSON FRAGS:   %s%-5d %s| %s 🏢 TRADING HUBS:      %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, dyson_count, B_CYAN, B_WHITE, B_GREEN, hub_count, B_CYAN);
     printf("%s | %s 🏺 ANCIENT RELICS: %s%-5d %s| %s ⚡ ION STORMS:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, relic_count, B_CYAN, B_WHITE, B_GREEN, storm_count, B_CYAN);
     printf("%s | %s 🚀 TOTAL VESSELS: %s%-5d %s| %s 🪐 Planets:            %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, n_count, B_CYAN, B_WHITE, B_GREEN, p_count, B_CYAN);
     printf("%s | %s 🌋 SUBSPACE RUPT: %s%-5d %s| %s 📡 SATELLITES:        %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, rupture_count, B_CYAN, B_WHITE, B_GREEN, satellite_count, B_CYAN);
-    printf("%s | %s 🌌 EXOTIC FEAT.:  %s%-5d %s| %s                       %s      %s|\n", B_CYAN, B_WHITE, B_GREEN, cosmic_feature_count, B_CYAN, B_WHITE, B_GREEN, B_CYAN);
+    printf("%s | %s 🌙 NATURAL MOONS: %s%-5d %s| %s ⭐ EVOLVED STARS:      %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, moon_count, B_CYAN, B_WHITE, B_GREEN, evolved_star_count, B_CYAN);
+    printf("%s | %s 🌌 EXOTIC FEAT.:  %s%-5d %s| %s ✨ STARS:              %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, exotic_feature_count, B_CYAN, B_WHITE, B_GREEN, s_count, B_CYAN);
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     
     printf("%s | %s [ STAR SPECTRAL TYPES ]    %s| %s [ NEBULA CLASSIFICATION ]  %s|\n", B_CYAN, B_YELLOW, B_CYAN, B_YELLOW, B_CYAN);
@@ -1743,6 +1817,28 @@ void generate_galaxy() {
             B_CYAN, 
             B_WHITE, n1, B_GREEN, 10, B_CYAN, 
             B_WHITE, n2, B_GREEN, (t+1 < 32) ? 10 : 0, B_CYAN);
+    }
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ NATURAL MOONS (IN ORBIT) ]                                   %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    const char *moon_names[OBJ_MOON_COUNT] = { OBJECT_MOON_NAME_LIST };
+    for (int m = 0; m < OBJ_MOON_COUNT; m += 2) {
+        char m1[32], m2[32] = "";
+        strncpy(m1, moon_names[m], 20); m1[20] = '\0';
+        if (m + 1 < OBJ_MOON_COUNT) { strncpy(m2, moon_names[m + 1], 20); m2[20] = '\0'; }
+        printf("%s | %s %-20s: %s%-4d %s| %s %-20s: %s%-4d %s|\n",
+               B_CYAN, B_WHITE, m1, B_GREEN, moon_type_counts[m], B_CYAN,
+               B_WHITE, m2, B_GREEN, (m + 1 < OBJ_MOON_COUNT) ? moon_type_counts[m + 1] : 0, B_CYAN);
+    }
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    printf("%s | %s [ EVOLVED STARS ]                                            %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    const char *evolved_names[OBJ_EVOLVED_COUNT] = { OBJECT_EVOLVED_NAME_LIST };
+    for (int e = 0; e < OBJ_EVOLVED_COUNT; e += 2) {
+        char e1[32], e2[32] = "";
+        strncpy(e1, evolved_names[e], 20); e1[20] = '\0';
+        if (e + 1 < OBJ_EVOLVED_COUNT) { strncpy(e2, evolved_names[e + 1], 20); e2[20] = '\0'; }
+        printf("%s | %s %-20s: %s%-4d %s| %s %-20s: %s%-4d %s|\n",
+               B_CYAN, B_WHITE, e1, B_GREEN, evolved_type_counts[e], B_CYAN,
+               B_WHITE, e2, B_GREEN, (e + 1 < OBJ_EVOLVED_COUNT) ? evolved_type_counts[e + 1] : 0, B_CYAN);
     }
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
     printf("%s | %s [ STARBASES BY FACTION ]                                     %s|\n", B_CYAN, B_YELLOW, B_CYAN);

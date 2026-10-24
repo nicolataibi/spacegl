@@ -1256,13 +1256,13 @@ void drawPlanet(double x, double y, double z, int planet_class) { (void)x; (void
     /* Planet class colour (PLANET_CLASS_*), same palette as the Vulkan viewers */
     const float *prgb = obj_planet_class_rgb(planet_class);
     glColor3f(prgb[0], prgb[1], prgb[2]);
-    glutSolidSphere(0.6, 24, 24);
+    glutSolidSphere(1.2, 24, 24);
     
     /* Atmosphere */
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     glColor4f(1.0, 1.0, 1.0, 0.2);
-    glutSolidSphere(0.64, 24, 24);
+    glutSolidSphere(1.28, 24, 24);
     glDisable(GL_BLEND);
 }
 

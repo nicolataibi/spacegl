@@ -1,3 +1,18 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.12
+  - OpenGL viewer planet scale: enlarged planet dimensions again by 100% in the
+    OpenGL rendering path (src/spacegl_3dview_tables.inc drawPlanet), doubling planet sphere
+    radius from 0.6 to 1.2 and atmosphere envelope from 0.64 to 1.28.
+  - Moon orbit spacing & Vulkan clearance: innermost orbit distance (MOON_ORBIT_MIN_RADIUS)
+    increased again by 50% from 2.25 to 3.375 in include/moon_orbits.h. Consecutive orbit
+    spacing (MOON_ORBIT_STEP) calibrated at 2.43 (1.5x regular moon diameter in Vulkan:
+    1.5 * 1.62 = 2.43), with MOON_ORBIT_MAX_RADIUS safely bounded at 10.915.
+  - Astrometrics Report expansion for new objects: updated server galaxy astrometrics
+    reporting (src/server/galaxy.c) in both load_galaxy() (persistent load) and
+    generate_galaxy() (generation) to fully display:
+      * Natural Moons in orbit (total count and complete breakdown for all 10 moon classes).
+      * Evolved Stars (total count and complete breakdown for all 17 stellar classes).
+      * Dedicated summary slots for Natural Moons and Evolved Stars in the top report banner.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.11
   - OpenGL viewer planet scale: enlarged planet dimensions by 100% in the OpenGL
     rendering path (src/spacegl_3dview_tables.inc drawPlanet), increasing planet sphere
