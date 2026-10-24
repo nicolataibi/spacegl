@@ -88,6 +88,7 @@ static int object_has_faction(int type) {
  * fallback in the tactical table. */
 const char* get_object_class_name(int type) {
     if (obj_type_is_exotic(type)) return "EXOTIC"; /* exotic features */
+    if (obj_type_is_evolved_star(type)) return "STELLAR"; /* giants, white dwarfs */
     switch (type) {
         case OBJ_STAR:  return "STELLAR";   /* Star */
         case OBJ_PULSAR:  return "STELLAR";   /* Pulsar */

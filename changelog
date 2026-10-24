@@ -1,3 +1,27 @@
+* Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.06
+  - Evolved stars: 17 new object types, 132-148, in object_types.h (block of
+    consecutive types like the 32 exotic ones, names in
+    OBJECT_EVOLVED_NAME_LIST): Red Giant, Red Clump Star, Horizontal Branch
+    Star, AGB Star, Red Supergiant; White Dwarf by core (C-O, O-Ne-Mg); White
+    Dwarf by atmosphere (DA, DB, DO, DQ, DZ, DC, DX); pulsating white dwarfs
+    ZZ Ceti (DAV), V777 Her (DBV), GW Vir (incl. DOV). New predicates
+    obj_type_is_evolved_star / _is_white_dwarf / _is_pulsating_wd and one
+    palette and size table (obj_evolved_star_rgb / _scale) shared by the
+    OpenGL viewer, the CPU Vulkan path and the GPU-driven builder.
+  - Server: stored in the generic cosmic_features[] array, so no new array
+    and no galaxy.dat layout change (GALAXY_VERSION unchanged). 10 of each
+    type per galaxy (GALAXY_CREATE_EVOLVED_STAR_PER_TYPE), ids continue the
+    feature range 83000+slot. A galaxy.dat saved before this version gets the
+    170 evolved stars added at load. The exotic ids use the new
+    GALAXY_OBJECT_MIN_FEATURE instead of a bare 83000; a static_assert keeps
+    MAX_COSMIC_FEATURES (1024) large enough: 320 exotic + 170 evolved = 490.
+  - Viewers: giants are large with prominences, white dwarfs small, pulsators
+    breathe; HUD class "STELLAR"; the OpenGL label no longer says UNKNOWN.
+  - Tests: gdd_contract_test checks names, predicates, palette, size and that
+    none of the 17 types falls into the generic cosmic look.
+  - LORE.md: red giants and white dwarfs moved from "Not modelled" to the
+    new objects.
+
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.05
   - Planets: real planet class. NPCPlanet gains planet_class (Terrestrial,
     Gas Giant, Ice, Molten, Desert), drawn at galaxy generation with equal

@@ -1168,6 +1168,54 @@ void drawStar(double x, double y, double z, int spectral) {
     glPopAttrib();
 }
 
+/* Evolved stars (types 132..148): red giants, supergiants and white dwarfs.
+ * Same look as drawStar (core + additive corona) but colour and size come
+ * from object_types.h by stage; giants keep the prominences, white dwarfs are
+ * small and bare, pulsating white dwarfs (DAV, DBV, GW Vir) breathe. */
+void drawEvolvedStar(int index) {
+    const float *rgb = obj_evolved_star_rgb(index);
+    double r = rgb[0], g = rgb[1], b = rgb[2];
+    double k = obj_evolved_star_scale(index);   /* main-sequence star = 1.0 */
+    int giant = (index <= OBJ_EVOLVED_GIANT_LAST);
+    double bright = 1.0;
+    if (index >= OBJ_EVOLVED_PULSATOR_MIN) bright = 0.7 + 0.3 * sin(pulse * 6.0 + index);
+
+    glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glDisable(GL_LIGHTING);
+
+    glColor3f(r * bright, g * bright, b * bright);
+    glutSolidSphere(0.38 * k, 32, 32);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glDepthMask(GL_FALSE);
+    for (int i = 0; i < 3; i++) {
+        glPushMatrix();
+        glRotatef(pulse * (10.0 + i * 5.0), 0, 1, 0);
+        double s = (0.4 + i * 0.12 + sin(pulse * 3.0 + i) * 0.03) * k;
+        glColor4f(r, g, b, (0.3 / (i + 1)) * bright);
+        glutSolidSphere(s, 16, 16);
+        glPopMatrix();
+    }
+    if (giant) {
+        glLineWidth(1.0);
+        for (int i = 0; i < 8; i++) {
+            glPushMatrix();
+            glRotatef(i * 45 + pulse * 20, 0, 1, 0);
+            glRotatef(sin(pulse + i) * 30, 0, 0, 1);
+            double flare_len = (0.45 + sin(pulse * 5.0 + i) * 0.2) * k;
+            glBegin(GL_LINES);
+            glColor4f(r, g, b, 0.7);
+            glVertex3f(0.3 * k, 0, 0);
+            glColor4f(r, g, b, 0.0);
+            glVertex3f(flare_len, 0, 0);
+            glEnd();
+            glPopMatrix();
+        }
+    }
+    glPopAttrib();
+}
+
 void drawPlanet(double x, double y, double z, int planet_class) { (void)x; (void)y; (void)z;
     GLfloat spec[] = {0.3, 0.3, 0.3, 1.0};
     glMaterialfv(GL_FRONT, GL_SPECULAR, spec);

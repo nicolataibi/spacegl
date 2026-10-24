@@ -496,6 +496,38 @@ void save_galaxy_async() {
 
 void save_galaxy() { save_galaxy_async(); }
 
+/* Evolved stars (red giants .. pulsating white dwarfs): 17 types stored in the
+ * generic cosmic_features[] array after the exotic objects, type =
+ * OBJ_EVOLVED_FIRST + index, GALAXY_CREATE_EVOLVED_STAR_PER_TYPE instances of
+ * each. Used by the galaxy generator and, for a galaxy.dat saved before these
+ * types existed (same file layout, no evolved stars in it), by load_galaxy(). */
+static_assert(MAX_COSMIC_FEATURES >= OBJ_EXOTIC_COUNT * GALAXY_CREATE_EXOTIC_PER_TYPE +
+                                     OBJ_EVOLVED_COUNT * GALAXY_CREATE_EVOLVED_STAR_PER_TYPE,
+              "cosmic_features[] too small for the exotic + evolved star instances");
+
+static void spawn_evolved_stars(void) {
+    const char *evolved_names[OBJ_EVOLVED_COUNT] = { OBJECT_EVOLVED_NAME_LIST };
+    for (int t = 0; t < OBJ_EVOLVED_COUNT; t++) {
+        for (int i = 0; i < GALAXY_CREATE_EVOLVED_STAR_PER_TYPE; i++) {
+            if (cosmic_feature_count >= MAX_COSMIC_FEATURES) return;
+            cosmic_features[cosmic_feature_count] = (NPCCosmicFeature){
+                .id = GALAXY_OBJECT_MIN_FEATURE + cosmic_feature_count,
+                .type = OBJ_EVOLVED_FIRST + t,
+                .q1 = 1 + rand() % GALAXY_SIZE,
+                .q2 = 1 + rand() % GALAXY_SIZE,
+                .q3 = 1 + rand() % GALAXY_SIZE,
+                .x = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+                .y = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+                .z = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+                .active = 1
+            };
+            strncpy(cosmic_features[cosmic_feature_count].name, evolved_names[t], 63);
+            cosmic_features[cosmic_feature_count].name[63] = '\0';
+            cosmic_feature_count++;
+        }
+    }
+}
+
 int load_galaxy() {
     char galaxy_path[1088];
     server_data_path(galaxy_path, sizeof(galaxy_path), "galaxy.dat");
@@ -590,6 +622,19 @@ int load_galaxy() {
     }
     CHECK_READ(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
     fclose(f);
+
+    /* galaxy.dat saved before the evolved stars existed: add them now (the
+     * layout is unchanged, only the generic feature array gets new entries). */
+    {
+        int has_evolved = 0;
+        for (int i = 0; i < MAX_COSMIC_FEATURES && !has_evolved; i++)
+            if (cosmic_features[i].active && obj_type_is_evolved_star(cosmic_features[i].type)) has_evolved = 1;
+        if (!has_evolved && cosmic_feature_count >= 0 && cosmic_feature_count <= MAX_COSMIC_FEATURES) {
+            int before = cosmic_feature_count;
+            spawn_evolved_stars();
+            printf("[GALAXY] added %d evolved stars to the loaded galaxy\n", cosmic_feature_count - before);
+        }
+    }
     
     for(int i=0; i<MAX_CLIENTS; i++) {
         players[i].active = 0;
@@ -1434,8 +1479,8 @@ void generate_galaxy() {
     /* Insert 32 new types of cosmic features (10 instances each) */
     const char *new_feature_names[OBJ_EXOTIC_COUNT] = { OBJECT_EXOTIC_NAME_LIST };
 
-    for (int t = 0; t < 32; t++) {
-        for (int i = 0; i < 10; i++) {
+    for (int t = 0; t < OBJ_EXOTIC_COUNT; t++) {
+        for (int i = 0; i < GALAXY_CREATE_EXOTIC_PER_TYPE; i++) {
             if (cosmic_feature_count >= MAX_COSMIC_FEATURES) break;
             int q1 = 1 + rand() % GALAXY_SIZE;
             int q2 = 1 + rand() % GALAXY_SIZE;
@@ -1445,7 +1490,7 @@ void generate_galaxy() {
             double z = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
             
             cosmic_features[cosmic_feature_count] = (NPCCosmicFeature){
-                .id = 83000 + cosmic_feature_count, 
+                .id = GALAXY_OBJECT_MIN_FEATURE + cosmic_feature_count, 
                 .type = OBJ_EXOTIC_FIRST + t,                    
                 .q1 = q1, .q2 = q2, .q3 = q3,
                 .x = x, .y = y, .z = z,
@@ -1456,6 +1501,10 @@ void generate_galaxy() {
             cosmic_feature_count++;
         }
     }
+
+    /* Evolved stars (red giants .. pulsating white dwarfs): 17 types in the
+     * same generic array. */
+    spawn_evolved_stars();
 
     rebuild_spatial_index();
     refresh_lrs_grid();

@@ -314,6 +314,14 @@
 #define GALAXY_OBJECT_MIN_CMB 82000
 #define GALAXY_OBJECT_MAX_CMB 82999
 
+/* Generic cosmic_features[] array (exotic compact objects, evolved stars):
+ * the id of a feature is GALAXY_OBJECT_MIN_FEATURE + its slot, so the range
+ * spans 83000 .. 83000 + MAX_COSMIC_FEATURES - 1 (84023). The next free
+ * block for a new array-per-kind object therefore starts at 85000. */
+#define GALAXY_OBJECT_MIN_FEATURE 83000
+#define GALAXY_CREATE_EXOTIC_PER_TYPE        10
+#define GALAXY_CREATE_EVOLVED_STAR_PER_TYPE  10
+
 /* --- Galaxy Generation Ranges --- */
 #define GALAXY_CREATE_OBJECT_MIN_NPC_FACTION        70
 #define GALAXY_CREATE_OBJECT_MAX_NPC_FACTION        100

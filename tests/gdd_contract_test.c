@@ -1012,6 +1012,9 @@ static void test_object_types(void) {
     CHECK(n >= 80, "object_types.h: only %d types listed", n);
     for (int t = OBJ_EXOTIC_FIRST; t <= OBJ_EXOTIC_LAST; t++)
         CHECK(obj_type_name(t) != NULL && !seen[t], "exotic type %d named and not shadowed", t);
+    CHECK(OBJ_EVOLVED_FIRST > OBJ_EXOTIC_LAST, "evolved star block must not overlap the exotic block");
+    for (int t = OBJ_EVOLVED_FIRST; t <= OBJ_EVOLVED_LAST; t++)
+        CHECK(obj_type_name(t) != NULL && !seen[t], "evolved star type %d named and not shadowed", t);
 
     /* 2. every known type outside the cosmic band has a dedicated look */
     int generic = 0;
@@ -1077,6 +1080,49 @@ static void test_star_spectral_palette(void) {
                 fabsf(g_dyn[i].color[2] - w[2]) < 1e-5f) ok = 1;
         CHECK(ok, "star spectral class %d has the shared palette colour", cls);
     }
+}
+
+/* Evolved stars (132..148): every type has its own palette colour and size
+ * (giants big, white dwarfs tiny, GDD builder == shared palette), the names
+ * are unique and the predicates agree with the index ranges. */
+static void test_evolved_stars(void) {
+    CHECK(OBJ_EVOLVED_COUNT == 17, "17 evolved star types, got %d", OBJ_EVOLVED_COUNT);
+    for (int t = OBJ_EVOLVED_FIRST; t <= OBJ_EVOLVED_LAST; t++) {
+        int e = t - OBJ_EVOLVED_FIRST;
+        CHECK(obj_type_is_evolved_star(t) && !obj_type_is_exotic(t) &&
+              !obj_type_is_black_hole(t) && !obj_type_has_ship_hull(t),
+              "evolved type %d is only an evolved star", t);
+        CHECK(obj_type_is_white_dwarf(t) == (e > OBJ_EVOLVED_GIANT_LAST),
+              "evolved type %d white-dwarf predicate", t);
+        CHECK(obj_type_is_pulsating_wd(t) == (e >= OBJ_EVOLVED_PULSATOR_MIN),
+              "evolved type %d pulsator predicate", t);
+        for (int u = t + 1; u <= OBJ_EVOLVED_LAST; u++)
+            CHECK(strcmp(obj_type_name(t), obj_type_name(u)) != 0,
+                  "evolved names %d and %d are unique", t, u);
+        build_single_type(t, &(GddInstance){0});   /* fills g_dyn[] with the grid + the object */
+        const float *w = obj_evolved_star_rgb(e);
+        int ok = 0, generic = 0;
+        for (uint32_t i = 0; i < g_dyn_n; i++) {
+            if (is_generic_cosmic_look(&g_dyn[i])) generic = 1;
+            if ((int)(g_dyn[i].mesh + 0.5f) == GDD_MESH_SPHERE &&
+                fabsf(g_dyn[i].scale[0] - 2.5f * obj_evolved_star_scale(e)) < 1e-4f &&
+                fabsf(g_dyn[i].color[0] - w[0]) < 1e-5f &&
+                fabsf(g_dyn[i].color[1] - w[1]) < 1e-5f &&
+                fabsf(g_dyn[i].color[2] - w[2]) < 1e-5f) ok = 1;
+        }
+        CHECK(ok, "evolved type %d (%s) uses the shared palette and size", t, obj_type_name(t));
+        CHECK(!generic, "evolved type %d must not use the generic cosmic look", t);
+        if (obj_type_is_white_dwarf(t))
+            CHECK(obj_evolved_star_scale(e) < 1.0f, "white dwarf %d is smaller than a main-sequence star", t);
+        else
+            CHECK(obj_evolved_star_scale(e) > 1.0f, "giant %d is larger than a main-sequence star", t);
+    }
+    /* out-of-range index falls back to the red giant */
+    CHECK(obj_evolved_star_rgb(-1) == obj_evolved_star_rgb(0) &&
+          obj_evolved_star_rgb(OBJ_EVOLVED_COUNT) == obj_evolved_star_rgb(0),
+          "evolved palette: out-of-range index falls back to the red giant");
+    CHECK(!obj_type_is_evolved_star(OBJ_EXOTIC_LAST) && !obj_type_is_evolved_star(OBJ_EVOLVED_LAST + 1),
+          "evolved range edges");
 }
 
 static void test_capacity_guard(void) {
@@ -1362,6 +1408,7 @@ int main(void) {
     test_ship_visual_audit();
     test_object_types();
     test_star_spectral_palette();
+    test_evolved_stars();
     test_capacity_guard();
     test_raw_objs_fallback();
     printf("  %d checks passed, %d failed\n", g_pass, g_fail);

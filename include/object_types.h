@@ -136,6 +136,33 @@
 #define OBJ_EXOTIC_COUNT 32
 #define OBJ_EXOTIC_LAST  (OBJ_EXOTIC_FIRST + OBJ_EXOTIC_COUNT - 1)   /* 131 */
 
+/* Evolved stars: 17 consecutive types (type = OBJ_EVOLVED_FIRST + index), stored
+ * in the generic cosmic_features[] array like the exotic objects. Order:
+ *   0..4   post-main-sequence giants
+ *   5..6   white dwarfs by core composition
+ *   7..13  white dwarfs by atmosphere (spectral class)
+ *   14..16 pulsating white dwarfs / pre-white dwarfs (non-radial pulsations)
+ * Names live here only: the server galaxy generator and the viewers use
+ * this list. */
+#define OBJECT_EVOLVED_NAME_LIST \
+    "Red Giant", "Red Clump Star", "Horizontal Branch Star", \
+    "AGB Star (Asymptotic Giant Branch)", "Red Supergiant", \
+    "White Dwarf (C-O core)", "White Dwarf (O-Ne-Mg core)", \
+    "White Dwarf DA (hydrogen)", "White Dwarf DB (neutral helium)", \
+    "White Dwarf DO (ionized helium)", "White Dwarf DQ (carbon)", \
+    "White Dwarf DZ (metals)", "White Dwarf DC (continuous)", \
+    "White Dwarf DX (unclassified lines)", \
+    "ZZ Ceti Pulsator (DAV)", "V777 Her Pulsator (DBV)", \
+    "GW Vir Pulsator (DOV)"
+
+#define OBJ_EVOLVED_FIRST 132
+#define OBJ_EVOLVED_COUNT 17
+#define OBJ_EVOLVED_LAST  (OBJ_EVOLVED_FIRST + OBJ_EVOLVED_COUNT - 1)   /* 148 */
+
+/* Index of the sub-groups inside the evolved block. */
+#define OBJ_EVOLVED_GIANT_LAST   4    /* 0..4  giants / supergiants      */
+#define OBJ_EVOLVED_PULSATOR_MIN 14   /* 14..16 pulsating white dwarfs   */
+
 /* NPC ships use their faction number as object type (FACTION_KORTHIAN ..
  * FACTION_HIROGEN in network.h). */
 #define OBJ_NPC_FIRST    OBJ_SHIP_KORTHIAN
@@ -145,7 +172,7 @@ typedef enum ObjectType {
 #define OBJECT_TYPE_ENUM_ENTRY(name, value, label) name = value,
     OBJECT_TYPE_LIST(OBJECT_TYPE_ENUM_ENTRY)
 #undef OBJECT_TYPE_ENUM_ENTRY
-    OBJ_TYPE_LAST = OBJ_EXOTIC_LAST
+    OBJ_TYPE_LAST = OBJ_EVOLVED_LAST
 } ObjectType;
 
 /* ------------------------------------------------------------------ */
@@ -160,6 +187,21 @@ static inline int obj_type_is_npc_ship(int t) {
 /* One of the 32 exotic compact objects (100..131). */
 static inline int obj_type_is_exotic(int t) {
     return t >= OBJ_EXOTIC_FIRST && t <= OBJ_EXOTIC_LAST;
+}
+
+/* One of the 17 evolved stars (132..148). */
+static inline int obj_type_is_evolved_star(int t) {
+    return t >= OBJ_EVOLVED_FIRST && t <= OBJ_EVOLVED_LAST;
+}
+
+/* White dwarf or pre-white dwarf (evolved index 5..16). */
+static inline int obj_type_is_white_dwarf(int t) {
+    return obj_type_is_evolved_star(t) && (t - OBJ_EVOLVED_FIRST) > OBJ_EVOLVED_GIANT_LAST;
+}
+
+/* Pulsating white dwarf (DAV, DBV, GW Vir): its brightness oscillates. */
+static inline int obj_type_is_pulsating_wd(int t) {
+    return obj_type_is_evolved_star(t) && (t - OBJ_EVOLVED_FIRST) >= OBJ_EVOLVED_PULSATOR_MIN;
 }
 
 /* Black hole look: the classic black hole and the exotic compact objects. */
@@ -182,6 +224,8 @@ static inline int obj_type_is_live_ship(int t) {
 static inline const char *obj_type_name(int t) {
     static const char *const exotic_names[OBJ_EXOTIC_COUNT] = { OBJECT_EXOTIC_NAME_LIST };
     if (obj_type_is_exotic(t)) return exotic_names[t - OBJ_EXOTIC_FIRST];
+    static const char *const evolved_names[OBJ_EVOLVED_COUNT] = { OBJECT_EVOLVED_NAME_LIST };
+    if (obj_type_is_evolved_star(t)) return evolved_names[t - OBJ_EVOLVED_FIRST];
     switch (t) {
 #define OBJECT_TYPE_NAME_CASE(name, value, label) case value: return label;
     OBJECT_TYPE_LIST(OBJECT_TYPE_NAME_CASE)
@@ -248,6 +292,45 @@ static inline const float *obj_planet_class_rgb(int planet_class) {
     if (planet_class < 0 || planet_class >= PLANET_CLASS_COUNT)
         planet_class = PLANET_CLASS_TERRESTRIAL;
     return rgb[planet_class];
+}
+
+/* Evolved stars: colour and size (relative to a main-sequence star = 1.0)
+ * shared by the OpenGL viewer, the CPU Vulkan path and the GPU-driven
+ * builder. Index = type - OBJ_EVOLVED_FIRST; out of range falls back to the
+ * red giant. */
+static inline const float *obj_evolved_star_rgb(int index) {
+    static const float rgb[OBJ_EVOLVED_COUNT][3] = {
+        {1.00f, 0.35f, 0.10f},   /*  0 Red Giant             red-orange  */
+        {1.00f, 0.50f, 0.20f},   /*  1 Red Clump Star        orange      */
+        {1.00f, 0.85f, 0.40f},   /*  2 Horizontal Branch     gold        */
+        {1.00f, 0.25f, 0.05f},   /*  3 AGB Star              deep red    */
+        {1.00f, 0.15f, 0.05f},   /*  4 Red Supergiant        crimson     */
+        {0.85f, 0.90f, 1.00f},   /*  5 WD C-O core           white-blue  */
+        {0.70f, 0.85f, 1.00f},   /*  6 WD O-Ne-Mg core       pale blue   */
+        {0.90f, 0.95f, 1.00f},   /*  7 DA  hydrogen          white       */
+        {0.75f, 0.85f, 1.00f},   /*  8 DB  neutral helium    blue-white  */
+        {0.50f, 0.65f, 1.00f},   /*  9 DO  ionized helium    hot blue    */
+        {0.85f, 0.80f, 0.70f},   /* 10 DQ  carbon            sand        */
+        {0.90f, 0.75f, 0.60f},   /* 11 DZ  metals            copper      */
+        {0.80f, 0.80f, 0.85f},   /* 12 DC  continuous        grey-white  */
+        {0.75f, 0.60f, 0.85f},   /* 13 DX  unidentified      lilac       */
+        {0.80f, 1.00f, 1.00f},   /* 14 DAV (ZZ Ceti)         cyan-white  */
+        {0.60f, 0.90f, 1.00f},   /* 15 DBV (V777 Her)        cyan        */
+        {0.40f, 0.70f, 1.00f}    /* 16 GW Vir (incl. DOV)    hot blue    */
+    };
+    if (index < 0 || index >= OBJ_EVOLVED_COUNT) index = 0;
+    return rgb[index];
+}
+
+static inline float obj_evolved_star_scale(int index) {
+    static const float scale[OBJ_EVOLVED_COUNT] = {
+        1.6f, 1.3f, 1.2f, 1.8f, 2.2f,              /* giants / supergiants  */
+        0.35f, 0.35f,                              /* white dwarfs by core  */
+        0.35f, 0.35f, 0.40f, 0.35f, 0.35f, 0.35f, 0.35f, /* by atmosphere   */
+        0.40f, 0.40f, 0.50f                        /* pulsators             */
+    };
+    if (index < 0 || index >= OBJ_EVOLVED_COUNT) index = 0;
+    return scale[index];
 }
 
 #endif /* OBJECT_TYPES_H */

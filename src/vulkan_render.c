@@ -300,6 +300,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             if (o == 0) memcpy(app->playerT, T, sizeof(mat4));
 
             float s = (obj->type==3?SCALE_BASE: (obj->type==4?SCALE_STAR: (obj->type==5?SCALE_PLANET: (obj->type==6?SCALE_BLACKHOLE: (obj->type==29?SCALE_QUASAR: (obj->type==21?SCALE_ASTEROID: (obj->type==50?SCALE_BASE: SCALE_SHIP)))))));
+            /* Evolved stars: a star-sized sphere scaled by stage (giants big, white dwarfs tiny) */
+            if (obj_type_is_evolved_star(obj->type))
+                s = SCALE_STAR * obj_evolved_star_scale(obj->type - OBJ_EVOLVED_FIRST);
             /* Scale the object itself by tactScale */
             s *= tactScale;
             mat4_scale(S, (vec3){s,s,s});
@@ -582,6 +585,12 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 /* Spectral classes (ship_class): 0:O 1:B 2:A 3:F 4:G 5:K 6:M -- same palette as the OpenGL viewer */
                 const float *star_rgb = obj_star_class_rgb(obj->ship_class);
                 opc.color[0]=star_rgb[0]; opc.color[1]=star_rgb[1]; opc.color[2]=star_rgb[2];
+            } else if (obj_type_is_evolved_star(obj->type)) { // Evolved star (giant / white dwarf)
+                opc.metallic = 0.0f; opc.roughness = 1.0f; opc.usePushColor = 6; /* Hyper-Warp plasma, like a star */
+                const float *ev_rgb = obj_evolved_star_rgb(obj->type - OBJ_EVOLVED_FIRST);
+                float ev_k = 1.0f;
+                if (obj_type_is_pulsating_wd(obj->type)) ev_k = 0.75f + 0.25f * sinf(pulse * 6.0f + (float)obj->id); /* non-radial pulsation */
+                opc.color[0]=ev_rgb[0]*ev_k; opc.color[1]=ev_rgb[1]*ev_k; opc.color[2]=ev_rgb[2]*ev_k;
             } else if (obj->type == OBJ_PLANET) { // Planet
                 opc.metallic = 0.0f; opc.roughness = 0.9f;
                 /* Planet classes (ship_class = NPCPlanet.planet_class): 0:Terrestrial 1:Gas Giant 2:Ice 3:Molten 4:Desert */
@@ -656,7 +665,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     vb = app->torpVertexBuffer;
                     ib = app->torpIndexBuffer;
                     cnt = sizeof(torpIndices)/4;
-                } else if (obj->type == OBJ_STAR || obj->type == OBJ_PLANET || obj_type_is_exotic(obj->type)) {
+                } else if (obj->type == OBJ_STAR || obj->type == OBJ_PLANET || obj_type_is_exotic(obj->type) || obj_type_is_evolved_star(obj->type)) {
                     vb = app->sphereVertexBuffer;
                     ib = app->sphereIndexBuffer;
                     cnt = SPHERE_LATS * SPHERE_LONGS * 6;

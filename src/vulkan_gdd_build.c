@@ -353,6 +353,21 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
         return;
     }
 
+    if (obj_type_is_evolved_star(type)) {
+        /* Evolved stars: star-like plasma sphere (same shader as OBJ_STAR),
+         * colour and size by stage (giants big, white dwarfs tiny); the
+         * palette lives in object_types.h and is shared with the CPU Vulkan
+         * path and the OpenGL viewer. */
+        int e_id = type - OBJ_EVOLVED_FIRST;
+        const float *rgb = obj_evolved_star_rgb(e_id);
+        v->mesh = GDD_MESH_SPHERE;
+        v->scale = 2.5f * obj_evolved_star_scale(e_id);
+        v->frag_mode = GDD_FRAG_HYPERWARP;
+        v->additive = 1; v->metallic = 0.0f; v->roughness = 1.0f;
+        v->color[0] = rgb[0]; v->color[1] = rgb[1]; v->color[2] = rgb[2];
+        return;
+    }
+
     if (obj_type_has_ship_hull(type)) {
         /* Player ships, NPC ships and derelicts share the hull mesh. */
         v->mesh = GDD_MESH_PYRAMID;
