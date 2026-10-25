@@ -183,6 +183,470 @@ essential, cold, technical… and incredibly immersive.
 
 ---
 ---
+## 🚀 Version 3.3 Highlights (Rel. 2026.10.24 - The Living Catalog)
+
+Update 3.3 turns the object catalog into a living stellar and planetary ecosystem. The numbered catalog now spans **IDs 0–177**, driven by a single source of truth (`include/object_types.h`) shared by the server, the HUD, the OpenGL viewer, the CPU Vulkan path and the GPU-driven builder:
+*   **Natural Moons (23 classes)** — base types **89–98** and extended types **165–177**:
+    *   **Real Orbits**: every moon orbits a planet (at most 4 per planet, one orbit each), slowly and deterministically. Nothing new is saved: parent planet and orbit are derived from the moon id, so the same galaxy gives the same orbits after a restart.
+    *   **Orbital Dynamics Engine** (`include/moon_orbits.h`): true retrograde inclinations, orbital resonance harmonics, ring embedding and tidal-disruption proximity.
+    *   **Extended Classes**: Retrograde, Resonant, Tidally Locked, Chaotic Rotator, Embedded Moonlet, Captured, Cryovolcanic, Tidal-Heated, Differentiated, Binary, Ringed, Subsurface Ocean and Disrupted Moon.
+*   **Evolved Stars (17 classes)** — types **132–148**: Red Giant, Red Clump, Horizontal Branch, AGB, Red Supergiant, white dwarfs by core (C-O, O-Ne-Mg) and by atmosphere (DA, DB, DO, DQ, DZ, DC, DX), and the pulsators ZZ Ceti, V777 Her and GW Vir. Giants swell with prominences, dwarfs stay small, pulsators breathe.
+*   **Protostellar Objects & YSO (16 classes)** — types **149–164**: Class 0/I protostars and jets, Herbig-Haro knots and bow shocks, T Tauri stars (CTTS/WTTS), Herbig Ae/Be, FU Orionis and EX Lupi outbursts, pre-stellar cores, envelope cavities, accretion disks and magnetospheric columns. Nurseries are clustered inside Giant Molecular Clouds and Dark Nebulae and drawn with infrared palettes and Hyper-Warp plasma shaders.
+*   **Exotic Compact Objects (32 classes)** — types **100–131** now share the black-hole look of the GPU-driven path: event-horizon sphere, iridescent red accretion disk and lensing halo.
+*   **Seamless Persistence**: the new objects live in the generic `cosmic_features[]` array, so the `galaxy.dat` layout is unchanged and older saves receive them at load.
+*   **Full-Stack Coverage**: 171 real-time telemetry categories with 100% monitor coverage, plus the new pages of `spacegl_diag`, `spacegl_viewer` and the Ncurses telemetry client.
+*   **Documentation**: the Galactic Encyclopedia gains "Objects Outside the Main Sequence", and the Holographic Object Legend now covers all 177 catalog entries with their images.
+
+---
+*SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.10.24 - PROJECT: THE ETERNAL NOON*
+
+# 🌌 SPACE GL: THE ETERNAL NOON
+
+## Project Archive: The Birth of the Living Catalog
+
+> *"A noon that never ends is not a gift. It is a promise someone forgot to let expire."* — Captain Lyra Vance
+>
+> *"Every cage has a keeper. The hard part is noticing the day the keeper became us."* — H. Niklaus
+
+### Chapter 1: The Watch
+
+The GDIS Catalog listed one hundred and seventy classes of objects and only one kind of star: the adult kind. Seven spectral classes, from the blue O's to the red M's, every one fixed in its place along the Main Sequence like pearls on a string no one had ever seen break. The Alliance called it **the Eternal Noon**, and did not question it, any more than one questions the floor beneath one's feet.
+
+Captain Lyra Vance questioned it at night, during the watch.
+
+The explorer *Stellar Alliance* drifted at the edge of quadrant 22-31-07, facing a Type 50 Subspace Anomaly. From the bridge it looked like a vertical wound in the dark: a curtain of emerald aurora folded in on itself, pulsing every eleven seconds like a held breath. Lyra had been the first to map one. She was also the only one who believed the glow was a message.
+
+Linked to the ship's computer through her neural link, she felt the change before she saw it: a tiny error in the data stream, a wrong note in a melody she knew by heart. Then she saw it. The star beyond the anomaly, an ordinary yellow G-type, was losing its color. The yellow thinned toward orange, the limb swelled, the light grew.
+
+The holographic diagram bloomed above the bridge: the Main Sequence as a diagonal river of light, blue at the upper left, red at the lower right, every known star a drop in the current. In the middle of the river, one point broke loose.
+
+It did not fall. It *rose*, slowly, toward a region the Catalog had never needed to name.
+
+"A star doesn't age in a night," Lyra said softly, as if in church.
+
+"It is not aging in a night, Captain," the computer replied. "It is *catching up*."
+
+Lyra watched the golden point leave the river. Outside, the star reddened in silence, and the emerald curtain pulsed once more.
+
+At 03:12 ship time, the Catalog opened its first new line in a century. It titled it **Off the Main Sequence**.
+
+It would not be the last.
+
+<table>
+<tr>
+    <td><img src="readme_assets/The ethernal noon/1 Subspace anomaly on the stellar bridge.png" alt="Chapter 1 - 1 Subspace anomaly on the stellar bridge" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 2: The First Child
+
+Commander Leandros Thorne had chosen the Bok Globule for the same reason a hunter chooses a cave: no one looks into a bottomless hole. Three light-years of cold dust, so dense it swallowed even the noise of communications; and inside, anchored in a natural hollow of the cloud, twenty-two Golden Cartel ships carrying the last five thousand refugees of Vega Prime. The **Blowfish** protocol did the rest: a bubble of cryptographic silence inside a silence of dust. After the Great Decryption, silence was worth more than Aetherium.
+
+Lyra arrived on the fifth day, following the emerald thread of the anomaly into the nebula, and Thorne greeted her on a whispered channel.
+
+"Did you bring trouble?"
+
+"I brought a question."
+
+At the heart of the globule, for eleven million years, a **pre-stellar core** had been waiting: a seed of gas on the verge of falling in on itself and never falling, suspended like a drop that cannot find the lip of the glass. In the Catalog it was a static object, an inert point. At 04:40 on the third night, the point gave way.
+
+First a tremor in the dust, then warmth. At the center of the cloud an ember lit that was not yet a star: a **Class 0 protostar**, a blind heart of gas buried in a cocoon of dust that glowed only in the infrared, amber and copper. Then, from its two poles, the jets erupted: two needle-thin lances of blue-white plasma, one opposite the other, piercing the cloud like threads of light through silk.
+
+The hollow that sheltered the convoy began to change shape. The dust walls thinned, opened into an hourglass, spread wide. The refuge was being carved away by the very birth that inhabited it.
+
+"Twenty-two ships, five thousand souls and a newborn screaming in infrared," Thorne said. "We have eleven hours before this cloud turns transparent to Swarm sensors."
+
+"Eleven million years, and it collapses right now," Lyra said. "That is no accident."
+
+Thorne gave the order to leave the globule, ship by ship, in absolute silence, with the light of the one his sailors had already christened the First Daughter rising behind them like a tide. He watched the star being born, and did not turn away until the last ship was clear.
+
+"Who lit it?" Lyra asked.
+
+"No one, Captain," Thorne said. "Someone just stopped keeping it dark."
+
+
+<table>
+<tr>
+    <td><img src="readme_assets/The ethernal noon/2 Fleet in the Cosmic Glass Hour.png" alt="Chapter 2 - 2 Fleet in the Cosmic Glass Hour" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 3: The Jets Speak
+
+Pushed by owed time, the jets crossed six light-years in six days, faster than any jet had the right to travel. And where they touched the void, the void answered.
+
+One after another the **Herbig-Haro knots** ignited: clots of gas struck by shock, pink-red in the light of hydrogen, and behind each one a curved bow shock, green and amber, like the ribs of a cathedral laid out among the stars. The *Stellar Alliance* slid beneath the largest of those arches at minimum thrust, and no one aboard spoke.
+
+That was when a channel opened that no one had requested: a neon spiral on black, pure geometry.
+
+"Captain Vance," said Commander Alara. "My people have watched this cloud for nine hundred years. We knew the core was sealed. We did not know *by whom*."
+
+"And now?"
+
+"Now look at the knots. They do not flash in order."
+
+She was right. Each knot spoke only when the shock wave reached it, and the unequal distances shuffled the words like cards: a broken message scattered across six light-years, which no linear receiver could ever put back in sequence.
+
+In the ship's laboratory, Dr. Elara Vance set a fragment of **Noctyrite** inside the containment chamber. The crystal did not wait for a complete sequence: it processed every valid transition on its own, the instant it arrived. The knots lit up beyond the viewport; the facets lit up within. And the words reassembled in the air, one after another.
+
+> **LOCK ONE: LOOSENED.**
+>
+> **KEEPER: ABSENT.**
+>
+> **THE DEBT FALLS DUE.**
+
+"It is the oldest message humanity has ever received," Lyra said, "and it is a fault notice."
+
+Then she noticed that Elara had gone pale.
+
+"Doctor?"
+
+Elara did not answer. She was counting the intervals between one repetition and the next, and the number was always the same.
+
+Forty hours. The Ember's induction cycle.
+
+
+<table>
+<tr>
+    <td><img src="readme_assets/The ethernal noon/3 Noctyrite cosmic chain.png" alt="Chapter 3 - 3 Noctyrite cosmic chain" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 4: Dyson Locks
+
+The coordinates at the tail of the message led to a Dyson fragment that the Alliance had known for three years, and for three years had *drunk from*.
+
+It was a petal torn from a sphere that once wrapped a sun: a wall of bronze and gold, curved, hundreds of kilometers high, its panels and seams laid out with the precision of a certificate. In a ring around the fragment, K'Rath's induction pylons stretched golden filaments into the metal, and every day the wall gave back a little of its light to the Sentinel, to its caged heart, to the Ember.
+
+Lyra, Elara and the Chief Engineer descended along the wall in a shuttle, three points beneath a vault of gold.
+
+At the center of the fragment lay a disc no one had ever noticed, because no one had ever looked at the *details*: a dial of concentric rings engraved with glyphs, as wide as a city. One of the rings had turned by a single notch. Beneath the notch, a line of white-gold light, thin as a hair, opened in the metal.
+
+K'Rath said nothing for a long time.
+
+"We always called it *residual* energy," he said at last. "It was not residual. It was *tension*. The spring of a lock. This thing held the Noon still, and day after day we have been discharging it into our reactors."
+
+Elara read the glyphs with the Noctyrite glowing in her hand. "They say: *The Noon is a thing that is held. Whoever loosens a lock answers for the whole sky.*"
+
+"How much sky, exactly?" Lyra asked.
+
+"All the time the stars did not live while we held them still. They are not aging faster. They are paying back what they owe."
+
+Niklaus's hologram formed inside the shuttle, his white gloves still on.
+
+"If we stop the induction?"
+
+"The Ember goes dark," Elara said. "The Sentinel falls back to the Aetherium pulses."
+
+"And the lock?"
+
+"It does not close again, Admiral. A forced lock does not return by itself. But at least it does not get worse."
+
+Niklaus was silent for the length of three breaths.
+
+"Shut it down."
+
+Along the fragment, one by one, the pylons stopped glowing. The golden filaments withdrew into the metal like tongues. On the Sentinel, the heart of the Ember beat for the last time.
+
+The notch stayed where they had left it. Above the dial, the glyphs went on shining, with no one left to read them.
+
+
+<table>
+<tr>
+    <td><img src="readme_assets/The ethernal noon/4 Explorers before the golden megastructure.png" alt="Chapter 4 - 4 Explorers before the golden megastructure" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 5: The Moon That Answered
+
+For the first time in three years, the Aegis slept without its golden pulse.
+
+The white sphere, forty kilometers of perfect steel, floated at the Lagrange point between the two moons of Orion Prime. To the left, **Kael**, grey and cratered, tidally locked with the same face turned toward the planet. To the right, **Neris**, a moon of ice veined with blue lines, beneath whose crust a sunless ocean had always lain.
+
+On the fourth night of silence, the crust of Neris opened.
+
+First one fissure, then a hundred. Geysers of vapor and crystals rose four hundred kilometers, white and blue columns lit edge-on by the planet's light. They were not random eruptions: they followed a beat. One, two, four. The Laplace resonance between Neris, Kael and the planet, used like a metronome.
+
+In the laboratory, the fragment of Noctyrite began to vibrate on its own.
+
+"They are repeating the message," Elara said. "The one from the knots. But the ending is different."
+
+> **LOCK ONE: LOOSENED.**
+>
+> **KEEPER: ABSENT.**
+>
+> **PROCEDURE: AWAKEN THE GARDENERS.**
+
+And from the tallest column, within the vapor, a shape rose.
+
+It was transparent, vast as a cathedral, made of crystal and fractal light, its tentacles unfolding in spirals and refolding with each beat into ever finer geometries. The archives knew it by two names, Crystalline Entity and Space Amoeba: a Class-Omega threat, able to drain an entire Korthian flotilla of its energy before it could return fire. No one had ever seen one being born.
+
+Alarms sounded across the Aegis, and K'Rath armed the old Aetherium pulses.
+
+"Hold your fire," Niklaus ordered.
+
+"Admiral, it is watching us."
+
+"If it had wanted to feed, it would have eaten already."
+
+The Gardener did not move toward the white sphere. It turned, slowly, toward the Sentinel docked to the structure: toward its dead core, toward the empty place where the Ember, only days before, had beaten.
+
+"Gardeners of what?" Niklaus asked.
+
+"Of everything that grows without permission," Elara said.
+
+Niklaus looked at the dead core. "Like the Ember."
+
+The Gardener sank into the vapor, and the column closed above it like a curtain. The Admiral remained at the glass, in his white gloves.
+
+"For three years we feared an enemy that was looking for us," he said. "We never considered a gardener."
+
+
+<table>
+<tr>
+    <td><img src="readme_assets/The ethernal noon/5 Glacial panorama with spherical station.png" alt="Chapter 5 - 5 Glacial panorama with spherical station" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 6: The Queen Is Afraid
+
+The Swarm did not attack. With the Ember dark, it had lost the trail of the energy it had hunted for three years, and that made sense. What made no sense was that it was not hunting for anything else. To Thorne, it was the first sign that something was wrong.
+
+The *Gilded Ghost* followed the grey fleets for eleven days inside the Blowfish bubble, to a cold region without a name where a **brown dwarf** hung in the dark like a fruit that never ripened.
+
+Too light to ignite, too heavy to be a planet: a dark magenta sphere, banded with horizontal storms and one giant vortex, giving off almost nothing beyond an infrared glow. And around it, by the thousands, obsidian beetles. They were building. Black hexagons locked into a lattice, cell after cell, a living shell closing around the dwarf like a hand, and inside the shell white-violet flashes ran like neurons.
+
+"It's not a base," Lyra whispered from the bridge of the *Stellar Alliance*, hidden in the same silence. "It's a home."
+
+Thorne checked the clock. "The bubble holds for ten minutes. Then their quantum sensors see us."
+
+At the seventh minute, the brown dwarf spoke.
+
+Not with one voice: with thousands, a chorus of drones in perfect unison, and above the lattice a colossal figure assembled itself from beetles, crowned with antennae.
+
+"Stop hiding, Captain. I have seen you since you cut your engines."
+
+No one on the bridge breathed.
+
+"The Swarm does not negotiate," the Nexus Queen continued. "This is a notice. I have watched your stars leave the Sequence. I have computed the debt. Within two hundred years the owed time will be paid all at once, and the hot stars will go out in a single heartbeat. Only the cold bodies will remain."
+
+The lattice pulsed toward the brown dwarf.
+
+"This is the only star that owes nothing. It never borrowed anything, because it never lit. I will live here."
+
+"Why tell us?" Lyra asked.
+
+"You call the dark death. I call it the only place one can stay. I do not fear the dark, Captain. I fear the light that ends." The crown of antennae tilted. "And your caged sun has no memory: it recomputes itself every instant and owes nothing to time. It is the only body I need. Give it to me, and I will not devour you."
+
+Eighty seconds remained before the bubble failed. The Queen let them go.
+
+"She let us go," Thorne said.
+
+"No," Lyra said. "She *sent* us. She wanted us to carry the message."
+
+
+<table>
+<tr>
+    <td><img src="readme_assets/The ethernal noon/6 Queen of the purple cosmic hive.png" alt="Chapter 6 - 6 Queen of the purple cosmic hive" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 7: The Pilgrimage
+
+"A Korthian does not hide," said Chancellor Dahar, "not even when he goes to bury."
+
+He had asked the Alliance for one thing only: not to interfere. A hundred and forty ships with red-orange hulls, lit like banners, moved in slow procession along the last road to Korthar, the world that no longer existed, toward the sun that had killed it by dying. No cover, no cloak, no encryption. A whole people, in the clear, singing the names of their dead.
+
+The star had become a **white dwarf**: a blinding blue-white point, small as a planet and dense as a city of suns. The Catalog wanted it to be either type DZ, polluted with metals, or a ZZ Ceti pulsator, flickering in brightness on a rhythm of minutes. The Catalog, which grants every star a single box, was wrong. This one was both.
+
+The metal came from **Korthar-Kel**, the ancient sepulchral moon of the Korthians, left orbiting the dead star after its mother world was gone. Now it was a **disrupted moon** on its last turn at the Roche limit: a rubble pile held together by gravity until yesterday, torn today into an arc of incandescent debris raining in a spiral into the star. The Korthians called it the Rain of Ancestors, and they did not look away.
+
+Beside Dahar's flagship, the light bent: a cloaked ship, hidden inside the procession. Commander Alara had carried her veil to the one place where a Korthian would take it as an insult.
+
+"I request permission to show myself, Chancellor."
+
+"A Korthian despises those who hide."
+
+"A Xylari hides what she loves. In the Rain lies something we have loved for four hundred years."
+
+Dahar was silent, in the slow rhythm of the star's pulsations.
+
+"He who hides from death fears her," he said at last. "He who sings with her respects her. Show yourself."
+
+The neon-green hull materialized among the reds like a flash of jade in a brazier, and for the first time in three thousand years a Korthian and a Xylari sang the same note.
+
+In the Rain lay an **archive**: a sealed chamber set into the bowels of Korthar-Kel, placed there by the Xylari when the moon was still an intact tomb, in the one place where no Korthian thief would dare to rummage and no Swarm would think to look. Now the moon was crumbling. The time left was a single orbit.
+
+Lyra led Dahar's boarding party through the falling debris, the star dazzling their visors at every pulse, and recovered the casket twelve seconds from the atmosphere.
+
+Inside lay the Builders' Manual. Halfway down the first page, a single line:
+
+> **KEEPER IS A VERB, NOT A NAME.**
+
+"To keep," Dahar repeated, and for the first time he smiled. "That is a word a warrior understands."
+
+
+<table>
+<tr>
+    <td><img src="readme_assets/The ethernal noon/7 Armada in the stellar spiral.png" alt="Chapter 7 - 7 Armada in the stellar spiral" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 8: The Red Dawn
+
+The Manual also said *when*.
+
+The first great payment of the debt would fall upon **ε-9**, a quiet system around an orange star: six planets, an asteroid belt rich in Dark Matter and, for eight months now, the refugees of Vega Prime resettled on an ocean world that had welcomed them like a promise. In nineteen days the star would become a **red giant**. The Manual left no margin.
+
+Baron Gilded already knew.
+
+No one had ever seen the Baron in person: only a gilded mask in a hologram and a name on contracts. His brokers had read the future in the price of Aetherium, which rose wherever stars grew old. The Cartel had sealed ε-9 with a cordon of mercenary ships, a *paid quarantine*: passage only for those who could pay. And while the refugees counted the days, in the asteroid belt the Baron's drones were emptying the richest Dark Matter deposit in the galaxy before it turned to ash.
+
+"Peace is good for business," said the golden hologram. "A controlled war is better. A controlled dawn is best of all."
+
+"There are twenty thousand people down there, Baron," Thorne said.
+
+"There are twenty thousand customers who cannot pay."
+
+Thorne had sworn to protect the Cartel's trade routes, not to trade away lives. He did what no commander had done since the Great Decryption: he opened a channel **in the clear**. *Enc off.* A cry without encryption, one that every predator in the galaxy could hear.
+
+"All vessels. This is Thorne. ε-9 is about to burn. Anyone with a cargo hold, please come."
+
+For eleven hours, no one answered. Then, out of the dark, came the great freighters of the Vesperian Union, enormous, square-hulled, slow, with Gul Damar himself in command.
+
+"Logistics is a form of courage measured in tons," he said. "Where do we load?"
+
+On the nineteenth day, the dawn rose red. The giant climbed over the ocean world's horizon forty times larger than a sun, its surface a field of boiling lava cells arched with prominences; the oceans began to smoke. In the sky, an unbroken column of ships climbed on their own trails of light: gilded Cartel hulls, Vesperian freighters and, last of all, the *Gilded Ghost*, flying rear guard to the limit of the possible. The star's final thermal pulse struck her with the left wing already on fire.
+
+Thorne burst out of the cloud of flame with four seconds to spare.
+
+"A considerable loss of margin, Commander," said the golden hologram.
+
+"I calculated the risk, Baron."
+
+The clear signal had reached the whole galaxy. Including the one listener who mattered.
+
+
+<table>
+<tr>
+    <td><img src="readme_assets/The ethernal noon/8 Stellar escape above a fiery planet.png" alt="Chapter 8 - 8 Stellar escape above a fiery planet" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 9: The Choice
+
+The key was in the Manual, and the lock was the one door no one had ever dared reopen: the **Gate of Midday**, a Type 41 Warp Gate as wide as a moon, dead for longer than any Catalog remembered. Lyra reawakened it with five keys: Alliance, Korthian, Xylari, Vesperian Union and Golden Cartel. The ring ignited, opened, and the fleets crossed the edge of the map toward the forgotten sectors.
+
+On the other side there were no stars. There was the **Orrery of Noon**.
+
+An armillary sphere of gold and bronze as large as a planetary system, built of rings within rings, each tilted at a different angle. At its heart, frozen and luminous, a miniature galaxy: every star a motionless pearl. From each ring a thread of light ran to a distant quadrant: the locks, all of them. And on the rim of every ring a counter tallied the Debt in golden glyphs, digit after digit, climbing.
+
+At the center, an empty dais. The Keeper's place.
+
+The fleets drew up in an arc. No one fired: to fire there would have been like throwing a stone inside a cathedral. Then, from the edge of the Orrery, a violet shadow slid in. The Swarm had followed Thorne's cry in the clear, and its lattice closed on the dais like a hand.
+
+"Keeper is a verb," said the Nexus Queen. "I can conjugate it to infinity. One mind, cold, without sleep. Close the locks and leave the watch to me. The Noon will last forever."
+
+They all spoke, one at a time.
+
+"Control," said Gul Damar. "It is what my people have always asked for."
+
+"A sky that does not die is not a sky," said Dahar. "It is a monument."
+
+"A single keeper is a single point of failure," said Alara.
+
+"Concentrated risk," said Thorne. "The worst kind."
+
+Lyra looked at the frozen galaxy and, in the middle of it, one pearl smaller than the rest, just lit.
+
+"If we close the locks, we put out the First Daughter before she has learned to shine. The Noon is a beautiful cage. I do not want to live on a postcard."
+
+It was Elara who found the third way, in a clause at the back of the Manual that no one had read: the rings were not a switch but a regulator. They could be turned *one notch at a time*. A debt paid in installments. It needed a ledger that never erred, a governor that never tired, and many hands, so that no single hand could decide for the sky.
+
+"The Ember does not add," K'Rath said. "It describes the map, and the field does the rest. We can describe a sky that ages by installments, starting from the empty places: first the stars with no one around them, the most inhabited last."
+
+On the Orrery's rim, the Debt counter flashed. Eleven minutes, and then the violet lattice would take the dais.
+
+On the bridge of the Sentinel, Grand Admiral Niklaus took off his white gloves, one at a time, and set them on the console. It was the second time in ten years.
+
+
+
+<table>
+<tr>
+    <td><img src="readme_assets/The ethernal noon/9 Golden Portal of the Stellar Armada.png" alt="Chapter 9 - 9 Golden Portal of the Stellar Armada" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 10: The Evening
+
+The Doctrine of Silence had one principle: no order is valid unless it is signed. Niklaus had written it in HMAC-SHA256, in an age when a single signature could stop a fleet. To stop a sky, more would be needed.
+
+"I will call it the Doctrine of Many Hands," he said before the Orrery. "Every notch of the rings will require six signatures. No single one will be enough."
+
+Elara showed the Nexus Queen her own calculation: a lone Keeper, however cold and vigilant, would watch the Debt grow with interest until its watch broke and all the owed time fell in a single night. The Queen verified it with a thousand minds, and for the first time the Swarm fell silent.
+
+"The sum does not balance," she said at last.
+
+"Not with one Keeper," Niklaus said. "But a Ledger that never errs needs a cold, long-lived mind. The brown dwarf will be the archive of the Debt, and you its memory. Not its master."
+
+They signed, one after another: Dahar, Alara, Gul Damar and Baron Gilded, whose golden mask betrayed nothing. The Queen signed last.
+
+"Not because I trust you," she said. "Because, for the first time, the sum balances."
+
+Niklaus signed for the Alliance bare-handed. K'Rath relit the Ember aboard the Sentinel: not as a weapon, not as a source, but as a governor. Then a ring of the Orrery turned by a single notch.
+
+There was no explosion, no sound. In the dark beyond the Gate, an empty system, with no one around it, began to age *with permission*.
+
+The next evening, from the Aegis observatory, the sky of Orion Prime showed all its ages at once. On the left, a dark nebula where the First Daughter, now a Class I protostar with her disk, still hurled her amber and blue jets. At the center, the adult stars shone as they always had. On the right, a distant red giant, calm as a lantern, and a tiny white dwarf pulsing every ten minutes like a heartbeat. Neris raised its geysers once, in a new chord, and went back to sleep: the Gardeners had nothing left to prune.
+
+Lyra stopped beside the Admiral. The white gloves were still on the console where he had left them.
+
+"All my life I feared the silence," Niklaus said, his hand on the glass. "I thought it was the absence of everything."
+
+"And now?"
+
+"It is a waiting."
+
+Below them, the GDIS Catalog added a line to the archive and, for the first time, changed its own name.
+
+*Post meridiem, lux* — after noon, the light.
+
+> **THE NOON WAS A CAGE.**
+>
+> **THE EVENING IS A CHOICE.**
+>
+> **THE CATALOG IS NO LONGER A LIST: IT IS A CALENDAR.**
+
+
+
+<table>
+<tr>
+    <td><img src="readme_assets/The ethernal noon/10 Stellar observatory - fantastic cosmic panorama.png" alt="Chapter 10 - 10 Stellar observatory - fantastic cosmic panorama" width="600"/></td>
+ </tr>
+</table>
+
+
+---
+---
+
+## 🛠 TECHNICAL SECTION: THE LIVING CATALOG (OBJECT TYPES 0–177)
+
+The catalog is defined once, in `include/object_types.h` (X-macro list, `OBJ_*` enum, `obj_type_name()` and the shared predicates), so a type can no longer fall silently into the generic cosmic look in one of the renderers.
+
+| Types | Group | Classes |
+| :--- | :--- | :--- |
+| 89–98 | Natural Moons (base) | 10 |
+| 100–131 | Exotic Compact Objects | 32 |
+| 132–148 | Evolved Stars | 17 |
+| 149–164 | Protostellar Objects & YSO | 16 |
+| 165–177 | Natural Moons (extended) | 13 |
+
+*   **Reserved slots**: type 99 is an unassigned reserved slot.
+*   **Property predicates**: the moons expose `obj_type_is_retrograde_moon()`, `obj_type_is_ocean_moon()`, `obj_type_is_volcanic_moon()`, `obj_type_is_tidally_locked_moon()`, `obj_type_is_chaotic_rotator_moon()`, `obj_type_is_embedded_moon()`, `obj_type_is_ringed_moon()` and `obj_type_is_disrupted_moon()`; the evolved stars expose `obj_type_is_evolved_star()`, `obj_type_is_white_dwarf()` and `obj_type_is_pulsating_wd()`.
+*   **Shared look**: one palette and one size table per group (for example `obj_moon_any_rgb` / `obj_moon_any_scale`) feed the OpenGL viewer, the CPU Vulkan path and the GPU-driven builder.
+*   **Where to look**: the **Holographic Object Legend** (every ID with its image), the **Galactic Encyclopedia** and the telemetry coverage table.
+
+---
 
 ## 🚀 Version 3.2 Highlights (Rel. 2026.09.20 - GPU-Driven Rendering)
 
