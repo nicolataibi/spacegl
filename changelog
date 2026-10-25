@@ -1,3 +1,7 @@
+* Sun Oct 25 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.25.02
+  - Vulkan CPU-driven Galaxy Map fix (src/vulkan_scene.c): the `map` command drew only the galaxy frame and the player marker, so the sector cubes were missing. The sector loop of drawGalaxyMap() was lost in the 2026.10.17.01 modular refactoring; it is restored (wireframe cubes with filter 0, solid PBR cubes with filter > 0, white wireframe highlight on the player quadrant, per-type colours and filters as before). The player marker now uses the same cell-centre mapping as the sector cubes. OpenGL and GPU-driven paths are untouched.
+  - Tests: fix golden.
+
 * Sun Oct 25 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.25.01
   - Lore & Docs (LORE.md): added the Version 3.3 Highlights block, the new historical archive story "The Eternal Noon" (10 chapters) and a technical section mapping the 0..177 object catalog (natural moons, evolved stars, protostellar & YSO objects, exotic compact objects).
 

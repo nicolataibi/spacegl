@@ -435,9 +435,44 @@ void drawNebula(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int subType, flo
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
+/* Decimal digit `pos` of a packed sector value (shm_galaxy encoding). */
+static int mapSectorDigit(int64_t uval, int pos) {
+    int64_t d = 1;
+    for (int i = 0; i < pos; i++) d *= 10;
+    return (int)((uval / d) % 10);
+}
+
+/* True when a sector with the given per-type counts passes `filter`. */
+static bool mapSectorMatchesFilter(int filter, const int c[18]) {
+    /* c[] indexed by digit position: 0=sst 1=bs 2=en 3=pl 4=bh 5=neb 6=pul
+       7=storm 8=comet 9=asteroid 10=derelict 11=mine 12=buoy 13=platform
+       14=rift 15=player 16=monster 17=quasar */
+    switch (filter) {
+        case 1:  return c[0]  > 0;
+        case 2:  return c[3]  > 0;
+        case 3:  return c[1]  > 0;
+        case 4:  return c[2]  > 0 || c[15] > 0;
+        case 5:  return c[4]  > 0;
+        case 6:  return c[5]  > 0;
+        case 7:  return c[6]  > 0;
+        case 8:  return c[7]  > 0;
+        case 9:  return c[8]  > 0;
+        case 10: return c[9]  > 0;
+        case 11: return c[10] > 0;
+        case 12: return c[11] > 0;
+        case 13: return c[12] > 0;
+        case 14: return c[13] > 0;
+        case 15: return c[14] > 0;
+        case 16: return c[16] > 0;
+        case 17: return c[17] > 0;
+        default: return false;
+    }
+}
+
 void drawGalaxyMap(VkCommandBuffer cb, VulkanApp* app, GameState* st, float pulse) {
     float gap = 1.2f;
     float mapScale = app->mapAnim;
+    float offset = -((float)GALAXY_SIZE * gap) / 2.0f;
     VkDeviceSize off = 0;
 
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -452,9 +487,10 @@ void drawGalaxyMap(VkCommandBuffer cb, VulkanApp* app, GameState* st, float puls
 
     /* Render Player Position Indicator */
     if (st->object_count > 0 && st->objects[0].active) {
-        float px = ((float)st->shm_q[0] - (float)GALAXY_SIZE/2.0f) * gap * mapScale;
-        float py = ((float)st->shm_q[2] - (float)GALAXY_SIZE/2.0f) * gap * mapScale;
-        float pz = ((float)GALAXY_SIZE/2.0f - (float)st->shm_q[1]) * gap * mapScale;
+        /* Same cell-centre mapping as the sector markers below. */
+        float px = (offset + ((float)st->shm_q[0] - 0.5f) * gap) * mapScale;
+        float py = (offset + ((float)st->shm_q[2] - 0.5f) * gap) * mapScale;
+        float pz = (offset + ((float)GALAXY_SIZE + 0.5f - (float)st->shm_q[1]) * gap) * mapScale;
         PushConstants pcP = {0};
         mat4 T_p, S_p;
         mat4_translate(T_p, (vec3){px, py, pz});
@@ -466,6 +502,108 @@ void drawGalaxyMap(VkCommandBuffer cb, VulkanApp* app, GameState* st, float puls
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    }
+
+    /* 2. Sector markers (CPU-driven path).
+     * filter 0: wireframe cubes (LINE_LIST on cubeIndices, 24 indices);
+     * filter > 0: solid PBR cubes (graphics pipeline, usePushColor=5,
+     * cubeSolidIndices, 36 indices). The player quadrant always gets a
+     * white wireframe highlight. */
+    if (!app->shm) return;
+    const int64_t (*galaxy)[GALAXY_SIZE + 1][GALAXY_SIZE + 1] = (const int64_t (*)[GALAXY_SIZE + 1][GALAXY_SIZE + 1])app->shm->shm_galaxy;
+    const int ef = app->mapFilter;
+
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
+    if (ef == 0) {
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+        vkCmdBindIndexBuffer(cb, app->cubeIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    } else {
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+        vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    }
+
+    for (int z = 1; z <= GALAXY_SIZE; z++) {
+        for (int y = 1; y <= GALAXY_SIZE; y++) {
+            for (int x = 1; x <= GALAXY_SIZE; x++) {
+                int64_t val = galaxy[x][y][z];
+                bool is_my_q = (x == st->shm_q[0] && y == st->shm_q[1] && z == st->shm_q[2]);
+                if (val == 0 && !is_my_q) continue;
+
+                int64_t uval = (val < 0) ? -val : val;
+                int c[18];
+                for (int i = 0; i < 18; i++) c[i] = mapSectorDigit(uval, i);
+                const int sst = c[0], bs = c[1], en = c[2], pl = c[3], bh = c[4], neb = c[5],
+                          pul = c[6], storm = c[7], comet = c[8], asteroid = c[9], derelict = c[10],
+                          mine = c[11], buoy = c[12], platform = c[13], rift = c[14], player = c[15],
+                          monster = c[16], quasar = c[17];
+
+                if (ef > 0 && !is_my_q && !mapSectorMatchesFilter(ef, c)) continue;
+
+                float px = (offset + (x - 0.5f) * gap) * mapScale;
+                float py = (offset + (z - 0.5f) * gap) * mapScale;
+                float pz = (offset + ((float)GALAXY_SIZE + 0.5f - y) * gap) * mapScale;
+                mat4 T_sec, S_sec;
+                mat4_translate(T_sec, (vec3){px, py, pz});
+
+                PushConstants pcSec = {0}; mat4_identity(pcSec.model);
+                if      (ef == 17 || (ef == 0 && quasar > 0))   { pcSec.color[0]=1.0f; pcSec.color[1]=0.0f; pcSec.color[2]=1.0f; }
+                else if (ef == 16 || (ef == 0 && monster > 0))  { pcSec.color[0]=1.0f; pcSec.color[1]=1.0f; pcSec.color[2]=1.0f; }
+                else if (ef == 15 || (ef == 0 && rift > 0))     { pcSec.color[0]=0.0f; pcSec.color[1]=1.0f; pcSec.color[2]=1.0f; }
+                else if (ef == 14 || (ef == 0 && platform > 0)) { pcSec.color[0]=0.8f; pcSec.color[1]=0.4f; pcSec.color[2]=0.0f; }
+                else if (ef == 13 || (ef == 0 && buoy > 0))     { pcSec.color[0]=0.0f; pcSec.color[1]=0.5f; pcSec.color[2]=1.0f; }
+                else if (ef == 12 || (ef == 0 && mine > 0))     { pcSec.color[0]=1.0f; pcSec.color[1]=0.0f; pcSec.color[2]=0.0f; }
+                else if (ef == 11 || (ef == 0 && derelict > 0)) { pcSec.color[0]=0.3f; pcSec.color[1]=0.3f; pcSec.color[2]=0.3f; }
+                else if (ef == 10 || (ef == 0 && asteroid > 0)) { pcSec.color[0]=0.5f; pcSec.color[1]=0.3f; pcSec.color[2]=0.1f; }
+                else if (ef == 9  || (ef == 0 && comet > 0))    { pcSec.color[0]=0.5f; pcSec.color[1]=0.8f; pcSec.color[2]=1.0f; }
+                else if (ef == 8  || (ef == 0 && storm > 0))    { pcSec.color[0]=1.0f; pcSec.color[1]=1.0f; pcSec.color[2]=1.0f; }
+                else if (ef == 7  || (ef == 0 && pul > 0))      { pcSec.color[0]=1.0f; pcSec.color[1]=0.5f; pcSec.color[2]=0.0f; }
+                else if (ef == 6  || (ef == 0 && neb > 0))      { pcSec.color[0]=0.7f; pcSec.color[1]=0.7f; pcSec.color[2]=0.7f; }
+                else if (ef == 5  || (ef == 0 && bh > 0))       { pcSec.color[0]=0.6f; pcSec.color[1]=0.0f; pcSec.color[2]=1.0f; }
+                else if (ef == 4  || (ef == 0 && (en > 0 || player > 0))) { pcSec.color[0]=1.0f; pcSec.color[1]=0.0f; pcSec.color[2]=0.0f; }
+                else if (ef == 3  || (ef == 0 && bs > 0))       { pcSec.color[0]=0.0f; pcSec.color[1]=1.0f; pcSec.color[2]=0.0f; }
+                else if (ef == 2  || (ef == 0 && pl > 0))       { pcSec.color[0]=0.0f; pcSec.color[1]=0.8f; pcSec.color[2]=1.0f; }
+                else if (ef == 1  || (ef == 0 && sst > 0))      { pcSec.color[0]=1.0f; pcSec.color[1]=1.0f; pcSec.color[2]=0.0f; }
+                else                                            { pcSec.color[0]=0.4f; pcSec.color[1]=0.4f; pcSec.color[2]=0.4f; }
+                pcSec.color[3] = 1.0f;
+
+                float scale = 0.15f;
+                if (quasar > 0) scale = 0.2f + sinf(pulse * 15.0f) * 0.08f;
+                else if (pul > 0) scale += sinf(pulse * 8.0f) * 0.05f;
+                else if (monster > 0) scale = 0.25f + sinf(pulse * 5.0f) * 0.05f;
+
+                if (is_my_q) {
+                    /* Player-quadrant highlight: always white wireframe. */
+                    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+                    vkCmdBindIndexBuffer(cb, app->cubeIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                    PushConstants pcMe = {0}; mat4_identity(pcMe.model);
+                    float meScale = (0.4f + sinf(pulse * 6.0f) * 0.15f) * mapScale;
+                    mat4 S_me; mat4_scale(S_me, (vec3){meScale, meScale, meScale});
+                    mat4_multiply(S_me, T_sec, pcMe.model);
+                    pcMe.color[0]=1.0f; pcMe.color[1]=1.0f; pcMe.color[2]=1.0f; pcMe.color[3]=0.8f; pcMe.usePushColor=1;
+                    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pcMe), &pcMe);
+                    vkCmdDrawIndexed(cb, sizeof(cubeIndices)/4, 1, 0, 0, 0);
+
+                    /* Restore the pipeline/indices used by the sector markers. */
+                    if (ef == 0) {
+                        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+                        vkCmdBindIndexBuffer(cb, app->cubeIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                    } else {
+                        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+                        vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                    }
+                }
+
+                if (val != 0) {
+                    float s = scale * mapScale;
+                    mat4_scale(S_sec, (vec3){s, s, s});
+                    mat4_multiply(S_sec, T_sec, pcSec.model);
+                    pcSec.usePushColor = (ef == 0 ? 1 : 5);
+                    pcSec.metallic = 0.5f; pcSec.roughness = 0.5f;
+                    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pcSec), &pcSec);
+                    vkCmdDrawIndexed(cb, (ef == 0 ? sizeof(cubeIndices) : sizeof(cubeSolidIndices)) / 4, 1, 0, 0, 0);
+                }
+            }
+        }
     }
 }
 

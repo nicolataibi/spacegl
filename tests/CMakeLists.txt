@@ -425,7 +425,12 @@ if(TARGET spacegl_vulkan)
     add_test(NAME golden
              COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_golden.sh
                      $<TARGET_FILE:spacegl_vulkan>)
-    set_tests_properties(golden PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600 RUN_SERIAL TRUE)
+    # The viewer resolves its SPIR-V shaders relative to the cwd
+    # ("build/shaders"), but ctest runs from <build>/tests: point it at
+    # the freshly compiled ones, otherwise it exits rc=1 and the runner
+    # reports a bogus "no Vulkan ICD" SKIP.
+    set_tests_properties(golden PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600 RUN_SERIAL TRUE
+                         ENVIRONMENT "SPACEGL_SHADERS_DIR=${CMAKE_BINARY_DIR}/shaders")
 endif()
 
 # --- GDD per-pass benchmark (2026.10.11.01) --------------------------
