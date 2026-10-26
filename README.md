@@ -15,7 +15,7 @@
 
 ### Persistent Galaxy Tactical Navigation & Combat Simulator
 
-[![Version](https://img.shields.io/badge/version-3.2-green)](https://github.com/nicolataibi/spacegl)
+[![Version](https://img.shields.io/badge/version-3.3-green)](https://github.com/nicolataibi/spacegl)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 [![Language: C](https://img.shields.io/badge/language-C-blue.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
 [![Graphics: OpenGL and Vulkan](https://img.shields.io/badge/graphics-OpenGL%20%7C%20Vulkan-orange.svg)](https://www.khronos.org/)
@@ -359,7 +359,7 @@ See `SECURITY.md` for the vulnerability-reporting policy, the threat model, and 
 | `ACCESSIBILITY.md` | Accessibility statement |
 | `LORE.md` | Gameplay reference, command manual, universe encyclopedia, historical lore, and release notes |
 | `SECURITY.md` | Vulnerability-reporting policy, security threat model, and audit registry |
-| `changelog` | Versioned change history (RPM-style, `YYYY.MM.DD.NN`) |
+| `CHANGELOG` | Versioned change history (RPM-style, `YYYY.MM.DD.NN`) |
 | `man/man1/` | Manual pages for the product binaries |
 
 ## Contributing

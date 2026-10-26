@@ -56,22 +56,15 @@
   {\color{RuleGray}\hrule width\headwidth height\headrulewidth}%
 }
 
-% Fallback esplicito per le emoji non presenti in DejaVu Serif.
+% Font di fallback per emoji e simboli speciali.
+% Le mappature \newunicodechar vengono generate automaticamente in emoji-fallback.tex
+% (eseguire generate-emoji-fallback.py per aggiornare il file).
 \usepackage{fontspec}
 \usepackage{newunicodechar}
 
-\newfontfamily\NotoEmoji{Noto Emoji}
+\newfontfamily\NotoEmoji{Noto Emoji}[BoldFont={Noto Emoji}]
+\newfontfamily\NotoSymbols{Noto Sans Symbols 2}[BoldFont={Noto Sans Symbols 2}]
 
-\newunicodechar{🌌}{{\NotoEmoji\symbol{"1F30C}}}
-\newunicodechar{🚀}{{\NotoEmoji\symbol{"1F680}}}
-\newunicodechar{🛠}{{\NotoEmoji\symbol{"1F6E0}}}
-\newunicodechar{📜}{{\NotoEmoji\symbol{"1F4DC}}}
-\newunicodechar{⚠}{{\NotoEmoji\symbol{"26A0}}}
-\newunicodechar{🛡}{{\NotoEmoji\symbol{"1F6E1}}}
-\newunicodechar{🖥}{{\NotoEmoji\symbol{"1F5A5}}}
-\newunicodechar{🛰}{{\NotoEmoji\symbol{"1F6F0}}}
-\newunicodechar{🎖}{{\NotoEmoji\symbol{"1F396}}}
-\newunicodechar{🌪}{{\NotoEmoji\symbol{"1F32A}}}
 % Tabelle multipagina con colonne elastiche e testo a capo.
 \usepackage{array}
 \usepackage{xltabular}

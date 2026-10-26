@@ -261,7 +261,7 @@ SECURITY.md if it pins an audit item.
 | `cmake/SpaceGLVulkanSDK.cmake` | the shared Vulkan SDK resolution chain |
 | `man/` | man pages (one per product binary) |
 | `spacegl.spec` | RPM spec (its `%check` runs the unit suite) |
-| `changelog` | the release log (versioned per change, `YYYY.MM.DD.NN`) |
+| `CHANGELOG` | the release log (versioned per change, `YYYY.MM.DD.NN`) |
 | `README.md` | product overview + technical sections |
 | `SECURITY.md` | threat model + audit registry (B items) |
 | `HOWTO.txt` | run instructions (key + server + clients) |

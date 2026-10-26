@@ -24,7 +24,7 @@ for cmd in pandoc xelatex python3 perl; do
 done
 
 for file in "${INPUTS[@]}" cover.tex pdf-style.tex html-assets.lua \
-            prepare-pdf-assets.py emoji-fallback.tex; do
+            prepare-pdf-assets.py generate-emoji-fallback.py; do
     [[ -f "$file" ]] || {
         printf 'Errore: file mancante: %s\n' "$file" >&2
         exit 1
@@ -33,6 +33,9 @@ done
 
 printf '%s\n' '===== PREPARAZIONE ASSET ====='
 python3 prepare-pdf-assets.py
+
+printf '\n%s\n' '===== GENERAZIONE FALLBACK EMOJI ====='
+python3 generate-emoji-fallback.py
 
 printf '\n%s\n' '===== PREPARAZIONE README PER PDF ====='
 

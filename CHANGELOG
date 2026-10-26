@@ -1,75 +1,165 @@
+* Sun Oct 25 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.26.01
+  - Docs: build-pdf minor fixes, rename changelog to CHANGELOG
+
 * Sun Oct 25 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.25.02
-  - Vulkan CPU-driven Galaxy Map fix (src/vulkan_scene.c): the `map` command drew only the galaxy frame and the player marker, so the sector cubes were missing. The sector loop of drawGalaxyMap() was lost in the 2026.10.17.01 modular refactoring; it is restored (wireframe cubes with filter 0, solid PBR cubes with filter > 0, white wireframe highlight on the player quadrant, per-type colours and filters as before). The player marker now uses the same cell-centre mapping as the sector cubes. OpenGL and GPU-driven paths are untouched.
+  - Vulkan CPU-driven Galaxy Map fix (src/vulkan_scene.c): the `map` command
+  drew only the galaxy frame and the player marker, so the sector cubes were
+  missing. The sector loop of drawGalaxyMap() was lost in the 2026.10.17.01
+  modular refactoring; it is restored (wireframe cubes with filter 0, solid PBR
+  cubes with filter > 0, white wireframe highlight on the player quadrant, per-
+  type colours and filters as before). The player marker now uses the same cell-
+  centre mapping as the sector cubes. OpenGL and GPU-driven paths are untouched.
   - Tests: fix golden.
 
 * Sun Oct 25 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.25.01
-  - Lore & Docs (LORE.md): added the Version 3.3 Highlights block, the new historical archive story "The Eternal Noon" (10 chapters) and a technical section mapping the 0..177 object catalog (natural moons, evolved stars, protostellar & YSO objects, exotic compact objects).
+  - Lore & Docs (LORE.md): added the Version 3.3 Highlights block, the new
+  historical archive story "The Eternal Noon" (10 chapters) and a technical
+  section mapping the 0..177 object catalog (natural moons, evolved stars,
+  protostellar & YSO objects, exotic compact objects).
 
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.20
-  - Galactic Object Legend Table (LORE.md): completed and verified the full HTML reference table covering all 177 catalog entries (slots 1..177), including base moons (89..98), exotic compact objects (100..131), evolved stars (132..148), protostellar & YSO objects (149..164), and extended natural moons (165..177).
+  - Galactic Object Legend Table (LORE.md): completed and verified the full HTML
+  reference table covering all 177 catalog entries (slots 1..177), including
+  base moons (89..98), exotic compact objects (100..131), evolved stars
+  (132..148), protostellar & YSO objects (149..164), and extended natural moons
+  (165..177).
 
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.19
   - Galactic Lore & Comprehensive Astronomical Encyclopedia (LORE.md):
-      * Pre-Main-Sequence & YSO Modeling: detailed all 16 Protostellar & Young Stellar Object classes (slots 149..164) across the 6 major evolutionary phases (Class 0, Class I, Herbig-Haro, T Tauri CTTS/WTTS, Herbig Ae/Be, FUor/EXor accretion outbursts, and circumstellar accretion structures).
-      * Complete 23 Natural Moons Classification: documented the entire planetary satellite ecosystem, combining base regular/irregular moons (slots 89..98) and extended moons (slots 165..177) with dedicated sections for orbital/rotational properties (retrograde, resonant, tidally locked, chaotic rotation) and physical archetypes (cryovolcanic geysers, sub-lunar ring systems, subsurface oceans, and tidal disruption).
-      * Shared Astronomical Predicates Documentation: cataloged the query API (obj_type_is_retrograde_moon, obj_type_is_ocean_moon, obj_type_is_volcanic_moon, obj_type_is_tidally_locked_moon, obj_type_is_chaotic_rotator_moon, obj_type_is_embedded_moon, obj_type_is_ringed_moon, obj_type_is_disrupted_moon) for cross-subsystem property inspection.
-      * Tactical Telemetry Channel Coverage: expanded instrumented channel specifications to 171 independent real-time categories with 100% monitor coverage.
+  * Pre-Main-Sequence & YSO Modeling: detailed all 16 Protostellar & Young
+  Stellar Object classes (slots 149..164) across the 6 major evolutionary phases
+  (Class 0, Class I, Herbig-Haro, T Tauri CTTS/WTTS, Herbig Ae/Be, FUor/EXor
+  accretion outbursts, and circumstellar accretion structures).
+  * Complete 23 Natural Moons Classification: documented the entire planetary
+  satellite ecosystem, combining base regular/irregular moons (slots 89..98) and
+  extended moons (slots 165..177) with dedicated sections for orbital/rotational
+  properties (retrograde, resonant, tidally locked, chaotic rotation) and
+  physical archetypes (cryovolcanic geysers, sub-lunar ring systems, subsurface
+  oceans, and tidal disruption).
+  * Shared Astronomical Predicates Documentation: cataloged the query API
+  (obj_type_is_retrograde_moon, obj_type_is_ocean_moon,
+  obj_type_is_volcanic_moon, obj_type_is_tidally_locked_moon,
+  obj_type_is_chaotic_rotator_moon, obj_type_is_embedded_moon,
+  obj_type_is_ringed_moon, obj_type_is_disrupted_moon) for cross-subsystem
+  property inspection.
+  * Tactical Telemetry Channel Coverage: expanded instrumented channel
+  specifications to 171 independent real-time categories with 100% monitor
+  coverage.
 
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.18
-  - Extended Natural Moons & Orbital Dynamics: added 13 advanced moon categories (types 165..177) and astronomical predicates:
-      * Astronomical Classification (include/object_types.h): added 13 extended moon classes: Retrograde Moon, Resonant Moon, Tidally Locked Moon, Chaotic Rotator Moon, Embedded Moonlet, Captured Moon, Cryovolcanic Moon, Tidal-Heated Moon, Differentiated Moon, Binary Moon, Ringed Moon, Subsurface Ocean Moon, and Disrupted Moon.
-      * Scientific Property Predicates: added obj_type_is_retrograde_moon(), obj_type_is_ocean_moon(), obj_type_is_volcanic_moon(), obj_type_is_tidally_locked_moon(), obj_type_is_chaotic_rotator_moon(), obj_type_is_embedded_moon(), obj_type_is_captured_moon(), obj_type_is_binary_moon(), obj_type_is_ringed_moon(), and obj_type_is_disrupted_moon().
-      * Orbital Dynamics Engine (include/moon_orbits.h): integrated true retrograde inclination angles, orbital resonance harmonics, low-inclination ring embedding, and tidal disruption proximity.
-      * Galaxy Generation & Seeding (src/server/galaxy.c): distributed spawning across all 23 moon types with automatic seeding and backward-compatible loading of existing galaxy saves without overflowing cosmic feature capacity.
-      * Multi-Renderer Integration (src/vulkan_gdd_build.c, src/vulkan_render.c, src/spacegl_3dview.c): unified RGB palette and scale metrics (obj_moon_any_rgb, obj_moon_any_scale) across GPU-driven Vulkan, CPU-driven Vulkan, and OpenGL 3D viewer (with mini-ring rendering for ringed moons).
-      * Diagnostics & Telemetry (src/spacegl_diag.c, include/telemetry.h, src/telemetry_server.c, src/spacegl_telemetry.c): integrated extended moons into live memory inspector, server monitors, and Ncurses tactical client.
+  - Extended Natural Moons & Orbital Dynamics: added 13 advanced moon categories
+  (types 165..177) and astronomical predicates:
+  * Astronomical Classification (include/object_types.h): added 13 extended moon
+  classes: Retrograde Moon, Resonant Moon, Tidally Locked Moon, Chaotic Rotator
+  Moon, Embedded Moonlet, Captured Moon, Cryovolcanic Moon, Tidal-Heated Moon,
+  Differentiated Moon, Binary Moon, Ringed Moon, Subsurface Ocean Moon, and
+  Disrupted Moon.
+  * Scientific Property Predicates: added obj_type_is_retrograde_moon(),
+  obj_type_is_ocean_moon(), obj_type_is_volcanic_moon(),
+  obj_type_is_tidally_locked_moon(), obj_type_is_chaotic_rotator_moon(),
+  obj_type_is_embedded_moon(), obj_type_is_captured_moon(),
+  obj_type_is_binary_moon(), obj_type_is_ringed_moon(), and
+  obj_type_is_disrupted_moon().
+  * Orbital Dynamics Engine (include/moon_orbits.h): integrated true retrograde
+  inclination angles, orbital resonance harmonics, low-inclination ring
+  embedding, and tidal disruption proximity.
+  * Galaxy Generation & Seeding (src/server/galaxy.c): distributed spawning
+  across all 23 moon types with automatic seeding and backward-compatible
+  loading of existing galaxy saves without overflowing cosmic feature capacity.
+  * Multi-Renderer Integration (src/vulkan_gdd_build.c, src/vulkan_render.c,
+  src/spacegl_3dview.c): unified RGB palette and scale metrics
+  (obj_moon_any_rgb, obj_moon_any_scale) across GPU-driven Vulkan, CPU-driven
+  Vulkan, and OpenGL 3D viewer (with mini-ring rendering for ringed moons).
+  * Diagnostics & Telemetry (src/spacegl_diag.c, include/telemetry.h,
+  src/telemetry_server.c, src/spacegl_telemetry.c): integrated extended moons
+  into live memory inspector, server monitors, and Ncurses tactical client.
 
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.17
-  - Protostellar & Young Stellar Objects (YSO): full scientific implementation (Option B) across engine, server, and clients:
-      * Astronomical Classification (include/object_types.h): added 16 protostellar & YSO classes (types 149..164): Class 0 Protostar, Class 0 Bipolar Outflow, Class I Protostar, Class I Jet, Herbig-Haro Knot, Herbig-Haro Bow Shock, Classical T Tauri Star (CTTS), Weak-Lined T Tauri Star (WTTS), Herbig Ae Star, Herbig Be Star, FU Orionis Variable, EX Lupi Variable, Pre-Stellar Core, Envelope Cavity, Accretion Disk, and Accretion Column Stream with scientific color palettes and scale metrics.
-      * Astrophysical Nursery Clustering & Persistence (src/server/galaxy.c, include/game_config.h): added nursery-based spawning clustered within Giant Molecular Clouds and Dark Nebulae with automatic seeding and backward-compatible loading of existing galaxy saves.
-      * Vulkan Graphics & PBR Plasma Hyper-Warp Shaders (src/vulkan_gdd_build.c, src/vulkan_render.c): full Vulkan GDD metadata visual pipeline mapping with dedicated Hyper-Warp plasma shaders, infrared emission palettes, and sphere buffer bindings.
-      * 3D Viewer & HUD Integration (src/spacegl_3dview.c, src/spacegl_hud.c): added fallback drawing, HUD targeting class identification ("PROTOST."), and 3D overlay rendering.
-      * File Inspector (src/spacegl_viewer.c): integrated protostellar stats counting, quadrant listing, searching, and formatted astrometric reporting.
-      * Real-Time Diagnostics (src/spacegl_diag.c): added dedicated "PROTOSTELLAR OBJECTS (YSO)" diagnostic page (CAT_PROTOSTELLAR) and integration in CAT_COSMIC_ALL with live memory inspection (YSxxxx).
-      * Telemetry Subsystem (include/telemetry.h, src/telemetry_server.c, src/spacegl_telemetry.c): added 16 protostellar telemetry categories to server monitors, object descriptors, cache populator, and Ncurses tactical telemetry client.
+  - Protostellar & Young Stellar Objects (YSO): full scientific implementation
+  (Option B) across engine, server, and clients:
+  * Astronomical Classification (include/object_types.h): added 16 protostellar
+  & YSO classes (types 149..164): Class 0 Protostar, Class 0 Bipolar Outflow,
+  Class I Protostar, Class I Jet, Herbig-Haro Knot, Herbig-Haro Bow Shock,
+  Classical T Tauri Star (CTTS), Weak-Lined T Tauri Star (WTTS), Herbig Ae Star,
+  Herbig Be Star, FU Orionis Variable, EX Lupi Variable, Pre-Stellar Core,
+  Envelope Cavity, Accretion Disk, and Accretion Column Stream with scientific
+  color palettes and scale metrics.
+  * Astrophysical Nursery Clustering & Persistence (src/server/galaxy.c,
+  include/game_config.h): added nursery-based spawning clustered within Giant
+  Molecular Clouds and Dark Nebulae with automatic seeding and backward-
+  compatible loading of existing galaxy saves.
+  * Vulkan Graphics & PBR Plasma Hyper-Warp Shaders (src/vulkan_gdd_build.c,
+  src/vulkan_render.c): full Vulkan GDD metadata visual pipeline mapping with
+  dedicated Hyper-Warp plasma shaders, infrared emission palettes, and sphere
+  buffer bindings.
+  * 3D Viewer & HUD Integration (src/spacegl_3dview.c, src/spacegl_hud.c): added
+  fallback drawing, HUD targeting class identification ("PROTOST."), and 3D
+  overlay rendering.
+  * File Inspector (src/spacegl_viewer.c): integrated protostellar stats
+  counting, quadrant listing, searching, and formatted astrometric reporting.
+  * Real-Time Diagnostics (src/spacegl_diag.c): added dedicated "PROTOSTELLAR
+  OBJECTS (YSO)" diagnostic page (CAT_PROTOSTELLAR) and integration in
+  CAT_COSMIC_ALL with live memory inspection (YSxxxx).
+  * Telemetry Subsystem (include/telemetry.h, src/telemetry_server.c,
+  src/spacegl_telemetry.c): added 16 protostellar telemetry categories to server
+  monitors, object descriptors, cache populator, and Ncurses tactical telemetry
+  client.
 
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.16
-  - Tactical Real-time Scanner (spacegl_diag): fixed navigation menu layout, responsiveness, and completeness (src/spacegl_diag.c):
-      * Responsive multi-column layout: eliminated hardcoded 4-column 22-row grid that exceeded terminal boundaries (>170 columns width) and caused line wrapping to overwrite/truncate the first column on the left.
-      * Screen boundary safety & auto-fitting: menu items, headers, and table rows are dynamically bounded and safely formatted to never exceed LINES or COLS on any terminal geometry.
-      * Multi-page menu pagination: integrated menu screen pagination (with PgUp/PgDn, P/N, Home/End support) ensuring all 88 categories are fully reachable regardless of terminal size (80x24, 120x30, 140x40, etc.).
-      * Directional navigation: adjusted KEY_LEFT/KEY_RIGHT and KEY_UP/KEY_DOWN to adapt dynamically to visible column row counts with wraparound.
-      * Comprehensive cosmic features: added 'ALL COSMIC FEATURES' (CAT_COSMIC_ALL) page in addition to dedicated sub-category pages for Natural Moons, Exotic Compact Objects, and Evolved Stars.
-      * Standardized category names: expanded abbreviated titles to full descriptive terminology.
+  - Tactical Real-time Scanner (spacegl_diag): fixed navigation menu layout,
+  responsiveness, and completeness (src/spacegl_diag.c):
+  * Responsive multi-column layout: eliminated hardcoded 4-column 22-row grid
+  that exceeded terminal boundaries (>170 columns width) and caused line
+  wrapping to overwrite/truncate the first column on the left.
+  * Screen boundary safety & auto-fitting: menu items, headers, and table rows
+  are dynamically bounded and safely formatted to never exceed LINES or COLS on
+  any terminal geometry.
+  * Multi-page menu pagination: integrated menu screen pagination (with
+  PgUp/PgDn, P/N, Home/End support) ensuring all 88 categories are fully
+  reachable regardless of terminal size (80x24, 120x30, 140x40, etc.).
+  * Directional navigation: adjusted KEY_LEFT/KEY_RIGHT and KEY_UP/KEY_DOWN to
+  adapt dynamically to visible column row counts with wraparound.
+  * Comprehensive cosmic features: added 'ALL COSMIC FEATURES' (CAT_COSMIC_ALL)
+  page in addition to dedicated sub-category pages for Natural Moons, Exotic
+  Compact Objects, and Evolved Stars.
+  * Standardized category names: expanded abbreviated titles to full descriptive
+  terminology.
 
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.15
   - Tactical Real-time Scanner (spacegl_diag): integrated cosmic features into
     the live Ncurses diagnostic tool (src/spacegl_diag.c):
-      * Symbol resolution: dynamically resolve cosmic_features and cosmic_feature_count
+  * Symbol resolution: dynamically resolve cosmic_features and
+  cosmic_feature_count
         symbols in the running spacegl_server process via ELF symbol table scanning.
-      * Category & Page navigation: added dedicated diagnostic pages for Natural Moons
+  * Category & Page navigation: added dedicated diagnostic pages for Natural
+  Moons
         (CAT_MOON), Exotic Compact Objects (CAT_EXOTIC), and Evolved Stars (CAT_EVOLVED_STAR).
-      * Process VM reading: inspect and display active instances from remote server memory
+  * Process VM reading: inspect and display active instances from remote server
+  memory
         with IDs (MNxxxx, EXxxxx, EVxxxx), exact coordinates, sector positions, and status flags.
 
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.14
   - SpaceGL Galaxy File Inspector (spacegl_viewer): integrated cosmic features
     and all astrophysical entities into src/spacegl_viewer.c:
-      * Galaxy persistence read: load cosmic_features array from galaxy.dat alongside
+  * Galaxy persistence read: load cosmic_features array from galaxy.dat
+  alongside
         legacy and current sizes instead of skipping it with fseek, and restored missing
         subspace_anomalies block to maintain exact byte alignment with server file format.
-      * Extended statistics (stats): count and display active totals for all 38
+  * Extended statistics (stats): count and display active totals for all 38
         astrophysical features, 10 Natural Moons, 17 Evolved Stars, and 32 Exotic Compact Objects.
-      * Complete report: localize and report all active cosmic_features (MOON, EVOLVED,
+  * Complete report: localize and report all active cosmic_features (MOON,
+  EVOLVED,
         EXOTIC) with their IDs, names, and coordinates in 'spacegl_viewer report'.
-      * Comprehensive quadrant listing (list) & search: list all astrophysical objects and
+  * Comprehensive quadrant listing (list) & search: list all astrophysical
+  objects and
         cosmic features in quadrant slices, and search cosmic entities by name.
-      * Faction & type resolver: updated get_faction_name to resolve all object types
+  * Faction & type resolver: updated get_faction_name to resolve all object
+  types
         via obj_type_name().
 
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.13
-  - Telemetry Server & Client coverage table: extended telemetry subsystem (include/telemetry.h,
+  - Telemetry Server & Client coverage table: extended telemetry subsystem
+  (include/telemetry.h,
     src/telemetry_server.c, src/spacegl_telemetry.c) to register and display all 10 Natural Moons
     (types 89..98) and 17 Evolved Stars (types 132..148) in the server diagnostic coverage table
     (CATEGORY | STATUS | ACTIVE ENTITIES), active object descriptors (MNxxxx / EVxxxx), and
@@ -79,16 +169,21 @@
   - OpenGL viewer planet scale: enlarged planet dimensions again by 100% in the
     OpenGL rendering path (src/spacegl_3dview_tables.inc drawPlanet), doubling planet sphere
     radius from 0.6 to 1.2 and atmosphere envelope from 0.64 to 1.28.
-  - Moon orbit spacing & Vulkan clearance: innermost orbit distance (MOON_ORBIT_MIN_RADIUS)
+  - Moon orbit spacing & Vulkan clearance: innermost orbit distance
+  (MOON_ORBIT_MIN_RADIUS)
     increased again by 50% from 2.25 to 3.375 in include/moon_orbits.h. Consecutive orbit
     spacing (MOON_ORBIT_STEP) calibrated at 2.43 (1.5x regular moon diameter in Vulkan:
     1.5 * 1.62 = 2.43), with MOON_ORBIT_MAX_RADIUS safely bounded at 10.915.
-  - Astrometrics Report expansion for new objects: updated server galaxy astrometrics
+  - Astrometrics Report expansion for new objects: updated server galaxy
+  astrometrics
     reporting (src/server/galaxy.c) in both load_galaxy() (persistent load) and
     generate_galaxy() (generation) to fully display:
-      * Natural Moons in orbit (total count and complete breakdown for all 10 moon classes).
-      * Evolved Stars (total count and complete breakdown for all 17 stellar classes).
-      * Dedicated summary slots for Natural Moons and Evolved Stars in the top report banner.
+  * Natural Moons in orbit (total count and complete breakdown for all 10 moon
+  classes).
+  * Evolved Stars (total count and complete breakdown for all 17 stellar
+  classes).
+  * Dedicated summary slots for Natural Moons and Evolved Stars in the top
+  report banner.
 
 
 * Sat Oct 24 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.24.11
@@ -109,7 +204,8 @@
     algorithm in include/moon_orbits.h (moon_pick_planet) now operates with a two-pass
     approach, giving each eligible planet its first moon before allocating secondary
     or multi-moon systems (up to MOON_MAX_PER_PLANET = 4).
-  - Orbital speed acceleration: the base orbital period (MOON_ORBIT_BASE_PERIOD_S)
+  - Orbital speed acceleration: the base orbital period
+  (MOON_ORBIT_BASE_PERIOD_S)
     has been calibrated from 1200 s (20 min) down to 60.0 s (1 min) for the innermost
     orbit, while preserving Keplerian scaling (~ r^1.5) for outer orbits. The orbital
     motion is now clearly observable in real-time in both Vulkan and OpenGL 3D viewers.
@@ -117,19 +213,22 @@
     bounded to [MOON_ORBIT_MAX_RADIUS, QUADRANT_SIZE - MOON_ORBIT_MAX_RADIUS] both at
     galaxy generation and during load, making 100% of galaxy planets eligible to host
     moons without orbits ever crossing quadrant boundaries.
-  - Scaled moon generation & dynamic backward compatibility: spawn_moons() now dynamically
+  - Scaled moon generation & dynamic backward compatibility: spawn_moons() now
+  dynamically
     ensures enough moon instances are generated to cover all active planets plus multi-moon
     systems (GALAXY_CREATE_MOON_PER_TYPE = 100, MAX_COSMIC_FEATURES expanded to 2048).
     load_galaxy() reads legacy and updated galaxy.dat files smoothly and automatically
     tops up any loaded galaxy lacking enough moons.
-  - Vulkan GDD planet coordinate fix: removed a rogue override in vulkan_gdd_build.c
+  - Vulkan GDD planet coordinate fix: removed a rogue override in
+  vulkan_gdd_build.c
     that mapped planet depth from Z instead of Y. Because the planet was offset along
     the depth axis by (Z_planet - Y_planet) away from the true center of the moon's
     orbit, moons appeared to oscillate back and forth along an arc off to one side of
     the planet rather than circling around it. Planets now correctly use the standard
     (X, Z, -Y) centered mapping in parity with the CPU path, placing the planet precisely
     at the geometric center of all its orbiting moons.
-  - Tests: moon_orbit_test updated with speed checks for the 60 s base period and a new
+  - Tests: moon_orbit_test updated with speed checks for the 60 s base period
+  and a new
     verification that every planet receives >= 1 moon when moon count >= planet count.
     gdd_contract_test objects mapping verified with corrected centered coordinates.
     LORE.md updated.
@@ -148,7 +247,8 @@
     derived from the moon id (hash) and the order of the moons, so the same
     galaxy gives the same orbits after a restart, and the angle comes from the
     wall clock, so the moons keep moving while the server is off. Moons saved
-    by 2026.10.24.08 at random positions are attached on load.
+    by 2026.10.24.08
+  at random positions are attached on load.
   - Server: attach_moons_to_planets() runs after load or generation and before
     init_static_spatial_index(): it moves each moon into its planet's quadrant.
     update_moon_orbits() runs every tick. Only planets at least 4.45 units
@@ -283,7 +383,8 @@
     An object type that is not in object_types.h is still drawn (generic
     cosmic look) but now logs a rate-limited warning instead of failing
     silently.
-  - Vulkan GDD: stars follow the 2026.10.24.02 spectral classes (ship_class
+  - Vulkan GDD: stars follow the 2026.10.24.02
+  spectral classes (ship_class
     0..6 = O,B,A,F,G,K,M): the GPU-driven builder still used the old
     4-class palette; builder and CPU Vulkan path now share one palette
     (obj_star_class_rgb() in object_types.h, same colours as drawStar in
@@ -506,7 +607,7 @@
 * Wed Oct 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.21.04
   - CI fix: the stability test no longer aborts the server on the GitHub
     Actions clang Debug (ASan/UBSan) job.
-    - OpenMP: a plain schedule(dynamic[, n]) is nonmonotonic since OpenMP
+  - OpenMP: a plain schedule(dynamic[, n]) is nonmonotonic since OpenMP
       5.0 and LLVM's libomp maps it to its work-stealing algorithm
       (kmp_sch_static_steal), whose stealing code asserted in the server
       ("OMP: Error #13: Assertion failure at kmp_dispatch.cpp(1617)"),
@@ -515,7 +616,7 @@
       schedule(monotonic: dynamic[, n]): the iterations are independent,
       so the plain shared-counter dynamic schedule costs nothing and the
       stealing path is never entered. GCC's libgomp is unaffected.
-    - stability: with clang the ASan + libomp combination adds per-thread
+  - stability: with clang the ASan + libomp combination adds per-thread
       allocator state that grows with the OpenMP thread count (+11-12 MB
       with 4 threads, constant between a 60 s and a 120 s window, so not
       a leak; +1 MB in the Release build). The sanitized jobs now use a
@@ -526,7 +627,7 @@
 * Wed Oct 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.21.03
   - CI fix: the stability test no longer fails on the GitHub Actions Debug
     (ASan/UBSan) jobs with a false memory-leak report.
-    - stability: the Debug matrix jobs pass -fsanitize=address,undefined in
+  - stability: the Debug matrix jobs pass -fsanitize=address,undefined in
       CMAKE_C_FLAGS, which also instruments spacegl_server and
       spacegl_client, the production binaries stability_test.sh runs. ASan
       keeps every freed block in a quarantine (256 MB by default) before
@@ -544,8 +645,9 @@
 
 * Wed Oct 21 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.21.01
   - Bug fix & CI: fixes the server_tick_bench %check failure of
-    2026.10.20.01 on COPR Fedora 45 even after the threshold re-baseline.
-    - server_tick_bench: the benchmark measures wall-clock time and its
+    2026.10.20.01
+  on COPR Fedora 45 even after the threshold re-baseline.
+  - server_tick_bench: the benchmark measures wall-clock time and its
       OpenMP loops (logic_events.c) use every core, but RPM's %ctest
       (like any `ctest -j`) runs the tests in parallel, so it shared the
       builder with stability, the fuzz corpus and the other tests. With
@@ -560,16 +662,17 @@
       threshold gate into --report-only when set to OFF: the numbers are
       still printed in the log but a wall-clock measurement can no
       longer fail the build on a shared farm. spacegl.spec passes
-      -DSPACEGL_TICK_BENCH_GATE=OFF in %conf; local builds and the
+  -DSPACEGL_TICK_BENCH_GATE=OFF in %conf; local builds and the
       GitHub Actions matrix keep the gate ON for optimized,
       non-instrumented builds. The thresholds (15.3 / 31.6 ms) are
       unchanged.
 
 * Tue Oct 20 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.20.01
-  - Bug fix & CI: fixes the %check failures of 2026.10.19.01 (COPR
+  - Bug fix & CI: fixes the %check failures of 2026.10.19.01
+  (COPR
     Fedora 45 and the GitHub Actions matrix: stability, server_tick_bench
     and, on the lavapipe job, gdd_mesh).
-    - stability: the client's SIGCHLD handler reaped the visualizer
+  - stability: the client's SIGCHLD handler reaped the visualizer
       child before the startup wait loop's waitpid() could see it, so a
       dead viewer (execlp failed in a headless build chroot, no
       spacegl_3dview on PATH) cost the full 5 s visualizer timeout;
@@ -580,7 +683,7 @@
       reap (g_visualizer_reaped) and the wait loop breaks within 10 ms;
       stability_test.sh also polls the sync marker (10 s deadline)
       instead of a one-shot sleep+grep.
-    - gdd_mesh: gdd_expand.comp invocation 0 read vertices_dropped to
+  - gdd_mesh: gdd_expand.comp invocation 0 read vertices_dropped to
       set overflow_frame while the other workgroups were still running -
       a data race that on lavapipe (serial workgroup execution,
       invocation 0 first) deterministically left overflow_frame=0 in
@@ -588,7 +691,7 @@
       1)"). The flag is now set atomically (atomicMax) at drop time in
       gdd_reserve() (assets/shaders/gdd_ops.glsl); the racy post-pass
       check is removed from gdd_expand.comp.
-    - server_tick_bench: the 8.0/12.0 ms thresholds were derived from
+  - server_tick_bench: the 8.0/12.0 ms thresholds were derived from
       the 16.7 ms frame budget and did not hold on the slowest CI
       hardware (GitHub ubuntu-latest 2-vCPU shared runner: avg 10.162
       ms; COPR Fedora 45 shared builder: p99 21.015 ms of scheduler
@@ -601,7 +704,7 @@
 * Mon Oct 19 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.19.01
   - Testing & QA (Prompt 6/10): granular golden render, server tick
     benchmark, long-running stability test, real-GPU CI job.
-    - Golden render: replaced the single global RMSE (25.0 parity /
+  - Golden render: replaced the single global RMSE (25.0 parity /
       5.0 regression) with a 4-region comparison in tests/golden_test.py
       (center 0.25-0.75 / top-left / top-right / bottom, bounds as
       fractions of the image so any resolution works) plus a global RMSE
@@ -614,7 +717,7 @@
       path). A per-region report is printed on EVERY run (CI traceability).
       Updated: tests/golden_test.py, tests/run_golden.sh, the gpu job in
       .github/workflows/ci.yml.
-    - NEW server tick benchmark (16th test): tests/server_tick_bench.c
+  - NEW server tick benchmark (16th test): tests/server_tick_bench.c
       runs 1000 ticks of the REAL game loop (update_game_logic +
       global_tick++ + spacegl_master.frame_id++ under game_mutex, the
       exact spacegl_server.c sequence) over a worst-case-but-stable
@@ -634,9 +737,9 @@
       send_pending_updates and the epoll loop, which are not measured). A
       refactoring that doubles the tick time is visible in the CI log;
       one that quadruples it fails. Re-baseline: --update-thresholds.
-    - NEW long-running stability test (17th test):
+  - NEW long-running stability test (17th test):
       tests/stability_test.sh runs the REAL server (throwaway
-      --data-dir) + the REAL client (fresh recruit login, then one "pos"
+  --data-dir) + the REAL client (fresh recruit login, then one "pos"
       command every 2 s to keep the traffic active) for 60 s and checks
       the server's RSS delta from /proc/<pid>/status: a growth above 10 MB
       (~170 B/tick, i.e. ~36 MB/h leak, must fail; steady state stays
@@ -646,7 +749,7 @@
       CTest (TIMEOUT 120, PASS/FAIL regular expressions, skip 77
       without the product binaries); excluded from fast local runs with
       ctest -E "stability", run explicitly by the CI smoke job.
-    - NEW CI job gpu_real (.github/workflows/ci.yml): the GDD benchmark
+  - NEW CI job gpu_real (.github/workflows/ci.yml): the GDD benchmark
       (same committed threshold), the region-based golden render and a
       1-frame GDD smoke (screenshot must be neither black nor white) on
       a SELF-HOSTED runner labeled "gpu" with a real NVIDIA/AMD/Intel
@@ -654,7 +757,7 @@
       Gated on the repo variable GPU_RUNNER_ENABLED (skipped, not
       pending, while no GPU runner is configured) plus a runtime lspci
       check (a labeled runner without a GPU passes with "skipping").
-    - Suite: 15 -> 17 tests (16 in the fast set + stability); the 15
+  - Suite: 15 -> 17 tests (16 in the fast set + stability); the 15
       previous tests are unchanged and pass.
 
 * Sun Oct 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.18.03
@@ -671,71 +774,78 @@
 
 * Sun Oct 18 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.18.01
   - Documentation:
-    - Added `FAQ.md`, `INSTALL.md`, and `BUILD.md` to document frequently
+  - Added `FAQ.md`, `INSTALL.md`, and `BUILD.md` to document frequently
       asked questions, installation procedures, and build instructions.
-    - Added `SECURITY.md`, `CODE_OF_CONDUCT.md`, and `CONTRIBUTING.md` to
+  - Added `SECURITY.md`, `CODE_OF_CONDUCT.md`, and `CONTRIBUTING.md` to
       establish security reporting procedures, community standards, and
       contribution guidelines.
-    - Added `ACCESSIBILITY.md` to document the project's accessibility
+  - Added `ACCESSIBILITY.md` to document the project's accessibility
       objectives and feedback procedures.
-    - Improved the repository's documentation structure to support
+  - Improved the repository's documentation structure to support
       maintainability, transparency, and community collaboration.
 
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.07
   - Vulkan GDD: refactored MSAA configuration (rimozione global mutable):
-    - Sostituito extern uint32_t gdd_msaa_samples con enum GddMsaaMode
+  - Sostituito extern uint32_t gdd_msaa_samples con enum GddMsaaMode
       { GDD_MSAA_OFF=0, GDD_MSAA_4X=1 } in include/spacegl_gdd.h: type-safe,
       nessun valore non valido possibile (era accettato qualsiasi uint32_t).
-    - Rimossi GDD_MSAA_SAMPLES_DEFAULT e GDD_MSAA_SAMPLES_OFF (#define a
+  - Rimossi GDD_MSAA_SAMPLES_DEFAULT e GDD_MSAA_SAMPLES_OFF (#define a
       valore numerico), sostituiti dall'enum; rimossa la definizione globale
       da vulkan_gdd_render.c e l'extern dall'header.
-    - Aggiornata firma gdd_init(VulkanApp *app) in
+  - Aggiornata firma gdd_init(VulkanApp *app) in
       gdd_init(VulkanApp *app, GddMsaaMode msaa_mode): il flag no_msaa viene
       passato direttamente al punto d'uso invece di essere scritto in un
       global e riletto separatamente, eliminando il accoppiamento
       temporale vulkan_main → gdd_init.
-    - Rimosso il blocco setter da vulkan_main.c (9 righe); il call site
+  - Rimosso il blocco setter da vulkan_main.c (9 righe); il call site
       diventa: gdd_init(app, s_no_msaa ? GDD_MSAA_OFF : GDD_MSAA_4X).
-    - 15/15 test pass invariati.
+  - 15/15 test pass invariati.
 
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.06
-  - Vulkan GDD Rendering: MSAA parity, feedback buffer, vertex overflow observability:
-    - Added MSAA support to the GDD path (gdd_msaa_samples, GDD_MSAA_SAMPLES_DEFAULT=4,
+  - Vulkan GDD Rendering: MSAA parity, feedback buffer, vertex overflow
+  observability:
+  - Added MSAA support to the GDD path (gdd_msaa_samples,
+  GDD_MSAA_SAMPLES_DEFAULT=4,
       GDD_MSAA_SAMPLES_OFF=1) matching the CPU path 4x multisampling; --no-msaa flag
       propagated from vulkan_main.c to gdd_init via gdd_msaa_samples (removes visual
       aliasing difference between the two architectures).
-    - Added GddFrameFeedback struct (32 bytes, _Static_assert enforced) with
+  - Added GddFrameFeedback struct (32 bytes, _Static_assert enforced) with
       vertices_written, vertices_dropped, overflow_frame, and pad fields; binding 4 in
       gdd_expand.comp; zeroed via vkCmdFillBuffer each frame; persistently HOST_VISIBLE
       mapped for CPU readback.
-    - Updated gdd_ops.glsl gdd_reserve() to atomically report vertices_written and
+  - Updated gdd_ops.glsl gdd_reserve() to atomically report vertices_written and
       vertices_dropped to the feedback buffer; gdd_expand.comp invocation 0 sets
       overflow_frame when any vertex was dropped.
-    - Added per-frame GddPerfMetrics (cpu_ms, vertices_written, vertices_dropped,
+  - Added per-frame GddPerfMetrics (cpu_ms, vertices_written, vertices_dropped,
       frame_count) and gdd_check_feedback() in gdd_draw_frame() with overflow warnings
       (first occurrence + every 60 frames for continuous overflow).
-    - Reduced GDD_VERTEX_CAPACITY from 4,194,304 to 512,000 with overflow behavior
+  - Reduced GDD_VERTEX_CAPACITY from 4,194,304 to 512,000 with overflow behavior
       documented in spacegl_gdd.h ("drop-when-full" policy, same as CPU path).
-    - Expanded gdd_mesh_test feedback buffer integration: added b_feedback allocation
+  - Expanded gdd_mesh_test feedback buffer integration: added b_feedback
+  allocation
       (STORAGE|TRANSFER_DST, HOST_VISIBLE+HOST_COHERENT), binding 4 descriptor writes
       for both set_exp_dyn and set_exp_map, vkCmdFillBuffer zero in run_cull(), and
       feedback assertions (vertices_written==gpu_total, vertices_dropped==0 at normal
       capacity; vertices_dropped>0 and overflow_frame==1 in the GUARD stage).
-    - Updated descriptor pool size for 5-binding expand sets (2*3+2*5+1*2+8=24).
-    - 15/15 tests pass (73 contract checks, golden RMSE 18.1<25, bench within thresholds).
+  - Updated descriptor pool size for 5-binding expand sets (2*3+2*5+1*2+8=24).
+  - 15/15 tests pass (73 contract checks, golden RMSE 18.1<25, bench within
+  thresholds).
 
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.05
-  - Security & Audit Hardening: closed open audit items and enhanced key management:
-    - Added dedicated regression test tests/crypto_table_oob_test.c for finding B2-b
+  - Security & Audit Hardening: closed open audit items and enhanced key
+  management:
+  - Added dedicated regression test tests/crypto_table_oob_test.c for finding
+  B2-b
       (radio cipher table index bounds check with canary verification across all 256
       possible algo bytes under ASan/UBSan).
-    - Added dedicated regression test tests/net_count_oob_test.c for finding B3-b
+  - Added dedicated regression test tests/net_count_oob_test.c for finding B3-b
       (network object and beam count bounds validation with canary verification across
       12 count edge cases under ASan/UBSan).
-    - Established in-repo audit traceability in SECURITY.md for findings B6 (frame rate
+  - Established in-repo audit traceability in SECURITY.md for findings B6 (frame
+  rate
       clamp), B7 (auth token replay window), B9 (SHM magic / version validation), and
       B11 (disconnect state cleanup), marking them verified and closed.
-    - Implemented secure key management in include/network.h (load_master_key):
+  - Implemented secure key management in include/network.h (load_master_key):
       added SPACEGL_KEY_FILE support with strict 0600 permission enforcement, automated
       secure key generation to $HOME/.spacegl/key (0600 file, 0700 directory) via OpenSSL
       RAND_bytes, preserved legacy SPACEGL_KEY environment variable fallback, prevented
@@ -743,35 +853,42 @@
 
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.04
   - Networking & Protocol: hardened TCP transport and communication resilience:
-    - Added TCP transport tuning (tune_socket in include/network.h): disabled Nagle
+  - Added TCP transport tuning (tune_socket in include/network.h): disabled
+  Nagle
       algorithm (TCP_NODELAY) for sub-frame latency game traffic, enabled TCP keepalive
       probes (60s idle, 10s intervals, 10 probes) for dead-peer detection, and tuned
       SO_RCVBUF (256 KB) and SO_SNDBUF (128 KB).
-    - Implemented per-connection token bucket rate limiting (PKT_RATE_LIMIT=200 pkt/s,
+  - Implemented per-connection token bucket rate limiting (PKT_RATE_LIMIT=200
+  pkt/s,
       burst allowance PKT_DROP_THRESHOLD=10) in packet dispatcher (dispatch_packet /
       pkt_rate_limit_check) to protect server against CPU exhaustion and DoS floods.
-    - Implemented monotonic frame ordering check (check_frame_order) in client to
+  - Implemented monotonic frame ordering check (check_frame_order) in client to
       drop late, out-of-order, or duplicate frames and prevent visual glitches.
-    - Added automated client reconnection with exponential backoff (1s, 2s, 4s, 8s,
+  - Added automated client reconnection with exponential backoff (1s, 2s, 4s,
+  8s,
       16s, max 30s) restoring session credentials and galaxy state synchronization.
-    - Documented transport security model and application-level crypto rationale in
+  - Documented transport security model and application-level crypto rationale
+  in
       SECURITY.md (Section 1.4 Transport Security Model).
-    - Added dedicated unit test tests/rate_limit_test.c (13th test target in test
+  - Added dedicated unit test tests/rate_limit_test.c (13th test target in test
       suite) verifying normal rate processing, burst drops, socket closure on threshold
       violation, 1s token refill, and async staging mode.
 
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.03
   - Build System & Toolchain: brought build system to professional standards:
-    - Updated .gitignore to exhaustively cover all build directories (build/, build-*/,
+  - Updated .gitignore to exhaustively cover all build directories (build/,
+  build-*/,
       build-tests/, build-tests-clang/), compiler outputs, test artifacts, and runtime data.
-    - Added explicit compiler flags for all CMake build types (Release, Debug,
+  - Added explicit compiler flags for all CMake build types (Release, Debug,
       RelWithDebInfo, MinSizeRel) with warning on unknown types defaulting to Release.
-    - Introduced check custom target in CMakeLists.txt and run-all in tests/CMakeLists.txt
+  - Introduced check custom target in CMakeLists.txt and run-all in
+  tests/CMakeLists.txt
       for one-command local test execution.
-    - Created build.sh quick dev loop script supporting clean, debug, profiling,
+  - Created build.sh quick dev loop script supporting clean, debug, profiling,
       and size-constrained configurations.
-    - Added CI check to verify no build directories or artifacts are tracked in git.
-    - Documented Build System types, workflows, and policies in DEVELOPMENT.md.
+  - Added CI check to verify no build directories or artifacts are tracked in
+  git.
+  - Documented Build System types, workflows, and policies in DEVELOPMENT.md.
 
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.02
   - CI / Fuzzing: fixed unrecognized libFuzzer flag (-rss_limit_gb=2 replaced
@@ -783,15 +900,17 @@
 * Sat Oct 17 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.17.01
   - Architecture / Modularity: split monolithic translation units into clean,
     focused modules to improve build times, reviewability, and code organization:
-    - spacegl_vulkan.c (4333 lines) split into vulkan_device.c (device setup,
+  - spacegl_vulkan.c (4333 lines) split into vulkan_device.c (device setup,
       swapchain, pipelines, sync), vulkan_scene.c (scene meshes, procedural geometry,
       draw helpers, scene update), vulkan_render.c (render loop, command buffer recording,
       frame execution, screenshot), and vulkan_main.c (main, GLFW window, input, flight stick),
       coordinated by include/vulkan_device_internal.h.
-    - spacegl_vulkan_gdd.c (3131 lines) split into vulkan_gdd_build.c (CPU-side instance
+  - spacegl_vulkan_gdd.c (3131 lines) split into vulkan_gdd_build.c (CPU-side
+  instance
       builder and data packing) and vulkan_gdd_render.c (Vulkan device-side compute passes,
       indirect draws, and dynamic rendering pipeline). Updated gdd_contract test.
-    - src/server/logic.c (2332 lines) split into logic.c (tick loop, quadrant OpenMP updates,
+  - src/server/logic.c (2332 lines) split into logic.c (tick loop, quadrant
+  OpenMP updates,
       broadcasts) and logic_events.c (event processing: boom generation, wormholes, jump arrivals,
       supernovae).
   - Telemetry: verified and preserved all 114 operational telemetry categories
@@ -864,7 +983,7 @@
     lookup compared string-literal POINTERS (quad_static_defs[d].pub.name ==
     name). Across translation units that identity holds only as a lucky
     consequence of linker .rodata.str1.1 merging - true at -O3, false at
-    -O0 - so in every Debug/ASan build (the new CI matrix runs gcc/clang x
+  -O0 - so in every Debug/ASan build (the new CI matrix runs gcc/clang x
     Release/Debug with ASan+UBSan on ctest) the lookup missed all 62 names
     and the quad_index test crashed with a NULL descriptor dereference in
     qi_seed. The fix is strcmp() plus the missing <string.h> include. The
@@ -952,7 +1071,7 @@
     standalone: cmake -B build-tests tests ...), and the contract-test
     pattern (two-layer static/runtime invariants, linking the real
     production sources, no framework + the 0/1/77 exit contract,
-    -ffp-contract=off mirrors, ASan/UBSan sink tests). SECURITY.md —
+  -ffp-contract=off mirrors, ASan/UBSan sink tests). SECURITY.md —
     threat model (untrusted client / untrusted server / local SHM
     consumer / radio attacker; assets; design rules) plus the living
     audit registry of the B items (B1, B2-a/b, B3-a/b, B4, B5, B6/B7/
@@ -975,22 +1094,25 @@
     unchanged.
   - Conformance (all components): fresh FULL rebuild of all 8 product
     targets + 7 shaders + 9 test binaries, zero warnings under
-    -Wall -Wextra -Wpedantic in the integrated tree, in the standalone
+  -Wall -Wextra -Wpedantic in the integrated tree, in the standalone
     tests tree and in a Debug build of the spacegl_vulkan target
     (NDEBUG branch); full suite 9/9 in both modes (gdd_contract 362,
     gdd_mesh 68 vs the just-compiled SPIR-V). spacegl.spec Version
-    bumped 2026.10.09.02 -> 2026.10.09.03. Smoke test: pending (run
+    bumped 2026.10.09.02
+  -> 2026.10.09.03. Smoke test: pending (run
     by the user).
 
 * Fri Oct 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.09.02
   - 3D view (OpenGL, C23): closed the backlog item on the exotic-feature
     draw switch of display() (the case 100 ... 131 GCC range reported at
     src/spacegl_3dview.c:5110): the tree already carries the explicit
-    case 100-131 chain (in place per the 2026.10.06.03 note), so this
+    case 100-131 chain (in place per the 2026.10.06.03
+  note), so this
     round audited the conformance of EVERY component dispatching on
     visual types 100-131 and confirmed no GCC range-case extension
     remains anywhere in src/, tests/ or include/: src/spacegl_vulkan_gdd.c
-    keeps the canonical explicit chain (2026.10.03.02),
+    keeps the canonical explicit chain (2026.10.03.02
+  ),
     src/spacegl_vulkan.c and src/spacegl_hud.c dispatch with standard
     bounds ifs (type >= 100 && type <= 131, the EXOTIC class),
     src/server/galaxy.c assigns the types by arithmetic (100 + t) and
@@ -1010,7 +1132,8 @@
     cannot compile the C23 static atomic initializer in src/sglog.c and
     the server macros use the GNU ", ##__VA_ARGS__" token-pasting - so
     GCC remains the project standard (Fedora compliance). spacegl.spec
-    Version bumped 2026.10.09.01 -> 2026.10.09.02.
+    Version bumped 2026.10.09.01
+  -> 2026.10.09.02.
 
 * Fri Oct 09 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.09.01
   - Build (Vulkan): the SDK resolution is now a documented CHAIN, in ONE
@@ -1047,7 +1170,8 @@
     vulkan-headers, plus glslc), README build notes updated (the SDK
     chain and the glslc search order), local_check.sh / man pages /
     HOWTO.txt / .gitignore / src/ verified unaffected. spacegl.spec
-    Version bumped 2026.10.08.02 -> 2026.10.09.01. Verified: fresh FULL
+    Version bumped 2026.10.08.02
+  -> 2026.10.09.01. Verified: fresh FULL
     rebuild of all 8 product targets + 7 shaders + 9 test binaries
     clean under -Wall -Wextra -Wpedantic on the pinned SDK (integrated
     tree) and in the standalone tests tree, plus a full-tree build on
@@ -1086,14 +1210,15 @@
     chroot gdd_mesh still skips itself (exit 77), while local_check.sh
     (rpmbuild on the host, not in a chroot) now really exercises the
     GPU on every run. Fixed while integrating: the tests'
-    -ffp-contract=off was declared AFTER the two gdd builder targets,
+  -ffp-contract=off was declared AFTER the two gdd builder targets,
     so the very tests whose bit-exact geometry mirrors must not be
     FMA-contracted never received it while the later server tests did
     — it now precedes every test target (verified in flags.make, both
-    trees). spacegl.spec Version bumped 2026.10.07.02 -> 2026.10.08.01;
+    trees). spacegl.spec Version bumped 2026.10.07.02
+  -> 2026.10.08.01;
     .gitignore now also skips build-tests/. Verified: full rebuild of
     all 8 product targets + shaders + 9 test binaries clean under
-    -Wall -Wextra -Wpedantic in the integrated tree (and again in the
+  -Wall -Wextra -Wpedantic in the integrated tree (and again in the
     standalone tree), ctest 9/9 green with gdd_mesh running its 68 GPU
     checks against the freshly compiled build/shaders.
 
@@ -1118,7 +1243,8 @@
     IMPULSE, up to a 1 s ramp), so "imp (h0+180) -m0 S" rolled the ship
     180 deg — the cockpit view spun for a whole second — before any
     burn, and in NO hat position did a thruster ever read as firing
-    (the 2026.10.07.01 latch had fixed the target source, not the
+    (the 2026.10.07.01
+  latch had fixed the target source, not the
     command's align-then-burn nature).
   - Pilot (Vulkan): the hat switch now fires a VECTORED retro-thruster
     for every one of its 8 directions (pilot_hat_retro →
@@ -1127,7 +1253,8 @@
     from it — H* = (h0 + 180) % 360, M* = -m0, the exact reverse of
     the nose — with the per-position strengths UP 10 / RIGHT 40 /
     LEFT 80 / DOWN 100 % and the diagonal +/-15 deg mark drift (the
-    2026.10.06.05 8-way layout, now real: each position is a distinct
+    2026.10.06.05
+  8-way layout, now real: each position is a distinct
     thruster firing in its own direction while the view stays put). The
     command fires IMMEDIATELY on the edge (force-bypass of the 10 Hz
     gate), is re-asserted while the hat stays off-center (pilot_
@@ -1146,8 +1273,10 @@
     right stick (ax > 0) now turns the nose RIGHT — the target heading
     is BELOW the live one (the pre-fix pilotHeading += ax * JS_YAW_RATE
     sent the nose left); pitch keeps forward = down (mark > 0,
-    2026.10.07.01). The speed is max(throttle, stick), so full stick
-    still moves the ship at 100 % even at throttle rest (2026.10.07.01's
+    2026.10.07.01
+  ). The speed is max(throttle, stick), so full stick
+    still moves the ship at 100 % even at throttle rest (2026.10.07.01
+  's
     vectored-thrust requirement, now honest). The pre-fix open-loop
     accumulation (3.5 deg/frame yaw) ran far ahead of the real ship:
     every ramp sawtoothed behind the runaway target (the stuttering
@@ -1207,7 +1336,8 @@
     entry). While the hat stays off-center that same captured command
     is re-asserted on the imp cadence and the throttle branch is
     suppressed (the brake wins against the throttle, as intended by
-    the 2026.10.06.07 latch), but pilot_send_imp's change-detection
+    the 2026.10.06.07
+  latch), but pilot_send_imp's change-detection
     drops the repeats: one hat action now produces exactly ONE "imp"
     and ONE "Course plotted. Aligning for Impulse drive." answer.
     The pre-fix latch re-read shm_h/shm_m every frame, so the target
@@ -1230,7 +1360,7 @@
     orientation NOR motion. The roll "pos H M R" send (5 Hz) is no
     longer gated on t01 either, so the twist orients a resting ship.
   - Pilot (Vulkan): pitch sign inverted (pilotMark += ay instead of
-    -= ay): stick forward (GLFW axes[1] > 0) now drives the ship
+  -= ay): stick forward (GLFW axes[1] > 0) now drives the ship
     DOWN — mark > 0 -> dz = sin(m) > 0, and game +Z renders
     screen-down (remap game Z -> Vulkan Y, projection flip
     proj[1][1] *= -1) — and pulling back drives it UP; the pre-fix
@@ -1313,7 +1443,8 @@
 
 * Tue Oct 06 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.06.06
   - Tests: added tests/target_bounds_test.c (ctest target_bounds), the
-    boundary regression for the 2026.10.06.01 players[] clamps: the
+    boundary regression for the 2026.10.06.01
+  players[] clamps: the
     attacker-controlled command tid (pha/bor/lock/scan/apr) and
     PlayerTorpedo.target_id may index players[MAX_CLIENTS] only within
     [0, 16), and nothing guaranteed those clamps over time. The test
@@ -1401,7 +1532,8 @@
     (" %[^:]:" -> " %31[^:]"): the scan-set conversion carried no width, so a
     name field longer than 31 chars would have written past the stack
     buffer. Completes the same hardening applied to the client
-    faction-name read in 2026.10.06.01.
+    faction-name read in 2026.10.06.01
+  .
   - Memory: NULL-checked every remaining unchecked malloc. The cppcheck
     nullPointer / nullPointerOutOfMemory findings are closed: the grid VBO
     in src/spacegl_3dview.c (initVBOs), the ELF section header, symbol and
@@ -1431,7 +1563,8 @@
     generation bump) still atomic under it.
   - 3D view (OpenGL): replaced the GCC range expression in the exotic
     feature draw switch of display() (case 100 ... 131) with the explicit
-    case chain, mirroring the 2026.10.03.02 fix in
+    case chain, mirroring the 2026.10.03.02
+  fix in
     src/spacegl_vulkan_gdd.c: removes the last -Wpedantic build warning
     (ISO C does not support range expressions in switch statements).
 
@@ -1507,10 +1640,12 @@
     black-hole/quasar accretion disks and shield panels.
 
 * Sat Oct 03 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.03.02
-  - Tests: mocked cosmic_features array in tests/quad_index_test.c and registered
+  - Tests: mocked cosmic_features array in tests/quad_index_test.c and
+  registered
     it in the qi_expect validation table to fix the undefined reference linker
     error during the RPM %check phase.
-  - Graphics (Vulkan GPU-driven): replaced GCC range extension (case 100 ... 131)
+  - Graphics (Vulkan GPU-driven): replaced GCC range extension (case 100 ...
+  131)
     with explicit case statements in spacegl_vulkan_gdd.c to comply with C standards
     and fix the -Wpedantic build warning.
 
@@ -1593,7 +1728,7 @@
     on unknown-type close (players[i].socket left set on a closed fd,
     self-healing at the next login of the same name) is intentionally
     unchanged in both modes. Verified: clean rebuild of all targets (C23,
-    -Wall -Wextra -Wpedantic, no new warnings) and existing unit suite
+  -Wall -Wextra -Wpedantic, no new warnings) and existing unit suite
     7/7. Smoke test: pending (run by the user, both --io modes).
 
 * Fri Oct 02 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.02.03
@@ -1670,7 +1805,7 @@
     Decision for the table contents: only the four modern ciphers are
     implemented (CRYPTO_AES -> AES-256-GCM, CRYPTO_CHACHA ->
     CHACHA20-POLY1305, CRYPTO_ARIA -> ARIA-256-GCM, CRYPTO_CAMELLIA
-    -> CAMELLIA-256-CTR); every other slot (SEED, CAST5, IDEA, 3DES,
+  -> CAMELLIA-256-CTR); every other slot (SEED, CAST5, IDEA, 3DES,
     BLOWFISH, RC4, DES, the post-quantum-named slots 12-19, SM4, GOST,
     SALSA, and any 0 / 22..255 wire value) is a fixed alias of
     AES-256-GCM, the strongest of the four — no legacy/weak cipher is
@@ -1733,7 +1868,7 @@
     currently resolves everything to AEAD/CTR (output == input), so its
     guard keeps the API bound exact for the day a CBC slot is added
     there. Verified: clean rebuild of both targets (C23, -Wall -Wextra
-    -Wpedantic, no new warnings). Smoke test: pending (run by the user).
+  -Wpedantic, no new warnings). Smoke test: pending (run by the user).
 
 * Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.02
   - Client security: fixed an out-of-bounds write into the static update
@@ -1757,7 +1892,7 @@
     path (and the LRS path) already uses; no behavior change for
     legitimate traffic (a well-behaved server never reports more than
     its own arrays). Verified: clean rebuild of the client target (C23,
-    -Wall -Wextra -Wpedantic, no new warnings). Smoke test: pending
+  -Wall -Wextra -Wpedantic, no new warnings). Smoke test: pending
     (run by the user).
 
 * Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.01
@@ -1784,7 +1919,7 @@
     usual “Frequency parity failure” reply; no connection drop, no
     behavior change for legitimate traffic (algorithms 1..21).
     Verified: clean rebuild of the server target (C23, -Wall -Wextra
-    -Wpedantic, no new warnings). Smoke test: pending (run by the user).
+  -Wpedantic, no new warnings). Smoke test: pending (run by the user).
 
 * Thu Oct 01 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.01.00
   - spacegl_3dview: resizing the window no longer crops/compresses the scene
@@ -1832,13 +1967,14 @@
     was not recycled — algo_str is now declared outside the block; the
     sscanf on that line also got %63s field widths so peer_name/algo_str
     cannot be overflowed by a long line. Verified: full build clean with
-    -Wall -Wextra -Wpedantic (Vulkan SDK 1.4.363.0, GLFW 3.5.1) and
+  -Wall -Wextra -Wpedantic (Vulkan SDK 1.4.363.0, GLFW 3.5.1) and
     cppcheck 2.22 (114 checkers) no longer reports the arrayIndex
     (spacegl_viewer.c) nor the lifetime/dangling finding (spacegl_client.c).
     Smoke test: pending (run by the user).
 
 * Wed Sep 30 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.30.01
-  - spacegl_vulkan: follow-up to the 2026.09.29.05 resize fix — the
+  - spacegl_vulkan: follow-up to the 2026.09.29.05
+  resize fix — the
     CPU-driven path rendered nothing and the frame pacing was not
     spec-clean; both audited with the Khronos validation layer
     (VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation) on Intel Arc.
@@ -2044,7 +2180,8 @@
   re-wrapped the result, so every roll turn crossing the 0/360
   boundary (e.g. 350° to 20°) passed through 370..380° mid-turn and
   the clients, which display van_r as-is, showed it (same defect class
-  as the B2 heading fix in 2026.09.24.02). The roll interpolation was
+  as the B2 heading fix in 2026.09.24.02
+  ). The roll interpolation was
   extracted to nav_roll_at in the same pure, dependency-free module
   (src/server/nav_math.c, include/nav_math.h), which takes the
   shortest-arc delta and re-wraps the result back into [0, 360);
@@ -2392,14 +2529,14 @@
   DRAGONGL GPD approach, adapted to SpaceGL: the per-object Vulkan
   draw-call storm of the CPU path is replaced by ONE small per-frame
   CPU upload + a fully GPU-side render pipeline.
-    * CPU side (data handling, not rendering): reads the same SharedIPC
+  * CPU side (data handling, not rendering): reads the same SharedIPC
       state and runs the same cubic-Hermite interpolation as the CPU
       path, then classifies every object/effect/static into compact
       112 B instance descriptors (GddInstance: position, mesh id,
       scale, flags, color, 3x3 orientation) and memcpys two lists
       (4096 dynamic + 8192 map/static slots) into persistently mapped
       host-visible SSBOs — no per-object Vulkan call.
-    * GPU side (one graphics+compute queue, in-order, synchronization2
+  * GPU side (one graphics+compute queue, in-order, synchronization2
       barriers): gdd_cull.comp vision-sphere culls into compact visible
       index lists (static geometry carries GDD_FLAG_NEVER_CULL);
       gdd_expand.comp expands each visible instance into a
@@ -2407,7 +2544,7 @@
       capacity guard, "drop when full" like the CPU path), dispatched
       per group and per pass (opaque / additive); gdd_final.comp
       publishes the two VkDrawIndirectCommands from the GPU counters.
-    * Graphics side: a single vkCmdBeginRendering (dynamic rendering,
+  * Graphics side: a single vkCmdBeginRendering (dynamic rendering,
       Vulkan 1.3/1.4: color + depth) and one vkCmdDrawIndirect per
       pass (opaque with depth write, additive glow with src-alpha
       blending). The scene vertex shader reads the GPU-generated
@@ -2416,7 +2553,7 @@
       the CPU path (unlit/wireframe, starfield twinkle, PBR, hyperwarp
       glow, shockwave, accretion disk, FBM nebula, plasma filament...),
       keeping both architectures visually aligned.
-    * All scene geometry is generated on the GPU from one unit
+  * All scene geometry is generated on the GPU from one unit
       description per mesh type (double-sided triangle point, 6x10 UV
       sphere, box, ship pyramid, octahedron, 16-segment ring, square
       tube line) — no per-object vertex/index buffers; camera,

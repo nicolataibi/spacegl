@@ -2,11 +2,11 @@
 
 # Space GL: A space exploration & combat game
 
-![Version](https://img.shields.io/badge/Version-3.2-green)
+![Version](https://img.shields.io/badge/Version-3.3-green)
 ![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
 ![Language](https://img.shields.io/badge/Language-C-blue)
 ![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
-![Platform](https://img.shields.io/badge/Platform-Fedora%2044-blue?logo=fedora)
+![Platform](https://img.shields.io/badge/Platform-Fedora%2045-blue?logo=fedora)
 
 ## Multi-User Client-Server 3D RPG Engine — OpenGL (GLFW) & Vulkan
 ![Status](https://img.shields.io/badge/Status-Verified%20HMAC--SHA256-brightgreen)
@@ -18,7 +18,7 @@
 
 Space GL is a high-performance 3D multi-user client-server space flight and combat simulator. The engine features real-time galaxy state synchronization via shared memory (SHM), securely signed data integrity (HMAC-SHA256), a dual-socket advanced telemetry subsystem for tactical oversight, and versatile visualization front-ends built on OpenGL and Vulkan.
 
-**Documentation map**: this README (features + technical sections) · [DEVELOPMENT.md](DEVELOPMENT.md) (how to build, how to run the test suite, the contract-test pattern, the Vulkan validation layers) · [SECURITY.md](SECURITY.md) (threat model + audit registry of the B items) · `HOWTO.txt` (run instructions) · `changelog` (release log).
+**Documentation map**: this README (features + technical sections) · [DEVELOPMENT.md](DEVELOPMENT.md) (how to build, how to run the test suite, the contract-test pattern, the Vulkan validation layers) · [SECURITY.md](SECURITY.md) (threat model + audit registry of the B items) · `HOWTO.txt` (run instructions) · `CHANGELOG` (release log).
 
 ---
 
@@ -3778,11 +3778,11 @@ Space GL distinguishes between **Active Systems**, **Cargo Storage**, and the **
 
         5. **Synaptics**: Chips for complex system repairs.
 
-                6. **Nebular Gas**: Collected from comets, energy conversion.
+        6. **Nebular Gas**: Collected from comets, energy conversion.
 
-                7. **Composite**: Armored hull plating.
+        7. **Composite**: Armored hull plating.
 
-                8. **Dark-Matter**: Rare radioactive mineral found in specialized asteroids and planets. Used for experimental tech and system enhancement.
+        8. **Dark-Matter**: Rare radioactive mineral found in specialized asteroids and planets. Used for experimental tech and system enhancement.
 
 *   **Prison Unit**: A dedicated unit for detaining enemy personnel captured during boarding operations. It is monitored in real-time in the vital HUD next to the crew count.
 
