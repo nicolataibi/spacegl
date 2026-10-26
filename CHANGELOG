@@ -1,3 +1,15 @@
+* Mon Oct 26 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.26.02
+  - CI / Packaging: fix the rpmlint step failing with "specfile-error error:
+  no description in %changelog" (exit code 64) after the test suite had
+  passed. The step emulates rpmautospec on the Ubuntu runner with
+  ~/.rpmmacros and read the changelog with `cat changelog`; since
+  2026.10.26.01 the file is called CHANGELOG, so the cat failed and the
+  fallback entry was emitted on a single line (the "\n" reached rpm as a
+  plain "n"), i.e. a header with no description. The step now reads
+  CHANGELOG and the fallback is a complete two-line entry built with
+  printf. No code or test change; spacegl.spec Version bumped
+  2026.10.26.01 -> 2026.10.26.02.
+
 * Sun Oct 25 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.26.01
   - Docs: build-pdf minor fixes, rename changelog to CHANGELOG
 

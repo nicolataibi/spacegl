@@ -85,9 +85,14 @@ jobs:
 
       - name: Run rpmlint
         run: |
+          # %autorelease / %autochangelog come from rpmautospec, which the
+          # Ubuntu runner does not have: emulate them. The changelog is read
+          # from CHANGELOG (renamed from "changelog" in 2026.10.26.01). The
+          # printf fallback is a complete entry (header + description, real
+          # newlines) so rpm never sees an entry without a description.
           cat << 'EOF' > ~/.rpmmacros
           %autorelease 1%{?dist}
-          %autochangelog %(cat changelog 2>/dev/null || echo "* Tue Oct 13 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - %{version}-%{release}\n- Package build")
+          %autochangelog %(cat CHANGELOG 2>/dev/null || printf '* Mon Oct 26 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 0-1\\n- Package build\\n')
           EOF
           rpmlint spacegl.spec
 
