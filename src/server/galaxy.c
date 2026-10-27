@@ -1203,6 +1203,7 @@ void generate_galaxy() {
         int count = GALAXY_CREATE_OBJECT_MIN_NPC_FACTION + (rand() % (GALAXY_CREATE_OBJECT_MAX_NPC_FACTION - GALAXY_CREATE_OBJECT_MIN_NPC_FACTION + 1));
         for (int k = 0; k < count && n_count < MAX_NPC; k++) {
             NPCShip *n = &npcs[n_count];
+            npc_runtime_reset(n_count);
             n->id = n_count;
             n->faction = faction;
             n->active = 1;

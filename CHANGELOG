@@ -1,3 +1,19 @@
+* Tue Oct 27 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.27.05
+  - NPC runtime state (src/server/logic.c): the five parallel arrays
+  g_npc_avoid_hold, g_npc_avoid_skip, g_npc_scan_dir, g_npc_last_pos and
+  g_npc_collision_grace are now one NpcRuntime struct per slot (g_npc_rt[]).
+  - Slot reuse is no longer guessed from a jump of the NPC position (the
+  0.25 threshold test in update_npc_ai() and npc_collision_check(), and the
+  g_npc_last_pos bookkeeping, are gone). A new explicit spawn hook,
+  npc_runtime_reset(n) (declared in include/server_internal.h), clears the slot
+  state; it is called where galaxy_create() spawns an NPC ship and by the
+  collision_test slot helper. Any future code that puts a new ship in an NPC
+  slot must call it.
+  - Design (confirmed): ships avoid other ships (OBS_SHIP) but never damage
+  each other by colliding; only solid objects hurt.
+  - Tests: collision_test 65 passed, 0 failed (reused-slot case now goes
+  through the hook).
+
 * Tue Oct 27 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.27.04
   - Docs (README.md): updated to version 3.3 "The Living Catalog": the project
   status note now describes 3.3 (it still said 3.2 and the 2026-09-20 GPU-driven

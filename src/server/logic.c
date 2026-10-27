@@ -64,21 +64,32 @@ bool is_player_in_nebula(int i) {
 
 /* --- NPC obstacle avoidance --------------------------------------------- */
 
-/* AI steps of smooth turning left after the way ahead of NPC n became clear.
- * Runtime only (nothing is saved); update_npc_ai(n) is the only code that
- * touches element n, so the parallel NPC loop needs no lock. */
-static unsigned char g_npc_avoid_hold[MAX_NPC];
-/* AI steps left before NPC n scans for obstacles again; an NPC in open space
- * scans every (TIMER_NPC_AVOID_IDLE + 1) steps, one near objects at every step. */
-static unsigned char g_npc_avoid_skip[MAX_NPC];
-/* Heading of NPC n when it last found open space (g_npc_avoid_skip armed), and
- * its position at the end of its last AI step. A new heading, or a position
- * that jumped (the slot was reused by a freshly spawned NPC), invalidates the
- * "open space" verdict: the next obstacle / collision test runs at once. */
-static double g_npc_scan_dir[MAX_NPC][3];
-static double g_npc_last_pos[MAX_NPC][3];
-/* Ticks left before NPC n can take damage from another impact. */
-static unsigned short g_npc_collision_grace[MAX_NPC];
+/* Runtime state of NPC n for obstacle avoidance and collisions. Runtime only
+ * (nothing is saved); update_npc_ai(n) and npc_collision_check(n) are the only
+ * code that touches element n, so the parallel NPC loop needs no lock.
+ * A slot taken by a freshly spawned NPC must call npc_runtime_reset(n): what
+ * the previous occupant left here is about another ship and another place. */
+typedef struct {
+    /* AI steps of smooth turning left after the way ahead of the NPC became clear. */
+    unsigned char  avoid_hold;
+    /* AI steps left before the NPC scans for obstacles again; an NPC in open
+     * space scans every (TIMER_NPC_AVOID_IDLE + 1) steps, one near objects at
+     * every step. */
+    unsigned char  avoid_skip;
+    /* Ticks left before the NPC can take damage from another impact. */
+    unsigned short collision_grace;
+    /* Heading of the NPC when it last found open space (avoid_skip armed): a
+     * new heading invalidates the "open space" verdict. */
+    double         scan_dir[3];
+} NpcRuntime;
+
+static NpcRuntime g_npc_rt[MAX_NPC];
+
+/* Explicit spawn hook: the NPC slot n now holds a new ship. */
+void npc_runtime_reset(int n) {
+    if (n < 0 || n >= MAX_NPC) return;
+    memset(&g_npc_rt[n], 0, sizeof g_npc_rt[n]);
+}
 
 /* Direction that takes the point p out of every keep-out sphere of obs[] it is
  * inside: the radial pushes, each weighted by how deep p is in that sphere.
@@ -143,13 +154,13 @@ static int npc_embedded_escape(int n, double esc[3]) {
  * safe inside the OpenMP loop of the NPCs. */
 static int npc_avoid_obstacles(int n, const double prev[3], double dir[3], double *speed) {
     if (*speed <= 0.0) {
-        g_npc_avoid_hold[n] = 0;
+        g_npc_rt[n].avoid_hold = 0;
         return 0;
     }
     double d[3];
     int null_heading = (sa_norm(dir, d) < 1e-9);
-    if (!null_heading && g_npc_avoid_hold[n] == 0 && g_npc_avoid_skip[n] > 0) {
-        g_npc_avoid_skip[n]--;
+    if (!null_heading && g_npc_rt[n].avoid_hold == 0 && g_npc_rt[n].avoid_skip > 0) {
+        g_npc_rt[n].avoid_skip--;
         return 0;
     }
 
@@ -164,26 +175,26 @@ static int npc_avoid_obstacles(int n, const double prev[3], double dir[3], doubl
         double esc[3];
         if (cnt > 0 && npc_escape_dir(p, obs, cnt, (unsigned)n, esc)) {
             dir[0] = esc[0]; dir[1] = esc[1]; dir[2] = esc[2];
-            g_npc_avoid_skip[n] = 0;
+            g_npc_rt[n].avoid_skip = 0;
             return 1;
         }
         return 0;
     }
 
-    if (cnt == 0 && g_npc_avoid_hold[n] == 0) {             /* the usual case: open space */
-        g_npc_avoid_skip[n] = TIMER_NPC_AVOID_IDLE;
-        g_npc_scan_dir[n][0] = d[0]; g_npc_scan_dir[n][1] = d[1]; g_npc_scan_dir[n][2] = d[2];
+    if (cnt == 0 && g_npc_rt[n].avoid_hold == 0) {             /* the usual case: open space */
+        g_npc_rt[n].avoid_skip = TIMER_NPC_AVOID_IDLE;
+        g_npc_rt[n].scan_dir[0] = d[0]; g_npc_rt[n].scan_dir[1] = d[1]; g_npc_rt[n].scan_dir[2] = d[2];
         return 0;
     }
-    g_npc_avoid_skip[n] = 0;                                /* objects near: look at every step */
+    g_npc_rt[n].avoid_skip = 0;                                /* objects near: look at every step */
 
     double steered[3];
     int threat = (cnt > 0) && sa_steer(p, d, look, obs, cnt, 0.0, (unsigned)n, 0, steered);
     int changed = 0;
     if (threat) {
-        g_npc_avoid_hold[n] = TIMER_NPC_AVOID_HOLD;
+        g_npc_rt[n].avoid_hold = TIMER_NPC_AVOID_HOLD;
     }
-    if (threat || g_npc_avoid_hold[n] > 0) {
+    if (threat || g_npc_rt[n].avoid_hold > 0) {
         const double *want = threat ? steered : d;
         double pn[3];
         double base[3];
@@ -194,7 +205,7 @@ static int npc_avoid_obstacles(int n, const double prev[3], double dir[3], doubl
          * inside a keep-out zone, flying at the object) turn at once. */
         double k = (sa_dot(base, want) < 0.0) ? 1.0 : (double)RATIO_NPC_AVOID_TURN;
         sa_blend(base, want, k, dir);
-        if (!threat) g_npc_avoid_hold[n]--;
+        if (!threat) g_npc_rt[n].avoid_hold--;
         changed = 1;
     }
 
@@ -255,24 +266,14 @@ static void comet_destroyed_by_ship(const ObsHit *hit) {
  * objects, so this is the safety net for what it cannot prevent (a fast
  * physics step, a heading changed by the AI, a crowded spot). */
 static void npc_collision_check_impl(int n, double ox, double oy, double oz) {
-    {
-        /* Not where its last step left it: the slot was reused by a new NPC (or
-         * the NPC was moved). Nothing known about the old one applies. */
-        double jx = ox - g_npc_last_pos[n][0], jy = oy - g_npc_last_pos[n][1], jz = oz - g_npc_last_pos[n][2];
-        if (jx * jx + jy * jy + jz * jz > 0.25) {
-            g_npc_avoid_skip[n] = 0;
-            g_npc_avoid_hold[n] = 0;
-            g_npc_collision_grace[n] = 0;
-        }
-    }
-    if (g_npc_collision_grace[n] > 0) g_npc_collision_grace[n]--;
+    if (g_npc_rt[n].collision_grace > 0) g_npc_rt[n].collision_grace--;
     if (npcs[n].death_timer > 0) return;
 
     /* A scan of the AI found open space ahead and nothing changed since: the
      * few steps taken since cannot have reached any object. */
-    if (g_npc_avoid_skip[n] > 0 && g_npc_avoid_hold[n] == 0 &&
-        npcs[n].dx == g_npc_scan_dir[n][0] && npcs[n].dy == g_npc_scan_dir[n][1] &&
-        npcs[n].dz == g_npc_scan_dir[n][2])
+    if (g_npc_rt[n].avoid_skip > 0 && g_npc_rt[n].avoid_hold == 0 &&
+        npcs[n].dx == g_npc_rt[n].scan_dir[0] && npcs[n].dy == g_npc_rt[n].scan_dir[1] &&
+        npcs[n].dz == g_npc_rt[n].scan_dir[2])
         return;
 
     double p0[3] = { ox, oy, oz };
@@ -305,13 +306,13 @@ static void npc_collision_check_impl(int n, double ox, double oy, double oz) {
     npcs[n].h = atan2(nrm[0], -nrm[1]) * 180.0 / M_PI;
     if (npcs[n].h < 0) npcs[n].h += 360;
     npcs[n].m = asin(nrm[2] > 1.0 ? 1.0 : (nrm[2] < -1.0 ? -1.0 : nrm[2])) * 180.0 / M_PI;
-    g_npc_avoid_skip[n] = 0;
-    g_npc_avoid_hold[n] = 0;
+    g_npc_rt[n].avoid_skip = 0;
+    g_npc_rt[n].avoid_hold = 0;
 
     comet_destroyed_by_ship(&hit);
 
-    if (g_npc_collision_grace[n] > 0) return;
-    g_npc_collision_grace[n] = TIMER_COLLISION_GRACE;
+    if (g_npc_rt[n].collision_grace > 0) return;
+    g_npc_rt[n].collision_grace = TIMER_COLLISION_GRACE;
 
     double speed_ups = len * GAME_TICK_RATE;
     double dmg = DMG_COLLISION_BASE + DMG_COLLISION_PER_UPS * speed_ups;
@@ -331,9 +332,6 @@ static void npc_collision_check_impl(int n, double ox, double oy, double oz) {
 
 void npc_collision_check(int n, double ox, double oy, double oz) {
     npc_collision_check_impl(n, ox, oy, oz);
-    g_npc_last_pos[n][0] = npcs[n].gx;      /* every movement path ends here: where the NPC is now */
-    g_npc_last_pos[n][1] = npcs[n].gy;
-    g_npc_last_pos[n][2] = npcs[n].gz;
 }
 
 void update_npc_ai(int n) {
@@ -347,18 +345,6 @@ void update_npc_ai(int n) {
         npcs[n].gx = (npcs[n].q1 - 1) * QUADRANT_SIZE + npcs[n].x;
         npcs[n].gy = (npcs[n].q2 - 1) * QUADRANT_SIZE + npcs[n].y;
         npcs[n].gz = (npcs[n].q3 - 1) * QUADRANT_SIZE + npcs[n].z;
-    }
-    {
-        /* The slot was reused by a new NPC, or the NPC was moved: whatever the
-         * last obstacle scan said is about another place. Look again now. */
-        double jx = npcs[n].gx - g_npc_last_pos[n][0];
-        double jy = npcs[n].gy - g_npc_last_pos[n][1];
-        double jz = npcs[n].gz - g_npc_last_pos[n][2];
-        if (jx * jx + jy * jy + jz * jz > 0.25) {
-            g_npc_avoid_skip[n] = 0;
-            g_npc_avoid_hold[n] = 0;
-            g_npc_collision_grace[n] = 0;
-        }
     }
 
     int q1 = npcs[n].q1;
@@ -653,7 +639,7 @@ void update_npc_ai(int n) {
             npcs[n].dx = d_dx; npcs[n].dy = d_dy; npcs[n].dz = d_dz;
             npcs[n].ai_state = AI_STATE_ATTACK_RUN;
             npcs[n].nav_timer = 0;
-            g_npc_avoid_skip[n] = 0;
+            g_npc_rt[n].avoid_skip = 0;
         }
     }
     const double step_from[3] = { npcs[n].gx, npcs[n].gy, npcs[n].gz };

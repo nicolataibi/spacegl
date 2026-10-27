@@ -600,6 +600,7 @@ static void test_ship_destroys_comet(void)
 static void place_npc_i(int i, double lx, double ly, double lz, double dx, double dy, double dz)
 {
     memset(&npcs[i], 0, sizeof npcs[i]);
+    npc_runtime_reset(i);                                          /* the spawn hook */
     npcs[i].id = GALAXY_OBJECT_MIN_NPC + i;
     npcs[i].active = 1;
     npcs[i].health = 1000;
