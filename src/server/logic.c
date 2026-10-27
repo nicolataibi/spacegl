@@ -71,36 +71,108 @@ static unsigned char g_npc_avoid_hold[MAX_NPC];
 /* AI steps left before NPC n scans for obstacles again; an NPC in open space
  * scans every (TIMER_NPC_AVOID_IDLE + 1) steps, one near objects at every step. */
 static unsigned char g_npc_avoid_skip[MAX_NPC];
+/* Heading of NPC n when it last found open space (g_npc_avoid_skip armed), and
+ * its position at the end of its last AI step. A new heading, or a position
+ * that jumped (the slot was reused by a freshly spawned NPC), invalidates the
+ * "open space" verdict: the next obstacle / collision test runs at once. */
+static double g_npc_scan_dir[MAX_NPC][3];
+static double g_npc_last_pos[MAX_NPC][3];
+/* Ticks left before NPC n can take damage from another impact. */
+static unsigned short g_npc_collision_grace[MAX_NPC];
 
-/* Steers the direction `dir` of NPC n around the solid objects within
- * DIST_NPC_AVOID_LOOKAHEAD (obstacles.h / steer_avoid.h). `prev` is the
- * heading of the previous AI step: the new heading is blended into it, so the
- * turn is a visible curve and not a kink, and it keeps blending for
- * TIMER_NPC_AVOID_HOLD steps after the obstacle is behind. The step
- * itself is also tested as a segment: if it would still enter a solid object
- * the NPC does not move this step (*speed = 0) and its heading is cleared, so
- * an NPC never ends up inside an object even when the steering has no way
- * out. Returns 1 when `dir` was changed. Read-only on the index: safe inside
- * the OpenMP loop of the NPCs. */
+/* Direction that takes the point p out of every keep-out sphere of obs[] it is
+ * inside: the radial pushes, each weighted by how deep p is in that sphere.
+ * Returns 0 when p is inside none of them. A point exactly on a centre gets a
+ * pseudo-random side from `seed`. */
+static int npc_escape_dir(const double p[3], const ObsSphere *obs, int cnt,
+                          unsigned seed, double out[3]) {
+    double sum[3] = { 0.0, 0.0, 0.0 };
+    int inside = 0;
+    for (int i = 0; i < cnt; i++) {
+        double R = obs[i].r_avoid;
+        if (R <= 0.0) continue;
+        double rel[3] = { p[0] - obs[i].x, p[1] - obs[i].y, p[2] - obs[i].z };
+        double D = sqrt(sa_dot(rel, rel));
+        if (D >= R) continue;
+        double away[3];
+        if (D < 1e-9) {
+            const double up[3] = { 0.0, 0.0, 1.0 };
+            sa_perp(up, seed + (unsigned)i, away);
+        } else {
+            away[0] = rel[0] / D; away[1] = rel[1] / D; away[2] = rel[2] / D;
+        }
+        double w = (R - D) / R + 0.05;
+        sum[0] += away[0] * w; sum[1] += away[1] * w; sum[2] += away[2] * w;
+        inside = 1;
+    }
+    if (!inside) return 0;
+    if (sa_norm(sum, out) < 1e-9) {                 /* pushes cancel out: any side will do */
+        const double up[3] = { 0.0, 0.0, 1.0 };
+        sa_perp(up, seed, out);
+    }
+    return 1;
+}
+
+/* NPC n sits inside a SOLID object (r_hit): the direction out of it. */
+static int npc_embedded_escape(int n, double esc[3]) {
+    double p[3] = { npcs[n].gx, npcs[n].gy, npcs[n].gz };
+    ObsSphere obs[OBS_MAX_PER_CALL];
+    int cnt = obs_gather_segment_ex(p, p, OBS_MAX_AVOID_R, OBS_MASK_ALL, obs, OBS_MAX_PER_CALL, &npcs[n]);
+    int m = 0;
+    for (int i = 0; i < cnt; i++) {
+        if (obs[i].r_hit <= 0.0) continue;
+        obs[m] = obs[i];
+        obs[m].r_avoid = obs[m].r_hit;              /* "inside" = touching the object itself */
+        m++;
+    }
+    return m > 0 && npc_escape_dir(p, obs, m, (unsigned)n, esc);
+}
+
+/* Steers the direction `dir` of NPC n around the solid objects AND the other
+ * ships (NPCs and players) within DIST_NPC_AVOID_LOOKAHEAD (obstacles.h /
+ * steer_avoid.h). `prev` is the heading of the previous AI step: the new
+ * heading is blended into it, so the turn is a visible curve and not a kink,
+ * and it keeps blending for TIMER_NPC_AVOID_HOLD steps after the obstacle is
+ * behind. The step itself is also tested as a segment: if it would still
+ * enter a solid object the NPC does not move this step (*speed = 0), but its
+ * heading is turned away from that object, never cleared: a frozen NPC with a
+ * null heading would stay put until its AI picks a new direction (that was the
+ * "stuck inside an object" bug). A null heading (an NPC that was stopped, or
+ * spawned without one) is replaced at once by the way out of the keep-out
+ * spheres it is in. Returns 1 when `dir` was changed. Read-only on the index:
+ * safe inside the OpenMP loop of the NPCs. */
 static int npc_avoid_obstacles(int n, const double prev[3], double dir[3], double *speed) {
     if (*speed <= 0.0) {
         g_npc_avoid_hold[n] = 0;
         return 0;
     }
-    if (g_npc_avoid_hold[n] == 0 && g_npc_avoid_skip[n] > 0) {
+    double d[3];
+    int null_heading = (sa_norm(dir, d) < 1e-9);
+    if (!null_heading && g_npc_avoid_hold[n] == 0 && g_npc_avoid_skip[n] > 0) {
         g_npc_avoid_skip[n]--;
         return 0;
     }
-    double d[3];
-    if (sa_norm(dir, d) < 1e-9) return 0;
 
     double p[3] = { npcs[n].gx, npcs[n].gy, npcs[n].gz };
     const double look = (double)DIST_NPC_AVOID_LOOKAHEAD;
-    double end[3] = { p[0] + d[0] * look, p[1] + d[1] * look, p[2] + d[2] * look };
+    double end[3] = { p[0], p[1], p[2] };
+    if (!null_heading) { end[0] += d[0] * look; end[1] += d[1] * look; end[2] += d[2] * look; }
     ObsSphere obs[OBS_MAX_PER_CALL];
-    int cnt = obs_gather_segment(p, end, OBS_MAX_AVOID_R, OBS_MASK_ALL, obs, OBS_MAX_PER_CALL);
+    int cnt = obs_gather_segment_ex(p, end, OBS_MAX_AVOID_R, OBS_MASK_AVOID, obs, OBS_MAX_PER_CALL, &npcs[n]);
+
+    if (null_heading) {
+        double esc[3];
+        if (cnt > 0 && npc_escape_dir(p, obs, cnt, (unsigned)n, esc)) {
+            dir[0] = esc[0]; dir[1] = esc[1]; dir[2] = esc[2];
+            g_npc_avoid_skip[n] = 0;
+            return 1;
+        }
+        return 0;
+    }
+
     if (cnt == 0 && g_npc_avoid_hold[n] == 0) {             /* the usual case: open space */
         g_npc_avoid_skip[n] = TIMER_NPC_AVOID_IDLE;
+        g_npc_scan_dir[n][0] = d[0]; g_npc_scan_dir[n][1] = d[1]; g_npc_scan_dir[n][2] = d[2];
         return 0;
     }
     g_npc_avoid_skip[n] = 0;                                /* objects near: look at every step */
@@ -129,13 +201,139 @@ static int npc_avoid_obstacles(int n, const double prev[3], double dir[3], doubl
     if (cnt > 0) {
         double p1[3] = { p[0] + dir[0] * *speed, p[1] + dir[1] * *speed, p[2] + dir[2] * *speed };
         double t;
-        if (sa_first_hit(p, p1, obs, cnt, 0.0, 0, &t) >= 0) {
+        int hi = sa_first_hit(p, p1, obs, cnt, 0.0, 0, &t);
+        if (hi >= 0) {
+            /* the steering could not keep it out: no step this time, and a
+             * heading that points away from the object it would have entered */
+            double away[3] = { p[0] - obs[hi].x, p[1] - obs[hi].y, p[2] - obs[hi].z };
+            if (sa_norm(away, away) < 1e-9) {
+                const double up[3] = { 0.0, 0.0, 1.0 };
+                sa_perp(up, (unsigned)n, away);
+            }
+            dir[0] = away[0]; dir[1] = away[1]; dir[2] = away[2];
             *speed = 0.0;
-            dir[0] = dir[1] = dir[2] = 0.0;
             changed = 1;
         }
     }
     return changed;
+}
+
+/* Comet `hit` was run into by a ship (a player's or an NPC's): the comet is
+ * destroyed and the quadrant is told. Does nothing for other kinds. Must not
+ * be called from inside an `omp critical` region. */
+static void comet_destroyed_by_ship(const ObsHit *hit) {
+    if (hit->kind != OBS_COMET) return;
+    int found = 0;
+    for (int c = 0; c < MAX_COMETS; c++) {
+        if (comets[c].active && comets[c].id == hit->id) {
+            comets[c].active = 0;
+            found = 1;
+            break;
+        }
+    }
+    if (!found) return;
+    int hq1 = get_q_from_g(hit->point[0]);
+    int hq2 = get_q_from_g(hit->point[1]);
+    int hq3 = get_q_from_g(hit->point[2]);
+    #pragma omp critical
+    {
+        for (int pi_ = 0; pi_ < MAX_CLIENTS; pi_++) {
+            if (players[pi_].active && players[pi_].state.q1 == hq1 &&
+                players[pi_].state.q2 == hq2 && players[pi_].state.q3 == hq3)
+                send_server_msg(pi_, "SENSORS", "A comet was destroyed by a ship impact.");
+        }
+    }
+}
+
+/* Called after every movement of NPC n (AI step and fast physics step), which
+ * went from (ox, oy, oz) to its current galactic position. Same rule as for
+ * the players (ship_collision_check): a step that enters a solid object puts
+ * the NPC on the surface, stops it, and it takes hull damage that grows with
+ * its speed, plus IPC_EV_IMPACT for the quadrant. The heading is turned away
+ * from the object instead of being cleared, so the NPC leaves at once; a
+ * comet it hits is destroyed. The steering normally keeps NPCs out of
+ * objects, so this is the safety net for what it cannot prevent (a fast
+ * physics step, a heading changed by the AI, a crowded spot). */
+static void npc_collision_check_impl(int n, double ox, double oy, double oz) {
+    {
+        /* Not where its last step left it: the slot was reused by a new NPC (or
+         * the NPC was moved). Nothing known about the old one applies. */
+        double jx = ox - g_npc_last_pos[n][0], jy = oy - g_npc_last_pos[n][1], jz = oz - g_npc_last_pos[n][2];
+        if (jx * jx + jy * jy + jz * jz > 0.25) {
+            g_npc_avoid_skip[n] = 0;
+            g_npc_avoid_hold[n] = 0;
+            g_npc_collision_grace[n] = 0;
+        }
+    }
+    if (g_npc_collision_grace[n] > 0) g_npc_collision_grace[n]--;
+    if (npcs[n].death_timer > 0) return;
+
+    /* A scan of the AI found open space ahead and nothing changed since: the
+     * few steps taken since cannot have reached any object. */
+    if (g_npc_avoid_skip[n] > 0 && g_npc_avoid_hold[n] == 0 &&
+        npcs[n].dx == g_npc_scan_dir[n][0] && npcs[n].dy == g_npc_scan_dir[n][1] &&
+        npcs[n].dz == g_npc_scan_dir[n][2])
+        return;
+
+    double p0[3] = { ox, oy, oz };
+    double p1[3] = { npcs[n].gx, npcs[n].gy, npcs[n].gz };
+    double d[3] = { p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2] };
+    double len = sqrt(sa_dot(d, d));
+    if (len < 1e-12) return;
+
+    ObsHit hit;
+    if (!obs_segment_hit(p0, p1, 0.0, OBS_MASK_ALL, 0, &hit)) return;
+
+    /* on the surface, just outside the contact distance */
+    double nrm[3] = { hit.point[0] - hit.centre[0], hit.point[1] - hit.centre[1], hit.point[2] - hit.centre[2] };
+    double nl = sa_norm(nrm, nrm);
+    if (nl < 1e-9) { nrm[0] = -d[0]; nrm[1] = -d[1]; nrm[2] = -d[2]; sa_norm(nrm, nrm); }
+    double surf = hit.r_hit + 0.001;
+    npcs[n].gx = hit.centre[0] + nrm[0] * surf;
+    npcs[n].gy = hit.centre[1] + nrm[1] * surf;
+    npcs[n].gz = hit.centre[2] + nrm[2] * surf;
+    npcs[n].q1 = get_q_from_g(npcs[n].gx);
+    npcs[n].q2 = get_q_from_g(npcs[n].gy);
+    npcs[n].q3 = get_q_from_g(npcs[n].gz);
+    npcs[n].x = npcs[n].gx - (npcs[n].q1 - 1) * QUADRANT_SIZE;
+    npcs[n].y = npcs[n].gy - (npcs[n].q2 - 1) * QUADRANT_SIZE;
+    npcs[n].z = npcs[n].gz - (npcs[n].q3 - 1) * QUADRANT_SIZE;
+
+    /* stopped now, then free to leave: heading away from the object */
+    npcs[n].dx = nrm[0]; npcs[n].dy = nrm[1]; npcs[n].dz = nrm[2];
+    npcs[n].vx = npcs[n].vy = npcs[n].vz = 0.0;
+    npcs[n].h = atan2(nrm[0], -nrm[1]) * 180.0 / M_PI;
+    if (npcs[n].h < 0) npcs[n].h += 360;
+    npcs[n].m = asin(nrm[2] > 1.0 ? 1.0 : (nrm[2] < -1.0 ? -1.0 : nrm[2])) * 180.0 / M_PI;
+    g_npc_avoid_skip[n] = 0;
+    g_npc_avoid_hold[n] = 0;
+
+    comet_destroyed_by_ship(&hit);
+
+    if (g_npc_collision_grace[n] > 0) return;
+    g_npc_collision_grace[n] = TIMER_COLLISION_GRACE;
+
+    double speed_ups = len * GAME_TICK_RATE;
+    double dmg = DMG_COLLISION_BASE + DMG_COLLISION_PER_UPS * speed_ups;
+    if (dmg > DMG_COLLISION_MAX) dmg = DMG_COLLISION_MAX;
+    npcs[n].health -= (int)(dmg * MAX_TORPEDO_CAPACITY / 100.0 + 0.5);
+    if (npcs[n].health <= 0 && npcs[n].death_timer <= 0) npcs[n].death_timer = GAME_TICK_RATE;
+
+    int hq1 = get_q_from_g(hit.point[0]);
+    int hq2 = get_q_from_g(hit.point[1]);
+    int hq3 = get_q_from_g(hit.point[2]);
+    #pragma omp critical
+    broadcast_server_event(hq1, hq2, hq3, IPC_EV_IMPACT,
+                           hit.point[0] - (hq1 - 1) * QUADRANT_SIZE,
+                           hit.point[1] - (hq2 - 1) * QUADRANT_SIZE,
+                           hit.point[2] - (hq3 - 1) * QUADRANT_SIZE, 0, 0, 0, 0);
+}
+
+void npc_collision_check(int n, double ox, double oy, double oz) {
+    npc_collision_check_impl(n, ox, oy, oz);
+    g_npc_last_pos[n][0] = npcs[n].gx;      /* every movement path ends here: where the NPC is now */
+    g_npc_last_pos[n][1] = npcs[n].gy;
+    g_npc_last_pos[n][2] = npcs[n].gz;
 }
 
 void update_npc_ai(int n) {
@@ -149,6 +347,18 @@ void update_npc_ai(int n) {
         npcs[n].gx = (npcs[n].q1 - 1) * QUADRANT_SIZE + npcs[n].x;
         npcs[n].gy = (npcs[n].q2 - 1) * QUADRANT_SIZE + npcs[n].y;
         npcs[n].gz = (npcs[n].q3 - 1) * QUADRANT_SIZE + npcs[n].z;
+    }
+    {
+        /* The slot was reused by a new NPC, or the NPC was moved: whatever the
+         * last obstacle scan said is about another place. Look again now. */
+        double jx = npcs[n].gx - g_npc_last_pos[n][0];
+        double jy = npcs[n].gy - g_npc_last_pos[n][1];
+        double jz = npcs[n].gz - g_npc_last_pos[n][2];
+        if (jx * jx + jy * jy + jz * jz > 0.25) {
+            g_npc_avoid_skip[n] = 0;
+            g_npc_avoid_hold[n] = 0;
+            g_npc_collision_grace[n] = 0;
+        }
     }
 
     int q1 = npcs[n].q1;
@@ -211,6 +421,7 @@ void update_npc_ai(int n) {
     }
     
     if (npcs[n].ai_state == AI_STATE_FLEE) speed *= 1.8;
+    const double move_speed = speed;     /* what the engines can do, before an attack pose stops the ship */
 
     if (npcs[n].ai_state == AI_STATE_ATTACK_RUN && closest_p != -1) {
         if (npcs[n].nav_timer <= 0) {
@@ -431,8 +642,23 @@ void update_npc_ai(int n) {
         d_dy = npcs[n].dy;
         d_dz = npcs[n].dz;
     }
+    if (speed <= 0.0 && move_speed > 0.0 && npcs[n].ai_state == AI_STATE_ATTACK_POSITION) {
+        /* A stationary attacker that sits inside a solid object (spawned
+         * there, or pushed in) does not wait for its pose to end: it flies out
+         * and goes back to the attack run. */
+        double esc[3];
+        if (npc_embedded_escape(n, esc)) {
+            d_dx = esc[0]; d_dy = esc[1]; d_dz = esc[2];
+            speed = move_speed;
+            npcs[n].dx = d_dx; npcs[n].dy = d_dy; npcs[n].dz = d_dz;
+            npcs[n].ai_state = AI_STATE_ATTACK_RUN;
+            npcs[n].nav_timer = 0;
+            g_npc_avoid_skip[n] = 0;
+        }
+    }
+    const double step_from[3] = { npcs[n].gx, npcs[n].gy, npcs[n].gz };
     {
-        /* Do not fly into solid objects: steer around them (obstacles.h) */
+        /* Do not fly into solid objects or other ships: steer around them (obstacles.h) */
         double avoid_dir[3] = { d_dx, d_dy, d_dz };
         if (npc_avoid_obstacles(n, prev_dir, avoid_dir, &speed)) {
             d_dx = avoid_dir[0]; d_dy = avoid_dir[1]; d_dz = avoid_dir[2];
@@ -481,6 +707,9 @@ void update_npc_ai(int n) {
     npcs[n].x = npcs[n].gx - (npcs[n].q1 - 1) * QUADRANT_SIZE;
     npcs[n].y = npcs[n].gy - (npcs[n].q2 - 1) * QUADRANT_SIZE;
     npcs[n].z = npcs[n].gz - (npcs[n].q3 - 1) * QUADRANT_SIZE;
+
+    /* the steering is not a guarantee: a step that still enters a solid object is a collision */
+    npc_collision_check(n, step_from[0], step_from[1], step_from[2]);
 }
 
 /* --- Emergency Reentry (shared) ---------------------------------------- */
@@ -541,7 +770,7 @@ static int g_collision_grace[MAX_CLIENTS];
  * with the speed at impact. The target of an approach/chase is not an obstacle.
  * The test is on the segment, not on the end point: at warp 9.9 a tick is
  * ~4.6 units, far more than the 0.8 contact radius. */
-static void ship_collision_check(int i, int nav_before, double ox, double oy, double oz) {
+static void ship_collision_check(int i, int nav_before, int skip_before, double ox, double oy, double oz) {
     if (g_collision_grace[i] > 0) g_collision_grace[i]--;
     switch (nav_before) {
     case NAV_STATE_HYPERDRIVE:
@@ -559,12 +788,17 @@ static void ship_collision_check(int i, int nav_before, double ox, double oy, do
     double len = sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
     if (len < 1e-9) return;
 
-    int skip_id = 0;
-    if (nav_before == NAV_STATE_APPROACH) skip_id = players[i].apr_target;
-    else if (nav_before == NAV_STATE_CHASE) skip_id = players[i].state.lock_target;
+    /* The target of an approach / chase, as it was BEFORE this tick's movement:
+     * an approach that ends (arrival) clears apr_target in the same tick, and
+     * the ship would then "crash" into the very object it was flying to. */
+    int skip_id = skip_before;
 
     ObsHit hit;
     if (!obs_segment_hit(p0, p1, 0.0, OBS_MASK_ALL, skip_id, &hit)) return;
+
+    /* a comet that is run into does not survive the crash (the ship still
+     * stops and takes the damage below) */
+    comet_destroyed_by_ship(&hit);
 
     /* stop on the surface, just outside the contact distance */
     double n[3] = { hit.point[0] - hit.centre[0], hit.point[1] - hit.centre[1], hit.point[2] - hit.centre[2] };
@@ -658,6 +892,9 @@ void update_game_logic() {
         double old_gy = players[i].gy;
         double old_gz = players[i].gz;
         int nav_before = players[i].nav_state;
+        int skip_before = 0;     /* target of an approach / chase: not an obstacle (see ship_collision_check) */
+        if (nav_before == NAV_STATE_APPROACH) skip_before = players[i].apr_target;
+        else if (nav_before == NAV_STATE_CHASE) skip_before = players[i].state.lock_target;
         
         /* DEAD SHIP LOGIC: Hull at or below zero */
         if (players[i].state.hull_integrity <= 0.0) {
@@ -1389,7 +1626,7 @@ void update_game_logic() {
             players[i].gz = (players[i].state.q3 - 1) * QUADRANT_SIZE + players[i].state.s3;
         }
 
-        ship_collision_check(i, nav_before, old_gx, old_gy, old_gz);
+        ship_collision_check(i, nav_before, skip_before, old_gx, old_gy, old_gz);
 
         /* torp_active will be updated in the Late Sync loop below for better accuracy */
 

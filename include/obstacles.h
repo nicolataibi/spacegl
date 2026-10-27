@@ -11,6 +11,10 @@
  *   black hole    r_hit = 0 (its own rules decide the damage), r_avoid =
  *                 DIST_GRAVITY_WELL + margin
  *   pulsar        solid, r_avoid = DIST_PULSAR_BEAM + margin
+ *   ship          NPC / player ships: never a hit (r_hit = 0, so approach,
+ *                 boarding and docking keep working), but NPCs keep
+ *                 DIST_COLLISION_SHIP + OBS_SHIP_AVOID_MARGIN away from
+ *                 them (OBS_MASK_AVOID); the asking NPC is left out (`self`)
  *
  * Header-only (static inline) on purpose: logic.c / logic_events.c are linked
  * by several test executables that must not need one more source file.
@@ -28,14 +32,19 @@ enum {
     OBS_PLANET, OBS_STAR, OBS_MOON, OBS_ASTEROID, OBS_BASE, OBS_DERELICT,
     OBS_BLACK_HOLE, OBS_PULSAR, OBS_NEUTRON_STAR, OBS_BROWN_DWARF,
     OBS_ROGUE_PLANET, OBS_COMET,
+    OBS_SHIP,                   /* NPC and player ships: avoidance only (r_hit = 0) */
     OBS_KIND_COUNT
 };
 
 #define OBS_BIT(k)        (1u << (k))
-#define OBS_MASK_ALL      ((1u << OBS_KIND_COUNT) - 1u)
+/* Every static / slow object (what ships collide with). Ships are NOT in it:
+ * they are only gathered on request (OBS_MASK_AVOID), by the NPC steering. */
+#define OBS_MASK_ALL      ((1u << OBS_SHIP) - 1u)
 #define OBS_MASK_NO_COMET (OBS_MASK_ALL & ~OBS_BIT(OBS_COMET))
+#define OBS_MASK_AVOID    (OBS_MASK_ALL | OBS_BIT(OBS_SHIP))
 
 #define OBS_AVOID_MARGIN  1.2     /* keep-out distance beyond the contact radius */
+#define OBS_SHIP_AVOID_MARGIN 0.6 /* same, around another ship (tighter: ships are small and many) */
 #define OBS_MAX_PER_CALL  192     /* obstacles returned by one gather            */
 #define OBS_MAX_AVOID_R   ((double)DIST_GRAVITY_WELL + OBS_AVOID_MARGIN + 0.5)  /* widest keep-out distance (black hole) + slack */
 #define OBS_MAX_CELLS     64      /* quadrants scanned by one gather             */
@@ -44,7 +53,7 @@ static inline const char *obs_kind_name(int kind) {
     static const char *const names[OBS_KIND_COUNT] = {
         "object", "planet", "star", "moon", "asteroid", "starbase", "derelict",
         "black hole", "pulsar", "neutron star", "brown dwarf", "rogue planet",
-        "comet"
+        "comet", "ship"
     };
     return (kind > 0 && kind < OBS_KIND_COUNT) ? names[kind] : names[0];
 }
@@ -54,6 +63,10 @@ static inline void obs_kind_radii(int kind, double *r_hit, double *r_avoid) {
     case OBS_BLACK_HOLE:
         *r_hit = 0.0;
         *r_avoid = (double)DIST_GRAVITY_WELL + OBS_AVOID_MARGIN;
+        break;
+    case OBS_SHIP:
+        *r_hit = 0.0;
+        *r_avoid = (double)DIST_COLLISION_SHIP + OBS_SHIP_AVOID_MARGIN;
         break;
     case OBS_PULSAR:
         *r_hit = (double)DIST_COLLISION_SHIP;
@@ -84,6 +97,18 @@ static inline int obs_push(ObsSphere *out, int n, int max, int q1, int q2, int q
     return n + 1;
 }
 
+/* Same as obs_push for an object whose galactic position is already known. */
+static inline int obs_push_g(ObsSphere *out, int n, int max,
+                             double gx, double gy, double gz, int kind, int id) {
+    if (n >= max) return n;
+    ObsSphere *o = &out[n];
+    o->x = gx; o->y = gy; o->z = gz;
+    obs_kind_radii(kind, &o->r_hit, &o->r_avoid);
+    o->kind = kind;
+    o->id = id;
+    return n + 1;
+}
+
 #define OBS_SCAN(ARR, CNT, KIND) \
     do { \
         if (mask & OBS_BIT(KIND)) { \
@@ -95,9 +120,11 @@ static inline int obs_push(ObsSphere *out, int n, int max, int q1, int q2, int q
         } \
     } while (0)
 
-/* Obstacles of one quadrant (kinds in `mask`). Returns the new count. */
-static inline int obs_gather_quadrant(int q1, int q2, int q3, unsigned mask,
-                                      ObsSphere *out, int n, int max) {
+/* Obstacles of one quadrant (kinds in `mask`). `self` (may be NULL) is the
+ * NPC / player entry that is asking: it is not reported as a ship obstacle.
+ * Returns the new count. */
+static inline int obs_gather_quadrant_ex(int q1, int q2, int q3, unsigned mask,
+                                         ObsSphere *out, int n, int max, const void *self) {
     if (!spatial_index || !IS_Q_VALID(q1, q2, q3)) return n;
     const QuadrantIndex *qi = &spatial_index[q1][q2][q3];
     OBS_SCAN(planets, planet_count, OBS_PLANET);
@@ -118,15 +145,32 @@ static inline int obs_gather_quadrant(int q1, int q2, int q3, unsigned mask,
                 n = obs_push(out, n, max, q1, q2, q3, f->x, f->y, f->z, OBS_MOON, f->id);
         }
     }
+    if (mask & OBS_BIT(OBS_SHIP)) {
+        for (int k = 0; k < qi->npc_count && n < max; k++) {
+            const NPCShip *s = qi->npcs[k];
+            if (!s || s == self || !s->active || s->death_timer > 0) continue;
+            n = obs_push_g(out, n, max, s->gx, s->gy, s->gz, OBS_SHIP, s->id);
+        }
+        for (int k = 0; k < qi->player_count && n < max; k++) {
+            const ConnectedPlayer *pl = qi->players[k];
+            if (!pl || (const void *)pl == self || !pl->active) continue;
+            n = obs_push_g(out, n, max, pl->gx, pl->gy, pl->gz, OBS_SHIP, 0);
+        }
+    }
     return n;
+}
+
+static inline int obs_gather_quadrant(int q1, int q2, int q3, unsigned mask,
+                                      ObsSphere *out, int n, int max) {
+    return obs_gather_quadrant_ex(q1, q2, q3, mask, out, n, max, NULL);
 }
 
 /* Obstacles in the quadrants touched by the segment p0 -> p1 widened by
  * `margin` (galactic coordinates). At most OBS_MAX_CELLS quadrants are read;
  * a longer segment is gathered from the cells around its start. */
-static inline int obs_gather_segment(const double p0[3], const double p1[3],
-                                     double margin, unsigned mask,
-                                     ObsSphere *out, int max) {
+static inline int obs_gather_segment_ex(const double p0[3], const double p1[3],
+                                        double margin, unsigned mask,
+                                        ObsSphere *out, int max, const void *self) {
     int lo[3], hi[3];
     for (int a = 0; a < 3; a++) {
         double mn = p0[a] < p1[a] ? p0[a] : p1[a];
@@ -143,8 +187,14 @@ static inline int obs_gather_segment(const double p0[3], const double p1[3],
     for (int a = lo[0]; a <= hi[0]; a++)
         for (int b = lo[1]; b <= hi[1]; b++)
             for (int c = lo[2]; c <= hi[2]; c++)
-                n = obs_gather_quadrant(a, b, c, mask, out, n, max);
+                n = obs_gather_quadrant_ex(a, b, c, mask, out, n, max, self);
     return n;
+}
+
+static inline int obs_gather_segment(const double p0[3], const double p1[3],
+                                     double margin, unsigned mask,
+                                     ObsSphere *out, int max) {
+    return obs_gather_segment_ex(p0, p1, margin, mask, out, max, NULL);
 }
 
 typedef struct {

@@ -1,3 +1,35 @@
+* Tue Oct 27 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.27.03
+  - NPC and comet collision fixes. (1) NPCs now really collide: the new
+  npc_collision_check() runs after every NPC movement, including the fast
+  physics ticks (2 of every 3) that skip the AI and its steering. A step that
+  enters a solid object puts the NPC on the surface, stops it, deals hull damage
+  growing with its speed (a crippled NPC is destroyed through the usual
+  death_timer) and sends IPC_EV_IMPACT to the quadrant; the heading is turned
+  away from the object, never cleared. (2) A comet hit by a ship (player or NPC)
+  is destroyed, not only the ship stopped. (3) NPCs avoid other ships: new
+  OBS_SHIP kind in include/obstacles.h (NPCs and players, keep-out
+  DIST_COLLISION_SHIP + OBS_SHIP_AVOID_MARGIN, never a hit, so approach, boarding
+  and docking are unchanged; not part of OBS_MASK_ALL, requested with
+  OBS_MASK_AVOID; obs_gather_*_ex() leaves the asking ship out). (4) An NPC
+  inside an object no longer waits for its AI to pick a new direction: avoidance
+  used to clear the heading, leaving it frozen until nav_timer expired. Now a
+  null heading is replaced at once by the way out of the keep-out spheres (also
+  for an NPC born on the centre of an object), a blocked step turns the heading
+  away instead of clearing it, a stationary ATTACK_POSITION NPC embedded in a
+  solid flies out and resumes ATTACK_RUN, and a reused NPC slot (position jump)
+  is scanned again at once.
+  - Side fix: when an approach ended, apr_target was cleared before
+  ship_collision_check() ran, so the ship crashed into the object it was flying
+  to (and would now destroy the comet it approached). The approach / chase target
+  is read before the movement.
+  - Cost (-O2, server_tick_bench): average 1.45 -> 2.6 ms per tick, p99 2.5 ->
+  4.0 ms, against the 15.3 / 31.6 ms thresholds.
+  - Tests: obstacles_test (ships: self excluded, never a hit, not in
+  OBS_MASK_ALL) and collision_test (ship destroys comet, approach does not, NPC
+  vs NPC head-on and overlapping, NPC collision damage / grace / destruction,
+  null heading, heading into the centre, reused slot, no engines).
+  spacegl.spec Version bumped 2026.10.27.02 -> 2026.10.27.03.
+
 * Tue Oct 27 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.27.02
   - NPC obstacle avoidance. NPC ships no longer fly through planets, stars,
   moons, asteroids, starbases, derelicts, pulsars, neutron stars, brown dwarfs,

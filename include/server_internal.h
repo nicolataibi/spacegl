@@ -1225,6 +1225,7 @@ void logic_update_environmental_hazards(void);
 void logic_update_starbase_defense(void);
 void logic_generate_events(unsigned int *ai_seed);
 void update_npc_ai(int n);
+void npc_collision_check(int n, double ox, double oy, double oz);   /* after any movement of NPC n (logic.c) */
 
 int read_all(int fd, void *buf, size_t len);
 int write_all(int fd, const void *buf, size_t len);

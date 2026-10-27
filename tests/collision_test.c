@@ -17,6 +17,12 @@
  *     touching it, an NPC in open space flies exactly as before, one inside the
  *     keep-out zone is pushed out, one that already leaves is left alone and a
  *     stationary one stays where it is.
+ *   - a ship that runs into a comet stops and is hurt, AND the comet is destroyed;
+ *   - NPCs also keep away from other ships, collide for real with solid objects
+ *     (stop on the surface, damage, IPC_EV_IMPACT; also on the fast physics
+ *     ticks, which skip the AI) and never stay frozen inside an object: a null
+ *     heading, a respawned slot or a heading into the object all get the NPC out
+ *     at once.
  * Same scaffolding as vec_thrust_test (production-size globals, message
  * recorder, ASan/UBSan build).
  */
@@ -541,6 +547,238 @@ static void test_npc_avoidance(void)
     CHECK(npcs[0].gx == gx0, "a stationary NPC does not move");
 }
 
+
+/* ---- ships vs comets, NPC vs ships, NPC collisions, stuck NPCs ----------- */
+
+/* A comet that stays where it is (speed 0): local (lx,ly,lz) of the test quadrant. */
+static void plant_comet(int c, double lx, double ly, double lz)
+{
+    memset(&comets[c], 0, sizeof comets[c]);
+    comets[c].id = GALAXY_OBJECT_MIN_COMET + c;
+    comets[c].a = 100.0; comets[c].b = 100.0;
+    comets[c].angle = 0.0; comets[c].speed = 0.0; comets[c].inc = 0.0;
+    comets[c].cx = GXQ(QX, lx) - 50.0;            /* r(0) = a * 0.75 / 1.5 = 50 */
+    comets[c].cy = GXQ(QY, ly);
+    comets[c].cz = GXQ(QZ, lz);
+    comets[c].q1 = QX; comets[c].q2 = QY; comets[c].q3 = QZ;
+    comets[c].x = lx; comets[c].y = ly; comets[c].z = lz;
+    comets[c].active = 1;
+    qidx()->comets[c] = &comets[c];
+    if (qidx()->comet_count < c + 1) qidx()->comet_count = c + 1;
+}
+
+static void test_ship_destroys_comet(void)
+{
+    plant_planet();
+    planets[0].active = 0;
+    memset(comets, 0, sizeof comets);
+    plant_comet(0, 15.0, 10.0, 10.0);
+    pose_ship(P, 12.0, 10.0, 10.0);
+    players[P].nav_state = NAV_STATE_IMPULSE;
+    players[P].hyper_speed = 0.5;
+    players[P].dx = 1.0;
+    g_msg_count = 0;
+    int ticks = 0;
+    while (players[P].nav_state == NAV_STATE_IMPULSE && ticks < 600) { tick(); ticks++; }
+    CHECK(players[P].nav_state == NAV_STATE_IDLE, "the ship stops at the comet (%d ticks)", ticks);
+    CHECK(!comets[0].active, "the comet it hit is destroyed too");
+    CHECK(msg_find(P, "SENSORS", "comet") >= 0, "the quadrant is told the comet is gone");
+    CHECK((int)players[P].state.hull_integrity < 100, "the ship is hurt by the crash");
+
+    /* the approach target is no obstacle: a ship that docks / approaches a comet does not destroy it */
+    plant_comet(0, 15.0, 10.0, 10.0);
+    pose_ship(P, 12.0, 10.0, 10.0);
+    players[P].nav_state = NAV_STATE_APPROACH;
+    players[P].apr_target = comets[0].id;
+    players[P].hyper_speed = 0.5;
+    players[P].dx = 1.0;
+    for (int t = 0; t < 40; t++) tick();
+    CHECK(comets[0].active, "approaching a comet on purpose does not destroy it");
+}
+
+/* NPC slot i, same defaults as place_npc (slot 0). Registered in the quadrant index. */
+static void place_npc_i(int i, double lx, double ly, double lz, double dx, double dy, double dz)
+{
+    memset(&npcs[i], 0, sizeof npcs[i]);
+    npcs[i].id = GALAXY_OBJECT_MIN_NPC + i;
+    npcs[i].active = 1;
+    npcs[i].health = 1000;
+    npcs[i].engine_health = 100.0f;
+    npcs[i].energy = 100000;
+    npcs[i].ai_state = AI_STATE_PATROL;
+    npcs[i].nav_timer = 1000000;
+    npcs[i].q1 = QX; npcs[i].q2 = QY; npcs[i].q3 = QZ;
+    npcs[i].x = lx; npcs[i].y = ly; npcs[i].z = lz;
+    npcs[i].gx = GXQ(QX, lx); npcs[i].gy = GXQ(QY, ly); npcs[i].gz = GXQ(QZ, lz);
+    npcs[i].dx = dx; npcs[i].dy = dy; npcs[i].dz = dz;
+    qidx()->npcs[i] = &npcs[i];
+    if (qidx()->npc_count < i + 1) qidx()->npc_count = i + 1;
+}
+
+static double npc_pair_dist(void)
+{
+    double dx = npcs[0].gx - npcs[1].gx, dy = npcs[0].gy - npcs[1].gy, dz = npcs[0].gz - npcs[1].gz;
+    return sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+static void test_npc_avoids_ships(void)
+{
+    memset(npcs, 0, sizeof npcs);
+    pose_ship(P, 35.0, 35.0, 35.0);
+    plant_planet();
+    planets[0].active = 0;
+    qidx()->npc_count = 0;
+
+    /* NPC 0 flies straight at NPC 1, which sits still (engines dead) */
+    place_npc_i(0, 4.0, 20.0, 20.0, 1, 0, 0);
+    place_npc_i(1, 10.0, 20.0, 20.0, 0, 0, 0);
+    npcs[1].engine_health = 5.0f;
+    double closest = 1e300, travelled0 = npcs[0].gx;
+    double min_pair = 1e300;
+    for (int t = 0; t < 1500; t++) {
+        npc_tick();
+        double d = npc_pair_dist();
+        if (d < min_pair) min_pair = d;
+        (void)closest;
+    }
+    travelled0 = npcs[0].gx - travelled0;
+    CHECK(min_pair >= DIST_COLLISION_SHIP + 0.4, "an NPC steers around a ship in its way (closest %.3f)", min_pair);
+    CHECK(fabs(travelled0) > 20.0 || fabs(npcs[0].gy - GXQ(QY, 20)) > 0.5 || fabs(npcs[0].gz - GXQ(QZ, 20)) > 0.5,
+          "and keeps flying (moved %.1f)", travelled0);
+    CHECK(npcs[1].gx == GXQ(QX, 10.0) && npcs[1].gy == GXQ(QY, 20.0), "the still ship was not moved");
+
+    /* two NPCs flying head on: neither goes through the other */
+    place_npc_i(0, 4.0, 20.0, 20.0, 1, 0, 0);
+    place_npc_i(1, 12.0, 20.0, 20.0, -1, 0, 0);
+    min_pair = 1e300;
+    for (int t = 0; t < 1500; t++) {
+        npc_tick();
+        double d = npc_pair_dist();
+        if (d < min_pair) min_pair = d;
+    }
+    CHECK(min_pair >= DIST_COLLISION_SHIP + 0.4, "two NPCs head on pass each other without touching (closest %.3f)", min_pair);
+
+    qidx()->npc_count = 0;
+}
+
+static void test_npc_collision(void)
+{
+    memset(npcs, 0, sizeof npcs);
+    pose_ship(P, 35.0, 35.0, 35.0);
+    plant_planet();
+
+    /* a step that ends inside the planet: put on the surface, hurt, quadrant told */
+    place_npc_i(0, 7.0, 10.0, 10.0, 1, 0, 0);
+    double ox = npcs[0].gx, oy = npcs[0].gy, oz = npcs[0].gz;
+    npcs[0].gx = GXQ(QX, 10.3);  npcs[0].x = 10.3;                /* a long step, through the contact radius */
+    players[P].state.event_count = 0;
+    npc_collision_check(0, ox, oy, oz);
+    double dd = sqrt(pow(npcs[0].gx - GXQ(QX, 10), 2) + pow(npcs[0].gy - GXQ(QY, 10), 2) + pow(npcs[0].gz - GXQ(QZ, 10), 2));
+    CHECK(fabs(dd - DIST_COLLISION_SHIP) < 0.01 && npcs[0].gx < GXQ(QX, 10), "an NPC that hits the planet stops on its surface, on the side it came from (%.3f)", dd);
+    CHECK(npcs[0].health < 1000 && npcs[0].health > 600, "and takes hull damage (health %d)", npcs[0].health);
+    CHECK(has_impact_event(), "the quadrant gets IPC_EV_IMPACT");
+    CHECK(npcs[0].dx < -0.99 && npcs[0].vx == 0.0, "it is stopped and heads away from the planet, not frozen (dx %.2f)", npcs[0].dx);
+    CHECK(fabs(npcs[0].x - (npcs[0].gx - GXQ(QX, 0))) < 1e-9, "local coordinates follow");
+
+    /* pushing on again right away: stopped again, no second damage during the grace period */
+    int h = npcs[0].health;
+    double sx = npcs[0].gx, sy = npcs[0].gy, sz = npcs[0].gz;       /* on the surface, where the crash left it */
+    npcs[0].gx = GXQ(QX, 10.3); npcs[0].x = 10.3;
+    npc_collision_check(0, sx, sy, sz);
+    CHECK(npcs[0].health == h, "no second damage inside the grace period (%d -> %d)", h, npcs[0].health);
+    CHECK(fabs(sqrt(pow(npcs[0].gx - GXQ(QX, 10), 2) + pow(npcs[0].gy - GXQ(QY, 10), 2) + pow(npcs[0].gz - GXQ(QZ, 10), 2)) - DIST_COLLISION_SHIP) < 0.01,
+          "but it is put back on the surface again");
+
+    /* a wreck-in-waiting is not collided again; a miss is left alone */
+    place_npc_i(0, 7.0, 13.0, 10.0, 1, 0, 0);
+    ox = npcs[0].gx; oy = npcs[0].gy; oz = npcs[0].gz;
+    npcs[0].gx = GXQ(QX, 13.0); npcs[0].x = 13.0;
+    players[P].state.event_count = 0;
+    npc_collision_check(0, ox, oy, oz);
+    CHECK(npcs[0].health == 1000 && !has_impact_event() && npcs[0].gx == GXQ(QX, 13.0), "an NPC passing 3 units away is not touched");
+
+    /* enough damage destroys it: the usual death timer starts */
+    place_npc_i(2, 7.0, 10.0, 10.0, 1, 0, 0);
+    npcs[2].health = 5;
+    ox = npcs[2].gx; oy = npcs[2].gy; oz = npcs[2].gz;
+    npcs[2].gx = GXQ(QX, 10.3); npcs[2].x = 10.3;
+    npc_collision_check(2, ox, oy, oz);
+    CHECK(npcs[2].health <= 0 && npcs[2].death_timer > 0, "a crippled NPC is destroyed by the crash (health %d, timer %d)", npcs[2].health, npcs[2].death_timer);
+    memset(&npcs[2], 0, sizeof npcs[2]);
+
+    /* the fast physics ticks (2 of every 3) skip the AI: they must collide too.
+     * Heading straight at the planet from 2.2 units with the AI step forced
+     * away (nav_timer / state irrelevant): every tick is moved by the fast path
+     * or the AI path, and in neither may the NPC end up inside. */
+    place_npc_i(0, 7.0, 10.0, 10.0, 1, 0, 0);
+    double min_d = 1e300;
+    for (int t = 0; t < 900; t++) {
+        npc_tick();
+        double dx = npcs[0].gx - GXQ(QX, 10), dy = npcs[0].gy - GXQ(QY, 10), dz = npcs[0].gz - GXQ(QZ, 10);
+        double d = sqrt(dx * dx + dy * dy + dz * dz);
+        if (d < min_d) min_d = d;
+    }
+    CHECK(min_d >= DIST_COLLISION_SHIP - 1e-6, "NPC never ends inside the planet over 900 ticks (closest %.3f)", min_d);
+    qidx()->npc_count = 0;
+}
+
+static void test_npc_not_stuck(void)
+{
+    memset(npcs, 0, sizeof npcs);
+    pose_ship(P, 35.0, 35.0, 35.0);
+
+    /* born inside the planet with no heading: leaves at once, does not wait for the AI to pick a direction (nav_timer is huge) */
+    plant_planet();
+    place_npc_i(0, 10.3, 10.0, 10.0, 0, 0, 0);
+    double x0 = npcs[0].gx, y0 = npcs[0].gy, z0 = npcs[0].gz;
+    for (int t = 0; t < 6; t++) npc_tick();                        /* two AI steps at most */
+    double moved = sqrt(pow(npcs[0].gx - x0, 2) + pow(npcs[0].gy - y0, 2) + pow(npcs[0].gz - z0, 2));
+    CHECK(moved > 0.05, "an NPC with a null heading inside an object moves within 6 ticks (%.3f)", moved);
+    CHECK(npcs[0].dx != 0.0 || npcs[0].dy != 0.0 || npcs[0].dz != 0.0, "and now has a heading");
+    NpcRun r = fly_npc(900, 10, 10, 10);
+    CHECK(r.end_dist > 2.0, "it ends outside the keep-out zone (%.3f)", r.end_dist);
+
+    /* born inside, heading straight at the centre */
+    plant_planet();
+    place_npc_i(0, 10.3, 10.0, 10.0, -1, 0, 0);
+    r = fly_npc(900, 10, 10, 10);
+    CHECK(r.end_dist > 2.0 && r.travelled > 1.0, "inside the planet and heading at its centre: out anyway (end %.3f, flown %.2f)", r.end_dist, r.travelled);
+
+    /* exactly on the centre of the object */
+    plant_planet();
+    place_npc_i(0, 10.0, 10.0, 10.0, 0, 0, 0);
+    r = fly_npc(900, 10, 10, 10);
+    CHECK(r.end_dist > 2.0, "an NPC born on the very centre gets out too (%.3f)", r.end_dist);
+
+    /* a slot reused by a new NPC: the verdict "open space" of the old one must not stick */
+    plant_planet();
+    planets[0].active = 0;
+    place_npc_i(0, 10.0, 30.0, 30.0, 1, 0, 0);
+    for (int t = 0; t < 60; t++) npc_tick();                       /* the scan goes idle */
+    plant_planet();
+    place_npc_i(0, 10.3, 10.0, 10.0, -1, 0, 0);                    /* new NPC, same slot, inside the planet */
+    r = fly_npc(900, 10, 10, 10);
+    CHECK(r.end_dist > 2.0, "a reused slot is scanned again at once (end %.3f)", r.end_dist);
+
+    /* a ship that overlaps another one is pushed apart */
+    plant_planet();
+    planets[0].active = 0;
+    place_npc_i(0, 20.0, 20.0, 20.0, 0, 0, 0);
+    place_npc_i(1, 20.3, 20.0, 20.0, 0, 0, 0);
+    double d0 = npc_pair_dist();
+    for (int t = 0; t < 600; t++) npc_tick();
+    CHECK(npc_pair_dist() > d0 + 0.5, "two NPCs on top of each other drift apart (%.2f -> %.2f)", d0, npc_pair_dist());
+
+    /* no engines: an NPC inside an object stays (it cannot move) */
+    plant_planet();
+    place_npc_i(0, 10.3, 10.0, 10.0, 0, 0, 0);
+    npcs[0].engine_health = 5.0f;
+    double gx0 = npcs[0].gx;
+    for (int t = 0; t < 30; t++) npc_tick();
+    CHECK(npcs[0].gx == gx0, "an NPC without engines does not move");
+    qidx()->npc_count = 0;
+}
+
 int main(void)
 {
     spatial_index = calloc((size_t)41 * 41 * 41, sizeof(QuadrantIndex));
@@ -552,6 +790,10 @@ int main(void)
     test_miss_and_grace_expiry();
     test_comets();
     test_npc_avoidance();
+    test_ship_destroys_comet();
+    test_npc_avoids_ships();
+    test_npc_collision();
+    test_npc_not_stuck();
 
     free(spatial_index);
     printf("collision_test: %d passed, %d failed\n", g_pass, g_fail);

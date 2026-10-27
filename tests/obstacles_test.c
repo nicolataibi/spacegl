@@ -148,6 +148,47 @@ static void test_segment_hit(void) {
           "a ship crossing the face hits the asteroid in the next quadrant");
 }
 
+/* NPC and player ships: avoidance-only obstacles (never a hit), the asking
+ * NPC is left out, and OBS_MASK_ALL (what ships collide with) never has them. */
+static void test_ships(void) {
+    static NPCShip a, b, dead;
+    static ConnectedPlayer pl;
+    memset(&a, 0, sizeof a); memset(&b, 0, sizeof b); memset(&dead, 0, sizeof dead); memset(&pl, 0, sizeof pl);
+    a.id = 100001; a.active = 1; a.gx = GX(5, 20); a.gy = GX(6, 30); a.gz = GX(7, 30);
+    b.id = 100002; b.active = 1; b.gx = GX(5, 24); b.gy = GX(6, 30); b.gz = GX(7, 30);
+    dead = b; dead.id = 100003; dead.death_timer = 5;                 /* being destroyed: not an obstacle */
+    pl.active = 1; pl.gx = GX(5, 28); pl.gy = GX(6, 30); pl.gz = GX(7, 30);
+    QuadrantIndex *qi = &spatial_index[5][6][7];
+    qi->npcs[0] = &a; qi->npcs[1] = &b; qi->npcs[2] = &dead; qi->npc_count = 3;
+    qi->players[0] = &pl; qi->player_count = 1;
+
+    ObsSphere o[OBS_MAX_PER_CALL];
+    int n = obs_gather_quadrant(5, 6, 7, OBS_MASK_ALL, o, 0, OBS_MAX_PER_CALL);
+    CHECK(find_kind(o, n, OBS_SHIP) == NULL, "ships are not in OBS_MASK_ALL (collisions never see them)");
+    n = obs_gather_quadrant(5, 6, 7, OBS_BIT(OBS_SHIP), o, 0, OBS_MAX_PER_CALL);
+    CHECK(n == 3, "no self: two NPCs and one player are ships (%d)", n);
+    n = obs_gather_quadrant_ex(5, 6, 7, OBS_BIT(OBS_SHIP), o, 0, OBS_MAX_PER_CALL, &a);
+    CHECK(n == 2, "the asking NPC is not its own obstacle (%d)", n);
+    int self_seen = 0;
+    for (int i = 0; i < n; i++) if (o[i].id == 100001) self_seen = 1;
+    CHECK(!self_seen, "NPC a is absent from its own list");
+    n = obs_gather_quadrant_ex(5, 6, 7, OBS_BIT(OBS_SHIP), o, 0, OBS_MAX_PER_CALL, &pl);
+    CHECK(n == 2, "a player that asks is left out too (%d)", n);
+    n = obs_gather_quadrant_ex(5, 6, 7, OBS_BIT(OBS_SHIP), o, 0, OBS_MAX_PER_CALL, &a);
+    CHECK(o[0].r_hit == 0.0 && fabs(o[0].r_avoid - (DIST_COLLISION_SHIP + OBS_SHIP_AVOID_MARGIN)) < 1e-9,
+          "ships are never a hit, only keep-out (r_hit %.2f, r_avoid %.2f)", o[0].r_hit, o[0].r_avoid);
+    CHECK(fabs(o[0].x - GX(5, 24)) < 1e-9 && fabs(o[1].x - GX(5, 28)) < 1e-9, "ships are in galactic coordinates");
+
+    double p0[3] = { GX(5, 16), GX(6, 30), GX(7, 30) }, p1[3] = { GX(5, 28.5), GX(6, 30), GX(7, 30) };   /* stops short of the star at x=30 */
+    ObsHit h;
+    CHECK(!obs_segment_hit(p0, p1, 0.0, OBS_MASK_ALL, 0, &h), "a ship crossing other ships is not 'hit' (approach, boarding keep working)");
+    n = obs_gather_segment_ex(p0, p1, 1.0, OBS_MASK_AVOID, o, OBS_MAX_PER_CALL, &a);
+    CHECK(find_kind(o, n, OBS_SHIP) != NULL, "OBS_MASK_AVOID gathers ships along a segment (%d)", n);
+    CHECK(strcmp(obs_kind_name(OBS_SHIP), "ship") == 0, "ship name");
+
+    qi->npc_count = 0; qi->player_count = 0;
+}
+
 static void test_kind_names(void) {
     CHECK(strcmp(obs_kind_name(OBS_PLANET), "planet") == 0, "planet name");
     CHECK(strcmp(obs_kind_name(OBS_COMET), "comet") == 0, "comet name");
@@ -165,6 +206,7 @@ int main(void) {
     test_gather_quadrant();
     test_gather_segment();
     test_segment_hit();
+    test_ships();
     test_kind_names();
     free(spatial_index);
     printf("obstacles_test: %d passed, %d failed\n", g_pass, g_fail);

@@ -540,6 +540,7 @@ void logic_update_torpedoes(void) {
                 if (npcs[n].engine_health < THRESHOLD_SYS_CRITICAL || npcs[n].health < YIELD_MINE_MAX) speed = 0;
                 
                 if (npcs[n].ai_state != AI_STATE_ATTACK_POSITION) {
+                    const double ox_ = npcs[n].gx, oy_ = npcs[n].gy, oz_ = npcs[n].gz;
                     npcs[n].gx += npcs[n].dx * speed;
                     npcs[n].gy += npcs[n].dy * speed;
                     npcs[n].gz += npcs[n].dz * speed;
@@ -552,6 +553,8 @@ void logic_update_torpedoes(void) {
                     npcs[n].vx = npcs[n].dx * speed;
                     npcs[n].vy = npcs[n].dy * speed;
                     npcs[n].vz = npcs[n].dz * speed;
+                    /* these steps skip the AI (and its steering): they still collide */
+                    if (speed > 0.0) npc_collision_check(n, ox_, oy_, oz_);
                 } else {
                     npcs[n].vx = 0; npcs[n].vy = 0; npcs[n].vz = 0;
                 }
