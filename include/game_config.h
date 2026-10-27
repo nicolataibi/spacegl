@@ -90,6 +90,10 @@
 
 #define MAX_SYSTEMS             10              /* Number of managed subsystems (Engines, Sensors, etc.) */
 #define DIST_NPC_PATROL_STEP    3.0f            /* Maximum length of each NPC patrol leg */
+#define DIST_NPC_AVOID_LOOKAHEAD 6.0f           /* How far ahead an NPC looks for solid objects to steer around */
+#define RATIO_NPC_AVOID_TURN    0.3f            /* Share of the new heading blended in per AI step while avoiding (smooth turns) */
+#define TIMER_NPC_AVOID_HOLD    20              /* AI steps (3 ticks each) an NPC keeps turning smoothly back after the way is clear */
+#define TIMER_NPC_AVOID_IDLE    2               /* AI steps an NPC skips between obstacle scans while its surroundings are free */
 #define DIST_FLEE_LIMIT         8.5f            /* Distance beyond which an NPC stops fleeing from the player */
 
 #define YIELD_BOARD_ENERGY_DIV  100             /* Divisor for calculating energy stolen during boarding */

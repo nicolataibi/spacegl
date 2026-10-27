@@ -1,3 +1,26 @@
+* Tue Oct 27 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.27.02
+  - NPC obstacle avoidance. NPC ships no longer fly through planets, stars,
+  moons, asteroids, starbases, derelicts, pulsars, neutron stars, brown dwarfs,
+  rogue planets and comets, and they keep out of the gravity well of black
+  holes. update_npc_ai() looks DIST_NPC_AVOID_LOOKAHEAD (6) units ahead through
+  include/obstacles.h, steers with sa_steer() (tangent to the keep-out sphere)
+  and blends the new heading into the previous one (RATIO_NPC_AVOID_TURN), so
+  the NPC visibly curves around the object and turns smoothly back for
+  TIMER_NPC_AVOID_HOLD AI steps. The corrected heading is stored in dx/dy/dz
+  (used by the fast physics ticks) and in h/m. A turn of more than 90 degrees
+  (an NPC already inside a keep-out zone) is immediate. As a guarantee the
+  step is also tested as a segment: if it would still enter a solid object the
+  NPC does not move that step. In open space an NPC scans only every third AI
+  step (TIMER_NPC_AVOID_IDLE) and flies exactly as before. Runtime state only
+  (per-NPC arrays in logic.c, each touched by its own iteration of the
+  parallel NPC loop): nothing is saved in galaxy.dat. Cost with a galaxy-like
+  density (-O2): +0.02 ms per tick with 1000 NPCs, +0.08 ms with 4000; the
+  worst-case server_tick_bench (-O0, every array full) goes from 1.5 to 4.6 ms
+  against a 15.3 ms threshold.
+  - Tests: collision_test extended (NPC around a planet, a glancing pass, a
+  black hole, inside the keep-out zone, leaving, stationary, open space
+  unchanged). spacegl.spec Version bumped 2026.10.27.01 -> 2026.10.27.02.
+
 * Tue Oct 27 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.27.01
   - Collisions with solid objects. Ships and comets no longer fly through
   planets, stars, moons, asteroids, starbases, derelicts, pulsars, neutron

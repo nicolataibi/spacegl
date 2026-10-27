@@ -62,11 +62,88 @@ bool is_player_in_nebula(int i) {
     return false;
 }
 
+/* --- NPC obstacle avoidance --------------------------------------------- */
+
+/* AI steps of smooth turning left after the way ahead of NPC n became clear.
+ * Runtime only (nothing is saved); update_npc_ai(n) is the only code that
+ * touches element n, so the parallel NPC loop needs no lock. */
+static unsigned char g_npc_avoid_hold[MAX_NPC];
+/* AI steps left before NPC n scans for obstacles again; an NPC in open space
+ * scans every (TIMER_NPC_AVOID_IDLE + 1) steps, one near objects at every step. */
+static unsigned char g_npc_avoid_skip[MAX_NPC];
+
+/* Steers the direction `dir` of NPC n around the solid objects within
+ * DIST_NPC_AVOID_LOOKAHEAD (obstacles.h / steer_avoid.h). `prev` is the
+ * heading of the previous AI step: the new heading is blended into it, so the
+ * turn is a visible curve and not a kink, and it keeps blending for
+ * TIMER_NPC_AVOID_HOLD steps after the obstacle is behind. The step
+ * itself is also tested as a segment: if it would still enter a solid object
+ * the NPC does not move this step (*speed = 0) and its heading is cleared, so
+ * an NPC never ends up inside an object even when the steering has no way
+ * out. Returns 1 when `dir` was changed. Read-only on the index: safe inside
+ * the OpenMP loop of the NPCs. */
+static int npc_avoid_obstacles(int n, const double prev[3], double dir[3], double *speed) {
+    if (*speed <= 0.0) {
+        g_npc_avoid_hold[n] = 0;
+        return 0;
+    }
+    if (g_npc_avoid_hold[n] == 0 && g_npc_avoid_skip[n] > 0) {
+        g_npc_avoid_skip[n]--;
+        return 0;
+    }
+    double d[3];
+    if (sa_norm(dir, d) < 1e-9) return 0;
+
+    double p[3] = { npcs[n].gx, npcs[n].gy, npcs[n].gz };
+    const double look = (double)DIST_NPC_AVOID_LOOKAHEAD;
+    double end[3] = { p[0] + d[0] * look, p[1] + d[1] * look, p[2] + d[2] * look };
+    ObsSphere obs[OBS_MAX_PER_CALL];
+    int cnt = obs_gather_segment(p, end, OBS_MAX_AVOID_R, OBS_MASK_ALL, obs, OBS_MAX_PER_CALL);
+    if (cnt == 0 && g_npc_avoid_hold[n] == 0) {             /* the usual case: open space */
+        g_npc_avoid_skip[n] = TIMER_NPC_AVOID_IDLE;
+        return 0;
+    }
+    g_npc_avoid_skip[n] = 0;                                /* objects near: look at every step */
+
+    double steered[3];
+    int threat = (cnt > 0) && sa_steer(p, d, look, obs, cnt, 0.0, (unsigned)n, 0, steered);
+    int changed = 0;
+    if (threat) {
+        g_npc_avoid_hold[n] = TIMER_NPC_AVOID_HOLD;
+    }
+    if (threat || g_npc_avoid_hold[n] > 0) {
+        const double *want = threat ? steered : d;
+        double pn[3];
+        double base[3];
+        if (sa_norm(prev, pn) > 1e-6) { base[0] = pn[0]; base[1] = pn[1]; base[2] = pn[2]; }
+        else { base[0] = want[0]; base[1] = want[1]; base[2] = want[2]; }
+        /* A smooth blend can never turn a heading around: when the way out is
+         * more than 90 degrees from the present heading (the NPC is already
+         * inside a keep-out zone, flying at the object) turn at once. */
+        double k = (sa_dot(base, want) < 0.0) ? 1.0 : (double)RATIO_NPC_AVOID_TURN;
+        sa_blend(base, want, k, dir);
+        if (!threat) g_npc_avoid_hold[n]--;
+        changed = 1;
+    }
+
+    if (cnt > 0) {
+        double p1[3] = { p[0] + dir[0] * *speed, p[1] + dir[1] * *speed, p[2] + dir[2] * *speed };
+        double t;
+        if (sa_first_hit(p, p1, obs, cnt, 0.0, 0, &t) >= 0) {
+            *speed = 0.0;
+            dir[0] = dir[1] = dir[2] = 0.0;
+            changed = 1;
+        }
+    }
+    return changed;
+}
+
 void update_npc_ai(int n) {
     if (!npcs[n].active) {
         return;
     }
     unsigned int ai_seed = (unsigned int)n ^ (unsigned int)global_tick;
+    const double prev_dir[3] = { npcs[n].dx, npcs[n].dy, npcs[n].dz };   /* heading of the previous AI step */
 
     if (npcs[n].gx <= 0.001 && npcs[n].gy <= 0.001) {
         npcs[n].gx = (npcs[n].q1 - 1) * QUADRANT_SIZE + npcs[n].x;
@@ -353,6 +430,23 @@ void update_npc_ai(int n) {
         d_dx = npcs[n].dx;
         d_dy = npcs[n].dy;
         d_dz = npcs[n].dz;
+    }
+    {
+        /* Do not fly into solid objects: steer around them (obstacles.h) */
+        double avoid_dir[3] = { d_dx, d_dy, d_dz };
+        if (npc_avoid_obstacles(n, prev_dir, avoid_dir, &speed)) {
+            d_dx = avoid_dir[0]; d_dy = avoid_dir[1]; d_dz = avoid_dir[2];
+            /* keep it for the fast physics ticks and show the real heading */
+            npcs[n].dx = d_dx; npcs[n].dy = d_dy; npcs[n].dz = d_dz;
+            if (speed > 0.0) {
+                double hz = d_dz > 1.0 ? 1.0 : (d_dz < -1.0 ? -1.0 : d_dz);
+                npcs[n].h = atan2(d_dx, -d_dy) * 180.0 / M_PI;
+                if (npcs[n].h < 0) {
+                    npcs[n].h += 360;
+                }
+                npcs[n].m = asin(hz) * 180.0 / M_PI;
+            }
+        }
     }
     npcs[n].gx += d_dx * speed;
     npcs[n].gy += d_dy * speed;

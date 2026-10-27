@@ -37,6 +37,7 @@ enum {
 
 #define OBS_AVOID_MARGIN  1.2     /* keep-out distance beyond the contact radius */
 #define OBS_MAX_PER_CALL  192     /* obstacles returned by one gather            */
+#define OBS_MAX_AVOID_R   ((double)DIST_GRAVITY_WELL + OBS_AVOID_MARGIN + 0.5)  /* widest keep-out distance (black hole) + slack */
 #define OBS_MAX_CELLS     64      /* quadrants scanned by one gather             */
 
 static inline const char *obs_kind_name(int kind) {

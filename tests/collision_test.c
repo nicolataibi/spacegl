@@ -12,6 +12,11 @@
  *   - a comet whose tick ends inside a planet is destroyed with IPC_EV_IMPACT
  *     and the players of the quadrant are told; a comet over a black hole (not
  *     solid) or over empty space survives.
+ *   - NPC ships steer around solid objects (obstacle avoidance): a patrolling
+ *     NPC aimed at a planet or a black hole curves around it without ever
+ *     touching it, an NPC in open space flies exactly as before, one inside the
+ *     keep-out zone is pushed out, one that already leaves is left alone and a
+ *     stationary one stays where it is.
  * Same scaffolding as vec_thrust_test (production-size globals, message
  * recorder, ASan/UBSan build).
  */
@@ -406,6 +411,136 @@ static void test_comets(void)
     CHECK(comets[0].active, "an inactive planet is not an obstacle");
 }
 
+
+/* ---- NPC obstacle avoidance ---------------------------------------- */
+
+/* The server loop raises global_tick; the NPC AI runs on every third tick. */
+static void npc_tick(void)
+{
+    global_tick++;
+    update_game_logic();
+}
+
+static void place_npc(double lx, double ly, double lz, double dx, double dy, double dz)
+{
+    memset(&npcs[0], 0, sizeof npcs[0]);
+    npcs[0].id = GALAXY_OBJECT_MIN_NPC;
+    npcs[0].active = 1;
+    npcs[0].health = 1000;
+    npcs[0].engine_health = 100.0f;
+    npcs[0].energy = 100000;
+    npcs[0].ai_state = AI_STATE_PATROL;
+    npcs[0].nav_timer = 1000000;                  /* no random re-pick of the heading */
+    npcs[0].q1 = QX; npcs[0].q2 = QY; npcs[0].q3 = QZ;
+    npcs[0].x = lx; npcs[0].y = ly; npcs[0].z = lz;
+    npcs[0].gx = GXQ(QX, lx); npcs[0].gy = GXQ(QY, ly); npcs[0].gz = GXQ(QZ, lz);
+    npcs[0].dx = dx; npcs[0].dy = dy; npcs[0].dz = dz;
+}
+
+static double npc_dist(double cx, double cy, double cz)
+{
+    double dx = npcs[0].gx - GXQ(QX, cx), dy = npcs[0].gy - GXQ(QY, cy), dz = npcs[0].gz - GXQ(QZ, cz);
+    return sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+typedef struct { double min_dist, max_turn_deg, travelled, end_dist; } NpcRun;
+
+/* Fly NPC 0 for `ticks` ticks; track the closest approach to (cx,cy,cz), the
+ * sharpest turn between two consecutive steps and the distance flown. */
+static NpcRun fly_npc(int ticks, double cx, double cy, double cz)
+{
+    NpcRun r = { 1e300, 0.0, 0.0, 0.0 };
+    double sx = npcs[0].gx, sy = npcs[0].gy, sz = npcs[0].gz;
+    double px = sx, py = sy, pz = sz, pdx = 0, pdy = 0, pdz = 0;
+    for (int t = 0; t < ticks; t++) {
+        npc_tick();
+        double d = npc_dist(cx, cy, cz);
+        if (d < r.min_dist) r.min_dist = d;
+        double mx = npcs[0].gx - px, my = npcs[0].gy - py, mz = npcs[0].gz - pz;
+        double ml = sqrt(mx * mx + my * my + mz * mz);
+        double pl = sqrt(pdx * pdx + pdy * pdy + pdz * pdz);
+        if (ml > 1e-9 && pl > 1e-9) {
+            double c = (mx * pdx + my * pdy + mz * pdz) / (ml * pl);
+            if (c > 1.0) c = 1.0;
+            if (c < -1.0) c = -1.0;
+            double a = acos(c) * 180.0 / M_PI;
+            if (a > r.max_turn_deg) r.max_turn_deg = a;
+        }
+        if (ml > 1e-9) { pdx = mx; pdy = my; pdz = mz; }
+        px = npcs[0].gx; py = npcs[0].gy; pz = npcs[0].gz;
+    }
+    double tx = npcs[0].gx - sx, ty = npcs[0].gy - sy, tz = npcs[0].gz - sz;
+    r.travelled = sqrt(tx * tx + ty * ty + tz * tz);
+    r.end_dist = npc_dist(cx, cy, cz);
+    return r;
+}
+
+static void test_npc_avoidance(void)
+{
+    const double step = 0.03;
+    memset(npcs, 0, sizeof npcs);
+    pose_ship(P, 35.0, 35.0, 35.0);               /* an observer, so the quadrant is not empty */
+
+    /* open space: exactly the old straight flight */
+    plant_planet();
+    planets[0].active = 0;
+    place_npc(10, 30, 30, 1, 0, 0);
+    NpcRun r = fly_npc(300, 10, 10, 10);
+    CHECK(fabs(npcs[0].gx - (GXQ(QX, 10) + 300 * step)) < 1e-6 && fabs(npcs[0].gy - GXQ(QY, 30)) < 1e-9,
+          "an NPC in open space flies straight, as before (gx %.6f)", npcs[0].gx);
+
+    /* head on into a planet */
+    plant_planet();
+    place_npc(4, 10, 10, 1, 0, 0);
+    r = fly_npc(1500, 10, 10, 10);
+    CHECK(r.min_dist >= DIST_COLLISION_SHIP, "the NPC never touches the planet (closest %.3f)", r.min_dist);
+    CHECK(r.min_dist > DIST_COLLISION_SHIP + 0.4, "it steers around it, it does not just stall on the surface (closest %.3f)", r.min_dist);
+    CHECK(r.travelled > 30.0, "and keeps flying (%.1f units)", r.travelled);
+    CHECK(r.max_turn_deg < 40.0, "the turn is a curve, not a kink (sharpest step %.1f deg)", r.max_turn_deg);
+
+    /* glancing pass on the other side, aimed at a moon-sized object */
+    plant_planet();
+    place_npc(4, 10.4, 10, 1, 0, 0);
+    r = fly_npc(1500, 10, 10, 10);
+    CHECK(r.min_dist >= DIST_COLLISION_SHIP && r.travelled > 30.0 && r.max_turn_deg < 40.0,
+          "glancing pass: closest %.3f, flown %.1f, turn %.1f", r.min_dist, r.travelled, r.max_turn_deg);
+
+    /* a black hole is not solid but keeps the NPC out of its well */
+    plant_planet();
+    planets[0].active = 0;
+    memset(&black_holes[0], 0, sizeof black_holes[0]);
+    black_holes[0].id = GALAXY_OBJECT_MIN_BLACKHOLE;
+    black_holes[0].q1 = QX; black_holes[0].q2 = QY; black_holes[0].q3 = QZ;
+    black_holes[0].x = 10; black_holes[0].y = 10; black_holes[0].z = 10; black_holes[0].active = 1;
+    qidx()->black_holes[0] = &black_holes[0]; qidx()->bh_count = 1;
+    place_npc(2, 10, 10, 1, 0, 0);
+    r = fly_npc(1500, 10, 10, 10);
+    CHECK(r.min_dist >= DIST_GRAVITY_WELL, "the NPC stays out of the black hole well (closest %.3f)", r.min_dist);
+    CHECK(r.travelled > 30.0, "and keeps flying (%.1f units)", r.travelled);
+    black_holes[0].active = 0;
+
+    /* inside the keep-out zone, moving in: pushed out, never into the planet */
+    plant_planet();
+    place_npc(11.2, 10, 10, -1, 0, 0);
+    r = fly_npc(900, 10, 10, 10);
+    CHECK(r.min_dist >= DIST_COLLISION_SHIP, "an NPC aimed at the planet from 1.2 units never enters it (closest %.3f)", r.min_dist);
+    CHECK(r.end_dist > 2.0, "and ends outside the keep-out zone (%.3f)", r.end_dist);
+
+    /* inside the solid but already leaving: left alone */
+    plant_planet();
+    place_npc(10.5, 10, 10, 1, 0, 0);
+    r = fly_npc(60, 10, 10, 10);
+    CHECK(r.end_dist > 0.5 + 60 * step * 0.9, "an NPC that is leaving keeps leaving (%.3f)", r.end_dist);
+
+    /* no engines: stays put */
+    plant_planet();
+    place_npc(4, 10, 10, 1, 0, 0);
+    npcs[0].engine_health = 5.0f;
+    double gx0 = npcs[0].gx;
+    for (int t = 0; t < 30; t++) npc_tick();
+    CHECK(npcs[0].gx == gx0, "a stationary NPC does not move");
+}
+
 int main(void)
 {
     spatial_index = calloc((size_t)41 * 41 * 41, sizeof(QuadrantIndex));
@@ -416,6 +551,7 @@ int main(void)
     test_impulse_ship_is_hurt_less();
     test_miss_and_grace_expiry();
     test_comets();
+    test_npc_avoidance();
 
     free(spatial_index);
     printf("collision_test: %d passed, %d failed\n", g_pass, g_fail);
