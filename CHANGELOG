@@ -1,3 +1,10 @@
+* Tue Oct 27 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.27.04
+  - Docs (README.md): updated to version 3.3 "The Living Catalog": the project
+  status note now describes 3.3 (it still said 3.2 and the 2026-09-20 GPU-driven
+  release) and the feature list gains the 0..177 object catalog (natural moons
+  on real orbits, evolved stars, protostellar & YSO objects, exotic compact
+  objects).
+
 * Tue Oct 27 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.27.03
   - NPC and comet collision fixes. (1) NPCs now really collide: the new
   npc_collision_check() runs after every NPC movement, including the fast
@@ -1109,8 +1116,6 @@
     into separate files, improving diffs and reviews without changing logic.
   - Tests (Golden): Added CPU/GDD golden-image test parity with pixel-diff
     and an MSAA-aware tolerance threshold to guarantee visual equivalence.
-
-* Sat Oct 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.10.02
   - Core: ci update.
 
 * Sat Oct 10 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.10.10.01
@@ -2304,15 +2309,6 @@
   from dirty quadrant flagging.
   - Vulkan client (net): Fixed NPC movement skipping/teleporting by correctly
   interpolating based on network IDs rather than array index.
-  - Vulkan GPU-Driven (GDD): Fixed invisible beams by resolving a double
-  coordinate subtraction; beam endpoints now read directly from
-  already-mapped memory instead of applying server translations twice.
-
-* Fri Sep 25 2026 nicolataibi <nicola.taibi.1967@gmail.com> - 2026.09.25.03
-  - Server (galaxy): Fixed HUD ID duplication by omitting static objects
-  from dirty quadrant flagging.
-  - Vulkan client (net): Fixed NPC movement skipping/teleporting by
-  correctly interpolating based on network IDs rather than array index.
   - Vulkan GPU-Driven (GDD): Fixed invisible beams by resolving a double
   coordinate subtraction; beam endpoints now read directly from
   already-mapped memory instead of applying server translations twice.
