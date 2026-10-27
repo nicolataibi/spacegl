@@ -1,0 +1,1637 @@
+diff --git a/CHANGELOG b/CHANGELOG
+index 8f44d69..959648e 100644
+--- a/CHANGELOG
++++ b/CHANGELOG
+@@ -1,3 +1,26 @@
++* Tue Oct 27 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.27.01
++  - Collisions with solid objects. Ships and comets no longer fly through
++  planets, stars, moons, asteroids, starbases, derelicts, pulsars, neutron
++  stars, brown dwarfs and rogue planets (ships also stop on comets). New
++  header-only modules: include/steer_avoid.h (segment-vs-sphere test and sphere
++  steering, pure geometry) and include/obstacles.h (obstacle provider over the
++  per-quadrant spatial index, one radius table per object kind). A ship in
++  hyperdrive, impulse, approach, chase or drift is tested on the SEGMENT it
++  covers in the tick (at warp 9.9 a tick is ~4.6 units, far more than the 0.8
++  contact radius): it is stopped on the surface of the object, drops out of its
++  engines and takes hull damage DMG_COLLISION_BASE + DMG_COLLISION_PER_UPS *
++  speed (units/s), capped at DMG_COLLISION_MAX; the target of an approach or
++  chase is not an obstacle and a 2 s grace period (TIMER_COLLISION_GRACE) avoids
++  repeated damage while the pilot keeps pushing. A comet that enters a solid
++  object is destroyed with the new IPC_EV_IMPACT explosion and the players of
++  that quadrant are told. Black holes are not solid here (their own rules
++  apply). Nothing is saved in galaxy.dat: no format change.
++  - Clients: IPC_EV_IMPACT is handled in the Vulkan scene (CPU-driven
++  particles, GPU-driven boom style 2) and in the OpenGL view (longer boom).
++  - Tests: steer_avoid (geometry and steering), obstacles (provider on the
++  index), collision (real update_game_logic(): warp and impulse ships, comets).
++  spacegl.spec Version bumped 2026.10.26.02 -> 2026.10.27.01.
++
+ * Mon Oct 26 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.26.02
+   - CI / Packaging: fix the rpmlint step failing with "specfile-error error:
+   no description in %changelog" (exit code 64) after the test suite had
+diff --git a/include/game_config.h b/include/game_config.h
+index c633667..33489aa 100644
+--- a/include/game_config.h
++++ b/include/game_config.h
+@@ -73,6 +73,10 @@
+ #define DMG_TORPEDO             500             /* Destructive potential of a plasma torpedo (base) */
+ #define DMG_TORPEDO_PLATFORM    50000           /* Damage dealt by torpedoes to defense platforms */
+ #define DMG_TORPEDO_MONSTER     100000          /* Damage required to defeat a space monster */
++#define DMG_COLLISION_BASE      2.0             /* Hull damage (%) of any ship impact on a solid object */
++#define DMG_COLLISION_PER_UPS   0.1             /* Extra hull damage (%) for each unit/s of speed at impact */
++#define DMG_COLLISION_MAX       60.0            /* Upper bound of the hull damage (%) of one impact */
++#define TIMER_COLLISION_GRACE   (GAME_TICK_RATE * 2) /* Ticks during which a ship that just hit something cannot be hit again */
+ #define SHIELD_MAX_STRENGTH     10000           /* Maximum absorption capacity for each shield quadrant */
+ #define TIMER_SHIELD_CHANGE_TICKS 180           /* Shield change duration in ticks (3 seconds at 60Hz) */
+ #define SHIELD_CHANGE_PER_TICK  (SHIELD_MAX_STRENGTH / TIMER_SHIELD_CHANGE_TICKS) /* Shield units per tick */
+diff --git a/include/obstacles.h b/include/obstacles.h
+new file mode 100644
+index 0000000..8c2fac9
+--- /dev/null
++++ b/include/obstacles.h
+@@ -0,0 +1,178 @@
++/*
++ * obstacles.h - solid objects of the galaxy as sphere obstacles.
++ *
++ * Reads the per-quadrant spatial index (read-only, so it is safe inside the
++ * OpenMP loops of the tick) and returns the objects around a segment as
++ * ObsSphere (include/steer_avoid.h) in galactic coordinates. One table gives
++ * the contact distance (r_hit) and the steering keep-out distance (r_avoid)
++ * of every kind:
++ *
++ *   solid kinds   r_hit = DIST_COLLISION_SHIP, r_avoid = r_hit + margin
++ *   black hole    r_hit = 0 (its own rules decide the damage), r_avoid =
++ *                 DIST_GRAVITY_WELL + margin
++ *   pulsar        solid, r_avoid = DIST_PULSAR_BEAM + margin
++ *
++ * Header-only (static inline) on purpose: logic.c / logic_events.c are linked
++ * by several test executables that must not need one more source file.
++ * Tests: tests/steer_avoid_test.c (geometry), tests/obstacles_test.c (index).
++ */
++#ifndef OBSTACLES_H
++#define OBSTACLES_H
++
++#include "server_internal.h"
++#include "object_types.h"
++#include "steer_avoid.h"
++
++enum {
++    OBS_NONE = 0,
++    OBS_PLANET, OBS_STAR, OBS_MOON, OBS_ASTEROID, OBS_BASE, OBS_DERELICT,
++    OBS_BLACK_HOLE, OBS_PULSAR, OBS_NEUTRON_STAR, OBS_BROWN_DWARF,
++    OBS_ROGUE_PLANET, OBS_COMET,
++    OBS_KIND_COUNT
++};
++
++#define OBS_BIT(k)        (1u << (k))
++#define OBS_MASK_ALL      ((1u << OBS_KIND_COUNT) - 1u)
++#define OBS_MASK_NO_COMET (OBS_MASK_ALL & ~OBS_BIT(OBS_COMET))
++
++#define OBS_AVOID_MARGIN  1.2     /* keep-out distance beyond the contact radius */
++#define OBS_MAX_PER_CALL  192     /* obstacles returned by one gather            */
++#define OBS_MAX_CELLS     64      /* quadrants scanned by one gather             */
++
++static inline const char *obs_kind_name(int kind) {
++    static const char *const names[OBS_KIND_COUNT] = {
++        "object", "planet", "star", "moon", "asteroid", "starbase", "derelict",
++        "black hole", "pulsar", "neutron star", "brown dwarf", "rogue planet",
++        "comet"
++    };
++    return (kind > 0 && kind < OBS_KIND_COUNT) ? names[kind] : names[0];
++}
++
++static inline void obs_kind_radii(int kind, double *r_hit, double *r_avoid) {
++    switch (kind) {
++    case OBS_BLACK_HOLE:
++        *r_hit = 0.0;
++        *r_avoid = (double)DIST_GRAVITY_WELL + OBS_AVOID_MARGIN;
++        break;
++    case OBS_PULSAR:
++        *r_hit = (double)DIST_COLLISION_SHIP;
++        *r_avoid = (double)DIST_PULSAR_BEAM + OBS_AVOID_MARGIN;
++        break;
++    default:
++        *r_hit = (double)DIST_COLLISION_SHIP;
++        *r_avoid = (double)DIST_COLLISION_SHIP + OBS_AVOID_MARGIN;
++        break;
++    }
++}
++
++static inline int obs_is_moon_type(int type) {
++    return (type >= OBJ_MOON_FIRST && type <= OBJ_MOON_LAST) ||
++           (type >= OBJ_MOON_EXT_FIRST && type <= OBJ_MOON_EXT_LAST);
++}
++
++static inline int obs_push(ObsSphere *out, int n, int max, int q1, int q2, int q3,
++                           double x, double y, double z, int kind, int id) {
++    if (n >= max) return n;
++    ObsSphere *o = &out[n];
++    o->x = (q1 - 1) * QUADRANT_SIZE + x;
++    o->y = (q2 - 1) * QUADRANT_SIZE + y;
++    o->z = (q3 - 1) * QUADRANT_SIZE + z;
++    obs_kind_radii(kind, &o->r_hit, &o->r_avoid);
++    o->kind = kind;
++    o->id = id;
++    return n + 1;
++}
++
++#define OBS_SCAN(ARR, CNT, KIND) \
++    do { \
++        if (mask & OBS_BIT(KIND)) { \
++            for (int k_ = 0; k_ < qi->CNT && n < max; k_++) { \
++                if (qi->ARR[k_] && qi->ARR[k_]->active) \
++                    n = obs_push(out, n, max, q1, q2, q3, qi->ARR[k_]->x, \
++                                 qi->ARR[k_]->y, qi->ARR[k_]->z, (KIND), qi->ARR[k_]->id); \
++            } \
++        } \
++    } while (0)
++
++/* Obstacles of one quadrant (kinds in `mask`). Returns the new count. */
++static inline int obs_gather_quadrant(int q1, int q2, int q3, unsigned mask,
++                                      ObsSphere *out, int n, int max) {
++    if (!spatial_index || !IS_Q_VALID(q1, q2, q3)) return n;
++    const QuadrantIndex *qi = &spatial_index[q1][q2][q3];
++    OBS_SCAN(planets, planet_count, OBS_PLANET);
++    OBS_SCAN(stars, star_count, OBS_STAR);
++    OBS_SCAN(asteroids, asteroid_count, OBS_ASTEROID);
++    OBS_SCAN(bases, base_count, OBS_BASE);
++    OBS_SCAN(derelicts, derelict_count, OBS_DERELICT);
++    OBS_SCAN(black_holes, bh_count, OBS_BLACK_HOLE);
++    OBS_SCAN(pulsars, pulsar_count, OBS_PULSAR);
++    OBS_SCAN(neutron_stars, neutron_star_count, OBS_NEUTRON_STAR);
++    OBS_SCAN(brown_dwarfs, brown_dwarf_count, OBS_BROWN_DWARF);
++    OBS_SCAN(rogue_planets, rogue_planet_count, OBS_ROGUE_PLANET);
++    OBS_SCAN(comets, comet_count, OBS_COMET);
++    if (mask & OBS_BIT(OBS_MOON)) {
++        for (int k = 0; k < qi->feature_count && n < max; k++) {
++            const NPCCosmicFeature *f = qi->features[k];
++            if (f && f->active && obs_is_moon_type(f->type))
++                n = obs_push(out, n, max, q1, q2, q3, f->x, f->y, f->z, OBS_MOON, f->id);
++        }
++    }
++    return n;
++}
++
++/* Obstacles in the quadrants touched by the segment p0 -> p1 widened by
++ * `margin` (galactic coordinates). At most OBS_MAX_CELLS quadrants are read;
++ * a longer segment is gathered from the cells around its start. */
++static inline int obs_gather_segment(const double p0[3], const double p1[3],
++                                     double margin, unsigned mask,
++                                     ObsSphere *out, int max) {
++    int lo[3], hi[3];
++    for (int a = 0; a < 3; a++) {
++        double mn = p0[a] < p1[a] ? p0[a] : p1[a];
++        double mx = p0[a] < p1[a] ? p1[a] : p0[a];
++        lo[a] = get_q_from_g(mn - margin);
++        hi[a] = get_q_from_g(mx + margin);
++    }
++    while ((hi[0] - lo[0] + 1) * (hi[1] - lo[1] + 1) * (hi[2] - lo[2] + 1) > OBS_MAX_CELLS) {
++        for (int a = 0; a < 3; a++) {
++            if (hi[a] > lo[a]) hi[a]--;
++        }
++    }
++    int n = 0;
++    for (int a = lo[0]; a <= hi[0]; a++)
++        for (int b = lo[1]; b <= hi[1]; b++)
++            for (int c = lo[2]; c <= hi[2]; c++)
++                n = obs_gather_quadrant(a, b, c, mask, out, n, max);
++    return n;
++}
++
++typedef struct {
++    int    kind;
++    int    id;
++    double t;           /* 0..1 along the segment               */
++    double r_hit;       /* contact distance of the object       */
++    double point[3];    /* contact point (galactic coordinates) */
++    double centre[3];   /* centre of the object that was hit    */
++} ObsHit;
++
++/* First solid object hit by the segment p0 -> p1 (see sa_first_hit). */
++static inline int obs_segment_hit(const double p0[3], const double p1[3],
++                                  double extra, unsigned mask, int skip_id,
++                                  ObsHit *hit) {
++    ObsSphere obs[OBS_MAX_PER_CALL];
++    int n = obs_gather_segment(p0, p1, (double)DIST_COLLISION_SHIP + extra + 0.5, mask,
++                               obs, OBS_MAX_PER_CALL);
++    double t;
++    int i = sa_first_hit(p0, p1, obs, n, extra, skip_id, &t);
++    if (i < 0) return 0;
++    hit->kind = obs[i].kind;
++    hit->id = obs[i].id;
++    hit->t = t;
++    hit->r_hit = obs[i].r_hit + extra;
++    for (int a = 0; a < 3; a++)
++        hit->point[a] = p0[a] + (p1[a] - p0[a]) * t;
++    hit->centre[0] = obs[i].x; hit->centre[1] = obs[i].y; hit->centre[2] = obs[i].z;
++    return 1;
++}
++
++#endif /* OBSTACLES_H */
+diff --git a/include/shared_state.h b/include/shared_state.h
+index 34829cc..8f9cd18 100644
+--- a/include/shared_state.h
++++ b/include/shared_state.h
+@@ -177,6 +177,7 @@ typedef struct {
+ #define IPC_EV_RECOVERY  4
+ #define IPC_EV_JUMP      5
+ #define IPC_EV_TORPEDO   6
++#define IPC_EV_IMPACT    7   /* collision flash: comet or ship hitting a solid object */
+ #define IPC_TORPEDO_ID_OFFSET 1000
+ 
+ typedef struct {
+diff --git a/include/steer_avoid.h b/include/steer_avoid.h
+new file mode 100644
+index 0000000..8faa0e4
+--- /dev/null
++++ b/include/steer_avoid.h
+@@ -0,0 +1,221 @@
++/*
++ * steer_avoid.h - sphere obstacles: segment collision test and steering.
++ *
++ * Pure geometry shared by every moving object that must not fly through
++ * solid objects: ships (collision), comets (collision) and, later, the
++ * "safe" navigation and the NPC obstacle avoidance. Each obstacle is a
++ * sphere in galactic coordinates with two radii:
++ *
++ *   r_hit    contact distance; the segment test reports a collision when a
++ *            moving point comes this close (0 = not solid, never a hit);
++ *   r_avoid  distance to keep when steering around it (>= r_hit).
++ *
++ * Header-only, C99, depends only on <math.h>; no server globals, so the
++ * unit test (tests/steer_avoid_test.c) links nothing else.
++ */
++#ifndef STEER_AVOID_H
++#define STEER_AVOID_H
++
++#include <math.h>
++
++typedef struct {
++    double x, y, z;     /* centre (galactic coordinates)                  */
++    double r_hit;       /* contact distance, 0 = never a collision        */
++    double r_avoid;     /* steering keep-out distance                     */
++    int    kind;        /* OBS_* kind (see obstacles.h)                   */
++    int    id;          /* object id, 0 = none (used to skip one object)  */
++} ObsSphere;
++
++#define SA_AVOID_SAFETY 1.05   /* grazing path clears r_avoid by 5% */
++
++static inline double sa_dot(const double a[3], const double b[3]) {
++    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
++}
++
++/* out = v / |v|, returns |v|; out = v when |v| is ~0. */
++static inline double sa_norm(const double v[3], double out[3]) {
++    double l = sqrt(sa_dot(v, v));
++    if (l > 1e-12) {
++        out[0] = v[0] / l; out[1] = v[1] / l; out[2] = v[2] / l;
++    } else {
++        out[0] = v[0]; out[1] = v[1]; out[2] = v[2];
++    }
++    return l;
++}
++
++/* Unit vector perpendicular to the unit vector u; `seed` rotates it around u
++ * so that a head-on approach picks a stable but varied side. */
++static inline void sa_perp(const double u[3], unsigned seed, double out[3]) {
++    double ax[3] = {0, 0, 0};
++    double ax_abs = fabs(u[0]);
++    int k = 0;
++    if (fabs(u[1]) < ax_abs) { k = 1; ax_abs = fabs(u[1]); }
++    if (fabs(u[2]) < ax_abs) { k = 2; }
++    ax[k] = 1.0;
++    double p[3] = { u[1] * ax[2] - u[2] * ax[1],
++                    u[2] * ax[0] - u[0] * ax[2],
++                    u[0] * ax[1] - u[1] * ax[0] };
++    double pn[3];
++    sa_norm(p, pn);
++    double q[3] = { u[1] * pn[2] - u[2] * pn[1],
++                    u[2] * pn[0] - u[0] * pn[2],
++                    u[0] * pn[1] - u[1] * pn[0] };
++    unsigned h = seed * 2654435761u;
++    h ^= h >> 15;
++    double a = (double)(h % 3600u) * (0.1 * 3.14159265358979323846 / 180.0);
++    double c = cos(a), s = sin(a);
++    out[0] = pn[0] * c + q[0] * s;
++    out[1] = pn[1] * c + q[1] * s;
++    out[2] = pn[2] * c + q[2] * s;
++}
++
++/*
++ * Does the segment p0 -> p1 ENTER the sphere (c, r)? Returns 1 and the
++ * parameter t in [0,1] of the first contact. A start that is already inside
++ * only counts while moving toward the centre (t = 0): a ship that was left
++ * inside an object can fly away, and is not hit again on every tick.
++ */
++static inline int sa_segment_enter(const double p0[3], const double p1[3],
++                                   const double c[3], double r, double *t_out) {
++    if (r <= 0.0) return 0;
++    double d[3] = { p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2] };
++    double f[3] = { p0[0] - c[0], p0[1] - c[1], p0[2] - c[2] };
++    double a = sa_dot(d, d);
++    if (a < 1e-18) return 0;
++    double b = sa_dot(f, d);
++    double cc = sa_dot(f, f) - r * r;
++    if (cc <= 0.0) {
++        if (b < 0.0) { *t_out = 0.0; return 1; }
++        return 0;
++    }
++    double disc = b * b - a * cc;
++    if (disc < 0.0) return 0;
++    double t = (-b - sqrt(disc)) / a;
++    if (t < 0.0 || t > 1.0) return 0;
++    *t_out = t;
++    return 1;
++}
++
++/*
++ * Earliest collision of the segment p0 -> p1 with the solid obstacles
++ * (r_hit > 0). `extra` is added to every contact distance, `skip_id` (when
++ * non-zero) names one object to ignore (e.g. the target of an approach).
++ * Returns the index of the obstacle hit, or -1; *t_out receives t in [0,1].
++ */
++static inline int sa_first_hit(const double p0[3], const double p1[3],
++                               const ObsSphere *obs, int n, double extra,
++                               int skip_id, double *t_out) {
++    int best = -1;
++    double best_t = 2.0;
++    for (int i = 0; i < n; i++) {
++        const ObsSphere *o = &obs[i];
++        if (o->r_hit <= 0.0) continue;
++        if (skip_id != 0 && o->id == skip_id) continue;
++        double c[3] = { o->x, o->y, o->z };
++        double t;
++        if (sa_segment_enter(p0, p1, c, o->r_hit + extra, &t) && t < best_t) {
++            best_t = t;
++            best = i;
++        }
++    }
++    if (best >= 0) *t_out = best_t;
++    return best;
++}
++
++/*
++ * Steering. A ship at p moving along dir_in (any length) looks `lookahead`
++ * units ahead for the keep-out spheres (r_avoid + extra). Returns 0 and the
++ * normalized dir_in when the way is free. Otherwise returns 1 and in out[]
++ * the direction of the tangent to the nearest blocking sphere, on the side
++ * the current path already leans to (a head-on approach picks the side from
++ * `seed`), so the new path grazes the keep-out distance with a 5% margin.
++ * A point already inside a keep-out sphere and moving toward its centre is
++ * pushed out along the sphere (radial + tangential component of dir).
++ * The caller blends out[] with its previous direction (sa_blend) to get a
++ * smooth, visible curve instead of a kink.
++ */
++static inline int sa_steer(const double p[3], const double dir_in[3],
++                           double lookahead, const ObsSphere *obs, int n,
++                           double extra, unsigned seed, int skip_id,
++                           double out[3]) {
++    double dir[3];
++    double len = sa_norm(dir_in, dir);
++    out[0] = dir[0]; out[1] = dir[1]; out[2] = dir[2];
++    if (len < 1e-12) return 0;
++
++    int best = -1;
++    double best_t = 1e300;
++    for (int i = 0; i < n; i++) {
++        const ObsSphere *o = &obs[i];
++        double R = o->r_avoid + extra;
++        if (R <= 0.0) continue;
++        if (skip_id != 0 && o->id == skip_id) continue;
++        double rel[3] = { o->x - p[0], o->y - p[1], o->z - p[2] };
++        double d2 = sa_dot(rel, rel);
++        double entry;
++        if (d2 < R * R) {
++            if (d2 > 1e-18 && sa_dot(rel, dir) <= 0.0) continue;   /* already leaving */
++            entry = 0.0;
++        } else {
++            double t = sa_dot(rel, dir);
++            if (t <= 0.0 || t > lookahead + R) continue;
++            double dp2 = d2 - t * t;
++            if (dp2 >= R * R) continue;
++            entry = t - sqrt(R * R - dp2);
++            if (entry < 0.0) entry = 0.0;
++            if (entry > lookahead) continue;
++        }
++        if (entry < best_t) { best_t = entry; best = i; }
++    }
++    if (best < 0) return 0;
++
++    const ObsSphere *o = &obs[best];
++    double R = o->r_avoid + extra;
++    double rel[3] = { o->x - p[0], o->y - p[1], o->z - p[2] };
++    double D = sqrt(sa_dot(rel, rel));
++    double relu[3];
++    sa_norm(rel, relu);
++
++    if (D < R) {
++        /* inside the keep-out sphere: radial push plus the tangential
++         * part of the current direction */
++        double away[3] = { -relu[0], -relu[1], -relu[2] };
++        if (D < 1e-9) sa_perp(dir, seed, away);
++        double dn = sa_dot(dir, away);
++        double tang[3] = { dir[0] - away[0] * dn, dir[1] - away[1] * dn, dir[2] - away[2] * dn };
++        double v[3] = { away[0] + tang[0], away[1] + tang[1], away[2] + tang[2] };
++        sa_norm(v, out);
++        return 1;
++    }
++
++    /* side: where the straight path passes relative to the centre */
++    double t = sa_dot(rel, dir);
++    double lat[3] = { p[0] + dir[0] * t - o->x, p[1] + dir[1] * t - o->y, p[2] + dir[2] * t - o->z };
++    double ld = sa_dot(lat, relu);
++    double lp[3] = { lat[0] - relu[0] * ld, lat[1] - relu[1] * ld, lat[2] - relu[2] * ld };
++    double lpn[3];
++    double ll = sa_norm(lp, lpn);
++    if (ll < 1e-6) sa_perp(relu, seed, lpn);
++
++    double Rs = R * SA_AVOID_SAFETY;
++    double s = Rs / D;
++    if (s > 1.0) s = 1.0;
++    double theta = asin(s);
++    double v[3] = { relu[0] * cos(theta) + lpn[0] * sin(theta),
++                    relu[1] * cos(theta) + lpn[1] * sin(theta),
++                    relu[2] * cos(theta) + lpn[2] * sin(theta) };
++    sa_norm(v, out);
++    return 1;
++}
++
++/* out = normalize(old * (1 - k) + new * k): smooth turn, 0 < k <= 1. */
++static inline void sa_blend(const double old_dir[3], const double new_dir[3],
++                            double k, double out[3]) {
++    double v[3] = { old_dir[0] * (1.0 - k) + new_dir[0] * k,
++                    old_dir[1] * (1.0 - k) + new_dir[1] * k,
++                    old_dir[2] * (1.0 - k) + new_dir[2] * k };
++    if (sa_dot(v, v) < 1e-12) { out[0] = new_dir[0]; out[1] = new_dir[1]; out[2] = new_dir[2]; return; }
++    sa_norm(v, out);
++}
++
++#endif /* STEER_AVOID_H */
+diff --git a/spacegl.spec b/spacegl.spec
+index 7557f22..91c7de8 100644
+--- a/spacegl.spec
++++ b/spacegl.spec
+@@ -3,7 +3,7 @@
+ %global _docdir_fmt %{name}
+ 
+ Name:           spacegl
+-Version:        2026.10.26.02
++Version:        2026.10.27.01
+ Release:        %autorelease
+ Summary:        Space exploration and combat game engine (client/server)
+ 
+diff --git a/src/server/logic.c b/src/server/logic.c
+index c1bc3df..466fc26 100644
+--- a/src/server/logic.c
++++ b/src/server/logic.c
+@@ -39,6 +39,7 @@
+ #include "object_types.h"
+ #include "shared_state.h"
+ #include "nav_math.h"
++#include "obstacles.h"
+ #include "ui.h"
+ 
+ 
+@@ -432,6 +433,84 @@ const RescueParams RESCUE_PARAMS_LOGIN = {
+  * the game loop); otherwise rand() is used (command / sync threads).
+  */
+ 
++/* --- Ship collisions with solid objects -------------------------------- */
++
++/* Ticks left before ship i can take damage from another impact (the ship is
++ * stopped on the surface of the object, so a player pushing on at once would
++ * otherwise be hurt on every tick). Only the player loop below touches it. */
++static int g_collision_grace[MAX_CLIENTS];
++
++/* Called once per tick after the movement of ship i, which went from
++ * (ox, oy, oz) to its current galactic position while in state `nav_before`.
++ * When that segment enters a solid object (obstacles.h) the ship is put on
++ * the surface, the engines are dropped and the hull takes damage that grows
++ * with the speed at impact. The target of an approach/chase is not an obstacle.
++ * The test is on the segment, not on the end point: at warp 9.9 a tick is
++ * ~4.6 units, far more than the 0.8 contact radius. */
++static void ship_collision_check(int i, int nav_before, double ox, double oy, double oz) {
++    if (g_collision_grace[i] > 0) g_collision_grace[i]--;
++    switch (nav_before) {
++    case NAV_STATE_HYPERDRIVE:
++    case NAV_STATE_IMPULSE:
++    case NAV_STATE_APPROACH:
++    case NAV_STATE_CHASE:
++    case NAV_STATE_DRIFT:
++        break;
++    default:
++        return;
++    }
++    double p0[3] = { ox, oy, oz };
++    double p1[3] = { players[i].gx, players[i].gy, players[i].gz };
++    double d[3] = { p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2] };
++    double len = sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
++    if (len < 1e-9) return;
++
++    int skip_id = 0;
++    if (nav_before == NAV_STATE_APPROACH) skip_id = players[i].apr_target;
++    else if (nav_before == NAV_STATE_CHASE) skip_id = players[i].state.lock_target;
++
++    ObsHit hit;
++    if (!obs_segment_hit(p0, p1, 0.0, OBS_MASK_ALL, skip_id, &hit)) return;
++
++    /* stop on the surface, just outside the contact distance */
++    double n[3] = { hit.point[0] - hit.centre[0], hit.point[1] - hit.centre[1], hit.point[2] - hit.centre[2] };
++    double nl = sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
++    if (nl < 1e-9) { n[0] = -d[0]; n[1] = -d[1]; n[2] = -d[2]; nl = len; }
++    double surf = hit.r_hit + 0.001;
++    players[i].gx = hit.centre[0] + n[0] / nl * surf;
++    players[i].gy = hit.centre[1] + n[1] / nl * surf;
++    players[i].gz = hit.centre[2] + n[2] / nl * surf;
++    players[i].state.q1 = get_q_from_g(players[i].gx);
++    players[i].state.q2 = get_q_from_g(players[i].gy);
++    players[i].state.q3 = get_q_from_g(players[i].gz);
++    players[i].state.s1 = players[i].gx - (players[i].state.q1 - 1) * QUADRANT_SIZE;
++    players[i].state.s2 = players[i].gy - (players[i].state.q2 - 1) * QUADRANT_SIZE;
++    players[i].state.s3 = players[i].gz - (players[i].state.q3 - 1) * QUADRANT_SIZE;
++
++    players[i].nav_state = NAV_STATE_IDLE;
++    players[i].hyper_speed = 0;
++    players[i].eta = 0;
++    players[i].dx = 0; players[i].dy = 0; players[i].dz = 0;
++    players[i].target_gx = -1.0;
++    players[i].apr_target = 0;
++
++    if (g_collision_grace[i] > 0) return;
++    g_collision_grace[i] = TIMER_COLLISION_GRACE;
++
++    double speed_ups = len * GAME_TICK_RATE;
++    double dmg = DMG_COLLISION_BASE + DMG_COLLISION_PER_UPS * speed_ups;
++    if (dmg > DMG_COLLISION_MAX) dmg = DMG_COLLISION_MAX;
++
++    char msg[128];
++    snprintf(msg, sizeof(msg), "COLLISION: impact with a %s at %.0f units/s. Engines disengaged.",
++             obs_kind_name(hit.kind), speed_ups);
++    send_server_msg(i, "COMPUTER", msg);
++    apply_hull_damage(i, dmg);
++    #pragma omp critical
++    broadcast_server_event(players[i].state.q1, players[i].state.q2, players[i].state.q3, IPC_EV_IMPACT,
++                           players[i].state.s1, players[i].state.s2, players[i].state.s3, 0, 0, 0, 0);
++}
++
+ void update_game_logic() {
+     /* global_tick is already incremented in the calling thread loop */
+     unsigned int ai_seed = (unsigned int)global_tick;
+@@ -477,12 +556,14 @@ void update_game_logic() {
+ 
+     for (int i = 0; i < MAX_CLIENTS; i++) {
+         if (!players[i].active) {
++            g_collision_grace[i] = 0;   /* a new pilot in this slot starts without grace */
+             continue;
+         }
+         
+         double old_gx = players[i].gx;
+         double old_gy = players[i].gy;
+         double old_gz = players[i].gz;
++        int nav_before = players[i].nav_state;
+         
+         /* DEAD SHIP LOGIC: Hull at or below zero */
+         if (players[i].state.hull_integrity <= 0.0) {
+@@ -1214,6 +1295,8 @@ void update_game_logic() {
+             players[i].gz = (players[i].state.q3 - 1) * QUADRANT_SIZE + players[i].state.s3;
+         }
+ 
++        ship_collision_check(i, nav_before, old_gx, old_gy, old_gz);
++
+         /* torp_active will be updated in the Late Sync loop below for better accuracy */
+ 
+         players[i].vx = players[i].gx - old_gx;
+diff --git a/src/server/logic_events.c b/src/server/logic_events.c
+index c8a76f2..235fa53 100644
+--- a/src/server/logic_events.c
++++ b/src/server/logic_events.c
+@@ -35,6 +35,7 @@
+ #include <omp.h>
+ #include "game_config.h"
+ #include "server_internal.h"
++#include "obstacles.h"
+ #include "shared_state.h"
+ #include "nav_math.h"
+ #include "ui.h"
+@@ -560,6 +561,10 @@ void logic_update_torpedoes(void) {
+ 
+     for (int c = 0; c < MAX_COMETS; c++) {
+         if (comets[c].active) {
++            /* position before this tick, for the collision test below */
++            double cp0[3] = { (comets[c].q1 - 1) * QUADRANT_SIZE + comets[c].x,
++                              (comets[c].q2 - 1) * QUADRANT_SIZE + comets[c].y,
++                              (comets[c].q3 - 1) * QUADRANT_SIZE + comets[c].z };
+             comets[c].angle += comets[c].speed;
+             double r = comets[c].a * (1.0 - 0.5 * 0.5) / (1.0 + 0.5 * cos(comets[c].angle)); /* Use eccentricity 0.5 for ellipses */
+             double gx = comets[c].cx + r * cos(comets[c].angle) * cos(comets[c].inc);
+@@ -574,6 +579,35 @@ void logic_update_torpedoes(void) {
+             if (gz < DIST_EPSILON) gz = DIST_EPSILON; 
+             if (gz > gal_limit) gz = gal_limit;
+ 
++            /* Impact: a comet that flies into a solid object is destroyed
++             * with a dedicated explosion (IPC_EV_IMPACT) seen by the players
++             * of that quadrant. Other comets and black holes are not solid. */
++            double cp1[3] = { gx, gy, gz };
++            ObsHit chit;
++            if (obs_segment_hit(cp0, cp1, 0.0, OBS_MASK_NO_COMET, 0, &chit)) {
++                int hq1 = get_q_from_g(chit.point[0]);
++                int hq2 = get_q_from_g(chit.point[1]);
++                int hq3 = get_q_from_g(chit.point[2]);
++                comets[c].active = 0;
++                #pragma omp critical
++                {
++                    broadcast_server_event(hq1, hq2, hq3, IPC_EV_IMPACT,
++                                           chit.point[0] - (hq1 - 1) * QUADRANT_SIZE,
++                                           chit.point[1] - (hq2 - 1) * QUADRANT_SIZE,
++                                           chit.point[2] - (hq3 - 1) * QUADRANT_SIZE, 0, 0, 0, 0);
++                    for (int pi_ = 0; pi_ < MAX_CLIENTS; pi_++) {
++                        if (players[pi_].active && players[pi_].state.q1 == hq1 &&
++                            players[pi_].state.q2 == hq2 && players[pi_].state.q3 == hq3) {
++                            char cmsg[96];
++                            snprintf(cmsg, sizeof(cmsg), "A comet was destroyed hitting a %s.",
++                                     obs_kind_name(chit.kind));
++                            send_server_msg(pi_, "SENSORS", cmsg);
++                        }
++                    }
++                }
++                continue;
++            }
++
+             comets[c].q1 = get_q_from_g(gx);
+             comets[c].q2 = get_q_from_g(gy);
+             comets[c].q3 = get_q_from_g(gz);
+diff --git a/src/spacegl_3dview.c b/src/spacegl_3dview.c
+index c78b7d2..9dc8e50 100644
+--- a/src/spacegl_3dview.c
++++ b/src/spacegl_3dview.c
+@@ -864,6 +864,15 @@ void loadGameState() {
+                     float vx = ((rand()%100)-50)/5.0; float vy = ((rand()%100)-50)/5.0; float vz = ((rand()%100)-50)/5.0;
+                     spawnParticle(dx, dy, dz, vx, vy, vz, 1.0, 1.0, 1.0, 15.0, 1.5);
+                 }
++            } else if (ev->type == IPC_EV_IMPACT) {
++                /* Collision flash: same explosion as a boom, but lasting longer */
++                int current_boom = boom_idx;
++                g_booms[current_boom].x = ev->x1 - (QUADRANT_SIZE / 2.0);
++                g_booms[current_boom].y = ev->z1 - (QUADRANT_SIZE / 2.0);
++                g_booms[current_boom].z = (QUADRANT_SIZE / 2.0) - ev->y1;
++                g_booms[current_boom].active = 1;
++                g_booms[current_boom].timer = 90; /* 1.5 seconds */
++                boom_idx = (boom_idx + 1) % 10;
+             } else if (ev->type == IPC_EV_BEAM) {
+                 SG_TRACE3(SG_CAT_PHA, "view[GL]: consume IPC_EV_BEAM owner=%d target=%d emitter=%d s=(%.2f,%.2f,%.2f) t=(%.2f,%.2f,%.2f)",
+                           ev->padding[0], ev->extra, ev->padding[1],
+diff --git a/src/vulkan_scene.c b/src/vulkan_scene.c
+index 9923270..71a2fa9 100644
+--- a/src/vulkan_scene.c
++++ b/src/vulkan_scene.c
+@@ -1147,6 +1147,32 @@ void scene_update(VulkanApp* app, float deltaTime) {
+                     float r=1, g=1, b=1; switch(p % 6){ case 0: r=0; g=1; b=1; break; case 1: r=1; g=0; b=1; break; case 2: r=1; g=1; b=0; break; case 3: r=1; g=0; b=0; break; case 4: r=0; g=1; b=0; break; case 5: r=1; g=0.5; b=0; break; }
+                     app->activeBooms[i].colors[p][0]=r; app->activeBooms[i].colors[p][1]=g; app->activeBooms[i].colors[p][2]=b;
+                 }
++            } else if (ev->type == IPC_EV_IMPACT) {
++                /* Collision (comet or ship against a solid object): a bigger,
++                 * longer burst than a torpedo boom - white core, orange and
++                 * ice-blue debris flung out on a sphere. GPU-driven path:
++                 * style 2 (core flash + impact ring + spark burst). */
++                int oldest = 0; float min_life = 999.0f;
++                for (int i=0; i<MAX_ACTIVE_BOOMS; i++) if(app->activeBooms[i].life < min_life){ min_life = app->activeBooms[i].life; oldest = i; }
++                int i = oldest;
++                app->activeBooms[i].x = (float)ev->x1 - 20.0f;
++                app->activeBooms[i].y = (float)ev->z1 - 20.0f;
++                app->activeBooms[i].z = 20.0f - (float)ev->y1;
++                app->activeBooms[i].life = 1.5f;
++                app->activeBooms[i].seed = (float)(rand() % 1001);
++                app->activeBooms[i].style = 2;
++                for (int p=0; p<EXPLOSION_PIXELS; p++){
++                    float speed = (p < 48) ? (4.0f + (rand()%300)/100.0f) : (1.5f + (rand()%350)/100.0f);
++                    float theta = (float)(rand()%3600) * 0.1f * M_PI / 180.0f;
++                    float phi = (float)(rand()%1800 - 900) * 0.1f * M_PI / 180.0f;
++                    app->activeBooms[i].offsets[p][0] = speed * cosf(phi) * cosf(theta);
++                    app->activeBooms[i].offsets[p][1] = speed * sinf(phi);
++                    app->activeBooms[i].offsets[p][2] = speed * cosf(phi) * sinf(theta);
++                    float r=1.0f, g=0.55f, b=0.1f;
++                    if (p % 4 == 0) { r=1.0f; g=1.0f; b=1.0f; }
++                    else if (p % 7 == 0) { r=0.5f; g=0.8f; b=1.0f; }
++                    app->activeBooms[i].colors[p][0]=r; app->activeBooms[i].colors[p][1]=g; app->activeBooms[i].colors[p][2]=b;
++                }
+             } else if (ev->type == IPC_EV_BEAM) {
+                 SG_TRACE3(SG_CAT_PHA, "view[VK]: consume IPC_EV_BEAM owner=%d target=%d emitter=%d s=(%.2f,%.2f,%.2f) t=(%.2f,%.2f,%.2f)",
+                           ev->padding[0], ev->extra, ev->padding[1],
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index 4920c8e..f00fef6 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -191,6 +191,18 @@ add_executable(moon_orbit_test moon_orbit_test.c)
+ target_link_libraries(moon_orbit_test PRIVATE m)
+ add_test(NAME moon_orbit COMMAND moon_orbit_test)
+ 
++# --- Sphere obstacles: segment collision test and steering (header-only,
++# include/steer_avoid.h). Ships and comets that hit a solid object, the
++# "safe" navigation and the NPC avoidance all use it ------------------------
++add_executable(steer_avoid_test steer_avoid_test.c)
++target_link_libraries(steer_avoid_test PRIVATE m)
++add_test(NAME steer_avoid COMMAND steer_avoid_test)
++
++# --- Obstacle provider on the per-quadrant index (include/obstacles.h) ---
++add_executable(obstacles_test obstacles_test.c)
++target_link_libraries(obstacles_test PRIVATE m)
++add_test(NAME obstacles COMMAND obstacles_test)
++
+ # --- Server spatial index contract (B3: the quasar and the other
+ # static galactic objects must be inserted into the per-quadrant
+ # index, otherwise the per-frame update / LRS grid never send them)
+@@ -293,6 +305,31 @@ if(NOT MSVC)
+ endif()
+ add_test(NAME vec_thrust COMMAND vec_thrust_test)
+ 
++# --- Collisions: a ship (warp / impulse) or a comet that hits a solid object
++# (real update_game_logic() on a hand-made spatial index; same scaffolding
++# as vec_thrust_test) -------------------------------------------------------
++add_executable(collision_test
++    collision_test.c
++    ${SG_ROOT}/src/server/commands.c
++    ${SG_ROOT}/src/server/logic.c
++    ${SG_ROOT}/src/server/logic_events.c
++    ${SG_ROOT}/src/server/nav_math.c
++    ${SG_ROOT}/src/server/targets.c
++    ${SG_ROOT}/src/sglog.c)
++target_link_libraries(collision_test PRIVATE m Threads::Threads)
++if(OpenMP_C_FOUND)
++    target_link_libraries(collision_test PRIVATE OpenMP::OpenMP_C)
++endif()
++if(SG_ATOMIC_LIB)
++    target_link_libraries(collision_test PRIVATE ${SG_ATOMIC_LIB})
++endif()
++if(NOT MSVC)
++    target_compile_options(collision_test PRIVATE
++        -fsanitize=address,undefined -fno-omit-frame-pointer)
++    target_link_options(collision_test PRIVATE -fsanitize=address,undefined)
++endif()
++add_test(NAME collision COMMAND collision_test)
++
+ # --- Network fuzzing: the REAL libFuzzer harness for the packet ---
+ # --- dispatcher (2026.10.11.01: replaces the no-op stub) ------------
+ # One input = one full client session (a sequence of type+body
+diff --git a/tests/collision_test.c b/tests/collision_test.c
+new file mode 100644
+index 0000000..14230e9
+--- /dev/null
++++ b/tests/collision_test.c
+@@ -0,0 +1,423 @@
++/*
++ * collision_test.c - ships and comets that hit a solid object.
++ *
++ * Drives the REAL update_game_logic() (logic.c + logic_events.c) on a hand-made
++ * spatial index with one planet:
++ *   - a ship in hyperdrive that crosses the planet inside a single tick (4.6
++ *     units per tick, contact radius 0.8) is stopped on the surface, drops out
++ *     of hyperdrive, takes damage that grows with the speed at impact and the
++ *     quadrant sees IPC_EV_IMPACT; pushing on right away is not punished again;
++ *   - a slow impulse ship is hurt less than the warp ship;
++ *   - a ship that passes at a distance is left alone;
++ *   - a comet whose tick ends inside a planet is destroyed with IPC_EV_IMPACT
++ *     and the players of the quadrant are told; a comet over a black hole (not
++ *     solid) or over empty space survives.
++ * Same scaffolding as vec_thrust_test (production-size globals, message
++ * recorder, ASan/UBSan build).
++ */
++
++#include "server_internal.h"
++#include "game_state.h"
++#include "nav_math.h"
++#include "shared_state.h"
++
++#include <math.h>
++#include <stdarg.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++/* ================================================================== */
++/* Globals owned by this TU (production sizes; in the server they   */
++/* live in galaxy.c / spacegl_server.c, which are not linked)        */
++/* ================================================================== */
++
++/* The two arrays the security regression corrupts across, in the
++ * same adjacency as the server BSS: players[] then spacegl_master.
++ * spacegl_master doubles as the canary (see CANARY_PATTERN). */
++ConnectedPlayer players[MAX_CLIENTS];
++SpaceGLGame spacegl_master;
++
++NPCStar stars_data[MAX_STARS];
++NPCBlackHole black_holes[MAX_BH];
++NPCNebula nebulas[MAX_NEBULAS];
++NPCPulsar pulsars[MAX_PULSARS];
++NPCQuasar quasars[MAX_QUASARS];
++NPCComet comets[MAX_COMETS];
++NPCAsteroid asteroids[MAX_ASTEROIDS];
++NPCDerelict derelicts[MAX_DERELICTS];
++NPCMine mines[MAX_MINES];
++NPCBuoy buoys[MAX_BUOYS];
++NPCPlatform platforms[MAX_PLATFORMS];
++NPCRift rifts[MAX_RIFTS];
++NPCMonster monsters[MAX_MONSTERS];
++NPCPlanet planets[MAX_PLANETS];
++NPCBase bases[MAX_BASES];
++NPCShip npcs[MAX_NPC];
++NPCDyson dysons[MAX_DYSON];
++NPCHub hubs[MAX_HUBS];
++NPCRelic relics[MAX_RELICS];
++NPCRupture ruptures[MAX_RUPTURES];
++NPCSatellite satellites[MAX_SATELLITES];
++NPCStorm storms[MAX_STORMS];
++NPCArtifact artifacts[MAX_ARTIFACTS];
++NPCWarpGate warp_gates[MAX_WARP_GATES];
++NPCNeutronStar neutron_stars[MAX_NEUTRON_STARS];
++NPCMegaStructure mega_structs[MAX_MEGA_STRUCTS];
++NPCDarkCloud dark_clouds[MAX_DARK_CLOUDS];
++NPCSingularity singularities[MAX_SINGULARITIES];
++NPCPlasmaStorm plasma_storms[MAX_PLASMA_STORMS];
++NPCOrbitalRing orbital_rings[MAX_ORBITAL_RINGS];
++NPCTimeAnomaly time_anomalies[MAX_TIME_ANOMALIES];
++NPCVoidCrystal void_crystals[MAX_VOID_CRYSTALS];
++NPCSubspaceAnomaly subspace_anomalies[MAX_SUBSPACE_ANOMALIES];
++NPCDiffuseNebula diffuse_nebulae[MAX_DIFFUSE_NEBULAE];
++NPCDarkNebula dark_nebulae[MAX_DARK_NEBULAE];
++NPCPlanetaryNebula planetary_nebulae[MAX_PLANETARY_NEBULAE];
++NPCSNR snrs[MAX_SNR];
++NPCGMC gmcs[MAX_GMC];
++NPCInterstellarFilament interstellar_filaments[MAX_INTERSTELLAR_FILAMENTS];
++NPCInterstellarBubble interstellar_bubbles[MAX_INTERSTELLAR_BUBBLES];
++NPCBokGlobule bok_globules[MAX_BOK_GLOBULES];
++NPCClumpCore clump_cores[MAX_CLUMP_CORES];
++NPCAccretionDisk accretion_disks[MAX_ACCRETION_DISKS];
++NPCRelativisticJet relativistic_jets[MAX_RELATIVISTIC_JETS];
++NPCShockWave shock_waves[MAX_SHOCK_WAVES];
++NPCStellarBowShock stellar_bow_shocks[MAX_STELLAR_BOW_SHOCKS];
++NPCCosmicVoid cosmic_voids[MAX_COSMIC_VOIDS];
++NPCCosmicFilament cosmic_filaments[MAX_COSMIC_FILAMENTS];
++NPCEventHorizon event_horizons[MAX_EVENT_HORIZONS];
++NPCKilonova kilonovae[MAX_KILONOVAE];
++NPCGravLens grav_lenses[MAX_GRAV_LENSES];
++NPCGRB grbs[MAX_GRB];
++NPCGravWave grav_waves[MAX_GRAV_WAVES];
++NPCProtoplanetaryDisk protoplanetary_disks[MAX_PROTOPLANETARY_DISKS];
++NPCDebrisDisk debris_disks[MAX_DEBRIS_DISKS];
++NPCPlanetesimal planetesimals[MAX_PLANETESIMALS];
++NPCRoguePlanet rogue_planets[MAX_ROGUE_PLANETS];
++NPCBrownDwarf brown_dwarfs[MAX_BROWN_DWARFS];
++NPCISO isos[MAX_ISO];
++NPCMagReconn mag_reconns[MAX_MAG_RECONN];
++NPCCurrentSheet current_sheets[MAX_CURRENT_SHEETS];
++NPCHeliosphere heliospheres[MAX_HELIOSPHERES];
++NPCTermShock term_shocks[MAX_TERM_SHOCKS];
++NPCMagnetosphere magnetospheres[MAX_MAGNETOSPHERES];
++NPCCosmicString cosmic_strings[MAX_COSMIC_STRINGS];
++NPCDomainWall domain_walls[MAX_DOMAIN_WALLS];
++NPCDMHalo dm_halos[MAX_DM_HALO];
++NPCIGM igms[MAX_IGM];
++NPCCGM cgms[MAX_CGM];
++NPCLymanAlpha lyman_alphas[MAX_LYMAN_ALPHA];
++NPCCMB cmbs[MAX_CMB];
++
++NPCCosmicFeature cosmic_features[MAX_COSMIC_FEATURES];
++int cosmic_feature_count = 0;
++
++PlayerTorpedo players_torpedoes[MAX_GLOBAL_TORPEDOES];
++pthread_mutex_t game_mutex = PTHREAD_MUTEX_INITIALIZER;
++int g_debug = 0;
++int global_tick = 0;
++uint8_t MASTER_SESSION_KEY[32] = {0};
++uint8_t GALAXY_VERIFY_KEY[32] = {0};
++uint8_t ALGO_KEYS[MAX_CRYPTO_ALGOS + 1][32] = {0};
++uint8_t SERVER_PUBKEY[32] = {0};
++uint8_t SERVER_PRIVKEY[64] = {0};
++SupernovaState supernova_event = {0};
++
++/* Allocated exactly like galaxy.c: one 41x41x41 block. */
++QuadrantIndex (*spatial_index)[41][41] = NULL;
++
++/* ================================================================== */
++/* Stubs for the server I/O / persistence helpers the linked TUs     */
++/* call (conn.c / net.c / galaxy.c are not linked).                  */
++/* ================================================================== */
++
++/* Message recorder: every send_server_msg is captured so the tests
++ * can assert on the exact (p_idx, category, text) the handlers send,
++ * and so the global invariant "p_idx always in [0, MAX_CLIENTS)" can
++ * be checked (the pre-fix impact sends used tid-1 unclamped). */
++#define MSG_REC_SLOT_TEXT 4096
++#define MSG_REC_SLOTS 512
++typedef struct {
++    int p_idx;
++    char cat[32];
++    char text[MSG_REC_SLOT_TEXT];
++} MsgRec;
++static MsgRec g_msg[MSG_REC_SLOTS];
++static int g_msg_count = 0;
++static int g_msg_bad_pidx = 0;   /* calls with p_idx outside [0,16) */
++
++void send_server_msg(int p_idx, const char *from, const char *text) {
++    if (p_idx < 0 || p_idx >= MAX_CLIENTS) g_msg_bad_pidx++;
++    if (g_msg_count >= MSG_REC_SLOTS) return;
++    MsgRec *r = &g_msg[g_msg_count++];
++    r->p_idx = p_idx;
++    snprintf(r->cat, sizeof(r->cat), "%s", from ? from : "");
++    snprintf(r->text, sizeof(r->text), "%s", text ? text : "");
++}
++
++/* Find the last recorded message to p_idx whose category and text
++ * prefix match; returns -1 if none. */
++static int msg_find(int p_idx, const char *cat, const char *text_prefix) {
++    for (int i = g_msg_count - 1; i >= 0; i--) {
++        if (g_msg[i].p_idx != p_idx) continue;
++        if (cat && strcmp(g_msg[i].cat, cat) != 0) continue;
++        if (text_prefix && strstr(g_msg[i].text, text_prefix) == NULL) continue;
++        return i;
++    }
++    return -1;
++}
++
++void slog(const char *fmt, ...) { (void)fmt; }
++
++void save_galaxy(void) {}
++void save_galaxy_async(void) {}
++void spawn_derelict(int q1, int q2, int q3, double x, double y, double z,
++                    int faction, int ship_class, const char *name)
++{
++    (void)q1; (void)q2; (void)q3; (void)x; (void)y; (void)z;
++    (void)faction; (void)ship_class; (void)name;
++}
++const char *get_species_name(int s) { (void)s; return "TEST"; }
++void rebuild_spatial_index(void) {}   /* index stays empty: all pools empty */
++void refresh_lrs_grid(void) {}
++void update_moon_orbits(void) {}
++int write_all(int fd, const void *buf, size_t len) { (void)buf; return (int)len; (void)fd; }
++void server_data_path(char *out, size_t out_len, const char *rel)
++{
++    snprintf(out, out_len, "%s", rel);
++}
++
++/* ================================================================== */
++/* Test harness                                                       */
++/* ================================================================== */
++
++static int g_pass = 0;
++static int g_fail = 0;
++
++#define CHECK(cond, ...) do { \
++    if (cond) { g_pass++; } \
++    else { g_fail++; fprintf(stderr, "FAIL %s:%d: ", __FILE__, __LINE__); \
++           fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); } \
++} while (0)
++
++#define P 0                       /* the pilot under test */
++#define QX 5
++#define QY 6
++#define QZ 7
++#define GXQ(q, x) (((q) - 1) * QUADRANT_SIZE + (x))
++
++static QuadrantIndex *qidx(void) { return &spatial_index[QX][QY][QZ]; }
++
++/* One planet at local (10,10,10) of quadrant (5,6,7), registered in the index. */
++static void plant_planet(void)
++{
++    memset(&planets[0], 0, sizeof planets[0]);
++    planets[0].id = GALAXY_OBJECT_MIN_PLANET;
++    planets[0].q1 = QX; planets[0].q2 = QY; planets[0].q3 = QZ;
++    planets[0].x = 10; planets[0].y = 10; planets[0].z = 10;
++    planets[0].active = 1;
++    memset(qidx(), 0, sizeof *qidx());
++    qidx()->planets[0] = &planets[0];
++    qidx()->planet_count = 1;
++}
++
++static void pose_ship(int i, double lx, double ly, double lz)
++{
++    players[i].active = 0;
++    update_game_logic();              /* an empty slot clears the grace period */
++    memset(&players[i], 0, sizeof players[i]);
++    players[i].active = 1;
++    snprintf(players[i].name, sizeof players[i].name, "TESTCAP");
++    players[i].state.q1 = QX; players[i].state.q2 = QY; players[i].state.q3 = QZ;
++    players[i].state.s1 = lx; players[i].state.s2 = ly; players[i].state.s3 = lz;
++    players[i].gx = GXQ(QX, lx); players[i].gy = GXQ(QY, ly); players[i].gz = GXQ(QZ, lz);
++    for (int s = 0; s < 10; s++) players[i].state.system_health[s] = 100.0;
++    players[i].state.hull_integrity = 100;
++    players[i].state.crew_count = 100;
++    players[i].state.energy = 1000000;
++    players[i].nav_state = NAV_STATE_IDLE;
++    players[i].target_gx = -1.0;
++}
++
++static void tick(void)
++{
++    players[P].state.event_count = 0;
++    update_game_logic();
++}
++
++static int has_impact_event(void)
++{
++    for (int e = 0; e < players[P].state.event_count; e++)
++        if (players[P].state.events[e].type == IPC_EV_IMPACT) return 1;
++    return 0;
++}
++
++static double dist_to_planet(void)
++{
++    double dx = players[P].gx - GXQ(QX, 10), dy = players[P].gy - GXQ(QY, 10), dz = players[P].gz - GXQ(QZ, 10);
++    return sqrt(dx * dx + dy * dy + dz * dz);
++}
++
++static void test_warp_ship(void)
++{
++    plant_planet();
++    pose_ship(P, 7.7, 10.2, 10.0);
++    players[P].nav_state = NAV_STATE_HYPERDRIVE;
++    players[P].hyper_speed = 4.6;                 /* warp 9.9: ~4.6 units per tick */
++    players[P].dx = 1.0;
++    players[P].target_gx = GXQ(QX + 10, 10); players[P].target_gy = GXQ(QY, 10.2); players[P].target_gz = GXQ(QZ, 10);
++    g_msg_count = 0;
++    tick();
++    CHECK(players[P].nav_state == NAV_STATE_IDLE, "warp ship drops out of hyperdrive (state %d)", players[P].nav_state);
++    CHECK(fabs(dist_to_planet() - DIST_COLLISION_SHIP) < 0.01,
++          "warp ship stops on the surface, not on the far side (dist %.3f)", dist_to_planet());
++    CHECK(players[P].gx < GXQ(QX, 10), "warp ship is still on the side it came from (gx %.3f)", players[P].gx);
++    int loss = 100 - (int)players[P].state.hull_integrity;
++    CHECK(loss >= 28 && loss <= 31, "warp impact: hull loss ~30%% (got %d)", loss);
++    CHECK(has_impact_event(), "the quadrant gets IPC_EV_IMPACT");
++    CHECK(msg_find(P, "COMPUTER", "COLLISION") >= 0 && msg_find(P, "COMPUTER", "planet") >= 0,
++          "the pilot is told what was hit");
++    CHECK(players[P].state.s1 < 10.0 && fabs(players[P].state.s1 - (players[P].gx - GXQ(QX, 0))) < 1e-9,
++          "sector coordinates follow the corrected position");
++    CHECK(players[P].dx == 0.0 && players[P].hyper_speed == 0.0 && players[P].target_gx == -1.0,
++          "engines and target are cleared");
++    CHECK(g_msg_bad_pidx == 0, "no message to an invalid player index");
++
++    /* pushing on right away: stopped again, but not hurt again (grace period) */
++    int hull = (int)players[P].state.hull_integrity;
++    players[P].nav_state = NAV_STATE_IMPULSE;
++    players[P].hyper_speed = 0.5;
++    players[P].dx = 1.0; players[P].dy = 0; players[P].dz = 0;
++    players[P].target_gx = -1.0;
++    tick();
++    CHECK(players[P].nav_state == NAV_STATE_IDLE, "impulse into the planet is stopped (state %d)", players[P].nav_state);
++    CHECK(dist_to_planet() >= DIST_COLLISION_SHIP - 1e-6, "ship never ends up inside the planet (%.3f)", dist_to_planet());
++    CHECK((int)players[P].state.hull_integrity == hull, "no second damage during the grace period (%d -> %d)",
++          hull, (int)players[P].state.hull_integrity);
++}
++
++static void test_impulse_ship_is_hurt_less(void)
++{
++    plant_planet();
++    pose_ship(P, 6.0, 10.2, 10.0);
++    players[P].nav_state = NAV_STATE_IMPULSE;
++    players[P].hyper_speed = 0.5;
++    players[P].dx = 1.0;
++    int ticks = 0;
++    while (players[P].nav_state == NAV_STATE_IMPULSE && ticks < 600) { tick(); ticks++; }
++    CHECK(players[P].nav_state == NAV_STATE_IDLE, "impulse ship reaches the planet and stops (%d ticks)", ticks);
++    int loss = 100 - (int)players[P].state.hull_integrity;
++    CHECK(loss >= 2 && loss < 10, "impulse impact hurts, but far less than warp (loss %d)", loss);
++    CHECK(fabs(dist_to_planet() - DIST_COLLISION_SHIP) < 0.05, "impulse ship stops on the surface (%.3f)", dist_to_planet());
++}
++
++static void test_miss_and_grace_expiry(void)
++{
++    plant_planet();
++    pose_ship(P, 7.7, 13.0, 10.0);                /* passes 3 units above the planet */
++    players[P].nav_state = NAV_STATE_HYPERDRIVE;
++    players[P].hyper_speed = 4.6;
++    players[P].dx = 1.0;
++    players[P].target_gx = GXQ(QX + 10, 10); players[P].target_gy = GXQ(QY, 13.0); players[P].target_gz = GXQ(QZ, 10);
++    tick();
++    CHECK(players[P].nav_state == NAV_STATE_HYPERDRIVE, "a ship passing at a distance keeps flying (state %d)", players[P].nav_state);
++    CHECK((int)players[P].state.hull_integrity == 100 && !has_impact_event(), "no damage, no event");
++
++    /* the grace period ends: a new impact hurts again */
++    plant_planet();
++    pose_ship(P, 7.7, 10.2, 10.0);
++    players[P].nav_state = NAV_STATE_HYPERDRIVE;
++    players[P].hyper_speed = 4.6; players[P].dx = 1.0;
++    players[P].target_gx = GXQ(QX + 10, 10); players[P].target_gy = GXQ(QY, 10.2); players[P].target_gz = GXQ(QZ, 10);
++    tick();
++    int hull1 = (int)players[P].state.hull_integrity;
++    for (int k = 0; k < TIMER_COLLISION_GRACE + 5; k++) tick();
++    players[P].nav_state = NAV_STATE_IMPULSE; players[P].hyper_speed = 0.5; players[P].dx = 1.0;
++    tick();
++    CHECK((int)players[P].state.hull_integrity < hull1, "after the grace period an impact hurts again (%d -> %d)",
++          hull1, (int)players[P].state.hull_integrity);
++}
++
++/* Put a comet so that its next tick ends at galactic point T, coming from T - (3,0,0). */
++static void aim_comet(int c, double tx, double ty, double tz)
++{
++    const double speed = 0.02, a = 100.0;
++    memset(&comets[c], 0, sizeof comets[c]);
++    comets[c].id = GALAXY_OBJECT_MIN_COMET + c;
++    comets[c].a = a; comets[c].b = a;
++    comets[c].angle = 0.0; comets[c].speed = speed; comets[c].inc = 0.0;
++    double th = speed;
++    double r = a * (1.0 - 0.5 * 0.5) / (1.0 + 0.5 * cos(th));
++    comets[c].cx = tx - r * cos(th);
++    comets[c].cy = ty - r * sin(th);
++    comets[c].cz = tz;
++    double px = tx - 3.0;
++    comets[c].q1 = get_q_from_g(px); comets[c].q2 = get_q_from_g(ty); comets[c].q3 = get_q_from_g(tz);
++    comets[c].x = px - (comets[c].q1 - 1) * QUADRANT_SIZE;
++    comets[c].y = ty - (comets[c].q2 - 1) * QUADRANT_SIZE;
++    comets[c].z = tz - (comets[c].q3 - 1) * QUADRANT_SIZE;
++    comets[c].active = 1;
++}
++
++static void test_comets(void)
++{
++    /* comet into the planet */
++    plant_planet();
++    pose_ship(P, 30.0, 30.0, 30.0);               /* observer in the same quadrant */
++    memset(comets, 0, sizeof comets);
++    aim_comet(0, GXQ(QX, 10), GXQ(QY, 10), GXQ(QZ, 10));
++    g_msg_count = 0;
++    tick();
++    CHECK(!comets[0].active, "a comet that flies into a planet is destroyed");
++    CHECK(has_impact_event(), "the observers of the quadrant get IPC_EV_IMPACT");
++    int ev = -1;
++    for (int e = 0; e < players[P].state.event_count; e++) if (players[P].state.events[e].type == IPC_EV_IMPACT) ev = e;
++    CHECK(ev >= 0 && fabs(players[P].state.events[ev].x1 - (10.0 - DIST_COLLISION_SHIP)) < 0.05 &&
++          fabs(players[P].state.events[ev].y1 - 10.0) < 0.05,
++          "the explosion is at the contact point, local (%.2f, %.2f)",
++          ev >= 0 ? players[P].state.events[ev].x1 : -1.0, ev >= 0 ? players[P].state.events[ev].y1 : -1.0);
++    CHECK(msg_find(P, "SENSORS", "comet") >= 0, "the quadrant is told");
++
++    /* comet over a black hole: not solid, it survives */
++    plant_planet();
++    planets[0].active = 0;
++    memset(&black_holes[0], 0, sizeof black_holes[0]);
++    black_holes[0].id = GALAXY_OBJECT_MIN_BLACKHOLE;
++    black_holes[0].q1 = QX; black_holes[0].q2 = QY; black_holes[0].q3 = QZ;
++    black_holes[0].x = 10; black_holes[0].y = 10; black_holes[0].z = 10; black_holes[0].active = 1;
++    qidx()->black_holes[0] = &black_holes[0]; qidx()->bh_count = 1;
++    aim_comet(0, GXQ(QX, 10), GXQ(QY, 10), GXQ(QZ, 10));
++    tick();
++    CHECK(comets[0].active, "a comet over a black hole is not destroyed by the collision test");
++
++    /* comet through empty space */
++    plant_planet();
++    aim_comet(0, GXQ(QX, 25), GXQ(QY, 25), GXQ(QZ, 25));
++    tick();
++    CHECK(comets[0].active && fabs(comets[0].x - 25.0) < 0.05, "an unobstructed comet keeps flying (x %.3f)", comets[0].x);
++    CHECK(!has_impact_event(), "no event for a free comet");
++
++    /* an inactive planet is not an obstacle */
++    plant_planet();
++    planets[0].active = 0;
++    aim_comet(0, GXQ(QX, 10), GXQ(QY, 10), GXQ(QZ, 10));
++    tick();
++    CHECK(comets[0].active, "an inactive planet is not an obstacle");
++}
++
++int main(void)
++{
++    spatial_index = calloc((size_t)41 * 41 * 41, sizeof(QuadrantIndex));
++    if (!spatial_index) { fprintf(stderr, "cannot allocate the spatial index\n"); return 1; }
++    global_tick = 1;                  /* skip the "every N ticks" heavy branches */
++
++    test_warp_ship();
++    test_impulse_ship_is_hurt_less();
++    test_miss_and_grace_expiry();
++    test_comets();
++
++    free(spatial_index);
++    printf("collision_test: %d passed, %d failed\n", g_pass, g_fail);
++    return g_fail ? 1 : 0;
++}
+diff --git a/tests/obstacles_test.c b/tests/obstacles_test.c
+new file mode 100644
+index 0000000..6708353
+--- /dev/null
++++ b/tests/obstacles_test.c
+@@ -0,0 +1,172 @@
++/*
++ * obstacles_test.c - contract of include/obstacles.h on the per-quadrant index.
++ *
++ * The test owns a spatial index and plants a few objects by hand (the
++ * production arrays of galaxy.c are not linked): the provider must return the
++ * active solid objects of a quadrant in galactic coordinates with the radii of
++ * the kind table, honour the kind mask, reach the neighbouring quadrant when
++ * a segment passes near the face, give no hit for a black hole (not solid),
++ * stop a fast ship at the surface and survive out-of-range quadrants, a
++ * missing index and very long segments.
++ */
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <math.h>
++#include "obstacles.h"
++
++QuadrantIndex (*spatial_index)[41][41];
++
++static int g_pass = 0, g_fail = 0;
++#define CHECK(cond, ...) do { if (cond) g_pass++; else { g_fail++; \
++    printf("  FAIL: "); printf(__VA_ARGS__); printf("\n"); } } while (0)
++
++#define QS QUADRANT_SIZE
++#define GX(q, x) (((q) - 1) * QS + (x))
++
++static NPCPlanet   g_planet, g_planet_off;
++static NPCStar     g_star;
++static NPCBlackHole g_bh;
++static NPCComet    g_comet;
++static NPCAsteroid g_ast;
++static NPCCosmicFeature g_moon, g_feat;
++
++static void plant(void) {
++    memset(&g_planet, 0, sizeof g_planet);
++    g_planet.id = 5001; g_planet.q1 = 5; g_planet.q2 = 6; g_planet.q3 = 7;
++    g_planet.x = 10; g_planet.y = 10; g_planet.z = 10; g_planet.active = 1;
++    g_planet_off = g_planet; g_planet_off.id = 5002; g_planet_off.active = 0;
++    g_star = (NPCStar){0}; g_star.id = 7001; g_star.x = 30; g_star.y = 30; g_star.z = 30; g_star.active = 1;
++    g_bh = (NPCBlackHole){0}; g_bh.id = 11001; g_bh.x = 20; g_bh.y = 20; g_bh.z = 20; g_bh.active = 1;
++    g_comet = (NPCComet){0}; g_comet.id = 9001; g_comet.x = 5; g_comet.y = 5; g_comet.z = 5; g_comet.active = 1;
++    g_ast = (NPCAsteroid){0}; g_ast.id = 3001; g_ast.x = 39.5; g_ast.y = 10; g_ast.z = 10; g_ast.active = 1;
++    memset(&g_moon, 0, sizeof g_moon);
++    g_moon.id = 83001; g_moon.type = OBJ_MOON_FIRST + 2; g_moon.x = 15; g_moon.y = 15; g_moon.z = 15; g_moon.active = 1;
++    g_feat = g_moon; g_feat.id = 83002; g_feat.type = 40;     /* not a moon */
++    g_feat.x = 25; g_feat.y = 5; g_feat.z = 5;
++
++    QuadrantIndex *qi = &spatial_index[5][6][7];
++    memset(qi, 0, sizeof *qi);
++    qi->planets[0] = &g_planet; qi->planets[1] = &g_planet_off; qi->planet_count = 2;
++    qi->stars[0] = &g_star; qi->star_count = 1;
++    qi->black_holes[0] = &g_bh; qi->bh_count = 1;
++    qi->comets[0] = &g_comet; qi->comet_count = 1;
++    qi->features[0] = &g_moon; qi->features[1] = &g_feat; qi->feature_count = 2;
++    QuadrantIndex *qn = &spatial_index[4][6][7];            /* neighbour on -x */
++    memset(qn, 0, sizeof *qn);
++    qn->asteroids[0] = &g_ast; qn->asteroid_count = 1;
++}
++
++static const ObsSphere *find_kind(const ObsSphere *o, int n, int kind) {
++    for (int i = 0; i < n; i++) if (o[i].kind == kind) return &o[i];
++    return NULL;
++}
++
++static void test_gather_quadrant(void) {
++    ObsSphere o[OBS_MAX_PER_CALL];
++    int n = obs_gather_quadrant(5, 6, 7, OBS_MASK_ALL, o, 0, OBS_MAX_PER_CALL);
++    CHECK(n == 5, "planet, star, black hole, comet and moon (got %d)", n);
++    const ObsSphere *p = find_kind(o, n, OBS_PLANET);
++    CHECK(p && p->id == 5001, "the active planet is returned, the inactive one is not");
++    CHECK(p && fabs(p->x - GX(5, 10)) < 1e-9 && fabs(p->y - GX(6, 10)) < 1e-9 && fabs(p->z - GX(7, 10)) < 1e-9,
++          "planet centre in galactic coordinates");
++    CHECK(p && fabs(p->r_hit - DIST_COLLISION_SHIP) < 1e-9 && fabs(p->r_avoid - (DIST_COLLISION_SHIP + OBS_AVOID_MARGIN)) < 1e-9,
++          "solid radii come from the kind table");
++    const ObsSphere *b = find_kind(o, n, OBS_BLACK_HOLE);
++    CHECK(b && b->r_hit == 0.0 && b->r_avoid > DIST_GRAVITY_WELL, "black hole: not solid, keep-out beyond the well");
++    CHECK(find_kind(o, n, OBS_MOON) != NULL, "moon type feature is an obstacle");
++    int feats = 0;
++    for (int i = 0; i < n; i++) if (o[i].id == 83002) feats++;
++    CHECK(feats == 0, "a non-moon cosmic feature is not an obstacle");
++
++    n = obs_gather_quadrant(5, 6, 7, OBS_MASK_NO_COMET, o, 0, OBS_MAX_PER_CALL);
++    CHECK(n == 4 && find_kind(o, n, OBS_COMET) == NULL, "mask can leave the comets out");
++    n = obs_gather_quadrant(5, 6, 7, OBS_BIT(OBS_STAR), o, 0, OBS_MAX_PER_CALL);
++    CHECK(n == 1 && o[0].kind == OBS_STAR, "mask can select one kind");
++    n = obs_gather_quadrant(5, 6, 7, OBS_MASK_ALL, o, 0, 2);
++    CHECK(n == 2, "the output array limit is honoured (got %d)", n);
++
++    CHECK(obs_gather_quadrant(0, 6, 7, OBS_MASK_ALL, o, 0, OBS_MAX_PER_CALL) == 0, "quadrant 0 is ignored");
++    CHECK(obs_gather_quadrant(41, 6, 7, OBS_MASK_ALL, o, 0, OBS_MAX_PER_CALL) == 0, "quadrant 41 is ignored");
++    CHECK(obs_gather_quadrant(-3, 6, 7, OBS_MASK_ALL, o, 0, OBS_MAX_PER_CALL) == 0, "negative quadrant is ignored");
++}
++
++static void test_gather_segment(void) {
++    ObsSphere o[OBS_MAX_PER_CALL];
++    /* a path that stays inside quadrant [5,6,7] near its -x face reaches the asteroid at [4,6,7] */
++    double a[3] = { GX(5, 1.0), GX(6, 10), GX(7, 10) }, b[3] = { GX(5, 3.0), GX(6, 10), GX(7, 10) };
++    int n = obs_gather_segment(a, b, 2.0, OBS_MASK_ALL, o, OBS_MAX_PER_CALL);
++    CHECK(find_kind(o, n, OBS_ASTEROID) != NULL, "the neighbouring quadrant is scanned near the face");
++    double c[3] = { GX(5, 20), GX(6, 20), GX(7, 20) }, d[3] = { GX(5, 22), GX(6, 20), GX(7, 20) };
++    n = obs_gather_segment(c, d, 0.5, OBS_MASK_ALL, o, OBS_MAX_PER_CALL);
++    CHECK(find_kind(o, n, OBS_ASTEROID) == NULL, "far from the face the neighbour is not scanned");
++
++    double far0[3] = { 0.1, 0.1, 0.1 }, far1[3] = { 1599, 1599, 1599 };
++    n = obs_gather_segment(far0, far1, 3.0, OBS_MASK_ALL, o, OBS_MAX_PER_CALL);
++    CHECK(n >= 0 && n <= OBS_MAX_PER_CALL, "a galaxy-long segment is bounded (%d)", n);
++
++    QuadrantIndex (*saved)[41][41] = spatial_index;
++    spatial_index = NULL;
++    CHECK(obs_gather_segment(a, b, 2.0, OBS_MASK_ALL, o, OBS_MAX_PER_CALL) == 0, "no index: nothing, no crash");
++    spatial_index = saved;
++}
++
++static void test_segment_hit(void) {
++    ObsHit h;
++    /* warp 9.9: 4.6 units in one tick, straight through the planet at (10,10,10) */
++    double a[3] = { GX(5, 7.7), GX(6, 10.2), GX(7, 10) }, b[3] = { GX(5, 12.3), GX(6, 10.2), GX(7, 10) };
++    CHECK(obs_segment_hit(a, b, 0.0, OBS_MASK_ALL, 0, &h), "a fast ship is stopped by the planet");
++    CHECK(h.kind == OBS_PLANET && h.id == 5001, "hit kind/id");
++    double dx = h.point[0] - h.centre[0], dy = h.point[1] - h.centre[1], dz = h.point[2] - h.centre[2];
++    CHECK(fabs(sqrt(dx * dx + dy * dy + dz * dz) - DIST_COLLISION_SHIP) < 1e-6, "contact point is on the surface");
++    CHECK(h.t > 0.0 && h.t < 0.5, "contact before the middle of the step (t=%.3f)", h.t);
++    CHECK(fabs(h.r_hit - DIST_COLLISION_SHIP) < 1e-9, "contact radius is reported");
++
++    CHECK(!obs_segment_hit(a, b, 0.0, OBS_MASK_ALL, 5001, &h), "the approach target is skipped");
++
++    /* black hole at (20,20,20): never a collision */
++    double e[3] = { GX(5, 17), GX(6, 20), GX(7, 20) }, f[3] = { GX(5, 23), GX(6, 20), GX(7, 20) };
++    CHECK(!obs_segment_hit(e, f, 0.0, OBS_MASK_ALL, 0, &h), "a black hole is not solid here");
++
++    /* comet: solid for a ship, but a comet never collides with itself */
++    double g0[3] = { GX(5, 3), GX(6, 5), GX(7, 5) }, g1[3] = { GX(5, 7), GX(6, 5), GX(7, 5) };
++    CHECK(obs_segment_hit(g0, g1, 0.0, OBS_MASK_ALL, 0, &h) && h.kind == OBS_COMET, "ships can hit a comet");
++    CHECK(!obs_segment_hit(g0, g1, 0.0, OBS_MASK_NO_COMET, 0, &h), "comets are left out of a comet's own test");
++
++    /* moon */
++    double m0[3] = { GX(5, 12), GX(6, 15), GX(7, 15) }, m1[3] = { GX(5, 18), GX(6, 15), GX(7, 15) };
++    CHECK(obs_segment_hit(m0, m1, 0.0, OBS_MASK_ALL, 0, &h) && h.kind == OBS_MOON, "ships can hit a moon");
++
++    /* path that misses everything */
++    double n0[3] = { GX(5, 2), GX(6, 35), GX(7, 2) }, n1[3] = { GX(5, 6), GX(6, 35), GX(7, 2) };
++    CHECK(!obs_segment_hit(n0, n1, 0.0, OBS_MASK_ALL, 0, &h), "an empty path has no hit");
++
++    /* the asteroid in the neighbour quadrant, crossed across the face */
++    /* asteroid: quadrant 4, local x 39.5 -> global 159.5; quadrant 5 starts at 160 */
++    double t0[3] = { 158.0, GX(6, 10), GX(7, 10) }, t1[3] = { 161.0, GX(6, 10), GX(7, 10) };
++    CHECK(obs_segment_hit(t0, t1, 0.0, OBS_MASK_ALL, 0, &h) && h.kind == OBS_ASTEROID,
++          "a ship crossing the face hits the asteroid in the next quadrant");
++}
++
++static void test_kind_names(void) {
++    CHECK(strcmp(obs_kind_name(OBS_PLANET), "planet") == 0, "planet name");
++    CHECK(strcmp(obs_kind_name(OBS_COMET), "comet") == 0, "comet name");
++    CHECK(strcmp(obs_kind_name(-1), "object") == 0 && strcmp(obs_kind_name(999), "object") == 0, "unknown kind");
++    CHECK(obs_is_moon_type(OBJ_MOON_FIRST) && obs_is_moon_type(OBJ_MOON_LAST) &&
++          obs_is_moon_type(OBJ_MOON_EXT_FIRST) && obs_is_moon_type(OBJ_MOON_EXT_LAST) &&
++          !obs_is_moon_type(OBJ_MOON_FIRST - 1) && !obs_is_moon_type(OBJ_MOON_LAST + 1) &&
++          !obs_is_moon_type(OBJ_MOON_EXT_LAST + 1), "moon type ranges");
++}
++
++int main(void) {
++    spatial_index = calloc((size_t)41 * 41 * 41, sizeof(QuadrantIndex));
++    if (!spatial_index) { printf("cannot allocate the test index\n"); return 1; }
++    plant();
++    test_gather_quadrant();
++    test_gather_segment();
++    test_segment_hit();
++    test_kind_names();
++    free(spatial_index);
++    printf("obstacles_test: %d passed, %d failed\n", g_pass, g_fail);
++    return g_fail ? 1 : 0;
++}
+diff --git a/tests/steer_avoid_test.c b/tests/steer_avoid_test.c
+new file mode 100644
+index 0000000..50784c9
+--- /dev/null
++++ b/tests/steer_avoid_test.c
+@@ -0,0 +1,250 @@
++/*
++ * steer_avoid_test.c - contract of include/steer_avoid.h.
++ *
++ * The segment test must see a solid even when a fast ship crosses it inside
++ * a single tick, must not hit again a ship that was left inside an object
++ * and flies away, and the steering must (a) leave a free path alone,
++ * (b) turn to the side the path already leans to, (c) produce a direction
++ * whose straight line clears the keep-out sphere, (d) bring a simulated ship
++ * around an obstacle to its target without ever touching it.
++ */
++#include <stdio.h>
++#include <math.h>
++#include <string.h>
++#include "steer_avoid.h"
++
++static int g_pass = 0, g_fail = 0;
++#define CHECK(cond, ...) do { if (cond) g_pass++; else { g_fail++; \
++    printf("  FAIL: "); printf(__VA_ARGS__); printf("\n"); } } while (0)
++
++static ObsSphere sph(double x, double y, double z, double rh, double ra, int id) {
++    ObsSphere o = { x, y, z, rh, ra, 0, id };
++    return o;
++}
++
++/* distance from the centre of o to the half line p + s*dir, s >= 0 */
++static double ray_dist(const double p[3], const double dir[3], const ObsSphere *o) {
++    double rel[3] = { o->x - p[0], o->y - p[1], o->z - p[2] };
++    double t = sa_dot(rel, dir);
++    if (t < 0) t = 0;
++    double q[3] = { p[0] + dir[0] * t - o->x, p[1] + dir[1] * t - o->y, p[2] + dir[2] * t - o->z };
++    return sqrt(sa_dot(q, q));
++}
++
++static void test_segment_enter(void) {
++    double c[3] = { 10, 0, 0 }, t;
++    double a[3] = { 0, 0, 0 }, b[3] = { 20, 0, 0 };
++    CHECK(sa_segment_enter(a, b, c, 0.8, &t), "head-on segment must hit");
++    CHECK(fabs(t - (10 - 0.8) / 20.0) < 1e-9, "contact parameter %.6f", t);
++
++    double b2[3] = { 5, 0, 0 };
++    CHECK(!sa_segment_enter(a, b2, c, 0.8, &t), "segment that stops short must not hit");
++
++    double a3[3] = { 0, 1.0, 0 }, b3[3] = { 20, 1.0, 0 };
++    CHECK(!sa_segment_enter(a3, b3, c, 0.8, &t), "pass at 1.0 > r 0.8 must miss");
++    double a4[3] = { 0, 0.7, 0 }, b4[3] = { 20, 0.7, 0 };
++    CHECK(sa_segment_enter(a4, b4, c, 0.8, &t), "pass at 0.7 < r 0.8 must hit");
++
++    double a5[3] = { 20, 0, 0 }, b5[3] = { 30, 0, 0 };
++    CHECK(!sa_segment_enter(a5, b5, c, 0.8, &t), "moving away must not hit");
++
++    /* already inside: hit only while moving toward the centre */
++    double in0[3] = { 9.5, 0, 0 }, in_to[3] = { 10.2, 0, 0 }, in_away[3] = { 8.0, 0, 0 };
++    CHECK(sa_segment_enter(in0, in_to, c, 0.8, &t) && t == 0.0, "inside and moving in: hit at t=0");
++    CHECK(!sa_segment_enter(in0, in_away, c, 0.8, &t), "inside but leaving: no hit");
++
++    CHECK(!sa_segment_enter(a, a, c, 0.8, &t), "zero length segment: no hit");
++    CHECK(!sa_segment_enter(a, b, c, 0.0, &t), "r = 0 is not solid");
++}
++
++static void test_fast_ship_does_not_tunnel(void) {
++    /* hyperdrive at warp 9.9: ~4.6 units in one tick, the contact radius is 0.8 */
++    double a[3] = { 7.7, 0.2, 0 }, b[3] = { 12.3, 0.2, 0 }, t;
++    double c[3] = { 10, 0, 0 };
++    CHECK(sa_segment_enter(a, b, c, 0.8, &t), "a 4.6 unit step through a 0.8 sphere must hit");
++    /* a point test at the end of the step would miss it */
++    double d2 = (b[0] - c[0]) * (b[0] - c[0]) + (b[1] - c[1]) * (b[1] - c[1]);
++    CHECK(sqrt(d2) > 0.8, "sanity: the end point is outside the sphere");
++}
++
++static void test_first_hit(void) {
++    ObsSphere obs[4] = {
++        sph(30, 0, 0, 0.8, 2.0, 11),
++        sph(10, 0, 0, 0.8, 2.0, 22),
++        sph(20, 0, 0, 0.0, 3.5, 33),     /* black hole: never solid */
++        sph(15, 0, 0, 0.8, 2.0, 44),
++    };
++    double a[3] = { 0, 0, 0 }, b[3] = { 40, 0, 0 }, t;
++    int i = sa_first_hit(a, b, obs, 4, 0.0, 0, &t);
++    CHECK(i == 1 && obs[i].id == 22, "earliest solid must be hit first (got %d)", i);
++    i = sa_first_hit(a, b, obs, 4, 0.0, 22, &t);
++    CHECK(i == 3 && obs[i].id == 44, "skip_id must ignore the approach target (got %d)", i);
++    double c[3] = { 0, 1.5, 0 }, d[3] = { 40, 1.5, 0 };
++    CHECK(sa_first_hit(c, d, obs, 4, 0.0, 0, &t) == -1, "offset path must miss");
++    CHECK(sa_first_hit(c, d, obs, 4, 1.0, 0, &t) == 1, "extra radius widens the contact distance");
++    CHECK(sa_first_hit(a, b, obs, 0, 0.0, 0, &t) == -1, "no obstacles, no hit");
++}
++
++static void test_steer_free_and_ignored(void) {
++    double p[3] = { 0, 0, 0 }, dir[3] = { 2, 0, 0 }, out[3];
++    ObsSphere none[1] = { { 0, 0, 0, 0, 0, 0, 0 } };
++    CHECK(sa_steer(p, dir, 10.0, none, 0, 0.0, 1, 0, out) == 0, "no obstacle: free");
++    CHECK(fabs(out[0] - 1) < 1e-12 && fabs(out[1]) < 1e-12, "free path returns the unit direction");
++
++    ObsSphere behind[1] = { sph(-5, 0, 0, 0.8, 2.0, 1) };
++    CHECK(sa_steer(p, dir, 10.0, behind, 1, 0.0, 1, 0, out) == 0, "obstacle behind is ignored");
++    ObsSphere far1[1] = { sph(30, 0, 0, 0.8, 2.0, 1) };
++    CHECK(sa_steer(p, dir, 10.0, far1, 1, 0.0, 1, 0, out) == 0, "obstacle beyond the look-ahead is ignored");
++    ObsSphere aside[1] = { sph(5, 3.0, 0, 0.8, 2.0, 1) };
++    CHECK(sa_steer(p, dir, 10.0, aside, 1, 0.0, 1, 0, out) == 0, "obstacle beside the path is ignored");
++    double zero[3] = { 0, 0, 0 };
++    CHECK(sa_steer(p, zero, 10.0, aside, 1, 0.0, 1, 0, out) == 0, "zero direction is left alone");
++    ObsSphere tgt[1] = { sph(5, 0, 0, 0.8, 2.0, 77) };
++    CHECK(sa_steer(p, dir, 10.0, tgt, 1, 0.0, 1, 77, out) == 0, "skip_id: the approach target is not an obstacle");
++}
++
++static void test_steer_deflects(void) {
++    double p[3] = { 0, 0, 0 }, dir[3] = { 1, 0, 0 }, out[3];
++    /* centre slightly below the path: pass above it */
++    ObsSphere o1[1] = { sph(10, -0.5, 0, 0.8, 2.0, 1) };
++    CHECK(sa_steer(p, dir, 20.0, o1, 1, 0.0, 5, 0, out) == 1, "blocked path must steer");
++    CHECK(fabs(sa_dot(out, out) - 1.0) < 1e-9, "output is a unit vector");
++    CHECK(out[1] > 0.0, "centre below the path: the ship passes above (out_y=%.3f)", out[1]);
++    CHECK(ray_dist(p, out, &o1[0]) >= 2.0 - 1e-9, "new path clears r_avoid (%.3f)", ray_dist(p, out, &o1[0]));
++
++    ObsSphere o2[1] = { sph(10, 0.5, 0, 0.8, 2.0, 1) };
++    CHECK(sa_steer(p, dir, 20.0, o2, 1, 0.0, 5, 0, out) == 1 && out[1] < 0.0,
++          "centre above the path: the ship passes below (out_y=%.3f)", out[1]);
++    CHECK(ray_dist(p, out, &o2[0]) >= 2.0 - 1e-9, "mirror case clears r_avoid");
++
++    /* every axis, off-axis obstacles */
++    for (int k = 0; k < 3; k++) {
++        double d[3] = { 0, 0, 0 };
++        d[k] = 1.0;
++        ObsSphere o[1] = { sph(12 * d[0] + 0.2, 12 * d[1] + 0.2, 12 * d[2] + 0.2, 0.8, 2.0, 1) };
++        CHECK(sa_steer(p, d, 30.0, o, 1, 0.0, 3, 0, out) == 1, "axis %d blocked", k);
++        CHECK(ray_dist(p, out, &o[0]) >= 2.0 - 1e-9, "axis %d: clears r_avoid", k);
++    }
++
++    /* head on: stable per seed, perpendicular offset, may differ per seed */
++    ObsSphere ho[1] = { sph(10, 0, 0, 0.8, 2.0, 1) };
++    double o_a[3], o_b[3], o_c[3];
++    sa_steer(p, dir, 20.0, ho, 1, 0.0, 7, 0, o_a);
++    sa_steer(p, dir, 20.0, ho, 1, 0.0, 7, 0, o_b);
++    sa_steer(p, dir, 20.0, ho, 1, 0.0, 8, 0, o_c);
++    CHECK(memcmp(o_a, o_b, sizeof o_a) == 0, "same seed, same side");
++    CHECK(ray_dist(p, o_a, &ho[0]) >= 2.0 - 1e-9, "head-on deflection clears r_avoid");
++    CHECK(ray_dist(p, o_c, &ho[0]) >= 2.0 - 1e-9, "head-on deflection (other seed) clears r_avoid");
++
++    /* extra radius (ship size / margin) */
++    sa_steer(p, dir, 20.0, o1, 1, 1.0, 5, 0, out);
++    CHECK(ray_dist(p, out, &o1[0]) >= 3.0 - 1e-9, "extra radius is honoured (%.3f)", ray_dist(p, out, &o1[0]));
++}
++
++static void test_steer_nearest_first(void) {
++    double p[3] = { 0, 0, 0 }, dir[3] = { 1, 0, 0 }, out[3];
++    ObsSphere o[2] = { sph(40, 0.3, 0, 0.8, 2.0, 2), sph(10, -0.3, 0, 0.8, 2.0, 1) };
++    CHECK(sa_steer(p, dir, 60.0, o, 2, 0.0, 1, 0, out) == 1, "two blockers");
++    CHECK(out[1] > 0.0, "the nearest blocker (centre below) decides the side (out_y=%.3f)", out[1]);
++}
++
++static void test_inside_keepout(void) {
++    ObsSphere o[1] = { sph(0, 0, 0, 0.8, 2.0, 1) };
++    double p[3] = { 1.0, 0, 0 }, out[3];
++    double inward[3] = { -1, 0, 0 }, outward[3] = { 1, 0, 0 }, slide[3] = { -0.5, 1, 0 };
++    CHECK(sa_steer(p, inward, 5.0, o, 1, 0.0, 1, 0, out) == 1 && out[0] > 0.0,
++          "inside and moving in: pushed outward (out_x=%.3f)", out[0]);
++    CHECK(sa_steer(p, outward, 5.0, o, 1, 0.0, 1, 0, out) == 0, "inside but leaving: left alone");
++    CHECK(sa_steer(p, slide, 5.0, o, 1, 0.0, 1, 0, out) == 1 && out[0] > 0.0 && out[1] > 0.0,
++          "slides along the sphere while leaving (%.3f, %.3f)", out[0], out[1]);
++    double centre[3] = { 0, 0, 0 };
++    CHECK(sa_steer(centre, inward, 5.0, o, 1, 0.0, 1, 0, out) == 1 &&
++          fabs(sa_dot(out, out) - 1.0) < 1e-9, "exactly on the centre still yields a unit direction");
++}
++
++/* A simulated ship (NPC pace: 0.05 per tick) flies to a target behind a
++ * sphere; the direction is re-evaluated every 3 ticks like update_npc_ai. */
++static void simulate(double speed, double lookahead, const ObsSphere *obs, int n,
++                     const double start[3], const double target[3],
++                     double *min_hit_dist, int *reached, int max_ticks) {
++    double p[3] = { start[0], start[1], start[2] };
++    double heading[3] = { 0, 0, 0 };
++    double rel[3] = { target[0] - p[0], target[1] - p[1], target[2] - p[2] };
++    sa_norm(rel, heading);
++    *min_hit_dist = 1e300;
++    *reached = 0;
++    for (int tick = 0; tick < max_ticks; tick++) {
++        if (tick % 3 == 0) {
++            double want[3] = { target[0] - p[0], target[1] - p[1], target[2] - p[2] };
++            double dl = sa_norm(want, want);
++            if (dl < speed * 3) { *reached = 1; return; }
++            double steered[3];
++            sa_steer(p, want, lookahead, obs, n, 0.0, 99, 0, steered);
++            sa_blend(heading, steered, 0.25, heading);
++        }
++        p[0] += heading[0] * speed; p[1] += heading[1] * speed; p[2] += heading[2] * speed;
++        for (int i = 0; i < n; i++) {
++            double dx = p[0] - obs[i].x, dy = p[1] - obs[i].y, dz = p[2] - obs[i].z;
++            double d = sqrt(dx * dx + dy * dy + dz * dz);
++            if (d < *min_hit_dist) *min_hit_dist = d;
++        }
++    }
++}
++
++static void test_simulation(void) {
++    double start[3] = { 0, 0, 0 }, target[3] = { 30, 0, 0 };
++    double md; int ok;
++
++    ObsSphere one[1] = { sph(15, 0, 0, 0.8, 2.0, 1) };
++    simulate(0.05, 6.0, one, 1, start, target, &md, &ok, 4000);
++    CHECK(ok, "NPC reaches a target behind a head-on obstacle");
++    CHECK(md > one[0].r_hit, "NPC never touches the obstacle (closest %.3f)", md);
++
++    ObsSphere two[2] = { sph(10, 0, 0, 0.8, 2.0, 1), sph(20, 0.4, 0.3, 0.8, 2.0, 2) };
++    simulate(0.05, 6.0, two, 2, start, target, &md, &ok, 6000);
++    CHECK(ok, "NPC reaches the target past two obstacles");
++    CHECK(md > two[0].r_hit, "NPC never touches either obstacle (closest %.3f)", md);
++
++    /* black hole: only a keep-out distance of 3.5, no solid core */
++    ObsSphere bh[1] = { sph(15, 0.2, 0, 0.0, 3.5, 3) };
++    simulate(0.05, 8.0, bh, 1, start, target, &md, &ok, 6000);
++    CHECK(ok && md > 3.0, "NPC keeps clear of a black hole well (closest %.3f)", md);
++
++    /* a ship spawned inside the keep-out zone gets out */
++    ObsSphere around[1] = { sph(0.4, 0, 0, 0.8, 2.0, 4) };
++    simulate(0.05, 6.0, around, 1, start, target, &md, &ok, 4000);
++    CHECK(ok, "ship starting inside a keep-out sphere still reaches its target");
++}
++
++static void test_blend_and_perp(void) {
++    double a[3] = { 1, 0, 0 }, b[3] = { 0, 1, 0 }, o[3];
++    sa_blend(a, b, 1.0, o);
++    CHECK(fabs(o[0]) < 1e-12 && fabs(o[1] - 1) < 1e-12, "k=1 gives the new direction");
++    sa_blend(a, b, 0.5, o);
++    CHECK(fabs(sa_dot(o, o) - 1.0) < 1e-9 && o[0] > 0.0 && o[1] > 0.0, "k=0.5 stays unit and between");
++    double m[3] = { -1, 0, 0 };
++    sa_blend(a, m, 0.5, o);
++    CHECK(fabs(sa_dot(o, o) - 1.0) < 1e-9, "opposite vectors do not produce NaN");
++
++    for (unsigned s = 0; s < 40; s++) {
++        double u[3] = { 0.3 * (s % 5) - 0.6, 0.2 * (s % 7) - 0.5, 1.0 }, un[3], q[3];
++        sa_norm(u, un);
++        sa_perp(un, s, q);
++        CHECK(fabs(sa_dot(q, q) - 1.0) < 1e-9 && fabs(sa_dot(q, un)) < 1e-9,
++              "perpendicular must be unit and orthogonal (seed %u)", s);
++    }
++}
++
++int main(void) {
++    test_segment_enter();
++    test_fast_ship_does_not_tunnel();
++    test_first_hit();
++    test_steer_free_and_ignored();
++    test_steer_deflects();
++    test_steer_nearest_first();
++    test_inside_keepout();
++    test_simulation();
++    test_blend_and_perp();
++    printf("steer_avoid_test: %d passed, %d failed\n", g_pass, g_fail);
++    return g_fail ? 1 : 0;
++}

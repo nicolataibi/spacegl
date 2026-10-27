@@ -864,6 +864,15 @@ void loadGameState() {
                     float vx = ((rand()%100)-50)/5.0; float vy = ((rand()%100)-50)/5.0; float vz = ((rand()%100)-50)/5.0;
                     spawnParticle(dx, dy, dz, vx, vy, vz, 1.0, 1.0, 1.0, 15.0, 1.5);
                 }
+            } else if (ev->type == IPC_EV_IMPACT) {
+                /* Collision flash: same explosion as a boom, but lasting longer */
+                int current_boom = boom_idx;
+                g_booms[current_boom].x = ev->x1 - (QUADRANT_SIZE / 2.0);
+                g_booms[current_boom].y = ev->z1 - (QUADRANT_SIZE / 2.0);
+                g_booms[current_boom].z = (QUADRANT_SIZE / 2.0) - ev->y1;
+                g_booms[current_boom].active = 1;
+                g_booms[current_boom].timer = 90; /* 1.5 seconds */
+                boom_idx = (boom_idx + 1) % 10;
             } else if (ev->type == IPC_EV_BEAM) {
                 SG_TRACE3(SG_CAT_PHA, "view[GL]: consume IPC_EV_BEAM owner=%d target=%d emitter=%d s=(%.2f,%.2f,%.2f) t=(%.2f,%.2f,%.2f)",
                           ev->padding[0], ev->extra, ev->padding[1],

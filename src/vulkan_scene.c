@@ -1147,6 +1147,32 @@ void scene_update(VulkanApp* app, float deltaTime) {
                     float r=1, g=1, b=1; switch(p % 6){ case 0: r=0; g=1; b=1; break; case 1: r=1; g=0; b=1; break; case 2: r=1; g=1; b=0; break; case 3: r=1; g=0; b=0; break; case 4: r=0; g=1; b=0; break; case 5: r=1; g=0.5; b=0; break; }
                     app->activeBooms[i].colors[p][0]=r; app->activeBooms[i].colors[p][1]=g; app->activeBooms[i].colors[p][2]=b;
                 }
+            } else if (ev->type == IPC_EV_IMPACT) {
+                /* Collision (comet or ship against a solid object): a bigger,
+                 * longer burst than a torpedo boom - white core, orange and
+                 * ice-blue debris flung out on a sphere. GPU-driven path:
+                 * style 2 (core flash + impact ring + spark burst). */
+                int oldest = 0; float min_life = 999.0f;
+                for (int i=0; i<MAX_ACTIVE_BOOMS; i++) if(app->activeBooms[i].life < min_life){ min_life = app->activeBooms[i].life; oldest = i; }
+                int i = oldest;
+                app->activeBooms[i].x = (float)ev->x1 - 20.0f;
+                app->activeBooms[i].y = (float)ev->z1 - 20.0f;
+                app->activeBooms[i].z = 20.0f - (float)ev->y1;
+                app->activeBooms[i].life = 1.5f;
+                app->activeBooms[i].seed = (float)(rand() % 1001);
+                app->activeBooms[i].style = 2;
+                for (int p=0; p<EXPLOSION_PIXELS; p++){
+                    float speed = (p < 48) ? (4.0f + (rand()%300)/100.0f) : (1.5f + (rand()%350)/100.0f);
+                    float theta = (float)(rand()%3600) * 0.1f * M_PI / 180.0f;
+                    float phi = (float)(rand()%1800 - 900) * 0.1f * M_PI / 180.0f;
+                    app->activeBooms[i].offsets[p][0] = speed * cosf(phi) * cosf(theta);
+                    app->activeBooms[i].offsets[p][1] = speed * sinf(phi);
+                    app->activeBooms[i].offsets[p][2] = speed * cosf(phi) * sinf(theta);
+                    float r=1.0f, g=0.55f, b=0.1f;
+                    if (p % 4 == 0) { r=1.0f; g=1.0f; b=1.0f; }
+                    else if (p % 7 == 0) { r=0.5f; g=0.8f; b=1.0f; }
+                    app->activeBooms[i].colors[p][0]=r; app->activeBooms[i].colors[p][1]=g; app->activeBooms[i].colors[p][2]=b;
+                }
             } else if (ev->type == IPC_EV_BEAM) {
                 SG_TRACE3(SG_CAT_PHA, "view[VK]: consume IPC_EV_BEAM owner=%d target=%d emitter=%d s=(%.2f,%.2f,%.2f) t=(%.2f,%.2f,%.2f)",
                           ev->padding[0], ev->extra, ev->padding[1],

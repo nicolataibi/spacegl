@@ -39,6 +39,7 @@
 #include "object_types.h"
 #include "shared_state.h"
 #include "nav_math.h"
+#include "obstacles.h"
 #include "ui.h"
 
 
@@ -432,6 +433,84 @@ const RescueParams RESCUE_PARAMS_LOGIN = {
  * the game loop); otherwise rand() is used (command / sync threads).
  */
 
+/* --- Ship collisions with solid objects -------------------------------- */
+
+/* Ticks left before ship i can take damage from another impact (the ship is
+ * stopped on the surface of the object, so a player pushing on at once would
+ * otherwise be hurt on every tick). Only the player loop below touches it. */
+static int g_collision_grace[MAX_CLIENTS];
+
+/* Called once per tick after the movement of ship i, which went from
+ * (ox, oy, oz) to its current galactic position while in state `nav_before`.
+ * When that segment enters a solid object (obstacles.h) the ship is put on
+ * the surface, the engines are dropped and the hull takes damage that grows
+ * with the speed at impact. The target of an approach/chase is not an obstacle.
+ * The test is on the segment, not on the end point: at warp 9.9 a tick is
+ * ~4.6 units, far more than the 0.8 contact radius. */
+static void ship_collision_check(int i, int nav_before, double ox, double oy, double oz) {
+    if (g_collision_grace[i] > 0) g_collision_grace[i]--;
+    switch (nav_before) {
+    case NAV_STATE_HYPERDRIVE:
+    case NAV_STATE_IMPULSE:
+    case NAV_STATE_APPROACH:
+    case NAV_STATE_CHASE:
+    case NAV_STATE_DRIFT:
+        break;
+    default:
+        return;
+    }
+    double p0[3] = { ox, oy, oz };
+    double p1[3] = { players[i].gx, players[i].gy, players[i].gz };
+    double d[3] = { p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2] };
+    double len = sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+    if (len < 1e-9) return;
+
+    int skip_id = 0;
+    if (nav_before == NAV_STATE_APPROACH) skip_id = players[i].apr_target;
+    else if (nav_before == NAV_STATE_CHASE) skip_id = players[i].state.lock_target;
+
+    ObsHit hit;
+    if (!obs_segment_hit(p0, p1, 0.0, OBS_MASK_ALL, skip_id, &hit)) return;
+
+    /* stop on the surface, just outside the contact distance */
+    double n[3] = { hit.point[0] - hit.centre[0], hit.point[1] - hit.centre[1], hit.point[2] - hit.centre[2] };
+    double nl = sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+    if (nl < 1e-9) { n[0] = -d[0]; n[1] = -d[1]; n[2] = -d[2]; nl = len; }
+    double surf = hit.r_hit + 0.001;
+    players[i].gx = hit.centre[0] + n[0] / nl * surf;
+    players[i].gy = hit.centre[1] + n[1] / nl * surf;
+    players[i].gz = hit.centre[2] + n[2] / nl * surf;
+    players[i].state.q1 = get_q_from_g(players[i].gx);
+    players[i].state.q2 = get_q_from_g(players[i].gy);
+    players[i].state.q3 = get_q_from_g(players[i].gz);
+    players[i].state.s1 = players[i].gx - (players[i].state.q1 - 1) * QUADRANT_SIZE;
+    players[i].state.s2 = players[i].gy - (players[i].state.q2 - 1) * QUADRANT_SIZE;
+    players[i].state.s3 = players[i].gz - (players[i].state.q3 - 1) * QUADRANT_SIZE;
+
+    players[i].nav_state = NAV_STATE_IDLE;
+    players[i].hyper_speed = 0;
+    players[i].eta = 0;
+    players[i].dx = 0; players[i].dy = 0; players[i].dz = 0;
+    players[i].target_gx = -1.0;
+    players[i].apr_target = 0;
+
+    if (g_collision_grace[i] > 0) return;
+    g_collision_grace[i] = TIMER_COLLISION_GRACE;
+
+    double speed_ups = len * GAME_TICK_RATE;
+    double dmg = DMG_COLLISION_BASE + DMG_COLLISION_PER_UPS * speed_ups;
+    if (dmg > DMG_COLLISION_MAX) dmg = DMG_COLLISION_MAX;
+
+    char msg[128];
+    snprintf(msg, sizeof(msg), "COLLISION: impact with a %s at %.0f units/s. Engines disengaged.",
+             obs_kind_name(hit.kind), speed_ups);
+    send_server_msg(i, "COMPUTER", msg);
+    apply_hull_damage(i, dmg);
+    #pragma omp critical
+    broadcast_server_event(players[i].state.q1, players[i].state.q2, players[i].state.q3, IPC_EV_IMPACT,
+                           players[i].state.s1, players[i].state.s2, players[i].state.s3, 0, 0, 0, 0);
+}
+
 void update_game_logic() {
     /* global_tick is already incremented in the calling thread loop */
     unsigned int ai_seed = (unsigned int)global_tick;
@@ -477,12 +556,14 @@ void update_game_logic() {
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (!players[i].active) {
+            g_collision_grace[i] = 0;   /* a new pilot in this slot starts without grace */
             continue;
         }
         
         double old_gx = players[i].gx;
         double old_gy = players[i].gy;
         double old_gz = players[i].gz;
+        int nav_before = players[i].nav_state;
         
         /* DEAD SHIP LOGIC: Hull at or below zero */
         if (players[i].state.hull_integrity <= 0.0) {
@@ -1213,6 +1294,8 @@ void update_game_logic() {
             players[i].gy = (players[i].state.q2 - 1) * QUADRANT_SIZE + players[i].state.s2;
             players[i].gz = (players[i].state.q3 - 1) * QUADRANT_SIZE + players[i].state.s3;
         }
+
+        ship_collision_check(i, nav_before, old_gx, old_gy, old_gz);
 
         /* torp_active will be updated in the Late Sync loop below for better accuracy */
 

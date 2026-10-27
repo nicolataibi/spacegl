@@ -1,3 +1,26 @@
+* Tue Oct 27 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.27.01
+  - Collisions with solid objects. Ships and comets no longer fly through
+  planets, stars, moons, asteroids, starbases, derelicts, pulsars, neutron
+  stars, brown dwarfs and rogue planets (ships also stop on comets). New
+  header-only modules: include/steer_avoid.h (segment-vs-sphere test and sphere
+  steering, pure geometry) and include/obstacles.h (obstacle provider over the
+  per-quadrant spatial index, one radius table per object kind). A ship in
+  hyperdrive, impulse, approach, chase or drift is tested on the SEGMENT it
+  covers in the tick (at warp 9.9 a tick is ~4.6 units, far more than the 0.8
+  contact radius): it is stopped on the surface of the object, drops out of its
+  engines and takes hull damage DMG_COLLISION_BASE + DMG_COLLISION_PER_UPS *
+  speed (units/s), capped at DMG_COLLISION_MAX; the target of an approach or
+  chase is not an obstacle and a 2 s grace period (TIMER_COLLISION_GRACE) avoids
+  repeated damage while the pilot keeps pushing. A comet that enters a solid
+  object is destroyed with the new IPC_EV_IMPACT explosion and the players of
+  that quadrant are told. Black holes are not solid here (their own rules
+  apply). Nothing is saved in galaxy.dat: no format change.
+  - Clients: IPC_EV_IMPACT is handled in the Vulkan scene (CPU-driven
+  particles, GPU-driven boom style 2) and in the OpenGL view (longer boom).
+  - Tests: steer_avoid (geometry and steering), obstacles (provider on the
+  index), collision (real update_game_logic(): warp and impulse ships, comets).
+  spacegl.spec Version bumped 2026.10.26.02 -> 2026.10.27.01.
+
 * Mon Oct 26 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.26.02
   - CI / Packaging: fix the rpmlint step failing with "specfile-error error:
   no description in %changelog" (exit code 64) after the test suite had

@@ -177,6 +177,7 @@ typedef struct {
 #define IPC_EV_RECOVERY  4
 #define IPC_EV_JUMP      5
 #define IPC_EV_TORPEDO   6
+#define IPC_EV_IMPACT    7   /* collision flash: comet or ship hitting a solid object */
 #define IPC_TORPEDO_ID_OFFSET 1000
 
 typedef struct {

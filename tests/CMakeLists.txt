@@ -191,6 +191,18 @@ add_executable(moon_orbit_test moon_orbit_test.c)
 target_link_libraries(moon_orbit_test PRIVATE m)
 add_test(NAME moon_orbit COMMAND moon_orbit_test)
 
+# --- Sphere obstacles: segment collision test and steering (header-only,
+# include/steer_avoid.h). Ships and comets that hit a solid object, the
+# "safe" navigation and the NPC avoidance all use it ------------------------
+add_executable(steer_avoid_test steer_avoid_test.c)
+target_link_libraries(steer_avoid_test PRIVATE m)
+add_test(NAME steer_avoid COMMAND steer_avoid_test)
+
+# --- Obstacle provider on the per-quadrant index (include/obstacles.h) ---
+add_executable(obstacles_test obstacles_test.c)
+target_link_libraries(obstacles_test PRIVATE m)
+add_test(NAME obstacles COMMAND obstacles_test)
+
 # --- Server spatial index contract (B3: the quasar and the other
 # static galactic objects must be inserted into the per-quadrant
 # index, otherwise the per-frame update / LRS grid never send them)
@@ -292,6 +304,31 @@ if(NOT MSVC)
     target_link_options(vec_thrust_test PRIVATE -fsanitize=address,undefined)
 endif()
 add_test(NAME vec_thrust COMMAND vec_thrust_test)
+
+# --- Collisions: a ship (warp / impulse) or a comet that hits a solid object
+# (real update_game_logic() on a hand-made spatial index; same scaffolding
+# as vec_thrust_test) -------------------------------------------------------
+add_executable(collision_test
+    collision_test.c
+    ${SG_ROOT}/src/server/commands.c
+    ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_events.c
+    ${SG_ROOT}/src/server/nav_math.c
+    ${SG_ROOT}/src/server/targets.c
+    ${SG_ROOT}/src/sglog.c)
+target_link_libraries(collision_test PRIVATE m Threads::Threads)
+if(OpenMP_C_FOUND)
+    target_link_libraries(collision_test PRIVATE OpenMP::OpenMP_C)
+endif()
+if(SG_ATOMIC_LIB)
+    target_link_libraries(collision_test PRIVATE ${SG_ATOMIC_LIB})
+endif()
+if(NOT MSVC)
+    target_compile_options(collision_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(collision_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME collision COMMAND collision_test)
 
 # --- Network fuzzing: the REAL libFuzzer harness for the packet ---
 # --- dispatcher (2026.10.11.01: replaces the no-op stub) ------------

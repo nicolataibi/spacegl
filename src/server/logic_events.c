@@ -35,6 +35,7 @@
 #include <omp.h>
 #include "game_config.h"
 #include "server_internal.h"
+#include "obstacles.h"
 #include "shared_state.h"
 #include "nav_math.h"
 #include "ui.h"
@@ -560,6 +561,10 @@ void logic_update_torpedoes(void) {
 
     for (int c = 0; c < MAX_COMETS; c++) {
         if (comets[c].active) {
+            /* position before this tick, for the collision test below */
+            double cp0[3] = { (comets[c].q1 - 1) * QUADRANT_SIZE + comets[c].x,
+                              (comets[c].q2 - 1) * QUADRANT_SIZE + comets[c].y,
+                              (comets[c].q3 - 1) * QUADRANT_SIZE + comets[c].z };
             comets[c].angle += comets[c].speed;
             double r = comets[c].a * (1.0 - 0.5 * 0.5) / (1.0 + 0.5 * cos(comets[c].angle)); /* Use eccentricity 0.5 for ellipses */
             double gx = comets[c].cx + r * cos(comets[c].angle) * cos(comets[c].inc);
@@ -573,6 +578,35 @@ void logic_update_torpedoes(void) {
             if (gy > gal_limit) gy = gal_limit;
             if (gz < DIST_EPSILON) gz = DIST_EPSILON; 
             if (gz > gal_limit) gz = gal_limit;
+
+            /* Impact: a comet that flies into a solid object is destroyed
+             * with a dedicated explosion (IPC_EV_IMPACT) seen by the players
+             * of that quadrant. Other comets and black holes are not solid. */
+            double cp1[3] = { gx, gy, gz };
+            ObsHit chit;
+            if (obs_segment_hit(cp0, cp1, 0.0, OBS_MASK_NO_COMET, 0, &chit)) {
+                int hq1 = get_q_from_g(chit.point[0]);
+                int hq2 = get_q_from_g(chit.point[1]);
+                int hq3 = get_q_from_g(chit.point[2]);
+                comets[c].active = 0;
+                #pragma omp critical
+                {
+                    broadcast_server_event(hq1, hq2, hq3, IPC_EV_IMPACT,
+                                           chit.point[0] - (hq1 - 1) * QUADRANT_SIZE,
+                                           chit.point[1] - (hq2 - 1) * QUADRANT_SIZE,
+                                           chit.point[2] - (hq3 - 1) * QUADRANT_SIZE, 0, 0, 0, 0);
+                    for (int pi_ = 0; pi_ < MAX_CLIENTS; pi_++) {
+                        if (players[pi_].active && players[pi_].state.q1 == hq1 &&
+                            players[pi_].state.q2 == hq2 && players[pi_].state.q3 == hq3) {
+                            char cmsg[96];
+                            snprintf(cmsg, sizeof(cmsg), "A comet was destroyed hitting a %s.",
+                                     obs_kind_name(chit.kind));
+                            send_server_msg(pi_, "SENSORS", cmsg);
+                        }
+                    }
+                }
+                continue;
+            }
 
             comets[c].q1 = get_q_from_g(gx);
             comets[c].q2 = get_q_from_g(gy);

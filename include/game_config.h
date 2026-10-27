@@ -73,6 +73,10 @@
 #define DMG_TORPEDO             500             /* Destructive potential of a plasma torpedo (base) */
 #define DMG_TORPEDO_PLATFORM    50000           /* Damage dealt by torpedoes to defense platforms */
 #define DMG_TORPEDO_MONSTER     100000          /* Damage required to defeat a space monster */
+#define DMG_COLLISION_BASE      2.0             /* Hull damage (%) of any ship impact on a solid object */
+#define DMG_COLLISION_PER_UPS   0.1             /* Extra hull damage (%) for each unit/s of speed at impact */
+#define DMG_COLLISION_MAX       60.0            /* Upper bound of the hull damage (%) of one impact */
+#define TIMER_COLLISION_GRACE   (GAME_TICK_RATE * 2) /* Ticks during which a ship that just hit something cannot be hit again */
 #define SHIELD_MAX_STRENGTH     10000           /* Maximum absorption capacity for each shield quadrant */
 #define TIMER_SHIELD_CHANGE_TICKS 180           /* Shield change duration in ticks (3 seconds at 60Hz) */
 #define SHIELD_CHANGE_PER_TICK  (SHIELD_MAX_STRENGTH / TIMER_SHIELD_CHANGE_TICKS) /* Shield units per tick */
