@@ -24,6 +24,7 @@
 #include <pthread.h>
 #include "network.h"
 #include "game_config.h"
+#include "star_system.h"
 #include "sglog.h"
 
 typedef enum { 
@@ -406,6 +407,53 @@ typedef struct {
     int planet_class;   /* PLANET_CLASS_* (game_state.h), independent of resource_type */
     int active; 
 } NPCPlanet;
+
+/* --- Star systems (include/star_system.h): separate arrays, fixed slots ---
+ * planet slot = 4 * star slot + k, moon slot = 16 * star slot + 4 * k + j; the
+ * id of a body is its band base + its slot. x, y, z are the position at the
+ * last update_star_systems() (cached for targeting / network); the orbits are
+ * pure functions of (seed, slot, time) and are NOT saved. */
+typedef struct {
+    int id;
+    int q1;
+    int q2;
+    int q3;
+    double x;
+    double y;
+    double z;
+    unsigned seed;       /* drives the layout and the planet orbits            */
+    int star_class;      /* spectral class 0..6 (O,B,A,F,G,K,M)               */
+    int n_planets;       /* 1..4 active planets (slots 4s .. 4s+n-1)           */
+    int active;
+} NPCSysStar;
+
+typedef struct {
+    int id;
+    int q1;
+    int q2;
+    int q3;
+    double x;
+    double y;
+    double z;
+    int resource_type;
+    int amount;
+    int planet_class;    /* PLANET_CLASS_* */
+    int n_moons;         /* 0..4 active moons (slots 16s+4k .. +n-1)           */
+    double orbit_r;      /* orbit radius around the star                       */
+    int active;
+} NPCSysPlanet;
+
+typedef struct {
+    int id;
+    int q1;
+    int q2;
+    int q3;
+    double x;
+    double y;
+    double z;
+    int moon_type;       /* OBJ_MOON_* or OBJ_MOON_EXT_* */
+    int active;
+} NPCSysMoon;
 
 typedef struct { 
     int id;
@@ -817,6 +865,9 @@ static_assert(MAX_CLIENTS <= GALAXY_OBJECT_MAX_PLAYER - GALAXY_OBJECT_MIN_PLAYER
 #define MAX_Q_PLANETS 8   /* was 32 */
 #define MAX_Q_BASES 4     /* was 16: bases are rare, 1 per populated quad */
 #define MAX_Q_STARS 16    /* was 64: 4000 stars / 64000 quads */
+#define MAX_Q_SYS_STARS   1                                              /* one system per quadrant */
+#define MAX_Q_SYS_PLANETS SYS_PLANETS_PER_STAR                           /* 4  */
+#define MAX_Q_SYS_MOONS   (SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET)  /* 16 */
 #define MAX_Q_BH 4        /* was 8 */
 #define MAX_Q_NEBULAS 4   /* was 16 */
 #define MAX_Q_PULSARS 4   /* was 8 */
@@ -902,6 +953,16 @@ extern NPCPlatform platforms[MAX_PLATFORMS];
 extern NPCRift rifts[MAX_RIFTS];
 extern NPCMonster monsters[MAX_MONSTERS];
 extern NPCPlanet planets[MAX_PLANETS];
+_Static_assert(GALAXY_OBJECT_MAX_SYS_STAR   - GALAXY_OBJECT_MIN_SYS_STAR   + 1 == SYS_MAX_STARS,
+               "sys_stars[] must span the whole SYS_STAR id range (slot = id - GALAXY_OBJECT_MIN_SYS_STAR)");
+_Static_assert(GALAXY_OBJECT_MAX_SYS_PLANET - GALAXY_OBJECT_MIN_SYS_PLANET + 1 == SYS_MAX_PLANETS,
+               "sys_planets[] must span the whole SYS_PLANET id range");
+_Static_assert(GALAXY_OBJECT_MAX_SYS_MOON   - GALAXY_OBJECT_MIN_SYS_MOON   + 1 == SYS_MAX_MOONS,
+               "sys_moons[] must span the whole SYS_MOON id range");
+extern NPCSysStar   sys_stars[SYS_MAX_STARS];
+extern NPCSysPlanet sys_planets[SYS_MAX_PLANETS];
+extern NPCSysMoon   sys_moons[SYS_MAX_MOONS];
+extern int sys_star_count;   /* systems placed: stars 0 .. sys_star_count-1 */
 extern NPCBase bases[MAX_BASES];
 extern NPCShip npcs[MAX_NPC];
 extern NPCDyson dysons[MAX_DYSON];
@@ -996,7 +1057,7 @@ void log_init(void);
 
 #define LOG_DEBUG(...) do { if (g_debug) { slog("DEBUG: " __VA_ARGS__); } } while (0)
 
-#define GALAXY_VERSION 20261024  /* 2026-10-24: NPCPlanet.planet_class added -> galaxy.dat layout change (2026-10-06: four exotic pools unified to 1000) */
+#define GALAXY_VERSION 20261027  /* 2026-10-27: star systems (sys_stars/sys_planets/sys_moons) appended -> galaxy.dat layout change (2026-10-24: NPCPlanet.planet_class added) */
 
 /* Spatial Partitioning Index */
 typedef struct {
@@ -1011,6 +1072,12 @@ typedef struct {
     NPCStar *stars[MAX_Q_STARS];
     int star_count;
     int static_star_count;   
+    NPCSysStar   *sys_stars[MAX_Q_SYS_STARS];
+    int sys_star_count;
+    NPCSysPlanet *sys_planets[MAX_Q_SYS_PLANETS];
+    int sys_planet_count;
+    NPCSysMoon   *sys_moons[MAX_Q_SYS_MOONS];
+    int sys_moon_count;
     NPCBlackHole *black_holes[MAX_Q_BH];
     int bh_count;
     int static_bh_count;     
@@ -1133,6 +1200,9 @@ void generate_galaxy();
 void attach_moons_to_planets(void);   /* parent planet + orbit of every moon (galaxy.c) */
 void update_moon_orbits(void);        /* move the moons along their orbits, every tick */
 int load_galaxy();
+void spawn_star_systems(void);               /* generation: systems in empty quadrants (galaxy.c) */
+void update_star_systems(void);              /* tick: refresh x,y,z of the systems players are in */
+void sys_refresh_positions(int star_slot, double t);  /* x,y,z of one system's bodies at time t */
 void save_galaxy();
 void save_galaxy_async();
 void refresh_lrs_grid();

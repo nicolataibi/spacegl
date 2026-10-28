@@ -191,6 +191,13 @@ add_executable(moon_orbit_test moon_orbit_test.c)
 target_link_libraries(moon_orbit_test PRIVATE m)
 add_test(NAME moon_orbit COMMAND moon_orbit_test)
 
+# --- Star systems: one star + up to 4 planets + up to 4 moons per quadrant,
+# slot arithmetic, id bands, contact radii and containment (header-only,
+# include/star_system.h) -----------------------------------------------------
+add_executable(star_system_test star_system_test.c)
+target_link_libraries(star_system_test PRIVATE m)
+add_test(NAME star_system COMMAND star_system_test)
+
 # --- Sphere obstacles: segment collision test and steering (header-only,
 # include/steer_avoid.h). Ships and comets that hit a solid object, the
 # "safe" navigation and the NPC avoidance all use it ------------------------

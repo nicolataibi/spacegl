@@ -90,18 +90,29 @@ At a high level, SpaceGL uses three cooperating components:
 
 ### State and network flow
 
-```text
-                  TCP binary protocol
-        ┌───────────────┐  updates  ┌───────────────┐
-        │ Authoritative │ ────────> │    Client     │
-        │    server     │ <──────── │               │
-        └───────────────┘  commands └───────┬───────┘
-                                            │
-                                  Shared memory / IPC
-                                            │
-                              ┌─────────────┴────────────┐
-                              │                          │
-                        OpenGL / GLFW              Vulkan viewer
+```mermaid
+flowchart TB
+    S["Authoritative server"]
+    C["Client"]
+    IPC{{"Shared memory / IPC"}}
+    G["OpenGL / GLFW"]
+    V["Vulkan viewer"]
+
+    S -->|TCP binary protocol: updates| C
+    C -->|TCP binary protocol: commands| S
+    C -->|Shared memory / IPC| IPC
+    IPC --> G
+    IPC --> V
+
+    classDef server fill:#e1f0ff,stroke:#2878b5,color:#112233
+    classDef client fill:#e1f5e9,stroke:#25834a,color:#112233
+    classDef ipc fill:#fff0d5,stroke:#c58a20,color:#112233
+    classDef viewer fill:#f0e8ff,stroke:#7952a8,color:#112233
+
+    class S server
+    class C client
+    class IPC ipc
+    class G,V viewer
 ```
 
 The server uses spatial indexing and interest management to limit updates to relevant entities. Differential packets carry changed data blocks rather than repeatedly transmitting the complete state. The client reconstructs the current state and publishes it to local visualization processes through shared IPC.

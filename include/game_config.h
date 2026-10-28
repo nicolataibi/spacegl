@@ -332,6 +332,25 @@
 #define GALAXY_CREATE_MOON_PER_TYPE          100
 #define GALAXY_CREATE_PROTOSTELLAR_PER_TYPE  10
 
+/* --- Star systems (stars_system[], planets_system[], moons_system[]) ---
+ * One system per EMPTY quadrant: 1 star, up to 4 planets, up to 4 moons per
+ * planet. Fixed slots: planet slot = 4 * star slot + k, moon slot = 16 * star
+ * slot + 4 * k + j, so the parent and the ordinal come from the index. The id of
+ * a body is the band base + its slot. All bands are above the feature band
+ * (83000 + MAX_COSMIC_FEATURES - 1 = 85047) and fit in int32. */
+#define SYS_MAX_STARS            10000
+#define SYS_PLANETS_PER_STAR     4
+#define SYS_MOONS_PER_PLANET     4
+#define SYS_MAX_PLANETS          (SYS_MAX_STARS * SYS_PLANETS_PER_STAR)       /* 40000  */
+#define SYS_MAX_MOONS            (SYS_MAX_PLANETS * SYS_MOONS_PER_PLANET)     /* 160000 */
+#define GALAXY_OBJECT_MIN_SYS_STAR     90000
+#define GALAXY_OBJECT_MAX_SYS_STAR     99999
+#define GALAXY_OBJECT_MIN_SYS_PLANET   100000
+#define GALAXY_OBJECT_MAX_SYS_PLANET   139999
+#define GALAXY_OBJECT_MIN_SYS_MOON     140000
+#define GALAXY_OBJECT_MAX_SYS_MOON     299999
+#define GALAXY_CREATE_SYSTEMS          10000   /* systems placed in empty quadrants (of 64000) */
+
 /* --- Galaxy Generation Ranges --- */
 #define GALAXY_CREATE_OBJECT_MIN_NPC_FACTION        70
 #define GALAXY_CREATE_OBJECT_MAX_NPC_FACTION        100

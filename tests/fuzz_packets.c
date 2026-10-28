@@ -132,6 +132,10 @@ NPCPlatform platforms[MAX_PLATFORMS];
 NPCRift rifts[MAX_RIFTS];
 NPCMonster monsters[MAX_MONSTERS];
 NPCPlanet planets[MAX_PLANETS];
+NPCSysStar   sys_stars[SYS_MAX_STARS];
+NPCSysPlanet sys_planets[SYS_MAX_PLANETS];
+NPCSysMoon   sys_moons[SYS_MAX_MOONS];
+int sys_star_count = 0;
 NPCBase bases[MAX_BASES];
 NPCShip npcs[MAX_NPC];
 NPCDyson dysons[MAX_DYSON];
@@ -298,6 +302,8 @@ const char *get_species_name(int s) { (void)s; return "TEST"; }
 void rebuild_spatial_index(void) {}   /* index stays empty: all pools empty */
 void refresh_lrs_grid(void) {}
 void update_moon_orbits(void) {}
+void update_star_systems(void) {}
+void sys_refresh_positions(int s, double t) { (void)s; (void)t; }
 
 /* ================================================================== */
 /* World reset: every fuzzer input starts from the same known state. */

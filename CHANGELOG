@@ -1,3 +1,34 @@
+* Wed Oct 28 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.28.01
+  - Star systems, server side (step 1): one star with up to 4 planets orbiting
+  it and up to 4 moons around each planet, one system per EMPTY quadrant
+  (10000 systems; about 53800 quadrants are empty after the normal
+  generation). Three new fixed-slot arrays, sys_stars[], sys_planets[] and
+  sys_moons[]: planet slot = 4 * star slot + k, moon slot = 16 * star slot +
+  4 * k + j, so parent and ordinal come from the index; ids 90000-99999 /
+  100000-139999 / 140000-299999 (above the feature band, int32).
+  - include/star_system.h (header-only): layout of a system (planets
+  and moons per planet, orbit radii, star position), orbits as pure functions
+  of the wall clock (nothing about the orbits is saved), contact radii per
+  type (visual radius + DIST_COLLISION_SHIP: star 3.3, planet 2.6, moon by
+  type). The layout is built so that every body stays inside its quadrant
+  at every time (planets, then moons, are dropped when the system does not
+  fit), so the per-quadrant caps 1 / 4 / 16 hold and the static index stays
+  valid; checked at quadrant size 40 and 100.
+  - spawn_star_systems() runs last in generate_galaxy(). Emptiness is decided
+  from the object arrays, scanning every type of the quad_index table plus the
+  dynamic arrays (the index does not exist yet at that point), so a type added
+  to the table is never forgotten. Wired in: quad_index table (65 static
+  types), TARGET_RANGES (lock / apr), LRS digits (c_s, c_p), obstacles
+  (OBS_SYS_STAR / PLANET / MOON: ships and comets collide with them, NPCs
+  avoid them; positions are computed on the fly), update_star_systems() in the
+  tick for the systems players are in. galaxy.dat 20261027 (delete the old
+  file); spacegl_viewer skips the new block. Costs: about 10.5 MB more in RAM
+  and in galaxy.dat, +12.6 MB for the quadrant index.
+  - Not done yet: network / SRS / LRS object lists and the viewers, mining and
+  docking on system planets, supernova of a system star, retirement of the
+  legacy stars / planets / moons. Tests: star_system_test (new),
+  obstacles_test and quad_index_test extended; 23 of 23 pass (3 GPU tests skipped).
+
 * Tue Oct 27 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.27.05
   - NPC runtime state (src/server/logic.c): the five parallel arrays
   g_npc_avoid_hold, g_npc_avoid_skip, g_npc_scan_dir, g_npc_last_pos and

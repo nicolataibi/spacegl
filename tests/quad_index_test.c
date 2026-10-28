@@ -40,16 +40,16 @@
  *      (id base GALAXY_OBJECT_MIN_QUASAR) and lights the LRS
  *      quasar digit.
  *   2. Table contract: the production table is EXACTLY the set of
- *      the 62 static types, each bound to the right global array,
+ *      the 65 static types, each bound to the right global array,
  *      element size and length, with the right per-quadrant cap —
  *      a missing (e.g. the pre-fix quasar) or extra entry fails.
  *   3. Seeding: every static type placed in a quadrant is found
  *      back in the right slot (pointer identity into the global
- *      array); all 62 types coexist in one quadrant; inactive
+ *      array); all 65 types coexist in one quadrant; inactive
  *      objects and out-of-range quadrants (0, 41, negative) are
  *      excluded; per-quadrant caps are never exceeded (incl. the
  *      cap-1 types).
- *   4. Fuzz: 1240 objects over all 62 types — every slot of every
+ *   4. Fuzz: 1240 objects over all 65 types — every slot of every
  *      quadrant stays within its cap and points to an active
  *      object of the matching type and quadrant.
  *
@@ -137,6 +137,9 @@ NPCCGM cgms[MAX_CGM];
 NPCLymanAlpha lyman_alphas[MAX_LYMAN_ALPHA];
 NPCCMB cmbs[MAX_CMB];
 NPCCosmicFeature cosmic_features[MAX_COSMIC_FEATURES];
+NPCSysStar   sys_stars[SYS_MAX_STARS];
+NPCSysPlanet sys_planets[SYS_MAX_PLANETS];
+NPCSysMoon   sys_moons[SYS_MAX_MOONS];
 
 
 /* --- The expected static-type set (independent of the production
@@ -215,6 +218,9 @@ static const QIExpect qi_expect[] = {
     { "lyman_alpha",      lyman_alphas,     sizeof(NPCLymanAlpha),      MAX_LYMAN_ALPHA,      MAX_Q_LYMAN_ALPHA      },
     { "cmb",              cmbs,             sizeof(NPCCMB),             MAX_CMB,              MAX_Q_CMB              },
     { "feature",          cosmic_features,  sizeof(NPCCosmicFeature),   MAX_COSMIC_FEATURES,  MAX_Q_FEATURES         },
+    { "sys_star",         sys_stars,        sizeof(NPCSysStar),         SYS_MAX_STARS,        MAX_Q_SYS_STARS        },
+    { "sys_planet",       sys_planets,      sizeof(NPCSysPlanet),       SYS_MAX_PLANETS,      MAX_Q_SYS_PLANETS      },
+    { "sys_moon",         sys_moons,        sizeof(NPCSysMoon),         SYS_MAX_MOONS,        MAX_Q_SYS_MOONS        },
 };
 
 #define QI_EXPECT_COUNT (int)(sizeof(qi_expect) / sizeof(qi_expect[0]))
@@ -295,7 +301,7 @@ static void test_b3_quasar(void)
 }
 
 /* ================================================================== */
-/* 2. Table contract: exactly the 62 static types, right bindings     */
+/* 2. Table contract: exactly the 65 static types, right bindings     */
 /* ================================================================== */
 static void test_table_contract(void)
 {

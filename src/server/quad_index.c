@@ -146,6 +146,10 @@ static const QuadStaticDef quad_static_defs[] = {
     QI_DEF("lyman_alpha",    NPCLymanAlpha,      lyman_alphas,     MAX_LYMAN_ALPHA,      lyman_alphas,     lyman_alpha_count,     MAX_Q_LYMAN_ALPHA),
     QI_DEF("cmb",            NPCCMB,             cmbs,             MAX_CMB,              cmbs,             cmb_count,             MAX_Q_CMB),
     QI_DEF("feature",        NPCCosmicFeature,   cosmic_features,  MAX_COSMIC_FEATURES,  features,         feature_count,         MAX_Q_FEATURES),
+    /* --- star systems (include/star_system.h): one per empty quadrant --- */
+    QI_DEF("sys_star",       NPCSysStar,         sys_stars,        SYS_MAX_STARS,        sys_stars,        sys_star_count,        MAX_Q_SYS_STARS),
+    QI_DEF("sys_planet",     NPCSysPlanet,       sys_planets,      SYS_MAX_PLANETS,      sys_planets,      sys_planet_count,      MAX_Q_SYS_PLANETS),
+    QI_DEF("sys_moon",       NPCSysMoon,         sys_moons,        SYS_MAX_MOONS,        sys_moons,        sys_moon_count,        MAX_Q_SYS_MOONS),
 };
 
 #define QI_STATIC_TYPE_COUNT (int)(sizeof(quad_static_defs) / sizeof(quad_static_defs[0]))

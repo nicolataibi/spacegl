@@ -45,6 +45,10 @@ NPCPlatform platforms[MAX_PLATFORMS];
 NPCRift rifts[MAX_RIFTS];
 NPCMonster monsters[MAX_MONSTERS];
 NPCPlanet planets[MAX_PLANETS];
+NPCSysStar   sys_stars[SYS_MAX_STARS];
+NPCSysPlanet sys_planets[SYS_MAX_PLANETS];
+NPCSysMoon   sys_moons[SYS_MAX_MOONS];
+int sys_star_count = 0;
 NPCBase bases[MAX_BASES];
 NPCShip npcs[MAX_NPC];
 NPCDyson dysons[MAX_DYSON];
@@ -169,10 +173,10 @@ void refresh_lrs_grid() {
                 int c_pul = (q->pulsar_count > 9) ? 9 : q->pulsar_count;
                 int c_neb = (q->nebula_count > 9) ? 9 : q->nebula_count;
                 int c_bh = (q->bh_count > 9) ? 9 : q->bh_count;
-                int c_p = (q->planet_count > 9) ? 9 : q->planet_count;
+                int c_p = ((q->planet_count + q->sys_planet_count) > 9) ? 9 : (q->planet_count + q->sys_planet_count);
                 int c_npc = (q->npc_count > 9) ? 9 : q->npc_count;
                 int c_b = (q->base_count > 9) ? 9 : q->base_count;
-                int c_s = (q->star_count > 9) ? 9 : q->star_count;
+                int c_s = ((q->star_count + q->sys_star_count) > 9) ? 9 : (q->star_count + q->sys_star_count);
                 
                 int c_qsr = (q->quasar_count > 9) ? 9 : q->quasar_count;
                 int c_sub = (q->subspace_anomaly_count > 9) ? 9 : q->subspace_anomaly_count;
@@ -470,6 +474,10 @@ static void save_task(void* arg) {
     fwrite(cgms, sizeof(NPCCGM), MAX_CGM, f);
     fwrite(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
     fwrite(cmbs, sizeof(NPCCMB), MAX_CMB, f);
+    fwrite(&sys_star_count, sizeof(int), 1, f);
+    fwrite(sys_stars, sizeof(NPCSysStar), (size_t)sys_star_count, f);
+    fwrite(sys_planets, sizeof(NPCSysPlanet), (size_t)sys_star_count * SYS_PLANETS_PER_STAR, f);
+    fwrite(sys_moons, sizeof(NPCSysMoon), (size_t)sys_star_count * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET, f);
     fwrite(&cosmic_feature_count, sizeof(int), 1, f);
     fwrite(cosmic_features, sizeof(NPCCosmicFeature), MAX_COSMIC_FEATURES, f);
     fwrite(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
@@ -796,6 +804,15 @@ int load_galaxy() {
     CHECK_READ(cgms, sizeof(NPCCGM), MAX_CGM, f);
     CHECK_READ(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
     CHECK_READ(cmbs, sizeof(NPCCMB), MAX_CMB, f);
+    memset(sys_stars, 0, sizeof(sys_stars));
+    memset(sys_planets, 0, sizeof(sys_planets));
+    memset(sys_moons, 0, sizeof(sys_moons));
+    CHECK_READ(&sys_star_count, sizeof(int), 1, f);
+    if (sys_star_count < 0 || sys_star_count > SYS_MAX_STARS) { printf("--- CORRUPT STAR SYSTEM COUNT ---\n"); sys_star_count = 0; fclose(f); return 0; }
+    CHECK_READ(sys_stars, sizeof(NPCSysStar), (size_t)sys_star_count, f);
+    CHECK_READ(sys_planets, sizeof(NPCSysPlanet), (size_t)sys_star_count * SYS_PLANETS_PER_STAR, f);
+    CHECK_READ(sys_moons, sizeof(NPCSysMoon), (size_t)sys_star_count * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET, f);
+    { double t_ = sys_clock_s(); for (int s_ = 0; s_ < sys_star_count; s_++) sys_refresh_positions(s_, t_); }
     if (fread(&cosmic_feature_count, sizeof(int), 1, f) != 1) { cosmic_feature_count = 0; }
     /* Dynamically read cosmic_features handling legacy size (1024) and current size (MAX_COSMIC_FEATURES) */
     memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
@@ -1061,6 +1078,138 @@ const char* get_random_ship_name(int faction) {
     return list[rand() % size];
 }
 
+
+/* ===================== Star systems (include/star_system.h) =====================
+ * One system per EMPTY quadrant. "Empty" is decided from the object arrays, not
+ * from the spatial index (which is built later, by init_static_spatial_index()):
+ * every static type of the quad_index table is scanned (so a type added to the
+ * table is never forgotten, as the quasar once was) plus the dynamic arrays. */
+#define SYS_OCC_MARK(a, b, c) do { int a_ = (a), b_ = (b), c_ = (c); \
+    if (a_ >= 1 && a_ <= GALAXY_SIZE && b_ >= 1 && b_ <= GALAXY_SIZE && c_ >= 1 && c_ <= GALAXY_SIZE) \
+        occ[a_][b_][c_] = 1; } while (0)
+#define SYS_OCC_ARRAY(ARR, N) do { for (int i_ = 0; i_ < (N); i_++) \
+    if (ARR[i_].active) SYS_OCC_MARK(ARR[i_].q1, ARR[i_].q2, ARR[i_].q3); } while (0)
+
+void sys_refresh_positions(int s, double t) {
+    if (s < 0 || s >= sys_star_count) return;
+    NPCSysStar *st = &sys_stars[s];
+    if (!st->active) return;
+    double sp[3] = { st->x, st->y, st->z };
+    for (int k = 0; k < st->n_planets && k < SYS_PLANETS_PER_STAR; k++) {
+        NPCSysPlanet *pl = &sys_planets[sys_planet_slot(s, k)];
+        if (!pl->active) continue;
+        double pp[3];
+        sys_planet_pos(st->seed, k, pl->orbit_r, sp, t, pp);
+        pl->x = pp[0]; pl->y = pp[1]; pl->z = pp[2];
+        for (int j = 0; j < pl->n_moons && j < SYS_MOONS_PER_PLANET; j++) {
+            NPCSysMoon *mo = &sys_moons[sys_moon_slot(s, k, j)];
+            if (!mo->active) continue;
+            double mp[3];
+            sys_moon_pos((unsigned)mo->id, mo->moon_type, j, pp, t, mp);
+            mo->x = mp[0]; mo->y = mp[1]; mo->z = mp[2];
+        }
+    }
+}
+
+void spawn_star_systems(void) {
+    static unsigned char occ[GALAXY_SIZE + 1][GALAXY_SIZE + 1][GALAXY_SIZE + 1];
+    memset(occ, 0, sizeof(occ));
+    memset(sys_stars, 0, sizeof(sys_stars));
+    memset(sys_planets, 0, sizeof(sys_planets));
+    memset(sys_moons, 0, sizeof(sys_moons));
+    sys_star_count = 0;
+
+    /* static types: the whole quad_index table */
+    int nt = quad_index_static_type_count();
+    for (int d = 0; d < nt; d++) {
+        const QuadStaticTypeInfo *ti = quad_index_static_type_info(d);
+        for (int i = 0; i < ti->total; i++) {
+            const char *e = (const char *)ti->objects + (size_t)i * ti->obj_size;
+            if (!*(const int *)(e + ti->off_active)) continue;
+            SYS_OCC_MARK(*(const int *)(e + ti->off_q1), *(const int *)(e + ti->off_q2), *(const int *)(e + ti->off_q3));
+        }
+    }
+    /* dynamic types (the ones rebuild_spatial_index() handles per tick) */
+    SYS_OCC_ARRAY(npcs, MAX_NPC);
+    SYS_OCC_ARRAY(comets, MAX_COMETS);
+    SYS_OCC_ARRAY(asteroids, MAX_ASTEROIDS);
+    SYS_OCC_ARRAY(derelicts, MAX_DERELICTS);
+    SYS_OCC_ARRAY(mines, MAX_MINES);
+    SYS_OCC_ARRAY(buoys, MAX_BUOYS);
+    SYS_OCC_ARRAY(platforms, MAX_PLATFORMS);
+    SYS_OCC_ARRAY(rifts, MAX_RIFTS);
+    SYS_OCC_ARRAY(monsters, MAX_MONSTERS);
+
+    /* candidates: every empty quadrant, then a partial Fisher-Yates shuffle */
+    int cap = GALAXY_SIZE * GALAXY_SIZE * GALAXY_SIZE;
+    int *cand = (int *)malloc(sizeof(int) * (size_t)cap);
+    if (!cand) return;
+    int nc = 0;
+    for (int a = 1; a <= GALAXY_SIZE; a++)
+        for (int b = 1; b <= GALAXY_SIZE; b++)
+            for (int c = 1; c <= GALAXY_SIZE; c++)
+                if (!occ[a][b][c]) cand[nc++] = (a << 16) | (b << 8) | c;
+    int want = GALAXY_CREATE_SYSTEMS < SYS_MAX_STARS ? GALAXY_CREATE_SYSTEMS : SYS_MAX_STARS;
+    if (want > nc) want = nc;
+    for (int i = 0; i < want; i++) {
+        int j = i + rand() % (nc - i);
+        int tmp = cand[i]; cand[i] = cand[j]; cand[j] = tmp;
+    }
+
+    double now = sys_clock_s();
+    int planets_n = 0, moons_n = 0, trimmed = 0;
+    for (int s = 0; s < want; s++) {
+        int q1 = (cand[s] >> 16) & 0xFF, q2 = (cand[s] >> 8) & 0xFF, q3 = cand[s] & 0xFF;
+        unsigned seed = ((unsigned)rand() << 16) ^ (unsigned)rand() ^ ((unsigned)s * 2654435761u);
+        SysLayout L;
+        if (!sys_layout_make(seed, (double)QUADRANT_SIZE, &L)) continue;
+        double sp[3];
+        sys_star_position(seed, (double)QUADRANT_SIZE, L.r_sys, sp);
+        NPCSysStar *st = &sys_stars[s];
+        *st = (NPCSysStar){ .id = GALAXY_OBJECT_MIN_SYS_STAR + s, .q1 = q1, .q2 = q2, .q3 = q3,
+                            .x = sp[0], .y = sp[1], .z = sp[2], .seed = seed,
+                            .star_class = rand() % 7, .n_planets = L.n_planets, .active = 1 };
+        for (int k = 0; k < L.n_planets; k++) {
+            int ps = sys_planet_slot(s, k);
+            sys_planets[ps] = (NPCSysPlanet){ .id = GALAXY_OBJECT_MIN_SYS_PLANET + ps, .q1 = q1, .q2 = q2, .q3 = q3,
+                .resource_type = (rand() % 8) + 1, .amount = MAX_TORPEDO_CAPACITY,
+                .planet_class = rand() % PLANET_CLASS_COUNT, .n_moons = L.n_moons[k],
+                .orbit_r = L.planet_r[k], .active = 1 };
+            planets_n++;
+            for (int j = 0; j < L.n_moons[k]; j++) {
+                int ms = sys_moon_slot(s, k, j);
+                int ti = rand() % (OBJ_MOON_COUNT + OBJ_MOON_EXT_COUNT);
+                int type = ti < OBJ_MOON_COUNT ? OBJ_MOON_FIRST + ti : OBJ_MOON_EXT_FIRST + (ti - OBJ_MOON_COUNT);
+                sys_moons[ms] = (NPCSysMoon){ .id = GALAXY_OBJECT_MIN_SYS_MOON + ms, .q1 = q1, .q2 = q2, .q3 = q3,
+                                              .moon_type = type, .active = 1 };
+                moons_n++;
+            }
+        }
+        if (L.n_planets < 4) trimmed++;
+        sys_refresh_positions(s, now);
+        sys_star_count = s + 1;
+    }
+    free(cand);
+    printf("[GALAXY] star systems: %d placed in %d empty quadrants (%d planets, %d moons)\n",
+           sys_star_count, nc, planets_n, moons_n);
+    (void)trimmed;
+}
+
+/* Tick: the cached x,y,z of the systems players are in (targeting, network).
+ * Obstacles and collisions compute the positions themselves (obstacles.h). */
+void update_star_systems(void) {
+    if (sys_star_count <= 0 || !spatial_index) return;
+    double t = sys_clock_s();
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (!players[i].active) continue;
+        int q1 = players[i].state.q1, q2 = players[i].state.q2, q3 = players[i].state.q3;
+        if (!IS_Q_VALID(q1, q2, q3)) continue;
+        const QuadrantIndex *qi = &spatial_index[q1][q2][q3];
+        if (qi->sys_star_count <= 0 || !qi->sys_stars[0]) continue;
+        sys_refresh_positions((int)(qi->sys_stars[0] - sys_stars), t);
+    }
+}
+
 void generate_galaxy() {
     printf("DEBUG: generate_galaxy called\n"); printf("Generating Master Galaxy...\n");
     memset(&spacegl_master, 0, sizeof(SpaceGLGame));
@@ -1068,6 +1217,10 @@ void generate_galaxy() {
     memset(players, 0, sizeof(players));
     memset(stars_data, 0, sizeof(stars_data));
     memset(planets, 0, sizeof(planets));
+    memset(sys_stars, 0, sizeof(sys_stars));
+    memset(sys_planets, 0, sizeof(sys_planets));
+    memset(sys_moons, 0, sizeof(sys_moons));
+    sys_star_count = 0;
     memset(bases, 0, sizeof(bases));
     memset(black_holes, 0, sizeof(black_holes));
     memset(mega_structs, 0, sizeof(mega_structs));
@@ -1860,6 +2013,9 @@ void generate_galaxy() {
     /* Natural moons (shepherd .. submoon): 10 types in the same array. */
     spawn_moons();
     attach_moons_to_planets();
+
+    /* Star systems last: they go to quadrants that hold nothing else */
+    spawn_star_systems();
 
     rebuild_spatial_index();
     refresh_lrs_grid();

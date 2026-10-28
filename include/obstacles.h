@@ -32,6 +32,7 @@ enum {
     OBS_PLANET, OBS_STAR, OBS_MOON, OBS_ASTEROID, OBS_BASE, OBS_DERELICT,
     OBS_BLACK_HOLE, OBS_PULSAR, OBS_NEUTRON_STAR, OBS_BROWN_DWARF,
     OBS_ROGUE_PLANET, OBS_COMET,
+    OBS_SYS_STAR, OBS_SYS_PLANET, OBS_SYS_MOON,   /* star systems (star_system.h) */
     OBS_SHIP,                   /* NPC and player ships: avoidance only (r_hit = 0) */
     OBS_KIND_COUNT
 };
@@ -53,7 +54,7 @@ static inline const char *obs_kind_name(int kind) {
     static const char *const names[OBS_KIND_COUNT] = {
         "object", "planet", "star", "moon", "asteroid", "starbase", "derelict",
         "black hole", "pulsar", "neutron star", "brown dwarf", "rogue planet",
-        "comet", "ship"
+        "comet", "system star", "system planet", "system moon", "ship"
     };
     return (kind > 0 && kind < OBS_KIND_COUNT) ? names[kind] : names[0];
 }
@@ -67,6 +68,18 @@ static inline void obs_kind_radii(int kind, double *r_hit, double *r_avoid) {
     case OBS_SHIP:
         *r_hit = 0.0;
         *r_avoid = (double)DIST_COLLISION_SHIP + OBS_SHIP_AVOID_MARGIN;
+        break;
+    case OBS_SYS_STAR:                    /* per-type contact radius: visual radius + 0.8 */
+        *r_hit = sys_star_hit_radius();
+        *r_avoid = *r_hit + OBS_AVOID_MARGIN;
+        break;
+    case OBS_SYS_PLANET:
+        *r_hit = sys_planet_hit_radius();
+        *r_avoid = *r_hit + OBS_AVOID_MARGIN;
+        break;
+    case OBS_SYS_MOON:                    /* generic value; the real one depends on the moon type */
+        *r_hit = SYS_MOON_MAX_RADIUS + (double)DIST_COLLISION_SHIP;
+        *r_avoid = *r_hit + OBS_AVOID_MARGIN;
         break;
     case OBS_PULSAR:
         *r_hit = (double)DIST_COLLISION_SHIP;
@@ -143,6 +156,42 @@ static inline int obs_gather_quadrant_ex(int q1, int q2, int q3, unsigned mask,
             const NPCCosmicFeature *f = qi->features[k];
             if (f && f->active && obs_is_moon_type(f->type))
                 n = obs_push(out, n, max, q1, q2, q3, f->x, f->y, f->z, OBS_MOON, f->id);
+        }
+    }
+    /* Star systems: the planets and moons move, so their positions are computed
+     * here as a pure function of the wall clock (star_system.h) instead of being
+     * read from the cached x,y,z: correct in every quadrant a ship moves in, with
+     * no per-tick update of the 210000 bodies. Contact radii are per type. */
+    if (qi->sys_star_count > 0 && qi->sys_stars[0] &&
+        (mask & (OBS_BIT(OBS_SYS_STAR) | OBS_BIT(OBS_SYS_PLANET) | OBS_BIT(OBS_SYS_MOON)))) {
+        const NPCSysStar *st = qi->sys_stars[0];
+        if (st->active) {
+            const int s_ = (int)(st - sys_stars);
+            const double t_ = sys_clock_s();
+            const double sp[3] = { st->x, st->y, st->z };
+            if (mask & OBS_BIT(OBS_SYS_STAR))
+                n = obs_push(out, n, max, q1, q2, q3, sp[0], sp[1], sp[2], OBS_SYS_STAR, st->id);
+            for (int k = 0; k < st->n_planets && k < SYS_PLANETS_PER_STAR && n < max; k++) {
+                const NPCSysPlanet *pl = &sys_planets[sys_planet_slot(s_, k)];
+                if (!pl->active) continue;
+                double pp[3];
+                sys_planet_pos(st->seed, k, pl->orbit_r, sp, t_, pp);
+                if (mask & OBS_BIT(OBS_SYS_PLANET))
+                    n = obs_push(out, n, max, q1, q2, q3, pp[0], pp[1], pp[2], OBS_SYS_PLANET, pl->id);
+                if (!(mask & OBS_BIT(OBS_SYS_MOON))) continue;
+                for (int j = 0; j < pl->n_moons && j < SYS_MOONS_PER_PLANET && n < max; j++) {
+                    const NPCSysMoon *mo = &sys_moons[sys_moon_slot(s_, k, j)];
+                    if (!mo->active) continue;
+                    double mp[3];
+                    sys_moon_pos((unsigned)mo->id, mo->moon_type, j, pp, t_, mp);
+                    int before = n;
+                    n = obs_push(out, n, max, q1, q2, q3, mp[0], mp[1], mp[2], OBS_SYS_MOON, mo->id);
+                    if (n > before) {
+                        out[before].r_hit = sys_moon_hit_radius(mo->moon_type);
+                        out[before].r_avoid = out[before].r_hit + OBS_AVOID_MARGIN;
+                    }
+                }
+            }
         }
     }
     if (mask & OBS_BIT(OBS_SHIP)) {

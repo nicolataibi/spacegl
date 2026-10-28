@@ -448,6 +448,14 @@ int main(int argc, char *argv[]) {
     CHECK_READ(cgms, sizeof(NPCCGM), MAX_CGM, f);
     CHECK_READ(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
     CHECK_READ(cmbs, sizeof(NPCCMB), MAX_CMB, f);
+    {   /* star systems block (galaxy.dat 20261027): count + sys_stars + sys_planets + sys_moons */
+        int n_sys = 0;
+        CHECK_READ(&n_sys, sizeof(int), 1, f);
+        if (n_sys < 0 || n_sys > SYS_MAX_STARS) { printf("corrupt star system count\n"); fclose(f); return 1; }
+        long skip = (long)n_sys * ((long)sizeof(NPCSysStar) + SYS_PLANETS_PER_STAR * (long)sizeof(NPCSysPlanet) +
+                                   SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET * (long)sizeof(NPCSysMoon));
+        if (fseek(f, skip, SEEK_CUR) != 0) { perror("fseek systems"); fclose(f); return 1; }
+    }
     if (fread(&cosmic_feature_count, sizeof(int), 1, f) != 1) { cosmic_feature_count = 0; }
     /* Dynamically read cosmic_features handling legacy size (1024) and current size (MAX_COSMIC_FEATURES) */
     memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);

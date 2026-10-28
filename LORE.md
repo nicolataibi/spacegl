@@ -875,42 +875,51 @@ The **GPU-Driven (GDD)** architecture inverts this division of labor. The CPU is
 
 The five stages of one GDD frame, in execution order, with the code that implements each (per-stage detail — buffers, barriers, the triple-buffer invariant — in the following sections):
 
-```
-                         THE GDD PIPELINE (one frame)
 
-  ┌──────────────────────────────────────────────────────────────┐
-  │ 1. BUILD     gdd_build_frame() / gdd_build_instances()       │
-  │             SharedIPC state + Hermite smoothing →            │
-  │             classification → GddInstance lists (112 B        │
-  │             each) → ONE memcpy into the per-frame            │
-  │             instance SSBOs (persistently mapped)             │
-  └──────────────────────────────────────────────────────────────┘
-                                 ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │ GPU — one graphics+compute queue, in-order; the              │
-  │ synchronization2 barriers sit between every stage below:     │
-  │                                                              │
-  │ 2. CULL      gdd_cull.comp — map group + dyn group           │
-  │             vision-sphere cull → compact visible index       │
-  │             lists (NEVER_CULL statics bypass the test)       │
-  │                                                              │
-  │ 3. EXPAND    gdd_expand.comp — opaque pass, then additive    │
-  │             pass (map + dyn groups in each)                  │
-  │             visible instances → device-local vertex SSBO     │
-  │             (80 B vertices, atomic reservation, 512k         │
-  │             "drop when full")                                │
-  │                                                              │
-  │ 4. FINAL     gdd_final.comp                                  │
-  │             per-frame counters → 2× VkDrawIndirectCommand    │
-  │             (GPU-side: the CPU never sees the vertex count)  │
-  │                                                              │
-  │ 5. DRAW      gdd_record(): vkCmdBeginRendering (color +      │
-  │             1-sample depth) → Pass A opaque: ONE             │
-  │             vkCmdDrawIndirect → Pass B additive: ONE         │
-  │             vkCmdDrawIndirect → PRESENT_SRC barrier →        │
-  │             vkQueuePresentKHR                                │
-  └──────────────────────────────────────────────────────────────┘
+## The GDD Pipeline (One Frame)
+
+```mermaid
+flowchart TB
+    subgraph CPU["CPU — Build"]
+        B["1. BUILD<br/>gdd_build_frame() / gdd_build_instances()<br/><br/>SharedIPC state + Hermite smoothing<br/>→ classification<br/>→ GddInstance lists (112 B each)<br/>→ ONE memcpy into per-frame instance SSBOs<br/>(persistently mapped)"]
+    end
+
+    subgraph GPU["GPU — One graphics + compute queue, in-order"]
+        C["2. CULL<br/>gdd_cull.comp<br/><br/>Map group + dynamic group<br/>Vision-sphere culling<br/>→ compact visible index lists<br/>NEVER_CULL statics bypass the test"]
+
+        E["3. EXPAND<br/>gdd_expand.comp<br/><br/>Opaque pass, then additive pass<br/>(map + dynamic groups in each)<br/>Visible instances → device-local vertex SSBO<br/>80 B vertices; atomic reservation<br/>512k capacity — drop when full"]
+
+        F["4. FINAL<br/>gdd_final.comp<br/><br/>Per-frame counters<br/>→ 2× VkDrawIndirectCommand<br/>GPU-side: CPU never reads vertex count"]
+
+        D["5. DRAW<br/>gdd_record()<br/><br/>vkCmdBeginRendering (color + 1-sample depth)<br/>Pass A — opaque: ONE vkCmdDrawIndirect<br/>Pass B — additive: ONE vkCmdDrawIndirect<br/>PRESENT_SRC barrier<br/>→ vkQueuePresentKHR"]
+
+        C --> E --> F --> D
+    end
+
+    B --> C
+
+    SYNC["Synchronization2 barriers<br/>between every GPU stage"]
+
+    SYNC -. "CULL → EXPAND → FINAL → DRAW" .-> C
+    SYNC -. "Stage dependencies" .-> E
+    SYNC -. "Stage dependencies" .-> F
+    SYNC -. "Stage dependencies" .-> D
+
+    classDef cpu fill:#e1f0ff,stroke:#2878b5,color:#112233
+    classDef cull fill:#e1f5e9,stroke:#25834a,color:#112233
+    classDef expand fill:#fff0d5,stroke:#c58a20,color:#112233
+    classDef final fill:#f0e8ff,stroke:#7952a8,color:#112233
+    classDef draw fill:#fce4ec,stroke:#ad4565,color:#112233
+    classDef sync fill:#eeeeee,stroke:#666666,color:#222222
+
+    class B cpu
+    class C cull
+    class E expand
+    class F final
+    class D draw
+    class SYNC sync
 ```
+
 
 Stage 1 is the **only** per-frame CPU work of the path (data handling, not rendering); stages 2-5 run on the GPU and the frame finishes with exactly two draw calls regardless of how many objects are visible.
 
@@ -952,37 +961,61 @@ and continues on the legacy architecture — **the game never refuses to start**
 
 ### 🔄 The Per-Frame Data Flow
 
+
+```mermaid
+flowchart TB
+    subgraph CPU["CPU — Per Frame"]
+        direction TB
+        A["Read SharedIPC state<br/>(same IPC as the CPU path)"]
+        B["Cubic-Hermite network smoothing<br/>(same interpolation)"]
+        C["Classify objects / effects / statics / map mode"]
+        D["Fill 2 instance lists<br/>GddInstance — 112 B each"]
+        E["ONE memcpy into persistently mapped<br/>host-visible SSBOs"]
+
+        A --> B --> C --> D --> E
+    end
+
+    subgraph COMPUTE["GPU Compute — One Graphics + Compute Queue"]
+        direction TB
+        F["vkCmdFillBuffer<br/>Zero per-frame GPU counters — 16 B"]
+        G["1. gdd_cull.comp<br/>Map + dynamic dispatch<br/><br/>Vision-sphere culling → compact visible index lists<br/>NEVER_CULL statics bypass the test"]
+        H["2. gdd_expand.comp — Opaque pass<br/>Map + dynamic dispatch<br/><br/>Instances → device-local vertex SSBO<br/>80 B per vertex<br/>Atomic reservation<br/>512k vertex capacity — drop when full"]
+        I["3. gdd_expand.comp — Additive pass<br/>Map + dynamic dispatch"]
+        J["4. gdd_final.comp<br/>Counters → 2× VkDrawIndirectCommand<br/>(GPU-side)"]
+
+        F --> G --> H --> I --> J
+    end
+
+    subgraph GRAPHICS["GPU Graphics — Dynamic Rendering"]
+        direction TB
+        K["vkCmdBeginRendering<br/>Color + 1-sample depth"]
+        L["Pass A: OPAQUE<br/>Depth write enabled · blending disabled<br/>ONE vkCmdDrawIndirect"]
+        M["Pass B: ADDITIVE<br/>Src-alpha glow · depth write disabled<br/>ONE vkCmdDrawIndirect"]
+        N["vkCmdEndRendering"]
+        O["PRESENT_SRC barrier"]
+        P["Present"]
+
+        K --> L --> M --> N --> O --> P
+    end
+
+    E --> F
+    J -->|Synchronization2 barriers| K
+
+    classDef cpu fill:#e1f0ff,stroke:#2878b5,color:#112233
+    classDef init fill:#eeeeee,stroke:#666666,color:#222222
+    classDef cull fill:#e1f5e9,stroke:#25834a,color:#112233
+    classDef expand fill:#fff0d5,stroke:#c58a20,color:#112233
+    classDef finalize fill:#f0e8ff,stroke:#7952a8,color:#112233
+    classDef graphics fill:#fce4ec,stroke:#ad4565,color:#112233
+
+    class A,B,C,D,E cpu
+    class F init
+    class G cull
+    class H,I expand
+    class J finalize
+    class K,L,M,N,O,P graphics
 ```
-┌──────────────────── CPU (per frame) ─────────────────────┐
-│ read SharedIPC state (same IPC as the CPU path)          │
-│ cubic-Hermite network smoothing (same interpolation)     │
-│ classify objects / effects / statics / map mode          │
-│ fill 2 instance lists (GddInstance, 112 B each)          │
-│ ONE memcpy into persistently mapped host-visible SSBOs   │
-└──────────────────────────┬───────────────────────────────┘
-                           ▼
-┌──────────── GPU compute (1 graphics+compute queue) ──────┐
-│ vkCmdFillBuffer: zero the per-frame GPU counters (16 B)  │
-│ 1. gdd_cull.comp  (map + dyn dispatch)                   │
-│      vision-sphere cull → compact visible index lists    │
-│      (NEVER_CULL statics bypass the test)                │
-│ 2. gdd_expand.comp (map + dyn, opaque pass)              │
-│      instances → device-local vertex SSBO (80 B verts)   │
-│      atomic reservation + 512k vertex "drop when full"   │
-│ 3. gdd_expand.comp (map + dyn, additive pass)            │
-│ 4. gdd_final.comp                                        │
-│      counters → 2× VkDrawIndirectCommand (GPU-side)      │
-└──────────────────────────┬───────────────────────────────┘
-                           ▼  (synchronization2 barriers)
-┌──────────── GPU graphics (dynamic rendering) ────────────┐
-│ vkCmdBeginRendering (color + 1-sample depth)             │
-│   Pass A: OPAQUE    — depth write, no blend              │
-│              ONE vkCmdDrawIndirect                       │
-│   Pass B: ADDITIVE  — src-alpha glow, no depth write     │
-│              ONE vkCmdDrawIndirect                       │
-│ vkCmdEndRendering → PRESENT_SRC barrier → present        │
-└──────────────────────────────────────────────────────────┘
-```
+
 
 ### 🧬 The CPU/GPU Contract
 

@@ -835,6 +835,7 @@ void update_game_logic() {
 
     /* Natural moons: slow individual orbits around their planet */
     update_moon_orbits();
+    update_star_systems();
 
     /* Refresh LRS Grid once per second */
     if (global_tick % GAME_TICK_RATE == 0) {

@@ -16,6 +16,11 @@
 #include "obstacles.h"
 
 QuadrantIndex (*spatial_index)[41][41];
+/* the production arrays of galaxy.c are not linked: the test owns them */
+NPCSysStar   sys_stars[SYS_MAX_STARS];
+NPCSysPlanet sys_planets[SYS_MAX_PLANETS];
+NPCSysMoon   sys_moons[SYS_MAX_MOONS];
+int sys_star_count = 0;
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, ...) do { if (cond) g_pass++; else { g_fail++; \
@@ -199,6 +204,89 @@ static void test_kind_names(void) {
           !obs_is_moon_type(OBJ_MOON_EXT_LAST + 1), "moon type ranges");
 }
 
+
+/* Star system: 1 star, planet 0 with 2 moons, planet 1 without moons, in quadrant
+ * (8,8,8). Planets and moons move, so the provider computes their positions. */
+static void test_star_system(void) {
+    const int Q1 = 8, Q2 = 8, Q3 = 8;
+    memset(&sys_stars[0], 0, sizeof sys_stars[0]);
+    sys_stars[0] = (NPCSysStar){ .id = GALAXY_OBJECT_MIN_SYS_STAR, .q1 = Q1, .q2 = Q2, .q3 = Q3,
+                                 .x = 20, .y = 20, .z = 20, .seed = 4242u, .n_planets = 2, .active = 1 };
+    sys_planets[0] = (NPCSysPlanet){ .id = GALAXY_OBJECT_MIN_SYS_PLANET, .q1 = Q1, .q2 = Q2, .q3 = Q3,
+                                     .n_moons = 2, .orbit_r = 14.5, .active = 1 };
+    sys_planets[1] = (NPCSysPlanet){ .id = GALAXY_OBJECT_MIN_SYS_PLANET + 1, .q1 = Q1, .q2 = Q2, .q3 = Q3,
+                                     .n_moons = 0, .orbit_r = 24.0, .active = 1 };
+    sys_planets[2] = (NPCSysPlanet){ .id = GALAXY_OBJECT_MIN_SYS_PLANET + 2, .q1 = Q1, .q2 = Q2, .q3 = Q3,
+                                     .n_moons = 0, .orbit_r = 30.0, .active = 0 };   /* inactive */
+    sys_moons[0] = (NPCSysMoon){ .id = GALAXY_OBJECT_MIN_SYS_MOON, .q1 = Q1, .q2 = Q2, .q3 = Q3,
+                                 .moon_type = OBJ_MOON_FIRST + 5, .active = 1 };
+    sys_moons[1] = (NPCSysMoon){ .id = GALAXY_OBJECT_MIN_SYS_MOON + 1, .q1 = Q1, .q2 = Q2, .q3 = Q3,
+                                 .moon_type = OBJ_MOON_FIRST, .active = 1 };
+    QuadrantIndex *qi = &spatial_index[Q1][Q2][Q3];
+    memset(qi, 0, sizeof *qi);
+    qi->sys_stars[0] = &sys_stars[0]; qi->sys_star_count = 1;
+    for (int k = 0; k < 3; k++) qi->sys_planets[k] = &sys_planets[k];
+    qi->sys_planet_count = 3;
+    qi->sys_moons[0] = &sys_moons[0]; qi->sys_moons[1] = &sys_moons[1]; qi->sys_moon_count = 2;
+
+    ObsSphere o[OBS_MAX_PER_CALL];
+    int n = obs_gather_quadrant(Q1, Q2, Q3, OBS_MASK_ALL, o, 0, OBS_MAX_PER_CALL);
+    CHECK(n == 5, "system: star + 2 planets + 2 moons, the inactive planet is left out (got %d)", n);
+    CHECK(find_kind(o, n, OBS_SYS_STAR) && find_kind(o, n, OBS_SYS_PLANET) && find_kind(o, n, OBS_SYS_MOON),
+          "system: all three kinds are returned");
+
+    const ObsSphere *st = find_kind(o, n, OBS_SYS_STAR);
+    CHECK(st && fabs(st->x - GX(Q1, 20)) < 1e-9 && fabs(st->y - GX(Q2, 20)) < 1e-9 && fabs(st->z - GX(Q3, 20)) < 1e-9,
+          "system: star position in galactic coordinates");
+    CHECK(st && fabs(st->r_hit - (SYS_STAR_RADIUS + DIST_COLLISION_SHIP)) < 1e-9, "system: star contact radius is per type (visual radius + 0.8)");
+    CHECK(st && st->r_hit > DIST_COLLISION_SHIP && st->r_avoid > st->r_hit, "system: star r_hit larger than the generic one, keep-out beyond it");
+
+    int pid[2] = { GALAXY_OBJECT_MIN_SYS_PLANET, GALAXY_OBJECT_MIN_SYS_PLANET + 1 };
+    double pos[2][3] = {{0}};
+    int found = 0;
+    for (int i = 0; i < n; i++) {
+        if (o[i].kind != OBS_SYS_PLANET) continue;
+        for (int k = 0; k < 2; k++) if (o[i].id == pid[k]) {
+            pos[k][0] = o[i].x; pos[k][1] = o[i].y; pos[k][2] = o[i].z; found++;
+            double d = sqrt(pow(o[i].x - st->x, 2) + pow(o[i].y - st->y, 2) + pow(o[i].z - st->z, 2));
+            CHECK(fabs(d - sys_planets[k].orbit_r) < 1e-6, "system: planet %d is at its orbit radius from the star (%.6f)", k, d);
+            CHECK(fabs(o[i].r_hit - (SYS_PLANET_RADIUS + DIST_COLLISION_SHIP)) < 1e-9, "system: planet contact radius");
+        }
+    }
+    CHECK(found == 2, "system: both active planets found (%d)", found);
+
+    for (int i = 0; i < n; i++) {
+        if (o[i].kind != OBS_SYS_MOON) continue;
+        int j = o[i].id - GALAXY_OBJECT_MIN_SYS_MOON;
+        double d = sqrt(pow(o[i].x - pos[0][0], 2) + pow(o[i].y - pos[0][1], 2) + pow(o[i].z - pos[0][2], 2));
+        double lo = MOON_ORBIT_MIN_RADIUS + MOON_ORBIT_STEP * j;
+        CHECK(d >= lo - 1e-6 && d <= lo + MOON_ORBIT_JITTER + 1e-6, "system: moon %d orbits its planet at ordinal radius (%.4f)", j, d);
+        CHECK(fabs(o[i].r_hit - sys_moon_hit_radius(sys_moons[j].moon_type)) < 1e-9, "system: moon contact radius depends on the moon type");
+    }
+    CHECK(sys_moon_hit_radius(OBJ_MOON_FIRST + 5) != sys_moon_hit_radius(OBJ_MOON_FIRST), "system: two moon types, two contact radii");
+
+    n = obs_gather_quadrant(Q1, Q2, Q3, OBS_BIT(OBS_SYS_MOON), o, 0, OBS_MAX_PER_CALL);
+    CHECK(n == 2, "system: mask selects the moons only (%d)", n);
+    n = obs_gather_quadrant(Q1, Q2, Q3, OBS_MASK_ALL, o, 0, 3);
+    CHECK(n == 3, "system: the output limit is honoured (%d)", n);
+
+    /* the contact radius of the star is the per-type one: a ship passing 3.0
+     * from its centre hits it (3.3), one passing at 4.0 does not (the generic
+     * 0.8 would have let the first one fly through the visible sphere) */
+    double c = GX(Q1, 20), a1[3] = { c - 10, c + 3.0, c }, b1[3] = { c + 10, c + 3.0, c };
+    double a2[3] = { c - 10, c + 4.0, c }, b2[3] = { c + 10, c + 4.0, c };
+    ObsHit h;
+    CHECK(obs_segment_hit(a1, b1, 0.0, OBS_BIT(OBS_SYS_STAR), 0, &h) && h.kind == OBS_SYS_STAR && h.id == GALAXY_OBJECT_MIN_SYS_STAR,
+          "system: a ship passing 3.0 from the star centre hits the star");
+    CHECK(!obs_segment_hit(a2, b2, 0.0, OBS_BIT(OBS_SYS_STAR), 0, &h), "system: a ship passing 4.0 away does not");
+    CHECK(OBS_MASK_ALL & OBS_BIT(OBS_SYS_STAR) && OBS_MASK_ALL & OBS_BIT(OBS_SYS_PLANET) && OBS_MASK_ALL & OBS_BIT(OBS_SYS_MOON) &&
+          !(OBS_MASK_ALL & OBS_BIT(OBS_SHIP)), "system kinds are solid (in OBS_MASK_ALL), ships still are not");
+
+    memset(qi, 0, sizeof *qi);
+    n = obs_gather_quadrant(Q1, Q2, Q3, OBS_MASK_ALL, o, 0, OBS_MAX_PER_CALL);
+    CHECK(n == 0, "system: an empty quadrant gathers nothing");
+}
+
 int main(void) {
     spatial_index = calloc((size_t)41 * 41 * 41, sizeof(QuadrantIndex));
     if (!spatial_index) { printf("cannot allocate the test index\n"); return 1; }
@@ -208,6 +296,7 @@ int main(void) {
     test_segment_hit();
     test_ships();
     test_kind_names();
+    test_star_system();
     free(spatial_index);
     printf("obstacles_test: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
