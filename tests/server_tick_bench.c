@@ -459,7 +459,6 @@ const char *get_species_name(int s) { (void)s; return "BENCH"; }
 void refresh_lrs_grid(void) {}
 void update_moon_orbits(void) {}
 void update_star_systems(void) {}
-void sys_refresh_positions(int s, double t) { (void)s; (void)t; }
 int write_all(int fd, const void *buf, size_t len) { (void)fd; (void)buf; return (int)len; }
 
 /* ================================================================== */

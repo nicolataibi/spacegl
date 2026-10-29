@@ -254,6 +254,18 @@ void sync_client_task(void *arg) {
                 double d = sqrt(pow(players[slot].state.s1 - qi->planets[p]->x, 2) + pow(players[slot].state.s2 - qi->planets[p]->y, 2) + pow(players[slot].state.s3 - qi->planets[p]->z, 2));
                 if (d < 1.0) needs_rescue = true;
             }
+            /* star system: the same check with the contact radius of each body (positions refreshed first) */
+            if (qi->sys_star_count > 0 && qi->sys_stars[0]) {
+                sys_refresh_positions((int)(qi->sys_stars[0] - sys_stars), sys_clock_s());
+                double sx = players[slot].state.s1, sy = players[slot].state.s2, sz = players[slot].state.s3;
+                #define SYS_INSIDE(O, R) (sqrt(pow(sx - (O)->x, 2) + pow(sy - (O)->y, 2) + pow(sz - (O)->z, 2)) < (R))
+                if (qi->sys_stars[0]->active && SYS_INSIDE(qi->sys_stars[0], sys_star_hit_radius())) needs_rescue = true;
+                for (int p = 0; p < qi->sys_planet_count; p++)
+                    if (qi->sys_planets[p] && qi->sys_planets[p]->active && SYS_INSIDE(qi->sys_planets[p], sys_planet_hit_radius())) needs_rescue = true;
+                for (int m = 0; m < qi->sys_moon_count; m++)
+                    if (qi->sys_moons[m] && qi->sys_moons[m]->active && SYS_INSIDE(qi->sys_moons[m], sys_moon_hit_radius(qi->sys_moons[m]->moon_type))) needs_rescue = true;
+                #undef SYS_INSIDE
+            }
         }
 
         if (needs_rescue) {

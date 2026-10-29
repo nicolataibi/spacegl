@@ -156,8 +156,11 @@ const char* cat_names[] = {
     "RETROGRADE MOON", "RESONANT MOON", "TIDALLY LOCKED MOON", "CHAOTIC ROTATOR MOON",
     "EMBEDDED MOONLET", "CAPTURED MOON", "CRYOVOLCANIC MOON", "TIDAL-HEATED MOON",
     "DIFFERENTIATED MOON", "BINARY MOON", "RINGED MOON", "SUBSURFACE OCEAN MOON",
-    "DISRUPTED MOON"
+    "DISRUPTED MOON",
+    "SYSTEM STARS", "SYSTEM PLANETS", "SYSTEM MOONS"
 };
+_Static_assert(sizeof(cat_names) / sizeof(cat_names[0]) == TEL_CAT_COUNT,
+               "cat_names[] must have exactly one name per TelemetryCategory (include/telemetry.h)");
 
 typedef enum {
     MODE_HUD = 0,

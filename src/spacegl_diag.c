@@ -57,7 +57,8 @@ typedef enum {
     CAT_ROGUE_PLANET, CAT_BROWN_DWARF, CAT_ISO, CAT_MAG_RECONN, CAT_CURRENT_SHEET,
     CAT_HELIOSPHERE, CAT_TERM_SHOCK, CAT_MAGNETOSPHERE, CAT_COSMIC_STRING, CAT_DOMAIN_WALL,
     CAT_DM_HALO, CAT_IGM, CAT_CGM, CAT_LYMAN_ALPHA, CAT_CMB,
-    CAT_COSMIC_ALL, CAT_MOON, CAT_EXOTIC, CAT_EVOLVED_STAR, CAT_PROTOSTELLAR
+    CAT_COSMIC_ALL, CAT_MOON, CAT_EXOTIC, CAT_EVOLVED_STAR, CAT_PROTOSTELLAR,
+    CAT_SYS_STAR, CAT_SYS_PLANET, CAT_SYS_MOON   /* star systems (include/star_system.h) */
 } DiagCat;
 
 typedef struct {
@@ -157,6 +158,9 @@ DiagPage pages[MAX_PAGES] = {
     {CAT_SHIP, FACTION_SPECIES_8472, "FLUIDIC SPECIES"},
     {CAT_SHIP, FACTION_BREEN,     "CRYOS CONFEDERACY"},
     {CAT_SHIP, FACTION_HIROGEN,   "APEX HUNTERS"},
+    {CAT_SYS_STAR,   0, "STAR SYSTEMS: STARS"},
+    {CAT_SYS_PLANET, 0, "STAR SYSTEMS: PLANETS"},
+    {CAT_SYS_MOON,   0, "STAR SYSTEMS: MOONS"},
     {0, 0, NULL} /* Sentinel */
 };
 
@@ -286,6 +290,7 @@ int main(int argc, char** argv) {
     if (!a_tick) unresolved_count++;
 
     RESOLVE(npcs); RESOLVE(players); RESOLVE_S(stars, "stars_data"); RESOLVE(planets);
+    RESOLVE(sys_stars); RESOLVE(sys_planets); RESOLVE(sys_moons); RESOLVE(sys_star_count);
     RESOLVE(bases); RESOLVE(black_holes); RESOLVE(nebulas); RESOLVE(pulsars); RESOLVE(quasars);
     RESOLVE(comets); RESOLVE(asteroids); RESOLVE(derelicts); RESOLVE(mines); RESOLVE(buoys);
     RESOLVE(platforms); RESOLVE(rifts); RESOLVE(monsters); RESOLVE(dysons); RESOLVE(hubs);
@@ -354,6 +359,11 @@ int main(int argc, char** argv) {
     NPCShip* npc_buf = calloc(MAX_NPC, sizeof(NPCShip));
     NPCStar* star_buf = calloc(MAX_STARS, sizeof(NPCStar));
     NPCPlanet* planet_buf = calloc(MAX_PLANETS, sizeof(NPCPlanet));
+    /* star systems: read only the first n_sys systems (stars, 4 planets and 16 moons per slot) */
+    NPCSysStar*   sysstar_buf   = calloc(SYS_MAX_STARS,   sizeof(NPCSysStar));
+    NPCSysPlanet* sysplanet_buf = calloc(SYS_MAX_PLANETS, sizeof(NPCSysPlanet));
+    NPCSysMoon*   sysmoon_buf   = calloc(SYS_MAX_MOONS,   sizeof(NPCSysMoon));
+    int n_sys = 0;
     NPCBase* base_buf = calloc(MAX_BASES, sizeof(NPCBase));
     NPCBlackHole* bh_buf = calloc(MAX_BH, sizeof(NPCBlackHole));
     NPCNebula* neb_buf = calloc(MAX_NEBULAS, sizeof(NPCNebula));
@@ -518,6 +528,27 @@ int main(int argc, char** argv) {
             switch(cat) {
                 case CAT_STAR: READ_CAT(star_buf, a_stars, MAX_STARS, 2); break;
                 case CAT_PLANET: READ_CAT(planet_buf, a_planets, MAX_PLANETS, 3); break;
+                case CAT_SYS_STAR: case CAT_SYS_PLANET: case CAT_SYS_MOON: {
+                    n_sys = 0;
+                    if (a_sys_star_count && a_sys_stars && sysstar_buf && sysplanet_buf && sysmoon_buf &&
+                        read_remote(pid, a_sys_star_count, &n_sys, sizeof(int)) > 0 && n_sys > 0 && n_sys <= SYS_MAX_STARS &&
+                        read_remote(pid, a_sys_stars, sysstar_buf, sizeof(NPCSysStar) * (size_t)n_sys) > 0) {
+                        /* planets are needed for the planet page and for the moons (parent position) */
+                        if (cat != CAT_SYS_STAR && a_sys_planets)
+                            read_remote(pid, a_sys_planets, sysplanet_buf, sizeof(NPCSysPlanet) * (size_t)n_sys * SYS_PLANETS_PER_STAR);
+                        if (cat == CAT_SYS_MOON && a_sys_moons)
+                            read_remote(pid, a_sys_moons, sysmoon_buf, sizeof(NPCSysMoon) * (size_t)n_sys * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET);
+                        int total = (cat == CAT_SYS_STAR) ? n_sys : (cat == CAT_SYS_PLANET) ? n_sys * SYS_PLANETS_PER_STAR
+                                                                                              : n_sys * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET;
+                        for (int i = 0; i < total && total_items < 100000; i++) {
+                            int act = (cat == CAT_SYS_STAR) ? sysstar_buf[i].active : (cat == CAT_SYS_PLANET) ? sysplanet_buf[i].active : sysmoon_buf[i].active;
+                            if (!act) continue;
+                            render_list[total_items].type = (cat == CAT_SYS_STAR) ? 200 : (cat == CAT_SYS_PLANET) ? 201 : 202;
+                            render_list[total_items].index = i;
+                            total_items++;
+                        }
+                    }
+                } break;
                 case CAT_BASE: READ_CAT(base_buf, a_bases, MAX_BASES, 4); break;
                 case CAT_BH: READ_CAT(bh_buf, a_black_holes, MAX_BH, 5); break;
                 case CAT_NEBULA: READ_CAT(neb_buf, a_nebulas, MAX_NEBULAS, 6); break;
@@ -723,6 +754,16 @@ int main(int argc, char** argv) {
                     case 0: { ConnectedPlayer* p = &pl_buf[item.index]; cp=1; snprintf(sid, sizeof(sid), "P%02d", item.index+1); snprintf(name, sizeof(name), "%s", p->name); snprintf(info, sizeof(info), "%s", get_species_name(p->faction)); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", p->state.q1, p->state.q2, p->state.q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", p->state.s1, p->state.s2, p->state.s3); snprintf(integ, sizeof(integ), "%3d%%", (int)p->state.hull_integrity); snprintf(extra, sizeof(extra), "%" PRIu64, p->state.energy); } break;
                     case 1: { NPCShip* n = &npc_buf[item.index]; cp=(n->faction==FACTION_KORTHIAN)?4:3; snprintf(sid, sizeof(sid), "N%04d", n->id); snprintf(name, sizeof(name), "%s", n->name); snprintf(info, sizeof(info), "%s", get_species_name(n->faction)); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", n->q1, n->q2, n->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", n->x, n->y, n->z); snprintf(integ, sizeof(integ), "%3d%%", (int)n->health); snprintf(extra, sizeof(extra), "%" PRIu64, n->energy); } break;
                     case 2: { NPCStar* s = &star_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "S%04d", s->id); snprintf(name, sizeof(name), "Star"); snprintf(info, sizeof(info), "Spectral %d", s->faction); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); } break;
+                    case 200: { const NPCSysStar* s = &sysstar_buf[item.index]; cp=3; snprintf(sid, sizeof(sid), "SY%05d", s->id); snprintf(name, sizeof(name), "System Star"); snprintf(info, sizeof(info), "Spectral %d", s->star_class); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", s->q1, s->q2, s->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", s->x, s->y, s->z); snprintf(extra, sizeof(extra), "Planets:%d", s->n_planets); } break;
+                    case 201: { const NPCSysPlanet* p = &sysplanet_buf[item.index]; const NPCSysStar* st = &sysstar_buf[sys_planet_star(item.index)]; double sp[3] = { st->x, st->y, st->z }, pp[3];
+                                sys_planet_pos(st->seed, sys_planet_ordinal(item.index), p->orbit_r, sp, sys_clock_s(), pp);
+                                cp=2; snprintf(sid, sizeof(sid), "SP%06d", p->id); snprintf(name, sizeof(name), "System Planet"); snprintf(info, sizeof(info), "%s Res:%d", planet_class_name(p->planet_class), p->resource_type); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", pp[0], pp[1], pp[2]); snprintf(extra, sizeof(extra), "Orb:%.1f Mn:%d", p->orbit_r, p->n_moons); } break;
+                    case 202: { const NPCSysMoon* m = &sysmoon_buf[item.index]; int ps_ = sys_moon_planet(item.index); const NPCSysPlanet* p = &sysplanet_buf[ps_]; const NPCSysStar* st = &sysstar_buf[sys_planet_star(ps_)];
+                                double sp[3] = { st->x, st->y, st->z }, pp[3], mp[3]; double now_ = sys_clock_s();
+                                sys_planet_pos(st->seed, sys_planet_ordinal(ps_), p->orbit_r, sp, now_, pp);
+                                sys_moon_pos((unsigned)m->id, m->moon_type, sys_moon_ordinal(item.index), pp, now_, mp);
+                                const char* mn_ = obj_type_name(m->moon_type);
+                                cp=6; snprintf(sid, sizeof(sid), "SM%06d", m->id); snprintf(name, sizeof(name), "%s", mn_ ? mn_ : "Moon"); snprintf(info, sizeof(info), "Planet %d", GALAXY_OBJECT_MIN_SYS_PLANET + ps_); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", m->q1, m->q2, m->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", mp[0], mp[1], mp[2]); } break;
                     case 3: { NPCPlanet* p = &planet_buf[item.index]; cp=2; snprintf(sid, sizeof(sid), "PL%04d", p->id); snprintf(name, sizeof(name), "Planet"); snprintf(info, sizeof(info), "%s Res:%d", planet_class_name(p->planet_class), p->resource_type); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", p->q1, p->q2, p->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", p->x, p->y, p->z); snprintf(extra, sizeof(extra), "Amt:%d", p->amount); } break;
                     case 4: { NPCBase* b = &base_buf[item.index]; cp=1; snprintf(sid, sizeof(sid), "B%04d", b->id); snprintf(name, sizeof(name), "%s Base", get_species_name(b->faction)); snprintf(info, sizeof(info), "Faction %d", b->faction); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", b->q1, b->q2, b->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", b->x, b->y, b->z); snprintf(integ, sizeof(integ), "%d", b->health); } break;
                     case 5: { NPCBlackHole* b = &bh_buf[item.index]; cp=4; snprintf(sid, sizeof(sid), "BH%04d", b->id); snprintf(name, sizeof(name), "Black Hole"); snprintf(info, sizeof(info), "Singularity"); snprintf(qstr, sizeof(qstr), "[%2d,%2d,%2d]", b->q1, b->q2, b->q3); snprintf(sstr, sizeof(sstr), "%5.1f,%5.1f,%5.1f", b->x, b->y, b->z); } break;

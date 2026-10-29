@@ -303,7 +303,6 @@ void rebuild_spatial_index(void) {}   /* index stays empty: all pools empty */
 void refresh_lrs_grid(void) {}
 void update_moon_orbits(void) {}
 void update_star_systems(void) {}
-void sys_refresh_positions(int s, double t) { (void)s; (void)t; }
 
 /* ================================================================== */
 /* World reset: every fuzzer input starts from the same known state. */

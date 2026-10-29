@@ -802,6 +802,35 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌟 %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Star %s\n", "Star", sid, st->x, st->y, st->z, d, h, m, status);
     }
 
+    /* 5b. Star system of this quadrant: star, planets and moons (include/star_system.h) */
+    if (local_q->sys_star_count > 0 && local_q->sys_stars[0]) {
+        sys_refresh_positions((int)(local_q->sys_stars[0] - sys_stars), sys_clock_s());
+        #define SRS_SYS_ROW(EMO, SOBJ, LABEL, INFO) do { \
+            double dx_ = (SOBJ)->x - s1, dy_ = (SOBJ)->y - s2, dz_ = (SOBJ)->z - s3; \
+            double d_ = sqrt(dx_ * dx_ + dy_ * dy_ + dz_ * dz_); \
+            double h_ = atan2(dx_, -dy_) * 180 / M_PI; if (h_ < 0) h_ += 360; \
+            double m_ = (d_ > 0.001) ? asin(dz_ / d_) * 180 / M_PI : 0; \
+            char st_[64] = ""; if ((SOBJ)->id == locked_id) strcat(st_, RED "[LOCKED]" RESET); \
+            SAFE_APPEND(b, LARGE_DATA_BUFFER, EMO " %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     %s %s\n", \
+                        (LABEL), (SOBJ)->id, (SOBJ)->x, (SOBJ)->y, (SOBJ)->z, d_, h_, m_, (INFO), st_); \
+        } while (0)
+        if (local_q->sys_stars[0]->active) {
+            char info_[64]; snprintf(info_, sizeof(info_), "Star (spectral %d)", local_q->sys_stars[0]->star_class);
+            SRS_SYS_ROW("🌟", local_q->sys_stars[0], "Star", info_);
+        }
+        for (int k_ = 0; k_ < local_q->sys_planet_count; k_++) {
+            NPCSysPlanet *pl_ = local_q->sys_planets[k_]; if (!pl_ || !pl_->active) continue;
+            char info_[96]; snprintf(info_, sizeof(info_), "Planet %s", planet_class_name(pl_->planet_class));
+            SRS_SYS_ROW("🪐", pl_, "Planet", info_);
+        }
+        for (int k_ = 0; k_ < local_q->sys_moon_count; k_++) {
+            NPCSysMoon *mo_ = local_q->sys_moons[k_]; if (!mo_ || !mo_->active) continue;
+            const char *mn_ = obj_type_name(mo_->moon_type);
+            SRS_SYS_ROW("🌙", mo_, "Moon", mn_ ? mn_ : "Moon");
+        }
+        #undef SRS_SYS_ROW
+    }
+
     /* Buoys */
     for (int b_idx = 0; b_idx < local_q->buoy_count; b_idx++) {
         NPCBuoy *bu = local_q->buoys[b_idx];
@@ -1371,6 +1400,16 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
                 ADD_LRS_OBJ(lq->npcs, lq->npc_count, GALAXY_OBJECT_MIN_NPC, 10);
                 ADD_LRS_OBJ(lq->stars, lq->star_count, GALAXY_OBJECT_MIN_STAR, 4);
                 ADD_LRS_OBJ(lq->planets, lq->planet_count, GALAXY_OBJECT_MIN_PLANET, 5);
+                /* star system: ids are already the full ids of the system bands; the neighbours' bodies move
+                 * too, so their positions are refreshed here (cheap: at most 21 bodies per quadrant) */
+                if (lq->sys_star_count > 0 && lq->sys_stars[0]) sys_refresh_positions((int)(lq->sys_stars[0] - sys_stars), sys_clock_s());
+                ADD_LRS_OBJ(lq->sys_stars, lq->sys_star_count, 0, 4);
+                ADD_LRS_OBJ(lq->sys_planets, lq->sys_planet_count, 0, 5);
+                for (int sm_ = 0; sm_ < lq->sys_moon_count && total_count < 16384; sm_++) {
+                    NPCSysMoon *mo_ = lq->sys_moons[sm_];
+                    if (mo_ && mo_->active)
+                        all_objs[total_count++] = (NetObject){.net_x = mo_->x, .net_y = mo_->y, .net_z = mo_->z, .type = mo_->moon_type, .id = mo_->id, .active = 1};
+                }
                 ADD_LRS_OBJ(lq->bases, lq->base_count, GALAXY_OBJECT_MIN_STARBASE, 3);
                 ADD_LRS_OBJ(lq->black_holes, lq->bh_count, GALAXY_OBJECT_MIN_BLACKHOLE, 6);
                 ADD_LRS_OBJ(lq->nebulas, lq->nebula_count, GALAXY_OBJECT_MIN_NEBULA, 50);
@@ -2023,6 +2062,34 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                     if (lq->stars[s]->id + GALAXY_OBJECT_MIN_STAR == tid) {
                         found = true;
                         sprintf(rep, YELLOW "\n--- STELLAR ANALYSIS ---" RESET "\nTYPE: Main Sequence G-Class Star\nADVISORY: Proximity scooping active (sco).\n");
+                    }
+                }
+            } else if (sys_id_is_star(tid) || sys_id_is_planet(tid) || sys_id_is_moon(tid)) {
+                /* star system bodies (include/star_system.h): ids are slots of the system bands */
+                if (lq->sys_star_count > 0 && lq->sys_stars[0] && lq->sys_stars[0]->active) {
+                    const NPCSysStar *ss_ = lq->sys_stars[0];
+                    if (sys_id_is_star(tid) && tid == ss_->id) {
+                        found = true;
+                        sprintf(rep, YELLOW "\n--- STELLAR ANALYSIS ---" RESET "\nSPECTRAL CLASS: %d (0=O .. 6=M)\nPLANETS IN ORBIT: %d\nADVISORY: Proximity scooping active (sco).\n",
+                                scrambled ? -1 : ss_->star_class, ss_->n_planets);
+                    } else if (sys_id_is_planet(tid)) {
+                        for (int p = 0; p < lq->sys_planet_count; p++) {
+                            const NPCSysPlanet *pl_ = lq->sys_planets[p];
+                            if (!pl_ || !pl_->active || pl_->id != tid) continue;
+                            found = true;
+                            sprintf(rep, GREEN "\n--- PLANETARY SURVEY ---" RESET "\nCLASS: %s\nRESERVES: %d units\nORBIT: %.1f units around the star\nMOONS: %d\n",
+                                    scrambled ? "Unknown" : planet_class_name(pl_->planet_class), scrambled ? 0 : pl_->amount,
+                                    pl_->orbit_r, pl_->n_moons);
+                        }
+                    } else {
+                        for (int m = 0; m < lq->sys_moon_count; m++) {
+                            const NPCSysMoon *mo_ = lq->sys_moons[m];
+                            if (!mo_ || !mo_->active || mo_->id != tid) continue;
+                            found = true;
+                            const char *mn_ = obj_type_name(mo_->moon_type);
+                            int parent_ = GALAXY_OBJECT_MIN_SYS_PLANET + sys_moon_planet(tid - GALAXY_OBJECT_MIN_SYS_MOON);
+                            sprintf(rep, GREEN "\n--- SELENOGRAPHIC SURVEY ---" RESET "\nTYPE: %s\nORBITING PLANET: %d\n", mn_ ? mn_ : "Moon", parent_);
+                        }
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_BLACKHOLE && tid <= GALAXY_OBJECT_MAX_BLACKHOLE) {
@@ -4057,8 +4124,8 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
                          "-------------------------------------------------", 
                          p_idx+1, pq1, pq2, pq3, 
                          players[i].state.probes[p_idx].s1, players[i].state.probes[p_idx].s2, players[i].state.probes[p_idx].s3,
-                         lq->player_count, lq->npc_count, lq->base_count, lq->star_count,
-                         lq->planet_count, lq->bh_count,
+                         lq->player_count, lq->npc_count, lq->base_count, lq->star_count + lq->sys_star_count,
+                         lq->planet_count + lq->sys_planet_count, lq->bh_count,
                          n_st, n_he, n_dm, n_io, n_gr, n_te,
                          p_rp, p_ac, p_ma,
                          lq->comet_count, lq->asteroid_count, lq->platform_count, lq->derelict_count,

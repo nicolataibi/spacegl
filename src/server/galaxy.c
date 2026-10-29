@@ -49,6 +49,7 @@ NPCSysStar   sys_stars[SYS_MAX_STARS];
 NPCSysPlanet sys_planets[SYS_MAX_PLANETS];
 NPCSysMoon   sys_moons[SYS_MAX_MOONS];
 int sys_star_count = 0;
+static void print_star_system_report(void);   /* defined with the star systems block below */
 NPCBase bases[MAX_BASES];
 NPCShip npcs[MAX_NPC];
 NPCDyson dysons[MAX_DYSON];
@@ -971,6 +972,7 @@ int load_galaxy() {
     printf("%s | %s ☀️ PROTOSTELLAR:  %s%-5d %s| %s 🌌 EXOTIC FEAT.:       %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, protostellar_count, B_CYAN, B_WHITE, B_GREEN, exotic_feature_count, B_CYAN);
     printf("%s | %s 📦 TOTAL FEATURES: %s%-5d %s| %s ✨ STARS:              %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, cosmic_feature_count, B_CYAN, B_WHITE, B_GREEN, active_stars, B_CYAN);
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    print_star_system_report();
     printf("%s | %s [ PROTOSTELLAR OBJECTS & YSO ]                                 %s|\n", B_CYAN, B_YELLOW, B_CYAN);
     const char *proto_names[OBJ_PROTOSTELLAR_COUNT] = { OBJECT_PROTOSTELLAR_NAME_LIST };
     for (int p = 0; p < OBJ_PROTOSTELLAR_COUNT; p += 2) {
@@ -1079,6 +1081,29 @@ const char* get_random_ship_name(int faction) {
 }
 
 
+/* "[ STAR SYSTEMS ]" block of the astrometrics report (generation and load). */
+static void print_star_system_report(void) {
+    int planets_n = 0, moons_n = 0, hist[SYS_PLANETS_PER_STAR + 1] = {0}, moons_hist[SYS_MOONS_PER_PLANET + 1] = {0};
+    for (int s = 0; s < sys_star_count; s++) {
+        if (!sys_stars[s].active) continue;
+        int np = 0;
+        for (int k = 0; k < SYS_PLANETS_PER_STAR; k++) {
+            const NPCSysPlanet *pl = &sys_planets[sys_planet_slot(s, k)];
+            if (!pl->active) continue;
+            np++; planets_n++; moons_n += pl->n_moons;
+            if (pl->n_moons >= 0 && pl->n_moons <= SYS_MOONS_PER_PLANET) moons_hist[pl->n_moons]++;
+        }
+        hist[np > SYS_PLANETS_PER_STAR ? SYS_PLANETS_PER_STAR : np]++;
+    }
+    printf("%s | %s [ STAR SYSTEMS: 1 STAR, UP TO 4 PLANETS, UP TO 4 MOONS EACH ]      %s|\n", B_CYAN, B_YELLOW, B_CYAN);
+    printf("%s | %s 🌟 SYSTEMS:      %s%-5d %s| %s 🪐 SYS PLANETS:      %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, sys_star_count, B_CYAN, B_WHITE, B_GREEN, planets_n, B_CYAN);
+    printf("%s | %s 🌙 SYS MOONS:     %s%-5d %s| %s 📍 QUADRANTS W/ SYS: %s%4.1f%% %s|\n", B_CYAN, B_WHITE, B_GREEN, moons_n, B_CYAN, B_WHITE, B_GREEN,
+           100.0 * sys_star_count / (double)(GALAXY_SIZE * GALAXY_SIZE * GALAXY_SIZE), B_CYAN);
+    printf("%s | %s PLANETS/SYSTEM 1-4: %s%d / %d / %d / %d %s| %s MOONS/PLANET 0-4: %s%d/%d/%d/%d/%d %s|\n", B_CYAN, B_WHITE, B_GREEN,
+           hist[1], hist[2], hist[3], hist[4], B_CYAN, B_WHITE, B_GREEN, moons_hist[0], moons_hist[1], moons_hist[2], moons_hist[3], moons_hist[4], B_CYAN);
+    printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+}
+
 /* ===================== Star systems (include/star_system.h) =====================
  * One system per EMPTY quadrant. "Empty" is decided from the object arrays, not
  * from the spatial index (which is built later, by init_static_spatial_index()):
@@ -1089,27 +1114,6 @@ const char* get_random_ship_name(int faction) {
         occ[a_][b_][c_] = 1; } while (0)
 #define SYS_OCC_ARRAY(ARR, N) do { for (int i_ = 0; i_ < (N); i_++) \
     if (ARR[i_].active) SYS_OCC_MARK(ARR[i_].q1, ARR[i_].q2, ARR[i_].q3); } while (0)
-
-void sys_refresh_positions(int s, double t) {
-    if (s < 0 || s >= sys_star_count) return;
-    NPCSysStar *st = &sys_stars[s];
-    if (!st->active) return;
-    double sp[3] = { st->x, st->y, st->z };
-    for (int k = 0; k < st->n_planets && k < SYS_PLANETS_PER_STAR; k++) {
-        NPCSysPlanet *pl = &sys_planets[sys_planet_slot(s, k)];
-        if (!pl->active) continue;
-        double pp[3];
-        sys_planet_pos(st->seed, k, pl->orbit_r, sp, t, pp);
-        pl->x = pp[0]; pl->y = pp[1]; pl->z = pp[2];
-        for (int j = 0; j < pl->n_moons && j < SYS_MOONS_PER_PLANET; j++) {
-            NPCSysMoon *mo = &sys_moons[sys_moon_slot(s, k, j)];
-            if (!mo->active) continue;
-            double mp[3];
-            sys_moon_pos((unsigned)mo->id, mo->moon_type, j, pp, t, mp);
-            mo->x = mp[0]; mo->y = mp[1]; mo->z = mp[2];
-        }
-    }
-}
 
 void spawn_star_systems(void) {
     static unsigned char occ[GALAXY_SIZE + 1][GALAXY_SIZE + 1][GALAXY_SIZE + 1];
@@ -2062,6 +2066,7 @@ void generate_galaxy() {
     printf("%s | %s ☀️ PROTOSTELLAR:  %s%-5d %s| %s 🌌 EXOTIC FEAT.:       %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, protostellar_count, B_CYAN, B_WHITE, B_GREEN, exotic_feature_count, B_CYAN);
     printf("%s | %s 📦 TOTAL FEATURES: %s%-5d %s| %s ✨ STARS:              %s%-5d %s|\n", B_CYAN, B_WHITE, B_GREEN, cosmic_feature_count, B_CYAN, B_WHITE, B_GREEN, s_count, B_CYAN);
     printf("%s |---------------------------------------------------------------|\n", B_CYAN);
+    print_star_system_report();
     printf("%s | %s [ PROTOSTELLAR OBJECTS & YSO ]                                 %s|\n", B_CYAN, B_YELLOW, B_CYAN);
     const char *proto_names[OBJ_PROTOSTELLAR_COUNT] = { OBJECT_PROTOSTELLAR_NAME_LIST };
     for (int p = 0; p < OBJ_PROTOSTELLAR_COUNT; p += 2) {

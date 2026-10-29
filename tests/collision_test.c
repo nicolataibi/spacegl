@@ -198,7 +198,6 @@ void rebuild_spatial_index(void) {}   /* index stays empty: all pools empty */
 void refresh_lrs_grid(void) {}
 void update_moon_orbits(void) {}
 void update_star_systems(void) {}
-void sys_refresh_positions(int s, double t) { (void)s; (void)t; }
 int write_all(int fd, const void *buf, size_t len) { (void)buf; return (int)len; (void)fd; }
 void server_data_path(char *out, size_t out_len, const char *rel)
 {

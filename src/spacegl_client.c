@@ -2401,6 +2401,9 @@ const char* get_lrs_object_name(int id) {
     if (id >= GALAXY_OBJECT_MIN_STARBASE && id <= GALAXY_OBJECT_MAX_STARBASE) return "Starbase";
     if (id >= GALAXY_OBJECT_MIN_PLANET && id <= GALAXY_OBJECT_MAX_PLANET) return "Planet";
     if (id >= GALAXY_OBJECT_MIN_STAR && id <= GALAXY_OBJECT_MAX_STAR) return "Star";
+    if (id >= GALAXY_OBJECT_MIN_SYS_STAR && id <= GALAXY_OBJECT_MAX_SYS_STAR) return "Star";       /* star systems */
+    if (id >= GALAXY_OBJECT_MIN_SYS_PLANET && id <= GALAXY_OBJECT_MAX_SYS_PLANET) return "Planet";
+    if (id >= GALAXY_OBJECT_MIN_SYS_MOON && id <= GALAXY_OBJECT_MAX_SYS_MOON) return "Moon";
     if (id >= GALAXY_OBJECT_MIN_BLACKHOLE && id <= GALAXY_OBJECT_MAX_BLACKHOLE) return "Black Hole";
     if (id >= GALAXY_OBJECT_MIN_NEBULA && id <= GALAXY_OBJECT_MAX_NEBULA) return "Nebula";
     if (id >= GALAXY_OBJECT_MIN_PULSAR && id <= GALAXY_OBJECT_MAX_PULSAR) return "Pulsar";

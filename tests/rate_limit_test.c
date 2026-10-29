@@ -180,7 +180,6 @@ void rebuild_spatial_index(void) {}
 void refresh_lrs_grid(void) {}
 void update_moon_orbits(void) {}
 void update_star_systems(void) {}
-void sys_refresh_positions(int s, double t) { (void)s; (void)t; }
 
 /* Helper to wait for the system second to tick */
 static void wait_next_second(void) {

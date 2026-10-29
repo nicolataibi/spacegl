@@ -206,6 +206,9 @@ typedef enum {
     TEL_CAT_MOON_RINGED,
     TEL_CAT_MOON_SUBSURFACE_OCEAN,
     TEL_CAT_MOON_DISRUPTED,
+    TEL_CAT_SYS_STAR,      /* star systems: stars_system[]  (include/star_system.h) */
+    TEL_CAT_SYS_PLANET,    /*               planets_system[]                       */
+    TEL_CAT_SYS_MOON,      /*               moons_system[]                         */
     TEL_CAT_COUNT
 } TelemetryCategory;
 

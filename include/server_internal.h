@@ -963,6 +963,29 @@ extern NPCSysStar   sys_stars[SYS_MAX_STARS];
 extern NPCSysPlanet sys_planets[SYS_MAX_PLANETS];
 extern NPCSysMoon   sys_moons[SYS_MAX_MOONS];
 extern int sys_star_count;   /* systems placed: stars 0 .. sys_star_count-1 */
+
+/* Positions of one system's bodies at time t (written into the x,y,z cache). Header-inline so that the
+ * server, spacegl_viewer and the tests share the one implementation. */
+static inline void sys_refresh_positions(int s, double t) {
+    if (s < 0 || s >= sys_star_count) return;
+    NPCSysStar *st = &sys_stars[s];
+    if (!st->active) return;
+    double sp[3] = { st->x, st->y, st->z };
+    for (int k = 0; k < st->n_planets && k < SYS_PLANETS_PER_STAR; k++) {
+        NPCSysPlanet *pl = &sys_planets[sys_planet_slot(s, k)];
+        if (!pl->active) continue;
+        double pp[3];
+        sys_planet_pos(st->seed, k, pl->orbit_r, sp, t, pp);
+        pl->x = pp[0]; pl->y = pp[1]; pl->z = pp[2];
+        for (int j = 0; j < pl->n_moons && j < SYS_MOONS_PER_PLANET; j++) {
+            NPCSysMoon *mo = &sys_moons[sys_moon_slot(s, k, j)];
+            if (!mo->active) continue;
+            double mp[3];
+            sys_moon_pos((unsigned)mo->id, mo->moon_type, j, pp, t, mp);
+            mo->x = mp[0]; mo->y = mp[1]; mo->z = mp[2];
+        }
+    }
+}
 extern NPCBase bases[MAX_BASES];
 extern NPCShip npcs[MAX_NPC];
 extern NPCDyson dysons[MAX_DYSON];
@@ -1202,7 +1225,6 @@ void update_moon_orbits(void);        /* move the moons along their orbits, ever
 int load_galaxy();
 void spawn_star_systems(void);               /* generation: systems in empty quadrants (galaxy.c) */
 void update_star_systems(void);              /* tick: refresh x,y,z of the systems players are in */
-void sys_refresh_positions(int star_slot, double t);  /* x,y,z of one system's bodies at time t */
 void save_galaxy();
 void save_galaxy_async();
 void refresh_lrs_grid();

@@ -120,8 +120,11 @@ const char* cat_names_diag[] = {
     "RETROGRADE MOON", "RESONANT MOON", "TIDALLY LOCKED MOON", "CHAOTIC ROTATOR MOON",
     "EMBEDDED MOONLET", "CAPTURED MOON", "CRYOVOLCANIC MOON", "TIDAL-HEATED MOON",
     "DIFFERENTIATED MOON", "BINARY MOON", "RINGED MOON", "SUBSURFACE OCEAN MOON",
-    "DISRUPTED MOON"
+    "DISRUPTED MOON",
+    "SYSTEM STARS", "SYSTEM PLANETS", "SYSTEM MOONS"
 };
+_Static_assert(sizeof(cat_names_diag) / sizeof(cat_names_diag[0]) == TEL_CAT_COUNT,
+               "cat_names_diag[] must have exactly one name per TelemetryCategory (include/telemetry.h)");
 
 static pthread_mutex_t cat_mutexes[TEL_CAT_COUNT];
 
@@ -346,6 +349,9 @@ void telemetry_init() {
                 switch(c) {
                     case TEL_CAT_STAR:      COUNT_CAT(stars_data, MAX_STARS); break;
                     case TEL_CAT_PLANET:    COUNT_CAT(planets, MAX_PLANETS); break;
+                    case TEL_CAT_SYS_STAR:   COUNT_CAT(sys_stars, sys_star_count); break;
+                    case TEL_CAT_SYS_PLANET: COUNT_CAT(sys_planets, sys_star_count * SYS_PLANETS_PER_STAR); break;
+                    case TEL_CAT_SYS_MOON:   COUNT_CAT(sys_moons, sys_star_count * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET); break;
                     case TEL_CAT_BASE:      COUNT_CAT(bases, MAX_BASES); break;
                     case TEL_CAT_BH:        COUNT_CAT(black_holes, MAX_BH); break;
                     case TEL_CAT_NEBULA:    COUNT_CAT(nebulas, MAX_NEBULAS); break;
@@ -727,6 +733,44 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     to->x = p->x; to->y = p->y; to->z = p->z;
                     snprintf(to->extra, sizeof(to->extra), "Amt:%d", p->amount);
                     to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_SYS_STAR: {
+                if (idx >= 0 && idx < sys_star_count) {
+                    NPCSysStar* s = &sys_stars[idx];
+                    snprintf(to->id, sizeof(to->id), "SY%05d", s->id);
+                    strncpy(to->name, "System Star", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Spectral %d", s->star_class);
+                    snprintf(to->extra, sizeof(to->extra), "Planets:%d", s->n_planets);
+                    to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
+                    to->x = s->x; to->y = s->y; to->z = s->z;
+                    to->color_pair = 4;
+                }
+            } break;
+            case TEL_CAT_SYS_PLANET: {
+                if (idx >= 0 && idx < sys_star_count * SYS_PLANETS_PER_STAR) {
+                    NPCSysPlanet* p = &sys_planets[idx];
+                    sys_refresh_positions(sys_planet_star(idx), sys_clock_s());   /* game_mutex is held */
+                    snprintf(to->id, sizeof(to->id), "SP%06d", p->id);
+                    strncpy(to->name, "System Planet", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "%s Res:%d", planet_class_name(p->planet_class), p->resource_type);
+                    snprintf(to->extra, sizeof(to->extra), "Amt:%d Orb:%.1f Mn:%d", p->amount, p->orbit_r, p->n_moons);
+                    to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
+                    to->x = p->x; to->y = p->y; to->z = p->z;
+                    to->color_pair = 3;
+                }
+            } break;
+            case TEL_CAT_SYS_MOON: {
+                if (idx >= 0 && idx < sys_star_count * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET) {
+                    NPCSysMoon* m = &sys_moons[idx];
+                    sys_refresh_positions(sys_moon_star(idx), sys_clock_s());     /* game_mutex is held */
+                    const char *mn = obj_type_name(m->moon_type);
+                    snprintf(to->id, sizeof(to->id), "SM%06d", m->id);
+                    strncpy(to->name, mn ? mn : "Moon", sizeof(to->name)-1);
+                    snprintf(to->info, sizeof(to->info), "Planet %d", GALAXY_OBJECT_MIN_SYS_PLANET + sys_moon_planet(idx));
+                    to->q1 = m->q1; to->q2 = m->q2; to->q3 = m->q3;
+                    to->x = m->x; to->y = m->y; to->z = m->z;
+                    to->color_pair = 6;
                 }
             } break;
             case TEL_CAT_BASE: {
@@ -1980,6 +2024,9 @@ static void update_category_cache(int cat) {
         switch(cat) {
             case TEL_CAT_STAR:      FILL_CACHE_CAT(stars_data, MAX_STARS); break;
             case TEL_CAT_PLANET:    FILL_CACHE_CAT(planets, MAX_PLANETS); break;
+            case TEL_CAT_SYS_STAR:   FILL_CACHE_CAT(sys_stars, sys_star_count); break;
+            case TEL_CAT_SYS_PLANET: FILL_CACHE_CAT(sys_planets, sys_star_count * SYS_PLANETS_PER_STAR); break;
+            case TEL_CAT_SYS_MOON:   FILL_CACHE_CAT(sys_moons, sys_star_count * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET); break;
             case TEL_CAT_BASE:      FILL_CACHE_CAT(bases, MAX_BASES); break;
             case TEL_CAT_BH:        FILL_CACHE_CAT(black_holes, MAX_BH); break;
             case TEL_CAT_NEBULA:    FILL_CACHE_CAT(nebulas, MAX_NEBULAS); break;

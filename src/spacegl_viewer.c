@@ -83,6 +83,10 @@ NPCPlatform platforms[MAX_PLATFORMS];
 NPCRift rifts[MAX_RIFTS];
 NPCMonster monsters[MAX_MONSTERS];
 NPCPlanet planets[MAX_PLANETS];
+NPCSysStar   sys_stars[SYS_MAX_STARS];     /* star systems (galaxy.dat 20261027) */
+NPCSysPlanet sys_planets[SYS_MAX_PLANETS];
+NPCSysMoon   sys_moons[SYS_MAX_MOONS];
+int sys_star_count = 0;
 NPCBase bases[MAX_BASES];
 NPCDyson dysons[MAX_DYSON];
 NPCHub hubs[MAX_HUBS];
@@ -448,14 +452,11 @@ int main(int argc, char *argv[]) {
     CHECK_READ(cgms, sizeof(NPCCGM), MAX_CGM, f);
     CHECK_READ(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
     CHECK_READ(cmbs, sizeof(NPCCMB), MAX_CMB, f);
-    {   /* star systems block (galaxy.dat 20261027): count + sys_stars + sys_planets + sys_moons */
-        int n_sys = 0;
-        CHECK_READ(&n_sys, sizeof(int), 1, f);
-        if (n_sys < 0 || n_sys > SYS_MAX_STARS) { printf("corrupt star system count\n"); fclose(f); return 1; }
-        long skip = (long)n_sys * ((long)sizeof(NPCSysStar) + SYS_PLANETS_PER_STAR * (long)sizeof(NPCSysPlanet) +
-                                   SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET * (long)sizeof(NPCSysMoon));
-        if (fseek(f, skip, SEEK_CUR) != 0) { perror("fseek systems"); fclose(f); return 1; }
-    }
+    CHECK_READ(&sys_star_count, sizeof(int), 1, f);   /* star systems: count + sys_stars + sys_planets + sys_moons */
+    if (sys_star_count < 0 || sys_star_count > SYS_MAX_STARS) { printf("corrupt star system count\n"); fclose(f); return 1; }
+    CHECK_READ(sys_stars, sizeof(NPCSysStar), (size_t)sys_star_count, f);
+    CHECK_READ(sys_planets, sizeof(NPCSysPlanet), (size_t)sys_star_count * SYS_PLANETS_PER_STAR, f);
+    CHECK_READ(sys_moons, sizeof(NPCSysMoon), (size_t)sys_star_count * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET, f);
     if (fread(&cosmic_feature_count, sizeof(int), 1, f) != 1) { cosmic_feature_count = 0; }
     /* Dynamically read cosmic_features handling legacy size (1024) and current size (MAX_COSMIC_FEATURES) */
     memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
@@ -595,6 +596,11 @@ int main(int argc, char *argv[]) {
                 p_active++;
             }
         }
+        int sys_p_active = 0, sys_m_active = 0;
+        for (int i = 0; i < sys_star_count * SYS_PLANETS_PER_STAR; i++) if (sys_planets[i].active) sys_p_active++;
+        for (int i = 0; i < sys_star_count * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET; i++) if (sys_moons[i].active) sys_m_active++;
+        int sys_s_active = 0;
+        for (int i = 0; i < sys_star_count; i++) if (sys_stars[i].active) sys_s_active++;
         for (int i = 0; i < MAX_BH; i++) {
             if (black_holes[i].active) {
                 bh_active++;
@@ -691,6 +697,7 @@ int main(int argc, char *argv[]) {
         printf("  Stars:             %d\n", s_active);
         printf("  Bases:             %d\n", b_active);
         printf("  Planets:           %d\n", p_active);
+        printf("  Star systems:      %d  (system planets %d, system moons %d)\n", sys_s_active, sys_p_active, sys_m_active);
         printf("  Black Holes:       %d\n", bh_active);
         printf("  Nebulas:           %d\n", neb_active);
         printf("  Pulsars:           %d\n", pul_active);
@@ -796,6 +803,7 @@ int main(int argc, char *argv[]) {
         printf("--- GALAXY LOCALIZATION REPORT ---\n");
         printf("%-10s %-8s %-15s %-12s %s\n", "TYPE", "ID", "COORD", "FACTION", "NAME/INFO");
         
+        int sys_cnt_s = 0, sys_cnt_p = 0, sys_cnt_m = 0;
         int counts[72] = {0}; /* 72 object categories, indices 0..70 (CMB), 71 (SUB_ANOM) */
 
         for(int i=0; i<MAX_CLIENTS; i++) if(players[i].name[0] != '\0') {
@@ -821,6 +829,28 @@ int main(int argc, char *argv[]) {
         for(int i=0; i<MAX_STARS; i++) if(stars_data[i].active) {
             printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s\n", "STAR", stars_data[i].id+GALAXY_OBJECT_MIN_STAR, stars_data[i].q1, stars_data[i].q2, stars_data[i].q3, "None", "Star");
             counts[4]++;
+        }
+
+        {   /* star systems: positions are not listed here, only the ids and quadrants */
+            for (int s_ = 0; s_ < sys_star_count; s_++) {
+                const NPCSysStar *st = &sys_stars[s_];
+                if (!st->active) continue;
+                printf("%-10s %-8d [%2d,%2d,%2d] %-12s Star (spectral %d)\n", "SYS_STAR", st->id, st->q1, st->q2, st->q3, "None", st->star_class);
+                sys_cnt_s++;
+                for (int k_ = 0; k_ < SYS_PLANETS_PER_STAR; k_++) {
+                    const NPCSysPlanet *pl = &sys_planets[sys_planet_slot(s_, k_)];
+                    if (!pl->active) continue;
+                    printf("%-10s %-8d [%2d,%2d,%2d] %-12s Resource: %s  orbit %.1f  moons %d\n", "SYS_PLANET", pl->id, pl->q1, pl->q2, pl->q3, "None", get_resource_name(pl->resource_type), pl->orbit_r, pl->n_moons);
+                    sys_cnt_p++;
+                    for (int j_ = 0; j_ < SYS_MOONS_PER_PLANET; j_++) {
+                        const NPCSysMoon *mo = &sys_moons[sys_moon_slot(s_, k_, j_)];
+                        if (!mo->active) continue;
+                        const char *mn = obj_type_name(mo->moon_type);
+                        printf("%-10s %-8d [%2d,%2d,%2d] %-12s %s (planet %d)\n", "SYS_MOON", mo->id, mo->q1, mo->q2, mo->q3, "None", mn ? mn : "Moon", pl->id);
+                        sys_cnt_m++;
+                    }
+                }
+            }
         }
 
         for(int i=0; i<MAX_BH; i++) if(black_holes[i].active) {
@@ -1148,6 +1178,7 @@ int main(int argc, char *argv[]) {
         }
         printf("\n--- Summary ---\n");
         printf("Players: %d, NPCs: %d, Bases: %d, Planets: %d, Stars: %d\n", counts[0], counts[1], counts[2], counts[3], counts[4]);
+        printf("Star systems: %d, System planets: %d, System moons: %d\n", sys_cnt_s, sys_cnt_p, sys_cnt_m);
         printf("BlackHoles: %d, Nebulas: %d, Pulsars: %d, Quasars: %d, Comets: %d, Asteroids: %d\n", counts[5], counts[6], counts[7], counts[16], counts[8], counts[9]);
         printf("Derelicts: %d, Mines: %d, Buoys: %d, Platforms: %d, Rifts: %d, Monsters: %d\n", counts[10], counts[11], counts[12], counts[13], counts[14], counts[15]);
         printf("Dysons: %d, Hubs: %d, Relics: %d, Ruptures: %d, Satellites: %d, Storms: %d\n", counts[17], counts[18], counts[19], counts[20], counts[21], counts[22]);
@@ -1265,6 +1296,25 @@ int main(int argc, char *argv[]) {
 
         for(int i=0; i<MAX_STARS; i++) if(stars_data[i].active && stars_data[i].q1 == q1 && stars_data[i].q2 == q2 && stars_data[i].q3 == q3)
             printf("[STAR] ID:%d Coord:%.1f,%.1f,%.1f\n", stars_data[i].id+GALAXY_OBJECT_MIN_STAR, stars_data[i].x, stars_data[i].y, stars_data[i].z);
+
+        /* star system of this quadrant: planets and moons at their CURRENT orbital positions */
+        for (int s_ = 0; s_ < sys_star_count; s_++) {
+            const NPCSysStar *st = &sys_stars[s_];
+            if (!st->active || st->q1 != q1 || st->q2 != q2 || st->q3 != q3) continue;
+            sys_refresh_positions(s_, sys_clock_s());
+            printf("[SYS_STAR] ID:%d Spectral:%d Planets:%d Coord:%.1f,%.1f,%.1f\n", st->id, st->star_class, st->n_planets, st->x, st->y, st->z);
+            for (int k_ = 0; k_ < SYS_PLANETS_PER_STAR; k_++) {
+                const NPCSysPlanet *pl = &sys_planets[sys_planet_slot(s_, k_)];
+                if (!pl->active) continue;
+                printf("[SYS_PLANET] ID:%d Resource:%s Orbit:%.1f Moons:%d Coord:%.1f,%.1f,%.1f Reserves:%d\n", pl->id, get_resource_name(pl->resource_type), pl->orbit_r, pl->n_moons, pl->x, pl->y, pl->z, pl->amount);
+                for (int j_ = 0; j_ < SYS_MOONS_PER_PLANET; j_++) {
+                    const NPCSysMoon *mo = &sys_moons[sys_moon_slot(s_, k_, j_)];
+                    if (!mo->active) continue;
+                    const char *mn = obj_type_name(mo->moon_type);
+                    printf("[SYS_MOON] ID:%d %s Planet:%d Coord:%.1f,%.1f,%.1f\n", mo->id, mn ? mn : "Moon", pl->id, mo->x, mo->y, mo->z);
+                }
+            }
+        }
 
         for(int i=0; i<MAX_BH; i++) if(black_holes[i].active && black_holes[i].q1 == q1 && black_holes[i].q2 == q2 && black_holes[i].q3 == q3)
             printf("[BLACK HOLE] ID:%d Coord:%.1f,%.1f,%.1f\n", black_holes[i].id+GALAXY_OBJECT_MIN_BLACKHOLE, black_holes[i].x, black_holes[i].y, black_holes[i].z);

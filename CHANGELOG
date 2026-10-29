@@ -1,3 +1,32 @@
+* Wed Oct 28 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.28.02
+  - Star systems, network and tools (step 2): the bodies of a system now
+  reach the clients. The per-frame object list (the update packet) carries the
+  star, the planets and the moons of the player's quadrant with the full ids of
+  the system bands; srs lists them; lrs lists the systems of the whole 3x3x3
+  neighbourhood (their orbital positions are refreshed on request); scan has a
+  stellar analysis, a planetary survey and a selenographic survey for them;
+  the probe counters include them; a ship that logs in inside a body is
+  rescued using the per-type contact radii; the client names the three id
+  bands (Star, Planet, Moon). sys_refresh_positions() is now a header inline
+  in server_internal.h, shared by the server, spacegl_viewer and the tests.
+  - Reports and tools: the astrometrics report (generation and load) has a
+  STAR SYSTEMS block (systems, planets, moons, quadrants with a system, planets
+  per system, moons per planet); spacegl_telemetry / telemetry_server have
+  three new categories (SYSTEM STARS, SYSTEM PLANETS, SYSTEM MOONS) and the
+  name tables are tied to TEL_CAT_COUNT by static asserts; spacegl_diag has
+  three pages with live orbital positions; spacegl_viewer reads the system
+  block of galaxy.dat (stats, report, list).
+  - Checked with the real server on a saved galaxy: the update packet of a
+  player in a system quadrant holds the star, the planets and the moons, all
+  inside the quadrant; the telemetry serves the three categories over TCP;
+  the viewer lists a system at its current orbit; 23 of 23 tests pass (3 GPU
+  tests skipped). spacegl_diag was only compiled: process_vm_readv is not
+  allowed in the test sandbox. The telemetry lists show the first 5000 objects
+  of a category (MAX_VISIBLE_TEL).
+  - Not done yet: viewers (OpenGL, Vulkan CPU and GPU driven) and the quadrant
+  size, mining and docking on system planets, supernova of a system star,
+  retirement of the legacy stars, planets and moons.
+
 * Wed Oct 28 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.28.01
   - Star systems, server side (step 1): one star with up to 4 planets orbiting
   it and up to 4 moons around each planet, one system per EMPTY quadrant
