@@ -236,9 +236,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         if (key == GLFW_KEY_N) { app->shm_inspector_page = (app->shm_inspector_page % 3) + 1; }
         if (key == GLFW_KEY_P) { app->shm_inspector_page = (app->shm_inspector_page == 1) ? 3 : app->shm_inspector_page - 1; }
     }
-    if (key == GLFW_KEY_PAGE_DOWN) {
-        app->cameraDist += QG_CAMERA_STEP;
-    }
     if (key == GLFW_KEY_SPACE) {
         app->autoRotate = !app->autoRotate;
     }

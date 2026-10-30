@@ -12,6 +12,7 @@
 #ifndef QUADRANT_GEOM_H
 #define QUADRANT_GEOM_H
 
+#include <math.h>
 #include "game_config.h"
 
 #define QG_SIZE      ((float)QUADRANT_SIZE)     /* side of the cube                            */
@@ -32,6 +33,30 @@
  * same zoom had for the reference cube. map_anim: 0 = tactical, 1 = map. */
 static inline float qg_view_dist(float camera_dist, float map_anim) {
     return camera_dist * (1.0f - map_anim) + (camera_dist / QG_SCALE) * map_anim;
+}
+
+/* Torpedo look shared by the Vulkan paths, after drawTorpedo() of the OpenGL viewer: an orange core (radius
+ * QG_TORP_CORE), a red halo of 5 additive shells around (QG_TORP_HALO + pulse), and 12 star rays (4 in each
+ * of the XY, YZ and XZ planes) turning at 250 degrees per GL pulse unit, red at the centre and yellow fading
+ * out at the tip. The OpenGL pulse runs at 3 units per second (0.05 per 60 Hz frame). */
+#define QG_TORP_CORE        0.15f
+#define QG_TORP_HALO        0.20f   /* OpenGL 0.12: larger here, the OpenGL viewer adds a bloom pass on top */
+#define QG_TORP_CORE_R      1.0f    /* core colour: brighter than the OpenGL (1, 0.5, 0) for the same reason */
+#define QG_TORP_CORE_G      0.7f
+#define QG_TORP_CORE_B      0.25f
+#define QG_TORP_RAY_LEN     0.8f
+#define QG_GL_PULSE_PER_SEC 3.0f
+static inline float qg_torp_wave(float seconds) {          /* 0..1, as (sin(pulse * 30) + 1) / 2 in OpenGL */
+    return (sinf(seconds * QG_GL_PULSE_PER_SEC * 30.0f) + 1.0f) * 0.5f;
+}
+/* Direction of ray j (0..3) of plane p (0: XY, 1: YZ, 2: XZ) at time t, length included. */
+static inline void qg_torp_ray(int p, int j, float seconds, float out[3]) {
+    float a = (float)j * 1.5707963f + seconds * QG_GL_PULSE_PER_SEC * 250.0f * 0.017453293f;
+    float len = QG_TORP_RAY_LEN + qg_torp_wave(seconds) * 0.3f;
+    float c = cosf(a) * len, sn = sinf(a) * len;
+    if (p == 0)      { out[0] = c;    out[1] = sn;   out[2] = 0.0f; }
+    else if (p == 1) { out[0] = 0.0f; out[1] = sn;   out[2] = -c;   }   /* RotY(90) of the XY ray */
+    else             { out[0] = c;    out[1] = 0.0f; out[2] = sn;   }   /* RotX(90) of the XY ray */
 }
 
 #endif /* QUADRANT_GEOM_H */

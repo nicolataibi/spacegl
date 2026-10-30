@@ -184,6 +184,7 @@ typedef struct VulkanApp {
     VkBuffer cubeVertexBuffer; VkDeviceMemory cubeVertexBufferMemory;
     VkBuffer cubeIndexBuffer; VkDeviceMemory cubeIndexBufferMemory;
     VkBuffer cubeSolidIndexBuffer; VkDeviceMemory cubeSolidIndexBufferMemory;
+    VkBuffer torpRayVertexBuffer; VkDeviceMemory torpRayVertexBufferMemory;   /* 4 torpedo rays in the XY plane (LINE_LIST) */
     VkBuffer torpVertexBuffer; VkDeviceMemory torpVertexBufferMemory; VkBuffer torpIndexBuffer; VkDeviceMemory torpIndexBufferMemory;
     VkBuffer axesVertexBuffer; VkDeviceMemory axesVertexBufferMemory; VkBuffer axesIndexBuffer; VkDeviceMemory axesIndexBufferMemory;
     VkBuffer beamVertexBuffer; VkDeviceMemory beamVertexBufferMemory; VkBuffer beamIndexBuffer; VkDeviceMemory beamIndexBufferMemory;

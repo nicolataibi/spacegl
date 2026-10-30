@@ -1280,11 +1280,30 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         for (int i = 0; i < (int)GDD_MAX_ACTIVE_TORPS; i++) {
             const ActiveTorp *t = &ctx->torps[i];
             if (t->active <= 0) continue;
-            gdd_list_add_identity(&dyn, GDD_MESH_PYRAMID,
-                                  t->x * ts, t->y * ts, t->z * ts,
-                                  0.3f * ts, 0.3f * ts, 0.3f * ts,
-                                  1.0f, 1.0f, 0.0f, 1.0f,
-                                  0, 0, GDD_FRAG_UNLIT, 0.9f, 0.1f);
+            /* OpenGL drawTorpedo() look: orange core, red additive halo (5 shells), 12 rays in two segments
+             * (red -> yellow, then fading) turning in the XY / YZ / XZ planes. GDD_TORP_INSTANCES each. */
+            float px = t->x * ts, py = t->y * ts, pz = t->z * ts;
+            float wave = qg_torp_wave(ctx->pulse);
+            gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, px, py, pz,
+                                  QG_TORP_CORE * ts, QG_TORP_CORE * ts, QG_TORP_CORE * ts,
+                                  QG_TORP_CORE_R, QG_TORP_CORE_G, QG_TORP_CORE_B, 1.0f, 0, 0, GDD_FRAG_PBR, 0.3f, 0.4f);
+            for (int k = 1; k <= 5; k++) {
+                float rs = (QG_TORP_HALO + wave * 0.05f) * (1.0f + k * 0.2f) * ts;
+                gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, px, py, pz, rs, rs, rs,
+                                      1.0f, 0.2f, 0.1f, 0.7f / (k * 1.5f), 0, 1, GDD_FRAG_UNLIT, 0, 0);
+            }
+            for (int p = 0; p < 3; p++) {
+                for (int j = 0; j < 4; j++) {
+                    float d[3];
+                    qg_torp_ray(p, j, ctx->pulse, d);
+                    for (int a = 0; a < 3; a++) d[a] *= 0.5f * ts;
+                    /* inner half: red -> orange, solid; outer half: yellow, fading */
+                    gdd_list_add_identity(&dyn, GDD_MESH_LINE, px, py, pz, d[0], d[1], d[2],
+                                          1.0f, 0.4f, 0.08f, 1.0f, 0, 1, GDD_FRAG_UNLIT, 0.02f * ts, 0);   /* ~2 px close up (glLineWidth 2) */
+                    gdd_list_add_identity(&dyn, GDD_MESH_LINE, px + d[0], py + d[1], pz + d[2], d[0], d[1], d[2],
+                                          1.0f, 0.75f, 0.0f, 0.4f, 0, 1, GDD_FRAG_UNLIT, GDD_HAIRLINE, 0);
+                }
+            }
         }
     }
 

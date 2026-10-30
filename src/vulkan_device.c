@@ -620,6 +620,7 @@ void cleanup(VulkanApp* app) {
     vkDestroyBuffer(app->device, app->cubeSolidIndexBuffer, NULL); vkFreeMemory(app->device, app->cubeSolidIndexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->cubeVertexBuffer, NULL); vkFreeMemory(app->device, app->cubeVertexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->torpIndexBuffer, NULL); vkFreeMemory(app->device, app->torpIndexBufferMemory, NULL);
+    vkDestroyBuffer(app->device, app->torpRayVertexBuffer, NULL); vkFreeMemory(app->device, app->torpRayVertexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->torpVertexBuffer, NULL); vkFreeMemory(app->device, app->torpVertexBufferMemory, NULL);
     vkDestroyBuffer(app->device, app->shipIndexBuffer, NULL);
     vkFreeMemory(app->device, app->shipIndexBufferMemory, NULL);

@@ -158,6 +158,8 @@ typedef enum {
 #define GDD_VCOUNT_BOX     36u
 #define GDD_VCOUNT_BOX3    18u
 #define GDD_VCOUNT_DISC    6u
+/* Instances per torpedo (OpenGL look): core + 5 halo shells + 12 rays x 2 segments */
+#define GDD_TORP_INSTANCES 30u
 #define GDD_VCOUNT_PYRAMID 18u
 #define GDD_VCOUNT_OCTA    24u
 #define GDD_VCOUNT_RING    96u

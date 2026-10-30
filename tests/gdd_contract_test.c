@@ -392,7 +392,7 @@ static void test_effects(void) {
 
     /* ship (1+4 quantum) + boom (1 cloud) + beams (2 lines + 1 impact
      * boom) + torp (1) + 16 bbox */
-    CHECK(g_dyn_n == 26, "effects: ship+quantum+boom+beams+torp+16bbox -> %u dyn (want 26)", g_dyn_n);
+    CHECK(g_dyn_n == 25 + GDD_TORP_INSTANCES, "effects: ship+quantum+boom+beams+torp+16bbox -> %u dyn (want %u)", g_dyn_n, 25 + GDD_TORP_INSTANCES);
 
     /* Booms: the torpedo cloud at (5,5,5) plus the phaser impact boom
      * at the target end (10,0,0) — the GPU expands each 256-particle
@@ -429,8 +429,8 @@ static void test_effects(void) {
     /* Phasers: one white wireframe segment (GDD_MESH_LINE tube) per
      * beam, ship end (0,0,0), scale = direction vector (+X, length 10),
      * additive UNLIT, alpha = life, tube half-thickness 0.05 * ts. */
-    CHECK(count_dyn(GDD_MESH_LINE) == 18,
-          "beams: 2 lines + 16 bbox = %d", count_dyn(GDD_MESH_LINE));
+    CHECK(count_dyn(GDD_MESH_LINE) == 18 + 24,
+          "beams: 2 lines + 16 bbox + 24 torpedo ray segments = %d", count_dyn(GDD_MESH_LINE));
     const GddInstance *bl = find_dyn(GDD_MESH_LINE, 0.0f, 0.0f, 0.0f, 1e-4f);
     CHECK(bl != NULL, "beam line at the ship end (0,0,0)");
     if (bl) {
@@ -444,9 +444,24 @@ static void test_effects(void) {
         CHECK(gdd_frag_mode(bl->flags) == GDD_FRAG_UNLIT, "beam unlit");
     }
 
-    /* Torpedo: pyramid (identity orientation) at (1,2,3) */
-    const GddInstance *tp = find_dyn(GDD_MESH_PYRAMID, 1.0f, 2.0f, 3.0f, 1e-4f);
-    CHECK(tp != NULL, "torpedo pyramid at (1,2,3)");
+    /* Torpedo (OpenGL look): core sphere + 5 additive halo shells + 24 ray segments at (1,2,3) */
+    {
+        int core = 0, halo = 0, rays = 0, rays_out = 0;
+        for (uint32_t i = 0; i < g_dyn_n; i++) {
+            const GddInstance *it = &g_dyn[i];
+            int m = (int)(it->mesh + 0.5f);
+            int at = near_f(it->pos[0], 1.0f, 1e-4f) && near_f(it->pos[1], 2.0f, 1e-4f) && near_f(it->pos[2], 3.0f, 1e-4f);
+            if (m == GDD_MESH_SPHERE && at && near_f(it->scale[0], QG_TORP_CORE, 1e-5f) && !gdd_flag_bit(it->flags, 1)) core++;
+            else if (m == GDD_MESH_SPHERE && at && gdd_flag_bit(it->flags, 1)) halo++;
+            else if (m == GDD_MESH_LINE && near_f(it->color[0], 1.0f, 1e-5f) && (near_f(it->color[1], 0.4f, 1e-5f) || near_f(it->color[1], 0.75f, 1e-5f))) {
+                rays++;
+                float len = 2.0f * sqrtf(it->scale[0] * it->scale[0] + it->scale[1] * it->scale[1] + it->scale[2] * it->scale[2]);
+                if (len < QG_TORP_RAY_LEN - 1e-4f || len > QG_TORP_RAY_LEN + 0.3f + 1e-4f) rays_out++;
+            }
+        }
+        CHECK(core == 1 && halo == 5, "torpedo core + 5 halo shells at (1,2,3) (%d, %d)", core, halo);
+        CHECK(rays == 24 && rays_out == 0, "torpedo: 12 rays x 2 segments of the OpenGL length (%d, %d out)", rays, rays_out);
+    }
 
     /* Dismantle with life < 0.7: only the flash is skipped (CPU parity),
      * core + aura are still drawn -> 26 + 2 */
@@ -455,10 +470,10 @@ static void test_effects(void) {
     dm[0].x = 9.0f; dm[0].life = 0.5f;
     c.dismantles = dm;
     run_builder(&c);
-    CHECK(g_dyn_n == 28, "dead dismantle: flash skipped, core+aura drawn (%u)", g_dyn_n);
+    CHECK(g_dyn_n == 27 + GDD_TORP_INSTANCES, "dead dismantle: flash skipped, core+aura drawn (%u)", g_dyn_n);
     dm[0].life = 0.9f;
     run_builder(&c);
-    CHECK(g_dyn_n == 29, "live dismantle adds 3 spheres (%u)", g_dyn_n);
+    CHECK(g_dyn_n == 28 + GDD_TORP_INSTANCES, "live dismantle adds 3 spheres (%u)", g_dyn_n);
 }
 
 static void test_compass_and_jump(void) {

@@ -1,3 +1,25 @@
+* Fri Oct 30 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.30.05
+  - Vulkan paths (CPU-driven and GPU-driven), torpedoes: a fired torpedo
+  vanished half way across the quadrant. The viewer track of a torpedo was
+  dropped as soon as it was more than 20.1 units from the centre, the edge of
+  the old 40 cube; it now uses the quadrant half side (QG_HALF), so the
+  torpedo flies to the edge of the 100 cube, where its explosion is drawn.
+  - Torpedo look as in the OpenGL viewer (drawTorpedo): an orange-white core,
+  a red additive halo of 5 shells pulsing at the OpenGL rate, and 12 star
+  rays (4 in each of the XY, YZ and XZ planes) turning at 250 degrees per
+  OpenGL pulse unit, red at the centre and yellow fading at the tip. It
+  replaces a small yellow diamond (CPU-driven) and a yellow pyramid
+  (GPU-driven). The shape and timing are shared in quadrant_geom.h; the halo
+  is a little larger and the core brighter than the OpenGL values because
+  the OpenGL viewer adds a bloom pass. CPU-driven: core sphere, glow
+  pipeline halo, a new 4-ray LINE_LIST buffer drawn in the three planes.
+  GPU-driven: GDD_TORP_INSTANCES (30) instances per torpedo.
+  - Tests: gdd_contract_test checks the torpedo core, the 5 halo shells and
+  the 24 ray segments with the OpenGL ray length.
+  - Vulkan viewer: Page Down was handled twice in the key callback, so each
+  press moved the camera back two steps instead of one; the duplicate
+  handler is removed (Page Up and Page Down now use the same step).
+
 * Fri Oct 30 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.30.04
   - GPU-driven path, background stars: they were drawn as GDD_MESH_POINT, a
   single triangle in a plane fixed by the dominant axis of the star position;

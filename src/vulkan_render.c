@@ -770,19 +770,60 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             }
 
 
-        /* Particles/Torps/Booms (Solid) */
-        for (int i=0; i<MAX_ACTIVE_TORPS; i++) {
-            if (app->activeTorps[i].active <= 0) continue;
-            PushConstants tpc = {0}; mat4_identity(tpc.model);
-            mat4_translate(tpc.model, (vec3){app->activeTorps[i].x * tactScale, app->activeTorps[i].y * tactScale, app->activeTorps[i].z * tactScale});
-            mat4 S_torp; mat4_scale(S_torp, (vec3){tactScale, tactScale, tactScale});
-            mat4_multiply(S_torp, tpc.model, tpc.model);
-            tpc.color[0]=1; tpc.color[1]=1; tpc.color[2]=0; tpc.color[3]=1.0f; tpc.usePushColor=1;
-            tpc.metallic = 0.9f; tpc.roughness = 0.1f;
-            vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(tpc), &tpc);
-            vkCmdBindVertexBuffers(cb, 0, 1, &app->torpVertexBuffer, &off); vkCmdBindIndexBuffer(cb, app->torpIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-            vkCmdDrawIndexed(cb, sizeof(torpIndices)/4, 1, 0, 0, 0);
+        /* Torpedoes, after the OpenGL drawTorpedo(): orange core, red additive halo (5 shells), 12 star rays
+         * turning in the XY / YZ / XZ planes (quadrant_geom.h holds the shared shape and timing). */
+        {
+            float wave = qg_torp_wave(pulse);
+            float spin = pulse * QG_GL_PULSE_PER_SEC * 250.0f * 0.017453293f;
+            float ray_len = QG_TORP_RAY_LEN + wave * 0.3f;
+            for (int i=0; i<MAX_ACTIVE_TORPS; i++) {
+                if (app->activeTorps[i].active <= 0) continue;
+                vec3 tp = { app->activeTorps[i].x * tactScale, app->activeTorps[i].y * tactScale, app->activeTorps[i].z * tactScale };
+                mat4 T_t; mat4_translate(T_t, tp);
+
+                /* core: lit orange sphere */
+                PushConstants cpc = {0}; mat4 S_c;
+                mat4_scale(S_c, (vec3){QG_TORP_CORE * tactScale, QG_TORP_CORE * tactScale, QG_TORP_CORE * tactScale});
+                mat4_multiply(S_c, T_t, cpc.model);
+                cpc.color[0]=QG_TORP_CORE_R; cpc.color[1]=QG_TORP_CORE_G; cpc.color[2]=QG_TORP_CORE_B; cpc.color[3]=1.0f; cpc.usePushColor=5;
+                cpc.metallic = 0.3f; cpc.roughness = 0.4f;
+                vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+                vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(cpc), &cpc);
+                vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+                vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+
+                /* halo: 5 additive shells, alpha 0.7 / (1.5 i) (OpenGL drawGlow) */
+                vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
+                for (int k = 1; k <= 5; k++) {
+                    float rs = (QG_TORP_HALO + wave * 0.05f) * (1.0f + k * 0.2f) * tactScale;
+                    PushConstants hpc = {0}; mat4 S_h;
+                    mat4_scale(S_h, (vec3){rs, rs, rs}); mat4_multiply(S_h, T_t, hpc.model);
+                    hpc.color[0]=1.0f; hpc.color[1]=0.2f; hpc.color[2]=0.1f; hpc.color[3]=0.7f / (k * 1.5f); hpc.usePushColor=1;
+                    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(hpc), &hpc);
+                    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+                }
+
+                /* rays: 4 per plane, the XY set rotated by RotY(90) and RotX(90) for the other planes */
+                vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+                vkCmdBindVertexBuffers(cb, 0, 1, &app->torpRayVertexBuffer, &off);
+                for (int p = 0; p < 3; p++) {
+                    PushConstants rpc = {0}; mat4 S_r, R_s, R_p, M1, M2;
+                    mat4_scale(S_r, (vec3){ray_len * tactScale, ray_len * tactScale, ray_len * tactScale});
+                    /* mat4_rotate multiplies the matrix in place: start from the identity */
+                    mat4_identity(R_s); mat4_rotate(R_s, spin, (vec3){0, 0, 1});
+                    mat4_identity(R_p);
+                    if (p == 1) mat4_rotate(R_p, 1.5707963f, (vec3){0, 1, 0});
+                    else if (p == 2) mat4_rotate(R_p, 1.5707963f, (vec3){1, 0, 0});
+                    /* row-major chain (first applied first): scale, spin in the plane, plane, translate */
+                    mat4_multiply(S_r, R_s, M1); mat4_multiply(M1, R_p, M2); mat4_multiply(M2, T_t, rpc.model);
+                    rpc.usePushColor = 4;   /* vertex colours: red -> yellow -> dark tip */
+                    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(rpc), &rpc);
+                    vkCmdDraw(cb, 16, 1, 0, 0);
+                }
+                vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
             }
+        }
 
             /* Dismantle / Dematerialization Effects (Cyan/White Pulse) */
             bool glow_bound = false;

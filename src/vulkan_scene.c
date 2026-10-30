@@ -93,6 +93,18 @@ const Vertex torpVertices[] = {
     {{ 0.0, -0.1, 0.1}, {1.0, 0.8, 0.0}, { 0.0,-1.0, 1.0}},
     {{ 0.0, -0.1,-0.1}, {1.0, 0.8, 0.0}, { 0.0,-1.0,-1.0}}
 };
+/* Torpedo star rays (OpenGL drawTorpedo): 4 rays in the XY plane, each in two LINE_LIST segments so the
+ * colour runs from red at the centre to yellow and fades out at the tip (vertex colours, unit length). */
+const Vertex torpRayVertices[] = {
+    {{ 0.0f, 0.0f, 0.0f}, {1.0f, 0.3f, 0.1f}, {0, 0, 1}}, {{ 0.5f, 0.0f, 0.0f}, {1.0f, 0.55f, 0.05f}, {0, 0, 1}},
+    {{ 0.5f, 0.0f, 0.0f}, {1.0f, 0.55f, 0.05f}, {0, 0, 1}}, {{ 1.0f, 0.0f, 0.0f}, {0.15f, 0.12f, 0.0f}, {0, 0, 1}},
+    {{ 0.0f, 0.0f, 0.0f}, {1.0f, 0.3f, 0.1f}, {0, 0, 1}}, {{ 0.0f, 0.5f, 0.0f}, {1.0f, 0.55f, 0.05f}, {0, 0, 1}},
+    {{ 0.0f, 0.5f, 0.0f}, {1.0f, 0.55f, 0.05f}, {0, 0, 1}}, {{ 0.0f, 1.0f, 0.0f}, {0.15f, 0.12f, 0.0f}, {0, 0, 1}},
+    {{ 0.0f, 0.0f, 0.0f}, {1.0f, 0.3f, 0.1f}, {0, 0, 1}}, {{-0.5f, 0.0f, 0.0f}, {1.0f, 0.55f, 0.05f}, {0, 0, 1}},
+    {{-0.5f, 0.0f, 0.0f}, {1.0f, 0.55f, 0.05f}, {0, 0, 1}}, {{-1.0f, 0.0f, 0.0f}, {0.15f, 0.12f, 0.0f}, {0, 0, 1}},
+    {{ 0.0f, 0.0f, 0.0f}, {1.0f, 0.3f, 0.1f}, {0, 0, 1}}, {{ 0.0f,-0.5f, 0.0f}, {1.0f, 0.55f, 0.05f}, {0, 0, 1}},
+    {{ 0.0f,-0.5f, 0.0f}, {1.0f, 0.55f, 0.05f}, {0, 0, 1}}, {{ 0.0f,-1.0f, 0.0f}, {0.15f, 0.12f, 0.0f}, {0, 0, 1}}
+};
 const uint32_t torpIndices[] = {
     0,2,3, 0,3,5, 0,5,4, 0,4,2,
     1,3,2, 1,5,3, 1,4,5, 1,2,4
@@ -723,6 +735,9 @@ void createSceneMeshes(VulkanApp* app) {
 
     createBuffer(app, sizeof(torpVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->torpVertexBuffer, &app->torpVertexBufferMemory);
     vkMapMemory(app->device, app->torpVertexBufferMemory, 0, sizeof(torpVertices), 0, &d); memcpy(d, torpVertices, sizeof(torpVertices)); vkUnmapMemory(app->device, app->torpVertexBufferMemory);
+
+    createBuffer(app, sizeof(torpRayVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->torpRayVertexBuffer, &app->torpRayVertexBufferMemory);
+    vkMapMemory(app->device, app->torpRayVertexBufferMemory, 0, sizeof(torpRayVertices), 0, &d); memcpy(d, torpRayVertices, sizeof(torpRayVertices)); vkUnmapMemory(app->device, app->torpRayVertexBufferMemory);
 
     createBuffer(app, sizeof(torpIndices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->torpIndexBuffer, &app->torpIndexBufferMemory);
     vkMapMemory(app->device, app->torpIndexBufferMemory, 0, sizeof(torpIndices), 0, &d); memcpy(d, torpIndices, sizeof(torpIndices)); vkUnmapMemory(app->device, app->torpIndexBufferMemory);
@@ -1364,9 +1379,11 @@ void scene_update(VulkanApp* app, float deltaTime) {
                 app->activeTorps[i].y += app->activeTorps[i].dy * speedScale;
                 app->activeTorps[i].z += app->activeTorps[i].dz * speedScale;
 
-                if (fabsf(app->activeTorps[i].x) > 20.1f || 
-                    fabsf(app->activeTorps[i].y) > 20.1f || 
-                    fabsf(app->activeTorps[i].z) > 20.1f) {
+                /* outside the quadrant cube (QG_HALF): the old literal 20.1 (40 cube) dropped
+                 * the torpedo half way across the 100 cube */
+                if (fabsf(app->activeTorps[i].x) > QG_HALF + 0.1f ||
+                    fabsf(app->activeTorps[i].y) > QG_HALF + 0.1f ||
+                    fabsf(app->activeTorps[i].z) > QG_HALF + 0.1f) {
                     app->activeTorps[i].active = 0;
                 }
             }
