@@ -143,10 +143,15 @@ typedef enum {
  * 4.9 percent). The builder picks it from the estimated on-screen size (gdd_pick_sphere in vulkan_gdd_build.c);
  * small or far spheres keep the 360-vertex mesh. */
 #define GDD_MESH_SPHERE_HI 11 /* 3072 verts : UV sphere 16x32 */
+/* Box drawn with only the 3 faces turned towards the camera (pad[2] = face mask, bit f = face f of the
+ * GDD_BOX_SIGNS order +Y,-Y,+Z,-Z,-X,+X). An opaque cube looks the same and costs half the vertices: the
+ * galaxy map uses it when its sectors no longer fit the budget as full boxes. */
+#define GDD_MESH_BOX3 12      /* 18 verts : 3 box faces x 6 verts */
 
 #define GDD_VCOUNT_POINT   6u
 #define GDD_VCOUNT_SPHERE  360u
 #define GDD_VCOUNT_BOX     36u
+#define GDD_VCOUNT_BOX3    18u
 #define GDD_VCOUNT_PYRAMID 18u
 #define GDD_VCOUNT_OCTA    24u
 #define GDD_VCOUNT_RING    96u
@@ -322,7 +327,8 @@ typedef struct {
  * of GDD_VERTEX_CAPACITY is left to the starfield, the frame and the
  * tactical statics that coexist during the tactical<->map transition).
  * The instance builder picks the cheapest marker mesh that fits it:
- * BOXWIRE (288 v) -> BOX + barycentric wireframe (36 v) -> POINT (6 v). */
+ * BOXWIRE (288 v) -> BOX + barycentric wireframe (36 v) -> BOX3, the 3 faces seen
+ * from the camera (18 v) -> POINT (6 v). */
 #define GDD_MAP_VERT_BUDGET     400000u
 #define GDD_WORKGROUP           256u
 #define GDD_STAR_COUNT          2000u /* == MAX_STARS of the CPU path */
@@ -485,6 +491,7 @@ typedef struct {
     int map_filter;    /* galaxy map filter (0..17) */
     float pulse;       /* seconds (glfwGetTime) */
     float camera_dist; /* orbital camera distance (vision radius) */
+    float cam_world[3];/* camera position in world space (gdd_compute_view): faces of the map BOX3 markers */
     int player_q[3];   /* player quadrant (map mode) */
     int show_axes;     /* shm_show_axes: draw the AR compass */
     int show_grid;     /* shm_show_grid: draw the quadrant grid */
@@ -619,5 +626,15 @@ _Static_assert(offsetof(GddScenePC, mvp) == 0, "GddScenePC.mvp@0 (mat4)");
 _Static_assert(offsetof(GddScenePC, time) == 64, "GddScenePC.time@64");
 _Static_assert(offsetof(GddScenePC, cam) == 68, "GddScenePC.cam@68");
 _Static_assert(offsetof(GddScenePC, pad) == 80, "GddScenePC.pad@80");
+
+/* Face mask of a GDD_MESH_BOX3 at pos seen from eye: for each axis the face whose normal points to the camera
+ * (face order +Y,-Y,+Z,-Z,-X,+X of GDD_BOX_SIGNS). Exactly 3 bits are set. */
+static inline unsigned gdd_box3_mask(const float pos[3], const float eye[3]) {
+    unsigned m = 0;
+    m |= (eye[1] >= pos[1]) ? (1u << 0) : (1u << 1);
+    m |= (eye[2] >= pos[2]) ? (1u << 2) : (1u << 3);
+    m |= (eye[0] >= pos[0]) ? (1u << 5) : (1u << 4);
+    return m;
+}
 
 #endif /* SPACEGL_GDD_H */

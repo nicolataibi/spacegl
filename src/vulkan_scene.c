@@ -937,7 +937,8 @@ void createStarfield(VulkanApp* app) {
         float cr = 0.4f + (float)(rand() % 60) / 100.0f;
         float cg = 0.4f + (float)(rand() % 60) / 100.0f;
         float cb = 0.4f + (float)(rand() % 60) / 100.0f;
-        float scale = 0.1f + (float)(rand() % 50) * 0.01f;
+        /* the shell moved out with the camera (QG_SCALE): the stars grow with it, so they keep their size on screen */
+        float scale = (0.1f + (float)(rand() % 50) * 0.01f) * QG_SCALE;
         for (int m = 0; m < multiplier; m++) {
             float s_scale = (m == 0) ? scale : scale * 2.5f;
             float s_alpha = (m == 0) ? 1.0f : 0.3f;

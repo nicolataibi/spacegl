@@ -186,7 +186,7 @@ void drawHUD(int obj_idx) {
 
         /* Draw Health Bar (Ships, Bases, Platforms, Monsters) */
         if (type == OBJ_PLAYER || type == OBJ_BASE || obj_type_is_npc_ship(type) || type == OBJ_DERELICT || type == OBJ_PLATFORM || type >= 30) {
-            double w = QUADRANT_SIZE;
+            double w = 40.0;   /* bar width in pixels (it is a screen element, not the quadrant size) */
             double h = 4.0;
             double bar = (hp / (double)YIELD_HARVEST_MAX) * w;
             if (bar < 0) bar = 0; 
@@ -3211,12 +3211,12 @@ void drawFaceLabels() {
         double x, y, z;
         int nq[3];
     } faces[6] = {
-        { 20.5, 0, 0, {q1+1, q2, q3} },   /* Right (X+) */
-        {-20.5, 0, 0, {q1-1, q2, q3} },   /* Left (X-) */
-        { 0, 20.5, 0, {q1, q2, q3+1} },   /* Top (Z+) -> Y+ in viewer */
-        { 0,-20.5, 0, {q1, q2, q3-1} },   /* Down (Z-) -> Y- in viewer */
-        { 0, 0,-20.5, {q1, q2+1, q3} },   /* Fore (Y+) -> Z- in viewer */
-        { 0, 0, 20.5, {q1, q2-1, q3} }    /* Aft (Y-) -> Z+ in viewer */
+        { QG_HALF + 0.5, 0, 0, {q1+1, q2, q3} },   /* Right (X+) */
+        {-QG_HALF - 0.5, 0, 0, {q1-1, q2, q3} },   /* Left (X-) */
+        { 0, QG_HALF + 0.5, 0, {q1, q2, q3+1} },   /* Top (Z+) -> Y+ in viewer */
+        { 0,-QG_HALF - 0.5, 0, {q1, q2, q3-1} },   /* Down (Z-) -> Y- in viewer */
+        { 0, 0,-QG_HALF - 0.5, {q1, q2+1, q3} },   /* Fore (Y+) -> Z- in viewer */
+        { 0, 0, QG_HALF + 0.5, {q1, q2-1, q3} }    /* Aft (Y-) -> Z+ in viewer */
     };
 
     GLdouble model[16], proj[16];
@@ -3259,7 +3259,7 @@ void realInitTacticalGrid() {
     struct Vertex { float x, y, z; float r, g, b; };
     struct Vertex verts[64]; /* Safe upper bound */
     int idx = 0;
-    float min = -20.0f, mid = 0.0f, max = 20.0f;
+    float min = -QG_HALF, mid = 0.0f, max = QG_HALF;   /* the quadrant cube (quadrant_geom.h) */
 
     /* Top Loop (Green) */
     verts[idx++] = (struct Vertex){min, max, min, 0, 1, 0}; verts[idx++] = (struct Vertex){max, max, min, 0, 1, 0};

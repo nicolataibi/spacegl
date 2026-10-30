@@ -812,14 +812,16 @@ static void gdd_build_starfield(GddState *g) {
         GddStar *st = &g->stars[s];
         float theta = (float)(rand() % 3600) * 0.1f * M_PI / 180.0f;
         float phi = (float)(rand() % 1800) * 0.1f * M_PI / 180.0f;
-        float r = 120.0f + (float)(rand() % 1000) * 0.1f;
+        /* the shell follows the camera (QG_SCALE): with the 100 cube the camera sits 200 from the centre, inside an
+         * unscaled 120..220 shell, and the nearest star triangles filled the screen. Size scales too (CPU parity). */
+        float r = (120.0f + (float)(rand() % 1000) * 0.1f) * QG_SCALE;
         st->pos[0] = r * sinf(phi) * cosf(theta);
         st->pos[1] = r * cosf(phi);
         st->pos[2] = r * sinf(phi) * sinf(theta);
         st->color[0] = 0.4f + (float)(rand() % 60) / 100.0f;
         st->color[1] = 0.4f + (float)(rand() % 60) / 100.0f;
         st->color[2] = 0.4f + (float)(rand() % 60) / 100.0f;
-        st->scale = 0.1f + (float)(rand() % 50) * 0.01f;
+        st->scale = (0.1f + (float)(rand() % 50) * 0.01f) * QG_SCALE;
     }
 }
 
@@ -1171,6 +1173,7 @@ void gdd_build_frame(VulkanApp *app, float pulse) {
     ctx.map_filter = app->mapFilter;
     ctx.pulse = pulse;
     ctx.camera_dist = app->cameraDist;
+    { mat4 v_; gdd_compute_view(app, v_, ctx.cam_world); }   /* camera position for the map BOX3 faces */
     ctx.stars = g->stars;
     ctx.star_count = (int)GDD_STAR_COUNT;
     ctx.dyn_out = (GddInstance *)f->dyn_ptr;

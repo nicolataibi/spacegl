@@ -849,13 +849,15 @@ static uint32_t map_vertex_cost(int mesh) {
     switch (mesh) {
     case GDD_MESH_BOXWIRE: return GDD_VCOUNT_BOXWIRE;
     case GDD_MESH_BOX:     return GDD_VCOUNT_BOX;
+    case GDD_MESH_BOX3:    return GDD_VCOUNT_BOX3;
     case GDD_MESH_POINT:   return GDD_VCOUNT_POINT;
     default:               return 0;
     }
 }
 
 static void test_galaxy_map_dense(void) {
-    static const uint32_t counts[] = { 500, 9200, 30000, 64000 };
+    /* 20300: a galaxy with its 10,000 star systems (about 10,300 other occupied quadrants + 10,000 systems) */
+    static const uint32_t counts[] = { 500, 9200, 20300, 30000, 64000 };
     for (unsigned t = 0; t < sizeof(counts) / sizeof(counts[0]); t++) {
         GddBuildCtx c = base_ctx();
         c.map_anim = 1.0f;
@@ -870,6 +872,7 @@ static void test_galaxy_map_dense(void) {
                 }
         c.galaxy = &g_gal_big[0][0][0];
         c.galaxy_size = 40;
+        c.cam_world[0] = 30.0f; c.cam_world[1] = -12.0f; c.cam_world[2] = 70.0f;   /* off-axis camera */
 
         g_dyn_n = g_map_n = 0;
         c.dyn_out = g_dyn; c.dyn_cap = T_MAX; c.dyn_count = &g_dyn_n;
@@ -896,6 +899,24 @@ static void test_galaxy_map_dense(void) {
         CHECK(verts <= GDD_MAP_VERT_BUDGET + 2u * GDD_VCOUNT_BOXWIRE + GDD_VCOUNT_BOXWIRE,
               "dense map %u: %llu vertices exceed the map budget", counts[t],
               (unsigned long long)verts);
+        if (counts[t] == 20300) {
+            /* too many for full boxes, few enough for 3-face boxes: the markers must be cubes, not triangles,
+             * and each one shows exactly the 3 faces turned towards the camera */
+            int box3 = 0, points = 0, bad_mask = 0;
+            for (uint32_t i = 1; i < g_map_n; i++) {
+                int m = (int)(g_map_big[i].mesh + 0.5f);
+                if (m == GDD_MESH_POINT) points++;
+                if (m != GDD_MESH_BOX3) continue;
+                box3++;
+                unsigned mask = (unsigned)(g_map_big[i].pad[2] + 0.5f);
+                const float *p = g_map_big[i].pos;
+                unsigned want = ((c.cam_world[1] >= p[1]) ? 1u : 2u) | ((c.cam_world[2] >= p[2]) ? 4u : 8u) |
+                                ((c.cam_world[0] >= p[0]) ? 32u : 16u);
+                if (mask != want) bad_mask++;
+            }
+            CHECK(box3 > 20000 && points == 0, "galaxy with star systems: %d 3-face cubes, %d triangles", box3, points);
+            CHECK(bad_mask == 0, "galaxy with star systems: %d cubes show faces turned away from the camera", bad_mask);
+        }
     }
 }
 

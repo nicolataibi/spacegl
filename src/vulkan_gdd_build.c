@@ -1631,8 +1631,9 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                     for (int x = 1; x <= gs; x++)
                         if (ctx->galaxy[x * stride * stride + y * stride + z] != 0) n_sectors++;
             if (n_sectors * GDD_VCOUNT_BOXWIRE > GDD_MAP_VERT_BUDGET)
-                lod_mesh = (n_sectors * GDD_VCOUNT_BOX <= GDD_MAP_VERT_BUDGET)
-                           ? GDD_MESH_BOX : GDD_MESH_POINT;
+                lod_mesh = (n_sectors * GDD_VCOUNT_BOX <= GDD_MAP_VERT_BUDGET)  ? GDD_MESH_BOX
+                         : (n_sectors * GDD_VCOUNT_BOX3 <= GDD_MAP_VERT_BUDGET) ? GDD_MESH_BOX3   /* ~22,000 sectors */
+                         : GDD_MESH_POINT;
         }
         if (ctx->galaxy && ctx->map_anim > 0.01f) {
             for (int z = 1; z <= gs; z++) {
@@ -1731,6 +1732,18 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                                                       scale, scale, scale,
                                                       cr, cg, cb, 1.0f, 1, 0,
                                                       GDD_FRAG_UNLIT, 0, 0);
+                            else if (lod_mesh == GDD_MESH_BOX3) {
+                                /* the 3 faces seen from the camera: same look as a box (solid or
+                                 * barycentric wireframe), half the vertices */
+                                float p3[3] = { pxm, pym, pzm };
+                                uint32_t n0 = map.n;
+                                gdd_list_add_identity(&map, GDD_MESH_BOX3, pxm, pym, pzm,
+                                                      scale, scale, scale,
+                                                      cr, cg, cb, 1.0f, 1, 0,
+                                                      wire ? GDD_FRAG_WIREFRAME : GDD_FRAG_PBR,
+                                                      wire ? 0.0f : 0.5f, wire ? 0.0f : 0.5f);
+                                if (map.n > n0) map.arr[map.n - 1].pad[2] = (float)gdd_box3_mask(p3, ctx->cam_world);
+                            }
                             else if (wire && lod_mesh == GDD_MESH_BOX)
                                 gdd_list_add_identity(&map, GDD_MESH_BOX, pxm, pym, pzm,
                                                       scale, scale, scale,

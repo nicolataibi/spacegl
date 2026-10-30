@@ -69,7 +69,7 @@
 #endif
 
 /* Test data sizes (declared first: the buffer setup below uses them) */
-#define N_DYN  15
+#define N_DYN  16
 #define N_MAP  5
 #define VMAX   16384   /* room for the 3072-vertex HI sphere */
 
@@ -138,6 +138,31 @@ static uint32_t expand_box(const GddInstance *it, GddVertex *out) {
         put_exp(&out[i], w, lp, n, it);
     }
     return 36;
+}
+
+/* Mirror of gdd_expand_box3: the faces of expand_box selected by the mask in pad[2] (at most 3, in face
+ * order), the rest degenerate at the instance position. */
+static uint32_t expand_box3(const GddInstance *it, GddVertex *out) {
+    unsigned mask = (unsigned)(it->pad[2] + 0.5f), k = 0;
+    for (int f = 0; f < 6 && k < 3u; f++) {
+        if (!(mask & (1u << f))) continue;
+        for (int j = 0; j < 6; j++) {
+            int i = f * 6 + j;
+            float unscaled_lp[3] = { BOX_SIGNS[i][0], BOX_SIGNS[i][1], BOX_SIGNS[i][2] };
+            float lp[3] = { unscaled_lp[0] * it->scale[0], unscaled_lp[1] * it->scale[1], unscaled_lp[2] * it->scale[2] };
+            float w[3], n[3];
+            m_xform(it, unscaled_lp, w);
+            m_xform_n(it, BOX_FACE_N[f], n);
+            put_exp(&out[k * 6 + j], w, lp, n, it);
+        }
+        k++;
+    }
+    for (; k < 3u; k++)
+        for (int j = 0; j < 6; j++) {
+            float w[3] = { it->pos[0], it->pos[1], it->pos[2] }, lp[3] = { 0, 0, 0 }, n[3] = { 0, 1, 0 };
+            put_exp(&out[k * 6 + j], w, lp, n, it);
+        }
+    return 18;
 }
 
 /* Exact mirror of gdd_expand_sphere (gdd_ops.glsl, 2026-10 revision):
@@ -660,6 +685,7 @@ static uint32_t expand_mesh(const GddInstance *it, GddVertex *out) {
     case GDD_MESH_SPHERE:  return expand_sphere(it, out);
     case GDD_MESH_SPHERE_HI: return expand_sphere_hi(it, out);
     case GDD_MESH_BOX:     return expand_box(it, out);
+    case GDD_MESH_BOX3:    return expand_box3(it, out);
     case GDD_MESH_PYRAMID: return expand_pyramid(it, out);
     case GDD_MESH_OCTA:    return expand_octa(it, out);
     case GDD_MESH_RING:    return expand_ring(it, out);
@@ -1434,6 +1460,16 @@ static void fill_test_data(void) {
     u_inst_dyn[14].pad[0] = 777.0f; /* seed (gdd_beam_boom_seed range 0..1000) */
     u_inst_dyn[14].pad[1] = 2.0f;   /* style 2 = phaser impact */
     set_identity_orient(u_inst_dyn[14].orient);
+
+    /* 15: BOX3 (galaxy map sector marker): faces +Y, +Z, +X only (mask 1|4|32), PBR, IN range */
+    u_inst_dyn[15].pos[0] = -2.0f; u_inst_dyn[15].pos[1] = 1.0f; u_inst_dyn[15].pos[2] = 1.5f;
+    u_inst_dyn[15].mesh = GDD_MESH_BOX3;
+    u_inst_dyn[15].scale[0] = 0.4f; u_inst_dyn[15].scale[1] = 0.4f; u_inst_dyn[15].scale[2] = 0.4f;
+    u_inst_dyn[15].flags = gdd_make_flags(0, 0, GDD_FRAG_PBR);
+    u_inst_dyn[15].color[0] = 0.2f; u_inst_dyn[15].color[1] = 0.8f; u_inst_dyn[15].color[2] = 0.9f;
+    u_inst_dyn[15].alpha = 1.0f;
+    u_inst_dyn[15].pad[0] = 0.5f; u_inst_dyn[15].pad[1] = 0.5f; u_inst_dyn[15].pad[2] = 37.0f;
+    set_identity_orient(u_inst_dyn[15].orient);
 
     /* --- map group (static geometry: all NEVER_CULL) --------------- */
     u_inst_map[0].pos[0] = 5.0f; u_inst_map[0].pos[2] = -5.0f;

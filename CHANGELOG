@@ -1,3 +1,26 @@
+* Fri Oct 30 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.30.03
+  - OpenGL viewer: the quadrant cube was still 40 units (its vertices are
+  built in spacegl_3dview_tables.inc, which the move to 100 had missed)
+  while the camera had already moved back: the cube, the neighbour-quadrant
+  labels on its faces and the objects now use the 100 cube (QG_HALF). The
+  object health bar is 40 pixels again (it had followed QUADRANT_SIZE).
+  - Background stars: in the GPU-driven path the star shell (120..220) was
+  not scaled, so with the camera 200 from the centre many stars sat next to
+  it and their triangle mesh filled the screen (the triangular stars around
+  the rotating quadrant). Both Vulkan paths now scale the shell and the star
+  size by QG_SCALE: the starfield looks as it did with the 40 cube (the
+  golden render is closer to the committed image: RMSE 1.09, was 3.41).
+  - Galaxy map (map) in the GPU-driven path: with the 10000 star systems
+  about 20,300 quadrants are occupied, too many for full boxes inside the
+  map vertex budget, and the markers fell back to triangles. New mesh
+  GDD_MESH_BOX3 draws only the 3 faces turned towards the camera (18
+  vertices instead of 36, same look for an opaque cube); the builder gets
+  the camera position and stores the face mask per marker. Triangles are
+  now used only beyond about 22,000 occupied quadrants.
+  - Tests: gdd_contract_test checks that a galaxy of 20,300 occupied
+  quadrants is drawn with 3-face cubes facing the camera and no triangles;
+  gdd_mesh_test compares the BOX3 expansion on the GPU with its CPU mirror.
+
 * Fri Oct 30 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.30.02
   - spacegl_telemetry: one more column for the star-system categories.
   SYSTEM STARS shows MOONS, the active moons of every planet of the system;

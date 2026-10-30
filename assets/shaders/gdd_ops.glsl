@@ -124,6 +124,35 @@ void gdd_expand_box(uint base, GddInstance it) {
     }
 }
 
+/* gdd_expand_box3 — the 3 faces of gdd_expand_box selected by the mask
+ * in it.p.z (bit f = face f, same face order and vertices as the box,
+ * so an opaque cube looks identical). Always writes GDD_VC_BOX3
+ * vertices: if fewer than 3 bits are set the rest are degenerate. */
+void gdd_expand_box3(uint base, GddInstance it) {
+    uint mask = uint(it.p.z + 0.5);
+    bool bary = gdd_want_bary(it);
+    uint k = 0u;
+    for (int f = 0; f < 6 && k < 3u; f++) {
+        if ((mask & (1u << uint(f))) == 0u) continue;
+        for (int j = 0; j < 6; j++) {
+            int i = f * 6 + j;
+            vec3 unscaled_lp = vec3(GDD_BOX_SIGNS[i]);
+            vec3 lp = unscaled_lp * it.b.xyz;
+            uint dst = base + k * 6u + uint(j);
+            if (bary) {
+                vec3 b3 = (uint(i) % 3u == 0u) ? vec3(1, 0, 0) : (uint(i) % 3u == 1u) ? vec3(0, 1, 0) : vec3(0, 0, 1);
+                gdd_put_bary(dst, gdd_xform(it, unscaled_lp), lp, it.o * GDD_BOX_FACE_N[f], it, b3);
+            } else {
+                gdd_put(dst, gdd_xform(it, unscaled_lp), lp, it.o * GDD_BOX_FACE_N[f], it);
+            }
+        }
+        k++;
+    }
+    for (; k < 3u; k++)
+        for (int j = 0; j < 6; j++)
+            gdd_put(base + k * 6u + uint(j), it.a.xyz, vec3(0.0), vec3(0, 1, 0), it);
+}
+
 /* ------------------------------------------------------------------ */
 /* gdd_expand_sphere — UV-sphere / ellipsoid tessellation.             */
 /*                                                                     */
