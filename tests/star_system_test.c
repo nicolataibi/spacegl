@@ -47,6 +47,23 @@ static void test_radii(void) {
     CHECK(sys_star_hit_radius() > sys_planet_hit_radius() && sys_planet_hit_radius() > sys_moon_hit_radius(OBJ_MOON_FIRST + 5),
           "star > planet > moon");
     CHECK(sys_moon_hit_radius(OBJ_MOON_FIRST) >= (double)DIST_COLLISION_SHIP, "moon never below the generic contact radius");
+    /* a moon is drawn with radius SCALE_PLANET * obj_moon_any_scale: the contact radius follows it, and the
+     * layout clearance covers the largest moon of any kind */
+    CHECK(fabs(sys_moon_hit_radius(OBJ_MOON_FIRST + 5) - (1.8 * 0.60 + 0.8)) < 1e-6, "moon contact radius = 1.8 * kind scale + 0.8");
+    double mx = 0;
+    for (int t = OBJ_MOON_FIRST; t <= OBJ_MOON_LAST; t++) { double r = SYS_PLANET_RADIUS * obj_moon_any_scale(t); if (r > mx) mx = r; }
+    for (int t = OBJ_MOON_EXT_FIRST; t <= OBJ_MOON_EXT_LAST; t++) { double r = SYS_PLANET_RADIUS * obj_moon_any_scale(t); if (r > mx) mx = r; }
+    CHECK(mx <= SYS_MOON_MAX_RADIUS + 1e-6, "SYS_MOON_MAX_RADIUS (%.2f) covers every moon kind (largest %.3f)", SYS_MOON_MAX_RADIUS, mx);
+    /* interaction limits keep the generic 2.3 margin outside the contact sphere; the stand-off stays outside it */
+    CHECK(fabs(sys_interaction_range(sys_planet_hit_radius(), DIST_INTERACTION_MAX) - 4.9) < 1e-6, "mining limit of a system planet: 4.9 from its centre");
+    CHECK(fabs(sys_interaction_range(sys_star_hit_radius(), DIST_SCOOPING_MAX) - 5.6) < 1e-6, "scooping limit of a system star: 5.6 from its centre");
+    CHECK(fabs(sys_interaction_range((double)DIST_COLLISION_SHIP, DIST_INTERACTION_MAX) - DIST_INTERACTION_MAX) < 1e-6, "ordinary objects keep the generic limit");
+    CHECK(sys_standoff(sys_planet_hit_radius()) > sys_planet_hit_radius() && sys_min_standoff(sys_planet_hit_radius()) > sys_planet_hit_radius(),
+          "approach stand-off is outside the contact sphere");
+    CHECK(sys_standoff(sys_planet_hit_radius()) < sys_interaction_range(sys_planet_hit_radius(), DIST_INTERACTION_MAX),
+          "the default stand-off of a planet is inside its mining range");
+    CHECK(sys_standoff(sys_star_hit_radius()) < sys_interaction_range(sys_star_hit_radius(), DIST_SCOOPING_MAX),
+          "the default stand-off of a star is inside its scooping range");
 }
 
 static int check_system_inside(unsigned seed, double Q, int *planets_hist, int *moons_total) {
@@ -110,7 +127,8 @@ int main(void) {
     test_radii();
     test_determinism();
     test_containment(100.0, 20000);
-    test_containment((double)QUADRANT_SIZE, 20000);
+    test_containment(40.0, 20000);                      /* the previous quadrant size */
+    test_containment((double)QUADRANT_SIZE, 20000);     /* the configured one */
     printf("%d checks passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

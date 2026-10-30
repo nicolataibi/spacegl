@@ -39,6 +39,7 @@ void main() {
     switch (mesh) {
         case GDD_MESH_POINT:   if (!gdd_reserve(it, GDD_VC_POINT, base)) return; gdd_expand_point(base, it); break;
         case GDD_MESH_SPHERE:  if (!gdd_reserve(it, GDD_VC_SPHERE, base)) return; gdd_expand_sphere(base, it); break;
+        case GDD_MESH_SPHERE_HI: if (!gdd_reserve(it, GDD_VC_SPHERE_HI, base)) return; gdd_expand_sphere_hi(base, it); break;
         case GDD_MESH_BOX:     if (!gdd_reserve(it, GDD_VC_BOX, base)) return; gdd_expand_box(base, it); break;
         case GDD_MESH_PYRAMID: if (!gdd_reserve(it, GDD_VC_PYRAMID, base)) return; gdd_expand_pyramid(base, it); break;
         case GDD_MESH_OCTA:    if (!gdd_reserve(it, GDD_VC_OCTA, base)) return; gdd_expand_octa(base, it); break;

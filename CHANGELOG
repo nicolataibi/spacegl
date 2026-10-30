@@ -1,3 +1,39 @@
+* Fri Oct 30 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.30.01
+  - Quadrant 40 -> 100 (QUADRANT_SIZE): the cube grows, the objects keep their
+  size. New include/quadrant_geom.h holds the cube geometry shared by the three
+  viewers (OpenGL, Vulkan CPU-driven, Vulkan GPU-driven): half side, grid cells,
+  and the camera constants tuned for the 40 cube scaled by 2.5 (distance, zoom
+  step, grid hiding distance, far clip planes, star shell), so the whole cube
+  keeps the same framing. The galaxy map keeps its previous camera distance.
+  Every hard-coded 20 / 40 of the cube is gone from the viewers.
+  galaxy.dat 20261030: a galaxy saved with the 40 quadrant is regenerated.
+  - GDD: new mesh GDD_MESH_SPHERE_HI (UV sphere 16 x 32, 3072 vertices) for
+  stars, planets and moons, chosen from the on-screen size (radius / camera
+  distance); far or tiny ones keep the 6 x 10 sphere, black holes, mines and
+  effects never use it. Shared expansion in gdd_ops.glsl (gdd_expand_sphere_n).
+  - Star systems, interactions: lock, apr and scan find the system bodies by
+  their full id (the standard lookup added the band base twice and never
+  matched them) and read planets and moons at their current orbital position,
+  so the autopilot follows a moving planet. apr stops 1.0 outside the contact
+  sphere of a system body by default and never closer than 0.3 outside it;
+  min works on system planets (4.9 from the centre), sco on system stars (5.6
+  from the centre): the usual 2.3 margin outside the larger contact sphere.
+  The contact radius of a moon now matches its drawn size (1.8 times the kind
+  scale, plus 0.8), and the layout clearance covers the largest moon.
+  - Telemetry shows every object of a category (no 5000 cap): per-category
+  caches grow on demand, each client gets at most TEL_OBJS_PER_TICK (1000)
+  objects per tick so a large category spans several ticks (31638 system
+  moons: a full frame about every 0.5 s), the client keeps the last complete
+  frame while the next arrives; the ID column is 8 characters wide.
+  - LORE.md: System Stars / Planets / Moons in the Galactic Identifier Schema
+  (with the slot rule of the ids) and in the Autopilot table (ranges and
+  approach distances), quadrant size 100.
+  - Checked: 23 of 23 tests pass with the software Vulkan driver, including
+  gdd_mesh (the HI sphere against its CPU reference), golden and gdd_bench;
+  the real server places 10000 systems (21467 planets, 31638 moons) and its
+  telemetry serves all of them; lock, apr, min and sco run on the real server
+  code; the three viewers render the whole 100 cube with a star system.
+
 * Wed Oct 28 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.28.02
   - Star systems, network and tools (step 2): the bodies of a system now
   reach the clients. The per-frame object list (the update packet) carries the

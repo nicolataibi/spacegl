@@ -42,14 +42,16 @@
 #include "nav_math.h"
 #include "shared_state.h"
 
+#include "quadrant_geom.h"
+
 typedef struct VulkanApp VulkanContext;
 
 /* Window resolution and viewport constants */
 #define VIEW_WINDOW_WIDTH 1920
 #define VIEW_WINDOW_HEIGHT 1080
-#define VIEW_QUADRANT_HALF 20.0f
+#define VIEW_QUADRANT_HALF QG_HALF
 #define VIEW_ROTATION_SPEED 4.5f
-#define VIEW_CAMERA_DIST 60.0f
+#define VIEW_CAMERA_DIST (60.0f * QG_SCALE)
 
 #define SCALE_SHIP 0.45f
 #define BRIDGE_CAMERA_OFFSET_Y 0.30f

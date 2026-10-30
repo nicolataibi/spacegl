@@ -986,6 +986,14 @@ static inline void sys_refresh_positions(int s, double t) {
         }
     }
 }
+
+/* Contact radius of a star-system body from its full id (0 for ids outside the three bands). */
+static inline double sys_body_hit_radius(int id) {
+    if (sys_id_is_star(id))   return sys_star_hit_radius();
+    if (sys_id_is_planet(id)) return sys_planet_hit_radius();
+    if (sys_id_is_moon(id))   return sys_moon_hit_radius(sys_moons[id - GALAXY_OBJECT_MIN_SYS_MOON].moon_type);
+    return 0.0;
+}
 extern NPCBase bases[MAX_BASES];
 extern NPCShip npcs[MAX_NPC];
 extern NPCDyson dysons[MAX_DYSON];
@@ -1080,7 +1088,7 @@ void log_init(void);
 
 #define LOG_DEBUG(...) do { if (g_debug) { slog("DEBUG: " __VA_ARGS__); } } while (0)
 
-#define GALAXY_VERSION 20261027  /* 2026-10-27: star systems (sys_stars/sys_planets/sys_moons) appended -> galaxy.dat layout change (2026-10-24: NPCPlanet.planet_class added) */
+#define GALAXY_VERSION 20261030  /* 2026-10-30: QUADRANT_SIZE 40 -> 100, every saved position changes scale (2026-10-27: star systems (sys_stars/sys_planets/sys_moons) appended -> galaxy.dat layout change (2026-10-24: NPCPlanet.planet_class added) */
 
 /* Spatial Partitioning Index */
 typedef struct {

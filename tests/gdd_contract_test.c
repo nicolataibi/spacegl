@@ -36,6 +36,7 @@
  */
 
 #include "object_types.h"
+#include "quadrant_geom.h"
 #include "spacegl_gdd.h"
 #include "shared_state.h"
 
@@ -170,7 +171,17 @@ static GddInstance g_map[T_MAX];
 static uint32_t g_dyn_n, g_map_n;
 
 /* One SmoothObj in the quadrant center, fully initialized (first=0). */
+/* The test data is written in the 40-unit frame (centre 20, obj (10,15,25) maps to (-10,5,5)). The builder
+ * centres on QG_HALF, so every quadrant position is translated by Q_SHIFT: the expected mapped values do not
+ * depend on QUADRANT_SIZE. */
+#define Q_SHIFT (QG_HALF - 20.0f)
+
+/* Stars, planets and moons use GDD_MESH_SPHERE_HI when big enough on screen, the other spheres keep the
+ * 360-vertex mesh: "a sphere" in the generic checks is either one. */
+static int is_sphere_mesh(int m) { return m == GDD_MESH_SPHERE || m == GDD_MESH_SPHERE_HI; }
+
 static void obj_at(SmoothObj *o, float x, float y, float z, float h, float m, float r) {
+    x += Q_SHIFT; y += Q_SHIFT; z += Q_SHIFT;
     memset(o, 0, sizeof(*o));
     o->x = o->prev_x = o->target_x = x;
     o->y = o->prev_y = o->target_y = y;
@@ -217,7 +228,7 @@ static GddBuildCtx base_ctx(void) {
     c.objs = g_smooth; /* filled by the tests */
     c.map_anim = 0.0f;
     c.pulse = 1.0f;
-    c.camera_dist = 80.0f;
+    c.camera_dist = QG_CAMERA_DEFAULT;
     return c;
 }
 
@@ -245,7 +256,7 @@ static void test_objects_mapping(void) {
     CHECK(g_dyn_n == 23, "3 objects + quantum(4) + 16 bbox edges -> %u dyn instances", g_dyn_n);
 
     /* (X, Z, -Y) centered mapping: obj1 (10,15,25) -> (-10, 5, 5) */
-    const GddInstance *star = find_dyn(GDD_MESH_SPHERE, -10.0f, 5.0f, 5.0f, 1e-4f);
+    const GddInstance *star = find_dyn(GDD_MESH_SPHERE_HI, -10.0f, 5.0f, 5.0f, 1e-4f);   /* big sphere: HI mesh */
     CHECK(star != NULL, "star at mapped position (-10,5,5)");
     if (star) {
         CHECK_F("star scale", star->scale[0], 2.5f, 1e-5f, "star scale");
@@ -285,7 +296,7 @@ static void test_objects_mapping(void) {
     }
 
     /* Planet (30,10,5) -> (10, -15, 10) */
-    const GddInstance *planet = find_dyn(GDD_MESH_SPHERE, 10.0f, -15.0f, 10.0f, 1e-4f);
+    const GddInstance *planet = find_dyn(GDD_MESH_SPHERE_HI, 10.0f, -15.0f, 10.0f, 1e-4f);   /* big sphere: HI mesh */
     CHECK(planet != NULL, "planet at mapped position (10,-15,10)");
     if (planet) {
         CHECK_F("planet scale", planet->scale[0], 1.8f, 1e-5f, "planet scale");
@@ -360,12 +371,12 @@ static void test_effects(void) {
      * beams stay where the test puts them. */
     static ActiveBeam beam[GDD_MAX_ACTIVE_BEAMS];
     memset(beam, 0, sizeof(beam));
-    beam[0].sx = 20.0f; beam[0].sy = 20.0f; beam[0].sz = 20.0f;
-    beam[0].tx = 30.0f; beam[0].ty = 20.0f; beam[0].tz = 20.0f;
+    beam[0].sx = 20.0f + Q_SHIFT; beam[0].sy = 20.0f + Q_SHIFT; beam[0].sz = 20.0f + Q_SHIFT;
+    beam[0].tx = 30.0f + Q_SHIFT; beam[0].ty = 20.0f + Q_SHIFT; beam[0].tz = 20.0f + Q_SHIFT;
     beam[0].life = 1.0f;
     beam[0].owner_id = 0; beam[0].extra = 0; beam[0].emitter_id = 1;
-    beam[1].sx = 20.0f; beam[1].sy = 20.0f; beam[1].sz = 20.0f;
-    beam[1].tx = 30.0f; beam[1].ty = 20.0f; beam[1].tz = 20.0f;
+    beam[1].sx = 20.0f + Q_SHIFT; beam[1].sy = 20.0f + Q_SHIFT; beam[1].sz = 20.0f + Q_SHIFT;
+    beam[1].tx = 30.0f + Q_SHIFT; beam[1].ty = 20.0f + Q_SHIFT; beam[1].tz = 20.0f + Q_SHIFT;
     beam[1].life = 1.0f;
     beam[1].owner_id = 0; beam[1].extra = 0; beam[1].emitter_id = 2;
     c.beams = beam;
@@ -571,7 +582,7 @@ static void test_compass_and_jump(void) {
         const GddInstance *pbr = NULL, *pulse = NULL, *glow1 = NULL;
         for (uint32_t i = 0; i < g_dyn_n; i++) {
             const GddInstance *it = &g_dyn[i];
-            if ((int)(it->mesh + 0.5f) != GDD_MESH_SPHERE) continue;
+            if (!is_sphere_mesh((int)(it->mesh + 0.5f))) continue;
             if (!(near_f(it->pos[0], 0.0f, 1e-4f) && near_f(it->pos[1], off, 1e-4f) &&
                   near_f(it->pos[2], 0.0f, 1e-4f))) continue;
             n_sec++;
@@ -606,10 +617,10 @@ static void test_compass_and_jump(void) {
     c.shield_timers = NULL;
 
     /* Compass hidden far away (cameraDist >= 150): bbox still drawn */
-    c.camera_dist = 150.0f;
+    c.camera_dist = QG_GRID_HIDE_DIST;
     run_builder(&c);
     CHECK(g_dyn_n == 21, "compass hidden at dist>=150, bbox present (%u)", g_dyn_n);
-    c.camera_dist = 80.0f;
+    c.camera_dist = QG_CAMERA_DEFAULT;
 
     /* Jump arrival: only object 0 (the ship + its quantum core) is drawn */
     static JumpState jump;
@@ -638,7 +649,7 @@ static int count_black_horizons(void) {
     int n = 0; /* opaque black PBR sphere = event horizon */
     for (uint32_t i = 0; i < g_dyn_n; i++) {
         const GddInstance *it = &g_dyn[i];
-        if ((int)it->mesh == GDD_MESH_SPHERE && gdd_frag_mode(it->flags) == GDD_FRAG_PBR &&
+        if (is_sphere_mesh((int)it->mesh) && gdd_frag_mode(it->flags) == GDD_FRAG_PBR &&
             it->color[0] == 0.0f && it->color[1] == 0.0f && it->color[2] == 0.0f) n++;
     }
     return n;
@@ -907,7 +918,7 @@ static void test_derelict(void) {
         for (uint32_t i = 0; i < g_dyn_n; i++) {
             int m = (int)(g_dyn[i].mesh + 0.5f);
             if (m == GDD_MESH_PYRAMID) { pyr++; hull = &g_dyn[i]; }
-            else if (m == GDD_MESH_SPHERE) spheres++;
+            else if (is_sphere_mesh(m)) spheres++;
             else if (m == GDD_MESH_OCTA) octas++;
         }
         CHECK(pyr == 1, "derelict (faction %d): %d hull mesh(es) (want 1)", fac_v, pyr);
@@ -948,7 +959,7 @@ static void test_ship_visual_audit(void) {
                     for (uint32_t i = 0; i < g_dyn_n; i++) {
                         int m = (int)(g_dyn[i].mesh + 0.5f);
                         if (m == GDD_MESH_PYRAMID) pyr++;
-                        else if (m == GDD_MESH_SPHERE) sph++;
+                        else if (is_sphere_mesh(m)) sph++;
                     }
                     total++;
                     if (pyr != 1 || sph != 0) {
@@ -977,7 +988,7 @@ _Static_assert(OBJ_EXOTIC_FIRST == 100 && OBJ_EXOTIC_LAST == 131,
 /* The visual a type gets when gdd_visual_for() has no dedicated case: the
  * generic cosmic object (unlit sphere 1.5, colour 0.6/0.6/0.8). */
 static int is_generic_cosmic_look(const GddInstance *g) {
-    return (int)(g->mesh + 0.5f) == GDD_MESH_SPHERE &&
+    return is_sphere_mesh((int)(g->mesh + 0.5f)) &&
            fabsf(g->scale[0] - 1.5f) < 1e-3f &&
            fabsf(g->color[0] - 0.6f) < 1e-3f && fabsf(g->color[1] - 0.6f) < 1e-3f &&
            fabsf(g->color[2] - 0.8f) < 1e-3f;
@@ -1044,7 +1055,7 @@ static void test_object_types(void) {
         int pyr = 0, black_sphere = 0;
         for (uint32_t i = 0; i < g_dyn_n; i++) {
             if ((int)(g_dyn[i].mesh + 0.5f) == GDD_MESH_PYRAMID) pyr++;
-            if ((int)(g_dyn[i].mesh + 0.5f) == GDD_MESH_SPHERE &&
+            if (is_sphere_mesh((int)(g_dyn[i].mesh + 0.5f)) &&
                 g_dyn[i].color[0] == 0.0f && g_dyn[i].color[1] == 0.0f &&
                 g_dyn[i].color[2] == 0.0f) black_sphere++;
         }
@@ -1091,7 +1102,7 @@ static void test_star_spectral_palette(void) {
         const float *w = want[(cls >= 0 && cls < 7) ? cls : 4];
         int ok = 0;
         for (uint32_t i = 0; i < g_dyn_n; i++)
-            if ((int)(g_dyn[i].mesh + 0.5f) == GDD_MESH_SPHERE &&
+            if (is_sphere_mesh((int)(g_dyn[i].mesh + 0.5f)) &&
                 fabsf(g_dyn[i].scale[0] - 2.5f) < 1e-4f &&
                 fabsf(g_dyn[i].color[0] - w[0]) < 1e-5f &&
                 fabsf(g_dyn[i].color[1] - w[1]) < 1e-5f &&
@@ -1122,7 +1133,7 @@ static void test_evolved_stars(void) {
         int ok = 0, generic = 0;
         for (uint32_t i = 0; i < g_dyn_n; i++) {
             if (is_generic_cosmic_look(&g_dyn[i])) generic = 1;
-            if ((int)(g_dyn[i].mesh + 0.5f) == GDD_MESH_SPHERE &&
+            if (is_sphere_mesh((int)(g_dyn[i].mesh + 0.5f)) &&
                 fabsf(g_dyn[i].scale[0] - 2.5f * obj_evolved_star_scale(e)) < 1e-4f &&
                 fabsf(g_dyn[i].color[0] - w[0]) < 1e-5f &&
                 fabsf(g_dyn[i].color[1] - w[1]) < 1e-5f &&
@@ -1166,7 +1177,7 @@ static void test_moons(void) {
         int ok = 0, generic = 0;
         for (uint32_t i = 0; i < g_dyn_n; i++) {
             if (is_generic_cosmic_look(&g_dyn[i])) generic = 1;
-            if ((int)(g_dyn[i].mesh + 0.5f) == GDD_MESH_SPHERE &&
+            if (is_sphere_mesh((int)(g_dyn[i].mesh + 0.5f)) &&
                 fabsf(g_dyn[i].scale[0] - 1.8f * obj_moon_scale(m)) < 1e-4f &&
                 fabsf(g_dyn[i].color[0] - w[0]) < 1e-5f &&
                 fabsf(g_dyn[i].color[1] - w[1]) < 1e-5f &&
@@ -1199,7 +1210,7 @@ static void test_moons_ext(void) {
         int ok = 0, generic = 0;
         for (uint32_t i = 0; i < g_dyn_n; i++) {
             if (is_generic_cosmic_look(&g_dyn[i])) generic = 1;
-            if ((int)(g_dyn[i].mesh + 0.5f) == GDD_MESH_SPHERE &&
+            if (is_sphere_mesh((int)(g_dyn[i].mesh + 0.5f)) &&
                 fabsf(g_dyn[i].scale[0] - 1.8f * obj_moon_any_scale(t)) < 1e-4f &&
                 fabsf(g_dyn[i].color[0] - w[0]) < 1e-5f &&
                 fabsf(g_dyn[i].color[1] - w[1]) < 1e-5f &&
@@ -1260,9 +1271,9 @@ static void test_raw_objs_fallback(void) {
     /* Raw SharedObject array (IPC frame corrente, più recente del tracker) */
     static SharedObject raw[2];
     memset(raw, 0, sizeof(raw));
-    raw[0].shm_x = 20.0f; raw[0].shm_y = 20.0f; raw[0].shm_z = 20.0f;
+    raw[0].shm_x = 20.0f + Q_SHIFT; raw[0].shm_y = 20.0f + Q_SHIFT; raw[0].shm_z = 20.0f + Q_SHIFT;
     raw[0].active = 1;
-    raw[1].shm_x = 25.0f; raw[1].shm_y = 20.0f; raw[1].shm_z = 20.0f; /* 5 unità a destra */
+    raw[1].shm_x = 25.0f + Q_SHIFT; raw[1].shm_y = 20.0f + Q_SHIFT; raw[1].shm_z = 20.0f + Q_SHIFT; /* 5 unità a destra */
     raw[1].h = 0.0f; raw[1].m = 0.0f; raw[1].r = 0.0f;
     raw[1].active = 1;
 
@@ -1476,11 +1487,51 @@ static void test_exotic_black_holes_have_discs(void) {
     CHECK(total_inst == NEX * 3, "exactly 3 instances per exotic object: %d", total_inst);
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Stars, planets and moons use GDD_MESH_SPHERE_HI (16x32) when big    */
+/* enough on screen; far ones fall back to the 6x10 sphere; the other  */
+/* spheres (black holes, mines, FX) never use it.                      */
+/* ------------------------------------------------------------------ */
+static void test_sphere_hi_lod(void) {
+    GddBuildCtx c = base_ctx();
+    const int moon_type = OBJ_MOON_FIRST + 5;          /* atmosphere moon: radius 1.8 * 0.60 */
+    const int small_moon = OBJ_MOON_FIRST + 9;         /* submoon: radius 1.8 * 0.20 */
+    obj_at(&g_smooth[0], 20.0f, 20.0f, 20.0f, 0, 0, 0);
+    obj_at(&g_smooth[1], 10.0f, 15.0f, 25.0f, 0, 0, 0);   /* star   -> (-10,  5,  5) */
+    obj_at(&g_smooth[2], 30.0f, 10.0f,  5.0f, 0, 0, 0);   /* planet -> ( 10,-15, 10) */
+    obj_at(&g_smooth[3], 15.0f, 25.0f, 15.0f, 0, 0, 0);   /* moon   -> ( -5, -5, -5) */
+    obj_at(&g_smooth[4], 25.0f, 25.0f, 25.0f, 0, 0, 0);   /* small moon */
+    obj_at(&g_smooth[5], 12.0f, 12.0f, 12.0f, 0, 0, 0);   /* black hole -> (-8, -8, 8) */
+    int types[6] = { 1, 4, 5, moon_type, small_moon, 6 };
+    int fac[6] = {0}, sclass[6] = { 0, 2, 0, 0, 0, 0 }, cloak[6] = {0};
+    int act[6] = { 1, 1, 1, 1, 1, 1 }, plat[6] = { 30, 30, 30, 30, 30, 30 };
+    int ids[6] = { 100, 101, 102, 103, 104, 105 };
+    c.types = types; c.factions = fac; c.ship_classes = sclass; c.cloaked = cloak;
+    c.active = act; c.platings = plat; c.ids = ids; c.object_count = 6;
+
+    run_builder(&c);
+    CHECK(count_dyn(GDD_MESH_SPHERE_HI) >= 3, "default camera: star, planet and moon use the HI sphere (%d)", count_dyn(GDD_MESH_SPHERE_HI));
+    CHECK(find_dyn(GDD_MESH_SPHERE_HI, -10.0f, 5.0f, 5.0f, 1e-4f) != NULL, "star is HI");
+    CHECK(find_dyn(GDD_MESH_SPHERE_HI, 10.0f, -15.0f, 10.0f, 1e-4f) != NULL, "planet is HI");
+    CHECK(find_dyn(GDD_MESH_SPHERE_HI, -5.0f, -5.0f, -5.0f, 1e-4f) != NULL, "big moon is HI");
+    CHECK(find_dyn(GDD_MESH_SPHERE, -8.0f, -8.0f, 8.0f, 1e-4f) != NULL, "black hole keeps the 360-vertex sphere");
+    const GddInstance *star = find_dyn(GDD_MESH_SPHERE_HI, -10.0f, 5.0f, 5.0f, 1e-4f);
+    CHECK(star && near_f(star->scale[0], 2.5f, 1e-5f), "HI star keeps scale 2.5");
+
+    c.camera_dist = 2000.0f * QG_SCALE;   /* very far: below the threshold the moon falls back */
+    run_builder(&c);
+    CHECK(find_dyn(GDD_MESH_SPHERE_HI, -5.0f, -5.0f, -5.0f, 1e-4f) == NULL, "far camera: the moon falls back to the base sphere");
+    CHECK(find_dyn(GDD_MESH_SPHERE, -5.0f, -5.0f, -5.0f, 1e-4f) != NULL, "far camera: the moon is still drawn (base sphere)");
+    c.camera_dist = QG_CAMERA_DEFAULT;
+}
+
 int main(void) {
     printf("GDD contract test\n");
     test_layout();
     test_flags();
     test_objects_mapping();
+    test_sphere_hi_lod();
     test_nebula_and_black_hole();
     test_black_hole_discs_red();
     test_exotic_black_holes_have_discs();

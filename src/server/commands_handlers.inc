@@ -428,6 +428,7 @@ void handle_apr(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     int tid = 0; double tdist = 2.0;
     int args = sscanf(params, " %d %lf", &tid, &tdist);
+    bool tdist_given = (args == 2);
     
     /* 1. Integrity Check: Impulse (ID 1) and Computer (ID 6) */
     if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL || players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
@@ -441,6 +442,7 @@ void handle_apr(int i, const char *params, bool *should_disconnect) {
     } else if (args == 1) {
         if (tid < 100) { /* Treat as distance for locked target */
             tdist = tid;
+            tdist_given = true;
             tid = players[i].state.lock_target;
         } else { /* Treat as ID with default distance */
             tdist = 2.0;
@@ -499,6 +501,14 @@ void handle_apr(int i, const char *params, bool *should_disconnect) {
                     }
                 }
             }
+        }
+
+        /* Star-system bodies have a contact sphere larger than the default stand-off (2.0): stop 1.0 outside
+         * it by default and never inside it (+0.3), otherwise the ship would end up inside the body. */
+        if (found && (sys_id_is_star(tid) || sys_id_is_planet(tid) || sys_id_is_moon(tid))) {
+            double hr = sys_body_hit_radius(tid);
+            if (!tdist_given) tdist = sys_standoff(hr);
+            else if (tdist < sys_min_standoff(hr)) tdist = sys_min_standoff(hr);
         }
 
         if (found) {
@@ -2689,7 +2699,7 @@ void handle_min(int i, const char *params, bool *should_disconnect) {
 
     int locked_id = players[i].state.lock_target;
     int target_idx = -1;
-    int target_type = -1; /* 0: Asteroid, 1: Planet */
+    int target_type = -1; /* 0: Asteroid, 1: Planet, 2: star-system planet */
     double min_dist = DIST_INTERACTION_MAX; /* Interaction range */
 
     /* Search for mineable target (locked or closest) */
@@ -2702,6 +2712,18 @@ void handle_min(int i, const char *params, bool *should_disconnect) {
             if (d <= min_dist) {
                 target_idx = p;
                 target_type = 1;
+            }
+        }
+    } else if (sys_id_is_planet(locked_id)) {
+        /* star-system planet: the range is measured from its centre, around its larger contact sphere */
+        int sp = locked_id - GALAXY_OBJECT_MIN_SYS_PLANET;
+        NPCSysPlanet *pl = &sys_planets[sp];
+        if (pl->active && pl->q1 == q1 && pl->q2 == q2 && pl->q3 == q3) {
+            sys_refresh_positions(sys_planet_star(sp), sys_clock_s());
+            double d = sqrt(pow(pl->x - players[i].state.s1, 2) + pow(pl->y - players[i].state.s2, 2) + pow(pl->z - players[i].state.s3, 2));
+            if (d <= sys_interaction_range(sys_planet_hit_radius(), DIST_INTERACTION_MAX)) {
+                target_idx = sp;
+                target_type = 2;
             }
         }
     } else if (locked_id >= GALAXY_OBJECT_MIN_ASTEROID && locked_id <= GALAXY_OBJECT_MAX_ASTEROID) {
@@ -2729,6 +2751,19 @@ void handle_min(int i, const char *params, bool *should_disconnect) {
                 if (d < min_dist) { min_dist = d; target_idx = p; target_type = 1; }
             }
         }
+        /* star-system planets of this quadrant: their limit is larger (contact radius + 2.3), so they are
+         * compared on the same footing, as the distance to the generic limit (min_dist is DIST_INTERACTION_MAX) */
+        const QuadrantIndex *mq = &spatial_index[q1][q2][q3];
+        if (mq->sys_star_count > 0 && mq->sys_stars[0]) {
+            sys_refresh_positions((int)(mq->sys_stars[0] - sys_stars), sys_clock_s());
+            double extra = sys_interaction_range(sys_planet_hit_radius(), DIST_INTERACTION_MAX) - DIST_INTERACTION_MAX;
+            for (int k = 0; k < mq->sys_planet_count; k++) {
+                NPCSysPlanet *pl = mq->sys_planets[k];
+                if (!pl || !pl->active) continue;
+                double d = sqrt(pow(pl->x - players[i].state.s1, 2) + pow(pl->y - players[i].state.s2, 2) + pow(pl->z - players[i].state.s3, 2)) - extra;
+                if (d < min_dist) { min_dist = d; target_idx = (int)(pl - sys_planets); target_type = 2; }
+            }
+        }
     }
 
     if (target_idx != -1) {
@@ -2743,10 +2778,15 @@ void handle_min(int i, const char *params, bool *should_disconnect) {
             raw_amount = (asteroids[target_idx].amount > (YIELD_MINE_MAX / 2)) ? (YIELD_MINE_MAX / 2) : asteroids[target_idx].amount;
             asteroids[target_idx].amount -= raw_amount;
             if (asteroids[target_idx].amount <= 0) asteroids[target_idx].active = 0;
-        } else {
+        } else if (target_type == 1) {
             r_type = planets[target_idx].resource_type;
             raw_amount = (planets[target_idx].amount > YIELD_MINE_MAX) ? YIELD_MINE_MAX : planets[target_idx].amount;
             planets[target_idx].amount -= raw_amount;
+        } else {
+            /* star-system planet: same yield rule as the other planets */
+            r_type = sys_planets[target_idx].resource_type;
+            raw_amount = (sys_planets[target_idx].amount > YIELD_MINE_MAX) ? YIELD_MINE_MAX : sys_planets[target_idx].amount;
+            sys_planets[target_idx].amount -= raw_amount;
         }
 
         int final_yield = (int)(raw_amount * yield_mult);
@@ -2758,7 +2798,7 @@ void handle_min(int i, const char *params, bool *should_disconnect) {
         send_server_msg(i, "GEOLOGY", msg);
     } else {
         char err_msg[128];
-        sprintf(err_msg, "No planet or asteroid in range for mining (< %.1f units).", DIST_INTERACTION_MAX);
+        sprintf(err_msg, "No planet or asteroid in range for mining (< %.1f units; %.1f from the centre of a system planet).", DIST_INTERACTION_MAX, sys_interaction_range(sys_planet_hit_radius(), DIST_INTERACTION_MAX));
         send_server_msg(i, "COMPUTER", err_msg);
     }
 }
@@ -2786,7 +2826,17 @@ void handle_sco(int i, const char *params, bool *should_disconnect) {
         }
     }
 
-    if(near) { 
+    /* the star of this quadrant's star system: range measured around its larger contact sphere */
+    if (!near) {
+        const QuadrantIndex *sq = &spatial_index[pq1][pq2][pq3];
+        if (sq->sys_star_count > 0 && sq->sys_stars[0] && sq->sys_stars[0]->active) {
+            const NPCSysStar *st = sq->sys_stars[0];
+            double d = sqrt(pow(st->x - players[i].state.s1, 2) + pow(st->y - players[i].state.s2, 2) + pow(st->z - players[i].state.s3, 2));
+            if (d < sys_interaction_range(sys_star_hit_radius(), DIST_SCOOPING_MAX)) near = true;
+        }
+    }
+
+    if(near) {
         players[i].state.energy -= COST_ACTION_HIGH;
         
         /* 3. Variable Yield based on Auxiliary health (0.8 to 1.0 multiplier) */
@@ -2815,7 +2865,7 @@ void handle_sco(int i, const char *params, bool *should_disconnect) {
     } 
     else {
         char err_msg[128];
-        sprintf(err_msg, "No star in proximity range (< %.1f units).", DIST_SCOOPING_MAX);
+        sprintf(err_msg, "No star in proximity range (< %.1f units; %.1f from the centre of a system star).", DIST_SCOOPING_MAX, sys_interaction_range(sys_star_hit_radius(), DIST_SCOOPING_MAX));
         send_server_msg(i, "COMPUTER", err_msg);
     }
 }

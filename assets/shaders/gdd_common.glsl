@@ -95,6 +95,7 @@ const int GDD_MESH_CIRCLE  = 7;
 const int GDD_MESH_ARC     = 8;
 const int GDD_MESH_BOOM    = 9;
 const int GDD_MESH_BOXWIRE = 10;
+const int GDD_MESH_SPHERE_HI = 11;
 
 const uint GDD_VC_POINT   = 6u;
 const uint GDD_VC_SPHERE  = 360u;
@@ -107,9 +108,12 @@ const uint GDD_VC_CIRCLE  = 432u; /* 72 segments × 6 verts (2 triangles) */
 const uint GDD_VC_ARC     = 216u; /* 36 segments × 6 verts (2 triangles) */
 const uint GDD_VC_BOOM    = 1536u; /* 256 particles × 6 verts (2 triangles) */
 const uint GDD_VC_BOXWIRE = 288u; /* 12 edges × 4 tube faces × 6 verts */
+const uint GDD_VC_SPHERE_HI = 3072u; /* 16 lats × 32 lons × 6 verts */
 
 const int  GDD_SPHERE_LATS = 6;
 const int  GDD_SPHERE_LONS = 10;
+const int  GDD_SPHERE_HI_LATS = 16;
+const int  GDD_SPHERE_HI_LONS = 32;
 const int  GDD_RING_SEGS   = 16;
 const int  GDD_CIRCLE_SEGS = 72; /* == CIRCLE_SEGMENTS of the CPU compass */
 const int  GDD_ARC_SEGS    = 36; /* == ARC_SEGMENTS-1 of the CPU compass */

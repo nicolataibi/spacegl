@@ -29,15 +29,15 @@
 #include <time.h>
 
 const Vertex vertices[] = {
-    /* Top Loop (Green) - Y=20 */
-    {{-20, 20,-20}, {0,1,0}, {0,1,0}}, {{ 20, 20,-20}, {0,1,0}, {0,1,0}},
-    {{ 20, 20, 20}, {0,1,0}, {0,1,0}}, {{-20, 20, 20}, {0,1,0}, {0,1,0}},
-    /* Bottom Loop (Red) - Y=-20 */
-    {{-20,-20,-20}, {1,0,0}, {0,-1,0}}, {{ 20,-20,-20}, {1,0,0}, {0,-1,0}},
-    {{ 20,-20, 20}, {1,0,0}, {0,-1,0}}, {{-20,-20, 20}, {1,0,0}, {0,-1,0}},
+    /* Top Loop (Green) - Y=QG_HALF */
+    {{-QG_HALF, QG_HALF,-QG_HALF}, {0,1,0}, {0,1,0}}, {{ QG_HALF, QG_HALF,-QG_HALF}, {0,1,0}, {0,1,0}},
+    {{ QG_HALF, QG_HALF, QG_HALF}, {0,1,0}, {0,1,0}}, {{-QG_HALF, QG_HALF, QG_HALF}, {0,1,0}, {0,1,0}},
+    /* Bottom Loop (Red) - Y=-QG_HALF */
+    {{-QG_HALF,-QG_HALF,-QG_HALF}, {1,0,0}, {0,-1,0}}, {{ QG_HALF,-QG_HALF,-QG_HALF}, {1,0,0}, {0,-1,0}},
+    {{ QG_HALF,-QG_HALF, QG_HALF}, {1,0,0}, {0,-1,0}}, {{-QG_HALF,-QG_HALF, QG_HALF}, {1,0,0}, {0,-1,0}},
     /* Mid Verticals (Transitions) */
-    {{-20,  0,-20}, {1,1,0}, {0,0,0}}, {{ 20,  0,-20}, {1,1,0}, {0,0,0}},
-    {{ 20,  0, 20}, {1,1,0}, {0,0,0}}, {{-20,  0, 20}, {1,1,0}, {0,0,0}}
+    {{-QG_HALF,  0,-QG_HALF}, {1,1,0}, {0,0,0}}, {{ QG_HALF,  0,-QG_HALF}, {1,1,0}, {0,0,0}},
+    {{ QG_HALF,  0, QG_HALF}, {1,1,0}, {0,0,0}}, {{-QG_HALF,  0, QG_HALF}, {1,1,0}, {0,0,0}}
 };
 const uint32_t indices[] = {
     /* Top */    0,1, 1,2, 2,3, 3,0,
@@ -780,7 +780,8 @@ void createSceneMeshes(VulkanApp* app) {
     createBuffer(app, sizeof(rInds), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->rollCircleIndexBuffer, &app->rollCircleIndexBufferMemory);
     vkMapMemory(app->device, app->rollCircleIndexBufferMemory, 0, sizeof(rInds), 0, &d); memcpy(d, rInds, sizeof(rInds)); vkUnmapMemory(app->device, app->rollCircleIndexBufferMemory);
 
-    int steps = (int)QUADRANT_SIZE / 2;
+    int steps = QG_GRID_CELLS;   /* 20 cells per axis; the cell side follows the cube */
+    const float cell = QG_SIZE / (float)QG_GRID_CELLS;
     uint64_t grid_v_count = (uint64_t)(steps + 1) * (steps + 1) * 3 * 2;
     Vertex* gVerts_dyn = malloc(grid_v_count * sizeof(Vertex));
     uint32_t* gInds_dyn = malloc(grid_v_count * sizeof(uint32_t));
@@ -788,9 +789,9 @@ void createSceneMeshes(VulkanApp* app) {
     uint64_t gv = 0;
     float hq = QUADRANT_SIZE / 2.0f;
     for (int i = 0; i <= steps; i++) {
-        float p = -hq + i * 2.0f;
+        float p = -hq + i * cell;
         for (int j = 0; j <= steps; j++) {
-            float q = -hq + j * 2.0f;
+            float q = -hq + j * cell;
             vec3 gcol = {0.0f, 1.0f, 0.2f}, gnorm = {0,0,0};
             gVerts_dyn[gv] = (Vertex){{p, q, -hq}, {gcol[0], gcol[1], gcol[2]}, {gnorm[0], gnorm[1], gnorm[2]}}; gInds_dyn[gv] = (uint32_t)gv; gv++;
             gVerts_dyn[gv] = (Vertex){{p, q,  hq}, {gcol[0], gcol[1], gcol[2]}, {gnorm[0], gnorm[1], gnorm[2]}}; gInds_dyn[gv] = (uint32_t)gv; gv++;
@@ -907,7 +908,7 @@ void createStarfield(VulkanApp* app) {
     for (uint64_t s = 0; s < MAX_STARS; s++) {
         float theta = (float)(rand() % 3600) * 0.1f * M_PI / 180.0f;
         float phi = (float)(rand() % 1800) * 0.1f * M_PI / 180.0f;
-        float r = 150.0f + (float)(rand() % 1500) * 0.1f;
+        float r = (150.0f + (float)(rand() % 1500) * 0.1f) * QG_SCALE;   /* the star shell follows the cube */
         float sx = r * sinf(phi) * cosf(theta);
         float sy = r * cosf(phi);
         float sz = r * sinf(phi) * sinf(theta);
@@ -931,7 +932,7 @@ void createStarfield(VulkanApp* app) {
     for (uint64_t s = 0; s < MAX_STARS; s++) {
         float theta = (float)(rand() % 3600) * 0.1f * M_PI / 180.0f;
         float phi = (float)(rand() % 1800) * 0.1f * M_PI / 180.0f;
-        float r = 120.0f + (float)(rand() % 1000) * 0.1f;
+        float r = (120.0f + (float)(rand() % 1000) * 0.1f) * QG_SCALE;
         float sx = r * sinf(phi) * cosf(theta); float sy = r * cosf(phi); float sz = r * sinf(phi) * sinf(theta);
         float cr = 0.4f + (float)(rand() % 60) / 100.0f;
         float cg = 0.4f + (float)(rand() % 60) / 100.0f;
@@ -1122,9 +1123,9 @@ void scene_update(VulkanApp* app, float deltaTime) {
                 int oldest = 0; float min_life = 999.0f;
                 for (int i=0; i<MAX_ACTIVE_BOOMS; i++) if(app->activeBooms[i].life < min_life){ min_life = app->activeBooms[i].life; oldest = i; }
                 int i = oldest;
-                app->activeBooms[i].x = (float)ev->x1 - 20.0f; 
-                app->activeBooms[i].y = (float)ev->z1 - 20.0f; 
-                app->activeBooms[i].z = 20.0f - (float)ev->y1; 
+                app->activeBooms[i].x = (float)ev->x1 - QG_HALF; 
+                app->activeBooms[i].y = (float)ev->z1 - QG_HALF; 
+                app->activeBooms[i].z = QG_HALF - (float)ev->y1; 
                 app->activeBooms[i].life = 1.0f;
                 app->activeBooms[i].seed = (float)(rand() % 1001);
                 app->activeBooms[i].style = 0;
@@ -1155,9 +1156,9 @@ void scene_update(VulkanApp* app, float deltaTime) {
                 int oldest = 0; float min_life = 999.0f;
                 for (int i=0; i<MAX_ACTIVE_BOOMS; i++) if(app->activeBooms[i].life < min_life){ min_life = app->activeBooms[i].life; oldest = i; }
                 int i = oldest;
-                app->activeBooms[i].x = (float)ev->x1 - 20.0f;
-                app->activeBooms[i].y = (float)ev->z1 - 20.0f;
-                app->activeBooms[i].z = 20.0f - (float)ev->y1;
+                app->activeBooms[i].x = (float)ev->x1 - QG_HALF;
+                app->activeBooms[i].y = (float)ev->z1 - QG_HALF;
+                app->activeBooms[i].z = QG_HALF - (float)ev->y1;
                 app->activeBooms[i].life = 1.5f;
                 app->activeBooms[i].seed = (float)(rand() % 1001);
                 app->activeBooms[i].style = 2;
@@ -1213,7 +1214,7 @@ void scene_update(VulkanApp* app, float deltaTime) {
                     for (int i=0; i<MAX_ACTIVE_TORPS; i++) if((float)app->activeTorps[i].active < min_life){ min_life = (float)app->activeTorps[i].active; oldest = i; }
                     f = oldest;
                 }
-                float nx = (float)ev->x1 - 20.0f; float ny = (float)ev->z1 - 20.0f; float nz = 20.0f - (float)ev->y1;
+                float nx = (float)ev->x1 - QG_HALF; float ny = (float)ev->z1 - QG_HALF; float nz = QG_HALF - (float)ev->y1;
                 float vx = (float)ev->x2; float vy = (float)ev->z2; float vz = -(float)ev->y2;
                 if (app->activeTorps[f].active > 0) {
                     app->activeTorps[f].x = app->activeTorps[f].x * 0.85f + nx * 0.15f;
@@ -1232,9 +1233,9 @@ void scene_update(VulkanApp* app, float deltaTime) {
                 if (app->shm) app->shm->dismantle_telemetry.vk_rcv_count++;
                 int oldest = 0; float min_life = 999.0f;
                 for (int i=0; i<MAX_ACTIVE_DISMANTLES; i++) if(app->activeDismantles[i].life < min_life){ min_life = app->activeDismantles[i].life; oldest = i; }
-                app->activeDismantles[oldest].x = (float)ev->x1 - 20.0f;
-                app->activeDismantles[oldest].y = (float)ev->z1 - 20.0f;
-                app->activeDismantles[oldest].z = 20.0f - (float)ev->y1;
+                app->activeDismantles[oldest].x = (float)ev->x1 - QG_HALF;
+                app->activeDismantles[oldest].y = (float)ev->z1 - QG_HALF;
+                app->activeDismantles[oldest].z = QG_HALF - (float)ev->y1;
                 app->activeDismantles[oldest].life = 1.0f;
                 app->activeDismantles[oldest].scale = 1.0f;
                 int oldest_boom = 0; min_life = 999.0f;
@@ -1260,15 +1261,15 @@ void scene_update(VulkanApp* app, float deltaTime) {
             } else if (ev->type == IPC_EV_RECOVERY) {
                 int oldest = 0; float min_life = 999.0f;
                 for (int i=0; i<MAX_ACTIVE_DISMANTLES; i++) if(app->activeDismantles[i].life < min_life){ min_life = app->activeDismantles[i].life; oldest = i; }
-                app->activeDismantles[oldest].x = (float)ev->x1 - 20.0f;
-                app->activeDismantles[oldest].y = (float)ev->z1 - 20.0f;
-                app->activeDismantles[oldest].z = 20.0f - (float)ev->y1;
+                app->activeDismantles[oldest].x = (float)ev->x1 - QG_HALF;
+                app->activeDismantles[oldest].y = (float)ev->z1 - QG_HALF;
+                app->activeDismantles[oldest].z = QG_HALF - (float)ev->y1;
                 app->activeDismantles[oldest].life = 1.0f;
                 app->activeDismantles[oldest].scale = 0.5f;
             } else if (ev->type == IPC_EV_JUMP) {
-                app->jumpArrival.x = (float)ev->x1 - 20.0f;
-                app->jumpArrival.y = (float)ev->z1 - 20.0f;
-                app->jumpArrival.z = 20.0f - (float)ev->y1;
+                app->jumpArrival.x = (float)ev->x1 - QG_HALF;
+                app->jumpArrival.y = (float)ev->z1 - QG_HALF;
+                app->jumpArrival.z = QG_HALF - (float)ev->y1;
                 app->jumpArrival.h = ev->x2;
                 app->jumpArrival.m = ev->y2;
                 app->jumpArrival.active = 1;
@@ -1372,9 +1373,9 @@ void scene_update(VulkanApp* app, float deltaTime) {
 
         if (st->wormhole.active) {
             if (!app->departureWormhole.active) {
-                app->departureWormhole.x = (float)st->wormhole.shm_x - 20.0f;
-                app->departureWormhole.y = (float)st->wormhole.shm_z - 20.0f;
-                app->departureWormhole.z = 20.0f - (float)st->wormhole.shm_y;
+                app->departureWormhole.x = (float)st->wormhole.shm_x - QG_HALF;
+                app->departureWormhole.y = (float)st->wormhole.shm_z - QG_HALF;
+                app->departureWormhole.z = QG_HALF - (float)st->wormhole.shm_y;
                 app->departureWormhole.h = st->shm_h;
                 app->departureWormhole.m = st->shm_m;
                 app->departureWormhole.jump_type = st->wormhole.extra;

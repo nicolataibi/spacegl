@@ -44,7 +44,7 @@ static void plant(void) {
     g_star = (NPCStar){0}; g_star.id = 7001; g_star.x = 30; g_star.y = 30; g_star.z = 30; g_star.active = 1;
     g_bh = (NPCBlackHole){0}; g_bh.id = 11001; g_bh.x = 20; g_bh.y = 20; g_bh.z = 20; g_bh.active = 1;
     g_comet = (NPCComet){0}; g_comet.id = 9001; g_comet.x = 5; g_comet.y = 5; g_comet.z = 5; g_comet.active = 1;
-    g_ast = (NPCAsteroid){0}; g_ast.id = 3001; g_ast.x = 39.5; g_ast.y = 10; g_ast.z = 10; g_ast.active = 1;
+    g_ast = (NPCAsteroid){0}; g_ast.id = 3001; g_ast.x = QS - 0.5; g_ast.y = 10; g_ast.z = 10; g_ast.active = 1;
     memset(&g_moon, 0, sizeof g_moon);
     g_moon.id = 83001; g_moon.type = OBJ_MOON_FIRST + 2; g_moon.x = 15; g_moon.y = 15; g_moon.z = 15; g_moon.active = 1;
     g_feat = g_moon; g_feat.id = 83002; g_feat.type = 40;     /* not a moon */
@@ -147,8 +147,8 @@ static void test_segment_hit(void) {
     CHECK(!obs_segment_hit(n0, n1, 0.0, OBS_MASK_ALL, 0, &h), "an empty path has no hit");
 
     /* the asteroid in the neighbour quadrant, crossed across the face */
-    /* asteroid: quadrant 4, local x 39.5 -> global 159.5; quadrant 5 starts at 160 */
-    double t0[3] = { 158.0, GX(6, 10), GX(7, 10) }, t1[3] = { 161.0, GX(6, 10), GX(7, 10) };
+    /* asteroid: quadrant 4, local x QS - 0.5, just before the face where quadrant 5 starts (GX(5, 0)) */
+    double t0[3] = { GX(5, 0) - 2.0, GX(6, 10), GX(7, 10) }, t1[3] = { GX(5, 0) + 1.0, GX(6, 10), GX(7, 10) };
     CHECK(obs_segment_hit(t0, t1, 0.0, OBS_MASK_ALL, 0, &h) && h.kind == OBS_ASTEROID,
           "a ship crossing the face hits the asteroid in the next quadrant");
 }

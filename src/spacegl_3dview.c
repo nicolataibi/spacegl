@@ -51,6 +51,7 @@ _Static_assert(OBJ_MOON_FIRST == 89 && OBJ_MOON_LAST == 98,
 #define STR(x) STR_HELPER(x)
 
 #include "network.h"
+#include "quadrant_geom.h"
 
 typedef struct {
     double x, y, z;
@@ -603,7 +604,7 @@ int g_is_cloaked_rendering = 0;
 int g_is_derelict_rendering = 0;
 float angleY = 0.0;
 float angleX = 20.0;
-float zoom = -65.0;
+float zoom = -65.0 * QG_SCALE;   /* camera distance: the whole cube keeps its framing when it grows */
 float autoRotate = 0.075;
 int g_aniso_level = 4;
 int g_star_count = 2000;
@@ -767,7 +768,7 @@ void handle_signal(int sig) { if (sig == SIGUSR1) g_data_dirty = 1; }
 
 void initStars() {
     for(int i=0; i<8000; i++) {
-        float r = 150.0 + (rand()%100);
+        float r = (150.0 + (rand()%100)) * QG_SCALE;   /* the star shell stays outside the camera orbit */
         float t = (rand()%360) * 3.14/180;
         float p = (rand()%360) * 3.14/180;
         stars[i][0] = r * sin(p) * cos(t);
@@ -785,15 +786,15 @@ void initVBOs() {
     if (!grid_data) { perror("[3D VIEW] Failed to allocate grid VBO"); exit(1); }
     int idx = 0;
     for(int i=0; i<=(int)QUADRANT_SIZE; i+=10) {
-        float p = -20.0 + i;
+        float p = -QG_HALF + i;
         for(int j=0; j<=(int)QUADRANT_SIZE; j+=10) {
-            float q = -20.0 + j;
-            grid_data[idx++] = p; grid_data[idx++] = q; grid_data[idx++] = -20.0;
-            grid_data[idx++] = p; grid_data[idx++] = q; grid_data[idx++] = 20.0;
-            grid_data[idx++] = p; grid_data[idx++] = -20.0; grid_data[idx++] = q;
-            grid_data[idx++] = p; grid_data[idx++] = 20.0; grid_data[idx++] = q;
-            grid_data[idx++] = -20.0; grid_data[idx++] = p; grid_data[idx++] = q;
-            grid_data[idx++] = 20.0; grid_data[idx++] = p; grid_data[idx++] = q;
+            float q = -QG_HALF + j;
+            grid_data[idx++] = p; grid_data[idx++] = q; grid_data[idx++] = -QG_HALF;
+            grid_data[idx++] = p; grid_data[idx++] = q; grid_data[idx++] = QG_HALF;
+            grid_data[idx++] = p; grid_data[idx++] = -QG_HALF; grid_data[idx++] = q;
+            grid_data[idx++] = p; grid_data[idx++] = QG_HALF; grid_data[idx++] = q;
+            grid_data[idx++] = -QG_HALF; grid_data[idx++] = p; grid_data[idx++] = q;
+            grid_data[idx++] = QG_HALF; grid_data[idx++] = p; grid_data[idx++] = q;
         }
     }
     grid_vertex_count = idx / 3;
@@ -928,7 +929,7 @@ void loadGameState() {
                 g_recovery_fx.z = (QUADRANT_SIZE / 2.0) - ev->y1;
                 g_recovery_fx.timer = (int)GAME_TICK_RATE;
             } else if (ev->type == IPC_EV_JUMP) {
-                float jx = ev->x1 - 20.0; float jy = ev->z1 - 20.0; float jz = 20.0 - ev->y1;
+                float jx = ev->x1 - QG_HALF; float jy = ev->z1 - QG_HALF; float jz = QG_HALF - ev->y1;
                 g_jump_arrival.x = jx; g_jump_arrival.y = jy; g_jump_arrival.z = jz;
                 g_jump_arrival.h = state->shm_h; g_jump_arrival.m = state->shm_m; g_jump_arrival.active = 1;
                 g_jump_arrival.jump_type = ev->extra;
@@ -1371,11 +1372,13 @@ void display() {
     double current_fov = 45.0 * (1.0 - bridge_anim) + 65.0 * bridge_anim;
     /* Aspect follows the LIVE window size (the FBO chain was reallocated to
      * match in reshape/ensureBloomFBO), not the native 1920x1080. */
-    gluPerspective(current_fov, (double)g_fb_w/g_fb_h, 0.1, 500); 
+    gluPerspective(current_fov, (double)g_fb_w/g_fb_h, 0.1, 500.0 * QG_SCALE); 
     glMatrixMode(GL_MODELVIEW); glLoadIdentity();
 
     /* Cinematic Camera Transition */
-    double current_zoom = zoom - (21.0 * map_anim);
+    /* The galaxy map is drawn at a fixed size (GALAXY_SIZE cells, not quadrant units): its camera keeps the
+     * distance it had for the reference cube (zoom / QG_SCALE - 21) while the tactical one scales. */
+    double current_zoom = zoom * (1.0 - map_anim) + (zoom / QG_SCALE - 21.0) * map_anim;
     
     if (bridge_anim > 0.001 && objects[0].id != 0) {
         if (bridge_anim >= 0.999) {
@@ -1905,9 +1908,9 @@ void display() {
                     
                     /* Convert sector coordinates [0,10] to local GL space [-5,5] */
                     /* Note: Y and Z axes are flipped in this coordinate system */
-                    double px = g_shared_state->probes[p].s1 - 20.0;
-                    double py = g_shared_state->probes[p].s3 - 20.0;
-                    double pz = 20.0 - g_shared_state->probes[p].s2;
+                    double px = g_shared_state->probes[p].s1 - QG_HALF;
+                    double py = g_shared_state->probes[p].s3 - QG_HALF;
+                    double pz = QG_HALF - g_shared_state->probes[p].s2;
                     drawProbe(p, px, py, pz);
                 }
             }
@@ -2146,9 +2149,9 @@ void display() {
 
         glColor3f(0.0, 1.0, 1.0); /* Cyan */
         /* Convert focal point coordinates back to Stellar sector coordinates (0 to 10) */
-        double disp_s1 = PlayerX + 20.0;
-        double disp_s2 = 20.0 - PlayerZ;
-        double disp_s3 = PlayerY + 20.0;
+        double disp_s1 = PlayerX + QG_HALF;
+        double disp_s2 = QG_HALF - PlayerZ;
+        double disp_s3 = PlayerY + QG_HALF;
         sprintf(buf, "QUADRANT: %s  |  SECTOR: [%.2f, %.2f, %.2f]", g_quadrant, disp_s1, disp_s2, disp_s3); 
         drawText3D(x_off, y_pos, 0, buf); y_pos -= 20;
 
@@ -2775,7 +2778,7 @@ void timer(int v) { (void)v;
             double dx = objects[i].tx - objects[i].x;
             double dy = objects[i].ty - objects[i].y;
             double dz = objects[i].tz - objects[i].z;
-            if (dx*dx + dy*dy + dz*dz > 2500.0) {
+            if (dx*dx + dy*dy + dz*dz > (50.0 * QG_SCALE) * (50.0 * QG_SCALE)) {
                 objects[i].x = objects[i].tx;
                 objects[i].y = objects[i].ty;
                 objects[i].z = objects[i].tz;
@@ -2878,8 +2881,8 @@ void timer(int v) { (void)v;
 void keyboard(unsigned char k, int x, int y) { (void)k; (void)x; (void)y; 
     if(k==27) exit(0); 
     if(k==' ') autoRotate=(autoRotate==0)?0.15:0; 
-    if(k=='w' || k=='W') zoom += 0.5;
-    if(k=='s' || k=='S') zoom -= 0.5;
+    if(k=='w' || k=='W') zoom += 0.5 * QG_SCALE;
+    if(k=='s' || k=='S') zoom -= 0.5 * QG_SCALE;
     if(k=='h' || k=='H') g_show_hud = !g_show_hud;
     if(k=='n' || k=='N') g_show_nebulas = !g_show_nebulas;
 }
@@ -3093,7 +3096,7 @@ int main(int argc, char** argv) {
     initVBOs(); 
     
     glMatrixMode(GL_PROJECTION); 
-    gluPerspective(45, (double)g_fb_w/g_fb_h, 1, 500); 
+    gluPerspective(45, (double)g_fb_w/g_fb_h, 1, 500.0 * QG_SCALE); 
     glMatrixMode(GL_MODELVIEW);
         
     printf("[3D VIEW] Ready. Sending handshake to parent (PID %d).\n", getppid());

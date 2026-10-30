@@ -30,6 +30,7 @@
 #include <stdio.h>
 
 #include "object_types.h"
+#include "quadrant_geom.h"
 #include "spacegl_gdd.h"
 #include "spacegl_vulkan_types.h"
 #include "sglog.h"
@@ -44,11 +45,11 @@
 /* Quadrant half-size (QUADRANT_SIZE / 2, game_config.h) and the galaxy
  * map sector gap (drawGalaxyMap) — kept here so the builder stays
  * free of project-header dependencies (unit-testable in isolation). */
-#define GDD_QUADRANT      20.0f
-#define GDD_QUADRANT_SPAN 40.0f
+#define GDD_QUADRANT      QG_HALF   /* quadrant_geom.h: QUADRANT_SIZE / 2 */
+#define GDD_QUADRANT_SPAN QG_SIZE   /* quadrant_geom.h: QUADRANT_SIZE     */
 #define GDD_GALAXY_SIZE   40
 #define GDD_GALAXY_GAP    1.2f
-#define GDD_GRID_STEP     2.0f
+#define GDD_GRID_STEP     (QG_SIZE / (float)QG_GRID_CELLS)   /* 20 cells per axis, the cell side follows the cube */
 
 /* World half-thickness requested by every "1-px class" GDD line
  * (quadrant cube, AR compass rings/arc/axes, direction vectors, grid,
@@ -284,6 +285,16 @@ typedef struct {
     int spin;        /* 0 = none, 1 = quasar spin (RotY(pulse*3) * RotX(20°)) */
 } GddVisual;
 
+/* Stars, planets and moons are the big smooth spheres of the scene: they use the high-resolution mesh (16 x 32)
+ * as soon as they cover enough pixels to show the polygonal silhouette of the 6 x 10 one. The on-screen size is
+ * estimated from the orbital camera distance (radius / distance; 0.004 is about 5 px at 1080p with a 45 degree
+ * field of view), so a far-away moon keeps the 360-vertex mesh. */
+#define GDD_SPHERE_HI_MIN_RATIO 0.004f
+static inline int gdd_pick_sphere(const GddBuildCtx *ctx, float radius) {
+    float d = (ctx && ctx->camera_dist > 1.0f) ? ctx->camera_dist : 1.0f;
+    return (radius >= GDD_SPHERE_HI_MIN_RATIO * d) ? GDD_MESH_SPHERE_HI : GDD_MESH_SPHERE;
+}
+
 static void gdd_visual_for(int type, int faction, int ship_class, int plating,
                            int cloaked, const GddBuildCtx *ctx, GddVisual *v) {
     (void)ctx;
@@ -386,8 +397,8 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
          * (object_types.h, shared with the CPU Vulkan path and the OpenGL
          * viewer). */
         const float *rgb = obj_moon_any_rgb(type);
-        v->mesh = GDD_MESH_SPHERE;
         v->scale = 1.8f * obj_moon_any_scale(type);
+        v->mesh = gdd_pick_sphere(ctx, v->scale);
         v->frag_mode = GDD_FRAG_PBR;
         v->metallic = 0.0f; v->roughness = 0.9f;
         v->color[0] = rgb[0]; v->color[1] = rgb[1]; v->color[2] = rgb[2];
@@ -422,6 +433,7 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
     case OBJ_STAR: { /* star: ship_class = spectral class 0..6 (O,B,A,F,G,K,M) */
         const float *rgb = obj_star_class_rgb(ship_class);
         v->scale = 2.5f; v->frag_mode = GDD_FRAG_HYPERWARP;
+        v->mesh = gdd_pick_sphere(ctx, v->scale);
         v->additive = 1; v->metallic = 0.0f; v->roughness = 1.0f;
         v->color[0] = rgb[0]; v->color[1] = rgb[1]; v->color[2] = rgb[2];
         break;
@@ -429,6 +441,7 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
 
     case OBJ_PLANET: /* planet */
         v->scale = 1.8f; v->frag_mode = GDD_FRAG_PBR;
+        v->mesh = gdd_pick_sphere(ctx, v->scale);
         v->metallic = 0.0f; v->roughness = 0.9f;
         {   /* ship_class = planet class: 0:Terrestrial 1:Gas Giant 2:Ice 3:Molten 4:Desert */
             const float *rgb = obj_planet_class_rgb(ship_class);
@@ -823,7 +836,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
     /* ---------------------------------------------------------------- */
     if (ctx->map_anim < 0.99f &&
         !(ctx->jump_arrival && ctx->jump_arrival->active)) {
-        float hq = GDD_QUADRANT; /* 20.0 = QUADRANT_SIZE/2 */
+        float hq = GDD_QUADRANT; /* QUADRANT_SIZE / 2 */
         float ht = GDD_HAIRLINE; /* 1-px class: screen floor dominates (see define) */
         /* Top loop corners  (Y = +hq, green 0,1,0) */
         float tx[4] = { -hq*ts,  hq*ts,  hq*ts, -hq*ts };
@@ -1164,7 +1177,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
     /* ---------------------------------------------------------------- */
     int compass_ok = ctx->show_axes && ctx->object_count > 0 &&
                      ctx->objs && !ctx->objs[0].first &&
-                     ctx->camera_dist < 150.0f &&
+                     ctx->camera_dist < QG_GRID_HIDE_DIST &&
                      !(ctx->jump_arrival && ctx->jump_arrival->active);
     float cx = 0, cy = 0, cz = 0;
     if (compass_ok) {
@@ -1746,10 +1759,10 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
     if (ctx->map_anim < 0.99f) {
         /* Parity with CPU path: hide grid when zoomed out or during jump */
         int grid_visible = ctx->show_grid
-                        && ctx->camera_dist < 150.0f
+                        && ctx->camera_dist < QG_GRID_HIDE_DIST
                         && !(ctx->jump_arrival && ctx->jump_arrival->active);
         if (grid_visible) {
-            int steps = (int)GDD_QUADRANT_SPAN / 2; /* 20, CPU parity */
+            int steps = QG_GRID_CELLS; /* 20, CPU parity */
             float hq = GDD_QUADRANT_SPAN / 2.0f;
             /* 1-px class: the metallic field carries the requested
              * half-thickness; GDD_HAIRLINE sits below the 1-px screen

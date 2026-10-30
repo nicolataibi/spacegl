@@ -171,22 +171,22 @@ void gdd_expand_box(uint base, GddInstance it) {
 /* nrm = it.o * normalize(d / r).  vLocal (= d, unit direction) is     */
 /* unchanged (localPos is always the unsquashed unit-sphere direction). */
 /* ------------------------------------------------------------------ */
-void gdd_expand_sphere(uint base, GddInstance it) {
+void gdd_expand_sphere_n(uint base, GddInstance it, int lats, int lons) {
     float PI = 3.141592653589793;
     /* Component-wise semi-axes; guarded against 0 (never zero from any
      * call site, but cheap insurance against a future caller passing a
      * degenerate scale for a fully flattened element). */
     vec3 r     = max(it.b.xyz, vec3(1e-6));
     vec3 inv_r = vec3(1.0) / r;
-    for (int i = 0; i < GDD_SPHERE_LATS; i++) {
+    for (int i = 0; i < lats; i++) {
         /* Polar angle from +Y: 0 at north pole, PI at south pole. */
-        float lat0 = PI * float(i)     / float(GDD_SPHERE_LATS);
-        float lat1 = PI * float(i + 1) / float(GDD_SPHERE_LATS);
+        float lat0 = PI * float(i)     / float(lats);
+        float lat1 = PI * float(i + 1) / float(lats);
         float cy0 = cos(lat0), sy0 = sin(lat0);
         float cy1 = cos(lat1), sy1 = sin(lat1);
-        for (int j = 0; j < GDD_SPHERE_LONS; j++) {
-            float lon0 = 2.0 * PI * float(j)     / float(GDD_SPHERE_LONS);
-            float lon1 = 2.0 * PI * float(j + 1) / float(GDD_SPHERE_LONS);
+        for (int j = 0; j < lons; j++) {
+            float lon0 = 2.0 * PI * float(j)     / float(lons);
+            float lon1 = 2.0 * PI * float(j + 1) / float(lons);
             float c0 = cos(lon0), s0 = sin(lon0);
             float c1 = cos(lon1), s1 = sin(lon1);
             /* Unit directions on the reference sphere (local frame). */
@@ -199,7 +199,7 @@ void gdd_expand_sphere(uint base, GddInstance it) {
             vec3 n10 = it.o * normalize(d10 * inv_r);
             vec3 n01 = it.o * normalize(d01 * inv_r);
             vec3 n11 = it.o * normalize(d11 * inv_r);
-            uint b0 = base + uint(i * GDD_SPHERE_LONS + j) * 6u;
+            uint b0 = base + uint(i * lons + j) * 6u;
             /* Position: center + orient * (d * r).  Apply it.o so that the
              * ellipsoid is correctly rotated in world space (non-uniform scales
              * like shield panels {0.5,1.8,1.8} must follow the sector rotation,
@@ -214,6 +214,16 @@ void gdd_expand_sphere(uint base, GddInstance it) {
             gdd_put(b0 + 5u, it.a.xyz + it.o * (d01 * r), d01, n01, it);
         }
     }
+}
+
+/* 6 x 10 bands: 360 vertices (GDD_MESH_SPHERE). */
+void gdd_expand_sphere(uint base, GddInstance it) {
+    gdd_expand_sphere_n(base, it, GDD_SPHERE_LATS, GDD_SPHERE_LONS);
+}
+
+/* 16 x 32 bands: 3072 vertices (GDD_MESH_SPHERE_HI). */
+void gdd_expand_sphere_hi(uint base, GddInstance it) {
+    gdd_expand_sphere_n(base, it, GDD_SPHERE_HI_LATS, GDD_SPHERE_HI_LONS);
 }
 
 void gdd_expand_pyramid(uint base, GddInstance it) {

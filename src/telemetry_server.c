@@ -47,6 +47,8 @@ typedef struct {
     uint32_t category;
     uint32_t category_index;
     bool active;
+    int send_offset;       /* next object of the current frame to send (frames span several ticks) */
+    bool frame_reset;      /* category changed: close any partial frame the client holds, restart at 0 */
 } TelClient;
 
 static TelClient tel_clients[MAX_TEL_CLIENTS];
@@ -242,6 +244,8 @@ static void* telemetry_worker(void* arg) {
                     if (!tel_clients[j].active) {
                         tel_clients[j].fd = client_fd;
                         tel_clients[j].category = TEL_CAT_SHIP_ALLIANCE;
+                        tel_clients[j].send_offset = 0;
+                        tel_clients[j].frame_reset = false;
                         tel_clients[j].active = true;
                         break;
                     }
@@ -269,6 +273,8 @@ static void* telemetry_worker(void* arg) {
                             for (int j = 0; j < MAX_TEL_CLIENTS; j++) {
                                 if (tel_clients[j].active && tel_clients[j].fd == fd) {
                                     tel_clients[j].category = sub.category;
+                                    tel_clients[j].send_offset = 0;
+                                    tel_clients[j].frame_reset = true;
                                     break;
                                 }
                             }
@@ -1997,30 +2003,52 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
     to->extra[sizeof(to->extra)-1] = '\0';
 }
 
-static TelemetryObject cat_cache[TEL_CAT_COUNT][MAX_VISIBLE_TEL];
+/* Per-category cache, grown on demand (no cap: the system moons alone are tens of thousands). A category is
+ * rebuilt once per frame: a frame of N objects takes ceil(N / TEL_OBJS_PER_TICK) ticks to send. */
+static TelemetryObject *cat_cache[TEL_CAT_COUNT];
+static int cat_cache_cap[TEL_CAT_COUNT];
 static int cat_cache_count[TEL_CAT_COUNT];
 static uint32_t cat_cache_tick[TEL_CAT_COUNT];
+static bool cat_cache_valid[TEL_CAT_COUNT];
+
+static inline int tel_frame_ticks(int count) {
+    return count <= TEL_OBJS_PER_TICK ? 1 : (count + TEL_OBJS_PER_TICK - 1) / TEL_OBJS_PER_TICK;
+}
+
+/* Slot n of category cat, growing the cache when needed (NULL only if memory runs out). */
+static TelemetryObject *cat_cache_slot(int cat, int n) {
+    if (n >= cat_cache_cap[cat]) {
+        int cap = cat_cache_cap[cat] ? cat_cache_cap[cat] : 256;
+        while (cap <= n) cap *= 2;
+        TelemetryObject *p = realloc(cat_cache[cat], (size_t)cap * sizeof(TelemetryObject));
+        if (!p) return NULL;
+        cat_cache[cat] = p;
+        cat_cache_cap[cat] = cap;
+    }
+    return &cat_cache[cat][n];
+}
 
 static void update_category_cache(int cat) {
     if (cat < 0 || cat >= TEL_CAT_COUNT) return;
-    if (cat_cache_tick[cat] == (uint32_t)global_tick) return;
+    if (cat_cache_valid[cat] &&
+        (uint32_t)global_tick - cat_cache_tick[cat] < (uint32_t)tel_frame_ticks(cat_cache_count[cat])) return;
 
     pthread_mutex_lock(&cat_mutexes[cat]);
     int count = 0;
     int faction = get_faction_from_cat(cat);
     
     if (faction != -1) {
-        for (int j = 0; j < MAX_CLIENTS && count < MAX_VISIBLE_TEL; j++) {
-            if (players[j].active && players[j].faction == faction) fill_obj(&cat_cache[cat][count++], cat, j);
+        for (int j = 0; j < MAX_CLIENTS; j++) {
+            if (players[j].active && players[j].faction == faction) { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, j); count++; } }
         }
-        for (int j = 0; j < MAX_NPC && count < MAX_VISIBLE_TEL; j++) {
-            if (npcs[j].active && npcs[j].faction == faction) fill_obj(&cat_cache[cat][count++], cat, j + MAX_CLIENTS);
+        for (int j = 0; j < MAX_NPC; j++) {
+            if (npcs[j].active && npcs[j].faction == faction) { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, j + MAX_CLIENTS); count++; } }
         }
-        for (int j = 0; j < MAX_BASES && count < MAX_VISIBLE_TEL; j++) {
-            if (bases[j].active && bases[j].faction == faction) fill_obj(&cat_cache[cat][count++], cat, j + MAX_CLIENTS + MAX_NPC);
+        for (int j = 0; j < MAX_BASES; j++) {
+            if (bases[j].active && bases[j].faction == faction) { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, j + MAX_CLIENTS + MAX_NPC); count++; } }
         }
     } else {
-        #define FILL_CACHE_CAT(arr, max) for(int j=0; j<max && count<MAX_VISIBLE_TEL; j++) if(arr[j].active) fill_obj(&cat_cache[cat][count++], cat, j)
+        #define FILL_CACHE_CAT(arr, max) for(int j=0; j<max; j++) if(arr[j].active) { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, j); count++; } }
         switch(cat) {
             case TEL_CAT_STAR:      FILL_CACHE_CAT(stars_data, MAX_STARS); break;
             case TEL_CAT_PLANET:    FILL_CACHE_CAT(planets, MAX_PLANETS); break;
@@ -2099,224 +2127,224 @@ static void update_category_cache(int cat) {
                         case TEL_CAT_STELLAR_MASS_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 0) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_INTERMEDIATE_MASS_BLACK_HOLE_IMBH: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 1) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_SUPERMASSIVE_BLACK_HOLE_SMBH: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 2) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_ULTRAMASSIVE_BLACK_HOLE_UMBH: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 3) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_STUPENDOUSLY_LARGE_BLACK_HOLE_SLAB: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 4) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_PRIMORDIAL_BLACK_HOLE_PBH: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 5) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_SCHWARZSCHILD_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 6) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_KERR_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 7) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_REISSNER_NORDSTROM_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 8) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_KERR_NEWMAN_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 9) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_EXTREMAL_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 10) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_REGULAR_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 11) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_BARDEEN_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 12) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_HAYWARD_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 13) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_DYMNIKOVA_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 14) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_FAN_WANG_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 15) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_FIREWALL_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 16) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_FUZZBALL: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 17) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_QUANTUM_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 18) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_MICRO_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 19) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_PLANCK_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 20) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_GRAVASTAR: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 21) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_BOSON_STAR: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 22) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_DARK_STAR: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 23) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_EXOTIC_COMPACT_OBJECT_ECO: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 24) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_BLACK_HOLE_MIMICKER: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 25) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_WORMHOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 26) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_WHITE_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 27) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_NAKED_SINGULARITY: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 28) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_SUPER_EXTREMAL_SOLUTION_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 29) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_SUPER_EXTREMAL_REISSNER_NORDSTROM_SOLUTION_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 30) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
             case TEL_CAT_SUPER_EXTREMAL_KERR_SOLUTION_BLACK_HOLE: {
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == OBJ_EXOTIC_FIRST + 31) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
@@ -2333,7 +2361,7 @@ static void update_category_cache(int cat) {
                 int m_type = OBJ_MOON_FIRST + (cat - TEL_CAT_MOON_SHEPHERD);
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == m_type) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
@@ -2357,7 +2385,7 @@ static void update_category_cache(int cat) {
                 int e_type = OBJ_EVOLVED_FIRST + (cat - TEL_CAT_EVOLVED_RED_GIANT);
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == e_type) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
@@ -2380,7 +2408,7 @@ static void update_category_cache(int cat) {
                 int p_type = OBJ_PROTOSTELLAR_FIRST + (cat - TEL_CAT_PROTO_CLASS_0);
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == p_type) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
@@ -2400,7 +2428,7 @@ static void update_category_cache(int cat) {
                 int m_type = OBJ_MOON_EXT_FIRST + (cat - TEL_CAT_MOON_RETROGRADE);
                 for (int k = 0; k < MAX_COSMIC_FEATURES; k++) {
                     if (cosmic_features[k].active && cosmic_features[k].type == m_type) {
-                        fill_obj(&cat_cache[cat][count++], cat, k);
+                        { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, k); count++; } }
                     }
                 }
             } break;
@@ -2408,6 +2436,7 @@ static void update_category_cache(int cat) {
     }
     cat_cache_count[cat] = count;
     cat_cache_tick[cat] = (uint32_t)global_tick;
+    cat_cache_valid[cat] = true;
     pthread_mutex_unlock(&cat_mutexes[cat]);
 }
 
@@ -2476,39 +2505,61 @@ void telemetry_broadcast() {
             continue;
         }
 
-        /* Use cached data (Already updated by telemetry_sync_state) */
-        pthread_mutex_lock(&cat_mutexes[cat]);
-        int count = cat_cache_count[cat];
+        /* Use cached data (Already updated by telemetry_sync_state). A frame is the whole category: it is sent
+         * TEL_OBJS_PER_TICK objects per tick from this client's cursor and closed by the stats packet. */
+        pthread_mutex_lock(&tel_clients_mutex);
+        bool reset = tel_clients[i].frame_reset;
+        int offset = tel_clients[i].send_offset;
+        tel_clients[i].frame_reset = false;
+        pthread_mutex_unlock(&tel_clients_mutex);
         bool failed = false;
 
-        /* Send data chunk */
-        if (count == 0) {
-            TelemetryHeader dhdr = {TEL_PKT_DATA, 0};
-            if (send_all(fd, &dhdr, sizeof(dhdr)) != sizeof(dhdr)) failed = true;
-        } else {
-            int chunk_size = 100;
-            for (int offset = 0; offset < count; offset += chunk_size) {
-                int current_chunk = (offset + chunk_size > count) ? (count - offset) : chunk_size;
-                TelemetryHeader dhdr;
-                dhdr.type = TEL_PKT_DATA;
-                dhdr.length = (uint32_t)(current_chunk * sizeof(TelemetryObject));
-                
-                if (send_all(fd, &dhdr, sizeof(dhdr)) == sizeof(dhdr)) {
-                    if (send_all(fd, &cat_cache[cat][offset], dhdr.length) != (int)dhdr.length) {
+        /* the category changed: close whatever partial frame of the old category the client holds */
+        if (reset) {
+            offset = 0;
+            if (send_all(fd, &shdr, sizeof(shdr)) != sizeof(shdr) || send_all(fd, &stats, sizeof(stats)) != sizeof(stats)) failed = true;
+        }
+
+        pthread_mutex_lock(&cat_mutexes[cat]);
+        int count = cat_cache_count[cat];
+        if (offset > count) offset = count;   /* the cache was rebuilt smaller in the middle of a frame */
+        bool frame_done = false;
+
+        if (!failed) {
+            if (count == 0) {
+                TelemetryHeader dhdr = {TEL_PKT_DATA, 0};
+                if (send_all(fd, &dhdr, sizeof(dhdr)) != sizeof(dhdr)) failed = true;
+                frame_done = true;
+            } else {
+                const int chunk_size = 100;
+                int end = offset + TEL_OBJS_PER_TICK;
+                if (end > count) end = count;
+                while (offset < end) {
+                    int current_chunk = (offset + chunk_size > end) ? (end - offset) : chunk_size;
+                    TelemetryHeader dhdr;
+                    dhdr.type = TEL_PKT_DATA;
+                    dhdr.length = (uint32_t)(current_chunk * sizeof(TelemetryObject));
+                    if (send_all(fd, &dhdr, sizeof(dhdr)) != sizeof(dhdr) ||
+                        send_all(fd, &cat_cache[cat][offset], dhdr.length) != (int)dhdr.length) {
                         failed = true; break;
                     }
-                } else {
-                    failed = true; break;
+                    offset += current_chunk;
                 }
+                frame_done = (offset >= count);
             }
         }
         pthread_mutex_unlock(&cat_mutexes[cat]);
 
-        if (!failed) {
+        if (!failed && frame_done) {
             if (send_all(fd, &shdr, sizeof(shdr)) == sizeof(shdr)) {
                 if (send_all(fd, &stats, sizeof(stats)) != sizeof(stats)) failed = true;
             } else failed = true;
+            offset = 0;
         }
+
+        pthread_mutex_lock(&tel_clients_mutex);
+        if (tel_clients[i].active && !tel_clients[i].frame_reset) tel_clients[i].send_offset = offset;
+        pthread_mutex_unlock(&tel_clients_mutex);
 
         if (failed) {
             disconnect_client(i);

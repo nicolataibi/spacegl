@@ -2458,7 +2458,7 @@ This allows admins to create custom game variants (e.g., *Hardcore Survival* wit
 Space GL features a vast, densely populated universe that persists across server restarts.
 
 ### 1. Scale and Population
-The galaxy is a **40x40x40** cube containing **64,000 unique quadrants**. Each quadrant is further subdivided into a matrix of **40x40x40 sectors (units)**, creating an absolute coordinate system ranging from **0.0 to 1600.0**.
+The galaxy is a **40x40x40** cube containing **64,000 unique quadrants**. Each quadrant is further subdivided into a matrix of **100x100x100 sectors (units)**, creating an absolute coordinate system ranging from **0.0 to 4000.0**. About one quadrant in six (10,000) holds a star system: one star, up to 4 planets in orbit around it and up to 4 moons around each planet.
 *   **NPC Factions:** Each of the 11 alien factions (Korthian, Swarm, Xylari, etc.) maintains a standing fleet of **70 to 100 unique vessels** active at all times.
 *   **Homogeneous Distribution:** Celestial objects, starbases, and anomalies are procedurally distributed across the entire 64,000-quadrant volume to ensure a balanced exploration experience.
 *   **The Alliance Legacy:** Scattered across the stars are **70 to 100 historical wrecks (derelicts)** for EACH Alliance ship class. Additionally, every NPC vessel destroyed in combat now generates a **permanent wreck** in the sector, providing a rich field for salvage and exploration.
@@ -3406,7 +3406,7 @@ SpaceGL features a high-fidelity wreckage system designed to enhance immersion a
 *   `tor`: **Fire Plasma Torpedo**. Launches an auto-guided torpedo at the locked target.
     *   **4-Tube Rotary System**: The vessel features 4 independent launch tubes. You can fire up to 4 torpedoes in rapid succession.
     *   **Universal Visibility**: Torpedoes in flight are physically rendered and visible to all players in the sector.
-    *   **Sector Boundaries**: Torpedoes explode immediately upon hitting the edge of the current quadrant (0.0 - 40.0).
+    *   **Sector Boundaries**: Torpedoes explode immediately upon hitting the edge of the current quadrant (0.0 - 100.0).
     *   **Requirements**: Minimum 50% Torpedo system integrity (ID 5).
     *   **Cost**: 250 units of Energy per launch.
     *   **Reload**: Each tube requires approximately 3 seconds (90 ticks) to reload after firing.
@@ -3520,6 +3520,11 @@ To interact with galactic objects using the `lock`, `scan`, `pha`, `tor`, `bor`,
 | **Lyman-Alpha Blobs** | 81,000 - 81,999 | `lock 81000` | Primordial gas research |
 | **CMB (Cosmic Microwave Background)** | 82,000 - 82,999 | `lock 82000` | Relic radiation monitoring |
 | **Exotic Features** | 83,000 - 83,999 | `lock 83000` | Deep space anomalies |
+| **System Stars** | 90,000 - 99,999 | `lock 90000` | Solar scooping (`sco`); centre of a star system |
+| **System Planets** | 100,000 - 139,999 | `lock 100000` | Planetary mining (`min`); orbit their star |
+| **System Moons** | 140,000 - 299,999 | `lock 140000` | Survey (`scan`); orbit their planet |
+
+**Star systems**: a system is one star with up to 4 planets in orbit around it and up to 4 moons around each planet, all inside one quadrant (one system per quadrant). The IDs use fixed slots, so the parent and the position in the system can be read from the ID: for the star `90000 + s`, its planets are `100000 + 4s + k` (k = 0..3, innermost first) and the moons of planet k are `140000 + 16s + 4k + j` (j = 0..3). Example: star `90002` has planets `100008`..`100011`, and the first moon of planet `100009` is `140036`. A system may have fewer than 4 planets or moons: the unused IDs are simply absent from `srs`.
 
 **Note**: Locking and autopilot (`apr`) only work if the object is in your current quadrant. If the ID exists but is far away, the computer will indicate the target's `Q[x,y,z]` coordinates.
 
@@ -3630,6 +3635,11 @@ The `apr <ID> <DIST>` command allows you to automatically approach any object de
 | **CGM (Circumgal. M)**| 80000 - 80999 | `scan` | - | Halo gas study |
 | **Lyman-Alpha Blobs**| 81000 - 81999 | `scan` | - | Primordial gas study |
 | **CMB (Microwave B.)**| 82000 - 82999 | `scan` | - | Relic radiation study |
+| **System Stars**     | 90000 - 99999 | `sco`, `scan` | **< 5.6** (from centre) | Default stop 4.3, never closer than 3.6 |
+| **System Planets**   | 100000 - 139999 | `min`, `scan` | **< 4.9** (from centre) | Moving target: `apr` follows its orbit. Default stop 3.6, never closer than 2.9 |
+| **System Moons**     | 140000 - 299999 | `scan` | - | Moving target: `apr` follows its orbit. Default stop 2.1 - 2.9 by moon size |
+
+**Autopilot near star-system bodies**: stars, planets and moons of a star system are larger than the other objects, so their contact sphere (where a ship collides) is their visible radius plus 0.8: **3.3** for a star, **2.6** for a planet and **1.1 - 1.9** for a moon depending on its kind. For these bodies `apr <ID>` without a distance stops **1.0** outside the contact sphere (4.3 for a star, 3.6 for a planet) instead of the usual 2.0, and a smaller `DIST` is raised to **0.3** outside it (`apr 90002 0.5` stops at 3.6). The mining and scooping limits keep the usual 2.3 margin outside the contact sphere, so they are measured from the centre: **4.9** for a planet (`min`), **5.6** for a star (`sco`). Planets and moons move along their orbits: the autopilot re-reads the target every tick and arrives at the requested distance from where the body is.
 
 *   `she <F> <R> <T> <B> <L> <RI>`: **Shield Configuration**. Distributes energy to the 6 shields.
     *   **Requirements**: Minimum 10% Shield system integrity (ID 8).

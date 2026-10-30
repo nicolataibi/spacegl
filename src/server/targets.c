@@ -77,6 +77,34 @@
         return NULL; \
     }
 
+/* Star-system bodies: unlike the other arrays their .id is already the full id (the band base + the slot), so
+ * the standard lookup (o->id + IDMIN == tid) would never match them; and planets / moons move, so the position
+ * is refreshed (a pure function of the clock) every time it is read: lock, apr and scan see the body where it is
+ * now, and the approach autopilot, which re-reads the target every tick, follows it along its orbit. */
+#define TGT_DEFINE_SYS(T, QFIELD, QCOUNT, ARR, STAR_OF_SLOT) \
+    static bool tgt_aiq_##T(const void *e, int q1, int q2, int q3) { \
+        const T *o = (const T *)e; \
+        return o->active && o->q1 == q1 && o->q2 == q2 && o->q3 == q3; \
+    } \
+    static bool tgt_act_##T(const void *e) { return ((const T *)e)->active; } \
+    static void tgt_pos_##T(const void *e, double *ax, double *ay, double *az) { \
+        const T *o = (const T *)e; \
+        sys_refresh_positions(STAR_OF_SLOT((int)(o - ARR)), sys_clock_s()); \
+        *ax = (o->q1 - 1) * QUADRANT_SIZE + o->x; \
+        *ay = (o->q2 - 1) * QUADRANT_SIZE + o->y; \
+        *az = (o->q3 - 1) * QUADRANT_SIZE + o->z; \
+    } \
+    static void *tgt_find_##T(const QuadrantIndex *q, int tid) { \
+        for (int k = 0; k < q->QCOUNT; k++) { \
+            const T *o = q->QFIELD[k]; \
+            if (o && o->id == tid) return (void *)o; \
+        } \
+        return NULL; \
+    }
+static inline int tgt_sys_star_of_star(int slot)   { return slot; }
+static inline int tgt_sys_star_of_planet(int slot) { return sys_planet_star(slot); }
+static inline int tgt_sys_star_of_moon(int slot)   { return sys_moon_star(slot); }
+
 TGT_DEFINE_STANDARD(NPCStar, stars, star_count, GALAXY_OBJECT_MIN_STAR)
 TGT_DEFINE_STANDARD(NPCBlackHole, black_holes, bh_count, GALAXY_OBJECT_MIN_BLACKHOLE)
 TGT_DEFINE_STANDARD(NPCNebula, nebulas, nebula_count, GALAXY_OBJECT_MIN_NEBULA)
@@ -91,9 +119,9 @@ TGT_DEFINE_STANDARD(NPCPlatform, platforms, platform_count, GALAXY_OBJECT_MIN_PL
 TGT_DEFINE_STANDARD(NPCRift, rifts, rift_count, GALAXY_OBJECT_MIN_RIFT)
 TGT_DEFINE_STANDARD(NPCMonster, monsters, monster_count, GALAXY_OBJECT_MIN_MONSTER)
 TGT_DEFINE_STANDARD(NPCPlanet, planets, planet_count, GALAXY_OBJECT_MIN_PLANET)
-TGT_DEFINE_STANDARD(NPCSysStar,   sys_stars,   sys_star_count,   GALAXY_OBJECT_MIN_SYS_STAR)
-TGT_DEFINE_STANDARD(NPCSysPlanet, sys_planets, sys_planet_count, GALAXY_OBJECT_MIN_SYS_PLANET)
-TGT_DEFINE_STANDARD(NPCSysMoon,   sys_moons,   sys_moon_count,   GALAXY_OBJECT_MIN_SYS_MOON)
+TGT_DEFINE_SYS(NPCSysStar,   sys_stars,   sys_star_count,   sys_stars,   tgt_sys_star_of_star)
+TGT_DEFINE_SYS(NPCSysPlanet, sys_planets, sys_planet_count, sys_planets, tgt_sys_star_of_planet)
+TGT_DEFINE_SYS(NPCSysMoon,   sys_moons,   sys_moon_count,   sys_moons,   tgt_sys_star_of_moon)
 TGT_DEFINE_STANDARD(NPCBase, bases, base_count, GALAXY_OBJECT_MIN_STARBASE)
 TGT_DEFINE_STANDARD(NPCDyson, dysons, dyson_count, GALAXY_OBJECT_MIN_DYSON)
 TGT_DEFINE_STANDARD(NPCHub, hubs, hub_count, GALAXY_OBJECT_MIN_HUB)

@@ -223,7 +223,12 @@ typedef struct {
 #define TEL_PKT_DATA      2  /* Server -> Client: Object list data */
 #define TEL_PKT_STATS     3  /* Server -> Client: Global server stats */
 
-#define MAX_VISIBLE_TEL 5000
+/* A category frame carries EVERY object of the category (no cap). To keep the 60 Hz game thread and the link
+ * light, the server sends at most TEL_OBJS_PER_TICK objects per tick to each client, so a large category is
+ * spread over several ticks (32000 system moons: 32 ticks, about 2 frames per second) and its cache is rebuilt
+ * once per frame. TEL_MAX_FRAME_OBJECTS is only a sanity bound for the client buffer (stream corruption). */
+#define TEL_OBJS_PER_TICK      1000
+#define TEL_MAX_FRAME_OBJECTS  (1 << 20)
 
 typedef struct {
     uint32_t category;

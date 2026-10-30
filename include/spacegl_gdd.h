@@ -138,6 +138,11 @@ typedef enum {
  * convention); it.p.x (metallic) = tube half-thickness in world units
  * (0 -> 0.02), clamped to the same 1-px screen-space floor. */
 #define GDD_MESH_BOXWIRE 10  /* 288 verts : 12 edges x 4 faces x 6 verts */
+/* High-resolution UV sphere for the big spheres of the scene (stars, planets and moons): 16 x 32 bands, same
+ * parametrisation, normals and vLocal as GDD_MESH_SPHERE, only finer (silhouette dent 0.5 percent instead of
+ * 4.9 percent). The builder picks it from the estimated on-screen size (gdd_pick_sphere in vulkan_gdd_build.c);
+ * small or far spheres keep the 360-vertex mesh. */
+#define GDD_MESH_SPHERE_HI 11 /* 3072 verts : UV sphere 16x32 */
 
 #define GDD_VCOUNT_POINT   6u
 #define GDD_VCOUNT_SPHERE  360u

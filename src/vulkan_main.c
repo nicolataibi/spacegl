@@ -224,10 +224,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         app->angleX += 2.5f; /* Increasing angleX to tilt camera DOWN */
     }
     if (key == GLFW_KEY_PAGE_UP) {
-        app->cameraDist -= 5.0f;
+        app->cameraDist -= QG_CAMERA_STEP;
     }
     if (key == GLFW_KEY_PAGE_DOWN) {
-        app->cameraDist += 5.0f;
+        app->cameraDist += QG_CAMERA_STEP;
     }
     if (key == GLFW_KEY_M) {
         app->shm_inspector_page = (app->shm_inspector_page == 0) ? 1 : 0;
@@ -237,7 +237,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         if (key == GLFW_KEY_P) { app->shm_inspector_page = (app->shm_inspector_page == 1) ? 3 : app->shm_inspector_page - 1; }
     }
     if (key == GLFW_KEY_PAGE_DOWN) {
-        app->cameraDist += 5.0f;
+        app->cameraDist += QG_CAMERA_STEP;
     }
     if (key == GLFW_KEY_SPACE) {
         app->autoRotate = !app->autoRotate;
@@ -618,7 +618,7 @@ int main(int argc, char** argv) {
     
     app->angleX = 0.0f;
     app->angleY = 0.0f;
-    app->cameraDist = 80.0f;
+    app->cameraDist = QG_CAMERA_DEFAULT;
     app->autoRotate = true;
     if (s_no_rotate) app->autoRotate = false; /* --no-rotate (golden renders) */
     app->bridgeAnim = 0.0f;

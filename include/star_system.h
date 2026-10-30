@@ -30,7 +30,7 @@
 /* Visual radii (world units, the `scale` of the unit-sphere mesh). */
 #define SYS_STAR_RADIUS       2.5
 #define SYS_PLANET_RADIUS     1.8
-#define SYS_MOON_MAX_RADIUS   0.6
+#define SYS_MOON_MAX_RADIUS   1.08    /* SYS_PLANET_RADIUS * the largest obj_moon_any_scale (0.60) */
 #define SYS_GAP               0.5     /* clearance between neighbouring envelopes */
 #define SYS_FACE_MARGIN       0.5     /* clearance from the quadrant faces        */
 #define SYS_PLANET_BASE_PERIOD_S 600.0 /* period of a planet at SYS_PLANET_REF_R  */
@@ -54,8 +54,20 @@ static inline int sys_id_is_moon(int id)   { return id >= GALAXY_OBJECT_MIN_SYS_
 static inline double sys_star_hit_radius(void)   { return SYS_STAR_RADIUS   + (double)DIST_COLLISION_SHIP; }
 static inline double sys_planet_hit_radius(void) { return SYS_PLANET_RADIUS + (double)DIST_COLLISION_SHIP; }
 static inline double sys_moon_hit_radius(int moon_type) {
-    return (double)obj_moon_any_scale(moon_type) + (double)DIST_COLLISION_SHIP;
+    /* a moon is drawn with radius SCALE_PLANET (1.8) * its kind scale, in every viewer */
+    return SYS_PLANET_RADIUS * (double)obj_moon_any_scale(moon_type) + (double)DIST_COLLISION_SHIP;
 }
+
+/* --- interaction ranges and approach stand-off ----------------------------------------------------
+ * For an ordinary object the interaction limit (mining, scooping: 3.1) lies 2.3 units beyond its contact
+ * sphere (0.8). The system bodies have a larger contact sphere, so the same 2.3 margin is kept around it:
+ * the limit, measured from the centre, is the contact radius + 2.3 (planet 4.9, star 5.6). The approach
+ * autopilot stops 1.0 outside the contact sphere by default and never closer than 0.3 outside it. */
+static inline double sys_interaction_range(double hit_radius, double generic_max) {
+    return hit_radius + (generic_max - (double)DIST_COLLISION_SHIP);
+}
+static inline double sys_standoff(double hit_radius)     { return hit_radius + 1.0; }
+static inline double sys_min_standoff(double hit_radius) { return hit_radius + 0.3; }
 
 /* --- layout -------------------------------------------------------------- */
 typedef struct {

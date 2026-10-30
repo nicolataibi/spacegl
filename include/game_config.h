@@ -21,7 +21,7 @@
 #define GAME_CONFIG_H
 
 #define GALAXY_SIZE 40                  /* Galaxy side dimension in quadrants (40x40x40 = 64,000 quadrants) */
-#define QUADRANT_SIZE 40.0              /* Single quadrant side dimension in sectors/units (40x40x40 units) */
+#define QUADRANT_SIZE 100.0             /* Single quadrant side dimension in sectors/units (100x100x100 units) */
 
 #define TACTICAL_CUBE_W 1920            /* Native horizontal resolution of the 3D viewer (Full HD) */
 #define TACTICAL_CUBE_H 1080            /* Native vertical resolution of the 3D viewer (Full HD) */

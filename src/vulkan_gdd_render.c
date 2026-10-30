@@ -27,6 +27,7 @@
  * Peer modules: vulkan_gdd_build.c, vulkan_device.c, vulkan_render.c.
  */
 
+#include "quadrant_geom.h"
 #include "spacegl_gdd.h"
 #include "spacegl_vulkan_types.h"
 #include "sglog.h"
@@ -1011,7 +1012,7 @@ static void gdd_compute_view(VulkanApp *app, mat4 view, float cam_world[3]) {
     mat4 m_std; mat4_identity(m_std);
     mat4_rotate(m_std, -app->angleY * M_PI / 180.0f, (vec3){0, 1, 0});
     mat4_rotate(m_std, app->angleX * M_PI / 180.0f, (vec3){1, 0, 0});
-    mat4 T_cam; mat4_translate(T_cam, (vec3){0, 0, -app->cameraDist});
+    mat4 T_cam; mat4_translate(T_cam, (vec3){0, 0, -qg_view_dist(app->cameraDist, app->mapAnim)});
     mat4_multiply(m_std, T_cam, m_std);
 
     /* Camera world position: C * (R*T) = 0  =>  C * R = (0,0,dist)
@@ -1027,9 +1028,9 @@ static void gdd_compute_view(VulkanApp *app, mat4 view, float cam_world[3]) {
     float cam_brg[3] = {0.0f, 0.0f, 0.0f};
     if (app->bridgeAnim > 0.001f) {
         float tactScale = 1.0f - app->mapAnim;
-        float px = (app->smoothObjs[0].x - 20.0f) * tactScale;
-        float py = (app->smoothObjs[0].z - 20.0f) * tactScale;
-        float pz = (20.0f - app->smoothObjs[0].y) * tactScale;
+        float px = (app->smoothObjs[0].x - QG_HALF) * tactScale;
+        float py = (app->smoothObjs[0].z - QG_HALF) * tactScale;
+        float pz = (QG_HALF - app->smoothObjs[0].y) * tactScale;
         float ph = app->smoothObjs[0].h;
         float pm = app->smoothObjs[0].m;
 
@@ -1073,9 +1074,9 @@ static void gdd_compute_view(VulkanApp *app, mat4 view, float cam_world[3]) {
     float cam_pilot[3] = {0.0f, 0.0f, 0.0f};
     if (app->showPilot && app->pilotAnim > 0.001f) {
         float tactScale = 1.0f - app->mapAnim;
-        float px = (app->smoothObjs[0].x - 20.0f) * tactScale;
-        float py = (app->smoothObjs[0].z - 20.0f) * tactScale;
-        float pz = (20.0f - app->smoothObjs[0].y) * tactScale;
+        float px = (app->smoothObjs[0].x - QG_HALF) * tactScale;
+        float py = (app->smoothObjs[0].z - QG_HALF) * tactScale;
+        float pz = (QG_HALF - app->smoothObjs[0].y) * tactScale;
         float ph = app->smoothObjs[0].h;
         float pm = app->smoothObjs[0].m;
 
@@ -1641,7 +1642,7 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
     mat4 proj; mat4 mvp;
     mat4_perspective(fov * M_PI / 180.0f,
                      (float)app->swapChainExtent.width / (float)app->swapChainExtent.height,
-                     0.1f, 1000.0f, proj);
+                     0.1f, QG_FAR_PLANE, proj);
     proj[1][1] *= -1.0f; /* CPU-path Y flip, kept for exact parity */
     mat4_multiply(view, proj, mvp);
     memcpy(spc.mvp, mvp, sizeof(mvp));

@@ -71,7 +71,7 @@
 /* Test data sizes (declared first: the buffer setup below uses them) */
 #define N_DYN  15
 #define N_MAP  5
-#define VMAX   8192
+#define VMAX   16384   /* room for the 3072-vertex HI sphere */
 
 /* ------------------------------------------------------------------ */
 /* CPU mirrors of the GLSL expand ops (gdd_ops.glsl)                   */
@@ -154,21 +154,21 @@ static uint32_t expand_box(const GddInstance *it, GddVertex *out) {
  *   point), so it is NOT scaled here;
  * - normal = normalize(d / r), the analytic ellipsoid normal
  *   (reduces to d for uniform scale). */
-static uint32_t expand_sphere(const GddInstance *it, GddVertex *out) {
+static uint32_t expand_sphere_n(const GddInstance *it, GddVertex *out, int lats, int lons) {
     const float PI = 3.141592653589793f;
     float r[3] = { fmaxf(it->scale[0], 1e-6f),
                    fmaxf(it->scale[1], 1e-6f),
                    fmaxf(it->scale[2], 1e-6f) };
     float inv_r[3] = { 1.0f / r[0], 1.0f / r[1], 1.0f / r[2] };
     int i, j;
-    for (i = 0; i < 6; i++) {
-        float lat0 = PI * (float)i / 6.0f;
-        float lat1 = PI * (float)(i + 1) / 6.0f;
+    for (i = 0; i < lats; i++) {
+        float lat0 = PI * (float)i / (float)lats;
+        float lat1 = PI * (float)(i + 1) / (float)lats;
         float cy0 = cosf(lat0), sy0 = sinf(lat0);
         float cy1 = cosf(lat1), sy1 = sinf(lat1);
-        for (j = 0; j < 10; j++) {
-            float lon0 = 2.0f * PI * (float)j / 10.0f;
-            float lon1 = 2.0f * PI * (float)(j + 1) / 10.0f;
+        for (j = 0; j < lons; j++) {
+            float lon0 = 2.0f * PI * (float)j / (float)lons;
+            float lon1 = 2.0f * PI * (float)(j + 1) / (float)lons;
             float c0 = cosf(lon0), s0 = sinf(lon0);
             float c1 = cosf(lon1), s1 = sinf(lon1);
             float d00[3] = { sy0 * c0, cy0, sy0 * s0 };
@@ -185,12 +185,16 @@ static uint32_t expand_sphere(const GddInstance *it, GddVertex *out) {
                                d[k][2] * inv_r[2] };
                 float nl = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
                 n[0] /= nl; n[1] /= nl; n[2] /= nl;
-                put_exp(&out[i * 60 + j * 6 + k], w, d[k], n, it);
+                put_exp(&out[i * lons * 6 + j * 6 + k], w, d[k], n, it);
             }
         }
     }
-    return 360;
+    return (uint32_t)(lats * lons * 6);
 }
+
+/* 6 x 10 bands = 360 vertices (GDD_MESH_SPHERE), 16 x 32 = 3072 (GDD_MESH_SPHERE_HI), as in gdd_ops.glsl */
+static uint32_t expand_sphere(const GddInstance *it, GddVertex *out)    { return expand_sphere_n(it, out, 6, 10); }
+static uint32_t expand_sphere_hi(const GddInstance *it, GddVertex *out) { return expand_sphere_n(it, out, 16, 32); }
 
 static uint32_t expand_pyramid(const GddInstance *it, GddVertex *out) {
     const float c0[3] = {-0.5f, -0.5f, -0.5f};
@@ -654,6 +658,7 @@ static uint32_t expand_mesh(const GddInstance *it, GddVertex *out) {
     switch ((int)(it->mesh + 0.5f)) {
     case GDD_MESH_POINT:   return expand_point(it, out);
     case GDD_MESH_SPHERE:  return expand_sphere(it, out);
+    case GDD_MESH_SPHERE_HI: return expand_sphere_hi(it, out);
     case GDD_MESH_BOX:     return expand_box(it, out);
     case GDD_MESH_PYRAMID: return expand_pyramid(it, out);
     case GDD_MESH_OCTA:    return expand_octa(it, out);
@@ -1290,7 +1295,7 @@ static void fill_test_data(void) {
 
     /* 1: sphere, IN range, additive */
     u_inst_dyn[1].pos[0] = 4.0f; u_inst_dyn[1].pos[2] = -3.0f;
-    u_inst_dyn[1].mesh = GDD_MESH_SPHERE;
+    u_inst_dyn[1].mesh = GDD_MESH_SPHERE_HI;   /* the squashed ellipsoid exercises the 16x32 mesh of gdd_expand_sphere_hi */
     /* Squashed ellipsoid (semi-axes 1.5/0.5/1.5): exercises the
      * component-wise axes, the 1e-6 clamp (none here) and the
      * analytic ellipsoid normal of gdd_expand_sphere. A scale left
@@ -1652,16 +1657,16 @@ static int run_benchmark(int runs, const char *thresh_file) {
      * warmup that still fails after that budget is a real failure —
      * exit 1, not a skip: skipping would silently disable the
      * regression guard on exactly the runner it protects. */
-    if (!run_cull(8192) || !run_expand(8192) || !run_final()) {
+    if (!run_cull(VMAX) || !run_expand(VMAX) || !run_final()) {
         fprintf(stderr, "BENCH FAIL: warmup pass did not complete\n");
         return 1;
     }
 
     for (int i = 0; i < runs; i++) {
         double t0 = now_ms();
-        if (!run_cull(8192)) { fprintf(stderr, "BENCH FAIL: cull run %d\n", i); return 1; }
+        if (!run_cull(VMAX)) { fprintf(stderr, "BENCH FAIL: cull run %d\n", i); return 1; }
         g_bench_cull[i] = now_ms() - t0;
-        if (!run_expand(8192)) { fprintf(stderr, "BENCH FAIL: expand run %d\n", i); return 1; }
+        if (!run_expand(VMAX)) { fprintf(stderr, "BENCH FAIL: expand run %d\n", i); return 1; }
         g_bench_exp[i] = now_ms() - t0 - g_bench_cull[i]; /* sequential: subtract */
         double t2 = now_ms();
         if (!run_final()) { fprintf(stderr, "BENCH FAIL: final run %d\n", i); return 1; }
@@ -1744,7 +1749,7 @@ static void check_boxwire_extent(void) {
 static int run_contract(void) {
     check_boxwire_extent();
     /* ---------------- Stage 1: CULL ---------------- */
-    struct timespec t1, t2; clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_cull(8192)) {
+    struct timespec t1, t2; clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_cull(VMAX)) {
         fprintf(stderr, "FAIL: cull stage did not complete\n");
         return 1;
     }
@@ -1787,7 +1792,7 @@ static int run_contract(void) {
 
     clock_gettime(CLOCK_MONOTONIC, &t2); printf("BENCHMARK: cull pass %f ms\n", (t2.tv_sec - t1.tv_sec)*1000.0 + (t2.tv_nsec - t1.tv_nsec)/1000000.0); /* ---------------- Stage 2: EXPAND ---------------- */
     memset(u_verts, 0, VMAX * sizeof(GddVertex));
-    clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_expand(8192)) {
+    clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_expand(VMAX)) {
         fprintf(stderr, "FAIL: expand stage did not complete\n");
         return 1;
     }
@@ -1806,14 +1811,14 @@ static int run_contract(void) {
     }
     clock_gettime(CLOCK_MONOTONIC, &t2); printf("BENCHMARK: expand pass %f ms\n", (t2.tv_sec - t1.tv_sec)*1000.0 + (t2.tv_nsec - t1.tv_nsec)/1000000.0); /* Expected per-pass totals */
     uint32_t opaque_ref = 0, additive_ref = 0;
-    GddVertex exp_block[1536]; /* max mesh vertex count (GDD_VCOUNT_BOOM) */
+    GddVertex exp_block[3072]; /* max mesh vertex count (GDD_VC_SPHERE_HI = 3072) */
     static uint32_t used[VMAX];
     int blocks_checked = 0;
 
     for (int i = 0; i < N_MAP; i++) {
         if (!map_vis[i]) continue;
         uint32_t n = expand_mesh(&u_inst_map[i], exp_block);
-        float tol = (u_inst_map[i].mesh == GDD_MESH_SPHERE ||
+        float tol = (u_inst_map[i].mesh == GDD_MESH_SPHERE || u_inst_map[i].mesh == GDD_MESH_SPHERE_HI ||
                      u_inst_map[i].mesh == GDD_MESH_OCTA ||
                      u_inst_map[i].mesh == GDD_MESH_RING ||
                      u_inst_map[i].mesh == GDD_MESH_POINT ||
@@ -1835,7 +1840,7 @@ static int run_contract(void) {
         if (!dyn_vis[i]) continue;
         uint32_t n = expand_mesh(&u_inst_dyn[i], exp_block);
         /* trig meshes (sin/cos) and rotated blocks get the ulp tolerance */
-        float tol = (u_inst_dyn[i].mesh == GDD_MESH_SPHERE ||
+        float tol = (u_inst_dyn[i].mesh == GDD_MESH_SPHERE || u_inst_dyn[i].mesh == GDD_MESH_SPHERE_HI ||
                      u_inst_dyn[i].mesh == GDD_MESH_OCTA ||
                      u_inst_dyn[i].mesh == GDD_MESH_RING ||
                      u_inst_dyn[i].mesh == GDD_MESH_CIRCLE ||
@@ -1879,7 +1884,7 @@ static int run_contract(void) {
           dyn_vis_ref + map_vis_ref, blocks_checked);
 
     /* Feedback buffer: vertices_written must equal the GPU counters,
-     * vertices_dropped must be zero (full 8192-vertex capacity), and
+     * vertices_dropped must be zero (full VMAX-vertex capacity), and
      * overflow_frame must be 0 (no frame was flagged as overflowed).
      * These checks verify that the binding-4 feedback path is wired
      * correctly: the atomics in gdd_ops.glsl write to it, and the CPU
@@ -1893,7 +1898,7 @@ static int run_contract(void) {
     CHECK(fb_dropped == 0,
           "feedback: vertices_dropped=%u (expected 0 at full capacity)", fb_dropped);
     CHECK(fb_overflow == 0,
-          "feedback: overflow_frame=%u (expected 0, no overflow at 8192 capacity)", fb_overflow);
+          "feedback: overflow_frame=%u (expected 0, no overflow at VMAX capacity)", fb_overflow);
 
     /* ---------------- Stage 3: FINAL ---------------- */
     clock_gettime(CLOCK_MONOTONIC, &t1); if (!run_final()) {

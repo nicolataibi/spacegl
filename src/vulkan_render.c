@@ -79,7 +79,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             vkCmdBindIndexBuffer(cb, app->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdDrawIndexed(cb, sizeof(indices)/4, 1, 0, 0, 0);
 
-            if (st->shm_show_axes && st->object_count > 0 && !app->smoothObjs[0].first && app->cameraDist < 150.0f && !app->jumpArrival.active) {
+            if (st->shm_show_axes && st->object_count > 0 && !app->smoothObjs[0].first && app->cameraDist < QG_GRID_HIDE_DIST && !app->jumpArrival.active) {
             /* Zero-Lag AR Compass: Anchored to Smoothed Player Coordinates for fluid motion */
             float ox = app->smoothObjs[0].x;
             float oy = app->smoothObjs[0].y;
@@ -89,7 +89,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             float oro = app->smoothObjs[0].r;
 
             /* Correct Mapping: X_v = X_s - 20, Y_v = oz - 20, Z_v = 20 - oy */
-            vec3 p = {(ox - 20.0f) * tactScale, (oz - 20.0f) * tactScale, (20.0f - oy) * tactScale};
+            vec3 p = {(ox - QG_HALF) * tactScale, (oz - QG_HALF) * tactScale, (QG_HALF - oy) * tactScale};
             mat4 T_axes; mat4_translate(T_axes, p);
             
             /* 1. Global Axes (Fixed to World Orientation) */
@@ -220,7 +220,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         }
 
         /* Tactical Grid (grd) - Hidden during Jump */
-        if (st->shm_show_grid && app->cameraDist < 150.0f && !app->jumpArrival.active) {
+        if (st->shm_show_grid && app->cameraDist < QG_GRID_HIDE_DIST && !app->jumpArrival.active) {
             vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
             PushConstants gpc = {0}; mat4_identity(gpc.model);
             mat4 S_grid_t; mat4_scale(S_grid_t, (vec3){tactScale, tactScale, tactScale});
@@ -243,9 +243,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         if (app->jumpArrival.active && app->jumpArrival.timer > 0) {
             /* Keep arrival wormhole centered on ship if ship is active */
             if (st->object_count > 0 && st->objects[0].active) {
-                app->jumpArrival.x = app->smoothObjs[0].x - 20.0f;
-                app->jumpArrival.y = app->smoothObjs[0].z - 20.0f;
-                app->jumpArrival.z = 20.0f - app->smoothObjs[0].y;
+                app->jumpArrival.x = app->smoothObjs[0].x - QG_HALF;
+                app->jumpArrival.y = app->smoothObjs[0].z - QG_HALF;
+                app->jumpArrival.z = QG_HALF - app->smoothObjs[0].y;
             }
             float closingScale = (app->jumpArrival.timer < 540) ? ((float)app->jumpArrival.timer / 540.0f) : 1.0f;
             drawWormhole(cb, app, app->jumpArrival.x * tactScale, app->jumpArrival.y * tactScale, app->jumpArrival.z * tactScale, 
@@ -294,7 +294,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             float or = app->smoothObjs[o].r;
 
             /* Centered mapping: 0..40 maps to -20..20, using (X, Z, -Y) system (Consistent with Axes) */
-            vec3 p = {(ox - 20.0f) * tactScale, (oz - 20.0f) * tactScale, (20.0f - oy) * tactScale};
+            vec3 p = {(ox - QG_HALF) * tactScale, (oz - QG_HALF) * tactScale, (QG_HALF - oy) * tactScale};
             mat4 T, R, S; mat4_translate(T, p); mat4_identity(R);
 
             if (o == 0) memcpy(app->playerT, T, sizeof(mat4));
@@ -865,8 +865,8 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 }
                 
                 /* Mapping: vX=X-20, vY=Z-20 (Height), vZ=20-Y (Depth) */
-                float vsx = (bsx - 20.0f) * tactScale; float vsy = (bsz - 20.0f) * tactScale; float vsz = (20.0f - bsy) * tactScale;
-                float vtx = (btx - 20.0f) * tactScale; float vty = (btz - 20.0f) * tactScale; float vtz = (20.0f - bty) * tactScale;
+                float vsx = (bsx - QG_HALF) * tactScale; float vsy = (bsz - QG_HALF) * tactScale; float vsz = (QG_HALF - bsy) * tactScale;
+                float vtx = (btx - QG_HALF) * tactScale; float vty = (btz - QG_HALF) * tactScale; float vtz = (QG_HALF - bty) * tactScale;
                 
                 vec3 V = { vtx - vsx, vty - vsy, vtz - vsz };
                 float dist = sqrtf(V[0]*V[0] + V[1]*V[1] + V[2]*V[2]);
@@ -1191,7 +1191,7 @@ void drawFrame(VulkanApp* app) {
     mat4 m_std; mat4_identity(m_std);
     mat4_rotate(m_std, -app->angleY * M_PI / 180.0f, (vec3){0, 1, 0});
     mat4_rotate(m_std, app->angleX * M_PI / 180.0f, (vec3){1, 0, 0});
-    mat4 T_cam; mat4_translate(T_cam, (vec3){0, 0, -app->cameraDist});
+    mat4 T_cam; mat4_translate(T_cam, (vec3){0, 0, -qg_view_dist(app->cameraDist, app->mapAnim)});
     mat4_multiply(m_std, T_cam, m_std);
 
     /* 2. Bridge View (First Person) */
@@ -1199,9 +1199,9 @@ void drawFrame(VulkanApp* app) {
     if (app->bridgeAnim > 0.001f) {
         float tactScale = 1.0f - app->mapAnim;
         /* Smooth coordinates of the ship (Object 0) in the Vulkan system (Mapping SHIP: X, Z, -Y) */
-        float px = (app->smoothObjs[0].x - 20.0f) * tactScale;
-        float py = (app->smoothObjs[0].z - 20.0f) * tactScale;
-        float pz = (20.0f - app->smoothObjs[0].y) * tactScale;
+        float px = (app->smoothObjs[0].x - QG_HALF) * tactScale;
+        float py = (app->smoothObjs[0].z - QG_HALF) * tactScale;
+        float pz = (QG_HALF - app->smoothObjs[0].y) * tactScale;
         float ph = app->smoothObjs[0].h;
         float pm = app->smoothObjs[0].m;
 
@@ -1262,9 +1262,9 @@ void drawFrame(VulkanApp* app) {
     if (app->showPilot && app->pilotAnim > 0.001f) {
         float tactScale = 1.0f - app->mapAnim;
         /* Ship world position — same remapping as bridge camera */
-        float px = (app->smoothObjs[0].x - 20.0f) * tactScale;
-        float py = (app->smoothObjs[0].z - 20.0f) * tactScale;
-        float pz = (20.0f - app->smoothObjs[0].y) * tactScale;
+        float px = (app->smoothObjs[0].x - QG_HALF) * tactScale;
+        float py = (app->smoothObjs[0].z - QG_HALF) * tactScale;
+        float pz = (QG_HALF - app->smoothObjs[0].y) * tactScale;
         float ph = app->smoothObjs[0].h;
         float pm = app->smoothObjs[0].m;
 
@@ -1339,7 +1339,7 @@ void drawFrame(VulkanApp* app) {
     if (app->showPilot)
         current_fov = current_fov * (1.0f - app->pilotAnim) + PILOT_FOV_DEG * app->pilotAnim;
 
-    mat4_perspective(current_fov * M_PI / 180.0f, (float)app->swapChainExtent.width / (float)app->swapChainExtent.height, 0.1f, 1000.0f, ubo.proj); ubo.proj[1][1] *= -1;
+    mat4_perspective(current_fov * M_PI / 180.0f, (float)app->swapChainExtent.width / (float)app->swapChainExtent.height, 0.1f, QG_FAR_PLANE, ubo.proj); ubo.proj[1][1] *= -1;
     
     void* d; vkMapMemory(app->device, app->uniformBuffersMemory[app->currentFrame], 0, sizeof(ubo), 0, &d); memcpy(d, &ubo, sizeof(ubo)); vkUnmapMemory(app->device, app->uniformBuffersMemory[app->currentFrame]);
     VkPipelineStageFlags w = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;

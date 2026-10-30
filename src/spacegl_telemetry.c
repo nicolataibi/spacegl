@@ -90,8 +90,25 @@ static void flush_socket(int sock) {
     while (recv(sock, dummy, sizeof(dummy), 0) > 0);
 }
 
-TelemetryObject tel_objects[MAX_VISIBLE_TEL];
+/* tel_objects: the last complete frame (what is shown); tel_pending: the frame being received. A frame holds
+ * every object of the category and may arrive over several server ticks; the stats packet closes it and the
+ * two buffers are swapped. Both grow on demand. */
+TelemetryObject *tel_objects = NULL;
 int tel_obj_count = 0;
+static int tel_objects_cap = 0;
+static TelemetryObject *tel_pending = NULL;
+static int tel_pending_cap = 0;
+
+static bool tel_reserve(TelemetryObject **buf, int *cap, int need) {
+    if (need <= *cap) return true;
+    if (need > TEL_MAX_FRAME_OBJECTS) return false;
+    int n = *cap ? *cap : 1024;
+    while (n < need) n *= 2;
+    TelemetryObject *p = realloc(*buf, (size_t)n * sizeof(TelemetryObject));
+    if (!p) return false;
+    *buf = p; *cap = n;
+    return true;
+}
 TelemetryStats tel_stats;
 
 const char* cat_names[] = {
@@ -336,7 +353,6 @@ int main(int argc, char** argv) {
             tel_obj_count = 0;
             pending_obj_count = 0; 
             new_frame = true;
-            memset(tel_objects, 0, sizeof(tel_objects));
             subscription_pending = true;
             last_cat = current_cat;
         }
@@ -395,30 +411,24 @@ int main(int argc, char** argv) {
                 }
 
                 int count = hdr.length / sizeof(TelemetryObject);
-                int can_fit = MAX_VISIBLE_TEL - pending_obj_count;
-                
                 if (count > 0) {
-                    if (count <= can_fit) {
-                        if (recv_all(sock, &tel_objects[pending_obj_count], hdr.length) != (int)hdr.length) {
+                    if (tel_reserve(&tel_pending, &tel_pending_cap, pending_obj_count + count)) {
+                        if (recv_all(sock, &tel_pending[pending_obj_count], hdr.length) != (int)hdr.length) {
                             endwin(); printf("Stream synchronization lost.\n"); close(sock); return 1;
                         }
                         pending_obj_count += count;
                     } else {
-                        /* Read what fits and discard the rest */
-                        if (can_fit > 0) {
-                            size_t fit_size = can_fit * sizeof(TelemetryObject);
-                            if (recv_all(sock, &tel_objects[pending_obj_count], fit_size) != (int)fit_size) {
-                                endwin(); printf("Stream synchronization lost.\n"); close(sock); return 1;
-                            }
-                            pending_obj_count += can_fit;
-                        }
-                        discard_bytes(sock, hdr.length - (can_fit > 0 ? can_fit * sizeof(TelemetryObject) : 0));
+                        discard_bytes(sock, hdr.length);   /* beyond the sanity bound or out of memory */
                     }
                 }
             } else if (hdr.type == TEL_PKT_STATS) {
                 /* Safety: only process if length matches expected stats size */
                 if (hdr.length == sizeof(TelemetryStats)) {
                     if (recv_all(sock, &tel_stats, sizeof(tel_stats)) == (int)sizeof(tel_stats)) {
+                        /* frame complete: show it (swap the buffers) and start the next one */
+                        TelemetryObject *tb = tel_objects; int tc = tel_objects_cap;
+                        tel_objects = tel_pending; tel_objects_cap = tel_pending_cap;
+                        tel_pending = tb; tel_pending_cap = tc;
                         tel_obj_count = pending_obj_count;
                         pending_obj_count = 0; /* Reset for next frame */
                         new_frame = true;
@@ -456,7 +466,7 @@ int main(int argc, char** argv) {
             mvhline(2, 0, ACS_HLINE, COLS); attroff(A_BOLD);
 
             attron(A_BOLD | COLOR_PAIR(13));
-            mvprintw(4, 2, "%-6s | %-20s | %-15s | %-12s | %-12s | %-4s | %-12s", "ID", "NAME", "INFO", "QUADRANT", "SECTOR", "INTEG", "ENERGY/EXTRA");
+            mvprintw(4, 2, "%-8s | %-20s | %-15s | %-12s | %-12s | %-4s | %-12s", "ID", "NAME", "INFO", "QUADRANT", "SECTOR", "INTEG", "ENERGY/EXTRA");
             mvhline(5, 0, ACS_HLINE, COLS); attroff(A_BOLD);
 
             int y = 6;
@@ -478,7 +488,7 @@ int main(int argc, char** argv) {
                     char safe_extra[33] = {0}; memcpy(safe_extra, o->extra, 32);
 
                     attron(COLOR_PAIR(color));
-                    mvprintw(y++, 2, "%-6.6s | %-20.20s | %-15.15s | [%2d,%2d,%2d] | %5.1f,%5.1f,%5.1f | %3u%% | %s", 
+                    mvprintw(y++, 2, "%-8.8s | %-20.20s | %-15.15s | [%2d,%2d,%2d] | %5.1f,%5.1f,%5.1f | %3u%% | %s", 
                             safe_id, safe_name, safe_info, o->q1, o->q2, o->q3, o->x, o->y, o->z, o->integrity, 
                             (o->energy > 0) ? "ACTIVE" : safe_extra);
                     attroff(COLOR_PAIR(color));
