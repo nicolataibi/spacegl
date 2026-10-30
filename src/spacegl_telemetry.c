@@ -466,7 +466,12 @@ int main(int argc, char** argv) {
             mvhline(2, 0, ACS_HLINE, COLS); attroff(A_BOLD);
 
             attron(A_BOLD | COLOR_PAIR(13));
-            mvprintw(4, 2, "%-8s | %-20s | %-15s | %-12s | %-12s | %-4s | %-12s", "ID", "NAME", "INFO", "QUADRANT", "SECTOR", "INTEG", "ENERGY/EXTRA");
+            /* the star-system categories have one more column (moons of the system / of the planet, star of the moon) */
+            const char *sys_hdr = tel_cat_sys_column((uint32_t)current_cat);
+            if (sys_hdr)
+                mvprintw(4, 2, "%-8s | %-20s | %-15s | %-6s | %-12s | %-12s | %-4s | %-12s", "ID", "NAME", "INFO", sys_hdr, "QUADRANT", "SECTOR", "INTEG", "ENERGY/EXTRA");
+            else
+                mvprintw(4, 2, "%-8s | %-20s | %-15s | %-12s | %-12s | %-4s | %-12s", "ID", "NAME", "INFO", "QUADRANT", "SECTOR", "INTEG", "ENERGY/EXTRA");
             mvhline(5, 0, ACS_HLINE, COLS); attroff(A_BOLD);
 
             int y = 6;
@@ -488,9 +493,16 @@ int main(int argc, char** argv) {
                     char safe_extra[33] = {0}; memcpy(safe_extra, o->extra, 32);
 
                     attron(COLOR_PAIR(color));
-                    mvprintw(y++, 2, "%-8.8s | %-20.20s | %-15.15s | [%2d,%2d,%2d] | %5.1f,%5.1f,%5.1f | %3u%% | %s", 
-                            safe_id, safe_name, safe_info, o->q1, o->q2, o->q3, o->x, o->y, o->z, o->integrity, 
-                            (o->energy > 0) ? "ACTIVE" : safe_extra);
+                    if (sys_hdr) {
+                        char safe_sys[17] = {0}; memcpy(safe_sys, o->sys_col, 16);
+                        mvprintw(y++, 2, "%-8.8s | %-20.20s | %-15.15s | %-6.6s | [%2d,%2d,%2d] | %5.1f,%5.1f,%5.1f | %3u%% | %s",
+                                safe_id, safe_name, safe_info, safe_sys, o->q1, o->q2, o->q3, o->x, o->y, o->z, o->integrity,
+                                (o->energy > 0) ? "ACTIVE" : safe_extra);
+                    } else {
+                        mvprintw(y++, 2, "%-8.8s | %-20.20s | %-15.15s | [%2d,%2d,%2d] | %5.1f,%5.1f,%5.1f | %3u%% | %s", 
+                                safe_id, safe_name, safe_info, o->q1, o->q2, o->q3, o->x, o->y, o->z, o->integrity, 
+                                (o->energy > 0) ? "ACTIVE" : safe_extra);
+                    }
                     attroff(COLOR_PAIR(color));
                 }
             }

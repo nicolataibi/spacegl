@@ -748,6 +748,14 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     strncpy(to->name, "System Star", sizeof(to->name)-1);
                     snprintf(to->info, sizeof(to->info), "Spectral %d", s->star_class);
                     snprintf(to->extra, sizeof(to->extra), "Planets:%d", s->n_planets);
+                    int moons_ = 0;   /* every active moon of every active planet of the system */
+                    for (int k_ = 0; k_ < SYS_PLANETS_PER_STAR; k_++) {
+                        const NPCSysPlanet *pl_ = &sys_planets[sys_planet_slot(idx, k_)];
+                        if (!pl_->active) continue;
+                        for (int j_ = 0; j_ < SYS_MOONS_PER_PLANET; j_++)
+                            if (sys_moons[sys_moon_slot(idx, k_, j_)].active) moons_++;
+                    }
+                    snprintf(to->sys_col, sizeof(to->sys_col), "%d", moons_);
                     to->q1 = s->q1; to->q2 = s->q2; to->q3 = s->q3;
                     to->x = s->x; to->y = s->y; to->z = s->z;
                     to->color_pair = 4;
@@ -760,7 +768,11 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     snprintf(to->id, sizeof(to->id), "SP%06d", p->id);
                     strncpy(to->name, "System Planet", sizeof(to->name)-1);
                     snprintf(to->info, sizeof(to->info), "%s Res:%d", planet_class_name(p->planet_class), p->resource_type);
-                    snprintf(to->extra, sizeof(to->extra), "Amt:%d Orb:%.1f Mn:%d", p->amount, p->orbit_r, p->n_moons);
+                    snprintf(to->extra, sizeof(to->extra), "Amt:%d Orb:%.1f", p->amount, p->orbit_r);
+                    int moons_ = 0;   /* active moons of this planet */
+                    for (int j_ = 0; j_ < SYS_MOONS_PER_PLANET; j_++)
+                        if (sys_moons[SYS_MOONS_PER_PLANET * idx + j_].active) moons_++;
+                    snprintf(to->sys_col, sizeof(to->sys_col), "%d", moons_);
                     to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
                     to->x = p->x; to->y = p->y; to->z = p->z;
                     to->color_pair = 3;
@@ -774,6 +786,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     snprintf(to->id, sizeof(to->id), "SM%06d", m->id);
                     strncpy(to->name, mn ? mn : "Moon", sizeof(to->name)-1);
                     snprintf(to->info, sizeof(to->info), "Planet %d", GALAXY_OBJECT_MIN_SYS_PLANET + sys_moon_planet(idx));
+                    snprintf(to->sys_col, sizeof(to->sys_col), "%d", GALAXY_OBJECT_MIN_SYS_STAR + sys_moon_star(idx));
                     to->q1 = m->q1; to->q2 = m->q2; to->q3 = m->q3;
                     to->x = m->x; to->y = m->y; to->z = m->z;
                     to->color_pair = 6;
@@ -2001,6 +2014,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
     to->name[sizeof(to->name)-1] = '\0';
     to->info[sizeof(to->info)-1] = '\0';
     to->extra[sizeof(to->extra)-1] = '\0';
+    to->sys_col[sizeof(to->sys_col)-1] = '\0';
 }
 
 /* Per-category cache, grown on demand (no cap: the system moons alone are tens of thousands). A category is

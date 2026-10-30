@@ -1,3 +1,21 @@
+* Fri Oct 30 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.30.02
+  - spacegl_telemetry: one more column for the star-system categories.
+  SYSTEM STARS shows MOONS, the active moons of every planet of the system;
+  SYSTEM PLANETS shows MOONS, the active moons of that planet (no longer
+  folded into the ENERGY/EXTRA text); SYSTEM MOONS shows STAR, the id of the
+  star of its system. TelemetryObject carries the value in a new sys_col
+  field and tel_cat_sys_column() in telemetry.h gives the header per
+  category. Checked on the real server over the whole galaxy: the MOONS of
+  the stars and of the planets both add up to the number of system moons,
+  and every STAR matches the id rule.
+  - LORE.md: Instrumented Categories (174 categories, frames of every object
+  sent 1000 per tick, the three system categories and their columns), The 3D
+  Tactical View (100-unit cube, camera, star systems and the HI sphere),
+  Objects Outside the Main Sequence (planetary systems), Galactic Identifier
+  Schema (apr / min / sco, feature band 83000-85047, how to get the star and
+  the planet from an id), Interaction Distances Table (quadrant 0-100,
+  scooping, mining and contact radii of the system bodies).
+
 * Fri Oct 30 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.30.01
   - Quadrant 40 -> 100 (QUADRANT_SIZE): the cube grows, the objects keep their
   size. New include/quadrant_geom.h holds the cube geometry shared by the three

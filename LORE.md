@@ -1184,10 +1184,10 @@ The **Space GL** telemetry system is a high-performance real-time monitoring inf
 #### 📊 Data Model: Server Streaming
 Unlike traditional polling, the server uses a **Push** model:
 *   The client subscribes to a specific category.
-*   The server pushes updates at the end of every logic tick.
+*   The server pushes updates at the end of every logic tick. A frame always carries **every** object of the category (there is no cap): to keep the 60 Hz game loop light, each client receives at most **1,000 objects per tick**, so a large category is spread over several ticks (the 31,000+ system moons arrive as one complete frame about every half second) and the client keeps showing the previous complete frame until the next one is closed.
 *   A dedicated worker thread with its own `epoll` instance handles up to 32 simultaneous clients (see the non-blocking architecture section below).
 
-### 🔍 Instrumented Categories (171/171)
+### 🔍 Instrumented Categories (174/174)
 The subsystem covers the entire spectrum of galactic entities. The numbered object catalog spans IDs 0–177 (IDs 19 and 22–39 are reserved), and every instrumented class is streamed in real time:
 
 | Category | Instrumented Channels |
@@ -1204,8 +1204,15 @@ The subsystem covers the entire spectrum of galactic entities. The numbered obje
 | **Natural Moons (23)** | Shepherd Moon, Trojan Moon, Co-orbital Moon, Volcanic Moon, Ocean Moon, Moon with Atmosphere, Exomoon, Regular Moon, Irregular Moon, Submoon, Retrograde Moon, Resonant Moon, Tidally Locked Moon, Chaotic Rotator Moon, Embedded Moonlet, Captured Moon, Cryovolcanic Moon, Tidal-Heated Moon, Differentiated Moon, Binary Moon, Ringed Moon, Subsurface Ocean Moon, Disrupted Moon |
 | **Evolved Stars (17)** | Red Giant, Red Clump Star, Horizontal Branch Star, AGB Star, Red Supergiant, White Dwarf (C-O Core), White Dwarf (O-Ne-Mg Core), DA White Dwarf (Hydrogen), DB White Dwarf (Helium), DO White Dwarf (Hot), DQ White Dwarf (Carbon), DZ White Dwarf (Metals), DC White Dwarf (Continuum), DX White Dwarf (Unknown), DAV Pulsating White Dwarf, DBV Pulsating White Dwarf, GW Vir Pulsating Star |
 | **Protostellar Objects & YSO (16)** | Class 0 Protostar, Class 0 Bipolar Outflow, Class I Protostar, Class I Jet, Herbig-Haro Knot, Herbig-Haro Bow Shock, Classical T Tauri Star (CTTS), Weak-Lined T Tauri Star (WTTS), Herbig Ae Star, Herbig Be Star, FU Orionis Variable, EX Lupi Variable, Pre-Stellar Core, Envelope Cavity, Accretion Disk (YSO), Accretion Column Stream |
+| **Star Systems (3)** | System Stars (extra column **MOONS**: total moons of the whole system), System Planets (extra column **MOONS**: moons of that planet), System Moons (extra column **STAR**: ID of the star of the system) |
 
-*The catalog spans 171 independent telemetry monitor categories: 12 faction fleet channels + 159 non-fleet classes.*
+*The catalog spans 174 independent telemetry monitor categories: 12 faction fleet channels + 162 non-fleet classes. The three star-system categories list their bodies with the prefixes `SY` (star), `SP` (planet) and `SM` (moon) followed by the universal ID (e.g. `SM140036`), and add one column to the standard ones:*
+
+| Category | ID shown | INFO | Extra column | ENERGY/EXTRA |
+| :--- | :--- | :--- | :--- | :--- |
+| **SYSTEM STARS** | `SY90000` - `SY99999` | Spectral class (0 = O ... 6 = M) | **MOONS**: active moons of every planet of the system | Number of planets |
+| **SYSTEM PLANETS** | `SP100000` - `SP139999` | Planet class and resource | **MOONS**: active moons of the planet | Reserves and orbit radius |
+| **SYSTEM MOONS** | `SM140000` - `SM299999` | Planet it orbits | **STAR**: ID of the star of its system | - |
 
 #### 🖥️ Using the Telemetry Client
 The `spacegl_telemetry` client offers an interactive `ncurses` interface to navigate data streams:
@@ -2967,6 +2974,8 @@ The 3D viewer is a standalone rendering engine based on **OpenGL and GLUT**, des
         *   ⚡ **Jump Materialization**: A brilliant white Hawking radiation flash preceding the physical appearance of a vessel exiting a Wormhole.
         *   🔧 **Impact Feedback (Hit Sparks)**: Blue sparks for shield impacts and metallic fragments (steel, copper, incandescent white) for direct hull damage.
         *   🌟 **Recovery Beam**: A vertical golden transporter beam for resource and cargo collection operations.
+*   **Quadrant Scale (100 units)**: The tactical cube is **100 x 100 x 100** sector units. When the quadrant grew from 40 to 100 units the objects kept their size and the camera moved back by the same factor (2.5), so the whole cube is framed exactly as before in all three viewers (OpenGL, Vulkan CPU-driven and Vulkan GPU-driven). The grid keeps 20 cells per axis (one cell = 5 units); the zoom step, the distance at which the grid is hidden, the far clip planes and the background star shell scale with the cube. The galaxy map (`map`) keeps its own camera distance. The cube geometry is defined once, in `include/quadrant_geom.h`.
+*   **Star Systems in the Tactical View**: In a quadrant that holds a star system the viewer shows the star, its planets moving along their orbits and the moons orbiting each planet, each one labelled with its universal ID (`STAR [90002]`, `PLANET [100009]`, `Moon [140036]`). In the GPU-driven path stars, planets and moons use a high-resolution sphere (16 x 32 bands, `GDD_MESH_SPHERE_HI`) whenever they are large enough on screen, so their outline stays round; far away or tiny bodies, black holes, mines and effects keep the 6 x 10 sphere.
 *   **3D Tactical Cube**: The wireframe grid surrounding the sector is now vertically aligned with the depth levels (S3) of the `lrs` command:
     *   🟩 **Upper Plane (Green)**: Corresponds to `[ LONG RANGE DEPTH +1 ]` (Upper altitude).
     *   🟨 **Center (Yellow)**: Corresponds to `[ LOCAL TACTICAL ZONE 0 ]` (Your current altitude).
@@ -3138,6 +3147,7 @@ Everything that is *not* a main-sequence star falls into one of four groups: obj
 | | Circumstellar & Accretion Structures | **Pre-Stellar Collapsing Core** (#161), **Protostellar Envelope Cavity** (#162), **Protoplanetary Accretion Disk** (#163), **Magnetospheric Accretion Column** (#164) | Fundamental morphological components of star-forming nurseries: starless dense cores, bipolar outflow cavities, Keplerian viscous accretion disks, and magnetic funnel streams. |
 | **4. Non-stellar bodies** | Planets | **Planet** (#2, 5 classes: Terrestrial, Gas Giant, Ice, Molten, Desert), **Rogue Planet** (#74), **Planetesimal** (#73) | Also **Asteroid** (#9), **Comet** (#8) and **Debris Disk** (#72). |
 | | Natural Moons (Base: #89–#98, Extended: #165–#177) | **Base 10:** **Shepherd Moon** (#89), **Trojan Moon** (#90), **Co-orbital Moon** (#91), **Volcanic Moon** (#92), **Ocean Moon** (#93), **Moon with Atmosphere** (#94), **Exomoon** (#95), **Regular Moon** (#96), **Irregular Moon** (#97), **Submoon** (#98).<br>**Extended 13:** **Retrograde Moon** (#165), **Resonant Moon** (#166), **Tidally Locked Moon** (#167), **Chaotic Rotator Moon** (#168), **Embedded Moonlet** (#169), **Captured Moon** (#170), **Cryovolcanic Moon** (#171), **Tidal-Heated Moon** (#172), **Differentiated Moon** (#173), **Binary Moon** (#174), **Ringed Moon** (#175), **Subsurface Ocean Moon** (#176), **Disrupted Moon** (#177) | 23 distinct scientific classes orbiting parent planets (deterministic assignment, at most 4 per planet, non-overlapping Keplerian orbits with base 60s period). Extended moons introduce physical simulation: true retrograde inclination, Laplace resonance harmonics, ringlet gap clearing, cryovolcanic plumes, chaotic rotation (Hyperion tumble), and circum-lunar ring rendering. Queryable via unified predicates (`obj_type_is_retrograde_moon`, `obj_type_is_ocean_moon`, `obj_type_is_volcanic_moon`, etc.). |
+| | Planetary systems | **Star System**: one **System Star** (#1, a main-sequence star of class O–M), up to 4 **System Planets** (#2, the same 5 classes) in orbit around it, and up to 4 **System Moons** around each planet (any natural moon kind, #89–#98 and #165–#177) | 10,000 systems, one in each of 10,000 otherwise empty quadrants (about one in six). Planets orbit the star, moons orbit their planet; orbits are recomputed from the clock, never saved. The whole system always stays inside its quadrant. IDs: star 90,000–99,999, planets 100,000–139,999, moons 140,000–299,999. |
 | | Nebulae | **Nebula** (#5, 6 tactical classes), variants #51-#55, plus Dark Nebula, Planetary Nebula, Supernova Remnant (SNR) | Gas and dust clouds; they provide tactical cover and disrupt sensors. |
 | | Galaxies and clusters | *Not modelled as objects* | The whole play area is one galaxy of 64,000 quadrants. Large-scale structure appears as **Cosmic Void** (#64), **Cosmic Filament** (#65), **Dark Matter Halo** (#84) and **Quasar** (#7). |
 
@@ -3442,7 +3452,7 @@ NPC ships operate with an autonomous State Machine that dictates their tactical 
 
 
 ### 🆔 Galactic Identifier Schema (Universal ID)
-To interact with galactic objects using the `lock`, `scan`, `pha`, `tor`, `bor`, and `dis` commands, the system employs a unique ID system. Use the `srs` command to identify the IDs of objects in your sector.
+To interact with galactic objects using the `lock`, `scan`, `apr`, `min`, `sco`, `pha`, `tor`, `bor`, and `dis` commands, the system employs a unique ID system. Use the `srs` command to identify the IDs of objects in your sector.
 
 | Category | ID Range | Example | Primary Usage |
 | :--- | :--- | :--- | :--- |
@@ -3519,12 +3529,19 @@ To interact with galactic objects using the `lock`, `scan`, `pha`, `tor`, `bor`,
 | **CGM (Circumgalactic Medium)** | 80,000 - 80,999 | `lock 80000` | Galactic halo gas study |
 | **Lyman-Alpha Blobs** | 81,000 - 81,999 | `lock 81000` | Primordial gas research |
 | **CMB (Cosmic Microwave Background)** | 82,000 - 82,999 | `lock 82000` | Relic radiation monitoring |
-| **Exotic Features** | 83,000 - 83,999 | `lock 83000` | Deep space anomalies |
+| **Exotic Features** | 83,000 - 85,047 | `lock 83000` | Deep space anomalies, evolved stars, protostellar objects and natural moons (one shared array of 2,048 slots) |
 | **System Stars** | 90,000 - 99,999 | `lock 90000` | Solar scooping (`sco`); centre of a star system |
 | **System Planets** | 100,000 - 139,999 | `lock 100000` | Planetary mining (`min`); orbit their star |
 | **System Moons** | 140,000 - 299,999 | `lock 140000` | Survey (`scan`); orbit their planet |
 
 **Star systems**: a system is one star with up to 4 planets in orbit around it and up to 4 moons around each planet, all inside one quadrant (one system per quadrant). The IDs use fixed slots, so the parent and the position in the system can be read from the ID: for the star `90000 + s`, its planets are `100000 + 4s + k` (k = 0..3, innermost first) and the moons of planet k are `140000 + 16s + 4k + j` (j = 0..3). Example: star `90002` has planets `100008`..`100011`, and the first moon of planet `100009` is `140036`. A system may have fewer than 4 planets or moons: the unused IDs are simply absent from `srs`.
+
+| From the ID of a... | Star of the system | Planet | Position in the system |
+| :--- | :--- | :--- | :--- |
+| **System Planet** `P` | `90000 + (P - 100000) / 4` | - | planet `(P - 100000) mod 4` (0 = innermost) |
+| **System Moon** `M` | `90000 + (M - 140000) / 16` | `100000 + (M - 140000) / 4` | moon `(M - 140000) mod 4` of that planet |
+
+Divisions are integer divisions. `spacegl_telemetry` shows the same IDs with the prefixes `SY`, `SP`, `SM`, and gives the star of each moon directly in its **STAR** column.
 
 **Note**: Locking and autopilot (`apr`) only work if the object is in your current quadrant. If the ID exists but is far away, the computer will indicate the target's `Q[x,y,z]` coordinates.
 
@@ -3545,7 +3562,7 @@ To perform complex operations (mining, resupply, boarding), follow this optimize
 **Note on Inter-Sector Scope**: The `dis` (dismantle) command uses a global resolution system. This means you can target and dismantle any wreck visible on your HUD or identified by sensors, even if it is in an adjacent quadrant. The `apr` (approach) command is instead restricted to objects within the current quadrant to ensure short-range navigational safety.
 
 ### 📏 Interaction Distances Table
-Distances expressed in sector units (0.0 - 40.0). If your distance is greater than the limit, the computer will respond with "No [object] in range".
+Distances expressed in sector units (0.0 - 100.0). If your distance is greater than the limit, the computer will respond with "No [object] in range".
 
 | Object / Entity | Command / Action | Minimum Distance | Effect / Interaction |
 | :--- | :--- | :--- | :--- |
@@ -3562,6 +3579,11 @@ Distances expressed in sector units (0.0 - 40.0). If your distance is greater th
 | **Crystalline E.** | (Resonance) | **< 4.0** | Range of the resonance beam |
 | **Quasar** | `orb` | **< 1.0** | Stable orbital entry |
 | **Celestial Body** | (Collision) | **< 1.0** | Hull damage and emergency rescue trigger |
+| **System Star** | `sco` | **< 5.6** (from the centre) | Solar scooping: the usual 2.3 margin outside its larger contact sphere |
+| **System Planet** | `min` | **< 4.9** (from the centre) | Planetary mining (same reserves and yield as the other planets) |
+| **System Star** | (Collision) | **< 3.3** | Contact sphere: visible radius 2.5 + 0.8 |
+| **System Planet** | (Collision) | **< 2.6** | Contact sphere: visible radius 1.8 + 0.8 |
+| **System Moon** | (Collision) | **< 1.1 - 1.9** | Contact sphere: visible radius (by moon kind) + 0.8 |
 
 ### 🚀 Autopilot (`apr`)
 The `apr <ID> <DIST>` command allows you to automatically approach any object detected by sensors in your current quadrant.

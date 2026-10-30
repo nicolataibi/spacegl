@@ -254,8 +254,18 @@ typedef struct {
     uint64_t energy;
     char extra[32];
     uint32_t color_pair;
+    char sys_col[16];      /* star-system column (see tel_cat_sys_column), empty for the other categories */
 } TelemetryObject;
 
 #pragma pack(pop)
+
+/* Header of the extra column shown by spacegl_telemetry for the star-system categories (NULL: no column):
+ * SYSTEM STARS -> total moons of the whole system, SYSTEM PLANETS -> moons of the planet,
+ * SYSTEM MOONS -> id of the star of the system. */
+static inline const char *tel_cat_sys_column(uint32_t cat) {
+    if (cat == TEL_CAT_SYS_STAR || cat == TEL_CAT_SYS_PLANET) return "MOONS";
+    if (cat == TEL_CAT_SYS_MOON) return "STAR";
+    return 0;
+}
 
 #endif
