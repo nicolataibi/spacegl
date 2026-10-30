@@ -1,3 +1,18 @@
+* Fri Oct 30 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.30.04
+  - GPU-driven path, background stars: they were drawn as GDD_MESH_POINT, a
+  single triangle in a plane fixed by the dominant axis of the star position;
+  with the rotating view most of them were seen edge-on as slivers and small
+  triangles, while the CPU-driven and OpenGL paths draw round dots. New mesh
+  GDD_MESH_DISC: a quad turned towards the camera by the builder (orientation
+  from gdd_disc_orient and the camera position) and cut to a circle in the
+  fragment shader (twinkle mode, params.w = 1), with the same radius as the
+  CPU star sphere. The stars now look like the CPU ones.
+  - Tests: gdd_contract_test checks that the stars are discs facing the
+  camera; gdd_mesh_test compares the disc expansion on the GPU with its CPU
+  mirror. The golden render still passes (GDD vs committed image RMSE 3.64,
+  tolerance 5): the committed image has the old triangle stars and should be
+  re-baselined on the reference machine.
+
 * Fri Oct 30 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.30.03
   - OpenGL viewer: the quadrant cube was still 40 units (its vertices are
   built in spacegl_3dview_tables.inc, which the move to 100 had missed)

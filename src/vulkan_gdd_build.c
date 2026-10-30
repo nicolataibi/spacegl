@@ -1803,11 +1803,14 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         }
         for (int i = 0; i < ctx->star_count && ctx->stars; i++) {
             const GddStar *st = &ctx->stars[i];
-            gdd_list_add_identity(&map, GDD_MESH_POINT,
-                                  st->pos[0], st->pos[1], st->pos[2],
-                                  st->scale, st->scale, st->scale,
-                                  st->color[0], st->color[1], st->color[2], 1.0f,
-                                  1, 0, GDD_FRAG_TWINKLE, 0, 1);
+            /* round disc turned to the camera (CPU parity: the CPU path draws each star as a small sphere) */
+            float o[12];
+            gdd_disc_orient(st->pos, ctx->cam_world, o);
+            gdd_list_add(&map, GDD_MESH_DISC,
+                         st->pos[0], st->pos[1], st->pos[2],
+                         st->scale, st->scale, st->scale,
+                         st->color[0], st->color[1], st->color[2], 1.0f,
+                         1, 0, GDD_FRAG_TWINKLE, o, 0, 1);
         }
     }
 

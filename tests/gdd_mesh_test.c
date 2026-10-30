@@ -69,7 +69,7 @@
 #endif
 
 /* Test data sizes (declared first: the buffer setup below uses them) */
-#define N_DYN  16
+#define N_DYN  17
 #define N_MAP  5
 #define VMAX   16384   /* room for the 3072-vertex HI sphere */
 
@@ -138,6 +138,27 @@ static uint32_t expand_box(const GddInstance *it, GddVertex *out) {
         put_exp(&out[i], w, lp, n, it);
     }
     return 36;
+}
+
+/* Mirror of gdd_expand_disc: quad of half-side scale.x in the plane of the orientation columns 0 and 1,
+ * params = (corner +-1, 0, 1), local = world position, normal = column 2. */
+static uint32_t expand_disc(const GddInstance *it, GddVertex *out) {
+    static const float C[6][2] = { {-1, -1}, {1, -1}, {1, 1}, {-1, -1}, {1, 1}, {-1, 1} };
+    float r = it->scale[0] > 1e-4f ? it->scale[0] : 1e-4f;
+    const float *u = &it->orient[0], *v = &it->orient[4], *n = &it->orient[8];
+    for (int k = 0; k < 6; k++) {
+        GddVertex *o = &out[k];
+        memset(o, 0, sizeof(*o));
+        for (int a = 0; a < 3; a++) {
+            o->pos[a] = it->pos[a] + u[a] * (C[k][0] * r) + v[a] * (C[k][1] * r);
+            o->local[a] = o->pos[a];
+            o->normal[a] = n[a];
+        }
+        o->color[0] = it->color[0]; o->color[1] = it->color[1]; o->color[2] = it->color[2]; o->color[3] = it->alpha;
+        o->mode = (float)gdd_frag_mode(it->flags);
+        o->metallic = C[k][0]; o->roughness = C[k][1]; o->pad2 = 0.0f; o->pad3 = 1.0f;   /* params */
+    }
+    return 6;
 }
 
 /* Mirror of gdd_expand_box3: the faces of expand_box selected by the mask in pad[2] (at most 3, in face
@@ -686,6 +707,7 @@ static uint32_t expand_mesh(const GddInstance *it, GddVertex *out) {
     case GDD_MESH_SPHERE_HI: return expand_sphere_hi(it, out);
     case GDD_MESH_BOX:     return expand_box(it, out);
     case GDD_MESH_BOX3:    return expand_box3(it, out);
+    case GDD_MESH_DISC:    return expand_disc(it, out);
     case GDD_MESH_PYRAMID: return expand_pyramid(it, out);
     case GDD_MESH_OCTA:    return expand_octa(it, out);
     case GDD_MESH_RING:    return expand_ring(it, out);
@@ -1470,6 +1492,18 @@ static void fill_test_data(void) {
     u_inst_dyn[15].alpha = 1.0f;
     u_inst_dyn[15].pad[0] = 0.5f; u_inst_dyn[15].pad[1] = 0.5f; u_inst_dyn[15].pad[2] = 37.0f;
     set_identity_orient(u_inst_dyn[15].orient);
+
+    /* 16: background star as a round disc facing an off-axis camera (GDD_MESH_DISC, twinkle), IN range */
+    u_inst_dyn[16].pos[0] = 1.5f; u_inst_dyn[16].pos[1] = -1.0f; u_inst_dyn[16].pos[2] = 2.0f;
+    u_inst_dyn[16].mesh = GDD_MESH_DISC;
+    u_inst_dyn[16].scale[0] = 0.35f; u_inst_dyn[16].scale[1] = 0.35f; u_inst_dyn[16].scale[2] = 0.35f;
+    u_inst_dyn[16].flags = gdd_make_flags(0, 0, GDD_FRAG_TWINKLE);
+    u_inst_dyn[16].color[0] = 0.7f; u_inst_dyn[16].color[1] = 0.8f; u_inst_dyn[16].color[2] = 0.9f;
+    u_inst_dyn[16].alpha = 1.0f;
+    {
+        float eye_[3] = { 12.0f, 7.0f, -9.0f };
+        gdd_disc_orient(u_inst_dyn[16].pos, eye_, u_inst_dyn[16].orient);
+    }
 
     /* --- map group (static geometry: all NEVER_CULL) --------------- */
     u_inst_map[0].pos[0] = 5.0f; u_inst_map[0].pos[2] = -5.0f;

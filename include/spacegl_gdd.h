@@ -73,6 +73,7 @@
 #ifndef SPACEGL_GDD_H
 #define SPACEGL_GDD_H
 
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -147,11 +148,16 @@ typedef enum {
  * GDD_BOX_SIGNS order +Y,-Y,+Z,-Z,-X,+X). An opaque cube looks the same and costs half the vertices: the
  * galaxy map uses it when its sectors no longer fit the budget as full boxes. */
 #define GDD_MESH_BOX3 12      /* 18 verts : 3 box faces x 6 verts */
+/* Round disc of radius scale.x in the plane of the orientation's first two columns (the builder turns it
+ * towards the camera): the background stars, which as GDD_MESH_POINT were axis-aligned triangles seen
+ * edge-on as slivers. The fragment shader cuts the quad to a circle (params.w = 1, params.xy = +-1). */
+#define GDD_MESH_DISC 13      /* 6 verts : quad cut to a circle */
 
 #define GDD_VCOUNT_POINT   6u
 #define GDD_VCOUNT_SPHERE  360u
 #define GDD_VCOUNT_BOX     36u
 #define GDD_VCOUNT_BOX3    18u
+#define GDD_VCOUNT_DISC    6u
 #define GDD_VCOUNT_PYRAMID 18u
 #define GDD_VCOUNT_OCTA    24u
 #define GDD_VCOUNT_RING    96u
@@ -626,6 +632,24 @@ _Static_assert(offsetof(GddScenePC, mvp) == 0, "GddScenePC.mvp@0 (mat4)");
 _Static_assert(offsetof(GddScenePC, time) == 64, "GddScenePC.time@64");
 _Static_assert(offsetof(GddScenePC, cam) == 68, "GddScenePC.cam@68");
 _Static_assert(offsetof(GddScenePC, pad) == 80, "GddScenePC.pad@80");
+
+/* Orientation (GLSL mat3, columns padded to 4 floats) of a GDD_MESH_DISC at pos facing eye: column 0 and 1
+ * span the disc, column 2 points from the disc to the camera. */
+static inline void gdd_disc_orient(const float pos[3], const float eye[3], float o[12]) {
+    float n[3] = { eye[0] - pos[0], eye[1] - pos[1], eye[2] - pos[2] };
+    float l = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+    if (l < 1e-6f) { n[0] = 0; n[1] = 0; n[2] = 1; } else { n[0] /= l; n[1] /= l; n[2] /= l; }
+    float up[3] = { 0, 1, 0 };
+    if (fabsf(n[1]) > 0.99f) { up[0] = 1; up[1] = 0; }
+    float u[3] = { up[1] * n[2] - up[2] * n[1], up[2] * n[0] - up[0] * n[2], up[0] * n[1] - up[1] * n[0] };
+    l = sqrtf(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
+    u[0] /= l; u[1] /= l; u[2] /= l;
+    float v[3] = { n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0] };
+    for (int k = 0; k < 12; k++) o[k] = 0.0f;
+    o[0] = u[0]; o[1] = u[1]; o[2]  = u[2];
+    o[4] = v[0]; o[5] = v[1]; o[6]  = v[2];
+    o[8] = n[0]; o[9] = n[1]; o[10] = n[2];
+}
 
 /* Face mask of a GDD_MESH_BOX3 at pos seen from eye: for each axis the face whose normal points to the camera
  * (face order +Y,-Y,+Z,-Z,-X,+X of GDD_BOX_SIGNS). Exactly 3 bits are set. */

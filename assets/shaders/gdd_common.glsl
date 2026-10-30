@@ -97,6 +97,7 @@ const int GDD_MESH_BOOM    = 9;
 const int GDD_MESH_BOXWIRE = 10;
 const int GDD_MESH_SPHERE_HI = 11;
 const int GDD_MESH_BOX3 = 12;
+const int GDD_MESH_DISC = 13;
 
 const uint GDD_VC_POINT   = 6u;
 const uint GDD_VC_SPHERE  = 360u;
@@ -111,6 +112,7 @@ const uint GDD_VC_BOOM    = 1536u; /* 256 particles × 6 verts (2 triangles) */
 const uint GDD_VC_BOXWIRE = 288u; /* 12 edges × 4 tube faces × 6 verts */
 const uint GDD_VC_SPHERE_HI = 3072u; /* 16 lats × 32 lons × 6 verts */
 const uint GDD_VC_BOX3 = 18u; /* 3 faces × 6 verts */
+const uint GDD_VC_DISC = 6u; /* quad cut to a circle */
 
 const int  GDD_SPHERE_LATS = 6;
 const int  GDD_SPHERE_LONS = 10;

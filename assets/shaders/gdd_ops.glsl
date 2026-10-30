@@ -692,6 +692,28 @@ void gdd_expand_boom(uint base, GddInstance it) {
     }
 }
 
+/* gdd_expand_disc — background star: a quad of half-side it.b.x in the plane of
+ * the orientation columns o[0], o[1] (turned to the camera by the builder).
+ * params.xy = corner coordinates (+-1) and params.w = 1 let the fragment
+ * shader cut it to a round disc; local keeps the world position like the
+ * point mesh, so the twinkle phase is unchanged. */
+void gdd_expand_disc(uint base, GddInstance it) {
+    float r = max(it.b.x, 1e-4);
+    vec3 p = it.a.xyz;
+    vec3 u = it.o[0], v = it.o[1], n = it.o[2];
+    const vec2 C[6] = vec2[6](vec2(-1, -1), vec2(1, -1), vec2(1, 1), vec2(-1, -1), vec2(1, 1), vec2(-1, 1));
+    for (int k = 0; k < 6; k++) {
+        vec3 w = p + u * (C[k].x * r) + v * (C[k].y * r);
+        GddVertex vx;
+        vx.pos    = vec4(w, 0.0);
+        vx.color  = vec4(it.c.xyz, it.c.w);
+        vx.normal = vec4(n, gdd_frag_mode(it));
+        vx.local  = vec4(w, 0.0);
+        vx.params = vec4(C[k], 0.0, 1.0);
+        gdd_verts.v[base + uint(k)] = vx;
+    }
+}
+
 void gdd_expand_point(uint base, GddInstance it) {
     /* Small double-sided triangle (radius it.b.x), plane chosen by the
      * dominant axis of the position (deterministic pseudo-billboard —

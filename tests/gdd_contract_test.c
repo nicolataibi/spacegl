@@ -743,10 +743,18 @@ static void test_statics(void) {
     }
     c.stars = stars;
     c.star_count = 3;
+    c.cam_world[0] = 20.0f; c.cam_world[1] = 120.0f; c.cam_world[2] = 150.0f;
     run_builder(&c);
     CHECK(g_map_n == 1326, "grid+stars: %u map instances (want 1326)", g_map_n);
     const GddInstance *st = &g_map[1323];
-    CHECK((int)(st->mesh + 0.5f) == GDD_MESH_POINT, "stars are POINT meshes");
+    CHECK((int)(st->mesh + 0.5f) == GDD_MESH_DISC, "stars are round discs (GDD_MESH_DISC)");
+    {   /* the disc faces the camera: orientation column 2 points from the star to the camera */
+        float d[3] = { c.cam_world[0] - st->pos[0], c.cam_world[1] - st->pos[1], c.cam_world[2] - st->pos[2] };
+        float l = sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+        float dotn = (d[0] * st->orient[8] + d[1] * st->orient[9] + d[2] * st->orient[10]) / l;
+        float dotu = (d[0] * st->orient[0] + d[1] * st->orient[1] + d[2] * st->orient[2]) / l;
+        CHECK(dotn > 0.9999f && fabsf(dotu) < 1e-4f, "star disc faces the camera (n.d=%.5f u.d=%.5f)", dotn, dotu);
+    }
     CHECK_F("star twinkle scale", st->scale[0], 0.3f, 1e-5f, "star scale");
     CHECK(gdd_frag_mode(st->flags) == GDD_FRAG_TWINKLE, "stars twinkle");
 

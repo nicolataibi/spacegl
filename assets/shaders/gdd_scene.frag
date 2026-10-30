@@ -94,6 +94,8 @@ void main() {
 
     /* MODE 2: Starfield Twinkle (color * dynamic sine) */
     if (mode == 2) {
+        /* GDD_MESH_DISC stars: cut the quad to a round disc (params.w = 1, params.xy = +-1 at the corners) */
+        if (vParams.w > 0.5 && dot(vParams.xy, vParams.xy) > 1.0) discard;
         float seed = vPos.x * 12.9898 + vPos.y * 78.233 + vPos.z * 45.164;
         float twinkle = 0.6 + 0.4 * sin(sc.time * 3.0 + seed);
         outColor = vec4(vColor.rgb * twinkle, 1.0);
