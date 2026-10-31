@@ -14,6 +14,8 @@
  *     there; the sender's own faction still receives it.
  *  4. station names are reserved: sanitize_captain_name() refuses them in
  *     any letter case, and a PKT_QUERY with one closes the connection.
+ *  5. (2026.10.31.10) a relayed signature is kept only if made with the
+ *     signing key bound to the sender's login; otherwise it is removed.
  */
 #define _DEFAULT_SOURCE
 #include <stdint.h>
@@ -188,10 +190,18 @@ static void seat(int i, const char *name, int faction, int fd) {
     players[i].state.shm_crypto_algo = CRYPTO_NONE;
 }
 
-/* Send a cleartext PKT_MESSAGE body through the dispatcher on fd sv[1]. */
-static void send_msg(Pair *p, const char *from, int faction, int scope, const char *text) {
+/* Send a cleartext PKT_MESSAGE body through the dispatcher on fd sv[1];
+ * sig_key != NULL marks it signed with that public key (bytes only: the
+ * relay checks the key, the receiving client checks the signature). */
+static void send_msg_signed(Pair *p, const char *from, int faction, int scope, const char *text,
+                            const uint8_t *sig_key) {
     PacketMessage *m = calloc(1, sizeof(PacketMessage));
     m->type = PKT_MESSAGE;
+    if (sig_key) {
+        m->has_signature = 1;
+        memset(m->signature, 0x77, sizeof(m->signature));
+        memcpy(m->sender_pubkey, sig_key, 32);
+    }
     strncpy(m->from, from, 63);
     m->faction = faction;
     m->scope = scope;
@@ -205,6 +215,10 @@ static void send_msg(Pair *p, const char *from, int faction, int scope, const ch
     io.epoll_fd = -1;
     TEST_CHECK(dispatch_packet(&io, PKT_MESSAGE) == 0);
     free(m);
+}
+
+static void send_msg(Pair *p, const char *from, int faction, int scope, const char *text) {
+    send_msg_signed(p, from, faction, scope, text, NULL);
 }
 
 /* Next relayed message on the client end within 300 ms; 0 if none. */
@@ -307,6 +321,36 @@ int main(void) {
         close(q.sv[0]);
     }
     printf("[4] station names reserved for captains, any case: OK\n");
+
+    /* 5. signatures: kept only with the key bound to the sender's login */
+    {
+        uint8_t k_mal[32], k_other[32], zero[32] = {0};
+        memset(k_mal, 0x31, 32);
+        memset(k_other, 0x32, 32);
+        packets_bind_signing_key(0, k_mal);              /* as mallory's PKT_LOGIN would */
+        uint8_t got[32];
+        TEST_CHECK(packets_signing_key(0, got) && memcmp(got, k_mal, 32) == 0);
+
+        send_msg_signed(&mal, "mallory", 1, 0, "signed by my login key", k_mal);
+        TEST_CHECK(recv_msg(&bob, rx) == 1);
+        TEST_CHECK(rx->has_signature == 1 && memcmp(rx->sender_pubkey, k_mal, 32) == 0);
+        TEST_CHECK(recv_msg(&mal, rx) == 1 && recv_msg(&eve, rx) == 1);
+
+        send_msg_signed(&mal, "mallory", 1, 0, "signed by another key", k_other);
+        TEST_CHECK(recv_msg(&bob, rx) == 1);
+        TEST_CHECK(rx->has_signature == 0);
+        TEST_CHECK(memcmp(rx->sender_pubkey, zero, 32) == 0);
+        TEST_CHECK(recv_msg(&mal, rx) == 1 && recv_msg(&eve, rx) == 1);
+
+        /* eve never bound a key: her signatures are removed too */
+        send_msg_signed(&eve, "eve", 1, 0, "unbound", k_other);
+        TEST_CHECK(recv_msg(&bob, rx) == 1 && rx->has_signature == 0);
+        TEST_CHECK(recv_msg(&mal, rx) == 1 && recv_msg(&eve, rx) == 1);
+
+        packets_bind_signing_key(0, zero);               /* all-zero key unbinds */
+        TEST_CHECK(!packets_signing_key(0, got));
+        printf("[5] signature kept only with the key bound to the login: OK\n");
+    }
 
     free(rx);
     printf("sender_stamp_test: all checks passed\n");

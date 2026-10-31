@@ -16,7 +16,8 @@ Wire layout (include/network.h, all little-endian, no padding needed):
                   ephemeral X25519 key, [32:64) nonce, [64:96) HMAC)
   PacketLogin    i32 type, c[64] name, i32 faction, i32 ship_class,
                  u8[32] pass_hash, u8[16] salt,
-                 u32[32] pass_hash_legacy, u8[32] x25519_pubkey   (188 B)
+                 u8[32] pass_hash_legacy, u8[32] x25519_pubkey,
+                 u8[32] ed25519_pubkey                               (220 B)
   PacketCommand  i32 type, c[256] cmd                                  (260 B)
   PacketMessage  i32 type, c[64] from, i32 faction, i32 scope,
                  i32 target_id, i32 length, i64 origin_frame,
@@ -110,7 +111,7 @@ class Session:
         return handshake(nonce=self.nonce)
 
     def _masked(self, pkt):
-        # pkt = header(4) name(64) faction(4) class(4) | creds(80) | x25519(32)
+        # pkt = header(4) name(64) faction(4) class(4) | creds(80) | x25519(32) | ed25519(32)
         start = 4 + 64 + 8
         creds = bytes(a ^ b for a, b in zip(pkt[start:start + 80],
                                             _cred_mask(self.key, self.seq)))
@@ -147,7 +148,8 @@ def login(name, faction=0, ship_class=0, salt=b"\xaa" * 16):
             + b"\x42" * 32          # pass_hash (v2, salted)
             + salt
             + b"\x24" * 32          # pass_hash_legacy
-            + b"\x9c" * 32)         # x25519_pubkey
+            + b"\x9c" * 32          # x25519_pubkey
+            + b"\x5e" * 32)         # ed25519_pubkey (signing key bound at login)
 
 
 def query(name, faction=0, ship_class=0, salt=b"\xaa" * 16):

@@ -731,6 +731,7 @@ static int do_login_reconnect(void) {
     memcpy(lpkt.salt, g_saved_salt, 16);
     memcpy(lpkt.pass_hash_legacy, g_saved_legacy_hash, 32);
     memcpy(lpkt.x25519_pubkey, g_saved_x25519_pubkey, 32);
+    memcpy(lpkt.ed25519_pubkey, my_pubkey_bytes, 32);   /* signing key of this session */
 
     if (send_identity_packet(&lpkt) <= 0) return 0;
 
@@ -1833,6 +1834,7 @@ int main(int argc, char *argv[]) {
         memcpy(qpkt.salt, id_salt, 16);
         memcpy(qpkt.pass_hash_legacy, password_hash, 32);
         memcpy(qpkt.x25519_pubkey, my_x25519_pubkey_bytes, 32);
+        memcpy(qpkt.ed25519_pubkey, my_pubkey_bytes, 32);
         send_identity_packet(&qpkt);
         OPENSSL_cleanse(&qpkt, sizeof(qpkt));
 
@@ -1932,6 +1934,7 @@ int main(int argc, char *argv[]) {
     memcpy(lpkt.salt, id_salt, 16);
     memcpy(lpkt.pass_hash_legacy, password_hash, 32);
     memcpy(lpkt.x25519_pubkey, my_x25519_pubkey_bytes, 32);
+    memcpy(lpkt.ed25519_pubkey, my_pubkey_bytes, 32);   /* bound to this login by the server */
     
     /* Minimize the lifetime of the cleartext access code */
     memset(password, 0, sizeof(password));

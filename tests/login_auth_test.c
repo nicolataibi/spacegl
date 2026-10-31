@@ -10,7 +10,8 @@
  *  1. PKT_LOGIN for a name with no identity record -> refused, fd closed.
  *  2. PKT_QUERY creates "alice" (status 2); PKT_LOGIN with a wrong hash,
  *     and with the right hash but a wrong salt -> refused, fd closed.
- *  3. PKT_LOGIN with the right salt and hash -> the slot is bound.
+ *  3. PKT_LOGIN with the right salt and hash -> the slot is bound, and the
+ *     login's ed25519_pubkey becomes the slot's radio signing key.
  *  4. A second verified PKT_LOGIN for "alice" on another connection takes
  *     the captain over: the new fd is bound, the old one is shut down.
  *  5. A legacy (unsalted) record accepts the matching legacy hash and
@@ -204,6 +205,7 @@ static PacketLogin mk(int type, const char *name, uint8_t hash_byte, uint8_t sal
     memset(p.salt, salt_byte, 16);
     memset(p.pass_hash_legacy, legacy_byte, 32);
     memset(p.x25519_pubkey, 0x5a, 32);
+    memset(p.ed25519_pubkey, 0x5b, 32);
     return p;
 }
 
@@ -327,6 +329,9 @@ int main(void) {
         TEST_CHECK(s >= 0);
         TEST_CHECK(players[s].socket == first[1]);
         players[s].active = 1;                     /* as sync_client_task would */
+        uint8_t bound[32], want[32];
+        memset(want, 0x5b, 32);                    /* mk() puts 0x5b in ed25519_pubkey */
+        TEST_CHECK(packets_signing_key(s, bound) && memcmp(bound, want, 32) == 0);
         drain(first[0]);
         printf("[3] verified PKT_LOGIN binds the slot: OK\n");
     }

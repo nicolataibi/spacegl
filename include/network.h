@@ -316,6 +316,9 @@ typedef struct {
     uint8_t salt[16];           /* Per-captain salt (random at enrollment) */
     uint8_t pass_hash_legacy[32]; /* Legacy unsalted hash; verified only for legacy accounts */
     uint8_t x25519_pubkey[32];
+    uint8_t ed25519_pubkey[32]; /* signing key of this session (2026.10.31.10): the
+                                   server binds it to the authenticated login and
+                                   strips relayed signatures made with any other */
 } PacketLogin;
 /* pass_hash, salt, pass_hash_legacy: one 80-byte run, masked as a whole
  * under the session key (hs_v2_cred_xor, handshake_v2.h). */

@@ -50,6 +50,25 @@ extern threadpool_t *g_pool;
  * game_mutex. */
 static uint32_t g_cred_seq[MAX_CLIENTS];
 
+/* Signing key presented by each slot's authenticated PKT_LOGIN (also kept
+ * out of the persisted ConnectedPlayer). Guarded by game_mutex. */
+static uint8_t g_sign_pub[MAX_CLIENTS][32];
+static bool g_sign_set[MAX_CLIENTS];
+
+void packets_bind_signing_key(int slot, const uint8_t pub[32]) {
+    if (slot < 0 || slot >= MAX_CLIENTS) return;
+    uint8_t acc = 0;
+    for (int i = 0; i < 32; i++) acc |= pub[i];
+    memcpy(g_sign_pub[slot], pub, 32);
+    g_sign_set[slot] = (acc != 0);
+}
+
+bool packets_signing_key(int slot, uint8_t out[32]) {
+    if (slot < 0 || slot >= MAX_CLIENTS || !g_sign_set[slot]) return false;
+    memcpy(out, g_sign_pub[slot], 32);
+    return true;
+}
+
 int sanitize_captain_name(const char *name) {
     if (!name || name[0] == '\0') {
         return 0;
@@ -619,6 +638,7 @@ int dispatch_packet(PktIO *io, int32_t type) {
 
                     /* Always update keys on login, but only update faction/class for new players */
                     memcpy(players[slot].x25519_pubkey, pkt.x25519_pubkey, 32);
+                    packets_bind_signing_key(slot, pkt.ed25519_pubkey);
                     if (is_new) {
                         players[slot].faction = pkt.faction;
                         players[slot].ship_class = pkt.ship_class;
@@ -821,6 +841,21 @@ int dispatch_packet(PktIO *io, int32_t type) {
                         strncpy(pkt->from, players[p_idx].name, sizeof(pkt->from) - 1);
                         pkt->faction = players[p_idx].faction;
                         sender_ok = true;
+                        /* A signature counts only if it was made with the
+                         * signing key of this captain's authenticated login:
+                         * receivers verify against sender_pubkey, which the
+                         * client writes. Otherwise the signature is removed
+                         * and the message is relayed as unsigned. */
+                        if (pkt->has_signature &&
+                            !(g_sign_set[p_idx] &&
+                              CRYPTO_memcmp(pkt->sender_pubkey, g_sign_pub[p_idx], 32) == 0)) {
+                            pkt->has_signature = 0;
+                            memset(pkt->signature, 0, sizeof(pkt->signature));
+                            memset(pkt->sender_pubkey, 0, sizeof(pkt->sender_pubkey));
+                            SG_WARNING(SG_CAT_SECURITY,
+                                       "captain %s: radio signature with a key not bound to the login: removed",
+                                       players[p_idx].name);
+                        }
                     }
                     pthread_mutex_unlock(&game_mutex);
                 }

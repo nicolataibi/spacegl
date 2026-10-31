@@ -1,3 +1,27 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.10
+  - Security (roadmap phase 1, problem 4): a radio message's Ed25519
+  signature was verified by the receiving deck against sender_pubkey, a
+  field of the same message written by the sender, so "[VERIFIED]" only
+  said the message agreed with itself. The deck's signing key is created
+  per run, so receiver-side pinning would flag a change at every session;
+  the binding is made by the server instead: PacketLogin gains
+  ed25519_pubkey (32 bytes, after x25519_pubkey; the packet grows from 188
+  to 220 bytes), the deck puts its session signing key there, and the
+  server binds it to the slot of the authenticated PKT_LOGIN. When it
+  relays a message (whose sender it already sets from the slot), a
+  signature made with any other key is removed and the message goes on as
+  unsigned. "[VERIFIED]" now means: signed with the key presented in that
+  captain's authenticated login. The binding lives in packets.c
+  (packets_bind_signing_key / packets_signing_key), outside the
+  ConnectedPlayer saved in galaxy.dat.
+  - Protocol: PacketLogin changes size, together with 2026.10.31.08/.09;
+  publish the three together.
+  - Fuzz corpus: gen_corpus.py writes the 220-byte login.
+  - Tests: sender_stamp_test case 5 (signature kept with the bound key,
+  removed with another key or from a slot that bound none, all-zero key
+  unbinds); login_auth_test case 3 checks that a verified login binds the
+  key it carries.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.09
   - Security (roadmap phase 1): the login credentials travelled in clear.
   PKT_QUERY and PKT_LOGIN carry pass_hash, salt and pass_hash_legacy; with

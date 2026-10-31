@@ -383,6 +383,13 @@ traceable in the changelog:
     FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION, which the product binaries
     refuse to compile with (2026.10.31.09) — pinned by
     `tests/login_auth_test` case 6;
+*   radio signatures bound to the login: receivers verified a message's
+    Ed25519 signature against the public key carried by the message
+    itself, so [VERIFIED] proved nothing about the sender; PKT_LOGIN now
+    carries the session's signing key, the server binds it to the
+    authenticated slot and removes from relayed messages any signature
+    made with another key (2026.10.31.10) — pinned by
+    `tests/sender_stamp_test` case 5 and `tests/login_auth_test` case 3;
 *   TCP transport hardening (`TCP_NODELAY`, keepalive probes, buffer sizing)
     and token bucket rate limiting (200 pkt/s, DoS protection, 2026.10.17.04) —
     pinned by `tests/rate_limit_test`.

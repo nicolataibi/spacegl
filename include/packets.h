@@ -62,4 +62,11 @@ int packets_conn_dispatch(int epoll_fd, int fd, Conn *c, int32_t type, const uin
  * was static and only reachable by the inline dispatcher. */
 int sanitize_captain_name(const char *name);
 
+/* Radio signing key bound to a slot by its authenticated PKT_LOGIN
+ * (2026.10.31.10). The relay keeps a message's Ed25519 signature only if it
+ * was made with this key; an all-zero key unbinds the slot. Callers hold
+ * game_mutex (the login path does; tests may call it directly). */
+void packets_bind_signing_key(int slot, const uint8_t pub[32]);
+bool packets_signing_key(int slot, uint8_t out[32]);
+
 #endif
