@@ -1,3 +1,13 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.17
+  - Server logic, roadmap phase 3: the NPC behaviour (nebula test, per-NPC
+  runtime, obstacle avoidance and escape, collisions, AI step: 698 lines)
+  moved from logic.c to logic_npc.c without code change; logic.c keeps the
+  tick and the player movement and collisions (1216 lines, was 1913). The
+  only edit: comet_destroyed_by_ship loses "static" (the player collision
+  check uses it too) and is declared in the private
+  src/server/logic_internal.h. Every target that links logic.c links
+  logic_npc.c too. No source file in src/server is over 1500 lines now.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.16
   - Server galaxy, roadmap phase 3: galaxy.c (2216 lines) split into four
   translation units without code change: galaxy.c (global pools,

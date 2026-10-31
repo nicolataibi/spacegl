@@ -273,6 +273,7 @@ add_executable(target_bounds_test
     target_bounds_test.c
     ${SG_ROOT}/src/server/commands.c
     ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_npc.c
     ${SG_ROOT}/src/server/logic_events.c
     ${SG_ROOT}/src/server/nav_math.c
     ${SG_ROOT}/src/server/targets.c
@@ -306,6 +307,7 @@ add_executable(vec_thrust_test
     vec_thrust_test.c
     ${SG_ROOT}/src/server/commands.c
     ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_npc.c
     ${SG_ROOT}/src/server/logic_events.c
     ${SG_ROOT}/src/server/nav_math.c
     ${SG_ROOT}/src/server/targets.c
@@ -331,6 +333,7 @@ add_executable(collision_test
     collision_test.c
     ${SG_ROOT}/src/server/commands.c
     ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_npc.c
     ${SG_ROOT}/src/server/logic_events.c
     ${SG_ROOT}/src/server/nav_math.c
     ${SG_ROOT}/src/server/targets.c
@@ -370,6 +373,7 @@ set(FUZZ_DISPATCH_SRCS
     ${SG_ROOT}/src/server/threadpool.c
     ${SG_ROOT}/src/server/commands.c
     ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_npc.c
     ${SG_ROOT}/src/server/logic_events.c
     ${SG_ROOT}/src/server/nav_math.c
     ${SG_ROOT}/src/server/targets.c
@@ -411,6 +415,7 @@ set(RATE_LIMIT_SRCS
     ${SG_ROOT}/src/server/threadpool.c
     ${SG_ROOT}/src/server/commands.c
     ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_npc.c
     ${SG_ROOT}/src/server/logic_events.c
     ${SG_ROOT}/src/server/nav_math.c
     ${SG_ROOT}/src/server/targets.c
@@ -651,6 +656,7 @@ add_executable(server_tick_bench
     server_tick_bench.c
     ${SG_ROOT}/src/server/log.c
     ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_npc.c
     ${SG_ROOT}/src/server/logic_events.c
     ${SG_ROOT}/src/server/nav_math.c
     ${SG_ROOT}/src/server/quad_index.c
