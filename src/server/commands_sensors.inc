@@ -864,12 +864,12 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
                     
                     pkt.object_count = to_send;
                     if(to_send > 0) {
-                        memcpy(pkt.objects, &all_objs[sent], to_send * sizeof(NetObject));
+                        memcpy(pkt.objects, &all_objs[sent], (size_t)to_send * sizeof(NetObject));   /* to_send > 0 */
                     }
                     
                     sent += to_send;
                     
-                    size_t packet_size = offsetof(PacketLRSUpdate, objects) + (pkt.object_count * sizeof(NetObject));
+                    size_t packet_size = offsetof(PacketLRSUpdate, objects) + ((size_t)pkt.object_count * sizeof(NetObject));
                     pthread_mutex_lock(&players[i].socket_mutex);
                     if (players[i].socket != 0) write_all(players[i].socket, &pkt, packet_size);
                     pthread_mutex_unlock(&players[i].socket_mutex);

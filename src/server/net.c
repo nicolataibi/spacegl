@@ -51,7 +51,7 @@ int read_all(int fd, void *buf, size_t len) {
         ssize_t n = recv(fd, p + total, len - total, 0);
         if (n == 0) return 0;
         if (n < 0) return -1;
-        total += n;
+        total += (size_t)n;
     }
     return (int)total;
 }
@@ -132,7 +132,7 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, size_t plaintext
             size_t plen = (size_t)plaintext_len;
             memcpy(msg->text, plaintext, plen);
             msg->text[plen] = '\0';
-            msg->length = plen;
+            msg->length = (int32_t)plen;   /* <= 65535 */
             EVP_CIPHER_CTX_free(ctx);
             return;
         }
@@ -146,7 +146,7 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, size_t plaintext
         size_t plen = (size_t)plaintext_len;
         memcpy(msg->text, plaintext, plen);
         msg->text[plen] = '\0';
-        msg->length = plen;
+        msg->length = (int32_t)plen;   /* <= 65535 */
         EVP_CIPHER_CTX_free(ctx);
         return;
     }
@@ -159,7 +159,7 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, size_t plaintext
         size_t plen = (size_t)plaintext_len;
         memcpy(msg->text, plaintext, plen);
         msg->text[plen] = '\0';
-        msg->length = plen;
+        msg->length = (int32_t)plen;   /* <= 65535 */
         EVP_CIPHER_CTX_free(ctx);
         return;
     }
@@ -663,7 +663,7 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         int32_t bc = upd->beam_count;
         if (bc > MAX_NET_BEAMS) bc = MAX_NET_BEAMS;
         memcpy(ptr, &bc, sizeof(int32_t)); ptr += sizeof(int32_t);
-        if (bc > 0) { memcpy(ptr, upd->beams, bc * sizeof(NetBeam)); ptr += bc * sizeof(NetBeam); }
+        if (bc > 0) { memcpy(ptr, upd->beams, (size_t)bc * sizeof(NetBeam)); ptr += (size_t)bc * sizeof(NetBeam); }
         if (bc > 0)
             SG_TRACE3(SG_CAT_PHA, "DELIVER to player %d (%s): %d beams in DELTA (mask=0x%llx, frame=%llu)",
                       p_idx, p->name, bc, (unsigned long long)mask, (unsigned long long)upd->frame_id);
@@ -680,9 +680,9 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         b.supernova_pos = upd->supernova_pos; memcpy(b.supernova_q, upd->supernova_q, sizeof(upd->supernova_q));
         memcpy(b.torps, upd->torps, sizeof(upd->torps)); b.wormhole = upd->wormhole;
         b.event_count = upd->event_count; if (b.event_count > MAX_NET_EVENTS) b.event_count = MAX_NET_EVENTS;
-        memcpy(b.events, upd->events, b.event_count * sizeof(NetEvent));
+        memcpy(b.events, upd->events, (size_t)b.event_count * sizeof(NetEvent));
         b.torpedo_count = upd->torpedo_count; if (b.torpedo_count > MAX_VISIBLE_TORPEDOES) b.torpedo_count = MAX_VISIBLE_TORPEDOES;
-        memcpy(b.visible_torpedoes, upd->visible_torpedoes, b.torpedo_count * sizeof(NetVisibleTorpedo));
+        memcpy(b.visible_torpedoes, upd->visible_torpedoes, (size_t)b.torpedo_count * sizeof(NetVisibleTorpedo));
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     if (mask & UPD_PROBES) {
@@ -691,7 +691,7 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     }
     if (mask & UPD_OBJECTS) {
         int32_t oc = upd->object_count; memcpy(ptr, &oc, sizeof(int32_t)); ptr += sizeof(int32_t);
-        if (oc > 0) { memcpy(ptr, upd->objects, oc * sizeof(NetObject)); ptr += oc * sizeof(NetObject); }
+        if (oc > 0) { memcpy(ptr, upd->objects, (size_t)oc * sizeof(NetObject)); ptr += (size_t)oc * sizeof(NetObject); }
     } else if (mask & UPD_KINEMATICS) {
         int32_t oc = upd->object_count; memcpy(ptr, &oc, sizeof(int32_t)); ptr += sizeof(int32_t);
         for (int i = 0; i < oc; i++) {
@@ -710,7 +710,7 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     }
 
 
-    size_t total_size = ptr - buffer;
+    size_t total_size = (size_t)(ptr - buffer);
     pthread_mutex_lock(&p->socket_mutex);
     if (p->socket != 0) write_all(p->socket, buffer, total_size);
     pthread_mutex_unlock(&p->socket_mutex);

@@ -274,7 +274,7 @@ void handle_bridge(int i, const char *params, bool *should_disconnect) {
 
     if (new_val != current) {
         players[i].state.energy -= COST_ACTION_LOW;
-        players[i].state.show_bridge = new_val;
+        players[i].state.show_bridge = (uint8_t)new_val;   /* 0..16 */
     }
 }
 
@@ -323,7 +323,7 @@ void handle_pilot(int i, const char *params, bool *should_disconnect) {
 
     if (new_val != current) {
         players[i].state.energy -= COST_ACTION_LOW;
-        players[i].state.show_bridge = new_val;
+        players[i].state.show_bridge = (uint8_t)new_val;   /* 0..16 */
         if (new_val == 20)
             send_server_msg(i, "HELMSMAN",
                             "PILOT MODE: ENGAGED. Flight stick active.");
@@ -377,7 +377,7 @@ void handle_map(int i, const char *params, bool *should_disconnect) {
 
         if (filter > 0) {
             players[i].state.show_map = 1;
-            players[i].state.map_filter = filter;
+            players[i].state.map_filter = (uint8_t)filter;   /* 1..17 */
             players[i].state.energy -= COST_ACTION_MED;
             char msg[128];
             char filter_name[3]; strncpy(filter_name, p, 2); filter_name[2] = '\0';
@@ -517,7 +517,7 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
             double dx = target_gx - players[i].state.probes[p_idx].gx;
             double dy = target_gy - players[i].state.probes[p_idx].gy;
             double dz = target_gz - players[i].state.probes[p_idx].gz;
-            double dist = sqrtf(dx*dx + dy*dy + dz*dz);
+            double dist = sqrtf((float)(dx*dx + dy*dy + dz*dz));
             double time = dist / (QUADRANT_SIZE / 12.0); if (time < 1.0) time = 1.0;
             
             players[i].state.probes[p_idx].vx = dx / (time * (double)GAME_TICK_RATE);
@@ -608,7 +608,7 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
             double dx = players[i].state.probes[p_idx].s1 - players[i].state.s1;
             double dy = players[i].state.probes[p_idx].s2 - players[i].state.s2;
             double dz = players[i].state.probes[p_idx].s3 - players[i].state.s3;
-            if (sqrtf(dx*dx + dy*dy + dz*dz) > 2.0) {
+            if (sqrtf((float)(dx*dx + dy*dy + dz*dz)) > 2.0) {
                 send_server_msg(i, "COMPUTER", "Probe out of recovery range (> 2.0).");
                 return;
             }

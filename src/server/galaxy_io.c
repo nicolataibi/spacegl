@@ -487,9 +487,9 @@ static void galaxy_complete_after_load(void) {
                     .q1 = 1 + rand() % GALAXY_SIZE,
                     .q2 = 1 + rand() % GALAXY_SIZE,
                     .q3 = 1 + rand() % GALAXY_SIZE,
-                    .x = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
-                    .y = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
-                    .z = (rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM,
+                    .x = galaxy_rand_coord(),
+                    .y = galaxy_rand_coord(),
+                    .z = galaxy_rand_coord(),
                     .active = 1
                 };
                 strncpy(cosmic_features[cosmic_feature_count].name, moon_ext_names[ext_idx], 63);

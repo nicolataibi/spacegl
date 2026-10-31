@@ -374,7 +374,7 @@ bool process_command(int i, const char *cmd) {
                     } else if (target_npc) {
                         /* NPC Sabotage Effects */
                         if (choice == 1) { 
-                            target_npc->engine_health = 0.0; 
+                            target_npc->engine_health = 0.0f;
                             if (target_npc->energy > SHIELD_MAX_STRENGTH) target_npc->energy -= SHIELD_MAX_STRENGTH; else target_npc->energy = 0;
                             send_server_msg(i, "BOARDING", "NPC propulsion core sabotaged. Vessell is drifting."); 
                         }

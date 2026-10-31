@@ -370,9 +370,13 @@ number and element count.
   sources, zero findings). Run it locally with
   `clang-tidy -p <build dir with compile_commands.json> <files>`.
 - **Warnings.** `-DSPACEGL_WERROR=ON` (on in the CI matrix) turns warnings into
-  errors. `-Wshadow` is on everywhere. `-Wconversion` is not: it reports 2573
-  distinct implicit conversions (250 in src/server, about 2300 in the deck,
-  viewers and tools, mostly double to float for the graphics), to be fixed
-  one directory at a time with explicit casts reviewed by hand, the server
-  first.
+  errors. `-Wshadow` is on everywhere. `-Wconversion` is on for the server
+  target (`spacegl_server`, 2026.10.31.26): an implicit conversion that can
+  change a value or a sign is written as an explicit cast, with a comment
+  when the range that makes it safe is not obvious from the line. A random
+  coordinate inside a quadrant is `galaxy_rand_coord()`
+  (`src/server/galaxy_internal.h`). The deck, the viewers and the tools
+  are not yet under it (mostly double to float for the graphics); they
+  follow one directory at a time, each change checked by comparing the
+  machine code (`objdump -d`) before and after.
 

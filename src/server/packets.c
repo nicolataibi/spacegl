@@ -846,7 +846,7 @@ int dispatch_packet(PktIO *io, int32_t type) {
                     LOG_DEBUG("Connection dropped: PKT_MESSAGE length out of range (%d), FD %d\n", bad_len, fd);
                     return io_close(io, CONN_CLOSE_REAP);
                 }
-                if (pkt->length > 0) pkt_read_body(io, pkt->text, pkt->length);
+                if (pkt->length > 0) pkt_read_body(io, pkt->text, (size_t)pkt->length);
                 else pkt->text[0] = '\0';
                 pkt->type = type;
 

@@ -151,7 +151,7 @@ void handle_sta(int i, const char *params, bool *should_disconnect) {
     sg_appendf_n(b, b_cap, " HEADING:  %03.0ff        MARK:   %+03.0f\n", players[i].state.van_h, players[i].state.van_m);
 
     sg_strcat_n(b, b_cap, BLUE "\n[ POWER AND REACTOR STATUS ]\n" RESET);
-    double en_pct = (players[i].state.energy / (double)MAX_ENERGY_CAPACITY) * (double)YIELD_HARVEST_MAX;
+    double en_pct = ((double)players[i].state.energy / (double)MAX_ENERGY_CAPACITY) * (double)YIELD_HARVEST_MAX;
     sg_appendf_n(b, b_cap, " MAIN REACTOR: %" PRIu64 " / %" PRIu64 " (%.1f%%)\n ALLOCATION:   ENGINES: %.0f%%  SHIELDS: %.0f%%  WEAPONS: %.0f%%\n", players[i].state.energy, (uint64_t)MAX_ENERGY_CAPACITY, en_pct, players[i].state.power_dist[0]*100, players[i].state.power_dist[1]*100, players[i].state.power_dist[2]*100);
 
     sg_strcat_n(b, b_cap, BLUE "\n[ DEFENSIVE GRID AND ARMAMENTS ]\n" RESET);

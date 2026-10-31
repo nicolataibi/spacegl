@@ -1,3 +1,17 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.26
+  - Build hygiene, roadmap phase 4: -Wconversion on for the server target
+  (with SPACEGL_WERROR in CI a new implicit narrowing or sign change fails
+  the build). The 275 sites are explicit now and the machine code of every
+  server object file is identical before and after (objdump, Release).
+  - 228 of them were the same expression, a random coordinate inside a
+  quadrant (rand() % 1000 / 10.0f): one inline galaxy_rand_coord() in
+  src/server/galaxy_internal.h. The others are casts with the range that
+  makes them safe noted on the line: energy debits after their check,
+  block counts in the update packet, flags into uint8_t fields, the shield
+  ramp (int + float rate), the Dyson recharge, the sysinfo report.
+  - clang-tidy: bugprone-narrowing-conversions enabled in the lint profile
+  (one site, a double literal stored in a float).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.25
   - Legacy removed: galaxy.dat format 1 (the raw dump written before
   2026.10.31.19) is no longer read; a file without the SGGALAX2 magic makes

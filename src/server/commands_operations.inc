@@ -500,7 +500,7 @@ void handle_sco(int i, const char *params, bool *should_disconnect) {
         double aux_h = players[i].state.system_health[9];
         int gain = (int)(COST_HYPERDRIVE_INIT * (RATIO_MINING_EFF_MIN + (aux_h / (double)YIELD_HARVEST_MAX) * (1.0 - RATIO_MINING_EFF_MIN)));
         
-        players[i].state.cargo_energy += gain; 
+        players[i].state.cargo_energy += (uint64_t)gain;   /* gain > 0 */
         if(players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY; 
         
         /* 4. Shield and Structural Damage */

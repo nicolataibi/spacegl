@@ -539,7 +539,7 @@ static inline int load_master_key(uint8_t key[32]) {
             return -1;
         }
         for (int i = 0; i < 32; i++) {
-            if (sscanf(hex + (size_t)2 * i, "%2hhx", &key[i]) != 1) {
+            if (sscanf(hex + (size_t)2 * (size_t)i, "%2hhx", &key[i]) != 1) {
                 fprintf(stderr, "FATAL: invalid hex in key file at position %d\n", i);
                 return -1;
             }
@@ -554,7 +554,7 @@ static inline int load_master_key(uint8_t key[32]) {
         size_t l = strlen(key_env);
         if (l == 64) {
             for (int i = 0; i < 32; i++) {
-                if (sscanf(key_env + (size_t)2 * i, "%2hhx", &key[i]) != 1) {
+                if (sscanf(key_env + (size_t)2 * (size_t)i, "%2hhx", &key[i]) != 1) {
                     fprintf(stderr, "FATAL: invalid hex in SPACEGL_KEY at position %d\n", i);
                     return -1;
                 }
@@ -616,7 +616,7 @@ static inline int load_master_key(uint8_t key[32]) {
             hex[strcspn(hex, "\r\n")] = '\0';
             bool ok = (strlen(hex) == 64);
             for (int i = 0; ok && i < 32; i++) {
-                if (sscanf(hex + (size_t)2 * i, "%2hhx", &key[i]) != 1) ok = false;
+                if (sscanf(hex + (size_t)2 * (size_t)i, "%2hhx", &key[i]) != 1) ok = false;
             }
             if (!ok) {
                 if (attempt == 0 && n < 65) {
@@ -662,7 +662,7 @@ static inline int load_master_key(uint8_t key[32]) {
             return -1;
         }
         char out[65];
-        for (int i = 0; i < 32; i++) snprintf(out + (size_t)2 * i, 3, "%02x", key[i]);
+        for (int i = 0; i < 32; i++) snprintf(out + (size_t)2 * (size_t)i, 3, "%02x", key[i]);
         out[64] = '\n';
         bool wrote = (write(wfd, out, 65) == 65) && (fsync(wfd) == 0);
         memset(out, 0, sizeof(out));

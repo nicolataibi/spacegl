@@ -374,11 +374,11 @@ void display_system_telemetry() {
     uname(&uts);
     sysinfo(&info);
 
-    long mem_unit = info.mem_unit;
-    long total_ram = (info.totalram * mem_unit) / 1024 / 1024;
-    long free_ram = (info.freeram * mem_unit) / 1024 / 1024;
-    long shared_ram = (info.sharedram * mem_unit) / 1024 / 1024;
-    int nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+    unsigned long mem_unit = info.mem_unit;
+    long total_ram = (long)((info.totalram * mem_unit) / 1024 / 1024);
+    long free_ram = (long)((info.freeram * mem_unit) / 1024 / 1024);
+    long shared_ram = (long)((info.sharedram * mem_unit) / 1024 / 1024);
+    int nprocs = (int)sysconf(_SC_NPROCESSORS_ONLN);
 
     printf("\n%s .-------------------- GDIS (Galactic Display & Information System) --------------------.%s\n", B_MAGENTA, RESET);
     printf("%s | %s HOST IDENTIFIER:   %s%-48s %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, uts.nodename, B_MAGENTA, RESET);
@@ -429,7 +429,7 @@ void display_system_telemetry() {
     printf("%s | %s Deep Space DYNAMICS                                                  %s %s\n", B_MAGENTA, B_WHITE, B_MAGENTA, RESET);
     double load = 1.0 / (1 << SI_LOAD_SHIFT);
     printf("%s | %s LOAD INTERFERENCE: %s%.2f (1m)  %.2f (5m)  %.2f (15m)                  %s %s\n", 
-           B_MAGENTA, B_WHITE, B_GREEN, info.loads[0] * load, info.loads[1] * load, info.loads[2] * load, B_MAGENTA, RESET);
+           B_MAGENTA, B_WHITE, B_GREEN, (double)info.loads[0] * load, (double)info.loads[1] * load, (double)info.loads[2] * load, B_MAGENTA, RESET);
     
     long days = info.uptime / 86400;
     long hours = (info.uptime % 86400) / 3600;
@@ -687,7 +687,7 @@ int main(int argc, char *argv[]) {
     
     memset(players, 0, sizeof(players)); 
     memset(players_torpedoes, 0, sizeof(players_torpedoes));
-    srand(time(NULL)); 
+    srand((unsigned int)time(NULL)); 
     for(int i=0; i<MAX_CLIENTS; i++) pthread_mutex_init(&players[i].socket_mutex, NULL);
     
     /* Server Welcome Screen */
@@ -731,7 +731,7 @@ int main(int argc, char *argv[]) {
     printf("%s | %s SECURITY:         %sCryptographic Subsystem Primed                %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, B_MAGENTA, RESET);
 
     /* Initialize Thread Pool for Async Tasks (Crypto, Pathfinding, I/O) */
-    int nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+    int nprocs = (int)sysconf(_SC_NPROCESSORS_ONLN);
     g_pool = threadpool_create(nprocs);
     if (g_pool) {
         SG_DEBUG(SG_CAT_THREAD, "thread pool: %d worker threads", nprocs);

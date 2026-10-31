@@ -284,14 +284,14 @@ void update_game_logic() {
             for (int s = 0; s < 6; s++) {
                 if (players[i].state.shields[s] < players[i].state.target_shields[s]) {
                     // Charge shields
-                    players[i].state.shields[s] += players[i].state.shield_change_rate;
+                    players[i].state.shields[s] = (int32_t)((float)players[i].state.shields[s] + players[i].state.shield_change_rate);
                     if (players[i].state.shields[s] > players[i].state.target_shields[s]) {
                         players[i].state.shields[s] = players[i].state.target_shields[s];
                     }
                     all_shields_at_target = false;
                 } else if (players[i].state.shields[s] > players[i].state.target_shields[s]) {
                     // Drain shields
-                    players[i].state.shields[s] -= players[i].state.shield_change_rate;
+                    players[i].state.shields[s] = (int32_t)((float)players[i].state.shields[s] - players[i].state.shield_change_rate);
                     if (players[i].state.shields[s] < players[i].state.target_shields[s]) {
                         players[i].state.shields[s] = players[i].state.target_shields[s];
                     }
@@ -965,7 +965,7 @@ void update_game_logic() {
             upd->tube_torpedo_etas[t] = players[i].tube_torpedo_etas[t];
         }
         upd->current_tube = players[i].current_tube; upd->ion_beam_charge = players[i].state.ion_beam_charge;
-        upd->is_cloaked = players[i].state.is_cloaked; upd->is_docked = players[i].is_docked;
+        upd->is_cloaked = players[i].state.is_cloaked; upd->is_docked = (uint8_t)players[i].is_docked;
         upd->red_alert = players[i].state.red_alert; upd->nav_state = (uint8_t)players[i].nav_state;
         upd->show_axes = players[i].state.show_axes; upd->show_grid = players[i].state.show_grid;
         upd->show_bridge = players[i].state.show_bridge; upd->show_map = players[i].state.show_map;
@@ -993,7 +993,7 @@ void update_game_logic() {
         }
         /* ... celestial objects ... */
         for(int s=0; s<lq->star_count && o_idx < MAX_NET_OBJECTS; s++) { NPCStar *st = lq->stars[s]; if(!st->active) continue; upd->objects[o_idx++] = (NetObject){st->x, st->y, st->z, 0, 0, 0, OBJ_STAR, ((unsigned)st->faction < 7u ? st->faction : 4), 1, 100, 0, 0, 100, OBJ_STAR, st->id + GALAXY_OBJECT_MIN_STAR, 0, "Star", 0,0,0}; }
-        for(int p=0; p<lq->planet_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlanet *pl = lq->planets[p]; if(!pl->active) continue; upd->objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, OBJ_PLANET, ((unsigned)pl->planet_class < (unsigned)PLANET_CLASS_COUNT ? pl->planet_class : PLANET_CLASS_TERRESTRIAL), 1, 100, pl->amount, pl->resource_type, 100, OBJ_PLANET, pl->id + GALAXY_OBJECT_MIN_PLANET, 0, "Planet", 0,0,0}; }
+        for(int p=0; p<lq->planet_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlanet *pl = lq->planets[p]; if(!pl->active) continue; upd->objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, OBJ_PLANET, ((unsigned)pl->planet_class < (unsigned)PLANET_CLASS_COUNT ? pl->planet_class : PLANET_CLASS_TERRESTRIAL), 1, 100, (uint64_t)pl->amount, pl->resource_type, 100, OBJ_PLANET, pl->id + GALAXY_OBJECT_MIN_PLANET, 0, "Planet", 0,0,0}; }
         /* Star system of this quadrant: star, planets (orbiting it) and moons (orbiting them).
          * Their ids are the full ids of the system bands; positions are the cached ones
          * (update_star_systems() refreshes the systems players are in every tick). */
@@ -1046,7 +1046,7 @@ void update_game_logic() {
         for(int qsr=0; qsr<lq->quasar_count && o_idx < MAX_NET_OBJECTS; qsr++) { NPCQuasar *qs = lq->quasars[qsr]; if(!qs->active) continue; upd->objects[o_idx++] = (NetObject){qs->x, qs->y, qs->z, 0, 0, 0, OBJ_QUASAR, qs->type, 1, 100, 0, 0, 100, 0, qs->id + GALAXY_OBJECT_MIN_QUASAR, 0, "Quasar", 0,0,0}; }
         for(int c=0; c<lq->comet_count && o_idx < MAX_NET_OBJECTS; c++) { NPCComet *co = lq->comets[c]; if(!co->active) continue; upd->objects[o_idx++] = (NetObject){co->x, co->y, co->z, co->h, co->m, 0, OBJ_COMET, 0, 1, 100, 0, 0, 100, OBJ_COMET, co->id + GALAXY_OBJECT_MIN_COMET, 0, "Comet", 0,0,0}; }
         for(int d=0; d<lq->derelict_count && o_idx < MAX_NET_OBJECTS; d++) { NPCDerelict *de = lq->derelicts[d]; if(!de->active) continue; upd->objects[o_idx] = (NetObject){de->x, de->y, de->z, 0, 0, 0, OBJ_DERELICT, de->ship_class, 1, 100, 0, 0, 100, de->faction, de->id + GALAXY_OBJECT_MIN_DERELICT, 0, "", 0,0,0}; snprintf(upd->objects[o_idx].name, 64, "%s", de->name); o_idx++; }
-        for(int a=0; a<lq->asteroid_count && o_idx < MAX_NET_OBJECTS; a++) { NPCAsteroid *as = lq->asteroids[a]; if(!as->active) continue; upd->objects[o_idx++] = (NetObject){as->x, as->y, as->z, 0, 0, 0, OBJ_ASTEROID, as->resource_type, 1, 100, as->amount, (int)(as->size * 100), 100, OBJ_ASTEROID, as->id + GALAXY_OBJECT_MIN_ASTEROID, 0, "Asteroid", 0,0,0}; }
+        for(int a=0; a<lq->asteroid_count && o_idx < MAX_NET_OBJECTS; a++) { NPCAsteroid *as = lq->asteroids[a]; if(!as->active) continue; upd->objects[o_idx++] = (NetObject){as->x, as->y, as->z, 0, 0, 0, OBJ_ASTEROID, as->resource_type, 1, 100, (uint64_t)as->amount, (int)(as->size * 100), 100, OBJ_ASTEROID, as->id + GALAXY_OBJECT_MIN_ASTEROID, 0, "Asteroid", 0,0,0}; }
         for(int m=0; m<lq->mine_count && o_idx < MAX_NET_OBJECTS; m++) { NPCMine *mi = lq->mines[m]; if(!mi->active) continue; upd->objects[o_idx++] = (NetObject){mi->x, mi->y, mi->z, 0, 0, 0, OBJ_MINE, 0, 1, 100, 0, 0, 100, OBJ_MINE, mi->id + GALAXY_OBJECT_MIN_MINE, 0, "Mine", 0,0,0}; }
         for(int b=0; b<lq->buoy_count && o_idx < MAX_NET_OBJECTS; b++) { NPCBuoy *bu = lq->buoys[b]; if(!bu->active) continue; upd->objects[o_idx++] = (NetObject){bu->x, bu->y, bu->z, 0, 0, 0, OBJ_BUOY, 0, 1, 100, 0, 0, 100, OBJ_BUOY, bu->id + GALAXY_OBJECT_MIN_BUOY, 0, "Comm Buoy", 0,0,0}; }
         for(int p=0; p<lq->platform_count && o_idx < MAX_NET_OBJECTS; p++) { NPCPlatform *pl = lq->platforms[p]; if(!pl->active) continue; upd->objects[o_idx++] = (NetObject){pl->x, pl->y, pl->z, 0, 0, 0, OBJ_PLATFORM, 0, 1, (int)(pl->health/(COST_ACTION_MED * 2)), 0, 0, (int)(pl->health/(COST_ACTION_MED * 2)), pl->faction, pl->id + GALAXY_OBJECT_MIN_PLATFORM, 0, "Defense Platform", 0,0,0}; }
@@ -1133,7 +1133,7 @@ void update_game_logic() {
 
         upd->event_count = players[i].state.event_count;
         if (upd->event_count > MAX_NET_EVENTS) upd->event_count = MAX_NET_EVENTS;
-        memcpy(upd->events, players[i].state.events, upd->event_count * sizeof(NetEvent));
+        memcpy(upd->events, players[i].state.events, (size_t)upd->event_count * sizeof(NetEvent));
         
         upd->wormhole = players[i].state.wormhole; 
         for(int p=0; p<3; p++) upd->probes[p] = players[i].state.probes[p];

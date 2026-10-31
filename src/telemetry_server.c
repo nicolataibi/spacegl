@@ -157,7 +157,7 @@ static int robust_read_all(int fd, void* buf, size_t len) {
             if (errno == EINTR) continue;
             return -1;
         }
-        total += n;
+        total += (size_t)n;   /* n > 0 */
     }
     return (int)total;
 }
@@ -177,7 +177,7 @@ static int send_all(int fd, const void *buf, size_t len) {
             return -1;
         }
         if (r == 0) return -1;
-        total += r;
+        total += (size_t)r;   /* r > 0 */
     }
     return (int)total;
 }
@@ -701,7 +701,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
             to->x = p->state.s1; to->y = p->state.s2; to->z = p->state.s3;
             to->integrity = (uint32_t)p->state.hull_integrity;
             to->energy = p->state.energy;
-            to->color_pair = get_color_from_faction(p->faction);
+            to->color_pair = (uint32_t)get_color_from_faction(p->faction);
         } else if (idx >= MAX_CLIENTS && idx < MAX_CLIENTS + MAX_NPC) {
             int n_idx = idx - MAX_CLIENTS;
             if (n_idx < MAX_NPC) {
@@ -713,7 +713,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                 to->x = n->x; to->y = n->y; to->z = n->z;
                 to->integrity = (uint32_t)n->health;
                 to->energy = n->energy;
-                to->color_pair = get_color_from_faction(n->faction);
+                to->color_pair = (uint32_t)get_color_from_faction(n->faction);
             }
         } else {
             int b_idx = idx - MAX_CLIENTS - MAX_NPC;
@@ -724,8 +724,8 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                 strncpy(to->info, "BASE", sizeof(to->info)-1);
                 to->q1 = b->q1; to->q2 = b->q2; to->q3 = b->q3;
                 to->x = b->x; to->y = b->y; to->z = b->z;
-                to->integrity = b->health;
-                to->color_pair = get_color_from_faction(b->faction);
+                to->integrity = (uint32_t)b->health;
+                to->color_pair = (uint32_t)get_color_from_faction(b->faction);
             }
         }
     } else {
@@ -812,8 +812,8 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     snprintf(to->info, sizeof(to->info), "Faction %d", b->faction);
                     to->q1 = b->q1; to->q2 = b->q2; to->q3 = b->q3;
                     to->x = b->x; to->y = b->y; to->z = b->z;
-                    to->integrity = b->health;
-                    to->color_pair = get_color_from_faction(b->faction);
+                    to->integrity = (uint32_t)b->health;
+                    to->color_pair = (uint32_t)get_color_from_faction(b->faction);
                 }
             } break;
             case TEL_CAT_BH: {
@@ -924,7 +924,7 @@ static void fill_obj(TelemetryObject* to, int cat, int idx) {
                     snprintf(to->info, sizeof(to->info), "Fac:%d", p->faction);
                     to->q1 = p->q1; to->q2 = p->q2; to->q3 = p->q3;
                     to->x = p->x; to->y = p->y; to->z = p->z;
-                    to->integrity = p->health;
+                    to->integrity = (uint32_t)p->health;
                     to->energy = p->energy;
                     to->color_pair = 2;
                 }
@@ -2572,7 +2572,7 @@ void telemetry_broadcast() {
                     int current_chunk = (offset + chunk_size > end) ? (end - offset) : chunk_size;
                     TelemetryHeader dhdr;
                     dhdr.type = TEL_PKT_DATA;
-                    dhdr.length = (uint32_t)(current_chunk * sizeof(TelemetryObject));
+                    dhdr.length = (uint32_t)((size_t)current_chunk * sizeof(TelemetryObject));
                     if (send_all(fd, &dhdr, sizeof(dhdr)) != sizeof(dhdr) ||
                         send_all(fd, &cat_cache[cat][offset], dhdr.length) != (int)dhdr.length) {
                         failed = true; break;

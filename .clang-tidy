@@ -2,8 +2,6 @@
 # Run: clang-tidy -p <build dir with compile_commands.json> <files>
 # Excluded on purpose:
 #  - bugprone-easily-swappable-parameters: style (adjacent int parameters).
-#  - bugprone-narrowing-conversions: the implicit float/int narrowing that
-#    -Wconversion also reports; handled with it, one directory at a time.
 #  - cert-err33-c: unchecked return values of printf-family and fclose
 #    calls in diagnostics; reviewed separately.
 #  - cert-err34-c: sscanf() of the command parameters. The parsed values
@@ -16,7 +14,6 @@ Checks: >
   -*,
   bugprone-*,
   -bugprone-easily-swappable-parameters,
-  -bugprone-narrowing-conversions,
   cert-*,
   -cert-err33-c,
   -cert-err34-c,

@@ -42,7 +42,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
     double sensor_h = players[i].state.system_health[2];
     if (sensor_h < THRESHOLD_SYS_DEGRADED && (rand() % 100 > (int)(sensor_h + (float)THRESHOLD_SYS_DAMAGED))) {
         SG_INFO(SG_CAT_PHA, "player %d (%s) pha MISSED: sensor noise (sensor=%.1f), no beams generated", i, players[i].name, sensor_h);
-        players[i].state.energy -= (e / (uint64_t)RATIO_ENERGY_REDUCTION);
+        players[i].state.energy -= ((uint64_t)e / (uint64_t)RATIO_ENERGY_REDUCTION);   /* 0 < e <= energy */
         players[i].state.ion_beam_charge -= THRESHOLD_SYS_CRITICAL;
         send_server_msg(i, "TACTICAL", "Target lock failed due to sensor noise. Shot missed!");
         return;
@@ -54,7 +54,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
         send_server_msg(i, "ENGINEERING", "Ion Beam banks overheating! Minor hardware damage.");
     }
 
-    players[i].state.energy -= e;
+    players[i].state.energy -= (uint64_t)e;
     players[i].state.ion_beam_charge -= 15.0;
     
     double tx = 0.0, ty = 0.0, tz = 0.0; bool found = false;
@@ -159,7 +159,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
             
             if (dmg_rem > 0) {
                 apply_hull_damage(tid - 1, (dmg_rem / (double)YIELD_HARVEST_MAX));
-                target->state.energy -= dmg_rem / (uint64_t)RATIO_ENERGY_REDUCTION;
+                target->state.energy -= (uint64_t)dmg_rem / (uint64_t)RATIO_ENERGY_REDUCTION;   /* dmg_rem > 0 */
             }
             if (target->faction == players[i].faction) {
                 players[i].renegade_timer = (300 * GAME_TICK_RATE);
@@ -186,7 +186,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
                 /* Chance to damage internal systems (Engines) */
                 if (rand() % 100 < PROB_NPC_ESCAPE) {
                     double sys_dmg = 5.0 + (rand() % (int)PROB_NPC_ESCAPE);
-                    npc_target->engine_health -= sys_dmg;
+                    npc_target->engine_health = (float)(npc_target->engine_health - sys_dmg);
                     if (npc_target->engine_health < 0) {
                         npc_target->engine_health = 0;
                     }
@@ -205,7 +205,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
                 plat_target->energy -= (uint64_t)dmg_rem;
                 dmg_rem = 0;
             } else {
-                dmg_rem -= plat_target->energy;
+                dmg_rem -= (int)plat_target->energy;   /* energy < dmg_rem here */
                 plat_target->energy = 0;
             }
             
@@ -412,7 +412,7 @@ void handle_she(int i, const char *params, bool *should_disconnect) {
                 send_server_msg(i, "COMPUTER", "Insufficient reactor energy to charge grids to requested levels.");
                 return;
             }
-            players[i].state.energy -= (diff + COST_ACTION_MED);
+            players[i].state.energy -= (uint64_t)(diff + COST_ACTION_MED);   /* diff > 0, checked above */
         } else {
             /* Removing energy from shields: return 80% to reactor, 20% lost in flux */
             players[i].state.energy -= COST_ACTION_MED;

@@ -775,7 +775,7 @@ void logic_update_environmental_hazards(void) {
             double dz = players[i].state.s3 - lq->dysons[d]->z;
             double dist = sqrt(dx*dx + dy*dy + dz*dz);
             if (dist < DIST_INTERACTION_MAX) {
-                uint64_t recharge = 5000 * (1.0 + (DIST_INTERACTION_MAX - dist));
+                uint64_t recharge = (uint64_t)(5000 * (1.0 + (DIST_INTERACTION_MAX - dist)));   /* dist < DIST_INTERACTION_MAX: positive */
                 if (players[i].state.energy < MAX_ENERGY_CAPACITY - recharge) players[i].state.energy += recharge;
                 if (global_tick % 120 == 0) send_server_msg(i, "ENGINE", "DYSON RESONANCE DETECTED: ENERGY OVERFLOW!");
             }

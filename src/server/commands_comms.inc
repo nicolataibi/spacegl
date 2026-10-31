@@ -120,7 +120,7 @@ void handle_enc_common(int i, const char *params, int level, bool *should_discon
             bool found_other = false;
             for(int o=0; others[o].match; o++) {
                 if (strstr(params, others[o].match)) {
-                    players[i].state.shm_crypto_algo = others[o].algo;
+                    players[i].state.shm_crypto_algo = (uint8_t)others[o].algo;   /* CRYPTO_* ids, 0..21 */
                     players[i].state.encryption_flags |= 0x01;
                     if (level == 4) players[i].state.encryption_flags |= 0x08;
                     else if (level == 3) players[i].state.encryption_flags |= 0x04;
@@ -138,7 +138,7 @@ void handle_enc_common(int i, const char *params, int level, bool *should_discon
     }
     
     if (valid) {
-        players[i].state.energy -= cost;
+        players[i].state.energy -= (uint64_t)cost;   /* 0 <= cost <= energy, checked above */
         
         /* Server-side logging of frequency shift */
         time_t now_enc = time(NULL);

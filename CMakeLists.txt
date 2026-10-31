@@ -231,6 +231,14 @@ set(SERVER_SRCS
 )
 add_executable(spacegl_server ${SERVER_SRCS})
 target_link_libraries(spacegl_server ${COMMON_LIBS})
+# -Wconversion on the server (2026.10.31.26, roadmap phase 4): every
+# implicit conversion that can change a value or a sign is written as an
+# explicit cast (275 sites, machine code unchanged). With SPACEGL_WERROR in
+# CI a new one fails the build. The deck, the viewers and the tools follow
+# one directory at a time (DEVELOPMENT.md section 9).
+if(NOT MSVC)
+    target_compile_options(spacegl_server PRIVATE -Wconversion)
+endif()
 
 # 1b. spacegl_telemetry
 add_executable(spacegl_telemetry src/spacegl_telemetry.c)

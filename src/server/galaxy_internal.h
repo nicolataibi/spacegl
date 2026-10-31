@@ -15,6 +15,16 @@
 #ifndef GALAXY_INTERNAL_H
 #define GALAXY_INTERNAL_H
 
+#include <stdlib.h>
+#include "game_config.h"
+
+/* A random coordinate inside a quadrant: [0, QUADRANT_SIZE) in steps of
+ * 1/RATIO_COORD_RANDOM. The int from rand() % 1000 is exact as a float, so
+ * the explicit conversion changes no value (-Wconversion, 2026.10.31.26). */
+static inline float galaxy_rand_coord(void) {
+    return (float)(rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
+}
+
 void spawn_evolved_stars(void);
 void spawn_protostellar_objects(void);
 void spawn_moons(void);
