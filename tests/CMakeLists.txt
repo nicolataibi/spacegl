@@ -478,6 +478,17 @@ endif()
 add_test(NAME sender_stamp COMMAND sender_stamp_test)
 set_tests_properties(sender_stamp PROPERTIES TIMEOUT 60)
 
+# --- Client wire counts (2026.10.31.06, roadmap phase 0) ---
+# include/client_wire.h with hostile event/torpedo/beam/object counts,
+# negative included, under ASan/UBSan.
+add_executable(client_wire_test client_wire_test.c)
+if(NOT MSVC)
+    target_compile_options(client_wire_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(client_wire_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME client_wire COMMAND client_wire_test)
+
 # --- B2-b: radio cipher table index bounds (ASan/UBSan) ---
 add_executable(crypto_table_oob_test crypto_table_oob_test.c)
 target_link_libraries(crypto_table_oob_test PRIVATE OpenSSL::Crypto)

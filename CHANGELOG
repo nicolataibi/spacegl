@@ -1,3 +1,23 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.06
+  - Client, server-supplied counts (roadmap phase 0, problem 5): event_count
+  and torpedo_count of the UPD_EFFECTS block were clamped only from above,
+  and those of a full PKT_UPDATE not at all. A negative value from a faulty
+  or hostile server became a memcpy length of ~16 EB (crash), and the
+  shared-memory loop "for (s = torpedo_count; s < MAX; s++)" wrote before
+  the torps[] array. Counts inside a fixed-size block are now clamped to
+  [0, MAX] (wire_apply_effects, wire_sanitize_update_counts).
+  - Counts that announce the records that follow (objects, kinematics,
+  beams, LRS objects) were clamped too, which kept memory safe but left the
+  stream misaligned whenever the server sent more records than the client
+  read. A value outside [0, MAX] is now a protocol error and the listener
+  closes the connection, as it already did for a bad message length. The
+  reads of beams, LRS objects and the effects block are checked for short
+  reads like the object reads; a short kinematics read now closes the
+  connection instead of only leaving its inner loop.
+  - The rules live in include/client_wire.h (static inline), used by
+  src/spacegl_client.c and driven directly by the new client_wire_test
+  under ASan/UBSan with hostile values (INT32_MIN .. INT32_MAX).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.05
   - Security (roadmap phase 0, problem 2): the sender of a radio message
   was whatever the client wrote in PacketMessage.from, and its faction

@@ -44,6 +44,7 @@ const char* get_lrs_object_name(int id);
 #include <openssl/provider.h>
 #include <netdb.h>
 #include "network.h"
+#include "client_wire.h"
 #include "radio_crypto.h"
 #include "sglog.h"
 
@@ -1003,11 +1004,19 @@ void *network_listener(void *arg) {
             int r_head = read_all(sock, &lrs_pkt.q1, header_fields_size);
             
             if (r_head == (int)header_fields_size) {
-                if (lrs_pkt.object_count < 0) lrs_pkt.object_count = 0;
-                if (lrs_pkt.object_count > MAX_NET_OBJECTS) lrs_pkt.object_count = MAX_NET_OBJECTS;
-
+                /* object_count announces the records that follow: out of
+                 * [0, MAX] the stream cannot stay aligned (client_wire.h). */
+                if (!wire_count_ok(lrs_pkt.object_count, MAX_NET_OBJECTS)) {
+                    SG_ERROR(SG_CAT_LRS, "PKT_LRS_UPDATE: object_count %d out of range [0,%d] - protocol error, closing",
+                             lrs_pkt.object_count, MAX_NET_OBJECTS);
+                    break;
+                }
                 if (lrs_pkt.object_count > 0) {
-                    read_all(sock, lrs_pkt.objects, lrs_pkt.object_count * sizeof(NetObject));
+                    size_t want = (size_t)lrs_pkt.object_count * sizeof(NetObject);
+                    if (read_all(sock, lrs_pkt.objects, want) != (int)want) {
+                        SG_ERROR(SG_CAT_LRS, "PKT_LRS_UPDATE: short read of objects - wire desync, closing");
+                        break;
+                    }
                 }
                 
                 const char *depth_color = (lrs_pkt.z_offset == 1) ? GREEN : ((lrs_pkt.z_offset == 0) ? YELLOW : RED);
@@ -1071,8 +1080,13 @@ void *network_listener(void *arg) {
                 size_t fixed_size = offsetof(PacketUpdate, objects);
                 int r_fixed = read_all(sock, ((char*)&upd) + sizeof(int32_t), fixed_size - sizeof(int32_t));
                 if (r_fixed <= 0) break;
-                if (upd.object_count < 0) upd.object_count = 0;
-                if (upd.object_count > MAX_NET_OBJECTS) upd.object_count = MAX_NET_OBJECTS;
+                if (!wire_count_ok(upd.object_count, MAX_NET_OBJECTS)) {
+                    SG_ERROR(SG_CAT_LRS, "PKT_UPDATE: object_count %d out of range [0,%d] - protocol error, closing",
+                             upd.object_count, MAX_NET_OBJECTS);
+                    break;
+                }
+                /* event/torpedo/beam counts of the fixed part: clamped */
+                wire_sanitize_update_counts(&upd);
                 if (upd.object_count > 0) {
                     int r_objs = read_all(sock, upd.objects, upd.object_count * sizeof(NetObject));
                     if (r_objs <= 0) break;
@@ -1130,20 +1144,31 @@ void *network_listener(void *arg) {
                     memcpy(current_state.tube_torpedo_etas, b.tube_torpedo_etas, sizeof(b.tube_torpedo_etas));
                     current_state.current_tube = b.current_tube; current_state.ion_beam_charge = b.ion_beam_charge;
                     current_pkt_size += sizeof(b);
-                    int32_t bc; read_all(sock, &bc, sizeof(int32_t)); current_pkt_size += sizeof(int32_t);
-                    /* === FIX (audit B3): bc is raw wire data that was used
-                     * directly as the length of read_all() into the static
-                     * current_state.beams[MAX_NET_BEAMS]; a sick or hostile
-                     * server with bc > 64 overflowed the static state
-                     * (173 KB). Clamp to [0, MAX_NET_BEAMS] before the
-                     * read_all, exactly like the full PKT_UPDATE path does
-                     * for object_count (negative values included). === */
-                    if (bc < 0) bc = 0;
-                    if (bc > MAX_NET_BEAMS) bc = MAX_NET_BEAMS;
+                    int32_t bc = 0;
+                    if (read_all(sock, &bc, sizeof(int32_t)) != (int)sizeof(int32_t)) {
+                        SG_ERROR(SG_CAT_LRS, "UPD_COMBAT: short read of beam_count - wire desync, closing");
+                        break;
+                    }
+                    current_pkt_size += sizeof(int32_t);
+                    /* === FIX (audit B3, 2026.10.31.06): bc is raw wire data
+                     * and the length of the read into the static
+                     * current_state.beams[MAX_NET_BEAMS]. It announces the
+                     * beams that follow, so a value outside [0, MAX] is a
+                     * protocol error (clamping it, as before, kept the
+                     * memory safe but left the stream misaligned). === */
+                    if (!wire_count_ok(bc, MAX_NET_BEAMS)) {
+                        SG_ERROR(SG_CAT_LRS, "UPD_COMBAT: beam_count %d out of range [0,%d] - protocol error, closing",
+                                 bc, MAX_NET_BEAMS);
+                        break;
+                    }
                     current_state.beam_count = bc;
                     if (bc > 0) {
-                        read_all(sock, current_state.beams, bc * sizeof(NetBeam));
-                        current_pkt_size += bc * sizeof(NetBeam);
+                        size_t want = (size_t)bc * sizeof(NetBeam);
+                        if (read_all(sock, current_state.beams, want) != (int)want) {
+                            SG_ERROR(SG_CAT_LRS, "UPD_COMBAT: short read of beams - wire desync, closing");
+                            break;
+                        }
+                        current_pkt_size += (int)want;
                     }
                 }
                 if (mask & UPD_FLAGS) {
@@ -1160,17 +1185,13 @@ void *network_listener(void *arg) {
                     current_pkt_size += sizeof(b);
                 }
                 if (mask & UPD_EFFECTS) {
-                    UpdateBlockEffects b; read_all(sock, &b, sizeof(b));
-                    current_state.supernova_pos = b.supernova_pos;
-                    memcpy(current_state.supernova_q, b.supernova_q, sizeof(b.supernova_q));
-                    memcpy(current_state.torps, b.torps, sizeof(b.torps)); 
-                    current_state.wormhole = b.wormhole;
-                    current_state.event_count = b.event_count;
-                    if (current_state.event_count > MAX_NET_EVENTS) current_state.event_count = MAX_NET_EVENTS;
-                    memcpy(current_state.events, b.events, current_state.event_count * sizeof(NetEvent));
-                    current_state.torpedo_count = b.torpedo_count;
-                    if (current_state.torpedo_count > MAX_VISIBLE_TORPEDOES) current_state.torpedo_count = MAX_VISIBLE_TORPEDOES;
-                    memcpy(current_state.visible_torpedoes, b.visible_torpedoes, current_state.torpedo_count * sizeof(NetVisibleTorpedo));
+                    UpdateBlockEffects b;
+                    if (read_all(sock, &b, sizeof(b)) != (int)sizeof(b)) {
+                        SG_ERROR(SG_CAT_LRS, "UPD_EFFECTS: short read - wire desync, closing");
+                        break;
+                    }
+                    /* event/torpedo counts clamped to [0, MAX] (client_wire.h) */
+                    wire_apply_effects(&current_state, &b);
                     current_pkt_size += sizeof(b);
                 }
                 if (mask & UPD_PROBES) {
@@ -1197,8 +1218,11 @@ void *network_listener(void *arg) {
                      * to [0, MAX_NET_OBJECTS] before the read_all, exactly
                      * like the full PKT_UPDATE path does (negative values
                      * included). === */
-                    if (oc < 0) oc = 0;
-                    if (oc > MAX_NET_OBJECTS) oc = MAX_NET_OBJECTS;
+                    if (!wire_count_ok(oc, MAX_NET_OBJECTS)) {
+                        SG_ERROR(SG_CAT_LRS, "UPD_OBJECTS: object_count %d out of range [0,%d] - protocol error, closing",
+                                 oc, MAX_NET_OBJECTS);
+                        break;
+                    }
                     current_state.object_count = oc;
                     if (oc > 0) {
                         int r_ob = read_all(sock, current_state.objects, oc * sizeof(NetObject));
@@ -1216,15 +1240,20 @@ void *network_listener(void *arg) {
                         break;
                     }
                     current_pkt_size += sizeof(int32_t);
-                    if (oc < 0) oc = 0;
-                    if (oc > MAX_NET_OBJECTS) oc = MAX_NET_OBJECTS;
+                    if (!wire_count_ok(oc, MAX_NET_OBJECTS)) {
+                        SG_ERROR(SG_CAT_LRS, "UPD_KINEMATICS: object_count %d out of range [0,%d] - protocol error, closing",
+                                 oc, MAX_NET_OBJECTS);
+                        break;
+                    }
                     current_state.object_count = oc;
+                    bool kin_short = false;
                     if (oc > 0) {
                         for (int i = 0; i < oc; i++) {
                             NetKinematics k;
                             int r_ob = read_all(sock, &k, sizeof(NetKinematics));
                             if (r_ob != sizeof(NetKinematics)) {
                                 SG_ERROR(SG_CAT_LRS, "UPD_KINEMATICS: short read of object - wire desync, closing");
+                                kin_short = true;   /* this break only leaves the for */
                                 break;
                             }
                             current_pkt_size += sizeof(NetKinematics);
@@ -1237,6 +1266,7 @@ void *network_listener(void *arg) {
                             current_state.objects[i].vz = k.vz;
                         }
                     }
+                    if (kin_short) break;   /* close, as the message says */
                 }
                 
                 if (mask & UPD_MAP) {
