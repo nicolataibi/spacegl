@@ -890,26 +890,26 @@ void createSceneMeshes(VulkanApp* app) {
         int eq_sides = 3 + cl;
         int num_vertices = eq_sides + 2;
         int num_indices = eq_sides * 6;
-        Vertex cVerts[100];
-        memset(cVerts, 0, sizeof(cVerts));
-        uint32_t cInds[600] = {0};
-        cVerts[0] = (Vertex){{0.0f, 1.0f, 0.0f}, {1, 1, 1}, {0, 1, 0}};
-        cVerts[1] = (Vertex){{0.0f, -1.0f, 0.0f}, {1, 1, 1}, {0, -1, 0}};
+        Vertex ringVerts[100];
+        memset(ringVerts, 0, sizeof(ringVerts));
+        uint32_t ringInds[600] = {0};
+        ringVerts[0] = (Vertex){{0.0f, 1.0f, 0.0f}, {1, 1, 1}, {0, 1, 0}};
+        ringVerts[1] = (Vertex){{0.0f, -1.0f, 0.0f}, {1, 1, 1}, {0, -1, 0}};
         for (int e = 0; e < eq_sides; ++e) {
             float th = 2.0f * M_PI * e / eq_sides;
-            cVerts[2 + e] = (Vertex){{cosf(th), 0.0f, sinf(th)}, {1, 1, 1}, {cosf(th), 0, sinf(th)}};
+            ringVerts[2 + e] = (Vertex){{cosf(th), 0.0f, sinf(th)}, {1, 1, 1}, {cosf(th), 0, sinf(th)}};
         }
         int idx = 0;
         for (int e = 0; e < eq_sides; ++e) {
             int next_e = (e + 1) % eq_sides;
-            cInds[idx++] = 0; cInds[idx++] = 2 + e; cInds[idx++] = 2 + next_e;
-            cInds[idx++] = 1; cInds[idx++] = 2 + next_e; cInds[idx++] = 2 + e;
+            ringInds[idx++] = 0; ringInds[idx++] = 2 + e; ringInds[idx++] = 2 + next_e;
+            ringInds[idx++] = 1; ringInds[idx++] = 2 + next_e; ringInds[idx++] = 2 + e;
         }
         app->coreICount[cl] = num_indices;
         createBuffer(app, num_vertices * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->coreVB[cl], &app->coreVBM[cl]);
-        vkMapMemory(app->device, app->coreVBM[cl], 0, num_vertices * sizeof(Vertex), 0, &d); memcpy(d, cVerts, num_vertices * sizeof(Vertex)); vkUnmapMemory(app->device, app->coreVBM[cl]);
+        vkMapMemory(app->device, app->coreVBM[cl], 0, num_vertices * sizeof(Vertex), 0, &d); memcpy(d, ringVerts, num_vertices * sizeof(Vertex)); vkUnmapMemory(app->device, app->coreVBM[cl]);
         createBuffer(app, num_indices * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->coreIB[cl], &app->coreIBM[cl]);
-        vkMapMemory(app->device, app->coreIBM[cl], 0, num_indices * sizeof(uint32_t), 0, &d); memcpy(d, cInds, num_indices * sizeof(uint32_t)); vkUnmapMemory(app->device, app->coreIBM[cl]);
+        vkMapMemory(app->device, app->coreIBM[cl], 0, num_indices * sizeof(uint32_t), 0, &d); memcpy(d, ringInds, num_indices * sizeof(uint32_t)); vkUnmapMemory(app->device, app->coreIBM[cl]);
     }
 }
 

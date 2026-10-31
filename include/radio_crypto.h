@@ -125,6 +125,8 @@ static inline const RadioCipher *radio_cipher_for_algo1(uint8_t algo)
 }
 
 #define _RC_GET_MACRO(_1, _2, NAME, ...) NAME
-#define radio_cipher_for_algo(...) _RC_GET_MACRO(__VA_ARGS__, radio_cipher_for_algo2, radio_cipher_for_algo1)(__VA_ARGS__)
+/* The trailing "_rc_unused" keeps at least one argument in "..." for the
+ * one-argument form (ISO C requires it; clang -Wpedantic warned). */
+#define radio_cipher_for_algo(...) _RC_GET_MACRO(__VA_ARGS__, radio_cipher_for_algo2, radio_cipher_for_algo1, _rc_unused)(__VA_ARGS__)
 
 #endif /* RADIO_CRYPTO_H */

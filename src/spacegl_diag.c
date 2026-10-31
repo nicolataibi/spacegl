@@ -689,33 +689,33 @@ int main(int argc, char** argv) {
             y++;
 
             int start_y = y;
-            int avail_rows = LINES - start_y - 2;
-            if (avail_rows < 5) avail_rows = 5;
+            int page_rows = LINES - start_y - 2;
+            if (page_rows < 5) page_rows = 5;
 
             int col_w = 38;
-            int num_cols = (COLS - 4) / col_w;
-            if (num_cols < 1) num_cols = 1;
-            if (num_cols > 4) num_cols = 4;
-            col_w = (COLS - 4) / num_cols;
+            int page_cols = (COLS - 4) / col_w;
+            if (page_cols < 1) page_cols = 1;
+            if (page_cols > 4) page_cols = 4;
+            col_w = (COLS - 4) / page_cols;
             if (col_w > 42) col_w = 42;
             int name_w = col_w - 5;
             if (name_w < 10) name_w = 10;
 
-            int items_per_screen = avail_rows * num_cols;
-            if (items_per_screen < 1) items_per_screen = 1;
-            int menu_page = (menu_selection - 1) / items_per_screen;
-            int total_menu_screens = (total_menu_items + items_per_screen - 1) / items_per_screen;
+            int page_items = page_rows * page_cols;
+            if (page_items < 1) page_items = 1;
+            int menu_page = (menu_selection - 1) / page_items;
+            int total_menu_screens = (total_menu_items + page_items - 1) / page_items;
             if (total_menu_screens < 1) total_menu_screens = 1;
 
-            int page_start = 1 + menu_page * items_per_screen;
-            int page_end = page_start + items_per_screen - 1;
+            int page_start = 1 + menu_page * page_items;
+            int page_end = page_start + page_items - 1;
             if (page_end > total_menu_items) page_end = total_menu_items;
 
             for (int i = page_start; i <= page_end; i++) {
                 if (pages[i].name == NULL) continue;
                 int offset = i - page_start;
-                int row = offset % avail_rows;
-                int col = offset / avail_rows;
+                int row = offset % page_rows;
+                int col = offset / page_rows;
                 int x_pos = 2 + (col * col_w);
                 int y_pos = start_y + row;
 

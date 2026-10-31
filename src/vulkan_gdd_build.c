@@ -1124,14 +1124,14 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                              0.12f * ts, 1.4f * ts, 0.12f * ts,
                              1.0f, 0.6f, 0.1f, 0.9f, 0, 1, GDD_FRAG_HYPERWARP, o, 0.0f, 1.0f);
             } else if (type == OBJ_COMET) { /* comet tail (thin box along heading) */
-                gdd_m3 m;
+                gdd_m3 m_obj;
                 float h = so->h * M_PI / 180.0f;
                 float mrot = so->m * M_PI / 180.0f;
-                gdd_m3_identity(m);
-                gdd_m3_rotate(m, 90.0f * M_PI / 180.0f - h, 0, 1, 0);
-                gdd_m3_rotate(m, mrot, cosf(h), 0.0f, -sinf(h));
+                gdd_m3_identity(m_obj);
+                gdd_m3_rotate(m_obj, 90.0f * M_PI / 180.0f - h, 0, 1, 0);
+                gdd_m3_rotate(m_obj, mrot, cosf(h), 0.0f, -sinf(h));
                 float d[3];
-                gdd_m3_xaxis(m, d);
+                gdd_m3_xaxis(m_obj, d);
                 float back = 1.2f * ts;
                 gdd_list_add(&dyn, GDD_MESH_BOX,
                              px - d[0] * back, py - d[1] * back, pz - d[2] * back,
@@ -1823,13 +1823,13 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         for (int i = 0; i < ctx->star_count && ctx->stars; i++) {
             const GddStar *st = &ctx->stars[i];
             /* round disc turned to the camera (CPU parity: the CPU path draws each star as a small sphere) */
-            float o[12];
-            gdd_disc_orient(st->pos, ctx->cam_world, o);
+            float o_mat[12];
+            gdd_disc_orient(st->pos, ctx->cam_world, o_mat);
             gdd_list_add(&map, GDD_MESH_DISC,
                          st->pos[0], st->pos[1], st->pos[2],
                          st->scale, st->scale, st->scale,
                          st->color[0], st->color[1], st->color[2], 1.0f,
-                         1, 0, GDD_FRAG_TWINKLE, o, 0, 1);
+                         1, 0, GDD_FRAG_TWINKLE, o_mat, 0, 1);
         }
     }
 

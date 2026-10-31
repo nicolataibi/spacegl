@@ -1,3 +1,21 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.20
+  - Build hygiene, roadmap phase 4: new CMake option SPACEGL_WERROR
+  (warnings as errors), off by default so that a newer compiler never breaks
+  a user's build, on in the CI matrix (gcc and clang, Debug and Release), so
+  no warning can be merged.
+  - -Wshadow on for the whole project. The 102 declarations that hid
+  another of the same name are renamed inside their own block: 89 in the
+  server (84 object-index loops reusing "i", the player index, or an outer
+  loop's "i"; 5 inner "target" variables in the ion beam handler) and 13 in
+  the deck, the diagnostics tool and the viewers. None of them used the
+  hidden name by mistake (each loop body was checked); the machine code of
+  every touched file is identical before and after (objdump), apart from
+  __LINE__ constants. The unused global g_last_shields_val_hit of the OpenGL
+  viewer (drawShieldEffect has its own static copy) is removed.
+  - clang -Wpedantic: radio_cipher_for_algo() with one argument left the
+  "..." of its dispatch macro empty (GNU extension); a trailing placeholder
+  argument fixes it without changing which function is chosen.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.19
   - galaxy.dat format 2, roadmap phase 3: one section per pool (tag,
   element size, layout number, count). A section whose struct changed is

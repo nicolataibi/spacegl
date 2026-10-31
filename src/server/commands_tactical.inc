@@ -142,7 +142,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
         }
         
         ConnectedPlayer *target = player_by_id(tid);
-        NPCShip *target_npc = npc_by_id(tid);
+        NPCShip *hit_npc = npc_by_id(tid);
         if (target) {
             int s_idx = calculate_shield_index(players[i].gx, players[i].gy, players[i].gz,
                                                target->gx, target->gy, target->gz,
@@ -170,59 +170,59 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
                 push_server_event(tid - 1, IPC_EV_BOOM, target->state.s1, target->state.s2, target->state.s3, 0, 0, 0, 1);
             }
             send_server_msg(tid - 1, "WARNING", "UNDER Ion Beam ATTACK!");
-        } else if (target_npc) {
-            NPCShip *target = target_npc;
+        } else if (hit_npc) {
+            NPCShip *npc_target = hit_npc;
             int dmg_rem = hit;
-            if (target->plating >= dmg_rem) {
-                target->plating -= dmg_rem;
+            if (npc_target->plating >= dmg_rem) {
+                npc_target->plating -= dmg_rem;
                 dmg_rem = 0;
             } else {
-                dmg_rem -= target->plating;
-                target->plating = 0;
+                dmg_rem -= npc_target->plating;
+                npc_target->plating = 0;
             }
             
             if (dmg_rem > 0) {
-                target->health -= (dmg_rem / (int)THRESHOLD_SYS_CRITICAL);
+                npc_target->health -= (dmg_rem / (int)THRESHOLD_SYS_CRITICAL);
                 /* Chance to damage internal systems (Engines) */
                 if (rand() % 100 < PROB_NPC_ESCAPE) {
                     double sys_dmg = 5.0 + (rand() % (int)PROB_NPC_ESCAPE);
-                    target->engine_health -= sys_dmg;
-                    if (target->engine_health < 0) {
-                        target->engine_health = 0;
+                    npc_target->engine_health -= sys_dmg;
+                    if (npc_target->engine_health < 0) {
+                        npc_target->engine_health = 0;
                     }
                     send_server_msg(i, "TACTICAL", "Hull impact! Target maneuvering capability degraded.");
                 }
             }
-            if (target->health <= 0 || target->energy <= 0) {
-                target->death_timer = (GAME_TICK_RATE / (int)RATIO_ENERGY_REDUCTION);
-                push_server_event(i, IPC_EV_BOOM, target->x, target->y, target->z, 0, 0, 0, 1);
+            if (npc_target->health <= 0 || npc_target->energy <= 0) {
+                npc_target->death_timer = (GAME_TICK_RATE / (int)RATIO_ENERGY_REDUCTION);
+                push_server_event(i, IPC_EV_BOOM, npc_target->x, npc_target->y, npc_target->z, 0, 0, 0, 1);
                 send_server_msg(i, "TACTICAL", "Target vessel neutralized.");
             }
         } else if (tid >= GALAXY_OBJECT_MIN_PLATFORM && tid <= GALAXY_OBJECT_MAX_PLATFORM) {
-            NPCPlatform *target = &platforms[tid - GALAXY_OBJECT_MIN_PLATFORM];
+            NPCPlatform *plat_target = &platforms[tid - GALAXY_OBJECT_MIN_PLATFORM];
             int dmg_rem = hit;
-            if (target->energy >= (uint64_t)dmg_rem) {
-                target->energy -= (uint64_t)dmg_rem;
+            if (plat_target->energy >= (uint64_t)dmg_rem) {
+                plat_target->energy -= (uint64_t)dmg_rem;
                 dmg_rem = 0;
             } else {
-                dmg_rem -= target->energy;
-                target->energy = 0;
+                dmg_rem -= plat_target->energy;
+                plat_target->energy = 0;
             }
             
             if (dmg_rem > 0) {
-                target->health -= (dmg_rem / (int)THRESHOLD_SYS_CRITICAL);
+                plat_target->health -= (dmg_rem / (int)THRESHOLD_SYS_CRITICAL);
             }
-            if (target->health <= 0) {
-                target->active = 0;
-                push_server_event(i, IPC_EV_BOOM, target->x, target->y, target->z, 0, 0, 0, 1);
+            if (plat_target->health <= 0) {
+                plat_target->active = 0;
+                push_server_event(i, IPC_EV_BOOM, plat_target->x, plat_target->y, plat_target->z, 0, 0, 0, 1);
                 send_server_msg(i, "TACTICAL", "Defense platform neutralized.");
             }
         } else if (tid >= GALAXY_OBJECT_MIN_MONSTER && tid <= GALAXY_OBJECT_MAX_MONSTER) {
-            NPCMonster *target = &monsters[tid - GALAXY_OBJECT_MIN_MONSTER];
-            target->health -= (hit / (int)THRESHOLD_SYS_CRITICAL);
-            if (target->health <= 0) {
-                target->active = 0;
-                push_server_event(i, IPC_EV_BOOM, target->x, target->y, target->z, 0, 0, 0, 1);
+            NPCMonster *mon_target = &monsters[tid - GALAXY_OBJECT_MIN_MONSTER];
+            mon_target->health -= (hit / (int)THRESHOLD_SYS_CRITICAL);
+            if (mon_target->health <= 0) {
+                mon_target->active = 0;
+                push_server_event(i, IPC_EV_BOOM, mon_target->x, mon_target->y, mon_target->z, 0, 0, 0, 1);
                 send_server_msg(i, "TACTICAL", "Anomaly neutralized.");
             }
         } else if (tid >= GALAXY_OBJECT_MIN_PROBE && tid <= GALAXY_OBJECT_MAX_PROBE) {
@@ -822,8 +822,8 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_TIME_ANOMALY && tid <= GALAXY_OBJECT_MAX_TIME_ANOMALY) {
-                for (int t = 0; t < lq->time_anomaly_count; t++) {
-                    if (lq->time_anomalies[t]->id + GALAXY_OBJECT_MIN_TIME_ANOMALY == tid) {
+                for (int ta_idx = 0; ta_idx < lq->time_anomaly_count; ta_idx++) {
+                    if (lq->time_anomalies[ta_idx]->id + GALAXY_OBJECT_MIN_TIME_ANOMALY == tid) {
                         found = true;
                         SG_SPRINTF(rep, MAGENTA "\n--- TEMPORAL ANOMALY SCAN ---" RESET "\nTYPE: Localized Time Dialation Field\nADVISORY: Extreme risk of causal paradox or displacement.\n");
                     }

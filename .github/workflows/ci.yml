@@ -61,9 +61,10 @@ jobs:
             # CMAKE_C_FLAGS through to the compiler driver at link time).
             cmake -B build \
               -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DSPACEGL_WERROR=ON \
               -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
           else
-            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+            cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DSPACEGL_WERROR=ON
           fi
 
       - name: Build

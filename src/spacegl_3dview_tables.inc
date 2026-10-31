@@ -3447,19 +3447,19 @@ void drawSkybox() {
 
 void drawShieldEffect() {
     /* Shield Hit Detection & Synchronization */
-    static int g_last_shields_val_hit[6] = {0};
+    static int shield_last_val[6] = {0};
     static bool g_shields_init = false;
     
     if (!g_shields_init) {
-        for(int s=0; s<6; s++) g_last_shields_val_hit[s] = g_shm->buffers[g_shm->read_index].shm_shields[s];
+        for(int s=0; s<6; s++) shield_last_val[s] = g_shm->buffers[g_shm->read_index].shm_shields[s];
         g_shields_init = true;
     }
 
     for(int s=0; s<6; s++) {
-        if (g_shm->buffers[g_shm->read_index].shm_shields[s] < g_last_shields_val_hit[s]) {
+        if (g_shm->buffers[g_shm->read_index].shm_shields[s] < shield_last_val[s]) {
             g_shield_hit_timers[s] = (int)(GAME_TICK_RATE); 
         }
-        g_last_shields_val_hit[s] = g_shm->buffers[g_shm->read_index].shm_shields[s];
+        shield_last_val[s] = g_shm->buffers[g_shm->read_index].shm_shields[s];
     }
 
     bool any_hit = false;

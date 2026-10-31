@@ -616,7 +616,6 @@ GLint hud_view[4];
 int g_shield_hit_timers[6] = {0,0,0,0,0,0};
 int g_hull_hit_timer = 0;
 float g_last_hull = (float)YIELD_HARVEST_MAX;
-int g_last_shields_val_hit[6] = {SHIELD_MAX_STRENGTH, SHIELD_MAX_STRENGTH, SHIELD_MAX_STRENGTH, SHIELD_MAX_STRENGTH, SHIELD_MAX_STRENGTH, SHIELD_MAX_STRENGTH};
 
 uint64_t g_energy = 0;
 int g_crew = 0, g_prison_unit = 0, g_shields = 0, g_Korthians = 0;

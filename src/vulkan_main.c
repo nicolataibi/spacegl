@@ -254,12 +254,12 @@ void pilot_process_joystick(VulkanApp *app, double now) {
                 int axis_count = 0, btn_count = 0;
                 const float   *axes = glfwGetJoystickAxes   (app->jsIndex, &axis_count);
                 const uint8_t *btns = glfwGetJoystickButtons(app->jsIndex, &btn_count);
-                double now = glfwGetTime();
+                double js_now = glfwGetTime();
                 /* DIAG: print joystick state once per second            */
                 /* (SPACEGL_PILOT_DIAG=1) */
                 {
                     static double _js_diag_t = 0;
-                    if (now - _js_diag_t > 1.0) {
+                    if (js_now - _js_diag_t > 1.0) {
                         PILOT_DIAG("[PILOT DIAG] JS poll: jsIndex=%d axes=%d btns=%d  "
                                    "thr=%.3f stickX=%.3f stickY=%.3f twist=%.3f\n",
                                    app->jsIndex, axis_count, btn_count,
@@ -267,7 +267,7 @@ void pilot_process_joystick(VulkanApp *app, double now) {
                                    (axes && axis_count > 0) ? axes[0] : -99.0f,
                                    (axes && axis_count > 1) ? axes[1] : -99.0f,
                                    (axes && axis_count > 2) ? axes[2] : -99.0f);
-                        _js_diag_t = now;
+                        _js_diag_t = js_now;
                     }
                 }
 
@@ -320,7 +320,7 @@ void pilot_process_joystick(VulkanApp *app, double now) {
 
                     if (hat != GLFW_HAT_CENTERED) {
                         /* VECTORED RETRO-THRUSTER (latched, edge-captured). */
-                        pilot_hat_retro(app, hat, now);
+                        pilot_hat_retro(app, hat, js_now);
                     } else {
                         if (app->jsRetroActive) {
                             /* Hat returned to center: release the latch and  */
@@ -328,7 +328,7 @@ void pilot_process_joystick(VulkanApp *app, double now) {
                             /* actuation re-captures a fresh vector.          */
                             app->jsRetroActive = 0;
                             pilot_send_vec(app, app->jsRetroH, app->jsRetroM,
-                                           0.0, now, 1);
+                                           0.0, js_now, 1);
                         }
 
                         if (ax != 0.0f || ay != 0.0f) {
@@ -357,7 +357,7 @@ void pilot_process_joystick(VulkanApp *app, double now) {
                                 JS_STICK_SPEED_MAX * fmaxf(fabsf(ax), fabsf(ay));
                             pilot_send_imp(app, th, tm,
                                            (double)fmaxf(imp_val, stick_speed),
-                                           now);
+                                           js_now);
                         } else if (imp_val > 0.0f) {
                             /* THROTTLE: 1-arg "imp <S>" — cruise speed along */
                             /* the CURRENT nose, no attitude target (the      */
@@ -368,7 +368,7 @@ void pilot_process_joystick(VulkanApp *app, double now) {
                             /* Re-assert (bypassing the speed-dedup) when the */
                             /* ship is IDLE: that re-engages the cruise after */
                             /* a twist ("pos") or a retro release stopped it. */
-                            pilot_send_thr(app, (double)imp_val, now,
+                            pilot_send_thr(app, (double)imp_val, js_now,
                                            nav == 0 /* NAV_STATE_IDLE */);
                         }
                         /* else: stick centred, throttle at rest -> no        */
@@ -379,7 +379,7 @@ void pilot_process_joystick(VulkanApp *app, double now) {
                         /* dedup (rounded h/m/r) drops repeats, so a held     */
                         /* twist costs one command per 200 ms of roll.       */
                         if (fabsf(az) > 0.0f &&
-                            now - app->jsLastPosTime > JS_POS_INTERVAL) {
+                            js_now - app->jsLastPosTime > JS_POS_INTERVAL) {
                             double tr = fmod(r0 + (double)az * JS_ROLL_AHEAD, 360.0);
                             if (tr < 0.0) tr += 360.0;
                             tr = round(tr * 10.0) / 10.0;
@@ -392,7 +392,7 @@ void pilot_process_joystick(VulkanApp *app, double now) {
                                          th2, tm2, tr);
                                 PILOT_DIAG("[PILOT DIAG] → %s\n", cmd);
                                 vulkan_send_ipc_command(app, cmd);
-                                app->jsLastPosTime = now;
+                                app->jsLastPosTime = js_now;
                                 app->jsLastPosH = th2; app->jsLastPosM = tm2;
                                 app->jsLastPosR = tr;
                             }
@@ -413,19 +413,19 @@ void pilot_process_joystick(VulkanApp *app, double now) {
                     /* pre-fix bare "pha" (zero args) was always rejected    */
                     /* with "Usage: pha <ID> <E>." and the beam never fired  */
                     /* (2026.10.06.07).                                      */
-                    if (JS_RISING(0) && now - app->jsLastPhaTime > JS_PHA_LOCKOUT) {
+                    if (JS_RISING(0) && js_now - app->jsLastPhaTime > JS_PHA_LOCKOUT) {
                         char cmd[64];
                         snprintf(cmd, sizeof(cmd), "pha %d", PILOT_PHA_ENERGY);
                         vulkan_send_ipc_command(app, cmd);
-                        app->jsLastPhaTime = now;
+                        app->jsLastPhaTime = js_now;
                     }
                     /* btn 1: Pollice alto → lock next target */
                     if (JS_RISING(1))
                         vulkan_send_ipc_command(app, "lock next");
                     /* btn 2: Pollice basso-sx → torpedo */
-                    if (JS_RISING(2) && now - app->jsLastTorTime > JS_TOR_LOCKOUT) {
+                    if (JS_RISING(2) && js_now - app->jsLastTorTime > JS_TOR_LOCKOUT) {
                         vulkan_send_ipc_command(app, "tor");
-                        app->jsLastTorTime = now;
+                        app->jsLastTorTime = js_now;
                     }
                     /* btn 3: Pollice basso-dx → release lock */
                     if (JS_RISING(3))
@@ -442,9 +442,9 @@ void pilot_process_joystick(VulkanApp *app, double now) {
                         app->jsLastImpH = 0.0;
                         app->jsLastImpM = 0.0;
                         app->jsLastImpS = 0.0;
-                        app->jsLastImpTime = now;
-                        app->jsLastThrS = 0.0;  app->jsLastThrTime = now;
-                        app->jsLastVecS = 0.0;  app->jsLastVecTime = now;
+                        app->jsLastImpTime = js_now;
+                        app->jsLastThrS = 0.0;  app->jsLastThrTime = js_now;
+                        app->jsLastVecS = 0.0;  app->jsLastVecTime = js_now;
                     }
                     /* btn 5: Base → power to engines */
                     if (JS_RISING(5))

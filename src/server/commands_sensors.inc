@@ -302,399 +302,399 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "💥  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Subspace Anomaly\n", "Anomaly", sa->id + GALAXY_OBJECT_MIN_SUBSPACE_ANOM, sa->x, sa->y, sa->z, d, h, m);
     }
-    for (int i=0; i<local_q->void_crystal_count; i++) {
-        NPCVoidCrystal *vc = local_q->void_crystals[i];
+    for (int oi=0; oi<local_q->void_crystal_count; oi++) {
+        NPCVoidCrystal *vc = local_q->void_crystals[oi];
         double dx = vc->x - s1; double dy = vc->y - s2; double dz = vc->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "💎  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Void Crystal\n", "Crystal", vc->id + GALAXY_OBJECT_MIN_VOID_CRYSTAL, vc->x, vc->y, vc->z, d, h, m);
     }
-    for (int i=0; i<local_q->dyson_count; i++) {
-        NPCDyson *dy = local_q->dysons[i];
+    for (int oi=0; oi<local_q->dyson_count; oi++) {
+        NPCDyson *dy = local_q->dysons[oi];
         double dx = dy->x - s1; double dy_ = dy->y - s2; double dz = dy->z - s3;
         double d = sqrt(dx*dx + dy_*dy_ + dz*dz);
         double h = atan2(dx, -dy_) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🏗️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Dyson Fragment\n", "Dyson", dy->id + GALAXY_OBJECT_MIN_DYSON, dy->x, dy->y, dy->z, d, h, m);
     }
-    for (int i=0; i<local_q->hub_count; i++) {
-        NPCHub *hu = local_q->hubs[i];
+    for (int oi=0; oi<local_q->hub_count; oi++) {
+        NPCHub *hu = local_q->hubs[oi];
         double dx = hu->x - s1; double dy = hu->y - s2; double dz = hu->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌐  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Galactic Hub\n", "Hub", hu->id + GALAXY_OBJECT_MIN_HUB, hu->x, hu->y, hu->z, d, h, m);
     }
-    for (int i=0; i<local_q->relic_count; i++) {
-        NPCRelic *re = local_q->relics[i];
+    for (int oi=0; oi<local_q->relic_count; oi++) {
+        NPCRelic *re = local_q->relics[oi];
         double dx = re->x - s1; double dy = re->y - s2; double dz = re->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "📜  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Relic\n", "Relic", re->id + GALAXY_OBJECT_MIN_RELIC, re->x, re->y, re->z, d, h, m);
     }
-    for (int i=0; i<local_q->rupture_count; i++) {
-        NPCRupture *ru = local_q->ruptures[i];
+    for (int oi=0; oi<local_q->rupture_count; oi++) {
+        NPCRupture *ru = local_q->ruptures[oi];
         double dx = ru->x - s1; double dy = ru->y - s2; double dz = ru->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🔪  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Spacetime Rupture\n", "Rupture", ru->id + GALAXY_OBJECT_MIN_RUPTURE, ru->x, ru->y, ru->z, d, h, m);
     }
-    for (int i=0; i<local_q->satellite_count; i++) {
-        NPCSatellite *sa = local_q->satellites[i];
+    for (int oi=0; oi<local_q->satellite_count; oi++) {
+        NPCSatellite *sa = local_q->satellites[oi];
         double dx = sa->x - s1; double dy = sa->y - s2; double dz = sa->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "📡  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Satellite\n", "Sat", sa->id + GALAXY_OBJECT_MIN_SATELLITE, sa->x, sa->y, sa->z, d, h, m);
     }
-    for (int i=0; i<local_q->storm_count; i++) {
-        NPCStorm *st = local_q->storms[i];
+    for (int oi=0; oi<local_q->storm_count; oi++) {
+        NPCStorm *st = local_q->storms[oi];
         double dx = st->x - s1; double dy = st->y - s2; double dz = st->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "⛈️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Ion Storm\n", "Storm", st->id + GALAXY_OBJECT_MIN_STORM, st->x, st->y, st->z, d, h, m);
     }
-    for (int i=0; i<local_q->artifact_count; i++) {
-        NPCArtifact *ar = local_q->artifacts[i];
+    for (int oi=0; oi<local_q->artifact_count; oi++) {
+        NPCArtifact *ar = local_q->artifacts[oi];
         double dx = ar->x - s1; double dy = ar->y - s2; double dz = ar->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🏺  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Artifact\n", "Artifact", ar->id + GALAXY_OBJECT_MIN_ARTIFACT, ar->x, ar->y, ar->z, d, h, m);
     }
-    for (int i=0; i<local_q->warp_gate_count; i++) {
-        NPCWarpGate *wg = local_q->warp_gates[i];
+    for (int oi=0; oi<local_q->warp_gate_count; oi++) {
+        NPCWarpGate *wg = local_q->warp_gates[oi];
         double dx = wg->x - s1; double dy = wg->y - s2; double dz = wg->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌌  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Warp Gate\n", "WarpGate", wg->id + GALAXY_OBJECT_MIN_WARP_GATE, wg->x, wg->y, wg->z, d, h, m);
     }
-    for (int i=0; i<local_q->neutron_star_count; i++) {
-        NPCNeutronStar *ns = local_q->neutron_stars[i];
+    for (int oi=0; oi<local_q->neutron_star_count; oi++) {
+        NPCNeutronStar *ns = local_q->neutron_stars[oi];
         double dx = ns->x - s1; double dy = ns->y - s2; double dz = ns->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌟  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Neutron Star\n", "Neutron", ns->id + GALAXY_OBJECT_MIN_NEUTRON_STAR, ns->x, ns->y, ns->z, d, h, m);
     }
-    for (int i=0; i<local_q->mega_struct_count; i++) {
-        NPCMegaStructure *ms = local_q->mega_structs[i];
+    for (int oi=0; oi<local_q->mega_struct_count; oi++) {
+        NPCMegaStructure *ms = local_q->mega_structs[oi];
         double dx = ms->x - s1; double dy = ms->y - s2; double dz = ms->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🏛️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Mega Structure\n", "Mega", ms->id + GALAXY_OBJECT_MIN_MEGA_STRUCT, ms->x, ms->y, ms->z, d, h, m);
     }
-    for (int i=0; i<local_q->dark_cloud_count; i++) {
-        NPCDarkCloud *dc = local_q->dark_clouds[i];
+    for (int oi=0; oi<local_q->dark_cloud_count; oi++) {
+        NPCDarkCloud *dc = local_q->dark_clouds[oi];
         double dx = dc->x - s1; double dy = dc->y - s2; double dz = dc->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌑  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Dark Cloud\n", "Cloud", dc->id + GALAXY_OBJECT_MIN_DARK_CLOUD, dc->x, dc->y, dc->z, d, h, m);
     }
-    for (int i=0; i<local_q->singularity_count; i++) {
-        NPCSingularity *si = local_q->singularities[i];
+    for (int oi=0; oi<local_q->singularity_count; oi++) {
+        NPCSingularity *si = local_q->singularities[oi];
         double dx = si->x - s1; double dy = si->y - s2; double dz = si->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🔮  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Singularity\n", "Sing", si->id + GALAXY_OBJECT_MIN_SINGULARITY, si->x, si->y, si->z, d, h, m);
     }
-    for (int i=0; i<local_q->plasma_storm_count; i++) {
-        NPCPlasmaStorm *ps = local_q->plasma_storms[i];
+    for (int oi=0; oi<local_q->plasma_storm_count; oi++) {
+        NPCPlasmaStorm *ps = local_q->plasma_storms[oi];
         double dx = ps->x - s1; double dy = ps->y - s2; double dz = ps->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "⚡  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Plasma Storm\n", "Plasma", ps->id + GALAXY_OBJECT_MIN_PLASMA_STORM, ps->x, ps->y, ps->z, d, h, m);
     }
-    for (int i=0; i<local_q->orbital_ring_count; i++) {
-        NPCOrbitalRing *or = local_q->orbital_rings[i];
+    for (int oi=0; oi<local_q->orbital_ring_count; oi++) {
+        NPCOrbitalRing *or = local_q->orbital_rings[oi];
         double dx = or->x - s1; double dy = or->y - s2; double dz = or->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "💍  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Orbital Ring\n", "Ring", or->id + GALAXY_OBJECT_MIN_ORBITAL_RING, or->x, or->y, or->z, d, h, m);
     }
-    for (int i=0; i<local_q->time_anomaly_count; i++) {
-        NPCTimeAnomaly *ta = local_q->time_anomalies[i];
+    for (int oi=0; oi<local_q->time_anomaly_count; oi++) {
+        NPCTimeAnomaly *ta = local_q->time_anomalies[oi];
         double dx = ta->x - s1; double dy = ta->y - s2; double dz = ta->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "⏳  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Time Anomaly\n", "T-Anom", ta->id + GALAXY_OBJECT_MIN_TIME_ANOMALY, ta->x, ta->y, ta->z, d, h, m);
     }
-    for (int i=0; i<local_q->diffuse_nebula_count; i++) {
-        double dx = local_q->diffuse_nebulae[i]->x - s1; double dy = local_q->diffuse_nebulae[i]->y - s2; double dz = local_q->diffuse_nebulae[i]->z - s3;
+    for (int oi=0; oi<local_q->diffuse_nebula_count; oi++) {
+        double dx = local_q->diffuse_nebulae[oi]->x - s1; double dy = local_q->diffuse_nebulae[oi]->y - s2; double dz = local_q->diffuse_nebulae[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "☁️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Diffuse Nebula\n", "Diffuse Ne", local_q->diffuse_nebulae[i]->id + GALAXY_OBJECT_MIN_DIFFUSE_NEBULA, local_q->diffuse_nebulae[i]->x, local_q->diffuse_nebulae[i]->y, local_q->diffuse_nebulae[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "☁️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Diffuse Nebula\n", "Diffuse Ne", local_q->diffuse_nebulae[oi]->id + GALAXY_OBJECT_MIN_DIFFUSE_NEBULA, local_q->diffuse_nebulae[oi]->x, local_q->diffuse_nebulae[oi]->y, local_q->diffuse_nebulae[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->dark_nebula_count; i++) {
-        double dx = local_q->dark_nebulae[i]->x - s1; double dy = local_q->dark_nebulae[i]->y - s2; double dz = local_q->dark_nebulae[i]->z - s3;
+    for (int oi=0; oi<local_q->dark_nebula_count; oi++) {
+        double dx = local_q->dark_nebulae[oi]->x - s1; double dy = local_q->dark_nebulae[oi]->y - s2; double dz = local_q->dark_nebulae[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌌  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Dark Nebula\n", "Dark Nebul", local_q->dark_nebulae[i]->id + GALAXY_OBJECT_MIN_DARK_NEBULA, local_q->dark_nebulae[i]->x, local_q->dark_nebulae[i]->y, local_q->dark_nebulae[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌌  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Dark Nebula\n", "Dark Nebul", local_q->dark_nebulae[oi]->id + GALAXY_OBJECT_MIN_DARK_NEBULA, local_q->dark_nebulae[oi]->x, local_q->dark_nebulae[oi]->y, local_q->dark_nebulae[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->planetary_nebula_count; i++) {
-        double dx = local_q->planetary_nebulae[i]->x - s1; double dy = local_q->planetary_nebulae[i]->y - s2; double dz = local_q->planetary_nebulae[i]->z - s3;
+    for (int oi=0; oi<local_q->planetary_nebula_count; oi++) {
+        double dx = local_q->planetary_nebulae[oi]->x - s1; double dy = local_q->planetary_nebulae[oi]->y - s2; double dz = local_q->planetary_nebulae[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🎆  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Planetary Neb\n", "Planetary ", local_q->planetary_nebulae[i]->id + GALAXY_OBJECT_MIN_PLANETARY_NEBULA, local_q->planetary_nebulae[i]->x, local_q->planetary_nebulae[i]->y, local_q->planetary_nebulae[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🎆  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Planetary Neb\n", "Planetary ", local_q->planetary_nebulae[oi]->id + GALAXY_OBJECT_MIN_PLANETARY_NEBULA, local_q->planetary_nebulae[oi]->x, local_q->planetary_nebulae[oi]->y, local_q->planetary_nebulae[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->snr_count; i++) {
-        double dx = local_q->snrs[i]->x - s1; double dy = local_q->snrs[i]->y - s2; double dz = local_q->snrs[i]->z - s3;
+    for (int oi=0; oi<local_q->snr_count; oi++) {
+        double dx = local_q->snrs[oi]->x - s1; double dy = local_q->snrs[oi]->y - s2; double dz = local_q->snrs[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💥  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     SNR\n", "SNR", local_q->snrs[i]->id + GALAXY_OBJECT_MIN_SNR, local_q->snrs[i]->x, local_q->snrs[i]->y, local_q->snrs[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💥  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     SNR\n", "SNR", local_q->snrs[oi]->id + GALAXY_OBJECT_MIN_SNR, local_q->snrs[oi]->x, local_q->snrs[oi]->y, local_q->snrs[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->gmc_count; i++) {
-        double dx = local_q->gmcs[i]->x - s1; double dy = local_q->gmcs[i]->y - s2; double dz = local_q->gmcs[i]->z - s3;
+    for (int oi=0; oi<local_q->gmc_count; oi++) {
+        double dx = local_q->gmcs[oi]->x - s1; double dy = local_q->gmcs[oi]->y - s2; double dz = local_q->gmcs[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌁  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     GMC\n", "GMC", local_q->gmcs[i]->id + GALAXY_OBJECT_MIN_GMC, local_q->gmcs[i]->x, local_q->gmcs[i]->y, local_q->gmcs[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌁  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     GMC\n", "GMC", local_q->gmcs[oi]->id + GALAXY_OBJECT_MIN_GMC, local_q->gmcs[oi]->x, local_q->gmcs[oi]->y, local_q->gmcs[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->interstellar_filament_count; i++) {
-        double dx = local_q->interstellar_filaments[i]->x - s1; double dy = local_q->interstellar_filaments[i]->y - s2; double dz = local_q->interstellar_filaments[i]->z - s3;
+    for (int oi=0; oi<local_q->interstellar_filament_count; oi++) {
+        double dx = local_q->interstellar_filaments[oi]->x - s1; double dy = local_q->interstellar_filaments[oi]->y - s2; double dz = local_q->interstellar_filaments[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Int Filament\n", "Int Filame", local_q->interstellar_filaments[i]->id + GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT, local_q->interstellar_filaments[i]->x, local_q->interstellar_filaments[i]->y, local_q->interstellar_filaments[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Int Filament\n", "Int Filame", local_q->interstellar_filaments[oi]->id + GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT, local_q->interstellar_filaments[oi]->x, local_q->interstellar_filaments[oi]->y, local_q->interstellar_filaments[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->interstellar_bubble_count; i++) {
-        double dx = local_q->interstellar_bubbles[i]->x - s1; double dy = local_q->interstellar_bubbles[i]->y - s2; double dz = local_q->interstellar_bubbles[i]->z - s3;
+    for (int oi=0; oi<local_q->interstellar_bubble_count; oi++) {
+        double dx = local_q->interstellar_bubbles[oi]->x - s1; double dy = local_q->interstellar_bubbles[oi]->y - s2; double dz = local_q->interstellar_bubbles[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🫧  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Int Bubble\n", "Int Bubble", local_q->interstellar_bubbles[i]->id + GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE, local_q->interstellar_bubbles[i]->x, local_q->interstellar_bubbles[i]->y, local_q->interstellar_bubbles[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🫧  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Int Bubble\n", "Int Bubble", local_q->interstellar_bubbles[oi]->id + GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE, local_q->interstellar_bubbles[oi]->x, local_q->interstellar_bubbles[oi]->y, local_q->interstellar_bubbles[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->bok_globule_count; i++) {
-        double dx = local_q->bok_globules[i]->x - s1; double dy = local_q->bok_globules[i]->y - s2; double dz = local_q->bok_globules[i]->z - s3;
+    for (int oi=0; oi<local_q->bok_globule_count; oi++) {
+        double dx = local_q->bok_globules[oi]->x - s1; double dy = local_q->bok_globules[oi]->y - s2; double dz = local_q->bok_globules[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⚫  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Bok Globule\n", "Bok Globul", local_q->bok_globules[i]->id + GALAXY_OBJECT_MIN_BOK_GLOBULE, local_q->bok_globules[i]->x, local_q->bok_globules[i]->y, local_q->bok_globules[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⚫  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Bok Globule\n", "Bok Globul", local_q->bok_globules[oi]->id + GALAXY_OBJECT_MIN_BOK_GLOBULE, local_q->bok_globules[oi]->x, local_q->bok_globules[oi]->y, local_q->bok_globules[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->clump_core_count; i++) {
-        double dx = local_q->clump_cores[i]->x - s1; double dy = local_q->clump_cores[i]->y - s2; double dz = local_q->clump_cores[i]->z - s3;
+    for (int oi=0; oi<local_q->clump_core_count; oi++) {
+        double dx = local_q->clump_cores[oi]->x - s1; double dy = local_q->clump_cores[oi]->y - s2; double dz = local_q->clump_cores[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪨  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Clump/Core\n", "Clump/Core", local_q->clump_cores[i]->id + GALAXY_OBJECT_MIN_CLUMP_CORE, local_q->clump_cores[i]->x, local_q->clump_cores[i]->y, local_q->clump_cores[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪨  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Clump/Core\n", "Clump/Core", local_q->clump_cores[oi]->id + GALAXY_OBJECT_MIN_CLUMP_CORE, local_q->clump_cores[oi]->x, local_q->clump_cores[oi]->y, local_q->clump_cores[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->accretion_disk_count; i++) {
-        double dx = local_q->accretion_disks[i]->x - s1; double dy = local_q->accretion_disks[i]->y - s2; double dz = local_q->accretion_disks[i]->z - s3;
+    for (int oi=0; oi<local_q->accretion_disk_count; oi++) {
+        double dx = local_q->accretion_disks[oi]->x - s1; double dy = local_q->accretion_disks[oi]->y - s2; double dz = local_q->accretion_disks[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💿  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Accretion Disk\n", "Accretion ", local_q->accretion_disks[i]->id + GALAXY_OBJECT_MIN_ACCRETION_DISK, local_q->accretion_disks[i]->x, local_q->accretion_disks[i]->y, local_q->accretion_disks[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💿  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Accretion Disk\n", "Accretion ", local_q->accretion_disks[oi]->id + GALAXY_OBJECT_MIN_ACCRETION_DISK, local_q->accretion_disks[oi]->x, local_q->accretion_disks[oi]->y, local_q->accretion_disks[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->relativistic_jet_count; i++) {
-        double dx = local_q->relativistic_jets[i]->x - s1; double dy = local_q->relativistic_jets[i]->y - s2; double dz = local_q->relativistic_jets[i]->z - s3;
+    for (int oi=0; oi<local_q->relativistic_jet_count; oi++) {
+        double dx = local_q->relativistic_jets[oi]->x - s1; double dy = local_q->relativistic_jets[oi]->y - s2; double dz = local_q->relativistic_jets[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "☄️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Relativ Jet\n", "Relativ Je", local_q->relativistic_jets[i]->id + GALAXY_OBJECT_MIN_RELATIVISTIC_JET, local_q->relativistic_jets[i]->x, local_q->relativistic_jets[i]->y, local_q->relativistic_jets[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "☄️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Relativ Jet\n", "Relativ Je", local_q->relativistic_jets[oi]->id + GALAXY_OBJECT_MIN_RELATIVISTIC_JET, local_q->relativistic_jets[oi]->x, local_q->relativistic_jets[oi]->y, local_q->relativistic_jets[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->shock_wave_count; i++) {
-        double dx = local_q->shock_waves[i]->x - s1; double dy = local_q->shock_waves[i]->y - s2; double dz = local_q->shock_waves[i]->z - s3;
+    for (int oi=0; oi<local_q->shock_wave_count; oi++) {
+        double dx = local_q->shock_waves[oi]->x - s1; double dy = local_q->shock_waves[oi]->y - s2; double dz = local_q->shock_waves[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Shock Wave\n", "Shock Wave", local_q->shock_waves[i]->id + GALAXY_OBJECT_MIN_SHOCK_WAVE, local_q->shock_waves[i]->x, local_q->shock_waves[i]->y, local_q->shock_waves[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Shock Wave\n", "Shock Wave", local_q->shock_waves[oi]->id + GALAXY_OBJECT_MIN_SHOCK_WAVE, local_q->shock_waves[oi]->x, local_q->shock_waves[oi]->y, local_q->shock_waves[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->stellar_bow_shock_count; i++) {
-        double dx = local_q->stellar_bow_shocks[i]->x - s1; double dy = local_q->stellar_bow_shocks[i]->y - s2; double dz = local_q->stellar_bow_shocks[i]->z - s3;
+    for (int oi=0; oi<local_q->stellar_bow_shock_count; oi++) {
+        double dx = local_q->stellar_bow_shocks[oi]->x - s1; double dy = local_q->stellar_bow_shocks[oi]->y - s2; double dz = local_q->stellar_bow_shocks[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌊  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Bow Shock\n", "Bow Shock", local_q->stellar_bow_shocks[i]->id + GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK, local_q->stellar_bow_shocks[i]->x, local_q->stellar_bow_shocks[i]->y, local_q->stellar_bow_shocks[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌊  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Bow Shock\n", "Bow Shock", local_q->stellar_bow_shocks[oi]->id + GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK, local_q->stellar_bow_shocks[oi]->x, local_q->stellar_bow_shocks[oi]->y, local_q->stellar_bow_shocks[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->cosmic_void_count; i++) {
-        double dx = local_q->cosmic_voids[i]->x - s1; double dy = local_q->cosmic_voids[i]->y - s2; double dz = local_q->cosmic_voids[i]->z - s3;
+    for (int oi=0; oi<local_q->cosmic_void_count; oi++) {
+        double dx = local_q->cosmic_voids[oi]->x - s1; double dy = local_q->cosmic_voids[oi]->y - s2; double dz = local_q->cosmic_voids[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⬛  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cosmic Void\n", "Cosmic Voi", local_q->cosmic_voids[i]->id + GALAXY_OBJECT_MIN_COSMIC_VOID, local_q->cosmic_voids[i]->x, local_q->cosmic_voids[i]->y, local_q->cosmic_voids[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⬛  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cosmic Void\n", "Cosmic Voi", local_q->cosmic_voids[oi]->id + GALAXY_OBJECT_MIN_COSMIC_VOID, local_q->cosmic_voids[oi]->x, local_q->cosmic_voids[oi]->y, local_q->cosmic_voids[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->cosmic_filament_count; i++) {
-        double dx = local_q->cosmic_filaments[i]->x - s1; double dy = local_q->cosmic_filaments[i]->y - s2; double dz = local_q->cosmic_filaments[i]->z - s3;
+    for (int oi=0; oi<local_q->cosmic_filament_count; oi++) {
+        double dx = local_q->cosmic_filaments[oi]->x - s1; double dy = local_q->cosmic_filaments[oi]->y - s2; double dz = local_q->cosmic_filaments[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🕸️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cosmic Fil\n", "Cosmic Fil", local_q->cosmic_filaments[i]->id + GALAXY_OBJECT_MIN_COSMIC_FILAMENT, local_q->cosmic_filaments[i]->x, local_q->cosmic_filaments[i]->y, local_q->cosmic_filaments[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🕸️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cosmic Fil\n", "Cosmic Fil", local_q->cosmic_filaments[oi]->id + GALAXY_OBJECT_MIN_COSMIC_FILAMENT, local_q->cosmic_filaments[oi]->x, local_q->cosmic_filaments[oi]->y, local_q->cosmic_filaments[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->event_horizon_count; i++) {
-        double dx = local_q->event_horizons[i]->x - s1; double dy = local_q->event_horizons[i]->y - s2; double dz = local_q->event_horizons[i]->z - s3;
+    for (int oi=0; oi<local_q->event_horizon_count; oi++) {
+        double dx = local_q->event_horizons[oi]->x - s1; double dy = local_q->event_horizons[oi]->y - s2; double dz = local_q->event_horizons[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🕳️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Event Horizon\n", "Event Hori", local_q->event_horizons[i]->id + GALAXY_OBJECT_MIN_EVENT_HORIZON, local_q->event_horizons[i]->x, local_q->event_horizons[i]->y, local_q->event_horizons[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🕳️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Event Horizon\n", "Event Hori", local_q->event_horizons[oi]->id + GALAXY_OBJECT_MIN_EVENT_HORIZON, local_q->event_horizons[oi]->x, local_q->event_horizons[oi]->y, local_q->event_horizons[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->kilonova_count; i++) {
-        double dx = local_q->kilonovae[i]->x - s1; double dy = local_q->kilonovae[i]->y - s2; double dz = local_q->kilonovae[i]->z - s3;
+    for (int oi=0; oi<local_q->kilonova_count; oi++) {
+        double dx = local_q->kilonovae[oi]->x - s1; double dy = local_q->kilonovae[oi]->y - s2; double dz = local_q->kilonovae[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "✨  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Kilonova\n", "Kilonova", local_q->kilonovae[i]->id + GALAXY_OBJECT_MIN_KILONOVA, local_q->kilonovae[i]->x, local_q->kilonovae[i]->y, local_q->kilonovae[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "✨  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Kilonova\n", "Kilonova", local_q->kilonovae[oi]->id + GALAXY_OBJECT_MIN_KILONOVA, local_q->kilonovae[oi]->x, local_q->kilonovae[oi]->y, local_q->kilonovae[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->grav_lens_count; i++) {
-        double dx = local_q->grav_lenses[i]->x - s1; double dy = local_q->grav_lenses[i]->y - s2; double dz = local_q->grav_lenses[i]->z - s3;
+    for (int oi=0; oi<local_q->grav_lens_count; oi++) {
+        double dx = local_q->grav_lenses[oi]->x - s1; double dy = local_q->grav_lenses[oi]->y - s2; double dz = local_q->grav_lenses[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🔎  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Grav Lens\n", "Grav Lens", local_q->grav_lenses[i]->id + GALAXY_OBJECT_MIN_GRAV_LENS, local_q->grav_lenses[i]->x, local_q->grav_lenses[i]->y, local_q->grav_lenses[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🔎  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Grav Lens\n", "Grav Lens", local_q->grav_lenses[oi]->id + GALAXY_OBJECT_MIN_GRAV_LENS, local_q->grav_lenses[oi]->x, local_q->grav_lenses[oi]->y, local_q->grav_lenses[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->grb_count; i++) {
-        double dx = local_q->grbs[i]->x - s1; double dy = local_q->grbs[i]->y - s2; double dz = local_q->grbs[i]->z - s3;
+    for (int oi=0; oi<local_q->grb_count; oi++) {
+        double dx = local_q->grbs[oi]->x - s1; double dy = local_q->grbs[oi]->y - s2; double dz = local_q->grbs[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🎇  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     GRB\n", "GRB", local_q->grbs[i]->id + GALAXY_OBJECT_MIN_GRB, local_q->grbs[i]->x, local_q->grbs[i]->y, local_q->grbs[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🎇  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     GRB\n", "GRB", local_q->grbs[oi]->id + GALAXY_OBJECT_MIN_GRB, local_q->grbs[oi]->x, local_q->grbs[oi]->y, local_q->grbs[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->grav_wave_count; i++) {
-        double dx = local_q->grav_waves[i]->x - s1; double dy = local_q->grav_waves[i]->y - s2; double dz = local_q->grav_waves[i]->z - s3;
+    for (int oi=0; oi<local_q->grav_wave_count; oi++) {
+        double dx = local_q->grav_waves[oi]->x - s1; double dy = local_q->grav_waves[oi]->y - s2; double dz = local_q->grav_waves[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Grav Wave\n", "Grav Wave", local_q->grav_waves[i]->id + GALAXY_OBJECT_MIN_GRAV_WAVE, local_q->grav_waves[i]->x, local_q->grav_waves[i]->y, local_q->grav_waves[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Grav Wave\n", "Grav Wave", local_q->grav_waves[oi]->id + GALAXY_OBJECT_MIN_GRAV_WAVE, local_q->grav_waves[oi]->x, local_q->grav_waves[oi]->y, local_q->grav_waves[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->protoplanetary_disk_count; i++) {
-        double dx = local_q->protoplanetary_disks[i]->x - s1; double dy = local_q->protoplanetary_disks[i]->y - s2; double dz = local_q->protoplanetary_disks[i]->z - s3;
+    for (int oi=0; oi<local_q->protoplanetary_disk_count; oi++) {
+        double dx = local_q->protoplanetary_disks[oi]->x - s1; double dy = local_q->protoplanetary_disks[oi]->y - s2; double dz = local_q->protoplanetary_disks[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪐  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Protoplanetary\n", "Protoplane", local_q->protoplanetary_disks[i]->id + GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK, local_q->protoplanetary_disks[i]->x, local_q->protoplanetary_disks[i]->y, local_q->protoplanetary_disks[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪐  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Protoplanetary\n", "Protoplane", local_q->protoplanetary_disks[oi]->id + GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK, local_q->protoplanetary_disks[oi]->x, local_q->protoplanetary_disks[oi]->y, local_q->protoplanetary_disks[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->debris_disk_count; i++) {
-        double dx = local_q->debris_disks[i]->x - s1; double dy = local_q->debris_disks[i]->y - s2; double dz = local_q->debris_disks[i]->z - s3;
+    for (int oi=0; oi<local_q->debris_disk_count; oi++) {
+        double dx = local_q->debris_disks[oi]->x - s1; double dy = local_q->debris_disks[oi]->y - s2; double dz = local_q->debris_disks[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💫  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Debris Disk\n", "Debris Dis", local_q->debris_disks[i]->id + GALAXY_OBJECT_MIN_DEBRIS_DISK, local_q->debris_disks[i]->x, local_q->debris_disks[i]->y, local_q->debris_disks[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "💫  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Debris Disk\n", "Debris Dis", local_q->debris_disks[oi]->id + GALAXY_OBJECT_MIN_DEBRIS_DISK, local_q->debris_disks[oi]->x, local_q->debris_disks[oi]->y, local_q->debris_disks[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->planetesimal_count; i++) {
-        double dx = local_q->planetesimals[i]->x - s1; double dy = local_q->planetesimals[i]->y - s2; double dz = local_q->planetesimals[i]->z - s3;
+    for (int oi=0; oi<local_q->planetesimal_count; oi++) {
+        double dx = local_q->planetesimals[oi]->x - s1; double dy = local_q->planetesimals[oi]->y - s2; double dz = local_q->planetesimals[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪨  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Planetesimal\n", "Planetesim", local_q->planetesimals[i]->id + GALAXY_OBJECT_MIN_PLANETESIMAL, local_q->planetesimals[i]->x, local_q->planetesimals[i]->y, local_q->planetesimals[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪨  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Planetesimal\n", "Planetesim", local_q->planetesimals[oi]->id + GALAXY_OBJECT_MIN_PLANETESIMAL, local_q->planetesimals[oi]->x, local_q->planetesimals[oi]->y, local_q->planetesimals[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->rogue_planet_count; i++) {
-        double dx = local_q->rogue_planets[i]->x - s1; double dy = local_q->rogue_planets[i]->y - s2; double dz = local_q->rogue_planets[i]->z - s3;
+    for (int oi=0; oi<local_q->rogue_planet_count; oi++) {
+        double dx = local_q->rogue_planets[oi]->x - s1; double dy = local_q->rogue_planets[oi]->y - s2; double dz = local_q->rogue_planets[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌑  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Rogue Planet\n", "Rogue Plan", local_q->rogue_planets[i]->id + GALAXY_OBJECT_MIN_ROGUE_PLANET, local_q->rogue_planets[i]->x, local_q->rogue_planets[i]->y, local_q->rogue_planets[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌑  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Rogue Planet\n", "Rogue Plan", local_q->rogue_planets[oi]->id + GALAXY_OBJECT_MIN_ROGUE_PLANET, local_q->rogue_planets[oi]->x, local_q->rogue_planets[oi]->y, local_q->rogue_planets[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->brown_dwarf_count; i++) {
-        double dx = local_q->brown_dwarfs[i]->x - s1; double dy = local_q->brown_dwarfs[i]->y - s2; double dz = local_q->brown_dwarfs[i]->z - s3;
+    for (int oi=0; oi<local_q->brown_dwarf_count; oi++) {
+        double dx = local_q->brown_dwarfs[oi]->x - s1; double dy = local_q->brown_dwarfs[oi]->y - s2; double dz = local_q->brown_dwarfs[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🟤  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Brown Dwarf\n", "Brown Dwar", local_q->brown_dwarfs[i]->id + GALAXY_OBJECT_MIN_BROWN_DWARF, local_q->brown_dwarfs[i]->x, local_q->brown_dwarfs[i]->y, local_q->brown_dwarfs[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🟤  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Brown Dwarf\n", "Brown Dwar", local_q->brown_dwarfs[oi]->id + GALAXY_OBJECT_MIN_BROWN_DWARF, local_q->brown_dwarfs[oi]->x, local_q->brown_dwarfs[oi]->y, local_q->brown_dwarfs[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->iso_count; i++) {
-        double dx = local_q->isos[i]->x - s1; double dy = local_q->isos[i]->y - s2; double dz = local_q->isos[i]->z - s3;
+    for (int oi=0; oi<local_q->iso_count; oi++) {
+        double dx = local_q->isos[oi]->x - s1; double dy = local_q->isos[oi]->y - s2; double dz = local_q->isos[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "☄️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Interst Obj\n", "Interst Ob", local_q->isos[i]->id + GALAXY_OBJECT_MIN_ISO, local_q->isos[i]->x, local_q->isos[i]->y, local_q->isos[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "☄️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Interst Obj\n", "Interst Ob", local_q->isos[oi]->id + GALAXY_OBJECT_MIN_ISO, local_q->isos[oi]->x, local_q->isos[oi]->y, local_q->isos[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->mag_reconn_count; i++) {
-        double dx = local_q->mag_reconns[i]->x - s1; double dy = local_q->mag_reconns[i]->y - s2; double dz = local_q->mag_reconns[i]->z - s3;
+    for (int oi=0; oi<local_q->mag_reconn_count; oi++) {
+        double dx = local_q->mag_reconns[oi]->x - s1; double dy = local_q->mag_reconns[oi]->y - s2; double dz = local_q->mag_reconns[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⚡  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Mag Reconn\n", "Mag Reconn", local_q->mag_reconns[i]->id + GALAXY_OBJECT_MIN_MAG_RECONN, local_q->mag_reconns[i]->x, local_q->mag_reconns[i]->y, local_q->mag_reconns[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "⚡  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Mag Reconn\n", "Mag Reconn", local_q->mag_reconns[oi]->id + GALAXY_OBJECT_MIN_MAG_RECONN, local_q->mag_reconns[oi]->x, local_q->mag_reconns[oi]->y, local_q->mag_reconns[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->current_sheet_count; i++) {
-        double dx = local_q->current_sheets[i]->x - s1; double dy = local_q->current_sheets[i]->y - s2; double dz = local_q->current_sheets[i]->z - s3;
+    for (int oi=0; oi<local_q->current_sheet_count; oi++) {
+        double dx = local_q->current_sheets[oi]->x - s1; double dy = local_q->current_sheets[oi]->y - s2; double dz = local_q->current_sheets[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cur Sheet\n", "Cur Sheet", local_q->current_sheets[i]->id + GALAXY_OBJECT_MIN_CURRENT_SHEET, local_q->current_sheets[i]->x, local_q->current_sheets[i]->y, local_q->current_sheets[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "〰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cur Sheet\n", "Cur Sheet", local_q->current_sheets[oi]->id + GALAXY_OBJECT_MIN_CURRENT_SHEET, local_q->current_sheets[oi]->x, local_q->current_sheets[oi]->y, local_q->current_sheets[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->heliosphere_count; i++) {
-        double dx = local_q->heliospheres[i]->x - s1; double dy = local_q->heliospheres[i]->y - s2; double dz = local_q->heliospheres[i]->z - s3;
+    for (int oi=0; oi<local_q->heliosphere_count; oi++) {
+        double dx = local_q->heliospheres[oi]->x - s1; double dy = local_q->heliospheres[oi]->y - s2; double dz = local_q->heliospheres[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌞  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Heliosphere\n", "Heliospher", local_q->heliospheres[i]->id + GALAXY_OBJECT_MIN_HELIOSPHERE, local_q->heliospheres[i]->x, local_q->heliospheres[i]->y, local_q->heliospheres[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌞  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Heliosphere\n", "Heliospher", local_q->heliospheres[oi]->id + GALAXY_OBJECT_MIN_HELIOSPHERE, local_q->heliospheres[oi]->x, local_q->heliospheres[oi]->y, local_q->heliospheres[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->term_shock_count; i++) {
-        double dx = local_q->term_shocks[i]->x - s1; double dy = local_q->term_shocks[i]->y - s2; double dz = local_q->term_shocks[i]->z - s3;
+    for (int oi=0; oi<local_q->term_shock_count; oi++) {
+        double dx = local_q->term_shocks[oi]->x - s1; double dy = local_q->term_shocks[oi]->y - s2; double dz = local_q->term_shocks[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌊  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Term Shock\n", "Term Shock", local_q->term_shocks[i]->id + GALAXY_OBJECT_MIN_TERM_SHOCK, local_q->term_shocks[i]->x, local_q->term_shocks[i]->y, local_q->term_shocks[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌊  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Term Shock\n", "Term Shock", local_q->term_shocks[oi]->id + GALAXY_OBJECT_MIN_TERM_SHOCK, local_q->term_shocks[oi]->x, local_q->term_shocks[oi]->y, local_q->term_shocks[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->magnetosphere_count; i++) {
-        double dx = local_q->magnetospheres[i]->x - s1; double dy = local_q->magnetospheres[i]->y - s2; double dz = local_q->magnetospheres[i]->z - s3;
+    for (int oi=0; oi<local_q->magnetosphere_count; oi++) {
+        double dx = local_q->magnetospheres[oi]->x - s1; double dy = local_q->magnetospheres[oi]->y - s2; double dz = local_q->magnetospheres[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🧲  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Magnetosphere\n", "Magnetosph", local_q->magnetospheres[i]->id + GALAXY_OBJECT_MIN_MAGNETOSPHERE, local_q->magnetospheres[i]->x, local_q->magnetospheres[i]->y, local_q->magnetospheres[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🧲  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Magnetosphere\n", "Magnetosph", local_q->magnetospheres[oi]->id + GALAXY_OBJECT_MIN_MAGNETOSPHERE, local_q->magnetospheres[oi]->x, local_q->magnetospheres[oi]->y, local_q->magnetospheres[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->cosmic_string_count; i++) {
-        double dx = local_q->cosmic_strings[i]->x - s1; double dy = local_q->cosmic_strings[i]->y - s2; double dz = local_q->cosmic_strings[i]->z - s3;
+    for (int oi=0; oi<local_q->cosmic_string_count; oi++) {
+        double dx = local_q->cosmic_strings[oi]->x - s1; double dy = local_q->cosmic_strings[oi]->y - s2; double dz = local_q->cosmic_strings[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🧵  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cosmic String\n", "Cosmic Str", local_q->cosmic_strings[i]->id + GALAXY_OBJECT_MIN_COSMIC_STRING, local_q->cosmic_strings[i]->x, local_q->cosmic_strings[i]->y, local_q->cosmic_strings[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🧵  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Cosmic String\n", "Cosmic Str", local_q->cosmic_strings[oi]->id + GALAXY_OBJECT_MIN_COSMIC_STRING, local_q->cosmic_strings[oi]->x, local_q->cosmic_strings[oi]->y, local_q->cosmic_strings[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->domain_wall_count; i++) {
-        double dx = local_q->domain_walls[i]->x - s1; double dy = local_q->domain_walls[i]->y - s2; double dz = local_q->domain_walls[i]->z - s3;
+    for (int oi=0; oi<local_q->domain_wall_count; oi++) {
+        double dx = local_q->domain_walls[oi]->x - s1; double dy = local_q->domain_walls[oi]->y - s2; double dz = local_q->domain_walls[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🧱  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Domain Wall\n", "Domain Wal", local_q->domain_walls[i]->id + GALAXY_OBJECT_MIN_DOMAIN_WALL, local_q->domain_walls[i]->x, local_q->domain_walls[i]->y, local_q->domain_walls[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🧱  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Domain Wall\n", "Domain Wal", local_q->domain_walls[oi]->id + GALAXY_OBJECT_MIN_DOMAIN_WALL, local_q->domain_walls[oi]->x, local_q->domain_walls[oi]->y, local_q->domain_walls[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->dm_halo_count; i++) {
-        double dx = local_q->dm_halos[i]->x - s1; double dy = local_q->dm_halos[i]->y - s2; double dz = local_q->dm_halos[i]->z - s3;
+    for (int oi=0; oi<local_q->dm_halo_count; oi++) {
+        double dx = local_q->dm_halos[oi]->x - s1; double dy = local_q->dm_halos[oi]->y - s2; double dz = local_q->dm_halos[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "👻  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     DM Halo\n", "DM Halo", local_q->dm_halos[i]->id + GALAXY_OBJECT_MIN_DM_HALO, local_q->dm_halos[i]->x, local_q->dm_halos[i]->y, local_q->dm_halos[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "👻  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     DM Halo\n", "DM Halo", local_q->dm_halos[oi]->id + GALAXY_OBJECT_MIN_DM_HALO, local_q->dm_halos[oi]->x, local_q->dm_halos[oi]->y, local_q->dm_halos[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->igm_count; i++) {
-        double dx = local_q->igms[i]->x - s1; double dy = local_q->igms[i]->y - s2; double dz = local_q->igms[i]->z - s3;
+    for (int oi=0; oi<local_q->igm_count; oi++) {
+        double dx = local_q->igms[oi]->x - s1; double dy = local_q->igms[oi]->y - s2; double dz = local_q->igms[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌫️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     IGM\n", "IGM", local_q->igms[i]->id + GALAXY_OBJECT_MIN_IGM, local_q->igms[i]->x, local_q->igms[i]->y, local_q->igms[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌫️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     IGM\n", "IGM", local_q->igms[oi]->id + GALAXY_OBJECT_MIN_IGM, local_q->igms[oi]->x, local_q->igms[oi]->y, local_q->igms[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->cgm_count; i++) {
-        double dx = local_q->cgms[i]->x - s1; double dy = local_q->cgms[i]->y - s2; double dz = local_q->cgms[i]->z - s3;
+    for (int oi=0; oi<local_q->cgm_count; oi++) {
+        double dx = local_q->cgms[oi]->x - s1; double dy = local_q->cgms[oi]->y - s2; double dz = local_q->cgms[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌫️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     CGM\n", "CGM", local_q->cgms[i]->id + GALAXY_OBJECT_MIN_CGM, local_q->cgms[i]->x, local_q->cgms[i]->y, local_q->cgms[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌫️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     CGM\n", "CGM", local_q->cgms[oi]->id + GALAXY_OBJECT_MIN_CGM, local_q->cgms[oi]->x, local_q->cgms[oi]->y, local_q->cgms[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->lyman_alpha_count; i++) {
-        double dx = local_q->lyman_alphas[i]->x - s1; double dy = local_q->lyman_alphas[i]->y - s2; double dz = local_q->lyman_alphas[i]->z - s3;
+    for (int oi=0; oi<local_q->lyman_alpha_count; oi++) {
+        double dx = local_q->lyman_alphas[oi]->x - s1; double dy = local_q->lyman_alphas[oi]->y - s2; double dz = local_q->lyman_alphas[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌲  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Lyman Alpha\n", "Lyman Alph", local_q->lyman_alphas[i]->id + GALAXY_OBJECT_MIN_LYMAN_ALPHA, local_q->lyman_alphas[i]->x, local_q->lyman_alphas[i]->y, local_q->lyman_alphas[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌲  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Lyman Alpha\n", "Lyman Alph", local_q->lyman_alphas[oi]->id + GALAXY_OBJECT_MIN_LYMAN_ALPHA, local_q->lyman_alphas[oi]->x, local_q->lyman_alphas[oi]->y, local_q->lyman_alphas[oi]->z, d, h, m);
     }
-    for (int i=0; i<local_q->cmb_count; i++) {
-        double dx = local_q->cmbs[i]->x - s1; double dy = local_q->cmbs[i]->y - s2; double dz = local_q->cmbs[i]->z - s3;
+    for (int oi=0; oi<local_q->cmb_count; oi++) {
+        double dx = local_q->cmbs[oi]->x - s1; double dy = local_q->cmbs[oi]->y - s2; double dz = local_q->cmbs[oi]->z - s3;
         double d = sqrt(dx*dx + dy*dy + dz*dz);
         double h = atan2(dx, -dy) * 180/M_PI; if(h<0) h+=360;
         double m = (d > 0.001) ? asin(dz/d) * 180/M_PI : 0;
-        SAFE_APPEND(b, LARGE_DATA_BUFFER, "📺  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     CMB\n", "CMB", local_q->cmbs[i]->id + GALAXY_OBJECT_MIN_CMB, local_q->cmbs[i]->x, local_q->cmbs[i]->y, local_q->cmbs[i]->z, d, h, m);
+        SAFE_APPEND(b, LARGE_DATA_BUFFER, "📺  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     CMB\n", "CMB", local_q->cmbs[oi]->id + GALAXY_OBJECT_MIN_CMB, local_q->cmbs[oi]->x, local_q->cmbs[oi]->y, local_q->cmbs[oi]->z, d, h, m);
     }
 
 

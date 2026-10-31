@@ -361,8 +361,8 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
 
                 /* 1. Core Sphere (Black Hole) */
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(apc), &apc);
-                VkDeviceSize off = 0;
-                vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+                VkDeviceSize vb_off = 0;
+                vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &vb_off);
                 vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
                 vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
 
@@ -714,12 +714,12 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     float coreSize = 0.20f * tactScale; 
                     mat4 S_q; mat4_scale(S_q, (vec3){coreSize, coreSize, coreSize});
                     
-                    int cl = obj->ship_class;
-                    if (cl < 0 || cl > 13) cl = 13;
+                    int ship_cl = obj->ship_class;
+                    if (ship_cl < 0 || ship_cl > 13) ship_cl = 13;
                     
                     /* Rotation speed based on class: Legacy (0) rotates faster */
                     mat4 R_q; mat4_identity(R_q);
-                    float rotSpeed = 1.0f + (12 - cl) * 0.2f; 
+                    float rotSpeed = 1.0f + (12 - ship_cl) * 0.2f; 
                     mat4_rotate(R_q, pulse * rotSpeed, (vec3){0.0f, 1.0f, 0.0f});
                     mat4_multiply(S_q, R_q, S_q);
                     
@@ -737,9 +737,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     qpc.usePushColor = 1; 
                     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(qpc), &qpc);
                     
-                    vkCmdBindVertexBuffers(cb, 0, 1, &app->coreVB[cl], &off);
-                    vkCmdBindIndexBuffer(cb, app->coreIB[cl], 0, VK_INDEX_TYPE_UINT32);
-                    vkCmdDrawIndexed(cb, app->coreICount[cl], 1, 0, 0, 0);
+                    vkCmdBindVertexBuffers(cb, 0, 1, &app->coreVB[ship_cl], &off);
+                    vkCmdBindIndexBuffer(cb, app->coreIB[ship_cl], 0, VK_INDEX_TYPE_UINT32);
+                    vkCmdDrawIndexed(cb, app->coreICount[ship_cl], 1, 0, 0, 0);
 
                     /* 2. Three Orbiting Rings (Wireframe) */
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -750,12 +750,12 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     float radii[3] = {0.15f * tactScale, 0.18f * tactScale, 0.21f * tactScale};
                     vec3 axes[3] = {{1,1,0.3}, {0.3,1,1}, {1,0.3,1}};
                     
-                    for (int r=0; r<3; r++) {
+                    for (int ring_idx=0; ring_idx<3; ring_idx++) {
                         PushConstants rpc = {0};
                         mat4 R_r, S_r;
                         mat4_identity(R_r);
-                        mat4_rotate(R_r, pulse * speeds[r], axes[r]);
-                        mat4_scale(S_r, (vec3){radii[r], radii[r], radii[r]});
+                        mat4_rotate(R_r, pulse * speeds[ring_idx], axes[ring_idx]);
+                        mat4_scale(S_r, (vec3){radii[ring_idx], radii[ring_idx], radii[ring_idx]});
                         
                         mat4_multiply(S_r, R_r, rpc.model);
                         mat4_multiply(rpc.model, M_core, rpc.model);
@@ -1029,35 +1029,35 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 printf(" SPACE GL - VULKAN SHARED MEMORY INSPECTOR (Page %d/3) - [n/p: Nav, m: Toggle]\n", app->shm_inspector_page);
                 printf("================================================================================\n");
                 
-                GameState* st = &app->shm->buffers[app->shm->read_index];
+                GameState* st_cur = &app->shm->buffers[app->shm->read_index];
 
                 if (app->shm_inspector_page == 1) {
                     /* Page 1: SHIP VITALS */
-                    printf(" [SHIP STATUS: %-15s]  FRAME: %-10lld\n", st->shm_captain_name, (long long)st->frame_id);
+                    printf(" [SHIP STATUS: %-15s]  FRAME: %-10lld\n", st_cur->shm_captain_name, (long long)st_cur->frame_id);
                     printf("--------------------------------------------------------------------------------\n");
-                    printf(" ENERGY:    %-15lu  | CARGO E:  %-15lu\n", (unsigned long)st->shm_energy, (unsigned long)st->shm_cargo_energy);
-                    printf(" HULL:      %-15.2f  | CREW:     %-5d  | PRISON: %-5d\n", st->shm_hull_integrity, st->shm_crew, st->shm_prison_unit);
-                    printf(" PLATING:   %-5d             | L-SUPP:   %-15.2f\n", st->shm_composite_plating, st->shm_life_support);
+                    printf(" ENERGY:    %-15lu  | CARGO E:  %-15lu\n", (unsigned long)st_cur->shm_energy, (unsigned long)st_cur->shm_cargo_energy);
+                    printf(" HULL:      %-15.2f  | CREW:     %-5d  | PRISON: %-5d\n", st_cur->shm_hull_integrity, st_cur->shm_crew, st_cur->shm_prison_unit);
+                    printf(" PLATING:   %-5d             | L-SUPP:   %-15.2f\n", st_cur->shm_composite_plating, st_cur->shm_life_support);
                     printf("--------------------------------------------------------------------------------\n");
                     printf(" SHIELDS:   F: %-5d  RE: %-5d  T: %-5d  B: %-5d  L: %-5d  RI: %-5d\n",
-                           st->shm_shields[0], st->shm_shields[1], st->shm_shields[2],
-                           st->shm_shields[3], st->shm_shields[4], st->shm_shields[5]);
+                           st_cur->shm_shields[0], st_cur->shm_shields[1], st_cur->shm_shields[2],
+                           st_cur->shm_shields[3], st_cur->shm_shields[4], st_cur->shm_shields[5]);
                     printf(" TARGETS:   F: %-5d  RE: %-5d  T: %-5d  B: %-5d  L: %-5d  RI: %-5d\n",
-                           st->shm_target_shields[0], st->shm_target_shields[1], st->shm_target_shields[2],
-                           st->shm_target_shields[3], st->shm_target_shields[4], st->shm_target_shields[5]);
+                           st_cur->shm_target_shields[0], st_cur->shm_target_shields[1], st_cur->shm_target_shields[2],
+                           st_cur->shm_target_shields[3], st_cur->shm_target_shields[4], st_cur->shm_target_shields[5]);
                 } else if (app->shm_inspector_page == 2) {
                     /* Page 2: TACTICAL & NAVIGATION */
                     printf(" [NAVIGATION & TACTICAL]       POS: [%d,%d,%d] / [%.2f, %.2f, %.2f]\n", 
-                           st->shm_q[0], st->shm_q[1], st->shm_q[2], st->shm_s[0], st->shm_s[1], st->shm_s[2]);
+                           st_cur->shm_q[0], st_cur->shm_q[1], st_cur->shm_q[2], st_cur->shm_s[0], st_cur->shm_s[1], st_cur->shm_s[2]);
                     printf("--------------------------------------------------------------------------------\n");
-                    printf(" LOCK TARGET:  %-5d          | ION CHARGE: %-15.2f\n", st->shm_lock_target, st->shm_ion_beam_charge);
+                    printf(" LOCK TARGET:  %-5d          | ION CHARGE: %-15.2f\n", st_cur->shm_lock_target, st_cur->shm_ion_beam_charge);
                     printf(" TUBE STATE:   %-5d          | CLOAKED:    %-5s  | ALERT: %-5s\n", 
-                           st->shm_tube_state, st->is_cloaked ? "YES" : "NO", st->shm_red_alert ? "RED" : "NORMAL");
+                           st_cur->shm_tube_state, st_cur->is_cloaked ? "YES" : "NO", st_cur->shm_red_alert ? "RED" : "NORMAL");
                     printf("--------------------------------------------------------------------------------\n");
                     printf(" TUBE ETAS:    1:%-5d  2:%-5d  3:%-5d  4:%-5d\n",
-                           st->tube_torpedo_etas[0], st->tube_torpedo_etas[1], st->tube_torpedo_etas[2], st->tube_torpedo_etas[3]);
+                           st_cur->tube_torpedo_etas[0], st_cur->tube_torpedo_etas[1], st_cur->tube_torpedo_etas[2], st_cur->tube_torpedo_etas[3]);
                     printf(" POWER DIST:   ENG: %-5.2f  SHL: %-5.2f  WEP: %-5.2f\n", 
-                           st->shm_power_dist[0], st->shm_power_dist[1], st->shm_power_dist[2]);
+                           st_cur->shm_power_dist[0], st_cur->shm_power_dist[1], st_cur->shm_power_dist[2]);
                 } else {
                     /* Page 3: NETWORK & PIPELINE */
                     printf(" [IPC & VULKAN PIPELINE]\n");
@@ -1065,9 +1065,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     printf(" SHM SEGMENT:  %-15s | READ IDX:  %-5d | WRITE IDX: %-5d\n", 
                            SHM_NAME, atomic_load(&app->shm->read_index), atomic_load(&app->shm->write_index));
                     printf(" OBJECT COUNT: %-5d           | BEAM COUNT: %-5d | TORP COUNT: %-5d\n", 
-                           st->object_count, st->beam_count, st->torpedo_count);
+                           st_cur->object_count, st_cur->beam_count, st_cur->torpedo_count);
                     printf(" CRYPTO:       0x%02X          | FLAGS:      0x%08X\n", 
-                           st->shm_crypto_algo, st->shm_encryption_flags);
+                           st_cur->shm_crypto_algo, st_cur->shm_encryption_flags);
                     printf("--------------------------------------------------------------------------------\n");
                     printf(" APP CAMERA:   DIST: %-10.2f | ROT: [%.2f, %.2f]\n", 
                            app->cameraDist, app->angleX, app->angleY);

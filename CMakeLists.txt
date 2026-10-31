@@ -33,6 +33,17 @@ else()
     add_link_options(-pie)
 
     add_compile_options(-Wall -Wextra -Wpedantic -fstack-protector-strong -Wformat -Wformat-security)
+    # -Wshadow (2026.10.31.20): a name hidden by an inner declaration of the
+    # same name. The codebase is clean; with SPACEGL_WERROR in CI it stays so.
+    add_compile_options(-Wshadow)
+
+    # Warnings as errors (2026.10.31.20, roadmap phase 4). Off by default so
+    # that a newer compiler with new warnings never breaks a user's build;
+    # the CI matrix turns it on, so no warning can be merged.
+    option(SPACEGL_WERROR "Treat compiler warnings as errors" OFF)
+    if(SPACEGL_WERROR)
+        add_compile_options(-Werror)
+    endif()
     
     # Build-type-specific flags. Every CMake build type gets explicit flags
     # so that no configuration silently falls through to no-optimization
