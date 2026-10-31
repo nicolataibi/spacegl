@@ -1,3 +1,26 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.27
+  - Command parsing, roadmap phase 6: the 24 sscanf() calls that read the
+  numbers of a command (pow, nav, imp, pos, vec, apr, pha, tor, she, scan,
+  lock, bor, dis, con, load, jum, aux probe, rep, cal, ical) use
+  sg_scan_nums() from the new include/sg_parse.h, built on strtol() and
+  strtod(). An int outside the int range (undefined behaviour with "%d")
+  and a double that overflows, NaN or infinity (accepted by "%lf", then
+  folded to 0 by the course maths) are not numbers: the command gets its
+  usage message. Valid input is read exactly as before.
+  - "apr" with no parameters approaches the locked target, as its help says
+  ("Works on Lock."): sscanf() returned EOF on the empty string, so the
+  branch never ran and the captain got the usage.
+  - Keys: SPACEGL_KEY, SPACEGL_KEY_FILE, the generated key file and the
+  frequency key files are decoded by sg_hex_decode(), exactly 64 hex
+  digits ("%2hhx" accepted a sign or a blank). A truncated or damaged
+  frequency key file was read past the end of its line into the key; it
+  is now derived and written again. The /proc/net/dev line of the boot
+  report is parsed with strtoull().
+  - clang-tidy: cert-err34-c on in the lint profile (zero findings).
+  - Tests: new sg_parse (the parser against the real sscanf on valid
+  input, the refused cases, the hex decoder); vec_thrust case 7 (nan,
+  inf, 1e999 rejected); target_bounds "apr" on the lock.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.26
   - Build hygiene, roadmap phase 4: -Wconversion on for the server target
   (with SPACEGL_WERROR in CI a new implicit narrowing or sign change fails

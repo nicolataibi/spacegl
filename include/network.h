@@ -43,6 +43,7 @@
 #include "game_config.h"
 #include "game_state.h"
 #include "sg_str.h"
+#include "sg_parse.h"
 
 #pragma pack(push, 1)
 
@@ -538,11 +539,9 @@ static inline int load_master_key(uint8_t key[32]) {
             fprintf(stderr, "FATAL: SPACEGL_KEY_FILE must contain exactly 64 hex chars (got %zu)\n", strlen(hex));
             return -1;
         }
-        for (int i = 0; i < 32; i++) {
-            if (sscanf(hex + (size_t)2 * (size_t)i, "%2hhx", &key[i]) != 1) {
-                fprintf(stderr, "FATAL: invalid hex in key file at position %d\n", i);
-                return -1;
-            }
+        if (!sg_hex_decode(hex, key, 32)) {
+            fprintf(stderr, "FATAL: SPACEGL_KEY_FILE contains a character that is not a hex digit\n");
+            return -1;
         }
         printf("[SECURITY] Master key loaded from file '%s'\n", key_file);
         return 0;
@@ -553,11 +552,9 @@ static inline int load_master_key(uint8_t key[32]) {
     if (key_env && key_env[0]) {
         size_t l = strlen(key_env);
         if (l == 64) {
-            for (int i = 0; i < 32; i++) {
-                if (sscanf(key_env + (size_t)2 * (size_t)i, "%2hhx", &key[i]) != 1) {
-                    fprintf(stderr, "FATAL: invalid hex in SPACEGL_KEY at position %d\n", i);
-                    return -1;
-                }
+            if (!sg_hex_decode(key_env, key, 32)) {
+                fprintf(stderr, "FATAL: SPACEGL_KEY contains a character that is not a hex digit\n");
+                return -1;
             }
         } else if (l >= 32) {
             /* Raw string backward compatibility: its first 32 bytes */
@@ -614,10 +611,7 @@ static inline int load_master_key(uint8_t key[32]) {
             if (n < 0) n = 0;
             hex[n] = '\0';
             hex[strcspn(hex, "\r\n")] = '\0';
-            bool ok = (strlen(hex) == 64);
-            for (int i = 0; ok && i < 32; i++) {
-                if (sscanf(hex + (size_t)2 * (size_t)i, "%2hhx", &key[i]) != 1) ok = false;
-            }
+            bool ok = (strlen(hex) == 64) && sg_hex_decode(hex, key, 32);
             if (!ok) {
                 if (attempt == 0 && n < 65) {
                     /* maybe a writer is publishing it right now: retry once */

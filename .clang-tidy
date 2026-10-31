@@ -4,9 +4,6 @@
 #  - bugprone-easily-swappable-parameters: style (adjacent int parameters).
 #  - cert-err33-c: unchecked return values of printf-family and fclose
 #    calls in diagnostics; reviewed separately.
-#  - cert-err34-c: sscanf() of the command parameters. The parsed values
-#    are range-checked afterwards; moving the parsers to strtol() with
-#    overflow detection is a planned change (roadmap phase 6).
 #  - cert-msc30-c / cert-msc50-cpp / cert-msc32-c / cert-msc51-cpp: rand()
 #    and its seeding are the gameplay randomness, not a security random
 #    source (keys and nonces come from RAND_bytes).
@@ -16,7 +13,6 @@ Checks: >
   -bugprone-easily-swappable-parameters,
   cert-*,
   -cert-err33-c,
-  -cert-err34-c,
   -cert-msc30-c,
   -cert-msc50-cpp,
   -cert-msc32-c,

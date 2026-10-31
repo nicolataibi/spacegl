@@ -32,6 +32,7 @@
 #include "shared_state.h"
 #include "nav_math.h"
 #include "ui.h"
+#include "sg_parse.h"
 #include <stddef.h>
 
 /* Helper macro to safely append to a buffer with length check (used in handle_srs).
@@ -120,8 +121,9 @@ typedef struct {
 } CommandDef;
 
 void normalize_upright(double *h, double *m) {
-    /* h and m come straight from sscanf("%lf") on an untrusted command, so
-     * they can be huge, inf or nan. The old "while (*m > 180) *m -= 360"
+    /* h and m come from an untrusted command, so they can be huge
+     * (sg_scan_nums() refuses inf and nan since 2026.10.31.27; other
+     * callers may still pass them). The old "while (*m > 180) *m -= 360"
      * loops took billions of iterations for 1e12 and never ended for 1e300
      * or inf (found by the libFuzzer CI job). fmod() is O(1) and gives the
      * same result for every finite input; non-finite values become 0. */

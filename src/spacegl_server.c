@@ -40,6 +40,7 @@
 #include "server_internal.h"
 #include "conn.h"
 #include "packets.h"
+#include "sg_parse.h"
 
 #define MAX_EVENTS (MAX_CLIENTS + GAME_MAX_PLAYERS)
 
@@ -102,15 +103,13 @@ void ensure_player_algo_key(int p_idx, int k, bool private_mode) {
         /* Security: frequency keys must not be world-readable (also repairs
            legacy files created with the default umask). */
         if (fchmod(fileno(fk), 0600) != 0) { /* best effort */ }
-        char hex[128];
-        if (fgets(hex, sizeof(hex), fk)) {
-            for (int b = 0; b < 32; b++) {
-                unsigned int val;
-                if (sscanf(hex + (size_t)b * 2, "%02x", &val) == 1) players[p_idx].algo_keys[k][b] = (uint8_t)val;
-            }
-        }
+        char hex[128] = {0};
+        /* 64 hex digits; a truncated or damaged file is derived and
+         * written again below (sscanf read past the end of a short line). */
+        bool loaded = fgets(hex, sizeof(hex), fk) &&
+                      sg_hex_decode(hex, players[p_idx].algo_keys[k], 32);
         fclose(fk);
-        return;
+        if (loaded) return;
     }
 
     /* Otherwise derive it exactly like the client does */
@@ -152,16 +151,10 @@ void derive_algo_keys(uint8_t *master_key, const char *name, uint8_t target_keys
         if (fk_read) {
             /* Security: tighten legacy permissions (best effort) */
             if (fchmod(fileno(fk_read), 0600) != 0) { /* best effort */ }
-            char hex[128];
-            if (fgets(hex, sizeof(hex), fk_read)) {
-                for (int b = 0; b < 32; b++) {
-                    unsigned int val;
-                    if (sscanf(hex + (size_t)b * 2, "%02x", &val) == 1) {
-                        target_keys[k][b] = (uint8_t)val;
-                    }
-                }
-                loaded = true;
-            }
+            char hex[128] = {0};
+            /* 64 hex digits, or the key is derived and written again */
+            loaded = fgets(hex, sizeof(hex), fk_read) &&
+                     sg_hex_decode(hex, target_keys[k], 32);
             fclose(fk_read);
         }
 
@@ -415,12 +408,30 @@ void display_system_telemetry() {
             /* Successfully skipped */
         }
         while (fgets(line, 256, f)) {
-            char ifname[32]; long rx, tx, tmp;
-            if (sscanf(line, " %31[^:]: %ld %ld %ld %ld %ld %ld %ld %ld %ld", ifname, &rx, &tmp, &tmp, &tmp, &tmp, &tmp, &tmp, &tmp, &tx) >= 2) {
-                if (strcmp(ifname, "lo") == 0 || rx == 0) continue;
-                printf("%s | %s TRAFFIC (%-5s):   %sRX: %-8ld KB  TX: %-8ld KB             %s %s\n", 
-                       B_MAGENTA, B_WHITE, ifname, B_GREEN, rx/1024, tx/1024, B_MAGENTA, RESET);
+            /* "  name: rx_bytes rx_packets ... (8 receive fields) tx_bytes ..." */
+            const char *q = line;
+            while (*q == ' ' || *q == '\t') q++;
+            const char *colon = strchr(q, ':');
+            if (!colon || colon == q || colon - q > 31) continue;
+            char ifname[32];
+            memcpy(ifname, q, (size_t)(colon - q));
+            ifname[colon - q] = '\0';
+            unsigned long long field[9];
+            int nf = 0;
+            q = colon + 1;
+            while (nf < 9) {
+                char *end = NULL;
+                errno = 0;
+                unsigned long long v = strtoull(q, &end, 10);
+                if (end == q || errno == ERANGE) break;
+                field[nf++] = v;
+                q = end;
             }
+            if (nf < 9) continue;
+            unsigned long long rx = field[0], tx = field[8];
+            if (strcmp(ifname, "lo") == 0 || rx == 0) continue;
+            printf("%s | %s TRAFFIC (%-5s):   %sRX: %-8llu KB  TX: %-8llu KB             %s %s\n",
+                   B_MAGENTA, B_WHITE, ifname, B_GREEN, rx/1024, tx/1024, B_MAGENTA, RESET);
         }
         fclose(f);
     }

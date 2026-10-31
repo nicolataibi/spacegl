@@ -42,7 +42,7 @@ void handle_clo(int i, const char *params, bool *should_disconnect) {
 void handle_bor(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     int tid = 0;
-    if(sscanf(params, " %d", &tid) != 1) {
+    if(sg_scan_nums(params, "i", &tid) != 1) {
         tid = players[i].state.lock_target;
     }
     /* Fallback to autopilot target if no lock/param */
@@ -210,7 +210,7 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
 void handle_dis(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     int tid = 0; 
-    if(sscanf(params, " %d", &tid) != 1) {
+    if(sg_scan_nums(params, "i", &tid) != 1) {
         tid = players[i].state.lock_target;
     }
     /* Fallback to autopilot target if no lock/param */
@@ -645,7 +645,7 @@ void handle_doc(int i, const char *params, bool *should_disconnect) {
 void handle_con(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     int type, amount;
-    if (sscanf(params, "%d %d", &type, &amount) != 2) {
+    if (sg_scan_nums(params, "ii", &type, &amount) != 2) {
         send_server_msg(i, "COMPUTER", "Usage: con <Type> <Amount>");
         return;
     }
@@ -727,7 +727,7 @@ void handle_load(int i, const char *params, bool *should_disconnect) {
     }
 
     int type, amount; 
-    if (sscanf(params, "%d %d", &type, &amount) == 2) {
+    if (sg_scan_nums(params, "ii", &type, &amount) == 2) {
         /* 2. Energy Cost: 25 units */
         if (players[i].state.energy < (uint64_t)(COST_ACTION_LOW * RATIO_WEAPON_POWER)) {
             send_server_msg(i, "COMPUTER", "Insufficient energy for internal transfer systems.");

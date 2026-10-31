@@ -14,13 +14,13 @@ void handle_jum(int i, const char *params, bool *should_disconnect) {
     int type = 2;
     bool valid = false;
 
-    if (sscanf(params, "%d %d %d %d", &type, &qx, &qy, &qz) == 4) {
+    if (sg_scan_nums(params, "iiii", &type, &qx, &qy, &qz) == 4) {
         if (type < 1 || type > 2) {
             send_server_msg(i, "COMPUTER", "Invalid jump sequence type (1 or 2).");
             return;
         }
         valid = true;
-    } else if (sscanf(params, "%d %d %d", &qx, &qy, &qz) == 3) {
+    } else if (sg_scan_nums(params, "iii", &qx, &qy, &qz) == 3) {
         type = 2;
         valid = true;
     }
@@ -496,7 +496,7 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
         }
 
         int qx, qy, qz;
-        if (sscanf(coords, "%d %d %d", &qx, &qy, &qz) == 3) {
+        if (sg_scan_nums(coords, "iii", &qx, &qy, &qz) == 3) {
             if (!IS_Q_VALID(qx, qy, qz)) { send_server_msg(i, "COMPUTER", "Invalid coordinates."); return; }
             int p_idx = -1;
             for(int p=0; p<3; p++) if(!players[i].state.probes[p].active) { p_idx = p; break; }
@@ -537,7 +537,7 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
             return; 
         }
         int p_idx;
-        if (sscanf(p_ptr + 6, "%d", &p_idx) == 1) {
+        if (sg_scan_nums(p_ptr + 6, "i", &p_idx) == 1) {
             p_idx--;
             if (p_idx < 0 || p_idx >= 3 || !players[i].state.probes[p_idx].active) { send_server_msg(i, "COMPUTER", "Probe not active."); return; }
             if (players[i].state.probes[p_idx].status == 0) { send_server_msg(i, "SCIENCE", "Probe still en route."); return; }
@@ -595,7 +595,7 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
         } else send_server_msg(i, "COMPUTER", "Usage: aux report <1-3>");
     } else if(strncmp(p_ptr, "recover", 7) == 0) {
         int p_idx;
-        if (sscanf(p_ptr + 7, "%d", &p_idx) == 1) {
+        if (sg_scan_nums(p_ptr + 7, "i", &p_idx) == 1) {
             p_idx--;
             if (p_idx < 0 || p_idx >= 3 || !players[i].state.probes[p_idx].active) { send_server_msg(i, "COMPUTER", "Probe not active."); return; }
             

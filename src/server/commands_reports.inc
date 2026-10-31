@@ -12,7 +12,7 @@ void handle_rep(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     const char* sys_names[] = {"Hyperdrive", "Impulse", "Sensors", "Transp", "Ion Beams", "Torps", "Computer", "Life Support", "Shields", "Auxiliary"};
     int sid; 
-    if(sscanf(params, " %d", &sid) == 1) {
+    if(sg_scan_nums(params, "i", &sid) == 1) {
         if (sid >= 0 && sid < 10) {
             /* 1. Support System Check: Req Computer (ID 6) OR Auxiliary (ID 9) */
             if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL && players[i].state.system_health[9] < THRESHOLD_SYS_CRITICAL && sid != 6 && sid != 9) {
@@ -291,7 +291,7 @@ void handle_cal(int i, const char *params, bool *should_disconnect) {
 
     int qx, qy, qz; 
     double sx = (double)QUADRANT_SIZE / 8.0, sy = (double)QUADRANT_SIZE / 8.0, sz = (double)QUADRANT_SIZE / 8.0;
-    int args = sscanf(params, "%d %d %d %lf %lf %lf", &qx, &qy, &qz, &sx, &sy, &sz);
+    int args = sg_scan_nums(params, "iiifff", &qx, &qy, &qz, &sx, &sy, &sz);
     
     if (args >= 3) {
         if (!IS_Q_VALID(qx, qy, qz)) {
@@ -391,7 +391,7 @@ void handle_ical(int i, const char *params, bool *should_disconnect) {
     }
 
     double tx, ty, tz;
-    if (sscanf(params, "%lf %lf %lf", &tx, &ty, &tz) == 3) {
+    if (sg_scan_nums(params, "fff", &tx, &ty, &tz) == 3) {
         if (tx < 0 || tx > QUADRANT_SIZE || ty < 0 || ty > QUADRANT_SIZE || tz < 0 || tz > QUADRANT_SIZE) {
             char err_msg[128];
             SG_SPRINTF(err_msg, "Coordinates out of sector range (0.0-%.1f).", QUADRANT_SIZE);

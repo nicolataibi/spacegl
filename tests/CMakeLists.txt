@@ -570,6 +570,18 @@ if(NOT MSVC)
 endif()
 add_test(NAME sg_str COMMAND sg_str_test)
 
+# --- Checked number parsing (2026.10.31.27): include/sg_parse.h ---------
+# sg_scan_nums() against the real sscanf() on valid input, the refusal of
+# out-of-range ints, NaN and infinity, sg_hex_decode() for the key files.
+add_executable(sg_parse_test sg_parse_test.c)
+target_link_libraries(sg_parse_test PRIVATE m)
+if(NOT MSVC)
+    target_compile_options(sg_parse_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(sg_parse_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME sg_parse COMMAND sg_parse_test)
+
 # --- B2-b: radio cipher table index bounds (ASan/UBSan) ---
 add_executable(crypto_table_oob_test crypto_table_oob_test.c)
 target_link_libraries(crypto_table_oob_test PRIVATE OpenSSL::Crypto)

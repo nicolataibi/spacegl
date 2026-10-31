@@ -11,7 +11,7 @@
 void handle_pha(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     int e, tid; 
-    int args = sscanf(params, " %d %d", &tid, &e);
+    int args = sg_scan_nums(params, "ii", &tid, &e);
     
     if (args == 1) {
         e = tid;
@@ -292,7 +292,7 @@ void handle_tor(int i, const char *params, bool *should_disconnect) {
         double h;
         double m;
         bool manual = false;
-        if (sscanf(params, "%lf %lf", &h, &m) == 2) {
+        if (sg_scan_nums(params, "ff", &h, &m) == 2) {
             manual = true;
             normalize_upright(&h, &m);
         } else {
@@ -372,7 +372,7 @@ void handle_tor(int i, const char *params, bool *should_disconnect) {
 void handle_she(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     int f, r, t, b, l, ri;
-    if (sscanf(params, "%d %d %d %d %d %d", &f, &r, &t, &b, &l, &ri) == 6) {
+    if (sg_scan_nums(params, "iiiiii", &f, &r, &t, &b, &l, &ri) == 6) {
         /* 1. Integrity Check (Shield System ID 8) */
         if (players[i].state.system_health[8] < THRESHOLD_SYS_CRITICAL) {
             send_server_msg(i, "ENGINEERING", "Shield generator OFFLINE. Grid reconfiguration impossible.");
@@ -442,7 +442,7 @@ void handle_she(int i, const char *params, bool *should_disconnect) {
 void handle_lock(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     int tid;
-    if (sscanf(params, " %d", &tid) == 1 && tid > 0) {
+    if (sg_scan_nums(params, "i", &tid) == 1 && tid > 0) {
         /* 1. Integrity Check (Sensors ID 2) */
         if (players[i].state.system_health[2] < THRESHOLD_SYS_CRITICAL) {
             send_server_msg(i, "TACTICAL", "Targeting arrays OFFLINE (Sensor damage).");
@@ -516,7 +516,7 @@ void handle_lock(int i, const char *params, bool *should_disconnect) {
 void handle_scan(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     int tid = 0;
-    if (sscanf(params, " %d", &tid) != 1) {
+    if (sg_scan_nums(params, "i", &tid) != 1) {
         tid = players[i].state.lock_target;
     }
     /* Fallback to autopilot target if no lock/param */

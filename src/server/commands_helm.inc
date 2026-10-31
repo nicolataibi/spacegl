@@ -11,7 +11,7 @@
 void handle_pow(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     double e, s, w;
-    if (sscanf(params, "%lf %lf %lf", &e, &s, &w) == 3) {
+    if (sg_scan_nums(params, "fff", &e, &s, &w) == 3) {
         if (players[i].state.system_health[6] < THRESHOLD_SYS_CRITICAL) {
             send_server_msg(i, "ENGINEERING", "Power routing core FAILURE. Reallocation impossible.");
             return;
@@ -56,7 +56,7 @@ static double calculate_hyperdrive_speed(double factor) {
 void handle_nav(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     double h, m, w, factor = 6.0;
-    int args = sscanf(params, "%lf %lf %lf %lf", &h, &m, &w, &factor);
+    int args = sg_scan_nums(params, "ffff", &h, &m, &w, &factor);
     if (args >= 3) {
         if (players[i].state.system_health[0] < THRESHOLD_SYS_DEGRADED || players[i].state.system_health[2] < THRESHOLD_SYS_DEGRADED) {
             send_server_msg(i, "ENGINEERING", "CRITICAL: Hyperdrive and Sensors must be above 50% integrity.");
@@ -102,7 +102,7 @@ void handle_nav(int i, const char *params, bool *should_disconnect) {
 void handle_imp(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     double h, m, s, dist = -1.0;
-    int args = sscanf(params, "%lf %lf %lf %lf", &h, &m, &s, &dist);
+    int args = sg_scan_nums(params, "ffff", &h, &m, &s, &dist);
     if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "Impulse drive system is CRITICAL.");
         return;
@@ -183,7 +183,7 @@ void handle_imp(int i, const char *params, bool *should_disconnect) {
 void handle_pos(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     double h, m, r = 0.0;
-    int parsed = sscanf(params, "%lf %lf %lf", &h, &m, &r);
+    int parsed = sg_scan_nums(params, "fff", &h, &m, &r);
     if (parsed >= 2) {
         if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
             send_server_msg(i, "ENGINEERING", "Attitude thrusters OFFLINE.");
@@ -226,7 +226,7 @@ void handle_pos(int i, const char *params, bool *should_disconnect) {
 void handle_vec(int i, const char *params, bool *should_disconnect) {
     (void)should_disconnect;
     double h, m, s;
-    int args = sscanf(params, "%lf %lf %lf", &h, &m, &s);
+    int args = sg_scan_nums(params, "fff", &h, &m, &s);
     if (args != 3) {
         send_server_msg(i, "COMPUTER", "Usage: vec <H> <M> <S> [S 0 to stop]");
         return;
@@ -265,7 +265,7 @@ void handle_vec(int i, const char *params, bool *should_disconnect) {
 void handle_apr(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     int tid = 0; double tdist = 2.0;
-    int args = sscanf(params, " %d %lf", &tid, &tdist);
+    int args = sg_scan_nums(params, "if", &tid, &tdist);
     bool tdist_given = (args == 2);
     
     /* 1. Integrity Check: Impulse (ID 1) and Computer (ID 6) */

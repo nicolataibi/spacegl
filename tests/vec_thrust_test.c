@@ -59,6 +59,9 @@
  *      COST_ACTION_HIGH → "Insufficient energy for vector thrust."
  *      and no state change. On every accepted command the energy
  *      cost is exactly COST_ACTION_HIGH.
+ *   7. Numbers: "nan", "inf" and an overflowing exponent in any of the
+ *      three fields are rejected with the usage and change nothing
+ *      (sg_scan_nums, 2026.10.31.27).
  *
  * Exit: 0 = pass, 1 = fail.
  */
@@ -407,6 +410,23 @@ int main(void)
     CHECK(msg_find(P, "COMPUTER", "Usage: vec") >= 0, "usage: non-numeric 2nd arg rejected");
     CHECK(players[P].nav_state == NAV_STATE_IDLE && players[P].state.van_h == 40.0,
           "usage: no state change (non-numeric)");
+
+    /* Non-finite and overflowing numbers are not numbers (2026.10.31.27):
+     * sscanf("%lf") accepted "nan" and "inf" and the command went through
+     * with the course folded to 0. */
+    {
+        const char *bad[] = { "nan 0 100", "90 inf 100", "90 0 -inf", "1e999 0 100" };
+        for (size_t b = 0; b < sizeof(bad) / sizeof(bad[0]); b++) {
+            pose_ship(P, 40.0, 10.0, 5.0);
+            g_msg_count = 0;
+            handle_vec(P, bad[b], &dc);
+            CHECK(msg_find(P, "COMPUTER", "Usage: vec") >= 0,
+                  "non-finite: \"%s\" rejected with the usage", bad[b]);
+            CHECK(players[P].nav_state == NAV_STATE_IDLE && players[P].hyper_speed == 0.0 &&
+                  players[P].dx == 0.0 && players[P].state.energy == 100000,
+                  "non-finite: \"%s\" changed nothing", bad[b]);
+        }
+    }
 
     pose_ship(P, 40.0, 10.0, 5.0);
     players[P].state.system_health[1] = THRESHOLD_SYS_CRITICAL - 1.0;

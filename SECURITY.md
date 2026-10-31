@@ -397,7 +397,16 @@ traceable in the changelog:
     `tests/sender_stamp_test` case 5 and `tests/login_auth_test` case 3;
 *   TCP transport hardening (`TCP_NODELAY`, keepalive probes, buffer sizing)
     and token bucket rate limiting (200 pkt/s, DoS protection, 2026.10.17.04) —
-    pinned by `tests/rate_limit_test`.
+    pinned by `tests/rate_limit_test`;
+*   command parameters parsed with sscanf(): "%d" on an out-of-range number
+    is undefined behaviour and "%lf" accepted "nan" and "inf", which flowed
+    into the navigation and combat maths; the parsers now use
+    `sg_scan_nums()` (include/sg_parse.h, strtol/strtod with range and
+    finiteness checks) and the key files `sg_hex_decode()` (exactly 64 hex
+    digits; a truncated frequency key file was read past the end of its
+    line and is now derived again). clang-tidy cert-err34-c is on in the
+    lint profile (2026.10.31.27) — pinned by `tests/sg_parse_test`,
+    `tests/vec_thrust_test` case 7.
 
 ## 3. Open items
 
@@ -405,16 +414,10 @@ traceable in the changelog:
     by every deck of a deployment, a key holder can stand in the middle of
     another deck's session (see the attacker table). A server key pair whose
     public half the deck pins would close it.
-2.  **Command parameter parsing**: the handlers parse with sscanf(), whose
-    integer conversions do not report overflow (clang-tidy cert-err34-c,
-    excluded from the lint profile for now). The parsed values are
-    range-checked afterwards; strtol()-based parsers with overflow detection
-    are the planned replacement.
-
-3.  **Disambiguate the B2/B3 dual labels** (or rename the 2026.10.01.01
+2.  **Disambiguate the B2/B3 dual labels** (or rename the 2026.10.01.01
     / 2026.10.01.02 findings to free labels) once the original report
     list is at hand.
-4.  **GDD sync/barrier audit**: the GPU-driven path is now auditable by
+3.  **GDD sync/barrier audit**: the GPU-driven path is now auditable by
     default in Debug builds (validation layer on, see DEVELOPMENT.md §4)
     — the residual open class is "behavior visible only on the GPU",
     which `tests/gdd_mesh_test` covers for the compute passes (bit-exact

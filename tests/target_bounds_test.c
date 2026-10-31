@@ -664,6 +664,25 @@ static void test_apr(void)
         }
         check_invariants("apr");
     }
+
+    /* "apr" with no parameters approaches the locked target ("Works on
+     * Lock."): sscanf() returned EOF (-1) on the empty string, so the
+     * args == 0 branch never ran and the captain got the usage
+     * (2026.10.31.27). */
+    {
+        bool sd = false;
+        reset_world();
+        setup_attacker();
+        setup_victim16(25.0, 20.0, 20.0);
+        players[0].state.lock_target = 16;
+        canary_set();
+        handle_apr(0, "", &sd);
+        CHECK(players[0].apr_target == 16,
+              "apr on lock: apr_target=%d (expected 16)", players[0].apr_target);
+        CHECK(msg_find(0, "HELMSMAN", "Autopilot engaged.") >= 0,
+              "apr on lock: expected the engage message");
+        check_invariants("apr on lock");
+    }
 }
 
 /* ================================================================== */
