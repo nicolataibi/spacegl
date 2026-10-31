@@ -87,7 +87,7 @@ pattern described in DEVELOPMENT.md §5.
 | **Local process** | SHM mapping (client ↔ viewer / diag) | Same layout, different privilege: bounds must hold structurally, not by courtesy. |
 | Eavesdropper / active attacker on the **radio** | fleet cipher channel | AEAD ciphers only (see B5); per-player, per-algorithm keys; no legacy/weak cipher is ever used on the wire. |
 | Network peer on the **telemetry** port | TCP 5001 and `/tmp/spacegl_telemetry.sock` (read-only object stream) | OPERATOR TOOL by design: no authentication, the whole simulation state is readable. Not meant for end users; expose it only on a trusted network (bind by firewall or host network policy). The only input it accepts is a category number, range-checked. |
-| Holder of the deployment key **K** | handshake v2 | Every deck holds K, so a holder can impersonate the server to another deck or relay a session (man in the middle). Passive observers learn nothing (v2, PROTOCOL.md §3); per-server keys would close the active case. |
+| Holder of the deployment key **K** | handshake v2 | Every deck holds K. Passive observers learn nothing (v2, PROTOCOL.md §3). Since wire revision 4 (2026.10.31.43) every server signs the handshake with an Ed25519 identity key of its own and the deck pins it per server (`~/.spacegl/known_servers`, or `SPACEGL_SERVER_KEY`): a holder of K can no longer pose as a server the deck already knows, nor relay its session (the signature binds the ephemeral keys). REMAINING: the first contact is trust on first use (an impostor met first is pinned; `SPACEGL_SERVER_KEY` closes that gap), a holder of K can still pose as a deck (the captain's password is then the guard), and the stream after the handshake is not authenticated per packet (TLS, §1.4). |
 
 ### 1.3 Design rules (what the fixes converge on)
 
@@ -181,8 +181,10 @@ the deployment key. Before 2026.10.31.08 the handshake sent
 `session key XOR K || public magic XOR K`, so one captured handshake
 revealed K: a passive observer could then read every fleet frequency
 and run its own handshakes. A holder of K (any legitimate client) can
-still act as either end of the exchange: per-server certificates or
-TLS remain the answer for untrusted networks.
+still act as the deck end of the exchange, and posed as the server end
+until wire revision 4 (2026.10.31.43): since then the server signs the
+handshake with its own identity key, pinned by the deck. TLS remains the
+answer for an untrusted network (the stream after the handshake).
 
 ### 1.5 Key Management
 
@@ -194,6 +196,16 @@ cryptography in SpaceGL. It is used for:
 - HMAC-SHA256 galaxy state integrity (verified by every client)
 - Identity hash (password verification, salted per-captain)
 - Radio crypto key derivation (per-algo keys via HMAC)
+
+The **server identity key** (Ed25519, wire revision 4, 2026.10.31.43) is
+not derived from it: each server creates its own on the first boot,
+`<data dir>/server_identity.key` (64 hex digits, mode 0600, repaired to
+0600 when it is readable by others). It signs every handshake; the decks
+pin its public key. Back it up with the data directory: a lost or
+replaced key looks like another server to every deck that met this one
+("SERVER IDENTITY CHANGED"; the captain removes the line from
+`known_servers` after checking the new fingerprint with
+`spacegl_server --print-identity`).
 
 #### Key sources (priority order)
 

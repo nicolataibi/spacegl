@@ -237,10 +237,10 @@ static void hs_connect(int sv[2]) {
     io.fd = sv[1];
     io.epoll_fd = -1;
     TEST_CHECK(dispatch_packet(&io, PKT_HANDSHAKE) == 0);
-    uint8_t ack[4 + HANDSHAKE_V2_REPLY_LEN], gv[32];
+    uint8_t ack[4 + HANDSHAKE_V2_REPLY_LEN], gv[32], gv_id[32];
     TEST_CHECK(read(sv[0], ack, sizeof(ack)) == (ssize_t)sizeof(ack));
     TEST_CHECK(sv[1] < 64);
-    TEST_CHECK(hs_v2_client_finish(MASTER_SESSION_KEY, &st, ack + 4, g_sk[sv[1]], gv));
+    TEST_CHECK(hs_v2_client_finish(MASTER_SESSION_KEY, &st, ack + 4, g_sk[sv[1]], gv, gv_id));
     g_seq[sv[1]] = 0;
 }
 

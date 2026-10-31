@@ -293,6 +293,8 @@ export SPACEGL_KEY="<same-secret-value>"
 
 The handshake is expected to fail if the server and client use different key values. Do not place a real key directly in shell history or in source control. For persistent or multi-user deployments, prefer `SPACEGL_KEY_FILE` instead: point it to a file containing the 64 hexadecimal characters of the key. The file must have mode `0600`; the server and client refuse to start if it is group- or world-accessible. Key lookup order is `SPACEGL_KEY_FILE`, then `SPACEGL_KEY`, then an auto-generated `$HOME/.spacegl/key`. See `SECURITY.md`.
 
+On the first connection to a server the deck prints the server's identity fingerprint and pins it in `~/.spacegl/known_servers` (wire revision 4, like SSH's `known_hosts`): compare it with the fingerprint the server prints at boot (or `spacegl_server --print-identity`). A later connection to the same address with another identity is refused with `SERVER IDENTITY CHANGED`. To pin the key without trusting the first contact, give the deck the server's public key: `SPACEGL_SERVER_KEY=<64 hex digits>`. Back up the server's `server_identity.key` with its data directory.
+
 > These commands follow `HOWTO.txt`. The launcher scripts are in the repository root; if you installed from a package, use the entry points that package provides.
 
 ## Testing
@@ -349,6 +351,7 @@ The game includes navigation, scanning, tactical combat, communications, resourc
 Security-related behavior is described in the project documentation and should be reviewed before exposing a server to an untrusted network.
 
 - The runtime handshake expects the same master key on the server and authorized clients, supplied through `SPACEGL_KEY_FILE` (preferred, mode `0600`) or `SPACEGL_KEY`.
+- Every server signs the handshake with an Ed25519 identity key of its own (`server_identity.key` in its data directory); the deck pins it per server (`~/.spacegl/known_servers`, or `SPACEGL_SERVER_KEY`), so a holder of the shared master key cannot pose as a server the deck already knows.
 - The project documents HMAC-SHA256 integrity mechanisms and per-session keying.
 - Radio encryption options documented in the game include AES-256-GCM, ChaCha20-Poly1305, and an `enc off` cleartext mode.
 - Keep secrets out of Git, logs, screenshots, public issue reports, and command examples containing real values.

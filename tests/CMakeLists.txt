@@ -877,6 +877,13 @@ if(TARGET spacegl_3dview)
         PASS_REGULAR_EXPRESSION "PASS: gl_shape_cache")
 endif()
 
+# --- Server identity pins (2026.10.31.43, wire revision 4) -------------
+# include/known_servers.h: trust on first use, a pinned key checked on
+# every later connection, SPACEGL_SERVER_KEY, the file format.
+add_executable(known_servers_test known_servers_test.c)
+target_link_libraries(known_servers_test PRIVATE OpenSSL::Crypto)
+add_test(NAME known_servers COMMAND known_servers_test)
+
 # --- Command deck paths (2026.10.31.39) --------------------------------
 # tests/deck_e2e_test.sh: what the smoke and radio tests leave out of the
 # deck (no server, wrong key, refused names, the faction menu with eleven

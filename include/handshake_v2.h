@@ -27,6 +27,9 @@
  *           Ns (32) server nonce
  *           HMAC-SHA256(K, "SPACEGL-HS-V2/server" || eC || Nc || eS || Ns || G)
  *           G = galaxy verification key XOR mask (32)
+ *           S  (32) the server's identity key, Ed25519 public (revision 4)
+ *           Ed25519-Sign(server identity, "SPACEGL-HS-V4/server-id" ||
+ *                        eC || Nc || eS || Ns || G || S)          (64)
  *   Z    = X25519(e, peer)            (all-zero Z refused: small-order key)
  *   PRK  = HMAC-SHA256(Nc || Ns, Z)                   (HKDF-Extract)
  *   session key = HMAC-SHA256(PRK, "spacegl v2 session key" || 0x01)
@@ -36,9 +39,15 @@
  * HANDSHAKE_V2_MARKER), is refused.
  *
  * K is a secret shared by every client of a deployment: v2 keeps it off the
- * wire, but a holder of K (any legitimate client) can still run the
- * exchange as either side. Per-server certificates remain future work
- * (SECURITY.md).
+ * wire, but a holder of K (any legitimate client) could still run the
+ * exchange as either side. Revision 4 (2026.10.31.43) closes the server
+ * side: every server has an Ed25519 identity key of its own (generated on
+ * the first boot, <data dir>/server_identity.key) and signs the transcript
+ * with it; the deck pins that key per server (include/known_servers.h:
+ * trust on first use, or SPACEGL_SERVER_KEY) and refuses another one. A
+ * holder of K cannot produce the signature, and a man in the middle who
+ * forwards the real server's signature cannot compute the session key (it
+ * holds neither ephemeral private key).
  */
 #ifndef HANDSHAKE_V2_H
 #define HANDSHAKE_V2_H
@@ -58,17 +67,68 @@
  * other at the hello instead of misreading the stream:
  *   "HSV2"  revision 2, 2026.10.31.08 .. 2026.10.31.29
  *   "HSV3"  revision 3, 2026.10.31.30: per-object update delta
- *           (UPD_OBJDELTA, include/obj_delta.h) */
-#define SPACEGL_WIRE_REVISION  3
-#define HANDSHAKE_V2_MARKER    0x33565348   /* "HSV3" (little endian) in pubkey_len */
+ *           (UPD_OBJDELTA, include/obj_delta.h)
+ *   "HSV4"  revision 4, 2026.10.31.43: the server's identity key and its
+ *           signature in the handshake reply */
+#define SPACEGL_WIRE_REVISION  4
+#define HANDSHAKE_V2_MARKER    0x34565348   /* "HSV4" (little endian) in pubkey_len */
 #define HANDSHAKE_MARKER_REV2  0x32565348   /* "HSV2": a revision-2 deck, refused */
+#define HANDSHAKE_MARKER_REV3  0x33565348   /* "HSV3": a revision-3 deck, refused */
 #define HANDSHAKE_V2_REQ_LEN   96           /* eC + Nc + MAC used in pubkey[] */
-#define HANDSHAKE_V2_REPLY_LEN 128          /* eS + Ns + MAC + masked verify key */
+#define HANDSHAKE_V2_REPLY_LEN 224          /* eS + Ns + MAC + masked verify key + S + signature */
+#define HS_ID_PUB_OFF          128          /* the server identity key in the reply */
+#define HS_ID_SIG_OFF          160          /* its signature */
 
 #define HS_V2_LABEL_CLIENT  "SPACEGL-HS-V2/client"
 #define HS_V2_LABEL_SERVER  "SPACEGL-HS-V2/server"
 #define HS_V2_INFO_SESSION  "spacegl v2 session key"
 #define HS_V2_INFO_VERIFY   "spacegl v2 galaxy verify"
+#define HS_V4_LABEL_ID      "SPACEGL-HS-V4/server-id"
+
+/* Ed25519 (the server identity, revision 4). seed = the 32-byte private
+ * key (RFC 8032); the signature is deterministic. */
+static inline bool hs_ed25519_pub(const uint8_t seed[32], uint8_t pub[32]) {
+    EVP_PKEY *k = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, NULL, seed, 32);
+    size_t pl = 32;
+    bool ok = k && EVP_PKEY_get_raw_public_key(k, pub, &pl) > 0 && pl == 32;
+    EVP_PKEY_free(k);
+    return ok;
+}
+
+static inline bool hs_ed25519_sign(const uint8_t seed[32], const uint8_t *msg, size_t len, uint8_t sig[64]) {
+    EVP_PKEY *k = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, NULL, seed, 32);
+    EVP_MD_CTX *ctx = k ? EVP_MD_CTX_new() : NULL;
+    size_t sl = 64;
+    bool ok = ctx && EVP_DigestSignInit(ctx, NULL, NULL, NULL, k) > 0 &&
+              EVP_DigestSign(ctx, sig, &sl, msg, len) > 0 && sl == 64;
+    EVP_MD_CTX_free(ctx);
+    EVP_PKEY_free(k);
+    return ok;
+}
+
+static inline bool hs_ed25519_verify(const uint8_t pub[32], const uint8_t *msg, size_t len, const uint8_t sig[64]) {
+    EVP_PKEY *k = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, pub, 32);
+    EVP_MD_CTX *ctx = k ? EVP_MD_CTX_new() : NULL;
+    bool ok = ctx && EVP_DigestVerifyInit(ctx, NULL, NULL, NULL, k) > 0 &&
+              EVP_DigestVerify(ctx, sig, 64, msg, len) == 1;
+    EVP_MD_CTX_free(ctx);
+    EVP_PKEY_free(k);
+    return ok;
+}
+
+/* The bytes the server identity signs: label || eC || Nc || eS || Ns || G || S. */
+#define HS_V4_TRANSCRIPT_LEN (sizeof(HS_V4_LABEL_ID) - 1 + (size_t)6 * 32)
+static inline void hs_v4_transcript(const uint8_t ec[32], const uint8_t nc[32], const uint8_t es[32],
+                                    const uint8_t ns[32], const uint8_t g[32], const uint8_t id_pub[32],
+                                    uint8_t out[HS_V4_TRANSCRIPT_LEN]) {
+    size_t n = sizeof(HS_V4_LABEL_ID) - 1;
+    memcpy(out, HS_V4_LABEL_ID, n);  // NOLINT(bugprone-not-null-terminated-result): a byte label in a signed input, not a string)
+    const uint8_t *parts[6] = { ec, nc, es, ns, g, id_pub };
+    for (int i = 0; i < 6; i++) {
+        memcpy(out + n, parts[i], 32);
+        n += 32;
+    }
+}
 
 /* Client state between the hello and the server reply. */
 typedef struct {
@@ -176,9 +236,12 @@ static inline bool hs_v2_client_hello(const uint8_t k[32], uint8_t pubkey[256], 
 
 /* Server: check the hello, answer it, derive the session key. Returns false
  * (nothing to send) when the client MAC does not prove K or the exchange
- * fails; the caller then drops the connection. */
+ * fails; the caller then drops the connection. id_seed: the server's
+ * Ed25519 identity (private key), which signs the reply (revision 4); its
+ * public key goes in the reply. */
 static inline bool hs_v2_server_reply(const uint8_t k[32], const uint8_t pubkey[256],
                                       const uint8_t galaxy_verify_key[32],
+                                      const uint8_t id_seed[32],
                                       uint8_t reply[HANDSHAKE_V2_REPLY_LEN],
                                       uint8_t session_key[32]) {
     const uint8_t *ec = pubkey, *nc = pubkey + 32, *mac_c = pubkey + 64;
@@ -217,6 +280,12 @@ static inline bool hs_v2_server_reply(const uint8_t k[32], const uint8_t pubkey[
         for (int i = 0; i < 32; i++) reply[96 + i] = galaxy_verify_key[i] ^ mask[i];
         ok = hs_v2_hmac(k, 32, HS_V2_LABEL_SERVER, ec, nc, es_pub, ns, reply + 96, reply + 64);
     }
+    if (ok) {
+        uint8_t t[HS_V4_TRANSCRIPT_LEN];
+        ok = hs_ed25519_pub(id_seed, reply + HS_ID_PUB_OFF);
+        hs_v4_transcript(ec, nc, es_pub, ns, reply + 96, reply + HS_ID_PUB_OFF, t);
+        ok = ok && hs_ed25519_sign(id_seed, t, sizeof(t), reply + HS_ID_SIG_OFF);
+    }
     OPENSSL_cleanse(es_priv, sizeof(es_priv));
     OPENSSL_cleanse(z, sizeof(z));
     OPENSSL_cleanse(mask, sizeof(mask));
@@ -224,19 +293,28 @@ static inline bool hs_v2_server_reply(const uint8_t k[32], const uint8_t pubkey[
     return ok;
 }
 
-/* Client: check the server reply (it must prove K too) and derive the
- * session key and the galaxy verification key. */
+/* Client: check the server reply (it must prove K too, and its identity
+ * key must have signed the transcript) and derive the session key and the
+ * galaxy verification key. server_id_pub receives the identity key the
+ * reply was signed with: the caller compares it with the key it pinned
+ * for this server (include/known_servers.h) before trusting the session. */
 static inline bool hs_v2_client_finish(const uint8_t k[32], HsV2Client *st,
                                        const uint8_t reply[HANDSHAKE_V2_REPLY_LEN],
-                                       uint8_t session_key[32], uint8_t galaxy_verify_key[32]) {
+                                       uint8_t session_key[32], uint8_t galaxy_verify_key[32],
+                                       uint8_t server_id_pub[32]) {
     const uint8_t *es = reply, *ns = reply + 32, *mac_s = reply + 64, *gv = reply + 96;
+    const uint8_t *id = reply + HS_ID_PUB_OFF, *sig = reply + HS_ID_SIG_OFF;
     uint8_t expect[32], z[32], mask[32];
+    uint8_t t[HS_V4_TRANSCRIPT_LEN];
+    hs_v4_transcript(st->pub, st->nonce, es, ns, gv, id, t);
     bool ok = hs_v2_hmac(k, 32, HS_V2_LABEL_SERVER, st->pub, st->nonce, es, ns, gv, expect) &&
               CRYPTO_memcmp(expect, mac_s, 32) == 0 &&
+              hs_ed25519_verify(id, t, sizeof(t), sig) &&
               hs_v2_x25519(st->priv, es, z) &&
               hs_v2_derive(z, st->nonce, ns, session_key, mask);
     if (ok) {
         for (int i = 0; i < 32; i++) galaxy_verify_key[i] = gv[i] ^ mask[i];
+        memcpy(server_id_pub, id, 32);
     } else {
         OPENSSL_cleanse(session_key, 32);
     }

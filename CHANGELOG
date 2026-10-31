@@ -1,3 +1,48 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.43
+  - Security, roadmap 4: per-server identity keys, wire revision 4 (hello
+  marker HSV4; decks and servers of revision 3 refuse each other at the
+  hello, with a message). Every deck holds the deployment key K, so until
+  now any deck could pose as the server to another deck or relay its
+  session. Every server now has an Ed25519 identity key of its own,
+  created on the first boot in <data dir>/server_identity.key (64 hex
+  digits, mode 0600, repaired to 0600 when readable by others); its
+  fingerprint is printed at boot and by the new spacegl_server
+  --print-identity. The handshake reply grows from 128 to 224 bytes: the
+  identity public key and its signature over the transcript (both
+  ephemeral keys, both nonces, the masked verification key, the identity
+  key). The key exchange itself (HMAC with K, X25519, HKDF, session key)
+  is unchanged.
+  - The deck checks the signature and pins the key per host:port in
+  ~/.spacegl/known_servers (SPACEGL_KNOWN_SERVERS; include/known_servers.h,
+  like SSH's known_hosts): the first connection pins it and prints the
+  fingerprint, a later one with another key is refused before the login
+  ("SERVER IDENTITY CHANGED", with the line to remove if the change is
+  legitimate). SPACEGL_SERVER_KEY=<64 hex digits> pins the key explicitly
+  (no trust on first use). The automatic reconnect must meet the key of
+  the session. The galaxy master's server_pubkey is now the identity key
+  (before: SHA-256 of K) and the deck checks it against the handshake.
+  - Not changed, and documented (SECURITY.md, PROTOCOL.md §3): a holder of
+  K can still pose as a deck (the captain's access code guards the
+  captain), the first contact is trust on first use, and the stream after
+  the handshake is not authenticated per packet (TLS).
+  - Tests: handshake_v2 (the identity is returned; seven tampered reply
+  fields; the real key with another signer's signature and a signature
+  replayed from another exchange refused; the dispatcher signs with
+  SERVER_PRIVKEY; a revision-3 hello refused); known_servers (new):
+  pinning, mismatch, other hosts, prefix hosts, comments and damaged
+  lines, SPACEGL_SERVER_KEY right / wrong / malformed, file modes, an
+  unwritable file; deck_e2e step 8: the first deck pinned the key the
+  server printed, later decks found it pinned, a server with another
+  identity on the same address refused before the login, accepted with its
+  key in SPACEGL_SERVER_KEY, refused with a wrong one; step 7 (restart on
+  the same data directory, reconnect) now also proves the identity
+  survives a restart. Every e2e script and the CI smoke step use a private
+  known_servers file.
+  - Fuzz corpus moved to revision 4: gen_corpus.py writes HSV4 hellos and
+  a new handshake_rev3_refused.pkt seed; the libFuzzer-grown seeds are
+  rewritten by the new tests/fuzz/migrate_corpus_rev4.py (only the marker
+  of each hello changes).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.42
   - Vulkan viewer, roadmap 2 (option A): the GPU-driven path (GDD) is the
   default. SPACEGL_GPD unset or 1 selects it, SPACEGL_GPD=0 the CPU-driven

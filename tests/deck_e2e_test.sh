@@ -23,7 +23,12 @@
 #      left, a wrong access code is refused and the right one is
 #      "RETURNING COMMANDER RECOGNIZED";
 #   7. the server goes down and comes back on the same data directory: the
-#      deck reconnects (handshake + login again) and keeps working.
+#      deck reconnects (handshake + login again) and keeps working;
+#   8. (2026.10.31.43, wire revision 4) the server identity: the first deck
+#      pinned the key the server printed at boot, later decks found it
+#      pinned; a server with another identity (another data directory) on
+#      the same address is refused ("SERVER IDENTITY CHANGED"), accepted
+#      with its key in SPACEGL_SERVER_KEY, refused with a wrong one.
 # No DISPLAY: the decks run in CLI mode, as in smoke_test.sh.
 #
 # Usage: deck_e2e_test.sh <spacegl_server> <spacegl_client>
@@ -43,6 +48,10 @@ export SPACEGL_KEY="$KEY"
 unset DISPLAY WAYLAND_DISPLAY
 DATA_DIR=$(mktemp -d "${TMPDIR:-/tmp}/spacegl_deck.XXXXXX") || exit 1
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/spacegl_deck_logs.XXXXXX") || exit 1
+# The deck pins each server's identity key (wire revision 4): a private
+# known_servers file, or every new data directory would look like a changed
+# server to the next test.
+export SPACEGL_KNOWN_SERVERS="$WORK/known_servers"
 BIN_DIR=$(cd "$(dirname "$CLIENT_BIN")" && pwd)
 SERVER_PID=""
 PIDS=()
@@ -54,8 +63,8 @@ cleanup() {
 trap cleanup EXIT
 
 port_open() { (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; }
-start_server() {
-    "$SERVER_BIN" --data-dir "$DATA_DIR" >>"$WORK/server.log" 2>&1 &
+start_server() {   # [data dir]
+    "$SERVER_BIN" --data-dir "${1:-$DATA_DIR}" >>"$WORK/server.log" 2>&1 &
     SERVER_PID=$!
     for _ in $(seq 1 100); do port_open && return 0; sleep 0.2; done
     echo "FAIL: server port $PORT never opened"; tail -n 30 "$WORK/server.log"; exit 1
@@ -180,6 +189,25 @@ check "deck reconnected"                        has delta "[RECONNECT] Reconnect
 check "status works after the reconnect" \
     bash -c 'sed -n "/Reconnected successfully/,\$p" "$0" | grep -q "PHYSICAL HULL"' "$WORK/delta.txt"
 stop_server
+
+# --- 8. the server identity ---------------------------------------------
+SRV_FP=$("$SERVER_BIN" --data-dir "$DATA_DIR" --print-identity 2>/dev/null | sed -n 1p)
+check "first contact pinned the printed key"    bash -c 'grep -q "First contact with 127.0.0.1:5000: server identity $1" "$0/f1.txt" "$0/f2.txt" "$0/f3.txt" "$0/f4.txt" "$0/f5.txt" "$0/f6.txt" "$0/f7.txt" "$0/f8.txt" "$0/f9.txt" "$0/f10.txt" "$0/f11.txt" "$0/badkey.txt" "$0/name_station.txt" 2>/dev/null' "$WORK" "$SRV_FP"
+check "a later deck found it pinned"            has returning "$SRV_FP [PINNED]"
+check "the server printed the same identity"    grep -qF "$SRV_FP" "$WORK/server.log"
+OTHER_DIR=$(mktemp -d "${TMPDIR:-/tmp}/spacegl_deck_other.XXXXXX") || exit 1
+OTHER_HEX=$("$SERVER_BIN" --data-dir "$OTHER_DIR" --print-identity 2>/dev/null | sed -n 2p)
+start_server "$OTHER_DIR"
+{ login IMPOSTOR i-code; printf '0\n0\n'; sleep 2; printf 'exit\n'; } | deck impostor 15
+check "another identity on the same address is refused" has impostor "SERVER IDENTITY CHANGED for 127.0.0.1:5000"
+check "...before the login"                     hasnt impostor "Commander Name:"
+{ login EXPLICIT e-code; printf '0\n0\n'; sleep 3; printf 'exit\n'; sleep 1; } | SPACEGL_SERVER_KEY="$OTHER_HEX" deck explicit 20
+check "SPACEGL_SERVER_KEY with its key: accepted" has explicit "[SPACEGL_SERVER_KEY]"
+check "...and the deck logs in"                 has explicit "Command Deck ready"
+{ login WRONGPIN w-code; sleep 2; } | SPACEGL_SERVER_KEY="$(printf '%064d' 0)" deck wrongpin 15
+check "SPACEGL_SERVER_KEY with another key: refused" has wrongpin "not the key of SPACEGL_SERVER_KEY"
+stop_server
+rm -rf "$OTHER_DIR"
 
 if [ $rc -ne 0 ]; then
     for f in charlie delta f1 dup wrongpass returning; do

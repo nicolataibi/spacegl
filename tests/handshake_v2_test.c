@@ -12,8 +12,14 @@
  *     small-order (all-zero) client key.
  *  4. K never appears on the wire, and the v1 recovery (bytes 32..63 of the
  *     hello XOR the public magic) no longer yields it.
- *  5. dispatcher: a v1 hello closes the connection; a v2 hello gets the
- *     132-byte reply and the slot holds the client's session key.
+ *  5. (2026.10.31.43, wire revision 4) the server identity: the reply
+ *     carries the server's Ed25519 key, signed over the transcript; the
+ *     client gets that key back (another identity is reported as such,
+ *     the pin decides). The real key with another signer's signature, and
+ *     the signature of one exchange replayed in another, are refused.
+ *  6. dispatcher: a v1 or a revision-3 hello closes the connection; a
+ *     revision-4 hello gets the reply, signed with SERVER_PRIVKEY, and the
+ *     slot holds the client's session key.
  */
 #define _DEFAULT_SOURCE
 #include <stdint.h>
@@ -204,19 +210,23 @@ int main(void) {
         printf("[1] HKDF (RFC 5869 TC1) and X25519 (RFC 7748 6.1) vectors: OK\n");
     }
 
-    uint8_t K[32], K2[32], GV[32];
+    uint8_t K[32], K2[32], GV[32], ID[32], ID2[32], ID_PUB[32], idg[32];
     RAND_bytes(K, 32); RAND_bytes(K2, 32); RAND_bytes(GV, 32);
+    RAND_bytes(ID, 32);
+    RAND_bytes(ID2, 32);
+    TEST_CHECK(hs_ed25519_pub(ID, ID_PUB));
 
     /* 2. exchange */
     uint8_t hello[256], reply[HANDSHAKE_V2_REPLY_LEN], s_srv[32], s_cli[32], gv[32];
     {
         HsV2Client st;
         TEST_CHECK(hs_v2_client_hello(K, hello, &st));
-        TEST_CHECK(hs_v2_server_reply(K, hello, GV, reply, s_srv));
-        TEST_CHECK(hs_v2_client_finish(K, &st, reply, s_cli, gv));
+        TEST_CHECK(hs_v2_server_reply(K, hello, GV, ID, reply, s_srv));
+        TEST_CHECK(hs_v2_client_finish(K, &st, reply, s_cli, gv, idg));
         TEST_CHECK(memcmp(s_srv, s_cli, 32) == 0);
         TEST_CHECK(memcmp(gv, GV, 32) == 0);
-        printf("[2] exchange: same session key, galaxy verify key recovered: OK\n");
+        TEST_CHECK(memcmp(idg, ID_PUB, 32) == 0);
+        printf("[2] exchange: same session key, galaxy verify key and server identity recovered: OK\n");
     }
 
     /* 3. refusals */
@@ -224,25 +234,25 @@ int main(void) {
         HsV2Client st;
         uint8_t h[256], r[HANDSHAKE_V2_REPLY_LEN], s1[32], s2[32], g[32];
         TEST_CHECK(hs_v2_client_hello(K2, h, &st));
-        TEST_CHECK(!hs_v2_server_reply(K, h, GV, r, s1));          /* client lacks K */
+        TEST_CHECK(!hs_v2_server_reply(K, h, GV, ID, r, s1));          /* client lacks K */
 
         TEST_CHECK(hs_v2_client_hello(K, h, &st));
-        TEST_CHECK(hs_v2_server_reply(K2, h, GV, r, s1) == false); /* server lacks K: MAC of hello fails */
+        TEST_CHECK(hs_v2_server_reply(K2, h, GV, ID, r, s1) == false); /* server lacks K: MAC of hello fails */
 
-        for (int field = 0; field < 4; field++) {                  /* eS, Ns, MAC, G */
+        for (int field = 0; field < 7; field++) {                  /* eS, Ns, MAC, G, S, signature (2 halves) */
             TEST_CHECK(hs_v2_client_hello(K, h, &st));
-            TEST_CHECK(hs_v2_server_reply(K, h, GV, r, s1));
+            TEST_CHECK(hs_v2_server_reply(K, h, GV, ID, r, s1));
             r[field * 32 + 7] ^= 0x01;
-            TEST_CHECK(!hs_v2_client_finish(K, &st, r, s2, g));
+            TEST_CHECK(!hs_v2_client_finish(K, &st, r, s2, g, idg));
         }
 
         /* a server that knows a different K cannot answer a valid client */
         TEST_CHECK(hs_v2_client_hello(K, h, &st));
-        TEST_CHECK(hs_v2_server_reply(K, h, GV, r, s1));
+        TEST_CHECK(hs_v2_server_reply(K, h, GV, ID, r, s1));
         uint8_t forged[32];
         hs_v2_hmac(K2, 32, HS_V2_LABEL_SERVER, st.pub, st.nonce, r, r + 32, r + 96, forged);
         memcpy(r + 64, forged, 32);
-        TEST_CHECK(!hs_v2_client_finish(K, &st, r, s2, g));
+        TEST_CHECK(!hs_v2_client_finish(K, &st, r, s2, g, idg));
 
         /* small-order client key (all zero), with a valid MAC */
         uint8_t zero_key[32] = {0}, nonce[32];
@@ -250,8 +260,8 @@ int main(void) {
         RAND_bytes(nonce, 32);
         memcpy(h + 32, nonce, 32);
         hs_v2_hmac(K, 32, HS_V2_LABEL_CLIENT, zero_key, nonce, NULL, NULL, NULL, h + 64);
-        TEST_CHECK(!hs_v2_server_reply(K, h, GV, r, s1));
-        printf("[3] wrong K either side, 4 tampered fields, small-order key refused: OK\n");
+        TEST_CHECK(!hs_v2_server_reply(K, h, GV, ID, r, s1));
+        printf("[3] wrong K either side, 7 tampered fields, small-order key refused: OK\n");
     }
 
     /* 4. K off the wire */
@@ -265,13 +275,48 @@ int main(void) {
         for (int i = 0; i < 32; i++) v1_guess[i] = hello[32 + i] ^ (uint8_t)magic[i];
         TEST_CHECK(memcmp(v1_guess, K, 32) != 0);
         TEST_CHECK(!contains32(wire, sizeof(wire), GV));
-        printf("[4] master key and galaxy verify key absent from the wire: OK\n");
+        TEST_CHECK(!contains32(wire, sizeof(wire), ID));
+        printf("[4] master key, galaxy verify key and identity private key absent from the wire: OK\n");
     }
 
-    /* 5. real dispatcher */
+    /* 5. the identity (header level) */
+    {
+        HsV2Client st;
+        uint8_t h[256], r[HANDSHAKE_V2_REPLY_LEN], s1[32], s2[32], g[32];
+        /* another identity signs: the client gets ITS key (the pin decides) */
+        uint8_t id2_pub[32];
+        TEST_CHECK(hs_ed25519_pub(ID2, id2_pub));
+        TEST_CHECK(hs_v2_client_hello(K, h, &st));
+        TEST_CHECK(hs_v2_server_reply(K, h, GV, ID2, r, s1));
+        TEST_CHECK(hs_v2_client_finish(K, &st, r, s2, g, idg));
+        TEST_CHECK(memcmp(idg, id2_pub, 32) == 0 && memcmp(idg, ID_PUB, 32) != 0);
+
+        /* a holder of K posing as the server with the real server's public
+         * key but its own signing key: the signature does not verify */
+        TEST_CHECK(hs_v2_client_hello(K, h, &st));
+        TEST_CHECK(hs_v2_server_reply(K, h, GV, ID2, r, s1));
+        memcpy(r + HS_ID_PUB_OFF, ID_PUB, 32);
+        TEST_CHECK(!hs_v2_client_finish(K, &st, r, s2, g, idg));
+
+        /* the real server's signature of one exchange, replayed in another */
+        HsV2Client st_a, st_b;
+        uint8_t ha[256], hb[256], ra[HANDSHAKE_V2_REPLY_LEN], rb[HANDSHAKE_V2_REPLY_LEN];
+        TEST_CHECK(hs_v2_client_hello(K, ha, &st_a));
+        TEST_CHECK(hs_v2_client_hello(K, hb, &st_b));
+        TEST_CHECK(hs_v2_server_reply(K, ha, GV, ID, ra, s1));
+        TEST_CHECK(hs_v2_server_reply(K2, hb, GV, ID2, rb, s1) == false);   /* (K2 cannot even answer) */
+        TEST_CHECK(hs_v2_server_reply(K, hb, GV, ID2, rb, s1));             /* an impostor's reply to B */
+        memcpy(rb + HS_ID_PUB_OFF, ra + HS_ID_PUB_OFF, 32);                 /* + the real key */
+        memcpy(rb + HS_ID_SIG_OFF, ra + HS_ID_SIG_OFF, 64);                 /* + the real signature of A */
+        TEST_CHECK(!hs_v2_client_finish(K, &st_b, rb, s2, g, idg));
+        printf("[5] identity: another key is reported, a borrowed key or a replayed signature refused: OK\n");
+    }
+
+    /* 6. real dispatcher */
     for (int i = 0; i < MAX_CLIENTS; i++) pthread_mutex_init(&players[i].socket_mutex, NULL);
     memcpy(MASTER_SESSION_KEY, K, 32);
     memcpy(GALAXY_VERIFY_KEY, GV, 32);
+    memcpy(SERVER_PRIVKEY, ID, 32);
     {
         int sv[2];
         TEST_CHECK(socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == 0);
@@ -302,14 +347,25 @@ int main(void) {
         memcpy(&t, ack, 4);
         TEST_CHECK(t == PKT_HANDSHAKE);
         uint8_t sk[32], g[32];
-        TEST_CHECK(hs_v2_client_finish(K, &st, ack + 4, sk, g));
+        TEST_CHECK(hs_v2_client_finish(K, &st, ack + 4, sk, g, idg));
         TEST_CHECK(memcmp(g, GV, 32) == 0);
+        TEST_CHECK(memcmp(idg, ID_PUB, 32) == 0);           /* signed with SERVER_PRIVKEY */
         int slot = -1;
         for (int i = 0; i < MAX_CLIENTS; i++) if (players[i].socket == sv[1]) slot = i;
         TEST_CHECK(slot >= 0);
         TEST_CHECK(memcmp(players[slot].session_key, sk, 32) == 0);
         close(sv[0]); close(sv[1]);
-        printf("[5] dispatcher: v1 hello dropped, v2 hello answered, session key shared: OK\n");
+
+        /* a revision-3 hello (valid MAC) is refused */
+        TEST_CHECK(socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == 0);
+        TEST_CHECK(hs_v2_client_hello(K, p.pubkey, &st));
+        p.pubkey_len = HANDSHAKE_MARKER_REV3;
+        TEST_CHECK(write(sv[0], ((char *)&p) + sizeof(int32_t), body) == (ssize_t)body);
+        io.fd = sv[1];
+        TEST_CHECK(dispatch_packet(&io, PKT_HANDSHAKE) == 1);
+        TEST_CHECK(fcntl(sv[1], F_GETFD) == -1 && errno == EBADF);
+        close(sv[0]);
+        printf("[6] dispatcher: v1 and revision-3 hellos dropped, revision-4 hello answered and signed, session key shared: OK\n");
     }
 
     printf("handshake_v2_test: all checks passed\n");

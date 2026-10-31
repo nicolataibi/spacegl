@@ -149,7 +149,7 @@ jobs:
           # failure in CLI-only mode (the assertions below cover that
           # path plus the handshake/login/sync round-trip).
           printf '127.0.0.1\nCI_SMOKE\ns3cr3t-access-code\n0\n0\n' | \
-            timeout 25 ./build/spacegl_client >client.log 2>&1 || true
+            SPACEGL_KNOWN_SERVERS="$DATA/known_servers" timeout 25 ./build/spacegl_client >client.log 2>&1 || true
           kill "$SERVER_PID" 2>/dev/null || true
           wait "$SERVER_PID" 2>/dev/null || true
           echo "--- server.log (tail) ---"; tail -n 20 server.log

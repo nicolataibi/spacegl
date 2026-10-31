@@ -42,6 +42,7 @@ run_mode() { # $1 = legacy | async
     work=$(mktemp -d "${TMPDIR:-/tmp}/sg_tsan_$mode.XXXXXX")
     data=$(mktemp -d "${TMPDIR:-/tmp}/sg_tsan_data.XXXXXX")
     ln -s "$BIN_DIR" "$work/build"
+    export SPACEGL_KNOWN_SERVERS="$work/known_servers"   # pins of this run only (wire revision 4)
     local args="--data-dir $data"
     [ "$mode" = async ] && args="$args --io=async"
     "$SERVER_BIN" $args >"$work/server.log" 2>&1 &

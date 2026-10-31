@@ -49,6 +49,7 @@ static const char *get_lrs_object_icon(int id);
 #include "client_wire.h"
 #include "obj_delta.h"
 #include "handshake_v2.h"
+#include "known_servers.h"
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 #error "spacegl_client must not be built with FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION (fixed handshake keys)"
 #endif
@@ -711,6 +712,77 @@ static int connect_to_server(void) {
 static uint8_t g_session_key[32];
 static uint32_t g_cred_seq = 0;
 
+/* The server's identity (wire revision 4, include/known_servers.h): the
+ * Ed25519 key that signed this session's handshake. Pinned per server in
+ * the known_servers file (or by SPACEGL_SERVER_KEY) on the first
+ * handshake; a reconnect must meet the same key. */
+static uint8_t g_server_id[32];
+static bool g_server_id_set = false;
+static char g_pin_hostport[96] = "";
+static bool g_pin_refused = false;   /* the last handshake failed on the pin */
+
+/* The pin decision for the key of a verified handshake; false: refuse. */
+static bool server_identity_accept(const uint8_t id[32]) {
+    char fp[KS_FINGERPRINT_LEN + 1];
+    ks_fingerprint(id, fp);
+    if (g_server_id_set) {
+        if (CRYPTO_memcmp(g_server_id, id, 32) == 0) return true;
+        fprintf(stderr, B_RED "[SECURITY] The server at %s presents another identity than at login (%s): "
+                              "reconnection refused.\n" RESET,
+                g_pin_hostport, fp);
+        return false;
+    }
+    char path[1024];
+    bool have_path = ks_default_path(path, sizeof(path));
+    uint8_t pinned[32];
+    char pfp[KS_FINGERPRINT_LEN + 1];
+    KsResult r = ks_check(have_path ? path : NULL, g_pin_hostport, id, getenv("SPACEGL_SERVER_KEY"), pinned);
+    switch (r) {
+        case KS_PINNED_OK:
+            printf(B_CYAN "[SECURE] Server identity:    " B_GREEN "%s [PINNED]\n" RESET, fp);
+            break;
+        case KS_EXPLICIT_OK:
+            printf(B_CYAN "[SECURE] Server identity:    " B_GREEN "%s [SPACEGL_SERVER_KEY]\n" RESET, fp);
+            break;
+        case KS_NEW_PINNED:
+            printf(B_YELLOW "[SECURE] First contact with %s: server identity %s\n"
+                            "         pinned in %s (compare it with the one the server prints at boot,\n"
+                            "         or with 'spacegl_server --print-identity').\n" RESET,
+                   g_pin_hostport, fp, path);
+            break;
+        case KS_NEW_NOT_SAVED:
+            printf(B_YELLOW "[SECURE] First contact with %s: server identity %s (NOT pinned: %s cannot be "
+                            "written)\n" RESET,
+                   g_pin_hostport, fp, have_path ? path : "no known_servers file");
+            break;
+        case KS_MISMATCH:
+            ks_fingerprint(pinned, pfp);
+            fprintf(stderr, B_RED "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+                                  "@    WARNING: SERVER IDENTITY CHANGED for %s\n"
+                                  "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+                                  "The server presents identity %s,\n"
+                                  "but %s is pinned for it in %s.\n"
+                                  "Someone may be impersonating the server, or its identity key was replaced\n"
+                                  "(a new data directory, a lost server_identity.key). If the change is\n"
+                                  "legitimate, remove the line '%s ...' from that file. Connection refused.\n" RESET,
+                    g_pin_hostport, fp, pfp, path, g_pin_hostport);
+            break;
+        case KS_EXPLICIT_MISMATCH:
+            fprintf(stderr, B_RED "[SECURITY] The server presents identity %s, not the key of SPACEGL_SERVER_KEY: "
+                                  "connection refused.\n" RESET,
+                    fp);
+            break;
+        case KS_EXPLICIT_BAD:
+            fprintf(stderr, B_RED "[SECURITY] SPACEGL_SERVER_KEY must be the 64 hex digits of the server's public "
+                                  "key ('spacegl_server --print-identity'): connection refused.\n" RESET);
+            break;
+    }
+    if (ks_refused(r)) return false;
+    memcpy(g_server_id, id, 32);
+    g_server_id_set = true;
+    return true;
+}
+
 static int do_handshake(void) {
     PacketHandshake h_pkt;
     memset(&h_pkt, 0, sizeof(PacketHandshake));
@@ -720,13 +792,22 @@ static int do_handshake(void) {
     HsV2Client hs;
     uint8_t reply[HANDSHAKE_V2_REPLY_LEN];
     uint8_t session[32];
+    uint8_t server_id[32];
     int ok = 0;
+    g_pin_refused = false;
     if (hs_v2_client_hello(master_root_key, h_pkt.pubkey, &hs) &&
         write_all(sock, &h_pkt, sizeof(PacketHandshake)) > 0) {
         int ack_type = 0;
         if (read_all(sock, &ack_type, sizeof(int)) == (int)sizeof(int) && ack_type == PKT_HANDSHAKE &&
             read_all(sock, reply, sizeof(reply)) == (int)sizeof(reply) &&
-            hs_v2_client_finish(master_root_key, &hs, reply, session, galaxy_verify_key)) {
+            hs_v2_client_finish(master_root_key, &hs, reply, session, galaxy_verify_key, server_id)) {
+            if (!server_identity_accept(server_id)) {
+                g_pin_refused = true;
+                OPENSSL_cleanse(&hs, sizeof(hs));
+                OPENSSL_cleanse(session, sizeof(session));
+                OPENSSL_cleanse(reply, sizeof(reply));
+                return 0;
+            }
             memcpy(deep_space_key, session, 32);
             memcpy(g_session_key, session, 32);
             g_cred_seq = 0;
@@ -1607,6 +1688,8 @@ int main(int argc, char *argv[]) {
             printf("Environment Variables:\n");
             printf("  SPACEGL_KEY_FILE Master Key file path (preferred, permissions must be 0600)\n");
             printf("  SPACEGL_KEY      Master Key hex string (legacy, fallback: ~/.spacegl/key)\n");
+            printf("  SPACEGL_SERVER_KEY    the server's identity key (64 hex digits): accept only it\n");
+            printf("  SPACEGL_KNOWN_SERVERS pinned server identities (default ~/.spacegl/known_servers)\n");
             return 0;
         }
     }
@@ -1745,7 +1828,12 @@ int main(int argc, char *argv[]) {
 
     /* Handshake: Negotiate Unique Session Key */
     /* Handshake v2: the same do_handshake() as every reconnect. */
+    snprintf(g_pin_hostport, sizeof(g_pin_hostport), "%s:%d", server_ip, DEFAULT_PORT);
     if (!do_handshake()) {
+        if (g_pin_refused) {
+            close(sock);
+            exit(1);
+        }
         fprintf(stderr, B_RED "SECURITY ERROR: Master Key mismatch or Handshake rejected by server "
                               "(handshake v2, wire revision %d required on both ends: a server "
                               "of another revision closes the link).\n" RESET, SPACEGL_WIRE_REVISION);
@@ -1961,9 +2049,11 @@ int main(int argc, char *argv[]) {
         if (master_sync->encryption_flags & 0x01) {
             if (signature_valid) {
                 printf(B_CYAN "[SECURE] DeepSpace Signature: " B_GREEN "VERIFIED (HMAC-SHA256)\n" RESET);
-                printf(B_CYAN "[SECURE] Server Identity:    " B_YELLOW);
-                for(int k=0; k<16; k++) printf("%02X", master_sync->server_pubkey[k]);
-                printf("... [ACTIVE]\n" RESET);
+                /* The galaxy carries the server's identity key too: it must
+                 * be the one that signed the handshake. */
+                if (CRYPTO_memcmp(master_sync->server_pubkey, g_server_id, 32) != 0)
+                    printf(B_CYAN "[SECURE] Galaxy identity:    " B_RED
+                                  "differs from the handshake's - DO NOT TRUST THIS SERVER\n" RESET);
                 printf(B_CYAN "[SECURE] Encryption Layer:   " B_GREEN "AES-256-GCM (PQC slots: experimental aliases)\n" RESET);
             } else {
                 printf(B_CYAN "[SECURE] DeepSpace Signature: " B_RED "VERIFICATION FAILED (HMAC-SHA256 MISMATCH) - DO NOT TRUST THIS SERVER\n" RESET);

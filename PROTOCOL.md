@@ -24,7 +24,7 @@ Sizes below are those of this build (x86-64, `#pragma pack(1)`).
 
 | Type | Value | Direction | Size (bytes) | Purpose |
 | --- | --- | --- | --- | --- |
-| `PKT_HANDSHAKE` | 6 | C→S, S→C | 264 / 4 + 128 | Authenticated key exchange (section 3) |
+| `PKT_HANDSHAKE` | 6 | C→S, S→C | 264 / 4 + 224 | Authenticated key exchange, signed by the server identity (section 3) |
 | `PKT_QUERY` | 5 | C→S, S→C | 220 / 4 (+16) | Identity check and enrollment (section 4) |
 | `PKT_LOGIN` | 1 | C→S | 220 | Bind the connection to a captain (section 4) |
 | `PKT_QUERY_KEY` | 8 | C→S, S→C | 104 | Look up a captain's X25519 key for a peer link |
@@ -46,15 +46,17 @@ deployment master key (`SPACEGL_KEY_FILE`, `SPACEGL_KEY` or
 `~/.spacegl/key`); it never travels on the wire.
 
 ```
-C -> S  PacketHandshake: type = 6, pubkey_len = 0x33565348 ("HSV3")
+C -> S  PacketHandshake: type = 6, pubkey_len = 0x34565348 ("HSV4")
         pubkey[ 0..31]  eC   client ephemeral X25519 public key
         pubkey[32..63]  Nc   client nonce (32 random bytes)
         pubkey[64..95]  HMAC-SHA256(K, "SPACEGL-HS-V2/client" || eC || Nc)
         pubkey[96..255] 0
-S -> C  int32 6, then 128 bytes:
+S -> C  int32 6, then 224 bytes:
         eS (32) || Ns (32) ||
         HMAC-SHA256(K, "SPACEGL-HS-V2/server" || eC || Nc || eS || Ns || G) (32) ||
-        G = galaxy verification key XOR mask (32)
+        G = galaxy verification key XOR mask (32) ||
+        S  = the server's identity key, Ed25519 public (32) ||
+        Ed25519-Sign(identity, "SPACEGL-HS-V4/server-id" || eC || Nc || eS || Ns || G || S) (64)
 Z            = X25519(e, peer public key)        (all-zero Z refused)
 PRK          = HMAC-SHA256(Nc || Ns, Z)          (HKDF-Extract)
 session key  = HMAC-SHA256(PRK, "spacegl v2 session key"  || 0x01)
@@ -62,17 +64,30 @@ mask         = HMAC-SHA256(PRK, "spacegl v2 galaxy verify" || 0x01)
 ```
 
 - `pubkey_len` is "HSV" followed by the **wire revision**, the layout of
-  every packet after the handshake: revision 3 since 2026.10.31.30 (the
-  per-object update delta), revision 2 from 2026.10.31.08. A hello with
-  another value (a revision-2 deck, the v1 hello) is refused and the
-  connection closed; the handshake exchange itself is the same v2 in both
-  revisions.
+  the handshake reply and of every packet after it: revision 4 since
+  2026.10.31.43 (the server identity in the reply), revision 3 from
+  2026.10.31.30 (the per-object update delta), revision 2 from
+  2026.10.31.08. A hello with another value (a revision-2 or -3 deck, the
+  v1 hello) is refused and the connection closed; the key exchange itself
+  is the same v2 in every revision.
 - Both sides prove they know `K`; the session key comes from the ephemeral
   exchange (forward secrecy: a later leak of `K` does not open past
   sessions).
-- Limit: `K` is shared by every deck of a deployment, so a holder of `K` can
-  run the exchange as either side. Per-server keys are future work
-  (SECURITY.md).
+- The server identity (revision 4): every server has an Ed25519 key of its
+  own (`<data dir>/server_identity.key`, created on the first boot; its
+  fingerprint is printed at boot and by `spacegl_server --print-identity`)
+  and signs the transcript with it. The deck checks the signature and pins
+  the key per `host:port` in `~/.spacegl/known_servers`
+  (`$SPACEGL_KNOWN_SERVERS`): the first connection pins it, every later one
+  must present the same key or is refused before the login;
+  `SPACEGL_SERVER_KEY=<64 hex digits>` pins it explicitly. A reconnect must
+  meet the key of the session. `K` is shared by every deck, so a holder of
+  `K` can still pose as a deck, but no longer as a server the deck already
+  knows: it cannot sign, and a relayed signature of the real server binds
+  ephemeral keys whose private halves it does not hold.
+- `server_pubkey` in the galaxy master (`SpaceGLGame`) is the same identity
+  key (before revision 4: SHA-256 of `K`); the deck checks that it matches
+  the handshake.
 - A connection that completed the handshake but sends no successful
   `PKT_LOGIN` within **180 s** (renewed by each `PKT_QUERY`) is closed and its
   slot freed (`HANDSHAKE_PENDING_TIMEOUT_S`).

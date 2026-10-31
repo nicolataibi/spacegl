@@ -81,6 +81,10 @@ command -v awk >/dev/null 2>&1 || { echo "SKIP: awk not available"; exit 77; }
 PORT=5000   # DEFAULT_PORT: the server has no --port flag
 DATA_DIR=$(mktemp -d "${TMPDIR:-/tmp}/spacegl_stability.XXXXXX") || exit 1
 WORK_CLIENT_LOG="$DATA_DIR/client.log"
+# The deck pins each server's identity key (wire revision 4): a private
+# known_servers file, or every new data directory would look like a changed
+# server to the next test.
+export SPACEGL_KNOWN_SERVERS="$DATA_DIR/known_servers"
 WORK_SERVER_LOG="$DATA_DIR/server.log"
 CLIENT_PID=""
 SERVER_PID=""

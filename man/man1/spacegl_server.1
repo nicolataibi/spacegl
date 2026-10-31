@@ -48,6 +48,13 @@ Small replies are staged and drained on EPOLLOUT, so the loop never
 blocks on send either: a stalled client can at most occupy its own
 session.
 .TP
+.B \-\-print\-identity
+Print the server identity (its fingerprint, then the 64 hex digits of its
+Ed25519 public key) and exit; the identity is created if it does not exist
+yet. The decks pin this key: compare the fingerprint they show on the
+first connection with it, or give the key to them in
+.BR SPACEGL_SERVER_KEY .
+.TP
 .B \-\-version
 Print version information and exit.
 .TP
@@ -68,6 +75,12 @@ Serialized galaxy state (default: ./galaxy.dat).
 .I [DATA\-DIR]/captains/
 captain profiles, identity records and frequency keys
 (default: ./captains/).
+.TP
+.I [DATA\-DIR]/server_identity.key
+The server's Ed25519 identity (private key, 64 hex digits, mode 0600),
+created on the first boot; it signs every handshake (wire revision 4).
+Back it up with the data directory: a new key looks like another server
+to every deck that has met this one.
 .SH SEE ALSO
 .BR spacegl_client (1),
 .BR spacegl-server (1),

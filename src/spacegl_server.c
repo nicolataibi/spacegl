@@ -41,6 +41,10 @@
 #include "conn.h"
 #include "packets.h"
 #include "sg_parse.h"
+#include "handshake_v2.h"
+#include "known_servers.h"
+#include <fcntl.h>
+#include <openssl/rand.h>
 
 #define MAX_EVENTS (MAX_CLIENTS + GAME_MAX_PLAYERS)
 
@@ -79,6 +83,70 @@ void derive_galaxy_verify_key() {
     unsigned int len = 32;
     HMAC(EVP_sha256(), MASTER_SESSION_KEY, 32,
          (const uint8_t*)"SPACEGL-GALAXY-VERIFY-V1", 24, GALAXY_VERIFY_KEY, &len);
+}
+
+/* The server's identity (2026.10.31.43, wire revision 4): an Ed25519 key
+ * of its own, generated on the first boot and kept in
+ * <data dir>/server_identity.key (64 hex digits, mode 0600). It signs every
+ * handshake; the decks pin its public key (include/known_servers.h), so it
+ * must survive restarts and be backed up with the data directory: a new
+ * key looks like another server to every deck that met this one.
+ * SERVER_PRIVKEY holds the private key (bytes 0..31) and the public key
+ * (32..63), SERVER_PUBKEY the public key. Returns false on an error. */
+static bool load_server_identity(bool *created) {
+    char path[1024];
+    server_data_path(path, sizeof(path), "server_identity.key");
+    uint8_t seed[32];
+    *created = false;
+    FILE *f = fopen(path, "r");
+    if (f) {
+        struct stat st;
+        if (fstat(fileno(f), &st) == 0 && (st.st_mode & 077) != 0) {
+            fprintf(stderr, "\033[1;33m[SECURITY]\033[0m %s was readable by others (mode %o): set to 0600.\n",
+                    path, (unsigned)(st.st_mode & 0777));
+            if (fchmod(fileno(f), 0600) != 0) { /* best effort */
+            }
+        }
+        char hex[128] = { 0 };
+        bool ok = fgets(hex, sizeof(hex), f) && ks_unhex(hex, seed);
+        fclose(f);
+        if (!ok) {
+            fprintf(stderr, "\033[1;31m[SECURITY]\033[0m %s is damaged (64 hex digits expected): "
+                            "restore it from a backup, or remove it to create a new identity "
+                            "(every deck will then see another server).\n",
+                    path);
+            return false;
+        }
+    } else {
+        if (RAND_bytes(seed, 32) != 1) return false;
+        int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0600);
+        if (fd < 0) {
+            fprintf(stderr, "\033[1;31m[SECURITY]\033[0m cannot create %s: %s\n", path, SG_STRERROR(errno));
+            OPENSSL_cleanse(seed, sizeof(seed));
+            return false;
+        }
+        char hex[65], line[66];
+        ks_hex(seed, hex);
+        int n = snprintf(line, sizeof(line), "%s\n", hex);
+        bool ok = n == 65 && write(fd, line, 65) == 65;
+        ok = (close(fd) == 0) && ok;
+        OPENSSL_cleanse(hex, sizeof(hex));
+        OPENSSL_cleanse(line, sizeof(line));
+        if (!ok) {
+            OPENSSL_cleanse(seed, sizeof(seed));
+            return false;
+        }
+        *created = true;
+    }
+    uint8_t pub[32];
+    bool ok = hs_ed25519_pub(seed, pub);
+    if (ok) {
+        memcpy(SERVER_PRIVKEY, seed, 32);
+        memcpy(SERVER_PRIVKEY + 32, pub, 32);
+        memcpy(SERVER_PUBKEY, pub, 32);
+    }
+    OPENSSL_cleanse(seed, sizeof(seed));
+    return ok;
 }
 
 /* Validate a captain name received from the network.
@@ -496,9 +564,8 @@ void sign_galaxy_data() {
        not just the boot-time state. */
     sign_game_state(&spacegl_master);
 
-    /* In a real scenario, we'd use an actual Ed25519 public key here.
-       For this implementation, we use a derived key from the Master Session Key. */
-    SHA256(MASTER_SESSION_KEY, 32, SERVER_PUBKEY);
+    /* The server's Ed25519 identity key (load_server_identity(), wire
+       revision 4; before it, SHA256 of the master key). */
     memcpy(spacegl_master.server_pubkey, SERVER_PUBKEY, 32);
 
     /* Encryption Details: 
@@ -618,6 +685,8 @@ int main(int argc, char *argv[]) {
             printf("  --log-category=A,B  Filter by category (e.g. PHA,TOR,NETWORK,IPC)\n");
             printf("  --data-dir DIR Root directory for persistent state (captains/ tree\n");
             printf("                 and galaxy.dat). Default: current working directory.\n");
+            printf("  --print-identity  Print this server's identity (the fingerprint and the\n");
+            printf("                 public key the decks pin) and exit; creates it if missing\n");
             printf("  --io=MODE      Event-loop I/O strategy: 'legacy' (default; blocking\n");
             printf("                 per-packet reads bounded by a 5 s poll) or 'async'\n");
             printf("                 (non-blocking per-connection RX/TX state machine: a\n");
@@ -665,6 +734,9 @@ int main(int argc, char *argv[]) {
         }
         if (strcmp(argv[i], "-d") == 0) g_debug = 1;
     }
+    bool print_identity = false;
+    for (int i = 1; i < argc; i++)
+        if (strcmp(argv[i], "--print-identity") == 0) print_identity = true;
 
     SG_INFO(SG_CAT_SYSTEM, "SpaceGL Galactic Server Core (pid %d, log level %s)",
             (int)getpid(), sglog_sev_name(sglog_threshold()));
@@ -685,9 +757,29 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "WARNING: cannot create data directory '%s': %s\n",
                 g_data_dir, SG_STRERROR(errno));
     }
-    printf("\033[1;34m[DATA]\033[0m Data directory: %s (captains/ + galaxy.dat)\n",
-           (g_data_dir[0] != '\0') ? g_data_dir : ".");
-    
+    if (!print_identity)
+        printf("\033[1;34m[DATA]\033[0m Data directory: %s (captains/ + galaxy.dat)\n",
+               (g_data_dir[0] != '\0') ? g_data_dir : ".");
+
+    /* The server's identity (wire revision 4): signs every handshake. */
+    {
+        bool created = false;
+        if (!load_server_identity(&created)) {
+            SG_FATAL(SG_CAT_SECURITY, "cannot load or create the server identity key");
+            exit(1);  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
+        }
+        char fp[KS_FINGERPRINT_LEN + 1], hex[65];
+        ks_fingerprint(SERVER_PUBKEY, fp);
+        ks_hex(SERVER_PUBKEY, hex);
+        if (print_identity) {
+            printf("%s\n%s\n", fp, hex);
+            return 0;
+        }
+        printf("\033[1;34m[SECURITY]\033[0m Server identity %s: %s\n",
+               created ? "CREATED (server_identity.key: back it up with the data directory)" : "loaded", fp);
+        SG_NOTICE(SG_CAT_SECURITY, "server identity %s: %s (public key %s)", created ? "created" : "loaded", fp, hex);
+    }
+
     /* Auto-generate Default Global Algorithm keys */
     derive_algo_keys(MASTER_SESSION_KEY, "DEFAULT", ALGO_KEYS);
     printf("\033[1;34m[SECURITY]\033[0m Default Global Frequencies derived.\n");

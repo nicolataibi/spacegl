@@ -301,9 +301,9 @@ int main(void) {
         hio.fd = q.sv[1];
         hio.epoll_fd = -1;
         TEST_CHECK(dispatch_packet(&hio, PKT_HANDSHAKE) == 0);
-        uint8_t ack[4 + HANDSHAKE_V2_REPLY_LEN], sk[32], gv[32];
+        uint8_t ack[4 + HANDSHAKE_V2_REPLY_LEN], sk[32], gv[32], gv_id[32];
         TEST_CHECK(read(q.sv[0], ack, sizeof(ack)) == (ssize_t)sizeof(ack));
-        TEST_CHECK(hs_v2_client_finish(MASTER_SESSION_KEY, &st, ack + 4, sk, gv));
+        TEST_CHECK(hs_v2_client_finish(MASTER_SESSION_KEY, &st, ack + 4, sk, gv, gv_id));
         PacketLogin p;
         memset(&p, 0, sizeof(p));
         p.type = PKT_QUERY;

@@ -39,10 +39,27 @@ Print version information and exit.
 .TP
 .B SPACEGL_KEY
 Authentication key used to connect to the server.
+.TP
+.B SPACEGL_SERVER_KEY
+The server's identity key (64 hex digits, from
+.BR "spacegl_server \-\-print\-identity" ):
+the deck accepts only a server that signs the handshake with it, and does
+not consult or update the known_servers file.
+.TP
+.B SPACEGL_KNOWN_SERVERS
+Path of the known_servers file (default ~/.spacegl/known_servers).
 .SH FILES
 .TP
 .I /usr/bin/spacegl_client
 Client executable.
+.TP
+.I ~/.spacegl/known_servers
+The identity key of every server this deck has met, one line per
+.IR host : port
+(wire revision 4). The first connection to a server pins its key and
+prints its fingerprint; a later connection with another key is refused
+("SERVER IDENTITY CHANGED"). If the change is legitimate (the server's
+data directory was replaced), remove that server's line.
 .SH SEE ALSO
 .BR spacegl_server (1),
 .BR spacegl-client (1),

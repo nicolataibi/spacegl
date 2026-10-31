@@ -39,6 +39,10 @@ export SPACEGL_KEY="ci-smoke-shared-master-key-000000"
 unset DISPLAY WAYLAND_DISPLAY
 DATA_DIR=$(mktemp -d "${TMPDIR:-/tmp}/spacegl_radio.XXXXXX") || exit 1
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/spacegl_radio_logs.XXXXXX") || exit 1
+# The deck pins each server's identity key (wire revision 4): a private
+# known_servers file, or every new data directory would look like a changed
+# server to the next test.
+export SPACEGL_KNOWN_SERVERS="$WORK/known_servers"
 BIN_DIR=$(cd "$(dirname "$CLIENT_BIN")" && pwd)
 mkdir -p "$WORK/a" "$WORK/b"
 ln -s "$BIN_DIR" "$WORK/a/build"

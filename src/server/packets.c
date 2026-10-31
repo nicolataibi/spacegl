@@ -312,11 +312,12 @@ int dispatch_packet(PktIO *io, int32_t type) {
              * the master key on the wire (MAGIC XOR K). A v1 client is
              * told nothing it could use and dropped. */
             if (h_pkt.pubkey_len != HANDSHAKE_V2_MARKER) {
-                if (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV2) {
-                    SG_WARNING(SG_CAT_SECURITY, "fd %d: deck of wire revision 2 refused (revision %d required)",
-                               fd, SPACEGL_WIRE_REVISION);
-                    fprintf(stderr, "\033[1;33m[SECURITY]\033[0m Deck of wire revision 2 refused on FD %d: the client must be updated (revision %d).\n",
-                            fd, SPACEGL_WIRE_REVISION);
+                if (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV2 || h_pkt.pubkey_len == HANDSHAKE_MARKER_REV3) {
+                    int rev = (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV2) ? 2 : 3;
+                    SG_WARNING(SG_CAT_SECURITY, "fd %d: deck of wire revision %d refused (revision %d required)",
+                               fd, rev, SPACEGL_WIRE_REVISION);
+                    fprintf(stderr, "\033[1;33m[SECURITY]\033[0m Deck of wire revision %d refused on FD %d: the client must be updated (revision %d).\n",
+                            rev, fd, SPACEGL_WIRE_REVISION);
                 } else {
                     SG_WARNING(SG_CAT_SECURITY, "fd %d: handshake v1 refused (client too old: protocol v2 required)", fd);
                     fprintf(stderr, "\033[1;33m[SECURITY]\033[0m Handshake v1 refused on FD %d: the client must be updated (protocol v2).\n", fd);
@@ -327,7 +328,8 @@ int dispatch_packet(PktIO *io, int32_t type) {
              * game_mutex: two X25519 operations and a few HMACs. */
             uint8_t hs_reply[HANDSHAKE_V2_REPLY_LEN];
             uint8_t hs_session[32];
-            if (!hs_v2_server_reply(MASTER_SESSION_KEY, h_pkt.pubkey, GALAXY_VERIFY_KEY, hs_reply, hs_session)) {
+            if (!hs_v2_server_reply(MASTER_SESSION_KEY, h_pkt.pubkey, GALAXY_VERIFY_KEY, SERVER_PRIVKEY, hs_reply,
+                                    hs_session)) {
                 OPENSSL_cleanse(&h_pkt, sizeof(h_pkt));
                 fprintf(stderr, "\033[1;31m[SECURITY ALERT]\033[0m Handshake integrity failure on FD %d. Invalid Master Key.\n", fd);
                 return io_close(io, CONN_CLOSE_SILENT);
