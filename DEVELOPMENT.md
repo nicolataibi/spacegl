@@ -386,6 +386,18 @@ number and element count.
   any finding as an artifact (replay it with `build-fuzz/tests/fuzz_packets
   <file>`). New corpus units are kept as an artifact for 7 days; the
   committed corpus changes only by a reviewed commit.
+- **Benchmark A/B.** The thresholds of `server_tick_bench` and `gdd_bench`
+  are absolute and sized for the slowest gated machine, so they catch a 2x
+  regression, not a 10% one. The CI `bench_ab` job (2026.10.31.38) builds
+  the base commit and the pushed tree side by side in Release, runs the
+  server tick benchmark 7 times on each side, interleaved, and compares the
+  medians: a tick average more than 5% above the base fails, but only after
+  a second round of 7+7 confirms it. The p99 and the GDD pass times are
+  measured too and only reported (job summary). Locally:
+  `tests/bench_ab.sh <base ref>` (it measures the working tree against the
+  base; `--reps`, `--tol`, `--gdd-tol`, `--no-gdd`). It skips, with the
+  reason, when the base does not build or when the benchmark program
+  itself changed between the two sides.
 - **Static analysis.** `.clang-tidy` is the profile of the `lint` job (server
   sources, zero findings). Run it locally with
   `clang-tidy -p <build dir with compile_commands.json> <files>`.

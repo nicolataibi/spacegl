@@ -320,6 +320,40 @@ jobs:
             --print-summary --fail-under-line "$(cat tests/coverage_threshold_deck.txt)"
 
   # ====================================================================
+  # Benchmark A/B (2026.10.31.38, roadmap phase 5): the base commit and
+  # this tree built side by side in Release, the server tick benchmark
+  # run interleaved 7+7 times, the medians compared. A tick average more
+  # than 5% above the base fails, after a confirming second round. The
+  # GDD per-pass times are measured the same way and reported in the job
+  # summary (not gated: lavapipe is too noisy for a 5% gate, see the
+  # header of tests/bench_ab.sh). The absolute thresholds of the matrix
+  # and gpu jobs stay as they are.
+  # ====================================================================
+  bench_ab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ clang libomp-dev pkgconf \
+            libglfw3-dev libglu1-mesa-dev \
+            libssl-dev libncurses-dev \
+            libvulkan-dev vulkan-tools vulkan-validationlayers \
+            mesa-vulkan-drivers glslc spirv-tools \
+            python3
+
+      - name: A/B against the base (5% gate on the tick average)
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then base=HEAD~1; fi
+          bash tests/bench_ab.sh "$base"
+
+  # ====================================================================
   # Fuzz: the REAL libFuzzer harness (tests/fuzz_packets.c) driving
   # dispatch_packet() + the command parser over a socketpair, seeded
   # from tests/fuzz/corpus. clang is the fuzzer compiler (libFuzzer is
