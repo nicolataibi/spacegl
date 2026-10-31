@@ -458,6 +458,26 @@ endif()
 add_test(NAME login_auth COMMAND login_auth_test)
 set_tests_properties(login_auth PROPERTIES TIMEOUT 60)
 
+# --- Radio sender set by the server (2026.10.31.05, roadmap phase 0) ---
+# Forged "from" and "faction" are replaced by the authenticated captain's
+# before the relay; station names (COMPUTER, STARBASE, ...) are reserved.
+string(REPLACE "rate_limit_test.c" "sender_stamp_test.c" SENDER_STAMP_SRCS "${RATE_LIMIT_SRCS}")
+add_executable(sender_stamp_test ${SENDER_STAMP_SRCS})
+target_link_libraries(sender_stamp_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+if(OpenMP_C_FOUND)
+    target_link_libraries(sender_stamp_test PRIVATE OpenMP::OpenMP_C)
+endif()
+if(SG_ATOMIC_LIB)
+    target_link_libraries(sender_stamp_test PRIVATE ${SG_ATOMIC_LIB})
+endif()
+if(NOT MSVC)
+    target_compile_options(sender_stamp_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(sender_stamp_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME sender_stamp COMMAND sender_stamp_test)
+set_tests_properties(sender_stamp PROPERTIES TIMEOUT 60)
+
 # --- B2-b: radio cipher table index bounds (ASan/UBSan) ---
 add_executable(crypto_table_oob_test crypto_table_oob_test.c)
 target_link_libraries(crypto_table_oob_test PRIVATE OpenSSL::Crypto)

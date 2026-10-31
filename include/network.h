@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <openssl/rand.h>
 #include "game_config.h"
 #include "game_state.h"
@@ -432,6 +433,27 @@ static inline void tune_socket(int fd) {
     int sbuf = 128 * 1024;
     setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rbuf, sizeof(rbuf));
     setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sbuf, sizeof(sbuf));
+}
+
+/* Station names: the "from" of the server's own messages (send_server_msg
+ * callers: COMPUTER, ENGINEERING, TACTICAL, ...). The client shows them as
+ * ship systems, and the relay lets a few of them through a captain's
+ * exclusive radio lock. No captain may take one of these names, in any
+ * letter case (2026.10.31.05): with "from" now set by the server from the
+ * authenticated captain, a captain named COMPUTER would still speak as the
+ * ship's computer. Names with a space (DAMAGE CONTROL, LIFE SUPPORT,
+ * Alliance Command) cannot be captain names anyway. */
+static inline bool spacegl_is_station_name(const char *name) {
+    static const char *const stations[] = {
+        "ADMIN", "BOARDING", "COMMAND", "COMMANDER", "COMPUTER", "CRITICAL",
+        "DAMAGE", "DEBUG", "ENGINE", "ENGINEERING", "GEOLOGY", "HELMSMAN",
+        "LOGISTICS", "MEDICAL", "SCIENCE", "SECURITY", "SENSORS", "SERVER",
+        "STARBASE", "SYSTEM", "TACTICAL", "WARNING",
+    };
+    if (!name) return false;
+    for (size_t i = 0; i < sizeof(stations) / sizeof(stations[0]); i++)
+        if (strcasecmp(name, stations[i]) == 0) return true;
+    return false;
 }
 
 /* Guard B3-b: bounds-checked count clamps for network-supplied counts */

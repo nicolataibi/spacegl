@@ -67,6 +67,9 @@ static int sanitize_captain_name(const char *name) {
     if (!name || name[0] == '\0') {
         return 0;
     }
+    if (spacegl_is_station_name(name)) {
+        return 0;   /* reserved for the ship's stations (network.h) */
+    }
     size_t len = 0;
     for (const char *p = name; *p != '\0'; p++) {
         len++;
@@ -1772,7 +1775,7 @@ int main(int argc, char *argv[]) {
     /* Security: reject names that could be abused for path injection in the
        local captains/ tree (the server enforces the same rule). */
     if (!sanitize_captain_name(captain_name)) {
-        fprintf(stderr, B_RED "SECURITY ERROR: Invalid commander name. Only letters, digits, '_' and '-' are allowed (max 32 characters).\n" RESET);
+        fprintf(stderr, B_RED "SECURITY ERROR: Invalid commander name. Only letters, digits, '_' and '-' are allowed (max 32 characters), and station names (COMPUTER, SCIENCE, STARBASE, ...) are reserved.\n" RESET);
         close(sock);
         exit(1);
     }

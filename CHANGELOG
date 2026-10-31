@@ -1,3 +1,21 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.05
+  - Security (roadmap phase 0, problem 2): the sender of a radio message
+  was whatever the client wrote in PacketMessage.from, and its faction
+  whatever it wrote in .faction. broadcast_message() takes the sender's
+  keys, radio lock and station exemptions from that name, and the faction
+  scope from that number, so a client could speak as another captain, as
+  COMPUTER or STARBASE (which also passes a captain's exclusive radio
+  lock), or post on another faction's channel. The dispatcher now
+  overwrites both fields from the authenticated slot of the connection,
+  under game_mutex, before the relay.
+  - Station names reserved: the names the server uses as the sender of its
+  own messages (COMPUTER, ENGINEERING, TACTICAL, SCIENCE, STARBASE, ...;
+  spacegl_is_station_name() in network.h) are refused as captain names in
+  any letter case, on the server (sanitize_captain_name, PKT_QUERY and
+  PKT_LOGIN) and in the client, whose error message says so.
+  - Tests: new sender_stamp_test (forged sender, forged COMPUTER through an
+  exclusive lock, forged faction, reserved names).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.04
   - Security (roadmap phase 0, problem 1): PKT_LOGIN did not check the
   access code. It bound the connection to the captain's slot by name; the

@@ -345,6 +345,13 @@ traceable in the changelog:
     compare), and a verified login takes over a captain still bound to an
     older connection, whose socket is shut down (2026.10.31.04) — pinned
     by `tests/login_auth_test`;
+*   radio sender set by the server: "from" and "faction" of PKT_MESSAGE are
+    client-written and broadcast_message() trusted them (sender keys,
+    radio-lock exemptions of the station names, faction scope); the
+    dispatcher now overwrites both from the authenticated slot, and the
+    station names (COMPUTER, STARBASE, SCIENCE, ...) are reserved for
+    captains in any letter case (2026.10.31.05) — pinned by
+    `tests/sender_stamp_test`;
 *   TCP transport hardening (`TCP_NODELAY`, keepalive probes, buffer sizing)
     and token bucket rate limiting (200 pkt/s, DoS protection, 2026.10.17.04) —
     pinned by `tests/rate_limit_test`.

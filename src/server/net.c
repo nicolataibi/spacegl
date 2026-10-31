@@ -192,6 +192,8 @@ typedef struct {
     uint8_t key[32];       /* recipient key for that frequency              */
 } RelayTarget;
 
+/* The station names that pass a captain's exclusive radio lock (a subset
+ * of spacegl_is_station_name(), network.h, which no captain may take). */
 static bool relay_is_system_sender(const char *from) {
     return strcmp(from, "SERVER") == 0 || strcmp(from, "COMPUTER") == 0 ||
            strcmp(from, "SCIENCE") == 0 || strcmp(from, "TACTICAL") == 0 ||

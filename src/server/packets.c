@@ -47,6 +47,9 @@ int sanitize_captain_name(const char *name) {
     if (!name || name[0] == '\0') {
         return 0;
     }
+    if (spacegl_is_station_name(name)) {
+        return 0;   /* reserved: the "from" of the server's own messages */
+    }
     size_t len = 0;
     for (const char *p = name; *p != '\0'; p++) {
         len++;
@@ -764,11 +767,31 @@ int dispatch_packet(PktIO *io, int32_t type) {
                 else pkt->text[0] = '\0';
                 pkt->type = type;
 
+                /* The sender is the authenticated captain of this
+                 * connection, not what the packet says: "from" and
+                 * "faction" are client-written fields, and broadcast_message()
+                 * picks the sender (its keys, its radio lock, the system
+                 * sender exemptions) and the faction scope from them. A
+                 * client could speak as another captain or as COMPUTER /
+                 * STARBASE, or reach another faction's channel. Both fields
+                 * are overwritten from the slot, under game_mutex, and the
+                 * slot must still belong to this fd. */
+                bool sender_ok = false;
                 if (p_idx != -1) {
+                    pthread_mutex_lock(&game_mutex);
+                    if (players[p_idx].active && players[p_idx].socket == fd) {
+                        memset(pkt->from, 0, sizeof(pkt->from));
+                        strncpy(pkt->from, players[p_idx].name, sizeof(pkt->from) - 1);
+                        pkt->faction = players[p_idx].faction;
+                        sender_ok = true;
+                    }
+                    pthread_mutex_unlock(&game_mutex);
+                }
+                if (sender_ok) {
                     if (g_pool) threadpool_add_task(g_pool, broadcast_task, pkt);
                     else { broadcast_message(pkt); free(pkt); }
                 } else {
-                    free(pkt); /* player not active yet: drop cleanly */
+                    free(pkt); /* player not active (yet): drop cleanly */
                 }
             } else if (pkt) free(pkt);
             return 0;
