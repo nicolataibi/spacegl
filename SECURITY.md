@@ -135,14 +135,18 @@ documented here with the threat model rationale.
     client after every update).
   - **Confidentiality**: AES-256-GCM on the radio channel (tactical
     messages), X25519 key exchange for private links.
-  - **Authentication**: handshake with XOR master key + HMAC
-    verification.
+  - **Authentication**: handshake v2 (2026.10.31.08): each side proves
+    it holds the master key with an HMAC over an ephemeral X25519
+    exchange; the session key comes from that exchange through HKDF
+    (`include/handshake_v2.h`).
 
 **What TLS would add**:
 - **Transport confidentiality**: encrypts the entire TCP stream
-  (including the handshake, which is currently XOR-obfuscated).
-- **Forward secrecy**: ephemeral ECDHE key exchange (X25519 is
-  already used at the application level for the tactical link).
+  (commands, positions and the login packets, which travel in clear;
+  the handshake itself no longer exposes any key).
+- **Forward secrecy for everything**: the v2 handshake already gives
+  the session key forward secrecy (ephemeral X25519); TLS would extend
+  it to the whole stream.
 - **Certificate-based identity**: the server presents a certificate;
   the client verifies it. Currently, identity is established via
   the shared master key (less scalable for multi-server).
@@ -169,17 +173,22 @@ documented here with the threat model rationale.
 (trusted LAN), the absence of transport-level TLS is an accepted
 risk (see SECURITY.md §3, item "T1-transport"). The application-level
 HMAC-SHA256 provides integrity (an MITM cannot modify the galaxy
-state without being detected). The XOR handshake provides
-obfuscation (not encryption) of the key exchange — sufficient for a
-trusted LAN where the threat is casual eavesdropping, not an
-active MITM with the master key.
+state without being detected). The v2 handshake keeps the master key
+off the wire and authenticates both ends to each other as holders of
+the deployment key. Before 2026.10.31.08 the handshake sent
+`session key XOR K || public magic XOR K`, so one captured handshake
+revealed K: a passive observer could then read every fleet frequency
+and run its own handshakes. A holder of K (any legitimate client) can
+still act as either end of the exchange: per-server certificates or
+TLS remain the answer for untrusted networks.
 
 ### 1.5 Key Management
 
 The master key (32 bytes) is the root of trust for all
 cryptography in SpaceGL. It is used for:
 
-- Handshake XOR (session key exchange C↔S)
+- Handshake v2: the HMAC key that proves membership on both ends
+  (the session key itself comes from an ephemeral X25519 exchange)
 - HMAC-SHA256 galaxy state integrity (verified by every client)
 - Identity hash (password verification, salted per-captain)
 - Radio crypto key derivation (per-algo keys via HMAC)
@@ -212,12 +221,12 @@ chown spacegl:spacegl /etc/spacegl/master.key
 - The key is **never logged** (not in stdout, not in stderr, not
   in the server log). Diagnostic logs print only the source (file path
   or "env var"), never the key bytes.
-- The key is **never transmitted** over the network. The handshake
-  uses XOR with the key (the key stays local), and the HMAC uses
-  the key as the HMAC key (the key itself is not sent).
+- The key is **never transmitted** over the network: since
+  2026.10.31.08 the handshake uses it only as an HMAC key, and the
+  galaxy and identity HMACs likewise. (The v1 handshake XORed it with
+  a public string, which amounted to sending it; v1 is now refused.)
 - Key rotation: regenerate the file, restart the server. All
-  clients must reconnect (their session keys are derived from the
-  master key). The galaxy state HMAC will fail verification on
+  clients must reconnect (their handshake proof uses the master key). The galaxy state HMAC will fail verification on
   old clients until they reconnect with the new key.
 
 ## 2. Audit registry (B items)
@@ -358,6 +367,13 @@ traceable in the changelog:
     link), a corrupt key file is no longer replaced by a new key, short
     SPACEGL_KEY refused, no rand() fallback; shared memory 0600
     (2026.10.31.07) — pinned by `tests/key_file_test`;
+*   handshake v2: the v1 hello sent the session key and a public magic
+    string both XORed with the master key, so one captured handshake
+    revealed the key; v2 proves the key with HMACs over an ephemeral
+    X25519 exchange, derives the session key and masks the galaxy
+    verification key with HKDF, authenticates the server to the client
+    too, and the server refuses v1 (2026.10.31.08) — pinned by
+    `tests/handshake_v2_test` (RFC 5869 / RFC 7748 vectors);
 *   TCP transport hardening (`TCP_NODELAY`, keepalive probes, buffer sizing)
     and token bucket rate limiting (200 pkt/s, DoS protection, 2026.10.17.04) —
     pinned by `tests/rate_limit_test`.

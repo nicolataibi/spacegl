@@ -502,6 +502,26 @@ if(NOT MSVC)
 endif()
 add_test(NAME key_file COMMAND key_file_test)
 
+# --- Handshake v2 (2026.10.31.08, roadmap phase 1) ---
+# RFC 5869 / RFC 7748 vectors, the exchange, refusals, the master key kept
+# off the wire, and the real dispatcher (v1 refused, v2 answered).
+string(REPLACE "rate_limit_test.c" "handshake_v2_test.c" HANDSHAKE_V2_SRCS "${RATE_LIMIT_SRCS}")
+add_executable(handshake_v2_test ${HANDSHAKE_V2_SRCS})
+target_link_libraries(handshake_v2_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+if(OpenMP_C_FOUND)
+    target_link_libraries(handshake_v2_test PRIVATE OpenMP::OpenMP_C)
+endif()
+if(SG_ATOMIC_LIB)
+    target_link_libraries(handshake_v2_test PRIVATE ${SG_ATOMIC_LIB})
+endif()
+if(NOT MSVC)
+    target_compile_options(handshake_v2_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(handshake_v2_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME handshake_v2 COMMAND handshake_v2_test)
+set_tests_properties(handshake_v2 PROPERTIES TIMEOUT 60)
+
 # --- B2-b: radio cipher table index bounds (ASan/UBSan) ---
 add_executable(crypto_table_oob_test crypto_table_oob_test.c)
 target_link_libraries(crypto_table_oob_test PRIVATE OpenSSL::Crypto)

@@ -40,6 +40,7 @@
 #include "server_internal.h"
 #include "conn.h"
 #include "packets.h"
+#include "handshake_v2.h"
 
 extern threadpool_t *g_pool;
 
@@ -247,16 +248,26 @@ int dispatch_packet(PktIO *io, int32_t type) {
         size_t h_body = sizeof(PacketHandshake) - sizeof(int);
         if (pkt_read_body(io, ((char*)&h_pkt) + sizeof(int), h_body)) {
             LOG_DEBUG("Handshake data read successfully (%zu bytes)\n", h_body);
-            /* First: Security verification WITHOUT locking game_mutex */
-            uint8_t sig[32];
-            for(int k=0; k<32; k++) sig[k] = h_pkt.pubkey[32+k] ^ MASTER_SESSION_KEY[k];
-
-            if (memcmp(sig, HANDSHAKE_MAGIC_STRING, 32) != 0) {
+            /* Protocol v2 only (include/handshake_v2.h): the v1 hello put
+             * the master key on the wire (MAGIC XOR K). A v1 client is
+             * told nothing it could use and dropped. */
+            if (h_pkt.pubkey_len != HANDSHAKE_V2_MARKER) {
+                SG_WARNING(SG_CAT_SECURITY, "fd %d: handshake v1 refused (client too old: protocol v2 required)", fd);
+                fprintf(stderr, "\033[1;33m[SECURITY]\033[0m Handshake v1 refused on FD %d: the client must be updated (protocol v2).\n", fd);
+                return io_close(io, CONN_CLOSE_SILENT);
+            }
+            /* Verify the client's proof of K and build the reply OUTSIDE
+             * game_mutex: two X25519 operations and a few HMACs. */
+            uint8_t hs_reply[HANDSHAKE_V2_REPLY_LEN];
+            uint8_t hs_session[32];
+            if (!hs_v2_server_reply(MASTER_SESSION_KEY, h_pkt.pubkey, GALAXY_VERIFY_KEY, hs_reply, hs_session)) {
+                OPENSSL_cleanse(&h_pkt, sizeof(h_pkt));
                 fprintf(stderr, "\033[1;31m[SECURITY ALERT]\033[0m Handshake integrity failure on FD %d. Invalid Master Key.\n", fd);
                 return io_close(io, CONN_CLOSE_SILENT);
             }
+            OPENSSL_cleanse(&h_pkt, sizeof(h_pkt));
 
-            LOG_DEBUG("Handshake signature verified. Attempting to lock game_mutex...\n");
+            LOG_DEBUG("Handshake proof verified. Attempting to lock game_mutex...\n");
             /* Second: Now lock only to assign slot and key */
             pthread_mutex_lock(&game_mutex);
             LOG_DEBUG("game_mutex ACQUIRED for FD %d\n", fd);
@@ -272,29 +283,22 @@ int dispatch_packet(PktIO *io, int32_t type) {
             }
 
             if (slot != -1) {
-                for(int k=0; k<32; k++) {
-                    players[slot].session_key[k] = h_pkt.pubkey[k] ^ MASTER_SESSION_KEY[k];
-                }
+                memcpy(players[slot].session_key, hs_session, 32);
                 LOG_DEBUG("Secure Session Key negotiated for Client FD %d (Slot %d)\n", fd, slot);
-                /* ACK = int32 type + 32-byte galaxy-verify key, one reply:
-                 * on the wire it is the identical byte sequence of the
-                 * legacy two-write form (int32, then uint8[32]). */
+                /* ACK = int32 type + the v2 reply (eS, Ns, server proof,
+                 * masked galaxy verification key), one write. */
                 int ack_type = PKT_HANDSHAKE;
-                uint8_t ack[sizeof(int32_t) + 32];
+                uint8_t ack[sizeof(int32_t) + HANDSHAKE_V2_REPLY_LEN];
                 memcpy(ack, &ack_type, sizeof(int32_t));
-                /* Deliver the stable galaxy verification key, bound to this
-                 * session: the client XORs it back with the session key it
-                 * generated. This lets the client verify the galaxy state
-                 * HMAC-SHA256 signature even after its local key rotated. */
-                for(int k=0; k<32; k++) {
-                    ack[sizeof(int32_t) + k] = GALAXY_VERIFY_KEY[k] ^ players[slot].session_key[k];
-                }
+                memcpy(ack + sizeof(int32_t), hs_reply, HANDSHAKE_V2_REPLY_LEN);
+                OPENSSL_cleanse(hs_session, sizeof(hs_session));
                 if (io_write(io, ack, sizeof(ack)) != 0) {
                     pthread_mutex_unlock(&game_mutex);
                     return 1; /* async: session dropped (staging overflow / send error) */
                 }
                 LOG_DEBUG("Handshake ACK sent to FD %d (with galaxy verify key)\n", fd);
             } else {
+                OPENSSL_cleanse(hs_session, sizeof(hs_session));
                 fprintf(stderr, "\033[1;33m[WARNING]\033[0m Connection rejected: Server full (FD %d).\n", fd);
                 /* SILENT: no slot was bound to this fd, so reap_player_fd()
                  * is a no-op and conn_close() needs no game_mutex re-entry

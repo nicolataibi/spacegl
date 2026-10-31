@@ -191,13 +191,17 @@ typedef struct {
 } PacketUpdateDelta;
 
 /* Magic Signature for Key Verification (32 bytes) */
-#define HANDSHAKE_MAGIC_STRING "SPACEGL-KEY-VERIFICATION-SIG-32B"
-
 /*
- * Handshake protocol (v2):
- *   C -> S: PacketHandshake (random session key || HANDSHAKE_MAGIC_STRING, XOR master key)
- *   S -> C: int32 type (PKT_HANDSHAKE)  [ACK]
- *           uint8[32]  galaxy verification key XOR session key
+ * Handshake protocol v2 (2026.10.31.08): include/handshake_v2.h.
+ *   C -> S: PacketHandshake, pubkey_len = HANDSHAKE_V2_MARKER,
+ *           pubkey = client ephemeral X25519 key || nonce || HMAC(K, ...)
+ *   S -> C: int32 PKT_HANDSHAKE + HANDSHAKE_V2_REPLY_LEN bytes
+ *           (server ephemeral key, nonce, HMAC(K, transcript),
+ *            galaxy verification key masked with an HKDF output)
+ * The master key K only keys the HMACs; the session key comes from the
+ * X25519 exchange through HKDF. The v1 hello (session key and a public
+ * magic string, both XORed with K) exposed K to anyone who saw it and is
+ * refused by the server.
  *
  * The galaxy verification key is a STABLE key derived from the master key
  * (HMAC-SHA256(master, "SPACEGL-GALAXY-VERIFY-V1")). It allows the client to

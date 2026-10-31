@@ -1,3 +1,34 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.08
+  - Security (roadmap phase 1, problem 3), handshake v2. The v1 hello sent
+  session_key XOR K and HANDSHAKE_MAGIC_STRING XOR K, with K the master
+  key and the magic string public: one captured handshake gave K, and with
+  it every session key, the fleet frequency keys and the galaxy
+  verification key. The new exchange (include/handshake_v2.h, one
+  implementation for client, server and tests) keeps K off the wire:
+  the client sends an ephemeral X25519 key, a nonce and HMAC(K, ...); the
+  server checks it, answers with its own ephemeral key, nonce, the galaxy
+  verification key masked with an HKDF output, and an HMAC(K, ...) over
+  the whole transcript, which the client checks (the server is now
+  authenticated too). The session key is HKDF-SHA256 of the X25519 secret
+  over both nonces: forward secrecy, and neither side picks it alone. An
+  all-zero (small-order) shared secret is refused; MACs are compared in
+  constant time; the crypto runs outside game_mutex.
+  - Protocol version: the hello carries HANDSHAKE_V2_MARKER in pubkey_len;
+  the server refuses a v1 hello with a log line asking to update the
+  client. Server and client must be updated together. The reply grows
+  from 32 to 128 bytes; PacketHandshake keeps its size.
+  - Client: one do_handshake() for the first connection and every
+  reconnect (main() had its own copy of the v1 code).
+  - Removed HANDSHAKE_MAGIC_STRING. Fuzz corpus: gen_corpus.py builds the
+  v2 hello with the standard library (HMAC-SHA256 with the harness's zero
+  key, RFC 7748 test public key) and adds seeds for a v1 hello, a forged
+  MAC and a small-order key.
+  - Tests: new handshake_v2_test (RFC 5869 and RFC 7748 vectors, the
+  exchange, wrong key on either side, each reply field tampered,
+  small-order key, the master and verify keys absent from the wire bytes,
+  the real dispatcher refusing v1 and answering v2). SECURITY.md (1.4,
+  1.5, hardening list) and LORE.md describe the new exchange.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.07
   - Master key file (roadmap phase 0, problem 6), load_master_key() in
   network.h, used by the server and the command deck:

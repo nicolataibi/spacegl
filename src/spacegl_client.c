@@ -45,6 +45,7 @@ const char* get_lrs_object_name(int id);
 #include <netdb.h>
 #include "network.h"
 #include "client_wire.h"
+#include "handshake_v2.h"
 #include "radio_crypto.h"
 #include "sglog.h"
 
@@ -666,43 +667,35 @@ static int connect_to_server(void) {
     return (sock != -1);
 }
 
+/* Handshake v2 (include/handshake_v2.h): ephemeral X25519 + HKDF, the
+ * master key only proves membership through HMACs and never travels.
+ * Used by the first connection and by every reconnect. On success the
+ * session key replaces deep_space_key (as in v1) and galaxy_verify_key is
+ * set; returns 0 on any failure (no reply, wrong key, v1 server). */
 static int do_handshake(void) {
     PacketHandshake h_pkt;
     memset(&h_pkt, 0, sizeof(PacketHandshake));
     h_pkt.type = PKT_HANDSHAKE;
-    h_pkt.pubkey_len = 32 + 32;
+    h_pkt.pubkey_len = HANDSHAKE_V2_MARKER;
 
-    FILE *f_rand = fopen("/dev/urandom", "rb");
-    if (f_rand) {
-        if (fread(h_pkt.pubkey, 1, 32, f_rand) != 32) { }
-        fclose(f_rand);
-    } else {
-        for(int k=0; k<32; k++) h_pkt.pubkey[k] = rand() % 255;
+    HsV2Client hs;
+    uint8_t reply[HANDSHAKE_V2_REPLY_LEN];
+    uint8_t session[32];
+    int ok = 0;
+    if (hs_v2_client_hello(master_root_key, h_pkt.pubkey, &hs) &&
+        write_all(sock, &h_pkt, sizeof(PacketHandshake)) > 0) {
+        int ack_type = 0;
+        if (read_all(sock, &ack_type, sizeof(int)) == (int)sizeof(int) && ack_type == PKT_HANDSHAKE &&
+            read_all(sock, reply, sizeof(reply)) == (int)sizeof(reply) &&
+            hs_v2_client_finish(master_root_key, &hs, reply, session, galaxy_verify_key)) {
+            memcpy(deep_space_key, session, 32);
+            ok = 1;
+        }
     }
-
-    memcpy(h_pkt.pubkey + 32, HANDSHAKE_MAGIC_STRING, 32);
-
-    uint8_t MY_SESSION_KEY[32];
-    memcpy(MY_SESSION_KEY, h_pkt.pubkey, 32);
-
-    for(int k=0; k<64; k++) h_pkt.pubkey[k] ^= master_root_key[k % 32];
-
-    if (write_all(sock, &h_pkt, sizeof(PacketHandshake)) <= 0) return 0;
-
-    int ack_type = 0;
-    if (read_all(sock, &ack_type, sizeof(int)) <= 0 || ack_type != PKT_HANDSHAKE) {
-        return 0;
-    }
-
-    uint8_t verify_xt[32];
-    if (read_all(sock, verify_xt, sizeof(verify_xt)) != (int)sizeof(verify_xt)) {
-        return 0;
-    }
-    for(int k=0; k<32; k++) galaxy_verify_key[k] = verify_xt[k] ^ MY_SESSION_KEY[k];
-    memset(verify_xt, 0, sizeof(verify_xt));
-
-    memcpy(deep_space_key, MY_SESSION_KEY, 32);
-    return 1;
+    OPENSSL_cleanse(&hs, sizeof(hs));
+    OPENSSL_cleanse(session, sizeof(session));
+    OPENSSL_cleanse(reply, sizeof(reply));
+    return ok;
 }
 
 static int do_login_reconnect(void) {
@@ -1746,56 +1739,14 @@ int main(int argc, char *argv[]) {
     }
 
     /* Handshake: Negotiate Unique Session Key */
-    PacketHandshake h_pkt;
-    memset(&h_pkt, 0, sizeof(PacketHandshake));
-    h_pkt.type = PKT_HANDSHAKE;
-    h_pkt.pubkey_len = 32 + 32; /* 32 bytes Key + 32 bytes Signature */
-    
-    /* Generate Random Session Key */
-    FILE *f_rand = fopen("/dev/urandom", "rb");
-    if (f_rand) {
-        if (fread(h_pkt.pubkey, 1, 32, f_rand) != 32) { /* dummy read */ }
-        fclose(f_rand);
-    } else {
-        for(int k=0; k<32; k++) h_pkt.pubkey[k] = rand() % 255;
-    }
-    
-    /* Add Magic Signature for Server-side verification */
-    memcpy(h_pkt.pubkey + 32, HANDSHAKE_MAGIC_STRING, 32);
-
-    /* Store it locally as our new key */
-    uint8_t MY_SESSION_KEY[32];
-    memcpy(MY_SESSION_KEY, h_pkt.pubkey, 32);
-    
-    /* Obfuscate EVERYTHING (Key + Signature) using the Master Key (XOR) */
-    for(int k=0; k<64; k++) h_pkt.pubkey[k] ^= deep_space_key[k % 32];
-    
-    write_all(sock, &h_pkt, sizeof(PacketHandshake));
-    
-    /* Wait for server ACK to verify Master Key */
-    int ack_type = 0;
-    if (read_all(sock, &ack_type, sizeof(int)) <= 0 || ack_type != PKT_HANDSHAKE) {
-        fprintf(stderr, B_RED "SECURITY ERROR: Master Key mismatch or Handshake rejected by server.\n" RESET);
+    /* Handshake v2: the same do_handshake() as every reconnect. */
+    if (!do_handshake()) {
+        fprintf(stderr, B_RED "SECURITY ERROR: Master Key mismatch or Handshake rejected by server "
+                              "(protocol v2 required on both ends).\n" RESET);
         close(sock);
         exit(1);
     }
 
-    /* Receive the stable galaxy verification key (XOR-bound to this session).
-     * It allows verifying the HMAC-SHA256 galaxy-state signature even after
-     * deep_space_key is rotated to the session key below. */
-    {
-        uint8_t verify_xt[32];
-        if (read_all(sock, verify_xt, sizeof(verify_xt)) != (int)sizeof(verify_xt)) {
-            fprintf(stderr, B_RED "SECURITY ERROR: Handshake truncated: galaxy verification key missing.\n" RESET);
-            close(sock);
-            exit(1);
-        }
-        for(int k=0; k<32; k++) galaxy_verify_key[k] = verify_xt[k] ^ MY_SESSION_KEY[k];
-        memset(verify_xt, 0, sizeof(verify_xt));
-    }
-
-    /* Switch to the new Session Key */
-    memcpy(deep_space_key, MY_SESSION_KEY, 32);
     printf(B_BLUE "DeepSpace Link Secured. Unique Frequency active.\n" RESET);
 
     /* Identification happens ONLY after secure link is established */

@@ -12,8 +12,8 @@ its wire body, exactly as spacegl_server.c's legacy loop consumes them.
 Wire layout (include/network.h, all little-endian, no padding needed):
   header         int32 type
   PacketHandshake i32 type, i32 pubkey_len, u8[256] pubkey
-                 (pubkey[0:32) session key, pubkey[32:64) =
-                  HANDSHAKE_MAGIC_STRING XOR master key)
+                 (v2: pubkey_len = HSV2 marker, pubkey[0:32) client
+                  ephemeral X25519 key, [32:64) nonce, [64:96) HMAC)
   PacketLogin    i32 type, c[64] name, i32 faction, i32 ship_class,
                  u8[32] pass_hash, u8[16] salt,
                  u32[32] pass_hash_legacy, u8[32] x25519_pubkey   (188 B)
@@ -25,7 +25,8 @@ Wire layout (include/network.h, all little-endian, no padding needed):
                  (223 B fixed) + length text bytes
 
 The fuzzer's MASTER_SESSION_KEY is all-zero (harness default), so a
-VALID handshake is simply pubkey[32:64) = the magic string itself.
+VALID v2 hello carries HMAC-SHA256(zero key, "SPACEGL-HS-V2/client" ||
+eC || Nc) (include/handshake_v2.h); eC is the RFC 7748 test key.
 A new-captain PKT_QUERY (unknown name + non-zero salt) creates the
 identity records in the harness's temp sandbox; the PKT_LOGIN that follows
 carries the same hash and salt, proves the identity (2026.10.31.04: a
@@ -35,11 +36,18 @@ so the following PKT_COMMAND packets reach process_command().
 Usage:  python3 tests/fuzz/gen_corpus.py [corpus_dir]
 """
 
+import hashlib
+import hmac
 import os
 import struct
 import sys
 
-MAGIC = b"SPACEGL-KEY-VERIFICATION-SIG-32B"  # 32 bytes, network.h
+HS_V2_MARKER = 0x32565348   # "HSV2", include/handshake_v2.h
+HARNESS_KEY = b"\x00" * 32   # fuzz harness MASTER_SESSION_KEY (all-zero)
+# RFC 7748 section 6.1 test public key: a valid X25519 point, so the
+# server's ECDH succeeds and the session goes on.
+X25519_PUB = bytes.fromhex(
+    "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a")
 
 T_LOGIN = 1
 T_COMMAND = 2
@@ -53,8 +61,19 @@ def hdr(t):
     return struct.pack("<i", t)
 
 
-def handshake(key=b"\x11" * 32, magic=MAGIC):
-    pub = key + magic + b"\x00" * (256 - 64)
+def handshake(key=HARNESS_KEY, nonce=b"\x22" * 32, eph=X25519_PUB,
+              marker=HS_V2_MARKER, mac=None):
+    """Handshake v2 hello: ephemeral key, nonce, HMAC(K, label||eC||Nc)."""
+    if mac is None:
+        mac = hmac.new(key, b"SPACEGL-HS-V2/client" + eph + nonce,
+                       hashlib.sha256).digest()
+    pub = eph + nonce + mac + b"\x00" * (256 - 96)
+    return hdr(T_HANDSHAKE) + struct.pack("<i", marker) + pub
+
+
+def handshake_v1(key=b"\x11" * 32):
+    """The refused v1 hello (session key || magic, pubkey_len 64)."""
+    pub = key + b"SPACEGL-KEY-VERIFICATION-SIG-32B" + b"\x00" * (256 - 64)
     return hdr(T_HANDSHAKE) + struct.pack("<i", 64) + pub
 
 
@@ -207,10 +226,14 @@ def main():
 
     # 5. Hostile handshake / login seeds.
     write(corpus, "bad_handshake_sig.pkt",
-          handshake(magic=b"SPACEGL-KEY-VERIFICATION-SIG-32X"))
+          handshake(mac=b"\x5a" * 32) + command("who"))
+    write(corpus, "handshake_v1_refused.pkt",
+          handshake_v1() + enroll(b"SEEDCAPTAIN") + command("who"))
+    write(corpus, "handshake_small_order_key.pkt",   # all-zero point
+          handshake(eph=b"\x00" * 32) + command("who"))
     write(corpus, "handshake_only.pkt", handshake())
     write(corpus, "double_handshake.pkt",
-          handshake() + handshake(key=b"\x22" * 32)
+          handshake() + handshake(nonce=b"\x33" * 32)
           + enroll(b"SEEDCAPTAIN") + command("who"))
     write(corpus, "login_bad_name_traversal.pkt",
           handshake() + login(b"../evil"))
