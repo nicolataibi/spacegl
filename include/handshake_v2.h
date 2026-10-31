@@ -179,9 +179,28 @@ static inline bool hs_v2_server_reply(const uint8_t k[32], const uint8_t pubkey[
     if (!mac_ok) return false;
 
     uint8_t es_priv[32], es_pub[32], ns[32], z[32], mask[32];
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    /* Fuzz harness ONLY (never in a product binary: spacegl_server.c and
+     * spacegl_client.c refuse to compile with this macro): a fixed server
+     * ephemeral key (RFC 7748 section 6.1, Bob) and nonce, so the seed
+     * corpus can precompute the session key and reach the code behind the
+     * login. */
+    static const uint8_t fuzz_priv[32] = {
+        0x5d, 0xab, 0x08, 0x7e, 0x62, 0x4a, 0x8a, 0x4b, 0x79, 0xe1, 0x7f, 0x8b, 0x83, 0x80, 0x0e, 0xe6,
+        0x6f, 0x3b, 0xb1, 0x29, 0x26, 0x18, 0xb6, 0xfd, 0x1c, 0x2f, 0x8b, 0x27, 0xff, 0x88, 0xe0, 0xeb };
+    static const uint8_t fuzz_pub[32] = {
+        0xde, 0x9e, 0xdb, 0x7d, 0x7b, 0x7d, 0xc1, 0xb4, 0xd3, 0x5b, 0x61, 0xc2, 0xec, 0xe4, 0x35, 0x37,
+        0x3f, 0x83, 0x43, 0xc8, 0x5b, 0x78, 0x67, 0x4d, 0xad, 0xfc, 0x7e, 0x14, 0x6f, 0x88, 0x2b, 0x4f };
+    memcpy(es_priv, fuzz_priv, 32);
+    memcpy(es_pub, fuzz_pub, 32);
+    memset(ns, 0x44, 32);
+    bool ok = hs_v2_x25519(es_priv, ec, z) &&
+              hs_v2_derive(z, nc, ns, session_key, mask);
+#else
     bool ok = hs_v2_keygen(es_priv, es_pub) && RAND_bytes(ns, 32) == 1 &&
               hs_v2_x25519(es_priv, ec, z) &&
               hs_v2_derive(z, nc, ns, session_key, mask);
+#endif
     if (ok) {
         memcpy(reply, es_pub, 32);
         memcpy(reply + 32, ns, 32);
@@ -216,6 +235,42 @@ static inline bool hs_v2_client_finish(const uint8_t k[32], HsV2Client *st,
     OPENSSL_cleanse(mask, sizeof(mask));
     OPENSSL_cleanse(st->priv, sizeof(st->priv));
     return ok;
+}
+
+/* Login credentials under the session key (2026.10.31.09). PKT_QUERY and
+ * PKT_LOGIN carry pass_hash, salt and pass_hash_legacy, 80 contiguous bytes
+ * (network.h asserts the layout). They travelled in clear: a client of the
+ * same deployment watching the network could capture another captain's
+ * hash and replay it. Each such packet now XORs them with
+ *   HMAC-SHA256(session_key, "spacegl v2 credentials" || seq || i), i = 1..3
+ * truncated to 80 bytes, where seq counts the QUERY/LOGIN packets sent on
+ * this connection since the handshake (0, 1, ...): a fresh mask for every
+ * packet, from a key only the two ends of this session hold. Applying it
+ * twice restores the fields (XOR). */
+#define HS_V2_CRED_LEN 80
+
+static inline bool hs_v2_cred_xor(const uint8_t session_key[32], uint32_t seq,
+                                  uint8_t fields[HS_V2_CRED_LEN]) {
+    static const char label[] = "spacegl v2 credentials";
+    uint8_t in[sizeof(label) - 1 + 5];
+    uint8_t blk[32];
+    memcpy(in, label, sizeof(label) - 1);
+    in[sizeof(label) - 1 + 0] = (uint8_t)(seq & 0xff);
+    in[sizeof(label) - 1 + 1] = (uint8_t)((seq >> 8) & 0xff);
+    in[sizeof(label) - 1 + 2] = (uint8_t)((seq >> 16) & 0xff);
+    in[sizeof(label) - 1 + 3] = (uint8_t)((seq >> 24) & 0xff);
+    size_t done = 0;
+    for (uint8_t i = 1; done < HS_V2_CRED_LEN; i++) {
+        in[sizeof(label) - 1 + 4] = i;
+        unsigned int len = 32;
+        if (!HMAC(EVP_sha256(), session_key, 32, in, sizeof(in), blk, &len) || len != 32) {
+            OPENSSL_cleanse(blk, sizeof(blk));
+            return false;
+        }
+        for (size_t j = 0; j < 32 && done < HS_V2_CRED_LEN; j++, done++) fields[done] ^= blk[j];
+    }
+    OPENSSL_cleanse(blk, sizeof(blk));
+    return true;
 }
 
 #endif

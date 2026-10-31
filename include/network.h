@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 #include <strings.h>
 #include <openssl/rand.h>
 #include "game_config.h"
@@ -229,6 +230,11 @@ typedef struct {
  *     PKT_LOGIN alone, so this check is the one that guards it. A verified
  *     PKT_LOGIN for a captain still bound to another connection takes the
  *     captain over and the older socket is shut down.
+ *   - On the wire, PKT_QUERY and PKT_LOGIN carry pass_hash, salt and
+ *     pass_hash_legacy XORed with a mask keyed by the session key and the
+ *     packet's sequence number since the handshake (hs_v2_cred_xor,
+ *     handshake_v2.h, 2026.10.31.09); a packet received before the
+ *     handshake is dropped.
  */
 #define PKT_ID_STATUS_SALT_REQUIRED 5
 
@@ -311,6 +317,11 @@ typedef struct {
     uint8_t pass_hash_legacy[32]; /* Legacy unsalted hash; verified only for legacy accounts */
     uint8_t x25519_pubkey[32];
 } PacketLogin;
+/* pass_hash, salt, pass_hash_legacy: one 80-byte run, masked as a whole
+ * under the session key (hs_v2_cred_xor, handshake_v2.h). */
+_Static_assert(offsetof(PacketLogin, salt) == offsetof(PacketLogin, pass_hash) + 32 &&
+               offsetof(PacketLogin, pass_hash_legacy) == offsetof(PacketLogin, salt) + 16,
+               "PacketLogin credential fields must be contiguous");
 
 typedef struct {
     int32_t type;

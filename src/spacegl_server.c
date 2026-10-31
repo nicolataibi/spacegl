@@ -43,6 +43,10 @@
 
 #define MAX_EVENTS (MAX_CLIENTS + GAME_MAX_PLAYERS)
 
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#error "spacegl_server must not be built with FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION (fixed handshake keys)"
+#endif
+
 pthread_mutex_t game_mutex = PTHREAD_MUTEX_INITIALIZER;
 threadpool_t *g_pool = NULL;
 int g_debug = 0;

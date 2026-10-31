@@ -92,6 +92,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <ftw.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -308,7 +310,26 @@ void update_star_systems(void) {}
 /* World reset: every fuzzer input starts from the same known state. */
 /* ================================================================== */
 
+/* The sandbox directory (set once in main / LLVMFuzzerInitialize). */
+static char g_sandbox[64];
+
+static int rm_entry(const char *path, const struct stat *sb, int flag, struct FTW *ftw) {
+    (void)sb; (void)flag; (void)ftw;
+    remove(path);
+    return 0;
+}
+
 static void reset_world(void) {
+    /* The captains/ records written by a previous input are part of the
+     * world too (2026.10.31.09): since PKT_LOGIN proves the identity, a
+     * previous input that enrolled SEEDCAPTAIN with other credentials
+     * would lock every later seed out of the login, and with it out of
+     * the command parser, for the rest of the run. */
+    if (g_sandbox[0]) {
+        char cpath[96];
+        snprintf(cpath, sizeof(cpath), "%s/captains", g_sandbox);
+        nftw(cpath, rm_entry, 8, FTW_DEPTH | FTW_PHYS);
+    }
     memset(players, 0, sizeof(players));
     memset(&spacegl_master, 0, sizeof(spacegl_master));
     memset(players_torpedoes, 0, sizeof(players_torpedoes));
@@ -414,6 +435,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "fuzz_corpus_test: mkdtemp failed\n");
         return 1;
     }
+    snprintf(g_sandbox, sizeof(g_sandbox), "%s", sandbox);
     server_set_data_dir(sandbox);
     log_init();
 
@@ -475,6 +497,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv) {
     char tmpl[] = "/tmp/sgfuzz-XXXXXX";
     char *sandbox = mkdtemp(tmpl);
     if (!sandbox) return -1;
+    snprintf(g_sandbox, sizeof(g_sandbox), "%s", sandbox);
     server_set_data_dir(sandbox);
     log_init();
     return 0;

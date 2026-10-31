@@ -44,6 +44,12 @@
 
 extern threadpool_t *g_pool;
 
+/* QUERY/LOGIN packets received on the connection bound to each slot since
+ * its handshake: the seq of hs_v2_cred_xor() (handshake_v2.h). Kept out of
+ * ConnectedPlayer, whose layout is persisted in galaxy.dat. Guarded by
+ * game_mutex. */
+static uint32_t g_cred_seq[MAX_CLIENTS];
+
 int sanitize_captain_name(const char *name) {
     if (!name || name[0] == '\0') {
         return 0;
@@ -284,6 +290,7 @@ int dispatch_packet(PktIO *io, int32_t type) {
 
             if (slot != -1) {
                 memcpy(players[slot].session_key, hs_session, 32);
+                g_cred_seq[slot] = 0;
                 LOG_DEBUG("Secure Session Key negotiated for Client FD %d (Slot %d)\n", fd, slot);
                 /* ACK = int32 type + the v2 reply (eS, Ns, server proof,
                  * masked galaxy verification key), one write. */
@@ -345,6 +352,31 @@ int dispatch_packet(PktIO *io, int32_t type) {
         /* ... login logic ... */
         PacketLogin pkt;
         if (pkt_read_body(io, ((char*)&pkt) + sizeof(int), sizeof(PacketLogin) - sizeof(int))) {
+            /* The credential fields are masked under this connection's
+             * session key (hs_v2_cred_xor): find the slot the handshake
+             * bound to this fd, take its key and the next sequence number.
+             * No handshake, no session key: the packet cannot be read. */
+            {
+                uint8_t sk[32];
+                uint32_t seq = 0;
+                int hs_slot = -1;
+                pthread_mutex_lock(&game_mutex);
+                for (int j = 0; j < MAX_CLIENTS; j++) if (players[j].socket == fd) { hs_slot = j; break; }
+                if (hs_slot != -1) {
+                    memcpy(sk, players[hs_slot].session_key, 32);
+                    seq = g_cred_seq[hs_slot]++;
+                }
+                pthread_mutex_unlock(&game_mutex);
+                bool unmasked = (hs_slot != -1) &&
+                                hs_v2_cred_xor(sk, seq, (uint8_t *)&pkt + offsetof(PacketLogin, pass_hash));
+                OPENSSL_cleanse(sk, sizeof(sk));
+                if (!unmasked) {
+                    OPENSSL_cleanse(&pkt, sizeof(pkt));
+                    SG_WARNING(SG_CAT_SECURITY, "fd %d: %s before the handshake: dropped",
+                               fd, type == PKT_QUERY ? "PKT_QUERY" : "PKT_LOGIN");
+                    return io_close(io, CONN_CLOSE_SILENT);
+                }
+            }
             /* 3.4 — Reject names that could cause path traversal.
              * Must be checked before any file I/O uses pkt.name. */
             pkt.name[sizeof(pkt.name) - 1] = '\0';
@@ -559,6 +591,7 @@ int dispatch_packet(PktIO *io, int32_t type) {
 
                     if (handshake_slot != -1 && handshake_slot != slot) {
                         memcpy(players[slot].session_key, players[handshake_slot].session_key, 32);
+                        g_cred_seq[slot] = g_cred_seq[handshake_slot];
                         /* If the temporary slot was just for handshake, clear it */
                         if (players[handshake_slot].name[0] == '\0') {
                             players[handshake_slot].socket = 0;

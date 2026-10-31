@@ -40,6 +40,7 @@
 #include "packets.h"
 #include "network.h"
 #include "conn.h"
+#include "handshake_v2.h"
 
 #define TEST_CHECK(cond) do { \
     if (!(cond)) { \
@@ -272,11 +273,29 @@ int main(void) {
     TEST_CHECK(sanitize_captain_name("Picard") == 1);
     {
         Pair q; pair_open(&q);
+        /* v2 handshake first, so the reserved name is what closes it */
+        PacketHandshake h;
+        memset(&h, 0, sizeof(h));
+        h.type = PKT_HANDSHAKE;
+        h.pubkey_len = HANDSHAKE_V2_MARKER;
+        HsV2Client st;
+        TEST_CHECK(hs_v2_client_hello(MASTER_SESSION_KEY, h.pubkey, &st));
+        size_t hb = sizeof(PacketHandshake) - sizeof(int32_t);
+        TEST_CHECK(write(q.sv[0], ((char *)&h) + sizeof(int32_t), hb) == (ssize_t)hb);
+        PktIO hio;
+        memset(&hio, 0, sizeof(hio));
+        hio.fd = q.sv[1];
+        hio.epoll_fd = -1;
+        TEST_CHECK(dispatch_packet(&hio, PKT_HANDSHAKE) == 0);
+        uint8_t ack[4 + HANDSHAKE_V2_REPLY_LEN], sk[32], gv[32];
+        TEST_CHECK(read(q.sv[0], ack, sizeof(ack)) == (ssize_t)sizeof(ack));
+        TEST_CHECK(hs_v2_client_finish(MASTER_SESSION_KEY, &st, ack + 4, sk, gv));
         PacketLogin p;
         memset(&p, 0, sizeof(p));
         p.type = PKT_QUERY;
         strcpy(p.name, "Tactical");
         memset(p.salt, 0xaa, 16);
+        TEST_CHECK(hs_v2_cred_xor(sk, 0, (uint8_t *)&p + offsetof(PacketLogin, pass_hash)));
         size_t body = sizeof(PacketLogin) - sizeof(int32_t);
         TEST_CHECK(write(q.sv[0], ((char *)&p) + sizeof(int32_t), body) == (ssize_t)body);
         PktIO io;

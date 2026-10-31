@@ -1,3 +1,35 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.09
+  - Security (roadmap phase 1): the login credentials travelled in clear.
+  PKT_QUERY and PKT_LOGIN carry pass_hash, salt and pass_hash_legacy; with
+  the handshake v2 an outsider can no longer use them (no master key, no
+  handshake), but another client of the same deployment watching the
+  network could capture a captain's hash and replay it. The 80 bytes are
+  now XORed with HMAC-SHA256(session key, "spacegl v2 credentials" ||
+  seq || i), seq counting the QUERY/LOGIN packets of the connection since
+  its handshake (hs_v2_cred_xor, handshake_v2.h): a fresh mask for every
+  packet, known only to the two ends of the session. The server takes the
+  key and the sequence from the slot the handshake bound to the fd (the
+  counter lives in packets.c, not in ConnectedPlayer, whose layout is
+  saved in galaxy.dat); a QUERY/LOGIN before any handshake is dropped.
+  The command deck masks a copy (send_identity_packet), so the clear
+  values it keeps for reconnects are untouched. network.h asserts that the
+  three fields are contiguous. 2026.10.31.08 and this release change the
+  protocol together: publish them together.
+  - Fuzz harness: under FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION (set only
+  on fuzz_corpus_test and fuzz_packets) the server's handshake key and
+  nonce are fixed (RFC 7748 6.1 "Bob", 0x44 * 32), so gen_corpus.py
+  precomputes the session key with the standard library and masks the
+  seeds' credentials (class Session); spacegl_server.c and
+  spacegl_client.c refuse to compile with that macro. reset_world() now
+  also wipes the sandbox captains/ tree: since the login proves the
+  identity, an input that enrolled the seed captain with other
+  credentials locked every later seed out of the command parser for the
+  rest of the run. New seeds: credentials in clear, QUERY before the
+  handshake.
+  - Tests: login_auth_test runs the real v2 handshake for every connection
+  and masks like the client; new case 6 (credentials in clear, no
+  handshake). sender_stamp_test handshakes before its reserved-name case.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.08
   - Security (roadmap phase 1, problem 3), handshake v2. The v1 hello sent
   session_key XOR K and HANDSHAKE_MAGIC_STRING XOR K, with K the master

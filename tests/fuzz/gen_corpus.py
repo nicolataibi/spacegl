@@ -71,6 +71,68 @@ def handshake(key=HARNESS_KEY, nonce=b"\x22" * 32, eph=X25519_PUB,
     return hdr(T_HANDSHAKE) + struct.pack("<i", marker) + pub
 
 
+# The fuzz build (FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) fixes the
+# server's ephemeral key to RFC 7748 6.1 "Bob" and its nonce to 0x44 * 32;
+# with the client key "Alice" (X25519_PUB) the shared secret is the RFC's.
+RFC7748_SHARED = bytes.fromhex(
+    "4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742")
+FUZZ_SERVER_NONCE = b"\x44" * 32
+
+
+def _hkdf32(salt, ikm, info):
+    prk = hmac.new(salt, ikm, hashlib.sha256).digest()
+    return hmac.new(prk, info + b"\x01", hashlib.sha256).digest()
+
+
+def _cred_mask(session_key, seq):
+    out = b""
+    i = 1
+    while len(out) < 80:
+        out += hmac.new(session_key, b"spacegl v2 credentials"
+                        + struct.pack("<I", seq) + bytes([i]),
+                        hashlib.sha256).digest()
+        i += 1
+    return out[:80]
+
+
+class Session:
+    """One connection's v2 handshake, then its masked QUERY/LOGIN packets
+    (hs_v2_cred_xor: credentials XOR a mask keyed by the session key and
+    the packet's sequence number since the handshake)."""
+
+    def __init__(self, nonce=b"\x22" * 32):
+        self.nonce = nonce
+        self.key = _hkdf32(nonce + FUZZ_SERVER_NONCE, RFC7748_SHARED,
+                           b"spacegl v2 session key")
+        self.seq = 0
+
+    def hello(self):
+        return handshake(nonce=self.nonce)
+
+    def _masked(self, pkt):
+        # pkt = header(4) name(64) faction(4) class(4) | creds(80) | x25519(32)
+        start = 4 + 64 + 8
+        creds = bytes(a ^ b for a, b in zip(pkt[start:start + 80],
+                                            _cred_mask(self.key, self.seq)))
+        self.seq += 1
+        return pkt[:start] + creds + pkt[start + 80:]
+
+    def query(self, name, salt=b"\xaa" * 16):
+        return self._masked(query(name, salt=salt))
+
+    def login(self, name, salt=b"\xaa" * 16):
+        return self._masked(login(name, salt=salt))
+
+    def enroll(self, name, salt=b"\xaa" * 16):
+        return self.query(name, salt) + self.login(name, salt)
+
+
+def session_enroll(name, nonce=b"\x22" * 32):
+    """handshake + masked PKT_QUERY + masked PKT_LOGIN, as the client does."""
+    s = Session(nonce)
+    return s.hello() + s.enroll(name)
+
+
 def handshake_v1(key=b"\x11" * 32):
     """The refused v1 hello (session key || magic, pubkey_len 64)."""
     pub = key + b"SPACEGL-KEY-VERIFICATION-SIG-32B" + b"\x00" * (256 - 64)
@@ -139,7 +201,7 @@ def main():
     os.makedirs(corpus, exist_ok=True)
     print(f"corpus dir: {corpus}")
 
-    auth = handshake() + enroll(b"SEEDCAPTAIN")
+    auth = session_enroll(b"SEEDCAPTAIN")
 
     # 1. Happy path: handshake -> login -> common commands -> message
     #    -> profile deletion (zztop closes the connection; the close is
@@ -228,29 +290,42 @@ def main():
     write(corpus, "bad_handshake_sig.pkt",
           handshake(mac=b"\x5a" * 32) + command("who"))
     write(corpus, "handshake_v1_refused.pkt",
-          handshake_v1() + enroll(b"SEEDCAPTAIN") + command("who"))
+          handshake_v1() + Session().enroll(b"SEEDCAPTAIN") + command("who"))
     write(corpus, "handshake_small_order_key.pkt",   # all-zero point
           handshake(eph=b"\x00" * 32) + command("who"))
     write(corpus, "handshake_only.pkt", handshake())
     write(corpus, "double_handshake.pkt",
-          handshake() + handshake(nonce=b"\x33" * 32)
-          + enroll(b"SEEDCAPTAIN") + command("who"))
-    write(corpus, "login_bad_name_traversal.pkt",
-          handshake() + login(b"../evil"))
-    write(corpus, "login_bad_name_dot.pkt",
-          handshake() + login(b"bad.name"))
-    write(corpus, "login_bad_name_long.pkt",
-          handshake() + login(b"A" * 33))
-    write(corpus, "login_salt_probe.pkt",  # all-zero salt (client probe)
-          handshake() + query(b"SEEDCAPTAIN", salt=b"\x00" * 16)
-          + enroll(b"SEEDCAPTAIN"))
-    # PKT_LOGIN without the matching identity: refused, connection closed.
-    write(corpus, "login_without_identity.pkt",
-          handshake() + login(b"NOIDENTITY") + command("who"))
-    write(corpus, "login_wrong_salt.pkt",
-          handshake() + enroll(b"SEEDCAPTAIN")
-          + handshake() + login(b"SEEDCAPTAIN", salt=b"\xbb" * 16)
+          handshake() + session_enroll(b"SEEDCAPTAIN", nonce=b"\x33" * 32)
           + command("who"))
+    s = Session()
+    write(corpus, "login_bad_name_traversal.pkt",
+          s.hello() + s.login(b"../evil"))
+    s = Session()
+    write(corpus, "login_bad_name_dot.pkt",
+          s.hello() + s.login(b"bad.name"))
+    s = Session()
+    write(corpus, "login_bad_name_long.pkt",
+          s.hello() + s.login(b"A" * 33))
+    s = Session()
+    write(corpus, "login_salt_probe.pkt",  # all-zero salt (client probe)
+          s.hello() + s.query(b"SEEDCAPTAIN", salt=b"\x00" * 16)
+          + s.enroll(b"SEEDCAPTAIN"))
+    # PKT_LOGIN without the matching identity: refused, connection closed.
+    s = Session()
+    write(corpus, "login_without_identity.pkt",
+          s.hello() + s.login(b"NOIDENTITY") + command("who"))
+    s = Session()
+    t = Session(nonce=b"\x55" * 32)
+    write(corpus, "login_wrong_salt.pkt",
+          s.hello() + s.enroll(b"SEEDCAPTAIN")
+          + t.hello() + t.login(b"SEEDCAPTAIN", salt=b"\xbb" * 16)
+          + command("who"))
+    # credentials not masked (or masked with another session): refused.
+    write(corpus, "login_unmasked_credentials.pkt",
+          handshake() + enroll(b"SEEDCAPTAIN") + command("who"))
+    # QUERY/LOGIN before any handshake: no session key, dropped.
+    write(corpus, "login_before_handshake.pkt",
+          enroll(b"SEEDCAPTAIN") + command("who"))
 
     # 6. Unauthenticated commands (p_idx == -1): the body MUST still be
     #    consumed, or the stream desynchronizes.

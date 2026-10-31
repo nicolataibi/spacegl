@@ -368,6 +368,9 @@ set(FUZZ_DISPATCH_SRCS
 #    ASan/UBSan, on EVERY compiler — the corpus is a regression suite
 #    that ctest runs on both the gcc and the clang matrix jobs.
 add_executable(fuzz_corpus_test ${FUZZ_DISPATCH_SRCS})
+# Fixed server handshake key in the harness only (handshake_v2.h), so the
+# seeds can precompute the session key that masks the login credentials.
+target_compile_definitions(fuzz_corpus_test PRIVATE FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
 target_link_libraries(fuzz_corpus_test PRIVATE m Threads::Threads OpenSSL::Crypto)
 if(OpenMP_C_FOUND)
     target_link_libraries(fuzz_corpus_test PRIVATE OpenMP::OpenMP_C)
@@ -547,6 +550,7 @@ add_test(NAME net_count_oob COMMAND net_count_oob_test)
 #    tests/fuzz/corpus -max_total_time=240
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
     add_executable(fuzz_packets ${FUZZ_DISPATCH_SRCS})
+    target_compile_definitions(fuzz_packets PRIVATE FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     target_link_libraries(fuzz_packets PRIVATE m Threads::Threads OpenSSL::Crypto)
     if(OpenMP_C_FOUND)
         target_link_libraries(fuzz_packets PRIVATE OpenMP::OpenMP_C)

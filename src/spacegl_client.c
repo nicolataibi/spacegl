@@ -46,6 +46,9 @@ const char* get_lrs_object_name(int id);
 #include "network.h"
 #include "client_wire.h"
 #include "handshake_v2.h"
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#error "spacegl_client must not be built with FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION (fixed handshake keys)"
+#endif
 #include "radio_crypto.h"
 #include "sglog.h"
 
@@ -672,6 +675,11 @@ static int connect_to_server(void) {
  * Used by the first connection and by every reconnect. On success the
  * session key replaces deep_space_key (as in v1) and galaxy_verify_key is
  * set; returns 0 on any failure (no reply, wrong key, v1 server). */
+/* This connection's session key and the number of QUERY/LOGIN packets
+ * sent on it since the handshake (hs_v2_cred_xor, handshake_v2.h). */
+static uint8_t g_session_key[32];
+static uint32_t g_cred_seq = 0;
+
 static int do_handshake(void) {
     PacketHandshake h_pkt;
     memset(&h_pkt, 0, sizeof(PacketHandshake));
@@ -689,6 +697,8 @@ static int do_handshake(void) {
             read_all(sock, reply, sizeof(reply)) == (int)sizeof(reply) &&
             hs_v2_client_finish(master_root_key, &hs, reply, session, galaxy_verify_key)) {
             memcpy(deep_space_key, session, 32);
+            memcpy(g_session_key, session, 32);
+            g_cred_seq = 0;
             ok = 1;
         }
     }
@@ -696,6 +706,18 @@ static int do_handshake(void) {
     OPENSSL_cleanse(session, sizeof(session));
     OPENSSL_cleanse(reply, sizeof(reply));
     return ok;
+}
+
+/* Send a PKT_QUERY / PKT_LOGIN with its credential fields (pass_hash,
+ * salt, pass_hash_legacy) masked under the session key; the caller's packet
+ * stays in clear (the reconnect path keeps those values). */
+static int send_identity_packet(const PacketLogin *p) {
+    PacketLogin wire = *p;
+    int r = -1;
+    if (hs_v2_cred_xor(g_session_key, g_cred_seq++, (uint8_t *)&wire + offsetof(PacketLogin, pass_hash)))
+        r = write_all(sock, &wire, sizeof(PacketLogin));
+    OPENSSL_cleanse(&wire, sizeof(wire));
+    return r;
 }
 
 static int do_login_reconnect(void) {
@@ -710,7 +732,7 @@ static int do_login_reconnect(void) {
     memcpy(lpkt.pass_hash_legacy, g_saved_legacy_hash, 32);
     memcpy(lpkt.x25519_pubkey, g_saved_x25519_pubkey, 32);
 
-    if (write_all(sock, &lpkt, sizeof(PacketLogin)) <= 0) return 0;
+    if (send_identity_packet(&lpkt) <= 0) return 0;
 
     SpaceGLGame *master_sync = malloc(sizeof(SpaceGLGame));
     if (!master_sync) return 0;
@@ -1811,7 +1833,8 @@ int main(int argc, char *argv[]) {
         memcpy(qpkt.salt, id_salt, 16);
         memcpy(qpkt.pass_hash_legacy, password_hash, 32);
         memcpy(qpkt.x25519_pubkey, my_x25519_pubkey_bytes, 32);
-        write_all(sock, &qpkt, sizeof(PacketLogin));
+        send_identity_packet(&qpkt);
+        OPENSSL_cleanse(&qpkt, sizeof(qpkt));
 
         login_status = 0;
         if (read_all(sock, &login_status, sizeof(int)) <= 0) {
@@ -1915,7 +1938,7 @@ int main(int argc, char *argv[]) {
     memset(id_salt, 0, sizeof(id_salt));
     
     LOG_DEBUG("Sending login packet (%zu bytes)...\n", sizeof(PacketLogin));
-    write_all(sock, &lpkt, sizeof(PacketLogin));
+    send_identity_packet(&lpkt);
 
     /* Receive Master Galaxy (Initial Synchronization) */
     SpaceGLGame *master_sync = malloc(sizeof(SpaceGLGame));

@@ -374,6 +374,15 @@ traceable in the changelog:
     verification key with HKDF, authenticates the server to the client
     too, and the server refuses v1 (2026.10.31.08) — pinned by
     `tests/handshake_v2_test` (RFC 5869 / RFC 7748 vectors);
+*   login credentials under the session key: PKT_QUERY / PKT_LOGIN sent
+    pass_hash, salt and pass_hash_legacy in clear, so a client of the
+    same deployment watching the network could replay another captain's
+    hash; they are now masked with an HMAC(session key, sequence) stream,
+    fresh per packet, and a QUERY/LOGIN before the handshake is dropped.
+    The fuzz harness fixes the server's handshake key (RFC 7748) under
+    FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION, which the product binaries
+    refuse to compile with (2026.10.31.09) — pinned by
+    `tests/login_auth_test` case 6;
 *   TCP transport hardening (`TCP_NODELAY`, keepalive probes, buffer sizing)
     and token bucket rate limiting (200 pkt/s, DoS protection, 2026.10.17.04) —
     pinned by `tests/rate_limit_test`.

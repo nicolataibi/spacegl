@@ -15,6 +15,10 @@
  *     the captain over: the new fd is bound, the old one is shut down.
  *  5. A legacy (unsalted) record accepts the matching legacy hash and
  *     refuses another one.
+ *  6. (2026.10.31.09) credentials sent in clear instead of masked under the
+ *     session key, and a PKT_LOGIN with no handshake, are refused.
+ * Every connection runs the real v2 handshake first and masks its
+ * credentials with hs_v2_cred_xor(), as the command deck does.
  */
 #define _DEFAULT_SOURCE
 #include <stdint.h>
@@ -41,6 +45,7 @@
 #include "packets.h"
 #include "network.h"
 #include "conn.h"
+#include "handshake_v2.h"
 
 #define TEST_CHECK(cond) do { \
     if (!(cond)) { \
@@ -202,10 +207,45 @@ static PacketLogin mk(int type, const char *name, uint8_t hash_byte, uint8_t sal
     return p;
 }
 
-/* Send one packet body through the real dispatcher on server fd sv[1]. */
-static int send_pkt(int sv[2], const PacketLogin *p) {
+/* Per connection (indexed by the server fd): the session key from the v2
+ * handshake and the credential sequence, as the client keeps them. */
+static uint8_t g_sk[64][32];
+static uint32_t g_seq[64];
+
+/* Real v2 handshake through the dispatcher on server fd sv[1]. */
+static void hs_connect(int sv[2]) {
+    PacketHandshake h;
+    memset(&h, 0, sizeof(h));
+    h.type = PKT_HANDSHAKE;
+    h.pubkey_len = HANDSHAKE_V2_MARKER;
+    HsV2Client st;
+    TEST_CHECK(hs_v2_client_hello(MASTER_SESSION_KEY, h.pubkey, &st));
+    size_t body = sizeof(PacketHandshake) - sizeof(int32_t);
+    TEST_CHECK(write(sv[0], ((char *)&h) + sizeof(int32_t), body) == (ssize_t)body);
+    PktIO io;
+    memset(&io, 0, sizeof(io));
+    io.fd = sv[1];
+    io.epoll_fd = -1;
+    TEST_CHECK(dispatch_packet(&io, PKT_HANDSHAKE) == 0);
+    uint8_t ack[4 + HANDSHAKE_V2_REPLY_LEN], gv[32];
+    TEST_CHECK(read(sv[0], ack, sizeof(ack)) == (ssize_t)sizeof(ack));
+    TEST_CHECK(sv[1] < 64);
+    TEST_CHECK(hs_v2_client_finish(MASTER_SESSION_KEY, &st, ack + 4, g_sk[sv[1]], gv));
+    g_seq[sv[1]] = 0;
+}
+
+static void make_pair_hs(int sv[2]) {
+    make_pair(sv);
+    hs_connect(sv);
+}
+
+/* Send one packet body through the real dispatcher on server fd sv[1],
+ * credentials masked under the connection's session key (as the client). */
+static int send_pkt_raw(int sv[2], const PacketLogin *p, bool mask) {
+    PacketLogin w = *p;
+    if (mask) TEST_CHECK(hs_v2_cred_xor(g_sk[sv[1]], g_seq[sv[1]]++, (uint8_t *)&w + offsetof(PacketLogin, pass_hash)));
     size_t body = sizeof(PacketLogin) - sizeof(int32_t);
-    TEST_CHECK(write(sv[0], ((const char *)p) + sizeof(int32_t), body) == (ssize_t)body);
+    TEST_CHECK(write(sv[0], ((const char *)&w) + sizeof(int32_t), body) == (ssize_t)body);
     PktIO io;
     memset(&io, 0, sizeof(io));
     io.fd = sv[1];
@@ -213,6 +253,8 @@ static int send_pkt(int sv[2], const PacketLogin *p) {
     int r = dispatch_packet(&io, p->type);
     return r;
 }
+
+static int send_pkt(int sv[2], const PacketLogin *p) { return send_pkt_raw(sv, p, true); }
 
 static int slot_of(const char *name) {
     for (int i = 0; i < MAX_CLIENTS; i++)
@@ -227,6 +269,7 @@ int main(void) {
     TEST_CHECK(spatial_index != NULL);
     for (int i = 0; i < MAX_CLIENTS; i++) pthread_mutex_init(&players[i].socket_mutex, NULL);
 
+    RAND_bytes(MASTER_SESSION_KEY, 32);
     char tmpl[] = "/tmp/sglogin-XXXXXX";
     char *sandbox = mkdtemp(tmpl);
     TEST_CHECK(sandbox != NULL);
@@ -235,7 +278,7 @@ int main(void) {
 
     /* 1. no identity record */
     {
-        int sv[2]; make_pair(sv);
+        int sv[2]; make_pair_hs(sv);
         PacketLogin p = mk(PKT_LOGIN, "ghost", 0x42, 0xaa, 0x24);
         TEST_CHECK(send_pkt(sv, &p) == 1);
         TEST_CHECK(fd_closed(sv[1]));
@@ -246,7 +289,7 @@ int main(void) {
 
     /* 2. create alice through PKT_QUERY, then wrong hash / wrong salt */
     {
-        int sv[2]; make_pair(sv);
+        int sv[2]; make_pair_hs(sv);
         PacketLogin q = mk(PKT_QUERY, "alice", 0x42, 0xaa, 0x24);
         TEST_CHECK(send_pkt(sv, &q) == 0);
         int32_t status = 0;
@@ -258,14 +301,14 @@ int main(void) {
         TEST_CHECK(stat(path, &st) == 0);
         close(sv[0]); close(sv[1]);
 
-        int sb[2]; make_pair(sb);
+        int sb[2]; make_pair_hs(sb);
         PacketLogin bad = mk(PKT_LOGIN, "alice", 0x43, 0xaa, 0x24);   /* wrong hash */
         TEST_CHECK(send_pkt(sb, &bad) == 1);
         TEST_CHECK(fd_closed(sb[1]));
         TEST_CHECK(slot_of("alice") == -1);
         close(sb[0]);
 
-        int sc[2]; make_pair(sc);
+        int sc[2]; make_pair_hs(sc);
         PacketLogin badsalt = mk(PKT_LOGIN, "alice", 0x42, 0xab, 0x24); /* wrong salt */
         TEST_CHECK(send_pkt(sc, &badsalt) == 1);
         TEST_CHECK(fd_closed(sc[1]));
@@ -275,7 +318,7 @@ int main(void) {
     }
 
     /* 3. right salt + hash: the slot is bound */
-    int first[2]; make_pair(first);
+    int first[2]; make_pair_hs(first);
     {
         PacketLogin ok = mk(PKT_LOGIN, "alice", 0x42, 0xaa, 0x24);
         TEST_CHECK(send_pkt(first, &ok) == 0);
@@ -290,7 +333,7 @@ int main(void) {
 
     /* 4. takeover by a second verified connection */
     {
-        int second[2]; make_pair(second);
+        int second[2]; make_pair_hs(second);
         PacketLogin ok = mk(PKT_LOGIN, "alice", 0x42, 0xaa, 0x24);
         TEST_CHECK(send_pkt(second, &ok) == 0);
         int s = slot_of("alice");
@@ -320,19 +363,34 @@ int main(void) {
         TEST_CHECK(fwrite(legacy, 1, 32, f) == 32);
         fclose(f);
 
-        int sv[2]; make_pair(sv);
+        int sv[2]; make_pair_hs(sv);
         PacketLogin bad = mk(PKT_LOGIN, "oldtimer", 0x11, 0x22, 0x78);
         TEST_CHECK(send_pkt(sv, &bad) == 1);
         TEST_CHECK(fd_closed(sv[1]));
         close(sv[0]);
 
-        int sw[2]; make_pair(sw);
+        int sw[2]; make_pair_hs(sw);
         PacketLogin ok = mk(PKT_LOGIN, "oldtimer", 0x11, 0x22, 0x77);
         TEST_CHECK(send_pkt(sw, &ok) == 0);
         int s = slot_of("oldtimer");
         TEST_CHECK(s >= 0 && players[s].socket == sw[1]);
         close(sw[0]); close(sw[1]);
         printf("[5] legacy record: matching legacy hash accepted, other refused: OK\n");
+    }
+
+    /* 6. credentials not masked under the session key, and no handshake */
+    {
+        int sv[2]; make_pair_hs(sv);
+        PacketLogin ok = mk(PKT_LOGIN, "alice", 0x42, 0xaa, 0x24);
+        TEST_CHECK(send_pkt_raw(sv, &ok, false) == 1);    /* right hash, but in clear */
+        TEST_CHECK(fd_closed(sv[1]));
+        close(sv[0]);
+
+        int sn[2]; make_pair(sn);                          /* no handshake at all */
+        TEST_CHECK(send_pkt_raw(sn, &ok, false) == 1);
+        TEST_CHECK(fd_closed(sn[1]));
+        close(sn[0]);
+        printf("[6] credentials in clear, or without a handshake, refused: OK\n");
     }
 
     printf("login_auth_test: all checks passed\n");
