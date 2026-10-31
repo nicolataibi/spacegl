@@ -1,3 +1,14 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.15
+  - Server commands, roadmap phase 3: commands_handlers.inc (4290 lines)
+  split by domain into eight files without any code change: comms (enc),
+  helm (pow, nav, imp, pos, vec, apr), session (zztop, xxx, cha), sensors
+  (srs, lrs), tactical (pha, tor, she, lock, scan), operations (clo, bor,
+  dis, min, sco, har, doc, con, load), reports (rep, fix, sta, inv, dam,
+  cal, ical, who) and special (jum ... dbgnpc). commands_handlers.inc now
+  includes them in the original order. The preprocessed commands.c is
+  byte-identical to the single-file version except for the __FILE__ and
+  __LINE__ of 10 log calls, which now name the new files.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.14
   - Server, idle handshakes (roadmap phase 2): the handshake binds the
   connection to one of the 16 player slots, and a connection that never
