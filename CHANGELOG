@@ -1,3 +1,24 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.19
+  - galaxy.dat format 2, roadmap phase 3: one section per pool (tag,
+  element size, layout number, count). A section whose struct changed is
+  skipped and its pool starts empty (the completion spawners refill evolved
+  stars, moons, protostellar objects and star systems); before, any change
+  to any persisted struct made the whole file unreadable and a new galaxy
+  replaced it, losing every captain's ship. Only "master" is required.
+  The previous format is still loaded when its version matches and the
+  next save converts it. Rule in DEVELOPMENT.md section 8.
+  - Galaxy save, performance: save_galaxy_async() was not asynchronous; it
+  wrote the ~42 MB file on the calling thread, the game thread holding
+  game_mutex, so the 60 Hz tick stopped for the whole disk write. Now only
+  the in-memory image is built under the lock and the thread pool writes
+  it. At shutdown (pool already drained) the write happens in place.
+  - Galaxy save, robustness: the file was truncated and rewritten in place,
+  so a crash during a save lost the galaxy. It is now written to
+  galaxy.dat.tmp, fsync'd, renamed over galaxy.dat and the directory
+  fsync'd; the file is created 0600.
+  - Tests: galaxy_file (the real server: new galaxy, restart, format-1
+  file, changed section, corrupt file).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.18
   - Server text building, roadmap phase 3: the 185 sprintf() and strcat()
   calls of src/server are gone. New include/sg_str.h: SG_SPRINTF (snprintf

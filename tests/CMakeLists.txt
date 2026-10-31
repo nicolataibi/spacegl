@@ -762,6 +762,22 @@ if(SPACEGL_TEST_SANITIZER STREQUAL "thread" AND TARGET spacegl_server AND TARGET
         FAIL_REGULAR_EXPRESSION "FAIL:")
 endif()
 
+# --- galaxy.dat format 2 (2026.10.31.19) ------------------------------
+# The REAL server: new galaxy saved in format 2 (atomic, 0600), restart with
+# the same counts, a format-1 file loaded and converted, a section with a
+# changed layout skipped, a corrupt file replaced. RUN_SERIAL: port 5000.
+if(TARGET spacegl_server)
+    add_test(NAME galaxy_file
+             COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/galaxy_file_test.sh"
+                     $<TARGET_FILE:spacegl_server>)
+    set_tests_properties(galaxy_file PROPERTIES
+        RUN_SERIAL TRUE
+        TIMEOUT 180
+        SKIP_RETURN_CODE 77
+        PASS_REGULAR_EXPRESSION "PASS: galaxy_file_test"
+        FAIL_REGULAR_EXPRESSION "FAIL")
+endif()
+
 # --- End-to-end smoke (2026.10.31.03): the CI smoke step inside ctest ---
 # Same commands and assertions as the "End-to-end smoke" step of
 # .github/workflows/ci.yml, so every matrix job and rpm %ctest catches a

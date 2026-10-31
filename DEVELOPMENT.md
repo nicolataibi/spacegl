@@ -324,3 +324,30 @@ packets). `g_state_mutex` guards the shared-memory write buffer
 (`g_shared_state` and its contents), the buffer swap and the peer table
 `g_peers`; nothing else is taken while it is held. The input line belongs
 to the main thread alone: the listener only requests a prompt redraw.
+
+## 8. The galaxy file (galaxy.dat)
+
+Since 2026.10.31.19 `galaxy.dat` is written in **format 2** by
+`src/server/galaxy_io.c`: a header (`SGGALAX2`, format, `GALAXY_VERSION`)
+followed by one section per pool, each with its tag, element size, layout
+number and element count.
+
+- **Saving.** Under `game_mutex` only an in-memory image is built (one copy
+  per pool); the thread pool writes it to `galaxy.dat.tmp`, `fsync`s it and
+  renames it over `galaxy.dat`. A crash during the write leaves the previous
+  file intact. At shutdown the pool is gone and the write happens in place.
+- **Loading.** Each section is read on its own. A section whose element size
+  or layout number differs from the running code is skipped: that pool
+  starts empty and the completion spawners refill the families they know
+  (evolved stars, moons, protostellar objects, star systems). Only the
+  `master` section is required; without it a new galaxy is generated.
+- **Format 1** (the raw dump written before 2026.10.31.19) is still read when
+  its version int equals `GALAXY_VERSION`; the next save converts it.
+- **Rule for a change to a persisted struct.** A change of size is detected
+  by itself. A change of the fields that keeps the size (a reorder, a type
+  swap of equal width) is not: bump `GALAXY_SECTION_LAYOUT` for it in
+  `galaxy_io.c` (per-section numbers if more than one struct moves).
+- **Test.** `tests/galaxy_file_test.sh` (ctest `galaxy_file`) runs the real
+  server through a new galaxy, a restart, a format-1 file, a section with a
+  changed layout and a corrupt file.
+
