@@ -206,4 +206,7 @@ protocol change: decks and servers of different versions then misread each
 other's packets. Bump the handshake marker (a new `HSVn` value in
 `pubkey_len`) so that an old peer is refused at the handshake with a clear
 error instead of desynchronising later, and update this document and
-`tests/fuzz/` (seed generator and corpus) in the same change.
+`tests/fuzz/` (seed generator and corpus) in the same change. The corpus is
+binary: move the libFuzzer-grown seeds with a committed script (the
+pattern is `tests/fuzz/migrate_corpus_rev4.py`) so that the change can be
+reproduced from a text patch.

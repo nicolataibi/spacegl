@@ -33,3 +33,21 @@ export SPACEGL_KEY="<paste the same value generated above>"
 
 # NOTE: server and clients MUST run with the identical SPACEGL_KEY,
 # otherwise the secure handshake will be rejected.
+
+# 4. Server identity (wire revision 4). On its first boot the server creates
+#    its own identity key, server_identity.key in its data directory, and
+#    prints its fingerprint ("Server identity ...: SHA256:..."). BACK IT UP
+#    together with the data directory.
+#    On the first connection the client prints the same fingerprint and
+#    remembers it in ~/.spacegl/known_servers: check that the two match.
+#    If a server later presents another identity the client refuses it
+#    ("SERVER IDENTITY CHANGED"); if the change is legitimate (the server's
+#    data directory was replaced), remove that server's line from
+#    ~/.spacegl/known_servers.
+#    To pin the key without trusting the first connection:
+./spacegl-server --print-identity        # fingerprint + public key (64 hex)
+export SPACEGL_SERVER_KEY="<the 64 hex digits printed above>"
+
+# 5. Vulkan viewer: the GPU-driven renderer is the default (it falls back to
+#    the CPU-driven one by itself); to force the CPU-driven renderer:
+#    SPACEGL_GPD=0 ./spacegl-client vk

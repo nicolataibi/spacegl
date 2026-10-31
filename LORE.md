@@ -659,6 +659,7 @@ Update 3.2 adds a second, fully modern rendering architecture for the 3D tactica
 *   **`SPACEGL_GPD` Switch & Graceful Fallback**:
     *   **Unset or `SPACEGL_GPD=0`** → legacy **CPU-driven** path (default; 100% unchanged).
     *   **`SPACEGL_GPD=1`** → GPU-driven path (requires a Vulkan ≥ 1.3 driver and a queue family with BOTH graphics and compute).
+    *   *(Update 2026.10.31.42: the GPU-driven path is now the default — unset or `1` selects it, `0` the CPU-driven path; see "Selecting the Architecture" below.)*
     *   If the device cannot support GDD (driver too old, no suitable queue, pipeline/buffer creation failure), the client **prints a banner and falls back to the CPU-driven path automatically** — the game always runs.
 *   **Contract & Tests**:
     *   `include/spacegl_gdd.h` is the single source of truth for every CPU/GPU boundary layout, with compile-time `_Static_assert`s that break the build if the contract drifts from the GLSL structs.
@@ -947,16 +948,18 @@ SPACEGL_GPD=1 VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation ./spacegl_vulkan
 
 **Validation layer**: **Debug builds enable `VK_LAYER_KHRONOS_validation` by default** — every synchronization/barrier or pipeline error is reported by the driver at the moment it happens, instead of surfacing later as silent GPU corruption. Override: `SPACEGL_VALIDATION=0` (off, even in Debug) or `SPACEGL_VALIDATION=1` (on, even in Release); the standard `VK_INSTANCE_LAYERS` variable is honored as well and merged with the default (details in [DEVELOPMENT.md](DEVELOPMENT.md) §4).
 
-Expected startup banners with `SPACEGL_GPD=1`:
+Expected startup banners (default, `SPACEGL_GPD` unset):
 
 ```
-[GDD] SPACEGL_GPD=1: requesting the GPU-driven path (Vulkan 1.4)
-[GDD] creating Vulkan instance at API version 1.4.3xx (driver exposes 1.4.3xx)
-[GDD] GPU-driven path initialized (queue family 0, 4096 instance slots, 512000 vertex capacity)
+[GDD] default: requesting the GPU-driven path (Vulkan 1.3+, CPU-driven fallback)
+[GDD] creating Vulkan instance at API version 1.3 (driver exposes 1.4.3xx)
+[GDD] GPU-driven path initialized (queue family 0, 4096 instance slots, 512000 vertex capacity, 4 sample MSAA)
 ```
 
+(`SPACEGL_GPD=1` prints `[GDD] SPACEGL_GPD=1: requesting ...` on the first line.)
 On an unsupported device the client instead prints, for example,
 `[GDD] no graphics+compute queue family: falling back to CPU-driven path`
+and `[GDD] GPU-driven path unavailable: falling back to CPU-driven rendering`,
 and continues on the legacy architecture — **the game never refuses to start**.
 
 ### 🔄 The Per-Frame Data Flow

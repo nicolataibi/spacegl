@@ -149,9 +149,11 @@ documented here with the threat model rationale.
 - **Forward secrecy for everything**: the v2 handshake already gives
   the session key forward secrecy (ephemeral X25519); TLS would extend
   it to the whole stream.
-- **Certificate-based identity**: the server presents a certificate;
-  the client verifies it. Currently, identity is established via
-  the shared master key (less scalable for multi-server).
+- **Certificate-based identity**: the server presents a certificate
+  signed by an authority the client trusts. Since wire revision 4 every
+  server has an identity key of its own that the deck pins on the first
+  contact (or from `SPACEGL_SERVER_KEY`); certificates would remove the
+  trust on first use and allow revocation (multi-server deployments).
 
 **When TLS is required**:
 - **Internet deployment** (server and clients on different networks,
@@ -422,10 +424,13 @@ traceable in the changelog:
 
 ## 3. Open items
 
-1.  **Per-server authentication keys** (handshake v3): with one key K shared
-    by every deck of a deployment, a key holder can stand in the middle of
-    another deck's session (see the attacker table). A server key pair whose
-    public half the deck pins would close it.
+1.  ~~**Per-server authentication keys**~~ — DONE in wire revision 4
+    (2026.10.31.43): every server signs the handshake with its own Ed25519
+    identity key, the deck pins it (`include/known_servers.h`) — pinned by
+    `tests/handshake_v2_test`, `tests/known_servers_test`,
+    `tests/deck_e2e_test.sh` step 8. What remains (trust on first use, a
+    holder of K posing as a deck, the stream after the handshake) is in the
+    attacker table.
 2.  **Disambiguate the B2/B3 dual labels** (or rename the 2026.10.01.01
     / 2026.10.01.02 findings to free labels) once the original report
     list is at hand.

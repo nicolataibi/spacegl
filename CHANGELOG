@@ -1,3 +1,18 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.01
+  - Documentation brought up to date with 2026.10.31.37 .. .43:
+  DEVELOPMENT.md section 3 lists the 44 tests of the suite (it still said
+  18) with what each pins, the private known_servers file of the e2e
+  scripts, the repository map (handshake_v2.h, known_servers.h,
+  PROTOCOL.md, bench_ab.sh, fuzz/), and section 4 the GDD default
+  (SPACEGL_GPD=0 for the CPU-driven path, SPACEGL_GDD_FAIL_INIT); HOWTO.txt
+  the server identity (fingerprint, backup of server_identity.key,
+  "SERVER IDENTITY CHANGED", --print-identity and SPACEGL_SERVER_KEY) and
+  the Vulkan default; SECURITY.md open item 1 (per-server keys) closed,
+  and what TLS certificates would still add; LORE.md the startup banners
+  of the default path and a note on the 3.2 table; README.md the feature
+  list (GDD default, server identity) and the test suite; PROTOCOL.md
+  section 8 (a binary corpus is moved by a committed script).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.43
   - Security, roadmap 4: per-server identity keys, wire revision 4 (hello
   marker HSV4; decks and servers of revision 3 refuse each other at the

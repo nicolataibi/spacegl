@@ -115,28 +115,56 @@ cmake --build build -j
 
 ## 3. Running the test suite
 
-The suite has **18 tests**, built in two equivalent modes:
+The suite has **44 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
 | 1 | `gdd_contract` | CPU/GPU boundary: struct sizes, **per-field offsets**, vec4 16-byte alignment, flag round-trip, instance builder vs synthetic scenes | `src/vulkan_gdd_build.c` (full TU) |
-| 2 | `gdd_mesh` | headless GPU: the real cull/expand/final SPIR-V vs a bit-exact CPU mirror (exit 77 = skip without an ICD/SPV) | `build/shaders/gdd_*.spv` (test is self-contained; no production `.c` linked) |
-| 3 | `nav_heading` | B2: HUD heading stays in [0, 360) across the 0/360 wrap | `src/server/nav_math.c` |
-| 4 | `nav_roll` | HUD roll stays in [0, 360) (`pos` normalization + align re-wrap) | `src/server/nav_math.c` |
-| 5 | `quad_index` | B3: all 62 static galactic types (quasar & co.) indexed per quadrant | `src/server/quad_index.c` |
-| 6 | `pkt_length` | B1: `PacketMessage.length` [0, 65535] wire contract | `include/network.h` |
-| 7 | `crypto_table` | B5: shared radio cipher table, slot→cipher contract, round-trip on all slots | `include/radio_crypto.h` |
-| 8 | `target_bounds` | `tid`/`target_id` clamps on `players[]` (ASan/UBSan, canary global) | `src/server/commands.c` + `logic.c` + `nav_math.c` + `targets.c` |
-| 9 | `vec_thrust` | the `vec` command contract (ASan/UBSan, same scaffolding) | same as 8 |
-| 10 | `fuzz_corpus` | packet dispatcher / session stream fuzzing seeds under ASan/UBSan | `src/server/packets.c` + `net.c` + `conn.c` |
-| 11 | `rate_limit` | DoS protection: token-bucket rate limit (200 pkt/s, 10 drops → disconnect, 1 s refill) on the real dispatcher, incl. async staged mode (ASan/UBSan) | `src/server/packets.c` + `net.c` + `conn.c` |
-| 12 | `crypto_table_oob` | B2-b: `radio_cipher_for_algo()` index bounds, all 256 algo bytes, canary byte (ASan/UBSan) | `include/radio_crypto.h` |
-| 13 | `net_count_oob` | B3-b: object/beam `count` field bounds (0 / MAX / MAX+1 / -1 / INT32_MIN / INT32_MAX), canary array (ASan/UBSan) | `src/server/packets.c` + `net.c` |
-| 14 | `golden` | CPU-vs-GDD render parity & GDD golden regression pin, **region-based** (4 regions + global sanity; a localised artifact can no longer hide in the pixel average) (integrated only) | `build/spacegl_vulkan` (product binary, black-box) |
-| 15 | `gdd_bench` | GDD cull/expand/final compute pass runtime benchmark against thresholds | none (self-contained `gdd_mesh_test --benchmark`) |
-| 16 | `server_tick_bench` | server tick rate regression: 1000 ticks of the real game loop over a worst-case-but-stable scene; avg < `threshold_ms`, p99 < `p99_ms` (tests/server_tick_thresholds.txt, 8.0/12.0 ms) | `src/server/logic.c` + `logic_events.c` + `quad_index.c` + `targets.c` |
-| 17 | `stability` | long-running memory-leak check: real server + real client for 60 s, server RSS delta ≤ 10 MB (integrated only; the CI smoke job runs it explicitly too) | `build/spacegl_server` + `build/spacegl_client` (black-box) |
-| 18 | `object_types_lint` | every object `type` sent by the server is an `OBJ_*` name from `include/object_types.h` (no bare numbers, no duplicated values); needs only Python 3 | `src/server/logic.c`, `include/object_types.h` |
+| 2 | `object_types_lint` | every object `type` sent by the server is an `OBJ_*` name from `include/object_types.h` (no bare numbers, no duplicated values); Python 3 | `src/server/logic.c`, `include/object_types.h` |
+| 3 | `gdd_mesh` | headless GPU: the real cull/expand/final SPIR-V vs a bit-exact CPU mirror (77 = skip without an ICD/SPV) | `build/shaders/gdd_*.spv` |
+| 4 | `nav_heading` | B2: HUD heading stays in [0, 360) across the 0/360 wrap | `src/server/nav_math.c` |
+| 5 | `nav_roll` | HUD roll stays in [0, 360) (`pos` normalization + align re-wrap) | `src/server/nav_math.c` |
+| 6 | `moon_orbit` | natural-moon orbits: one planet each, at most 4 per planet, slow, inside the planet's quadrant, deterministic | `include/moon_orbits.h` |
+| 7 | `star_system` | star systems: slot arithmetic, id bands, contact radii, every body inside one quadrant at every time | `include/star_system.h` |
+| 8 | `steer_avoid` | segment test against solids (fast ships inside one tick) and obstacle steering | `include/steer_avoid.h` |
+| 9 | `obstacles` | the per-quadrant solid-object provider on a hand-made spatial index | `include/obstacles.h` |
+| 10 | `quad_index` | B3: all 62 static galactic types indexed per quadrant | `src/server/quad_index.c` |
+| 11 | `pkt_length` | B1: `PacketMessage.length` [0, 65535] wire contract | `include/network.h` |
+| 12 | `crypto_table` | B5: shared radio cipher table, slot→cipher contract, round-trip on all slots | `include/radio_crypto.h` |
+| 13 | `target_bounds` | `tid`/`target_id` clamps on `players[]` (ASan/UBSan, canary global) | `src/server/commands.c` + `logic.c` + `nav_math.c` + `targets.c` |
+| 14 | `vec_thrust` | the `vec` command contract (ASan/UBSan) | same as `target_bounds` |
+| 15 | `collision` | ships and comets hitting a solid object, on the real `update_game_logic()` | `src/server/logic.c` + `logic_events.c` |
+| 16 | `fuzz_corpus` | the dispatcher replayed over the committed fuzz corpus (ASan/UBSan) | `src/server/packets.c` + `net.c` + `conn.c` |
+| 17 | `rate_limit` | token-bucket rate limit (200 pkt/s, 10 drops → disconnect, 1 s refill), legacy and async (ASan/UBSan) | `src/server/packets.c` + `net.c` + `conn.c` |
+| 18 | `relay_snapshot` | radio relay: NUL-safe encryption, byte-exact relay, captured routes, detach of a blocked writer, one encoding per frequency and key | `src/server/net.c` + `conn.c` |
+| 19 | `login_auth` | PKT_LOGIN must prove the identity; takeover; unsalted records refused; credentials masked; stale handshakes closed; concurrent new captains; handshake slot released | `src/server/packets.c` |
+| 20 | `sender_stamp` | the sender of a radio message is the authenticated captain (from, COMPUTER lock, faction, station names, signing key) | `src/server/packets.c` + `net.c` |
+| 21 | `client_wire` | the deck's clamps of server-supplied counts (ASan/UBSan) | `include/client_wire.h` |
+| 22 | `key_file` | `load_master_key()`: creation 0600, sources, permissions, damaged files | `include/network.h` |
+| 23 | `handshake_v2` | handshake: RFC vectors, exchange, refusals, K off the wire, the server identity signature (revision 4), dispatcher | `include/handshake_v2.h`, `src/server/packets.c` |
+| 24 | `shm_layout` | the SharedIPC segment: alignment of the shared mutex/semaphore/atomics, layout stamp | `include/shared_state.h` |
+| 25 | `sg_str` | bounded `SG_SPRINTF`/`SG_STRCAT`/`SG_APPENDF` | `include/sg_str.h` |
+| 26 | `obj_delta` | UPD_OBJDELTA encoder/decoder round trip and malformed blocks | `include/obj_delta.h` |
+| 27 | `update_delta` | the real `send_optimized_update()` decoded over 900 ticks | `src/server/net.c` |
+| 28 | `sg_parse` | `sg_scan_nums()` and `sg_hex_decode()`, the checked replacements for `sscanf()` | `include/sg_parse.h` |
+| 29 | `crypto_table_oob` | B2-b: `radio_cipher_for_algo()` bounds, all 256 algo bytes (ASan/UBSan) | `include/radio_crypto.h` |
+| 30 | `net_count_oob` | B3-b: object/beam `count` field bounds, canary array (ASan/UBSan) | `src/server/packets.c` + `net.c` |
+| 31 | `golden` | CPU-vs-GDD render parity and GDD golden regression pin, region-based (integrated only) | `spacegl_vulkan` (black-box) |
+| 32 | `gdd_default` | the Vulkan viewer's default path: GDD by default, `SPACEGL_GPD=0` CPU-driven, fallback when the GDD cannot start, strict `SPACEGL_GPD=1` for screenshots (integrated only) | `spacegl_vulkan` (black-box) |
+| 33 | `gdd_bench` | GDD cull/expand/final compute pass times against thresholds | `gdd_mesh_test --benchmark` |
+| 34 | `server_tick_bench` | server tick: 1000 ticks of the real loop over a worst-case-but-stable scene; avg < `threshold_ms`, p99 < `p99_ms` (`tests/server_tick_thresholds.txt`) | `src/server/logic.c` + `logic_events.c` + `quad_index.c` + `targets.c` |
+| 35 | `stability` | real server + real deck for 60 s, server RSS delta ≤ 10 MB (integrated only) | `spacegl_server` + `spacegl_client` (black-box) |
+| 36 | `server_commands` | the command handlers on a real galaxy | `src/server/commands*.c`, galaxy, logic, targets |
+| 37 | `radio_e2e` | two real decks on the real server: clear, fleet-encrypted, identity-frequency and peer messages, verified | `spacegl_server` + `spacegl_client` (black-box) |
+| 38 | `gl_shape_cache` | OpenGL viewer: display-list shapes match immediate mode; compiled on second use (needs an OpenGL context: skip otherwise) | `src/glut_compat.c` |
+| 39 | `known_servers` | the deck's pins of server identity keys: first contact, mismatch, `SPACEGL_SERVER_KEY`, file format | `include/known_servers.h` |
+| 40 | `deck_e2e` | the deck's own paths: no server, wrong key, refused names, eleven concurrent logins, the input line, duplicate/wrong logins, reconnect after a restart, server identity pinning | `spacegl_server` + `spacegl_client` (black-box) |
+| 41 | `telemetry` | the telemetry port (TCP 5001): every category, frames checked against the boot table | `spacegl_server` + `telemetry_client_test` |
+| 42 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
+| 43 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
+| 44 | `smoke_async` | the same with the server in `--io=async` | same |
+
+The tests that use port 5000/5001 run serially (`RUN_SERIAL`); an image or GPU test without a display or an ICD returns 77 (SKIP). Every end-to-end script uses a private `known_servers` file (`SPACEGL_KNOWN_SERVERS`), so a new data directory is not taken for a changed server.
 
 ### 3.1 Integrated mode (default)
 
@@ -196,10 +224,17 @@ always reported.
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j
-SPACEGL_GPD=1 ./build/spacegl_vulkan          # validation on (Debug)
-SPACEGL_GPD=1 SPACEGL_VALIDATION=0 \
-    ./build/spacegl_vulkan                    # validation off
+./build/spacegl_vulkan                        # GDD (the default), validation on (Debug)
+SPACEGL_VALIDATION=0 ./build/spacegl_vulkan   # validation off
+SPACEGL_GPD=0 ./build/spacegl_vulkan          # the CPU-driven path
 ```
+
+Since 2026.10.31.42 the GPU-driven path is the default (`SPACEGL_GPD`
+unset or `1`) and falls back to the CPU-driven path when it cannot start;
+`SPACEGL_GPD=0` selects the CPU-driven path, and with an explicit
+`SPACEGL_GPD=1` a `--screenshot` run fails instead of falling back.
+`SPACEGL_GDD_FAIL_INIT=1` simulates a GDD that cannot start (test hook,
+`tests/gdd_default_test.sh`).
 
 ## 5. The contract-test pattern
 
@@ -255,9 +290,10 @@ SECURITY.md if it pins an audit item.
 | :--- | :--- |
 | `src/` | the 8 product TUs (server in `src/server/`, GDD in `src/vulkan_gdd_build.c` and `src/vulkan_gdd_render.c`) |
 | `include/` | shared headers; `spacegl_gdd.h` is the CPU/GPU contract, `object_types.h` the single table of object `type` values (X-macro; server, HUD, viewers and the GDD builder all use its `OBJ_*` names and predicates),
-  `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks |
+  `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks, `handshake_v2.h` the handshake (wire revision 4, the server identity signature), `known_servers.h` the deck's pins of server identities |
 | `assets/shaders/` | GLSL sources (legacy `shader.*` + GDD `gdd_*`, shared `gdd_common.glsl`/`gdd_ops.glsl`) |
-| `tests/` | the 18-test suite (dual-mode CMake project) |
+| `tests/` | the 44-test suite (dual-mode CMake project), `bench_ab.sh` (A/B benchmark gate), `format_check.sh`, `fuzz/` (libFuzzer harness seeds and their generator/migration scripts) |
+| `PROTOCOL.md` | the wire protocol (packets, handshake, identity, limits) |
 | `cmake/SpaceGLVulkanSDK.cmake` | the shared Vulkan SDK resolution chain |
 | `man/` | man pages (one per product binary) |
 | `spacegl.spec` | RPM spec (its `%check` runs the unit suite) |

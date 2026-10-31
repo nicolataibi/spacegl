@@ -46,10 +46,10 @@ The current project documentation describes two Vulkan rendering modes: the esta
 - **Efficient binary networking** with differential updates, interest management, and quadrant-based static-data caching.
 - **Local IPC for visualization** using shared memory and synchronized state exchange between the client and 3D viewers.
 - **Multiple visualization front ends**, including OpenGL/GLFW and Vulkan.
-- **Optional GPU-driven Vulkan rendering** using compute shaders, GPU culling, generated geometry, and indirect drawing.
+- **GPU-driven Vulkan rendering** (the default since 2026.10.31.42, with an automatic CPU-driven fallback) using compute shaders, GPU culling, generated geometry, and indirect drawing.
 - **Living object catalog (3.3)** spanning IDs 0–177, defined once in `include/object_types.h` and shared by the server, HUD, OpenGL viewer, and both Vulkan paths: 23 classes of natural moons on real, deterministic planetary orbits (at most 4 per planet), 17 evolved-star classes, 16 protostellar and young-stellar-object classes, and 32 exotic compact objects.
 - **Tactical telemetry** for monitoring network and simulation behavior.
-- **Secure session setup** using a shared master secret for the handshake, per-session keying as documented by the project, HMAC-SHA256 integrity mechanisms, and selectable radio encryption modes.
+- **Secure session setup** using a shared master secret for the handshake, a per-server Ed25519 identity that the client pins (wire revision 4), per-session keying, HMAC-SHA256 integrity mechanisms, and selectable radio encryption modes.
 - **Developer-focused validation** with CMake, CTest, contract tests, sanitizer-enabled Debug tests, and Vulkan validation-layer support.
 
 ## Screenshots
@@ -299,7 +299,7 @@ On the first connection to a server the deck prints the server's identity finger
 
 ## Testing
 
-The development guide documents a CTest suite covering CPU/GPU data contracts, shader/mesh parity, navigation math, spatial indexing, packet lengths, cryptographic table behavior, bounds checks, packet fuzzing, rendering parity, and GDD benchmarks.
+The development guide documents a CTest suite of 44 tests covering CPU/GPU data contracts, shader/mesh parity, navigation math, spatial indexing, packet lengths, cryptographic table behavior, bounds checks, packet fuzzing, the handshake and the server identity pins, the radio relay, end-to-end sessions of real decks on the real server, rendering parity, the Vulkan viewer's default path, the OpenGL viewer's shared geometry, and benchmarks. In CI the server tick is also compared with the base commit (`tests/bench_ab.sh`, a 5% gate) and the line coverage of the server and of the command deck has a floor.
 
 ### Integrated test suite
 
