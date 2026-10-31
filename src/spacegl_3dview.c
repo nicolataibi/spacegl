@@ -3000,11 +3000,27 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
+    {
+        struct stat shm_st;
+        const char *why = (fstat(shm_fd, &shm_st) != 0) ? "cannot stat the shared memory segment"
+                                                        : shm_layout_check_size((long long)shm_st.st_size);
+        if (why) {
+            fprintf(stderr, "[3D VIEW] FATAL: %s.\n", why);
+            exit(1);
+        }
+    }
     g_shm = mmap(NULL, sizeof(SharedIPC), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
 
     if (g_shm == MAP_FAILED) {
         perror("[3D VIEW] mmap failed");
         exit(1);
+    }
+    {
+        const char *why = shm_layout_check(g_shm);
+        if (why) {
+            fprintf(stderr, "[3D VIEW] FATAL: %s.\n", why);
+            exit(1);
+        }
     }
     
     /* Set initial read buffer */

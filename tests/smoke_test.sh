@@ -36,6 +36,12 @@ DATA_DIR=$(mktemp -d "${TMPDIR:-/tmp}/spacegl_smoke.XXXXXX") || exit 1
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/spacegl_smoke_logs.XXXXXX") || exit 1
 SERVER_LOG="$WORK/server.log"
 CLIENT_LOG="$WORK/client.log"
+# The deck looks for its viewer as ./build/spacegl_3dview, relative to the
+# working directory (the CI runs from the repository root). Run it from a
+# directory whose "build" points at the binaries, so the viewer starts and
+# maps the shared memory segment as in the CI job.
+BIN_DIR=$(cd "$(dirname "$CLIENT_BIN")" && pwd)
+ln -s "$BIN_DIR" "$WORK/build"
 SERVER_PID=""
 
 cleanup() {
@@ -61,7 +67,7 @@ if ! (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then
 fi
 
 printf '127.0.0.1\nCI_SMOKE\ns3cr3t-access-code\n0\n0\n' | \
-    timeout 25 "$CLIENT_BIN" >"$CLIENT_LOG" 2>&1 || true
+    (cd "$WORK" && timeout 25 "$CLIENT_BIN") >"$CLIENT_LOG" 2>&1 || true
 
 kill "$SERVER_PID" 2>/dev/null
 wait "$SERVER_PID" 2>/dev/null
@@ -85,6 +91,17 @@ if grep -q "FREQUENCY MISMATCH" "$CLIENT_LOG"; then
     rc=1
 else
     echo "  ok   client: no FREQUENCY MISMATCH noise on a cleartext session"
+fi
+# The viewer (when built) must accept the deck's shared memory segment:
+# same SharedIPC layout (header check, 2026.10.31.12), no FATAL.
+if [ -x "$BIN_DIR/spacegl_3dview" ]; then
+    check "Shared memory mapped successfully" "$CLIENT_LOG" "viewer: shared memory mapped"
+    if grep -q "FATAL" "$CLIENT_LOG"; then
+        echo "  FAIL viewer/deck: FATAL in the client log"
+        rc=1
+    else
+        echo "  ok   viewer/deck: no FATAL"
+    fi
 fi
 if [ -d "$DATA_DIR/captains/CI_SMOKE" ]; then
     echo "  ok   data: captains/CI_SMOKE"

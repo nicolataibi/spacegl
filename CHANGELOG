@@ -1,3 +1,28 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.12
+  - Shared memory layout (roadmap phase 2): SharedIPC, the segment shared
+  by the command deck, the viewers and the HUD, was declared inside
+  #pragma pack(1). Its process-shared pthread_mutex_t and sem_t landed at
+  offsets 1027148 and 1027188 (4 mod 8), and every atomic_int had
+  alignment 1 in the type system (the 41 clang -Watomic-alignment
+  warnings). On x86-64 it worked by luck (the semaphore's 64-bit atomic
+  did not cross a cache line); on AArch64 a misaligned 64-bit atomic is
+  an alignment fault. SharedIPC is no longer packed (its payload structs
+  still are); mutex, semaphore and the ring indices have their natural
+  alignment, checked by _Static_assert, and the indices written by
+  different processes sit on separate 64-byte lines (no false sharing).
+  - Layout header: the segment starts with magic, layout version and
+  sizeof(SharedIPC), stamped by its creator (the deck, or the standalone
+  Vulkan viewer). The OpenGL and Vulkan viewers and the HUD check the
+  segment size with fstat() before mmap (a segment shorter than their
+  SharedIPC would SIGBUS) and the header after it, and stop with a clear
+  message when the deck and the viewer were built from different
+  versions.
+  - Tests: new shm_layout_test (alignment on a real mapping, the checks,
+  process-shared mutex and semaphore across fork()). smoke_e2e now runs
+  the deck from a directory whose ./build holds the binaries, as the CI
+  does, so the viewer actually starts (it was never found before), and
+  checks that it maps the deck's segment with no FATAL.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.11
   - Fuzz corpus migrated to protocol v2. The 227 seeds grown by libFuzzer
   (files named by their SHA-1) all opened with a v1 hello and logged in

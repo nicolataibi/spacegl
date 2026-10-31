@@ -24,6 +24,7 @@
 #include <semaphore.h>
 #include <stdint.h>
 #include <stdatomic.h>
+#include <stddef.h>
 #include "game_state.h"
 
 /* Header-wide packing removed in favor of individual blocks */
@@ -187,43 +188,97 @@ typedef struct {
     int extra;
     int padding[2];
 } IPCEvent;
-/* 
+/*
  * Shared IPC Structure (Mapped in /dev/shm)
+ *
+ * NOT packed (2026.10.31.12). It used to sit inside #pragma pack(1): the
+ * process-shared pthread_mutex_t and sem_t landed at offsets 1027148 and
+ * 1027188 (4 mod 8) and every atomic_int had alignment 1 in the type
+ * system. On x86-64 that worked by luck (the semaphore's 64-bit atomic did
+ * not cross a cache line); on AArch64 a misaligned 64-bit atomic is an
+ * alignment fault. The inner payload structs stay packed; the
+ * synchronization fields get their natural alignment, and the ring indices
+ * written by different processes sit on their own 64-byte lines (no false
+ * sharing between producer and consumer).
+ *
+ * The segment starts with a layout header written by the command deck that
+ * creates it. A viewer or the HUD built from another source version would
+ * read a differently laid out segment (or one shorter than its mmap, a
+ * SIGBUS): they check the segment size with fstat() and the header with
+ * shm_layout_check() before touching anything else.
  */
-#pragma pack(push, 1)
+#define SHM_LAYOUT_MAGIC   0x50494753u   /* "SGIP" */
+#define SHM_LAYOUT_VERSION 2u
+
 typedef struct {
-    atomic_int read_index;  /* Buffer index for Viewer (0 or 1) */
-    atomic_int write_index; /* Buffer index for Client (1 or 0) */
-    
-    atomic_int event_head;
-    atomic_int event_tail;
-    IPCEvent event_queue[IPC_EVENT_QUEUE_SIZE];
+    uint32_t layout_magic;
+    uint32_t layout_version;
+    uint64_t layout_size;      /* sizeof(SharedIPC) of the creator */
+
+    _Alignas(64) atomic_int read_index;  /* Buffer index for Viewer (0 or 1) */
+    atomic_int write_index;              /* Buffer index for Client (1 or 0) */
+
+    _Alignas(64) atomic_int event_head;  /* producer: command deck */
+    _Alignas(64) atomic_int event_tail;  /* consumer: viewer */
+    _Alignas(64) IPCEvent event_queue[IPC_EVENT_QUEUE_SIZE];
 
     /* Global galaxy state, single buffer (Persistent across frames) */
-    int64_t shm_galaxy[41][41][41];
+    _Alignas(64) int64_t shm_galaxy[41][41][41];
 
     /* Double Buffers */
-    GameState buffers[3];
-    
+    _Alignas(64) GameState buffers[3];
+
     /* Lock-Free Command Queue (Viewer -> Client) */
-    atomic_int cmd_head;
-    atomic_int cmd_tail;
-    IPCCommand cmd_queue[CMD_QUEUE_SIZE];
+    _Alignas(64) atomic_int cmd_head;    /* producer: viewer */
+    _Alignas(64) atomic_int cmd_tail;    /* consumer: command deck */
+    _Alignas(64) IPCCommand cmd_queue[CMD_QUEUE_SIZE];
 
     /* Telemetry Bridge for Validation */
-    struct {
+    _Alignas(64) struct {
         double x, y, z;
         int frame_id;
         atomic_int count;
         atomic_int vk_rcv_count;
     } dismantle_telemetry;
 
-    /* Synchronization (Must match system alignment) */
-    pthread_mutex_t mutex;
-    sem_t data_ready;
+    /* Synchronization (process-shared, natural alignment required) */
+    _Alignas(64) pthread_mutex_t mutex;
+    _Alignas(64) sem_t data_ready;
 
-    atomic_int force_shutdown; /* Immediate global exit signal */
+    _Alignas(64) atomic_int force_shutdown; /* Immediate global exit signal */
 } SharedIPC;
-#pragma pack(pop)
+
+_Static_assert(offsetof(SharedIPC, mutex) % _Alignof(pthread_mutex_t) == 0, "SharedIPC.mutex misaligned");
+_Static_assert(offsetof(SharedIPC, data_ready) % _Alignof(sem_t) == 0, "SharedIPC.data_ready misaligned");
+_Static_assert(offsetof(SharedIPC, read_index) % _Alignof(atomic_int) == 0 &&
+               offsetof(SharedIPC, event_head) % _Alignof(atomic_int) == 0 &&
+               offsetof(SharedIPC, event_tail) % _Alignof(atomic_int) == 0 &&
+               offsetof(SharedIPC, cmd_head) % _Alignof(atomic_int) == 0 &&
+               offsetof(SharedIPC, cmd_tail) % _Alignof(atomic_int) == 0 &&
+               offsetof(SharedIPC, force_shutdown) % _Alignof(atomic_int) == 0,
+               "SharedIPC atomics misaligned");
+
+/* Creator (command deck, standalone viewer): stamp the header. */
+static inline void shm_layout_stamp(SharedIPC *s) {
+    s->layout_magic = SHM_LAYOUT_MAGIC;
+    s->layout_version = SHM_LAYOUT_VERSION;
+    s->layout_size = (uint64_t)sizeof(SharedIPC);
+}
+
+/* Reader: segment_size from fstat() on the shm fd, BEFORE mmap (a segment
+ * shorter than sizeof(SharedIPC) would SIGBUS on access). Returns NULL if
+ * the segment is usable, else a reason for the error message. */
+static inline const char *shm_layout_check_size(long long segment_size) {
+    if (segment_size < (long long)sizeof(SharedIPC))
+        return "shared memory segment smaller than this build's SharedIPC (deck and viewer built from different versions)";
+    return NULL;
+}
+
+static inline const char *shm_layout_check(const SharedIPC *s) {
+    if (s->layout_magic != SHM_LAYOUT_MAGIC) return "shared memory segment has no SpaceGL layout header (deck too old or not a SpaceGL segment)";
+    if (s->layout_version != SHM_LAYOUT_VERSION) return "shared memory layout version differs between deck and viewer (rebuild both)";
+    if (s->layout_size != (uint64_t)sizeof(SharedIPC)) return "shared memory layout size differs between deck and viewer (rebuild both)";
+    return NULL;
+}
 
 #endif

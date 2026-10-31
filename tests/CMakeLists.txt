@@ -525,6 +525,25 @@ endif()
 add_test(NAME handshake_v2 COMMAND handshake_v2_test)
 set_tests_properties(handshake_v2 PROPERTIES TIMEOUT 60)
 
+# --- SharedIPC layout (2026.10.31.12, roadmap phase 2) ---
+# Natural alignment of the process-shared mutex/semaphore and the atomics
+# on a real mapping, layout header checks, cross-process mutex/semaphore.
+add_executable(shm_layout_test shm_layout_test.c)
+target_link_libraries(shm_layout_test PRIVATE Threads::Threads)
+if(SG_ATOMIC_LIB)
+    target_link_libraries(shm_layout_test PRIVATE ${SG_ATOMIC_LIB})
+endif()
+if(NOT MSVC)
+    target_compile_options(shm_layout_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(shm_layout_test PRIVATE -fsanitize=address,undefined)
+endif()
+find_library(SG_RT_LIB rt)
+if(SG_RT_LIB)
+    target_link_libraries(shm_layout_test PRIVATE ${SG_RT_LIB})
+endif()
+add_test(NAME shm_layout COMMAND shm_layout_test)
+
 # --- B2-b: radio cipher table index bounds (ASan/UBSan) ---
 add_executable(crypto_table_oob_test crypto_table_oob_test.c)
 target_link_libraries(crypto_table_oob_test PRIVATE OpenSSL::Crypto)

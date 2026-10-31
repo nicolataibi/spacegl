@@ -440,6 +440,8 @@ void init_shm() {
         perror("mmap failed");
         exit(1);
     }
+    /* Layout header first: the viewers and the HUD check it before use. */
+    shm_layout_stamp(g_shm);
 
     /* Initialize Atomic Indices for Double Buffering */
     atomic_init(&g_shm->read_index, 0);

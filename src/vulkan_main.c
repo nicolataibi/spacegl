@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <time.h>
 
 void vulkan_send_ipc_command(VulkanApp *app, const char *cmd_str) {
@@ -581,6 +582,7 @@ int main(int argc, char** argv) {
              * render paths compare apples to apples. The command deck
              * always creates the segment before spawning the viewer, so
              * the normal flow is unchanged (O_EXCL never succeeds there). */
+            bool shm_created = false;
             app->shm_fd = shm_open(argv[ai], O_RDWR, 0666);
             if (app->shm_fd == -1) {
                 int fd_new = shm_open(argv[ai], O_RDWR | O_CREAT | O_EXCL, 0600);
@@ -588,16 +590,36 @@ int main(int argc, char** argv) {
                     if (ftruncate(fd_new, sizeof(SharedIPC)) == 0) {
                         shm_unlink(argv[ai]); /* no orphan segments */
                         app->shm_fd = fd_new;
+                        shm_created = true;
                     } else {
                         shm_unlink(argv[ai]);
                         close(fd_new);
                     }
                 }
             }
+            if (app->shm_fd != -1 && !shm_created) {
+                /* A segment from the command deck: same layout or nothing
+                 * (a shorter segment would SIGBUS on access). */
+                struct stat shm_st;
+                const char *why = (fstat(app->shm_fd, &shm_st) != 0) ? "cannot stat the shared memory segment"
+                                                                     : shm_layout_check_size((long long)shm_st.st_size);
+                if (why) {
+                    fprintf(stderr, "[VULKAN] FATAL: %s.\n", why);
+                    exit(1);
+                }
+            }
             if (app->shm_fd != -1) {
                 app->shm = mmap(NULL, sizeof(SharedIPC), PROT_READ | PROT_WRITE, MAP_SHARED, app->shm_fd, 0);
                 if (app->shm == MAP_FAILED) {
                     app->shm = NULL;
+                } else if (shm_created) {
+                    shm_layout_stamp(app->shm);
+                } else {
+                    const char *why = shm_layout_check(app->shm);
+                    if (why) {
+                        fprintf(stderr, "[VULKAN] FATAL: %s.\n", why);
+                        exit(1);
+                    }
                 }
             }
         }

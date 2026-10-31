@@ -338,8 +338,14 @@ int main(int argc, char** argv) {
     if (argc < 2) return 1;
     int fd = shm_open(argv[1], O_RDONLY, 0666);
     if (fd == -1) return 1;
+    struct stat shm_st;
+    const char *why = (fstat(fd, &shm_st) != 0) ? "cannot stat the shared memory segment"
+                                                : shm_layout_check_size((long long)shm_st.st_size);
+    if (why) { fprintf(stderr, "[HUD] FATAL: %s.\n", why); return 1; }
     SharedIPC *shm = mmap(NULL, sizeof(SharedIPC), PROT_READ, MAP_SHARED, fd, 0);
     if (shm == MAP_FAILED) return 1;
+    why = shm_layout_check(shm);
+    if (why) { fprintf(stderr, "[HUD] FATAL: %s.\n", why); return 1; }
 
     initscr(); start_color(); curs_set(0); noecho(); nodelay(stdscr, TRUE); keypad(stdscr, TRUE);
     
