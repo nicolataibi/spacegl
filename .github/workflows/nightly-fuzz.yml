@@ -1,0 +1,73 @@
+name: SpaceGL nightly fuzzing
+
+# Roadmap phase 6 (2026.10.31.24): the libFuzzer harness of the packet
+# dispatcher (tests/fuzz_packets.c, the same target as the 3-minute "fuzz"
+# job of ci.yml) for one hour every night, and on demand. A crash, leak or
+# timeout fails the run and is kept as an artifact: download it and replay
+# it with  ./build-fuzz/tests/fuzz_packets <artifact>  to reproduce.
+# The new corpus units grow in a working copy; the committed corpus
+# (tests/fuzz/corpus) only changes by a reviewed commit.
+
+on:
+  schedule:
+    - cron: '17 2 * * *'     # 02:17 UTC every night
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: 'Fuzzing budget in seconds'
+        required: false
+        default: '3600'
+
+jobs:
+  fuzz-long:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CC: clang
+      CXX: clang++
+      BUDGET: ${{ github.event.inputs.seconds || '3600' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ clang libomp-dev pkgconf \
+            libglfw3-dev libglu1-mesa-dev \
+            libssl-dev libncurses-dev \
+            libvulkan-dev vulkan-tools vulkan-validationlayers \
+            mesa-vulkan-drivers glslc spirv-tools
+
+      - name: Configure (clang + libFuzzer)
+        run: cmake -B build-fuzz -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build fuzz target
+        run: cmake --build build-fuzz --target fuzz_packets -j"$(nproc)"
+
+      - name: Run libFuzzer
+        run: |
+          mkdir -p corpus-work artifacts
+          cp -r tests/fuzz/corpus/. corpus-work/
+          # libFuzzer writes new units into the first directory; exit 0 on a
+          # clean budget, non-zero on a finding (saved under artifacts/).
+          timeout $((BUDGET + 600)) ./build-fuzz/tests/fuzz_packets \
+            corpus-work -max_total_time="$BUDGET" -timeout=25 \
+            -rss_limit_mb=2048 -artifact_prefix=artifacts/ -print_final_stats=1
+          echo "corpus units: $(ls corpus-work | wc -l) (committed: $(ls tests/fuzz/corpus | wc -l))"
+
+      - name: Keep the findings
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-findings
+          path: artifacts/
+          if-no-files-found: ignore
+
+      - name: Keep the grown corpus
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-corpus
+          path: corpus-work/
+          retention-days: 7

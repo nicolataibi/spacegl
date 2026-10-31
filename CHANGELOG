@@ -1,3 +1,19 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.24
+  - Tests and CI, roadmap phase 6: coverage. New CMake option
+  SPACEGL_COVERAGE (gcov) and a CI "coverage" job that runs the suite and
+  fails when the server's line coverage drops under
+  tests/coverage_threshold.txt (52; measured 53.0%, target 80%).
+  - The asynchronous event loop (--io=async, src/server/conn.c) had no
+  end-to-end test (10% line coverage): new ctest smoke_async runs the same
+  login round-trip on it (conn.c now 72%). smoke_test.sh accepts server
+  options after the two binaries.
+  - Nightly fuzzing: new workflow nightly-fuzz.yml, one hour of libFuzzer on
+  the packet dispatcher every night (and on demand), findings and the grown
+  corpus kept as artifacts.
+  - DEVELOPMENT.md section 9: coverage ratchet, fuzzing, lint profile,
+  warning policy (-Wconversion measured: 2573 distinct sites, 250 in the
+  server).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.23
   - Documentation, roadmap phase 6: new PROTOCOL.md, the wire protocol as
   implemented (framing, the nine packet types with their sizes, handshake

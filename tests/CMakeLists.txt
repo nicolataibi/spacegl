@@ -794,6 +794,18 @@ if(TARGET spacegl_server AND TARGET spacegl_client)
         SKIP_RETURN_CODE 77
         PASS_REGULAR_EXPRESSION "PASS: smoke_test"
         FAIL_REGULAR_EXPRESSION "FAIL:")
+    # The same round-trip on the asynchronous event loop (--io=async,
+    # src/server/conn.c), which no end-to-end test ran before
+    # (2026.10.31.24: conn.c line coverage was 10%).
+    add_test(NAME smoke_async
+             COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/smoke_test.sh"
+                     $<TARGET_FILE:spacegl_server> $<TARGET_FILE:spacegl_client> --io=async)
+    set_tests_properties(smoke_async PROPERTIES
+        RUN_SERIAL TRUE
+        TIMEOUT 90
+        SKIP_RETURN_CODE 77
+        PASS_REGULAR_EXPRESSION "PASS: smoke_test"
+        FAIL_REGULAR_EXPRESSION "FAIL:")
 endif()
 
 # --- Standalone and developer convenience targets ---

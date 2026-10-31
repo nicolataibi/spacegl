@@ -351,3 +351,27 @@ number and element count.
   server through a new galaxy, a restart, a format-1 file, a section with a
   changed layout and a corrupt file.
 
+## 9. Coverage, fuzzing and static analysis in CI
+
+- **Coverage.** `-DSPACEGL_COVERAGE=ON` instruments every target with gcov.
+  The CI `coverage` job runs the suite and measures the server's line
+  coverage with `gcovr`; it fails under `tests/coverage_threshold.txt`. That
+  file is a ratchet: raise it when tests raise the coverage, never lower it.
+  At 2026.10.31.24 the server is at 53.0% (target 80%); the least covered
+  files are the command handlers (sensors, operations: about 25%) and the
+  target table (5%).
+- **Fuzzing.** The `fuzz` job of `ci.yml` runs libFuzzer for 3 minutes on
+  every push; `nightly-fuzz.yml` runs it for one hour every night and keeps
+  any finding as an artifact (replay it with `build-fuzz/tests/fuzz_packets
+  <file>`). New corpus units are kept as an artifact for 7 days; the
+  committed corpus changes only by a reviewed commit.
+- **Static analysis.** `.clang-tidy` is the profile of the `lint` job (server
+  sources, zero findings). Run it locally with
+  `clang-tidy -p <build dir with compile_commands.json> <files>`.
+- **Warnings.** `-DSPACEGL_WERROR=ON` (on in the CI matrix) turns warnings into
+  errors. `-Wshadow` is on everywhere. `-Wconversion` is not: it reports 2573
+  distinct implicit conversions (250 in src/server, about 2300 in the deck,
+  viewers and tools, mostly double to float for the graphics), to be fixed
+  one directory at a time with explicit casts reviewed by hand, the server
+  first.
+

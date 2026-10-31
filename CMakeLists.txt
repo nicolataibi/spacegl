@@ -44,6 +44,15 @@ else()
     if(SPACEGL_WERROR)
         add_compile_options(-Werror)
     endif()
+
+    # Line coverage (2026.10.31.24, roadmap phase 6): gcov instrumentation
+    # of every target; the CI "coverage" job builds with it, runs ctest and
+    # measures src/server with gcovr against tests/coverage_threshold.txt.
+    option(SPACEGL_COVERAGE "Build with gcov line coverage instrumentation" OFF)
+    if(SPACEGL_COVERAGE)
+        add_compile_options(--coverage -O0 -g)
+        add_link_options(--coverage)
+    endif()
     
     # Build-type-specific flags. Every CMake build type gets explicit flags
     # so that no configuration silently falls through to no-optimization

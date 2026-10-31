@@ -245,6 +245,46 @@ jobs:
             xargs -P "$(nproc)" -n 1 clang-tidy -p build --quiet --warnings-as-errors='*'
 
   # ====================================================================
+  # Coverage (2026.10.31.24, roadmap phase 6): the suite under gcov, line
+  # coverage of the server measured with gcovr. The floor is the committed
+  # tests/coverage_threshold.txt (a ratchet: raise it when the coverage
+  # grows, never lower it; target 80). The long stability and tick-bench
+  # runs are left to the matrix jobs.
+  # ====================================================================
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ clang libomp-dev pkgconf \
+            libglfw3-dev libglu1-mesa-dev \
+            libssl-dev libncurses-dev \
+            libvulkan-dev vulkan-tools vulkan-validationlayers \
+            mesa-vulkan-drivers glslc spirv-tools \
+            python3 python3-pil python3-pip
+          pip install --break-system-packages gcovr
+
+      - name: Build with coverage
+        run: |
+          cmake -B build-cov -DCMAKE_BUILD_TYPE=Debug -DSPACEGL_COVERAGE=ON
+          cmake --build build-cov -j"$(nproc)"
+
+      - name: Run test suite
+        working-directory: build-cov
+        run: ctest --output-on-failure -E "^(stability|server_tick_bench)$"
+
+      - name: Server line coverage
+        run: |
+          gcovr -r . build-cov \
+            --filter 'src/server/' --filter 'src/spacegl_server.c' --filter 'src/telemetry_server.c' \
+            --gcov-ignore-errors=no_working_dir_found --gcov-ignore-parse-errors=all \
+            --print-summary --fail-under-line "$(cat tests/coverage_threshold.txt)"
+
+  # ====================================================================
   # Fuzz: the REAL libFuzzer harness (tests/fuzz_packets.c) driving
   # dispatch_packet() + the command parser over a socketpair, seeded
   # from tests/fuzz/corpus. clang is the fuzzer compiler (libFuzzer is

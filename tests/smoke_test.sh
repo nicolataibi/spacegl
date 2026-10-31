@@ -18,12 +18,15 @@
 #           it as FREQUENCY MISMATCH noise), "Command Deck ready"
 #   data:   captains/CI_SMOKE created by the login
 #
-# Usage: smoke_test.sh <spacegl_server> <spacegl_client>
+# Usage: smoke_test.sh <spacegl_server> <spacegl_client> [server options...]
+#   e.g. "--io=async" runs the same round-trip on the asynchronous event
+#   loop (ctest smoke_async, 2026.10.31.24).
 # Exit: 0 PASS, 1 FAIL, 77 SKIP (binaries missing).
 set -uo pipefail
 
 SERVER_BIN=${1:-}
 CLIENT_BIN=${2:-}
+SERVER_ARGS=("${@:3}")
 if [ -z "$SERVER_BIN" ] || [ -z "$CLIENT_BIN" ] || [ ! -x "$SERVER_BIN" ] || [ ! -x "$CLIENT_BIN" ]; then
     echo "SKIP: smoke_test needs the spacegl_server and spacegl_client binaries"
     exit 77
@@ -53,7 +56,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"$SERVER_BIN" --data-dir "$DATA_DIR" >"$SERVER_LOG" 2>&1 &
+"$SERVER_BIN" --data-dir "$DATA_DIR" "${SERVER_ARGS[@]}" >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 
 for _ in $(seq 1 75); do
