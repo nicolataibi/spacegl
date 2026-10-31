@@ -1,3 +1,21 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.29
+  - Tests, roadmap phase 6: new ctest server_commands, the command
+  handlers on a real galaxy. The production galaxy, command, logic and
+  target code is linked whole (only send_server_msg and write_all are
+  recorders) and generate_galaxy() builds a galaxy from a fixed seed.
+  A tour of 150 command lines covers every command of the registry with
+  valid and invalid parameters (each must answer the captain); for one
+  active object of each of the 74 target ranges the captain is placed next
+  to it and runs lock, scan, apr, the interaction commands and the
+  weapons, with game ticks in between; a fight against an NPC ship and a
+  second captain; the state of the captain is checked after every step.
+  - Line coverage of the server (the CI coverage job: the suite without
+  the long stability and tick-bench runs): 84.5%, from 52.4%, past the
+  80% target of the roadmap (with the telemetry test of 2026.10.31.28:
+  telemetry_server.c 17% -> 97%; this test: command handlers 25-50% ->
+  71-100%, targets.c 5% -> 74%, logic 53% -> 70%). The CI floor
+  tests/coverage_threshold.txt goes from 52 to 83.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.28
   - Tests, roadmap phase 6: the telemetry port had no test. New ctest
   telemetry: the real server, a client that subscribes to each of the 174

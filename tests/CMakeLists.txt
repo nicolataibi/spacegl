@@ -774,6 +774,41 @@ if(SPACEGL_TEST_SANITIZER STREQUAL "thread" AND TARGET spacegl_server AND TARGET
         FAIL_REGULAR_EXPRESSION "FAIL:")
 endif()
 
+# --- Command handlers on a real galaxy (2026.10.31.29) ------------------
+# The production galaxy, command, logic and target code linked whole (the
+# network edge recorded): every registry command answers, every target
+# range is locked, scanned, approached and fired at, the captain's state
+# stays sane. ASan/UBSan in the Debug matrix jobs.
+add_executable(server_commands_test
+    server_commands_test.c
+    ${SG_ROOT}/src/server/commands.c
+    ${SG_ROOT}/src/server/logic.c
+    ${SG_ROOT}/src/server/logic_npc.c
+    ${SG_ROOT}/src/server/logic_events.c
+    ${SG_ROOT}/src/server/targets.c
+    ${SG_ROOT}/src/server/nav_math.c
+    ${SG_ROOT}/src/server/quad_index.c
+    ${SG_ROOT}/src/server/globals.c
+    ${SG_ROOT}/src/server/galaxy.c
+    ${SG_ROOT}/src/server/galaxy_index.c
+    ${SG_ROOT}/src/server/galaxy_names.c
+    ${SG_ROOT}/src/server/galaxy_io.c
+    ${SG_ROOT}/src/server/log.c
+    ${SG_ROOT}/src/sglog.c)
+target_link_libraries(server_commands_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+if(OpenMP_C_FOUND)
+    target_link_libraries(server_commands_test PRIVATE OpenMP::OpenMP_C)
+endif()
+if(SG_ATOMIC_LIB)
+    target_link_libraries(server_commands_test PRIVATE ${SG_ATOMIC_LIB})
+endif()
+if(NOT MSVC)
+    target_compile_options(server_commands_test PRIVATE ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(server_commands_test PRIVATE ${SG_TEST_SAN_FLAGS})
+endif()
+add_test(NAME server_commands COMMAND server_commands_test)
+set_tests_properties(server_commands PROPERTIES TIMEOUT 300)
+
 # --- Telemetry protocol (2026.10.31.28) ---------------------------------
 # The REAL server's telemetry port (TCP 5001): every category subscribed
 # in turn, frames checked object by object, static populations compared

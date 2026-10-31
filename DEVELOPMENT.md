@@ -358,9 +358,10 @@ number and element count.
   The CI `coverage` job runs the suite and measures the server's line
   coverage with `gcovr`; it fails under `tests/coverage_threshold.txt`. That
   file is a ratchet: raise it when tests raise the coverage, never lower it.
-  At 2026.10.31.24 the server is at 53.0% (target 80%); the least covered
-  files are the command handlers (sensors, operations: about 25%) and the
-  target table (5%).
+  At 2026.10.31.29 the server is at 84.5% (floor 83, target 80% reached);
+  the command handlers run on a real galaxy in `tests/server_commands_test.c`
+  and the telemetry port in `tests/telemetry_test.sh`. The least covered
+  files are logic_events.c and commands.c (about 65%).
 - **Fuzzing.** The `fuzz` job of `ci.yml` runs libFuzzer for 3 minutes on
   every push; `nightly-fuzz.yml` runs it for one hour every night and keeps
   any finding as an artifact (replay it with `build-fuzz/tests/fuzz_packets
