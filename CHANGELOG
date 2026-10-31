@@ -1,3 +1,14 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.23
+  - Documentation, roadmap phase 6: new PROTOCOL.md, the wire protocol as
+  implemented (framing, the nine packet types with their sizes, handshake
+  v2, identity and the PKT_QUERY status codes, rate limits and count
+  bounds, the update blocks in wire order, radio messages, how to change
+  the protocol); linked from README.md and shipped in the -doc package.
+  - SECURITY.md threat model: the telemetry port as an operator tool (no
+  authentication by design, to be exposed only on a trusted network) and
+  the holder of the shared deployment key as an attacker of handshake v2;
+  open items for per-server keys and for strtol()-based command parsing.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.22
   - Command deck, LRS list (roadmap phase 5): the name and the icon of each
   object now come from one table of ID bands (76 rows) instead of a chain

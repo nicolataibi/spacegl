@@ -86,6 +86,8 @@ pattern described in DEVELOPMENT.md §5.
 | Untrusted **server** (from the client's point of view) | incoming packets; the SHM frame the client writes for its own consumers | The client clamps what it writes to SHM, but the viewer/diag consumers must not rely on that clamp (another producer of the same layout could bypass it). |
 | **Local process** | SHM mapping (client ↔ viewer / diag) | Same layout, different privilege: bounds must hold structurally, not by courtesy. |
 | Eavesdropper / active attacker on the **radio** | fleet cipher channel | AEAD ciphers only (see B5); per-player, per-algorithm keys; no legacy/weak cipher is ever used on the wire. |
+| Network peer on the **telemetry** port | TCP 5001 and `/tmp/spacegl_telemetry.sock` (read-only object stream) | OPERATOR TOOL by design: no authentication, the whole simulation state is readable. Not meant for end users; expose it only on a trusted network (bind by firewall or host network policy). The only input it accepts is a category number, range-checked. |
+| Holder of the deployment key **K** | handshake v2 | Every deck holds K, so a holder can impersonate the server to another deck or relay a session (man in the middle). Passive observers learn nothing (v2, PROTOCOL.md §3); per-server keys would close the active case. |
 
 ### 1.3 Design rules (what the fixes converge on)
 
@@ -396,10 +398,20 @@ traceable in the changelog:
 
 ## 3. Open items
 
-1.  **Disambiguate the B2/B3 dual labels** (or rename the 2026.10.01.01
+1.  **Per-server authentication keys** (handshake v3): with one key K shared
+    by every deck of a deployment, a key holder can stand in the middle of
+    another deck's session (see the attacker table). A server key pair whose
+    public half the deck pins would close it.
+2.  **Command parameter parsing**: the handlers parse with sscanf(), whose
+    integer conversions do not report overflow (clang-tidy cert-err34-c,
+    excluded from the lint profile for now). The parsed values are
+    range-checked afterwards; strtol()-based parsers with overflow detection
+    are the planned replacement.
+
+3.  **Disambiguate the B2/B3 dual labels** (or rename the 2026.10.01.01
     / 2026.10.01.02 findings to free labels) once the original report
     list is at hand.
-2.  **GDD sync/barrier audit**: the GPU-driven path is now auditable by
+4.  **GDD sync/barrier audit**: the GPU-driven path is now auditable by
     default in Debug builds (validation layer on, see DEVELOPMENT.md §4)
     — the residual open class is "behavior visible only on the GPU",
     which `tests/gdd_mesh_test` covers for the compute passes (bit-exact

@@ -354,7 +354,7 @@ Security-related behavior is described in the project documentation and should b
 - Keep secrets out of Git, logs, screenshots, public issue reports, and command examples containing real values.
 - Do not interpret badges or descriptive phrases as a substitute for a security review. Review the implementation and threat model before relying on it for sensitive communications.
 
-See `SECURITY.md` for the vulnerability-reporting policy, the threat model, and the audit registry.
+See `SECURITY.md` for the vulnerability-reporting policy, the threat model, and the audit registry. The wire protocol (packets, handshake v2, identity, limits) is specified in [PROTOCOL.md](PROTOCOL.md).
 
 ## Documentation
 
