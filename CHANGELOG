@@ -1,3 +1,20 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.11
+  - Fuzz corpus migrated to protocol v2. The 227 seeds grown by libFuzzer
+  (files named by their SHA-1) all opened with a v1 hello and logged in
+  without PKT_QUERY, so after 2026.10.31.04-.10 they stopped at their
+  first packet: with the corpus loaded, the harness reached 7,511 features
+  instead of 11,234. tests/fuzz/migrate_corpus_v2.py (committed, run once)
+  rewrites each seed packet by packet with the server's own sizes: a valid
+  v1 hello becomes a v2 hello (gen_corpus.Session), an invalid one a v2
+  hello with a forged MAC; PKT_QUERY / PKT_LOGIN bodies grow to 216 bytes
+  and get their credentials masked under the session key, and a login of
+  a name not queried yet gets the PKT_QUERY the client sends first; every
+  other packet, and the rest of a seed after a truncated packet or an
+  unknown type, is copied as is. 215 seeds changed, 226 written (two
+  became identical). Loaded corpus after the migration: 5,488 edges and
+  11,493 features (origin: 5,292 and 11,234); 90 s of libFuzzer from it:
+  21,308 runs, no crash, 5,600 edges.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.10
   - Security (roadmap phase 1, problem 4): a radio message's Ed25519
   signature was verified by the receiving deck against sender_pubkey, a
