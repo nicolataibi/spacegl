@@ -30,10 +30,10 @@ static int dirty_count = 0;
 
 void init_static_spatial_index() {
     if (!spatial_index) {
-        spatial_index = calloc(41 * 41 * 41, sizeof(QuadrantIndex));
-        if (!spatial_index) { perror("Failed to allocate spatial_index"); exit(1); }
+        spatial_index = calloc((size_t)41 * 41 * 41, sizeof(QuadrantIndex));
+        if (!spatial_index) { perror("Failed to allocate spatial_index"); exit(1); }  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
     }
-    memset(spatial_index, 0, 41 * 41 * 41 * sizeof(QuadrantIndex));
+    memset(spatial_index, 0, (size_t)41 * 41 * 41 * sizeof(QuadrantIndex));
 
     /* B3: the static insertion used to be a hand-written set of 12
      * per-type loops here that skipped the quasar and the other 49
@@ -113,8 +113,8 @@ void refresh_lrs_grid() {
 
 void rebuild_spatial_index() {
     if (!spatial_index) {
-        spatial_index = calloc(41 * 41 * 41, sizeof(QuadrantIndex));
-        if (!spatial_index) { perror("Failed to allocate spatial_index"); exit(1); }
+        spatial_index = calloc((size_t)41 * 41 * 41, sizeof(QuadrantIndex));
+        if (!spatial_index) { perror("Failed to allocate spatial_index"); exit(1); }  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
     }
 
     /* Reset ONLY the dynamic-object counts in dirty quadrants.

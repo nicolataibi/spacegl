@@ -142,7 +142,7 @@ void handle_enc_common(int i, const char *params, int level, bool *should_discon
         
         /* Server-side logging of frequency shift */
         time_t now_enc = time(NULL);
-        struct tm *t_enc = localtime(&now_enc);
+        struct tm *t_enc = SG_LOCALTIME(&now_enc);
         char time_enc[64];
         strftime(time_enc, sizeof(time_enc), "%Y-%m-%d %H:%M:%S", t_enc);
         
@@ -169,6 +169,7 @@ void handle_enc_common(int i, const char *params, int level, bool *should_discon
             case CRYPTO_PRESENT: algo_name = "PRESENT"; break;
             case CRYPTO_GOST: algo_name = "GOST"; break;
             case CRYPTO_SALSA: algo_name = "SALSA"; break;
+            default: break;
         }
         slog("\033[1;34m[ENCRYPTION]\033[0m Captain \033[1;37m%-15s\033[0m tuned frequency to \033[1;36m%-8s\033[0m [\033[1;33m%s\033[0m]\n", 
                players[i].name, algo_name, time_enc);

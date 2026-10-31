@@ -283,7 +283,7 @@ void broadcast_message(PacketMessage *msg) {
                 EVP_CIPHER_CTX_free(ctx); pthread_mutex_unlock(&game_mutex);
                 OPENSSL_cleanse(plaintext, 65536); free(plaintext); free(targets); return;
             }
-            plain_len = (size_t)(outlen + final_len);
+            plain_len = (size_t)outlen + (size_t)final_len;   /* both >= 0 after a successful decrypt */
             if (plain_len > 65535) plain_len = 65535;
             plaintext[plain_len] = '\0';
             EVP_CIPHER_CTX_free(ctx);
@@ -528,10 +528,10 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         p->last_sent_state.prison_unit != upd->prison_unit || p->last_sent_state.composite_plating != upd->composite_plating) mask |= UPD_VITALS;
 
     if (memcmp(p->last_sent_state.shields, upd->shields, sizeof(upd->shields)) != 0) mask |= UPD_SHIELDS;
-    if (memcmp(p->last_sent_state.system_health, upd->system_health, sizeof(upd->system_health)) != 0) mask |= UPD_SYSTEMS;
+    if (memcmp(p->last_sent_state.system_health, upd->system_health, sizeof(upd->system_health)) != 0) mask |= UPD_SYSTEMS;  // NOLINT(bugprone-suspicious-memory-comparison,cert-exp42-c,cert-flp37-c): bitwise change detection on purpose; at worst one extra update)
     if (memcmp(p->last_sent_state.inventory, upd->inventory, sizeof(upd->inventory)) != 0 || 
         p->last_sent_state.life_support != upd->life_support || p->last_sent_state.anti_matter_count != upd->anti_matter_count ||
-        memcmp(p->last_sent_state.power_dist, upd->power_dist, sizeof(upd->power_dist)) != 0) mask |= UPD_INTERNAL;
+        memcmp(p->last_sent_state.power_dist, upd->power_dist, sizeof(upd->power_dist)) != 0) mask |= UPD_INTERNAL;  // NOLINT(bugprone-suspicious-memory-comparison,cert-exp42-c,cert-flp37-c): bitwise change detection on purpose; at worst one extra update)
     
     if (p->last_sent_state.lock_target != upd->lock_target || p->last_sent_state.tube_state != upd->tube_state ||
         p->last_sent_state.current_tube != upd->current_tube || p->last_sent_state.ion_beam_charge != upd->ion_beam_charge ||
@@ -558,7 +558,7 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     
     bool quadrant_changed = (p->last_q1 != upd->q1 || p->last_q2 != upd->q2 || p->last_q3 != upd->q3);
     p->full_update_timer++;
-    if (quadrant_changed || p->full_update_timer > (5 * GAME_TICK_RATE)) {
+    if (quadrant_changed || p->full_update_timer > (5ULL * GAME_TICK_RATE)) {
         mask |= UPD_OBJECTS | UPD_MAP | UPD_FULL;
         p->full_update_timer = 0;
         p->last_q1 = upd->q1; p->last_q2 = upd->q2; p->last_q3 = upd->q3;

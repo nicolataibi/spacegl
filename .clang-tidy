@@ -1,0 +1,41 @@
+# clang-tidy profile of the CI "lint" job (2026.10.31.21, roadmap phase 4).
+# Run: clang-tidy -p <build dir with compile_commands.json> <files>
+# Excluded on purpose:
+#  - bugprone-easily-swappable-parameters: style (adjacent int parameters).
+#  - bugprone-narrowing-conversions: the implicit float/int narrowing that
+#    -Wconversion also reports; handled with it, one directory at a time.
+#  - cert-err33-c: unchecked return values of printf-family and fclose
+#    calls in diagnostics; reviewed separately.
+#  - cert-err34-c: sscanf() of the command parameters. The parsed values
+#    are range-checked afterwards; moving the parsers to strtol() with
+#    overflow detection is a planned change (roadmap phase 6).
+#  - cert-msc30-c / cert-msc50-cpp / cert-msc32-c / cert-msc51-cpp: rand()
+#    and its seeding are the gameplay randomness, not a security random
+#    source (keys and nonces come from RAND_bytes).
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  cert-*,
+  -cert-err33-c,
+  -cert-err34-c,
+  -cert-msc30-c,
+  -cert-msc50-cpp,
+  -cert-msc32-c,
+  -cert-msc51-cpp,
+  concurrency-*
+CheckOptions:
+  # glibc's rand(), getenv(), ... are thread-safe; flag only what glibc
+  # itself documents as MT-unsafe (localtime, ctime, strerror, ...).
+  - key: concurrency-mt-unsafe.FunctionSet
+    value: glibc
+  # feature-test macros are reserved names by design
+  - key: bugprone-reserved-identifier.AllowedIdentifiers
+    value: '_DEFAULT_SOURCE;_GNU_SOURCE;_XOPEN_SOURCE;_POSIX_C_SOURCE'
+  - key: cert-dcl37-c.AllowedIdentifiers
+    value: '_DEFAULT_SOURCE;_GNU_SOURCE;_XOPEN_SOURCE;_POSIX_C_SOURCE'
+  - key: cert-dcl51-cpp.AllowedIdentifiers
+    value: '_DEFAULT_SOURCE;_GNU_SOURCE;_XOPEN_SOURCE;_POSIX_C_SOURCE'
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*/(include|src)/.*'

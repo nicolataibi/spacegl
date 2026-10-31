@@ -366,9 +366,8 @@ void update_npc_ai(int n) {
     }
 
     if (npcs[n].faction == FACTION_XYLARI) {
-        if (closest_p == -1) {
-            npcs[n].is_cloaked = 1;
-        } else if (npcs[n].ai_state == AI_STATE_FLEE) {
+        /* cloaked when no player is near, or while fleeing */
+        if (closest_p == -1 || npcs[n].ai_state == AI_STATE_FLEE) {
             npcs[n].is_cloaked = 1;
         } else {
             npcs[n].is_cloaked = 0;

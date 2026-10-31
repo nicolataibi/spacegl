@@ -1,3 +1,27 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.21
+  - Static analysis, roadmap phase 4: repository clang-tidy profile
+  (.clang-tidy: bugprone, cert, concurrency; each exclusion explained in
+  the file) and a CI "lint" job that runs it over the server sources and
+  fails on any finding. The server is at zero findings.
+  - Thread safety: localtime(), ctime() and strerror() return a buffer
+  shared by every thread, and the server formats timestamps and errors from
+  the game thread, the epoll thread and the pool at once. They are replaced
+  by localtime_r/ctime_r/strerror_r (SG_LOCALTIME, SG_STRERROR in
+  include/sg_str.h; 18 sites, master-key loader included).
+  - Every switch on a non-enum value has an explicit default; the macros
+  parenthesize their arguments (LRS list, star-system occupancy, target
+  table, telemetry caches, object type enum); sizes computed in size_t
+  before widening (spatial index, key hex parsing); the emergency-command
+  allow list is one condition; the Xylari cloak rule is one condition;
+  the number of generated star systems is checked by a static_assert;
+  rewind() replaced by a checked fseek().
+  - Kept as they are, with the reason on the line: the bitwise comparison
+  of the shield/system values for the delta updates (at worst one extra
+  update), byte labels copied into hash inputs, exit() on the main thread,
+  the HUD state shared by "firing" and "in flight", and the boarding yield,
+  which divides the NPC energy as an integer before applying the
+  transporter factor (a game-balance point, unchanged).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.20
   - Build hygiene, roadmap phase 4: new CMake option SPACEGL_WERROR
   (warnings as errors), off by default so that a newer compiler never breaks

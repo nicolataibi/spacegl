@@ -75,7 +75,7 @@ static inline bool hs_v2_hmac(const uint8_t *key, size_t key_len, const char *la
     uint8_t buf[64 + 5 * 32];
     size_t n = 0, ll = label ? strlen(label) : 0;
     if (ll > 64) return false;
-    if (ll) { memcpy(buf, label, ll); n = ll; }
+    if (ll) { memcpy(buf, label, ll); n = ll; }  // NOLINT(bugprone-not-null-terminated-result): a byte label in a hash input, not a string)
     const uint8_t *parts[5] = { a, b, c, d, e };
     for (int i = 0; i < 5; i++) {
         if (!parts[i]) continue;
@@ -99,7 +99,7 @@ static inline bool hs_v2_hkdf32(const uint8_t *salt, size_t salt_len,
     uint8_t blk[96];
     size_t il = strlen(info);
     if (il + 1 > sizeof(blk)) { OPENSSL_cleanse(prk, sizeof(prk)); return false; }
-    memcpy(blk, info, il);
+    memcpy(blk, info, il);  // NOLINT(bugprone-not-null-terminated-result): a byte label in a hash input, not a string)
     blk[il] = 0x01;
     len = 32;
     bool ok = HMAC(EVP_sha256(), prk, 32, blk, il + 1, out, &len) != NULL && len == 32;

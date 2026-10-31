@@ -206,7 +206,7 @@ void update_game_logic() {
                 {
                     /* Server-side logging of ship destruction */
                     time_t now_death = time(NULL);
-                    struct tm *t_death = localtime(&now_death);
+                    struct tm *t_death = SG_LOCALTIME(&now_death);
                     char time_death[64];
                     strftime(time_death, sizeof(time_death), "%Y-%m-%d %H:%M:%S", t_death);
                     slog("\033[1;31m[DESTRUCTION]\033[0m Captain \033[1;37m%-15s\033[0m ship has been destroyed. [\033[1;33m%s\033[0m]\n", 

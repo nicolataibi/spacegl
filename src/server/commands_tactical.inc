@@ -408,7 +408,7 @@ void handle_she(int i, const char *params, bool *should_disconnect) {
         int diff = requested_total - current_total;
         if (diff > 0) {
             /* Adding energy to shields */
-            if (players[i].state.energy < (uint64_t)(diff + COST_ACTION_MED)) {
+            if (players[i].state.energy < (uint64_t)diff + (uint64_t)COST_ACTION_MED) {   /* diff > 0 here */
                 send_server_msg(i, "COMPUTER", "Insufficient reactor energy to charge grids to requested levels.");
                 return;
             }

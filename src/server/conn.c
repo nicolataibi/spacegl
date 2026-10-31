@@ -140,7 +140,7 @@ void reap_player_fd(int fd, ConnCloseReason reason) {
         if (reason == CONN_CLOSE_DEPARTURE) {
             /* Log the departure before clearing the socket */
             time_t now = time(NULL);
-            struct tm *t = localtime(&now);
+            struct tm *t = SG_LOCALTIME(&now);
             char time_str[64];
             strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", t);
             SG_NOTICE(SG_CAT_CLIENT, "captain %s disconnected (slot %d)",

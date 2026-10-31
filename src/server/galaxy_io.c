@@ -239,7 +239,7 @@ static bool galaxy_image_write(const GalaxyImage *img) {
     snprintf(tmp, sizeof(tmp), "%s.tmp", path);
     int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd < 0) {
-        slog("ERROR: Failed to open %s for writing: %s\n", tmp, strerror(errno));
+        slog("ERROR: Failed to open %s for writing: %s\n", tmp, SG_STRERROR(errno));
         return false;
     }
     size_t done = 0;
@@ -247,16 +247,16 @@ static bool galaxy_image_write(const GalaxyImage *img) {
         ssize_t w = write(fd, img->data + done, img->len - done);
         if (w < 0) {
             if (errno == EINTR) continue;
-            slog("ERROR: Failed to write %s: %s\n", tmp, strerror(errno));
+            slog("ERROR: Failed to write %s: %s\n", tmp, SG_STRERROR(errno));
             close(fd); unlink(tmp);
             return false;
         }
         done += (size_t)w;
     }
-    if (fsync(fd) != 0) slog("WARNING: fsync %s: %s\n", tmp, strerror(errno));
+    if (fsync(fd) != 0) slog("WARNING: fsync %s: %s\n", tmp, SG_STRERROR(errno));
     close(fd);
     if (rename(tmp, path) != 0) {
-        slog("ERROR: Failed to rename %s to %s: %s\n", tmp, path, strerror(errno));
+        slog("ERROR: Failed to rename %s to %s: %s\n", tmp, path, SG_STRERROR(errno));
         unlink(tmp);
         return false;
     }
@@ -276,7 +276,8 @@ static void galaxy_save_finish(GalaxyImage *img) {
     bool ok = galaxy_image_write(img);
     if (ok) {
         time_t now = time(NULL);
-        char *ts = ctime(&now);
+        char ts_buf[32];
+        char *ts = ctime_r(&now, ts_buf);
         if (ts) ts[strlen(ts)-1] = '\0';
         slog("--- [%s] GALAXY SAVED ASYNCHRONOUSLY (POOL) ---\n", ts);
     }
@@ -732,7 +733,7 @@ int load_galaxy() {
     if (!f) return 0;
     char magic[8] = { 0 };
     size_t got = fread(magic, 1, sizeof(magic), f);
-    rewind(f);
+    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return 0; }
     int ok;
     if (got == sizeof(magic) && memcmp(magic, GALAXY_FILE_MAGIC, 8) == 0) {
         ok = load_galaxy_v2(f);

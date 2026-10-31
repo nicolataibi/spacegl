@@ -486,7 +486,7 @@ void logic_update_torpedoes(void) {
         int ct = players[i].current_tube;
         if (players[i].state.system_health[5] <= THRESHOLD_SYS_DEGRADED) {
             players[i].state.tube_state = 3; /* OFFLINE */
-        } else if (players[i].tube_load_timers[ct] > 180) {
+        } else if (players[i].tube_load_timers[ct] > 180) {  // NOLINT(bugprone-branch-clone): firing and in flight share the HUD state 1 on purpose
             players[i].state.tube_state = 1; /* FIRING (Initial 0.5s) */
         } else if (players[i].tube_load_timers[ct] > 0) {
             players[i].state.tube_state = 2; /* LOADING (Next 3.0s) */

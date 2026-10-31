@@ -212,7 +212,7 @@ void handle_red(int i, const char *params, bool *should_disconnect) {
     
     /* Server-side logging of tactical status */
     time_t now_red = time(NULL);
-    struct tm *t_red = localtime(&now_red);
+    struct tm *t_red = SG_LOCALTIME(&now_red);
     char time_red[64];
     strftime(time_red, sizeof(time_red), "%Y-%m-%d %H:%M:%S", t_red);
     slog("\033[1;33m[TACTICAL]\033[0m   Captain \033[1;37m%-15s\033[0m set alert to \033[1;%sm%-15s\033[0m [\033[1;33m%s\033[0m]\n", 
@@ -433,18 +433,12 @@ bool process_command(int i, const char *cmd) {
 
     /* 1.5 Hull/Crew Integrity Check: Block most commands if hull or crew is 0 or less */
     if (players[i].state.hull_integrity <= 0.0 || players[i].state.crew_count <= 0) {
-        bool is_emergency_allowed = false;
-        if (strcmp(cmd, "xxx") == 0) {
-            is_emergency_allowed = true;
-        } else if (strncmp(cmd, "rad", 3) == 0) { /* rad, rad ... */
-            is_emergency_allowed = true;
-        } else if (strncmp(cmd, "sta", 3) == 0) {
-            is_emergency_allowed = true;
-        } else if (strncmp(cmd, "who", 3) == 0) {
-            is_emergency_allowed = true;
-        } else if (strncmp(cmd, "help", 4) == 0) {
-            is_emergency_allowed = true;
-        }
+        /* Emergency commands: egress (xxx), radio (rad ...), status, who, help */
+        bool is_emergency_allowed = strcmp(cmd, "xxx") == 0 ||
+                                    strncmp(cmd, "rad", 3) == 0 ||
+                                    strncmp(cmd, "sta", 3) == 0 ||
+                                    strncmp(cmd, "who", 3) == 0 ||
+                                    strncmp(cmd, "help", 4) == 0;
         
         if (!is_emergency_allowed) {
             send_server_msg(i, "COMPUTER", "CRITICAL ERROR: Vessel integrity compromised. All tactical and navigation systems OFFLINE. Only Emergency Egress (xxx) or Radio (rad) available.");

@@ -92,7 +92,7 @@ void handle_jum(int i, const char *params, bool *should_disconnect) {
         
         /* Server-side logging of the jump initiation */
         time_t now_jum = time(NULL);
-        struct tm *t_jum = localtime(&now_jum);
+        struct tm *t_jum = SG_LOCALTIME(&now_jum);
         char time_jum[64];
         strftime(time_jum, sizeof(time_jum), "%Y-%m-%d %H:%M:%S", t_jum);
         slog("\033[1;36m[WORMHOLE]\033[0m   Captain \033[1;37m%-15s\033[0m initiating jump to Q%d-%d-%d.   [\033[1;33m%s\033[0m]\n", 
@@ -558,6 +558,7 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
                 switch(lq->nebulas[n]->type) {
                     case 0: n_st++; break; case 1: n_he++; break; case 2: n_dm++; break;
                     case 3: n_io++; break; case 4: n_gr++; break; case 5: n_te++; break;
+                    default: break;
                 }
             }
 

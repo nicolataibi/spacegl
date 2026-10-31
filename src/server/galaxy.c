@@ -362,7 +362,7 @@ void print_star_system_report(void) {
     if (a_ >= 1 && a_ <= GALAXY_SIZE && b_ >= 1 && b_ <= GALAXY_SIZE && c_ >= 1 && c_ <= GALAXY_SIZE) \
         occ[a_][b_][c_] = 1; } while (0)
 #define SYS_OCC_ARRAY(ARR, N) do { for (int i_ = 0; i_ < (N); i_++) \
-    if (ARR[i_].active) SYS_OCC_MARK(ARR[i_].q1, ARR[i_].q2, ARR[i_].q3); } while (0)
+    if ((ARR)[i_].active) SYS_OCC_MARK((ARR)[i_].q1, (ARR)[i_].q2, (ARR)[i_].q3); } while (0)
 
 void spawn_star_systems(void) {
     static unsigned char occ[GALAXY_SIZE + 1][GALAXY_SIZE + 1][GALAXY_SIZE + 1];
@@ -402,7 +402,8 @@ void spawn_star_systems(void) {
         for (int b = 1; b <= GALAXY_SIZE; b++)
             for (int c = 1; c <= GALAXY_SIZE; c++)
                 if (!occ[a][b][c]) cand[nc++] = (a << 16) | (b << 8) | c;
-    int want = GALAXY_CREATE_SYSTEMS < SYS_MAX_STARS ? GALAXY_CREATE_SYSTEMS : SYS_MAX_STARS;
+    static_assert(GALAXY_CREATE_SYSTEMS <= SYS_MAX_STARS, "more systems requested than sys_stars[] holds");
+    int want = GALAXY_CREATE_SYSTEMS;
     if (want > nc) want = nc;
     for (int i = 0; i < want; i++) {
         int j = i + rand() % (nc - i);

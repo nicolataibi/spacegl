@@ -106,7 +106,7 @@ void ensure_player_algo_key(int p_idx, int k, bool private_mode) {
         if (fgets(hex, sizeof(hex), fk)) {
             for (int b = 0; b < 32; b++) {
                 unsigned int val;
-                if (sscanf(hex + (b * 2), "%02x", &val) == 1) players[p_idx].algo_keys[k][b] = (uint8_t)val;
+                if (sscanf(hex + (size_t)b * 2, "%02x", &val) == 1) players[p_idx].algo_keys[k][b] = (uint8_t)val;
             }
         }
         fclose(fk);
@@ -156,7 +156,7 @@ void derive_algo_keys(uint8_t *master_key, const char *name, uint8_t target_keys
             if (fgets(hex, sizeof(hex), fk_read)) {
                 for (int b = 0; b < 32; b++) {
                     unsigned int val;
-                    if (sscanf(hex + (b * 2), "%02x", &val) == 1) {
+                    if (sscanf(hex + (size_t)b * 2, "%02x", &val) == 1) {
                         target_keys[k][b] = (uint8_t)val;
                     }
                 }
@@ -280,7 +280,7 @@ void sync_client_task(void *arg) {
 
             /* Server-side logging of the rescue */
             time_t now_rescue = time(NULL);
-            struct tm *t_rescue = localtime(&now_rescue);
+            struct tm *t_rescue = SG_LOCALTIME(&now_rescue);
             char time_rescue[64];
             strftime(time_rescue, sizeof(time_rescue), "%Y-%m-%d %H:%M:%S", t_rescue);
             slog("\033[1;31m[RESCUE]\033[0m     Captain \033[1;37m%-15s\033[0m was recovered from deep space. [\033[1;33m%s\033[0m]\n", 
@@ -293,7 +293,7 @@ void sync_client_task(void *arg) {
 
         /* Server-side logging of the connection with timestamp */
         time_t now = time(NULL);
-        struct tm *t = localtime(&now);
+        struct tm *t = SG_LOCALTIME(&now);
         char time_str[64];
         strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", t);
         slog("\033[1;32m[CONNECTION]\033[0m Captain \033[1;37m%-15s\033[0m has entered the galaxy. [\033[1;33m%s\033[0m]\n", 
@@ -472,7 +472,7 @@ static void sign_game_state(SpaceGLGame *gs) {
     unsigned int inner_len = 32;
     unsigned int sig_len = 32;
 
-    memcpy(head, "SPACEGL-SIG-V1", 14);
+    memcpy(head, "SPACEGL-SIG-V1", 14);  // NOLINT(bugprone-not-null-terminated-result): a byte label in a hash input, not a string)
     memcpy(head + 14, &gs->frame_id, 8);
     HMAC(EVP_sha256(), GALAXY_VERIFY_KEY, 32, head, sizeof(head), inner, &inner_len);
     HMAC(EVP_sha256(), inner, 32, (const uint8_t*)gs->g,
@@ -546,7 +546,7 @@ static void run_legacy_loop(int server_fd, int epoll_fd) {
                     for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) { 
                         /* Log the departure before clearing the socket */
                         time_t now_disc = time(NULL);
-                        struct tm *t_disc = localtime(&now_disc);
+                        struct tm *t_disc = SG_LOCALTIME(&now_disc);
                         char time_disc[64];
                         strftime(time_disc, sizeof(time_disc), "%Y-%m-%d %H:%M:%S", t_disc);
                         SG_NOTICE(SG_CAT_CLIENT, "captain %s disconnected (slot %d)",
@@ -624,14 +624,14 @@ int main(int argc, char *argv[]) {
     if (load_master_key(MASTER_SESSION_KEY) != 0) {
         SG_FATAL(SG_CAT_SECURITY, "Failed to load master key");
         fprintf(stderr, "\033[1;31mSECURITY ERROR: Could not load or generate master key.\033[0m\n");
-        exit(1);
+        exit(1);  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
     }
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--data-dir") == 0) {
             if (i + 1 >= argc) {
                 fprintf(stderr, "ERROR: --data-dir requires a path argument.\n");
-                exit(1);
+                exit(1);  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
             }
             server_set_data_dir(argv[++i]);
         }
@@ -643,7 +643,7 @@ int main(int argc, char *argv[]) {
                 g_io_mode = SPACEGL_IO_ASYNC;
             } else {
                 fprintf(stderr, "ERROR: --io= expects 'legacy' or 'async'.\n");
-                exit(1);
+                exit(1);  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
             }
         }
         if (strcmp(argv[i], "--version") == 0) {
@@ -672,7 +672,7 @@ int main(int argc, char *argv[]) {
        directory is created best-effort (it must exist as a directory). */
     if (mkdir(g_data_dir, 0755) != 0 && errno != EEXIST) {
         fprintf(stderr, "WARNING: cannot create data directory '%s': %s\n",
-                g_data_dir, strerror(errno));
+                g_data_dir, SG_STRERROR(errno));
     }
     printf("\033[1;34m[DATA]\033[0m Data directory: %s (captains/ + galaxy.dat)\n",
            (g_data_dir[0] != '\0') ? g_data_dir : ".");
@@ -759,7 +759,7 @@ int main(int argc, char *argv[]) {
 
     printf("--- NETWORK INITIALIZATION ---\n");
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd == -1) { perror("socket failed"); exit(EXIT_FAILURE); }
+    if (server_fd == -1) { perror("socket failed"); exit(EXIT_FAILURE); }  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
     
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) { perror("setsockopt"); }
     
@@ -770,23 +770,23 @@ int main(int argc, char *argv[]) {
     printf("Binding to port %d...\n", DEFAULT_PORT);
     if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("BIND FAILED");
-        exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
     }
     
     /* Backlog: MAX_CLIENTS (16). If all slots are full, the
      * SYN queue accepts up to MAX_CLIENTS half-open connections. */
     if (listen(server_fd, MAX_CLIENTS) < 0) {
         perror("listen failed");
-        exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
     }
 
     printf("STELLAR SERVER listening on port %d (EPOLL MODE)\n", DEFAULT_PORT);
 
     epoll_fd = epoll_create1(0);
-    if (epoll_fd == -1) { perror("epoll_create1"); exit(EXIT_FAILURE); }
+    if (epoll_fd == -1) { perror("epoll_create1"); exit(EXIT_FAILURE); }  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
 
     struct epoll_event listen_ev = { .events = EPOLLIN, .data = { .fd = server_fd } };
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &listen_ev) == -1) { perror("epoll_ctl: server_fd"); exit(EXIT_FAILURE); }
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &listen_ev) == -1) { perror("epoll_ctl: server_fd"); exit(EXIT_FAILURE); }  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
 
     SG_SUCCESS(SG_CAT_NETWORK, "listening on port %d (TCP/binary, EPOLL mode)", DEFAULT_PORT);
     printf("STELLAR SERVER started on port %d (EPOLL MODE)\n", DEFAULT_PORT);

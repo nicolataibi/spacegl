@@ -253,7 +253,7 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                 
                 if (sqrt(dx * dx + dy * dy + dz * dz) < DIST_DISMANTLE_MAX) {
                     players[i].state.energy -= COST_ACTION_EXTREME;
-                    uint64_t yield = (uint64_t)((target_npc->energy / YIELD_BOARD_ENERGY_DIV) * transporter_mult);
+                    uint64_t yield = (uint64_t)((double)(target_npc->energy / YIELD_BOARD_ENERGY_DIV) * transporter_mult);  // NOLINT(bugprone-integer-division): integer division first, the yield as the game has always computed it
                     if (yield < (uint64_t)THRESHOLD_SYS_CRITICAL) {
                         yield = (uint64_t)THRESHOLD_SYS_CRITICAL;
                     }

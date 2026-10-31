@@ -72,7 +72,7 @@
     static void *tgt_find_##T(const QuadrantIndex *q, int tid) { \
         for (int k = 0; k < q->QCOUNT; k++) { \
             const T *o = q->QFIELD[k]; \
-            if (o && o->id + (int)IDMIN == tid) return (void *)o; \
+            if (o && o->id + (int)(IDMIN) == tid) return (void *)o; \
         } \
         return NULL; \
     }
@@ -89,7 +89,7 @@
     static bool tgt_act_##T(const void *e) { return ((const T *)e)->active; } \
     static void tgt_pos_##T(const void *e, double *ax, double *ay, double *az) { \
         const T *o = (const T *)e; \
-        sys_refresh_positions(STAR_OF_SLOT((int)(o - ARR)), sys_clock_s()); \
+        sys_refresh_positions(STAR_OF_SLOT((int)(o - (ARR))), sys_clock_s()); \
         *ax = (o->q1 - 1) * QUADRANT_SIZE + o->x; \
         *ay = (o->q2 - 1) * QUADRANT_SIZE + o->y; \
         *az = (o->q3 - 1) * QUADRANT_SIZE + o->z; \
@@ -220,7 +220,7 @@ static void tgt_name_NPCBase(const void *e, char *buf, size_t len) {
  * Flags encode exactly which historical chain each range participated in, so
  * replacing the four if/else chains with this table changes no behavior. */
 #define TGT_ENTRY(T, ARR, MAXV, FLAGS, IDMIN, IDMAX, NAME) \
-    { NAME, (int)IDMIN, (int)IDMAX, (const void *)(ARR), sizeof(T), (size_t)(MAXV), (FLAGS), \
+    { (NAME), (int)(IDMIN), (int)(IDMAX), (const void *)(ARR), sizeof(T), (size_t)(MAXV), (FLAGS), \
       tgt_aiq_##T, tgt_act_##T, tgt_pos_##T, tgt_find_##T, NULL, NULL }
 
 static const TargetRangeDef TARGET_RANGES[] = {

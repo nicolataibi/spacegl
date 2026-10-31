@@ -788,7 +788,7 @@ void handle_lrs(int i, const char *params, bool *should_disconnect) {
                 if (!all_objs) continue; /* OOM: skip this quadrant */
                 int total_count = 0;
 
-                #define ADD_LRS_OBJ(arr, count, min_id, t_val)                     for(int n=0; n<count && total_count < 16384; n++) {                         if(arr[n]->active) {                             all_objs[total_count++] = (NetObject){.net_x = arr[n]->x, .net_y = arr[n]->y, .net_z = arr[n]->z, .type = t_val, .id = arr[n]->id + min_id, .active = 1};                         }                     }
+                #define ADD_LRS_OBJ(arr, count, min_id, t_val)                     for(int n=0; n<(count) && total_count < 16384; n++) {                         if((arr)[n]->active) {                             all_objs[total_count++] = (NetObject){.net_x = (arr)[n]->x, .net_y = (arr)[n]->y, .net_z = (arr)[n]->z, .type = (t_val), .id = (arr)[n]->id + (min_id), .active = 1};                         }                     }
 
                 ADD_LRS_OBJ(lq->npcs, lq->npc_count, GALAXY_OBJECT_MIN_NPC, 10);
                 ADD_LRS_OBJ(lq->stars, lq->star_count, GALAXY_OBJECT_MIN_STAR, 4);

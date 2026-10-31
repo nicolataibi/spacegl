@@ -216,6 +216,35 @@ jobs:
             -R "^(tsan_e2e|relay_snapshot|login_auth|sender_stamp|rate_limit|handshake_v2|shm_layout)$"
 
   # ====================================================================
+  # Lint (2026.10.31.21, roadmap phase 4): clang-tidy over the server
+  # sources with the repository profile (.clang-tidy: bugprone, cert,
+  # concurrency; the exclusions are explained there). Any finding fails
+  # the job. Only a configure is needed: compile_commands.json.
+  # ====================================================================
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake gcc clang clang-tidy libomp-dev pkgconf \
+            libglfw3-dev libglu1-mesa-dev \
+            libssl-dev libncurses-dev \
+            libvulkan-dev glslc
+
+      - name: Configure (compile_commands.json)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: clang-tidy (server)
+        run: |
+          clang-tidy --version
+          ls src/server/*.c src/spacegl_server.c src/telemetry_server.c | \
+            xargs -P "$(nproc)" -n 1 clang-tidy -p build --quiet --warnings-as-errors='*'
+
+  # ====================================================================
   # Fuzz: the REAL libFuzzer harness (tests/fuzz_packets.c) driving
   # dispatch_packet() + the command parser over a socketpair, seeded
   # from tests/fuzz/corpus. clang is the fuzzer compiler (libFuzzer is

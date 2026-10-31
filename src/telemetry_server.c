@@ -362,7 +362,7 @@ void telemetry_init() {
                 for (int j = 0; j < MAX_NPC; j++) if (npcs[j].active && npcs[j].faction == faction) count++;
                 for (int j = 0; j < MAX_BASES; j++) if (bases[j].active && bases[j].faction == faction) count++;
             } else {
-                #define COUNT_CAT(arr, max) for(int j=0; j<max; j++) if(arr[j].active) count++
+                #define COUNT_CAT(arr, max) for(int j=0; j<(max); j++) if((arr)[j].active) count++
                 switch(c) {
                     case TEL_CAT_STAR:      COUNT_CAT(stars_data, MAX_STARS); break;
                     case TEL_CAT_PLANET:    COUNT_CAT(planets, MAX_PLANETS); break;
@@ -674,6 +674,7 @@ void telemetry_init() {
                             if (cosmic_features[k].active && cosmic_features[k].type == m_type) count++;
                         }
                     } break;
+                    default: break;
                 }
             }
             printf(" %-23s | \033[1;32mREADY\033[0m   | %-15d\n", cat_names_diag[c], count);
@@ -2073,7 +2074,7 @@ static void update_category_cache(int cat) {
             if (bases[j].active && bases[j].faction == faction) { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, j + MAX_CLIENTS + MAX_NPC); count++; } }
         }
     } else {
-        #define FILL_CACHE_CAT(arr, max) for(int j=0; j<max; j++) if(arr[j].active) { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, j); count++; } }
+        #define FILL_CACHE_CAT(arr, max) for(int j=0; j<(max); j++) if((arr)[j].active) { TelemetryObject *slot_ = cat_cache_slot(cat, count); if (slot_) { fill_obj(slot_, cat, j); count++; } }
         switch(cat) {
             case TEL_CAT_STAR:      FILL_CACHE_CAT(stars_data, MAX_STARS); break;
             case TEL_CAT_PLANET:    FILL_CACHE_CAT(planets, MAX_PLANETS); break;
@@ -2457,6 +2458,7 @@ static void update_category_cache(int cat) {
                     }
                 }
             } break;
+            default: break;
         }
     }
     cat_cache_count[cat] = count;

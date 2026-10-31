@@ -244,7 +244,7 @@
 #define OBJ_NPC_LAST     OBJ_SHIP_APEX
 
 typedef enum ObjectType {
-#define OBJECT_TYPE_ENUM_ENTRY(name, value, label) name = value,
+#define OBJECT_TYPE_ENUM_ENTRY(name, value, label) name = (value),
     OBJECT_TYPE_LIST(OBJECT_TYPE_ENUM_ENTRY)
 #undef OBJECT_TYPE_ENUM_ENTRY
     OBJ_TYPE_LAST = OBJ_MOON_EXT_LAST

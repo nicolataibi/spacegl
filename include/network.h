@@ -42,6 +42,7 @@
 #include <openssl/rand.h>
 #include "game_config.h"
 #include "game_state.h"
+#include "sg_str.h"
 
 #pragma pack(push, 1)
 
@@ -536,7 +537,7 @@ static inline int load_master_key(uint8_t key[32]) {
             return -1;
         }
         for (int i = 0; i < 32; i++) {
-            if (sscanf(hex + 2*i, "%2hhx", &key[i]) != 1) {
+            if (sscanf(hex + (size_t)2 * i, "%2hhx", &key[i]) != 1) {
                 fprintf(stderr, "FATAL: invalid hex in key file at position %d\n", i);
                 return -1;
             }
@@ -551,7 +552,7 @@ static inline int load_master_key(uint8_t key[32]) {
         size_t l = strlen(key_env);
         if (l == 64) {
             for (int i = 0; i < 32; i++) {
-                if (sscanf(key_env + 2*i, "%2hhx", &key[i]) != 1) {
+                if (sscanf(key_env + (size_t)2 * i, "%2hhx", &key[i]) != 1) {
                     fprintf(stderr, "FATAL: invalid hex in SPACEGL_KEY at position %d\n", i);
                     return -1;
                 }
@@ -613,7 +614,7 @@ static inline int load_master_key(uint8_t key[32]) {
             hex[strcspn(hex, "\r\n")] = '\0';
             bool ok = (strlen(hex) == 64);
             for (int i = 0; ok && i < 32; i++) {
-                if (sscanf(hex + 2*i, "%2hhx", &key[i]) != 1) ok = false;
+                if (sscanf(hex + (size_t)2 * i, "%2hhx", &key[i]) != 1) ok = false;
             }
             if (!ok) {
                 if (attempt == 0 && n < 65) {
@@ -631,7 +632,7 @@ static inline int load_master_key(uint8_t key[32]) {
             return 0;
         }
         if (errno != ENOENT) {
-            fprintf(stderr, "FATAL: cannot open '%s': %s\n", key_path, strerror(errno));
+            fprintf(stderr, "FATAL: cannot open '%s': %s\n", key_path, SG_STRERROR(errno));
             return -1;
         }
 
@@ -647,7 +648,7 @@ static inline int load_master_key(uint8_t key[32]) {
         }
 
         if (mkdir(dir_path, 0700) != 0 && errno != EEXIST) {
-            fprintf(stderr, "FATAL: cannot create '%s': %s\n", dir_path, strerror(errno));
+            fprintf(stderr, "FATAL: cannot create '%s': %s\n", dir_path, SG_STRERROR(errno));
             return -1;
         }
         char tmp_path[1100];
@@ -655,11 +656,11 @@ static inline int load_master_key(uint8_t key[32]) {
         unlink(tmp_path);
         int wfd = open(tmp_path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
         if (wfd < 0) {
-            fprintf(stderr, "FATAL: cannot create key file '%s': %s\n", tmp_path, strerror(errno));
+            fprintf(stderr, "FATAL: cannot create key file '%s': %s\n", tmp_path, SG_STRERROR(errno));
             return -1;
         }
         char out[65];
-        for (int i = 0; i < 32; i++) snprintf(out + 2*i, 3, "%02x", key[i]);
+        for (int i = 0; i < 32; i++) snprintf(out + (size_t)2 * i, 3, "%02x", key[i]);
         out[64] = '\n';
         bool wrote = (write(wfd, out, 65) == 65) && (fsync(wfd) == 0);
         memset(out, 0, sizeof(out));
@@ -677,7 +678,7 @@ static inline int load_master_key(uint8_t key[32]) {
             return 0;
         }
         if (link_errno != EEXIST) {
-            fprintf(stderr, "FATAL: cannot publish key file '%s': %s\n", key_path, strerror(link_errno));
+            fprintf(stderr, "FATAL: cannot publish key file '%s': %s\n", key_path, SG_STRERROR(link_errno));
             return -1;
         }
         /* another process published its key first: load that one */
