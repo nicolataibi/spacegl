@@ -216,6 +216,7 @@ set(SERVER_SRCS
     src/server/galaxy.c
     src/server/galaxy_index.c
     src/server/galaxy_io.c
+    src/server/galaxy_file.c
     src/server/galaxy_names.c
     src/server/globals.c
     src/server/log.c
@@ -253,7 +254,7 @@ add_executable(spacegl_3dview src/spacegl_3dview.c src/gl_loader.c src/glut_comp
 target_link_libraries(spacegl_3dview ${COMMON_LIBS} ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} GLU)
 
 # 4. spacegl_viewer
-add_executable(spacegl_viewer src/spacegl_viewer.c)
+add_executable(spacegl_viewer src/spacegl_viewer.c src/server/galaxy_file.c)
 target_link_libraries(spacegl_viewer ${COMMON_LIBS})
 
 # 5. spacegl_hud

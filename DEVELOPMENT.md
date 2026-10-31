@@ -327,8 +327,11 @@ to the main thread alone: the listener only requests a prompt redraw.
 
 ## 8. The galaxy file (galaxy.dat)
 
-Since 2026.10.31.19 `galaxy.dat` is written in **format 2** by
-`src/server/galaxy_io.c`: a header (`SGGALAX2`, format, `GALAXY_VERSION`)
+Since 2026.10.31.19 `galaxy.dat` is written in **format 2**. The format
+(section table, save image, reader) is `src/server/galaxy_file.c`, shared
+with the offline inspector `spacegl_viewer`; the save scheduling and the
+load policy (repairs, completion, report) are `src/server/galaxy_io.c`. The
+file is a header (`SGGALAX2`, format, `GALAXY_VERSION`)
 followed by one section per pool, each with its tag, element size, layout
 number and element count.
 
@@ -347,10 +350,11 @@ number and element count.
 - **Rule for a change to a persisted struct.** A change of size is detected
   by itself. A change of the fields that keeps the size (a reorder, a type
   swap of equal width) is not: bump `GALAXY_SECTION_LAYOUT` for it in
-  `galaxy_io.c` (per-section numbers if more than one struct moves).
+  `galaxy_file.c` (per-section numbers if more than one struct moves).
 - **Test.** `tests/galaxy_file_test.sh` (ctest `galaxy_file`) runs the real
-  server through a new galaxy, a restart, a format-1 file (refused, a new
-  galaxy is generated), a section with a changed layout and a corrupt file.
+  server through a new galaxy, a restart, the load repairs, the inspector
+  on the same file, a format-1 file (refused, a new galaxy is generated), a
+  section with a changed layout and a corrupt file.
 
 ## 9. Coverage, fuzzing and static analysis in CI
 

@@ -28,6 +28,7 @@
 #include "../include/server_internal.h"
 #include "../include/network.h"
 #include "../include/object_types.h"
+#include "server/galaxy_file.h"
 
 SpaceGLGame spacegl_master;
 NPCShip npcs[MAX_NPC];
@@ -277,205 +278,21 @@ int main(int argc, char *argv[]) {
         perror("Could not open galaxy.dat");
         return 1;
     }
-
-    int version;
-    if (fread(&version, sizeof(int), 1, f) != 1) {
-        fprintf(stderr, "Failed to read version\n");
-        fclose(f);
+    /* The server's own reader (src/server/galaxy_file.c, 2026.10.31.31):
+     * this inspector used to keep a copy of the format-1 reader and could
+     * not read any galaxy.dat since format 2 (2026.10.31.19). */
+    uint32_t version = 0;
+    int r = galaxy_file_read(f, &version);
+    fclose(f);
+    if (r == GALAXY_FILE_NOT_FORMAT2) {
+        fprintf(stderr, "galaxy.dat is not in format 2 (an old format or not a galaxy file): "
+                        "the server generates a new galaxy from it\n");
         return 1;
     }
-
-    if (version != GALAXY_VERSION) {
-        printf("Warning: Version mismatch. File: %d, Expected: %d\n", version, GALAXY_VERSION);
+    if (r != GALAXY_FILE_OK) {
+        fprintf(stderr, "galaxy.dat could not be read (see the messages above)\n");
+        return 1;
     }
-
-    /* Diagnostics: check file size against expected size of data blocks */
-    fseek(f, 0, SEEK_END);
-    long actual_size = ftell(f);
-    fseek(f, sizeof(int), SEEK_SET); /* Reset after version */
-    
-    /* Structure sizes may change due to __attribute__((aligned(64))) in Rel 16 */
-    long expected_data = sizeof(SpaceGLGame) + 
-                         (long)sizeof(NPCShip) * MAX_NPC + 
-                         (long)sizeof(NPCStar) * MAX_STARS + 
-                         (long)sizeof(NPCBlackHole) * MAX_BH + 
-                         (long)sizeof(NPCPlanet) * MAX_PLANETS + 
-                         (long)sizeof(NPCBase) * MAX_BASES + 
-                         (long)sizeof(NPCNebula) * MAX_NEBULAS + 
-                         (long)sizeof(NPCPulsar) * MAX_PULSARS + 
-                         (long)sizeof(NPCQuasar) * MAX_QUASARS +
-                         (long)sizeof(NPCComet) * MAX_COMETS + 
-                         (long)sizeof(NPCAsteroid) * MAX_ASTEROIDS + 
-                         (long)sizeof(NPCDerelict) * MAX_DERELICTS + 
-                         (long)sizeof(NPCMine) * MAX_MINES + 
-                         (long)sizeof(NPCBuoy) * MAX_BUOYS + 
-                         (long)sizeof(NPCPlatform) * MAX_PLATFORMS + 
-                         (long)sizeof(NPCRift) * MAX_RIFTS + 
-                         (long)sizeof(NPCMonster) * MAX_MONSTERS + 
-                         (long)sizeof(NPCDyson) * MAX_DYSON +
-                         (long)sizeof(NPCHub) * MAX_HUBS +
-                         (long)sizeof(NPCRelic) * MAX_RELICS +
-                         (long)sizeof(NPCRupture) * MAX_RUPTURES +
-                         (long)sizeof(NPCSatellite) * MAX_SATELLITES +
-                         (long)sizeof(NPCStorm) * MAX_STORMS +
-                         (long)sizeof(NPCArtifact) * MAX_ARTIFACTS +
-                         (long)sizeof(NPCWarpGate) * MAX_WARP_GATES +
-                         (long)sizeof(NPCNeutronStar) * MAX_NEUTRON_STARS +
-                         (long)sizeof(NPCMegaStructure) * MAX_MEGA_STRUCTS +
-                         (long)sizeof(NPCDarkCloud) * MAX_DARK_CLOUDS +
-                         (long)sizeof(NPCSingularity) * MAX_SINGULARITIES +
-                         (long)sizeof(NPCPlasmaStorm) * MAX_PLASMA_STORMS +
-                         (long)sizeof(NPCOrbitalRing) * MAX_ORBITAL_RINGS +
-                         (long)sizeof(NPCTimeAnomaly) * MAX_TIME_ANOMALIES +
-                         (long)sizeof(NPCVoidCrystal) * MAX_VOID_CRYSTALS +
-                         (long)sizeof(NPCSubspaceAnomaly) * MAX_SUBSPACE_ANOMALIES +
-                         (long)sizeof(NPCDiffuseNebula) * MAX_DIFFUSE_NEBULAE +
-                         (long)sizeof(NPCDarkNebula) * MAX_DARK_NEBULAE +
-                         (long)sizeof(NPCPlanetaryNebula) * MAX_PLANETARY_NEBULAE +
-                         (long)sizeof(NPCSNR) * MAX_SNR +
-                         (long)sizeof(NPCGMC) * MAX_GMC +
-                         (long)sizeof(NPCInterstellarFilament) * MAX_INTERSTELLAR_FILAMENTS +
-                         (long)sizeof(NPCInterstellarBubble) * MAX_INTERSTELLAR_BUBBLES +
-                         (long)sizeof(NPCBokGlobule) * MAX_BOK_GLOBULES +
-                         (long)sizeof(NPCClumpCore) * MAX_CLUMP_CORES +
-                         (long)sizeof(NPCAccretionDisk) * MAX_ACCRETION_DISKS +
-                         (long)sizeof(NPCRelativisticJet) * MAX_RELATIVISTIC_JETS +
-                         (long)sizeof(NPCShockWave) * MAX_SHOCK_WAVES +
-                         (long)sizeof(NPCStellarBowShock) * MAX_STELLAR_BOW_SHOCKS +
-                         (long)sizeof(NPCCosmicVoid) * MAX_COSMIC_VOIDS +
-                         (long)sizeof(NPCCosmicFilament) * MAX_COSMIC_FILAMENTS +
-                         (long)sizeof(NPCEventHorizon) * MAX_EVENT_HORIZONS +
-                         (long)sizeof(NPCKilonova) * MAX_KILONOVAE +
-                         (long)sizeof(NPCGravLens) * MAX_GRAV_LENSES +
-                         (long)sizeof(NPCGRB) * MAX_GRB +
-                         (long)sizeof(NPCGravWave) * MAX_GRAV_WAVES +
-                         (long)sizeof(NPCProtoplanetaryDisk) * MAX_PROTOPLANETARY_DISKS +
-                         (long)sizeof(NPCDebrisDisk) * MAX_DEBRIS_DISKS +
-                         (long)sizeof(NPCPlanetesimal) * MAX_PLANETESIMALS +
-                         (long)sizeof(NPCRoguePlanet) * MAX_ROGUE_PLANETS +
-                         (long)sizeof(NPCBrownDwarf) * MAX_BROWN_DWARFS +
-                         (long)sizeof(NPCISO) * MAX_ISO +
-                         (long)sizeof(NPCMagReconn) * MAX_MAG_RECONN +
-                         (long)sizeof(NPCCurrentSheet) * MAX_CURRENT_SHEETS +
-                         (long)sizeof(NPCHeliosphere) * MAX_HELIOSPHERES +
-                         (long)sizeof(NPCTermShock) * MAX_TERM_SHOCKS +
-                         (long)sizeof(NPCMagnetosphere) * MAX_MAGNETOSPHERES +
-                         (long)sizeof(NPCCosmicString) * MAX_COSMIC_STRINGS +
-                         (long)sizeof(NPCDomainWall) * MAX_DOMAIN_WALLS +
-                         (long)sizeof(NPCDMHalo) * MAX_DM_HALO +
-                         (long)sizeof(NPCIGM) * MAX_IGM +
-                         (long)sizeof(NPCCGM) * MAX_CGM +
-                         (long)sizeof(NPCLymanAlpha) * MAX_LYMAN_ALPHA +
-                         (long)sizeof(NPCCMB) * MAX_CMB +
-                         (long)sizeof(ConnectedPlayer) * MAX_CLIENTS;
-    
-    if (actual_size < expected_data + (long)sizeof(int)) {
-        printf("CRITICAL: galaxy.dat is smaller than expected (%ld < %ld).\n", actual_size, expected_data + (long)sizeof(int));
-        printf("HINT: This is likely due to the new 64-byte alignment in Rel 16. Delete galaxy.dat and restart server.\n");
-    }
-
-#define CHECK_READ(ptr, size, count, stream) \
-    if (fread(ptr, size, count, stream) != (size_t)(count)) { \
-        fprintf(stderr, "Error reading from galaxy.dat\n"); \
-        fclose(stream); return 1; \
-    }
-
-    CHECK_READ(&spacegl_master, sizeof(SpaceGLGame), 1, f);
-    CHECK_READ(npcs, sizeof(NPCShip), MAX_NPC, f);
-    CHECK_READ(stars_data, sizeof(NPCStar), MAX_STARS, f);
-    CHECK_READ(black_holes, sizeof(NPCBlackHole), MAX_BH, f);
-    CHECK_READ(planets, sizeof(NPCPlanet), MAX_PLANETS, f);
-    CHECK_READ(bases, sizeof(NPCBase), MAX_BASES, f);
-    CHECK_READ(nebulas, sizeof(NPCNebula), MAX_NEBULAS, f);
-    CHECK_READ(pulsars, sizeof(NPCPulsar), MAX_PULSARS, f);
-    CHECK_READ(quasars, sizeof(NPCQuasar), MAX_QUASARS, f);
-    CHECK_READ(comets, sizeof(NPCComet), MAX_COMETS, f);
-    CHECK_READ(asteroids, sizeof(NPCAsteroid), MAX_ASTEROIDS, f);
-    CHECK_READ(derelicts, sizeof(NPCDerelict), MAX_DERELICTS, f);
-    CHECK_READ(mines, sizeof(NPCMine), MAX_MINES, f);
-    CHECK_READ(buoys, sizeof(NPCBuoy), MAX_BUOYS, f);
-    CHECK_READ(platforms, sizeof(NPCPlatform), MAX_PLATFORMS, f);
-    CHECK_READ(rifts, sizeof(NPCRift), MAX_RIFTS, f);
-    CHECK_READ(monsters, sizeof(NPCMonster), MAX_MONSTERS, f);
-    CHECK_READ(dysons, sizeof(NPCDyson), MAX_DYSON, f);
-    CHECK_READ(hubs, sizeof(NPCHub), MAX_HUBS, f);
-    CHECK_READ(relics, sizeof(NPCRelic), MAX_RELICS, f);
-    CHECK_READ(ruptures, sizeof(NPCRupture), MAX_RUPTURES, f);
-    CHECK_READ(satellites, sizeof(NPCSatellite), MAX_SATELLITES, f);
-    CHECK_READ(storms, sizeof(NPCStorm), MAX_STORMS, f);
-    CHECK_READ(artifacts, sizeof(NPCArtifact), MAX_ARTIFACTS, f);
-    CHECK_READ(warp_gates, sizeof(NPCWarpGate), MAX_WARP_GATES, f);
-    CHECK_READ(neutron_stars, sizeof(NPCNeutronStar), MAX_NEUTRON_STARS, f);
-    CHECK_READ(mega_structs, sizeof(NPCMegaStructure), MAX_MEGA_STRUCTS, f);
-    CHECK_READ(dark_clouds, sizeof(NPCDarkCloud), MAX_DARK_CLOUDS, f);
-    CHECK_READ(singularities, sizeof(NPCSingularity), MAX_SINGULARITIES, f);
-    CHECK_READ(plasma_storms, sizeof(NPCPlasmaStorm), MAX_PLASMA_STORMS, f);
-    CHECK_READ(orbital_rings, sizeof(NPCOrbitalRing), MAX_ORBITAL_RINGS, f);
-    CHECK_READ(time_anomalies, sizeof(NPCTimeAnomaly), MAX_TIME_ANOMALIES, f);
-    CHECK_READ(void_crystals, sizeof(NPCVoidCrystal), MAX_VOID_CRYSTALS, f);
-    CHECK_READ(subspace_anomalies, sizeof(NPCSubspaceAnomaly), MAX_SUBSPACE_ANOMALIES, f);
-    CHECK_READ(diffuse_nebulae, sizeof(NPCDiffuseNebula), MAX_DIFFUSE_NEBULAE, f);
-    CHECK_READ(dark_nebulae, sizeof(NPCDarkNebula), MAX_DARK_NEBULAE, f);
-    CHECK_READ(planetary_nebulae, sizeof(NPCPlanetaryNebula), MAX_PLANETARY_NEBULAE, f);
-    CHECK_READ(snrs, sizeof(NPCSNR), MAX_SNR, f);
-    CHECK_READ(gmcs, sizeof(NPCGMC), MAX_GMC, f);
-    CHECK_READ(interstellar_filaments, sizeof(NPCInterstellarFilament), MAX_INTERSTELLAR_FILAMENTS, f);
-    CHECK_READ(interstellar_bubbles, sizeof(NPCInterstellarBubble), MAX_INTERSTELLAR_BUBBLES, f);
-    CHECK_READ(bok_globules, sizeof(NPCBokGlobule), MAX_BOK_GLOBULES, f);
-    CHECK_READ(clump_cores, sizeof(NPCClumpCore), MAX_CLUMP_CORES, f);
-    CHECK_READ(accretion_disks, sizeof(NPCAccretionDisk), MAX_ACCRETION_DISKS, f);
-    CHECK_READ(relativistic_jets, sizeof(NPCRelativisticJet), MAX_RELATIVISTIC_JETS, f);
-    CHECK_READ(shock_waves, sizeof(NPCShockWave), MAX_SHOCK_WAVES, f);
-    CHECK_READ(stellar_bow_shocks, sizeof(NPCStellarBowShock), MAX_STELLAR_BOW_SHOCKS, f);
-    CHECK_READ(cosmic_voids, sizeof(NPCCosmicVoid), MAX_COSMIC_VOIDS, f);
-    CHECK_READ(cosmic_filaments, sizeof(NPCCosmicFilament), MAX_COSMIC_FILAMENTS, f);
-    CHECK_READ(event_horizons, sizeof(NPCEventHorizon), MAX_EVENT_HORIZONS, f);
-    CHECK_READ(kilonovae, sizeof(NPCKilonova), MAX_KILONOVAE, f);
-    CHECK_READ(grav_lenses, sizeof(NPCGravLens), MAX_GRAV_LENSES, f);
-    CHECK_READ(grbs, sizeof(NPCGRB), MAX_GRB, f);
-    CHECK_READ(grav_waves, sizeof(NPCGravWave), MAX_GRAV_WAVES, f);
-    CHECK_READ(protoplanetary_disks, sizeof(NPCProtoplanetaryDisk), MAX_PROTOPLANETARY_DISKS, f);
-    CHECK_READ(debris_disks, sizeof(NPCDebrisDisk), MAX_DEBRIS_DISKS, f);
-    CHECK_READ(planetesimals, sizeof(NPCPlanetesimal), MAX_PLANETESIMALS, f);
-    CHECK_READ(rogue_planets, sizeof(NPCRoguePlanet), MAX_ROGUE_PLANETS, f);
-    CHECK_READ(brown_dwarfs, sizeof(NPCBrownDwarf), MAX_BROWN_DWARFS, f);
-    CHECK_READ(isos, sizeof(NPCISO), MAX_ISO, f);
-    CHECK_READ(mag_reconns, sizeof(NPCMagReconn), MAX_MAG_RECONN, f);
-    CHECK_READ(current_sheets, sizeof(NPCCurrentSheet), MAX_CURRENT_SHEETS, f);
-    CHECK_READ(heliospheres, sizeof(NPCHeliosphere), MAX_HELIOSPHERES, f);
-    CHECK_READ(term_shocks, sizeof(NPCTermShock), MAX_TERM_SHOCKS, f);
-    CHECK_READ(magnetospheres, sizeof(NPCMagnetosphere), MAX_MAGNETOSPHERES, f);
-    CHECK_READ(cosmic_strings, sizeof(NPCCosmicString), MAX_COSMIC_STRINGS, f);
-    CHECK_READ(domain_walls, sizeof(NPCDomainWall), MAX_DOMAIN_WALLS, f);
-    CHECK_READ(dm_halos, sizeof(NPCDMHalo), MAX_DM_HALO, f);
-    CHECK_READ(igms, sizeof(NPCIGM), MAX_IGM, f);
-    CHECK_READ(cgms, sizeof(NPCCGM), MAX_CGM, f);
-    CHECK_READ(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
-    CHECK_READ(cmbs, sizeof(NPCCMB), MAX_CMB, f);
-    CHECK_READ(&sys_star_count, sizeof(int), 1, f);   /* star systems: count + sys_stars + sys_planets + sys_moons */
-    if (sys_star_count < 0 || sys_star_count > SYS_MAX_STARS) { printf("corrupt star system count\n"); fclose(f); return 1; }
-    CHECK_READ(sys_stars, sizeof(NPCSysStar), (size_t)sys_star_count, f);
-    CHECK_READ(sys_planets, sizeof(NPCSysPlanet), (size_t)sys_star_count * SYS_PLANETS_PER_STAR, f);
-    CHECK_READ(sys_moons, sizeof(NPCSysMoon), (size_t)sys_star_count * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET, f);
-    if (fread(&cosmic_feature_count, sizeof(int), 1, f) != 1) { cosmic_feature_count = 0; }
-    /* Dynamically read cosmic_features handling legacy size (1024) and current size (MAX_COSMIC_FEATURES) */
-    memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
-    long feat_pos = ftell(f);
-    fseek(f, 0, SEEK_END);
-    long file_size = ftell(f);
-    fseek(f, feat_pos, SEEK_SET);
-    long remaining_bytes = file_size - feat_pos;
-    long players_bytes = (long)sizeof(ConnectedPlayer) * MAX_CLIENTS;
-    long available_feat_bytes = remaining_bytes - players_bytes;
-    int feats_in_file = (available_feat_bytes > 0) ? (int)(available_feat_bytes / sizeof(NPCCosmicFeature)) : 0;
-    if (feats_in_file > MAX_COSMIC_FEATURES) feats_in_file = MAX_COSMIC_FEATURES;
-    if (feats_in_file > 0) {
-        if (fread(cosmic_features, sizeof(NPCCosmicFeature), feats_in_file, f) != (size_t)feats_in_file) {
-            memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
-        }
-    }
-    CHECK_READ(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
-    fclose(f);
 
     if (argc < 2) {
         print_help();
@@ -679,7 +496,7 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < MAX_VOID_CRYSTALS; i++) if (void_crystals[i].active) voi_active++;
 
         printf("--- Galaxy Statistics ---\n");
-        printf("Version: %d\n", version);
+        printf("Version: %u\n", version);
         printf("Security & Cryptographic Telemetry:\n");
         if (spacegl_master.encryption_flags & 0x01) {
             printf("  [INTEGRITY]  Signature: HMAC-SHA256 (verified by the command deck at login)\n");

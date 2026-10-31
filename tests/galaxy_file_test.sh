@@ -18,13 +18,19 @@
 #   4. a section whose element size changed is skipped, the rest is loaded;
 #   5. a corrupt file makes the server generate a new galaxy, no crash.
 #
-# Usage: galaxy_file_test.sh [server_bin]     Exit: 0 pass, 1 fail, 77 skip.
+#   6. the offline inspector spacegl_viewer reads the same galaxy.dat
+#      (the server's own reader since 2026.10.31.31) and reports the same
+#      planets and star systems as the server.
+#
+# Usage: galaxy_file_test.sh [server_bin [viewer_bin]]
+# Exit: 0 pass, 1 fail, 77 skip.
 
 set -u
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 SERVER_BIN="${1:-$REPO_ROOT/build/spacegl_server}"
+VIEWER_BIN="${2:-$(dirname "$SERVER_BIN")/spacegl_viewer}"
 [ -x "$SERVER_BIN" ] || { echo "SKIP: spacegl_server binary not found"; exit 77; }
 command -v python3 >/dev/null 2>&1 || { echo "SKIP: python3 not available"; exit 77; }
 
@@ -116,6 +122,20 @@ check "it is moved back inside its quadrant"   grep -q "1 protostellar objects m
 check "a star system against a face is moved"  grep -q "1 star systems moved inside their quadrant" "$WORK/2b.log"
 check "restart after the repair"               run_server "$WORK/2c.log"
 check "the repair was saved"                   not_grep "moved back inside their quadrant\|star systems moved" "$WORK/2c.log"
+
+# 2d. the inspector reads the same file
+if [ -x "$VIEWER_BIN" ]; then
+    (cd "$DATA" && "$VIEWER_BIN" stats) > "$WORK/viewer.txt" 2>&1
+    check "spacegl_viewer reads galaxy.dat"      grep -q "^--- Galaxy Statistics ---" "$WORK/viewer.txt"
+    v_planets=$(awk '/^  Planets:/ { print $2 }' "$WORK/viewer.txt")
+    s_planets=$(grep -oE "Planets: *[0-9]+" "$WORK/2c.log" | head -n 1 | grep -oE "[0-9]+$")
+    check "viewer: the server's planets ($s_planets)" test -n "$v_planets" -a "$v_planets" = "$s_planets"
+    v_systems=$(awk '/^  Star systems:/ { print $3 }' "$WORK/viewer.txt")
+    s_systems=$(grep -oE "SYSTEM STARS *\| READY *\| *[0-9]+" "$WORK/2c.log" | head -n 1 | grep -oE "[0-9]+$")
+    check "viewer: the server's star systems ($s_systems)" test -n "$v_systems" -a "$v_systems" = "$s_systems"
+else
+    echo "skip - spacegl_viewer not built"
+fi
 
 # 3. format 1 (version int + the payloads in the same order) -> refused
 python3 - "$DATA/galaxy.dat" "$WORK/v1.dat" <<'EOF'

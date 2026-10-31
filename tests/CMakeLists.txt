@@ -817,6 +817,7 @@ add_executable(server_commands_test
     ${SG_ROOT}/src/server/galaxy_index.c
     ${SG_ROOT}/src/server/galaxy_names.c
     ${SG_ROOT}/src/server/galaxy_io.c
+    ${SG_ROOT}/src/server/galaxy_file.c
     ${SG_ROOT}/src/server/log.c
     ${SG_ROOT}/src/sglog.c)
 target_link_libraries(server_commands_test PRIVATE m Threads::Threads OpenSSL::Crypto)
@@ -864,7 +865,7 @@ endif()
 if(TARGET spacegl_server)
     add_test(NAME galaxy_file
              COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/galaxy_file_test.sh"
-                     $<TARGET_FILE:spacegl_server>)
+                     $<TARGET_FILE:spacegl_server> $<TARGET_FILE:spacegl_viewer>)
     set_tests_properties(galaxy_file PROPERTIES
         RUN_SERIAL TRUE
         TIMEOUT 180

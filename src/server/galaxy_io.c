@@ -3,10 +3,11 @@
  * Copyright (C) 2026 Nicola Taibi
  * License: GPL-3.0-or-later
  *
- * galaxy_io.c — galaxy persistence: the galaxy.dat file format, the save
- * (an in-memory image built under the lock, written by the thread pool to a
- * temporary file, fsync'd and renamed), the save requests of other threads
- * and the load, of the current format and of the previous one.
+ * galaxy_io.c — galaxy persistence: the save (an in-memory image built
+ * under the lock, written by the thread pool to a temporary file, fsync'd
+ * and renamed), the save requests of other threads and the load policy
+ * (repairs, completion of empty families, report, index). The file format
+ * itself is galaxy_file.c (2026.10.31.31).
  * Split from galaxy.c (2026.10.31.16); file format 2 since 2026.10.31.19.
  */
 
@@ -30,204 +31,10 @@
 #include <stdint.h>
 #include <sys/stat.h>
 
-/* ------------------------------------------------------------------------
- * galaxy.dat format 2 (2026.10.31.19)
- *
- *   GalaxyFileHeader   magic "SGGALAX2", format 2, GALAXY_VERSION, section
- *                      count
- *   then, per section: GalaxySectionHeader (tag, element size, layout,
- *                      element count) followed by element size x count bytes
- *
- * Format 1 was a raw dump of every pool in a fixed order behind a single
- * int (GALAXY_VERSION): any change to any persisted struct made the whole
- * file unreadable and the server generated a new galaxy, losing every
- * captain's ship and the state of the world. Now each pool is read on its
- * own: a section whose element size or layout number no longer matches is
- * skipped (that pool starts empty and the usual completion spawners refill
- * the families they know), an unknown section is skipped, a missing one
- * leaves its pool empty. Only "master" is required. Rule for developers:
- * changing the fields of a persisted struct without changing its size
- * needs its layout number bumped in GALAXY_SECTION_LAYOUT (below).
- *
- * Only format 2 is read (2026.10.31.25): a file in format 1 or any other
- * content is not loaded and the server generates a new galaxy.
- * ---------------------------------------------------------------------- */
-#define GALAXY_FILE_MAGIC   "SGGALAX2"
-#define GALAXY_FILE_FORMAT  2u
-#define GALAXY_SECTION_LAYOUT 1u   /* bump per section when a struct changes in place */
-
-typedef struct {
-    char magic[8];
-    uint32_t format;
-    uint32_t galaxy_version;
-    uint32_t section_count;
-    uint32_t reserved;
-} GalaxyFileHeader;
-
-typedef struct {
-    char tag[24];
-    uint32_t elem_size;
-    uint32_t layout;
-    uint64_t count;
-} GalaxySectionHeader;
-
-_Static_assert(sizeof(GalaxyFileHeader) == 24, "galaxy.dat header layout");
-_Static_assert(sizeof(GalaxySectionHeader) == 40, "galaxy.dat section header layout");
-
-/* The fixed-size pools, in file order. */
-#define GALAXY_FIXED_POOLS(X) \
-    X(npcs, NPCShip, MAX_NPC) \
-    X(stars_data, NPCStar, MAX_STARS) \
-    X(black_holes, NPCBlackHole, MAX_BH) \
-    X(planets, NPCPlanet, MAX_PLANETS) \
-    X(bases, NPCBase, MAX_BASES) \
-    X(nebulas, NPCNebula, MAX_NEBULAS) \
-    X(pulsars, NPCPulsar, MAX_PULSARS) \
-    X(quasars, NPCQuasar, MAX_QUASARS) \
-    X(comets, NPCComet, MAX_COMETS) \
-    X(asteroids, NPCAsteroid, MAX_ASTEROIDS) \
-    X(derelicts, NPCDerelict, MAX_DERELICTS) \
-    X(mines, NPCMine, MAX_MINES) \
-    X(buoys, NPCBuoy, MAX_BUOYS) \
-    X(platforms, NPCPlatform, MAX_PLATFORMS) \
-    X(rifts, NPCRift, MAX_RIFTS) \
-    X(monsters, NPCMonster, MAX_MONSTERS) \
-    X(dysons, NPCDyson, MAX_DYSON) \
-    X(hubs, NPCHub, MAX_HUBS) \
-    X(relics, NPCRelic, MAX_RELICS) \
-    X(ruptures, NPCRupture, MAX_RUPTURES) \
-    X(satellites, NPCSatellite, MAX_SATELLITES) \
-    X(storms, NPCStorm, MAX_STORMS) \
-    X(artifacts, NPCArtifact, MAX_ARTIFACTS) \
-    X(warp_gates, NPCWarpGate, MAX_WARP_GATES) \
-    X(neutron_stars, NPCNeutronStar, MAX_NEUTRON_STARS) \
-    X(mega_structs, NPCMegaStructure, MAX_MEGA_STRUCTS) \
-    X(dark_clouds, NPCDarkCloud, MAX_DARK_CLOUDS) \
-    X(singularities, NPCSingularity, MAX_SINGULARITIES) \
-    X(plasma_storms, NPCPlasmaStorm, MAX_PLASMA_STORMS) \
-    X(orbital_rings, NPCOrbitalRing, MAX_ORBITAL_RINGS) \
-    X(time_anomalies, NPCTimeAnomaly, MAX_TIME_ANOMALIES) \
-    X(void_crystals, NPCVoidCrystal, MAX_VOID_CRYSTALS) \
-    X(subspace_anomalies, NPCSubspaceAnomaly, MAX_SUBSPACE_ANOMALIES) \
-    X(diffuse_nebulae, NPCDiffuseNebula, MAX_DIFFUSE_NEBULAE) \
-    X(dark_nebulae, NPCDarkNebula, MAX_DARK_NEBULAE) \
-    X(planetary_nebulae, NPCPlanetaryNebula, MAX_PLANETARY_NEBULAE) \
-    X(snrs, NPCSNR, MAX_SNR) \
-    X(gmcs, NPCGMC, MAX_GMC) \
-    X(interstellar_filaments, NPCInterstellarFilament, MAX_INTERSTELLAR_FILAMENTS) \
-    X(interstellar_bubbles, NPCInterstellarBubble, MAX_INTERSTELLAR_BUBBLES) \
-    X(bok_globules, NPCBokGlobule, MAX_BOK_GLOBULES) \
-    X(clump_cores, NPCClumpCore, MAX_CLUMP_CORES) \
-    X(accretion_disks, NPCAccretionDisk, MAX_ACCRETION_DISKS) \
-    X(relativistic_jets, NPCRelativisticJet, MAX_RELATIVISTIC_JETS) \
-    X(shock_waves, NPCShockWave, MAX_SHOCK_WAVES) \
-    X(stellar_bow_shocks, NPCStellarBowShock, MAX_STELLAR_BOW_SHOCKS) \
-    X(cosmic_voids, NPCCosmicVoid, MAX_COSMIC_VOIDS) \
-    X(cosmic_filaments, NPCCosmicFilament, MAX_COSMIC_FILAMENTS) \
-    X(event_horizons, NPCEventHorizon, MAX_EVENT_HORIZONS) \
-    X(kilonovae, NPCKilonova, MAX_KILONOVAE) \
-    X(grav_lenses, NPCGravLens, MAX_GRAV_LENSES) \
-    X(grbs, NPCGRB, MAX_GRB) \
-    X(grav_waves, NPCGravWave, MAX_GRAV_WAVES) \
-    X(protoplanetary_disks, NPCProtoplanetaryDisk, MAX_PROTOPLANETARY_DISKS) \
-    X(debris_disks, NPCDebrisDisk, MAX_DEBRIS_DISKS) \
-    X(planetesimals, NPCPlanetesimal, MAX_PLANETESIMALS) \
-    X(rogue_planets, NPCRoguePlanet, MAX_ROGUE_PLANETS) \
-    X(brown_dwarfs, NPCBrownDwarf, MAX_BROWN_DWARFS) \
-    X(isos, NPCISO, MAX_ISO) \
-    X(mag_reconns, NPCMagReconn, MAX_MAG_RECONN) \
-    X(current_sheets, NPCCurrentSheet, MAX_CURRENT_SHEETS) \
-    X(heliospheres, NPCHeliosphere, MAX_HELIOSPHERES) \
-    X(term_shocks, NPCTermShock, MAX_TERM_SHOCKS) \
-    X(magnetospheres, NPCMagnetosphere, MAX_MAGNETOSPHERES) \
-    X(cosmic_strings, NPCCosmicString, MAX_COSMIC_STRINGS) \
-    X(domain_walls, NPCDomainWall, MAX_DOMAIN_WALLS) \
-    X(dm_halos, NPCDMHalo, MAX_DM_HALO) \
-    X(igms, NPCIGM, MAX_IGM) \
-    X(cgms, NPCCGM, MAX_CGM) \
-    X(lyman_alphas, NPCLymanAlpha, MAX_LYMAN_ALPHA) \
-    X(cmbs, NPCCMB, MAX_CMB) \
-    /* end */
-
-typedef struct {
-    const char *tag;
-    void *ptr;
-    size_t elem_size;
-    size_t count;        /* elements written / capacity when reading */
-    bool required;
-} GalaxySection;
-
-static int galaxy_sys_star_count_snapshot;   /* counts, as sections */
-static int galaxy_cosmic_count_snapshot;
-
-/* The sections, for saving (counts = what is stored now) or for loading
- * (counts = capacities). Returns how many were filled in. */
-static int galaxy_sections(GalaxySection *sec, int cap, bool for_load) {
-    int n = 0;
-#define GALAXY_SEC(TAG, PTR, ESIZE, COUNT, REQ) \
-    do { if (n < cap) sec[n++] = (GalaxySection){ (TAG), (PTR), (ESIZE), (COUNT), (REQ) }; } while (0)
-    GALAXY_SEC("master", &spacegl_master, sizeof(SpaceGLGame), 1, true);
-#define X(NAME, TYPE, MAX) GALAXY_SEC(#NAME, NAME, sizeof(TYPE), (MAX), false);
-    GALAXY_FIXED_POOLS(X)
-#undef X
-    size_t ns = for_load ? (size_t)SYS_MAX_STARS : (size_t)sys_star_count;
-    GALAXY_SEC("sys_star_count", &galaxy_sys_star_count_snapshot, sizeof(int), 1, false);
-    GALAXY_SEC("sys_stars", sys_stars, sizeof(NPCSysStar), ns, false);
-    GALAXY_SEC("sys_planets", sys_planets, sizeof(NPCSysPlanet), ns * SYS_PLANETS_PER_STAR, false);
-    GALAXY_SEC("sys_moons", sys_moons, sizeof(NPCSysMoon), ns * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET, false);
-    GALAXY_SEC("cosmic_feature_count", &galaxy_cosmic_count_snapshot, sizeof(int), 1, false);
-    GALAXY_SEC("cosmic_features", cosmic_features, sizeof(NPCCosmicFeature), MAX_COSMIC_FEATURES, false);
-    GALAXY_SEC("players", players, sizeof(ConnectedPlayer), MAX_CLIENTS, false);
-#undef GALAXY_SEC
-    return n;
-}
-#define GALAXY_MAX_SECTIONS 96
+/* The file format (header, sections, image, reader): galaxy_file.c. */
+#include "galaxy_file.h"
 
 static atomic_bool g_is_saving = false;
-
-typedef struct {
-    uint8_t *data;
-    size_t len;
-} GalaxyImage;
-
-/* Build the whole file in memory (caller holds game_mutex, or nothing else
- * runs: boot, shutdown). One memcpy per pool: the disk write happens later,
- * off the lock. */
-static GalaxyImage *galaxy_image_build(void) {
-    GalaxySection sec[GALAXY_MAX_SECTIONS];
-    galaxy_sys_star_count_snapshot = sys_star_count;
-    galaxy_cosmic_count_snapshot = cosmic_feature_count;
-    int n = galaxy_sections(sec, GALAXY_MAX_SECTIONS, false);
-    size_t total = sizeof(GalaxyFileHeader);
-    for (int i = 0; i < n; i++) total += sizeof(GalaxySectionHeader) + sec[i].elem_size * sec[i].count;
-
-    GalaxyImage *img = malloc(sizeof(GalaxyImage));
-    if (!img) return NULL;
-    img->data = malloc(total);
-    if (!img->data) { free(img); return NULL; }
-    img->len = total;
-
-    uint8_t *p = img->data;
-    GalaxyFileHeader fh;
-    memset(&fh, 0, sizeof(fh));
-    memcpy(fh.magic, GALAXY_FILE_MAGIC, 8);
-    fh.format = GALAXY_FILE_FORMAT;
-    fh.galaxy_version = GALAXY_VERSION;
-    fh.section_count = (uint32_t)n;
-    memcpy(p, &fh, sizeof(fh)); p += sizeof(fh);
-    for (int i = 0; i < n; i++) {
-        GalaxySectionHeader sh;
-        memset(&sh, 0, sizeof(sh));
-        snprintf(sh.tag, sizeof(sh.tag), "%s", sec[i].tag);
-        sh.elem_size = (uint32_t)sec[i].elem_size;
-        sh.layout = GALAXY_SECTION_LAYOUT;
-        sh.count = sec[i].count;
-        memcpy(p, &sh, sizeof(sh)); p += sizeof(sh);
-        size_t bytes = sec[i].elem_size * sec[i].count;
-        if (bytes) { memcpy(p, sec[i].ptr, bytes); p += bytes; }
-    }
-    return img;
-}
 
 /* Write the image to galaxy.dat.tmp, fsync, rename over galaxy.dat: a
  * crash in the middle leaves the previous galaxy.dat intact. */
@@ -279,8 +86,7 @@ static void galaxy_save_finish(GalaxyImage *img) {
         if (ts) ts[strlen(ts)-1] = '\0';
         slog("--- [%s] GALAXY SAVED ASYNCHRONOUSLY (POOL) ---\n", ts);
     }
-    free(img->data);
-    free(img);
+    galaxy_file_image_free(img);
     atomic_store(&g_is_saving, false);
 }
 
@@ -299,7 +105,7 @@ void save_galaxy_async() {
     bool expected = false;
     if (!atomic_compare_exchange_strong(&g_is_saving, &expected, true)) return;
 
-    GalaxyImage *img = galaxy_image_build();
+    GalaxyImage *img = galaxy_file_image();
     if (!img) {
         slog("ERROR: galaxy save: out of memory for the save image\n");
         atomic_store(&g_is_saving, false);
@@ -338,84 +144,9 @@ void save_galaxy() {
     save_galaxy_async();
 }
 
-static bool galaxy_skip(FILE *f, uint64_t bytes) {
-    return fseeko(f, (off_t)bytes, SEEK_CUR) == 0;
-}
-
-/* Format 2 reader. Returns 1 when the galaxy was loaded (possibly with
- * some pools left empty), 0 when it must be generated anew. */
-static int load_galaxy_v2(FILE *f) {
-    GalaxyFileHeader fh;
-    if (fread(&fh, sizeof(fh), 1, f) != 1 || memcmp(fh.magic, GALAXY_FILE_MAGIC, 8) != 0 ||
-        fh.format != GALAXY_FILE_FORMAT || fh.section_count > 4096) {
-        printf("--- GALAXY FILE: bad header ---\n");
-        return 0;
-    }
-    GalaxySection sec[GALAXY_MAX_SECTIONS];
-    int n = galaxy_sections(sec, GALAXY_MAX_SECTIONS, true);
-    bool seen[GALAXY_MAX_SECTIONS] = { false };
-    uint64_t file_count[GALAXY_MAX_SECTIONS] = { 0 };
-    galaxy_sys_star_count_snapshot = 0;
-    galaxy_cosmic_count_snapshot = 0;
-    for (int i = 0; i < n; i++) memset(sec[i].ptr, 0, sec[i].elem_size * sec[i].count);
-
-    int skipped = 0;
-    for (uint32_t s = 0; s < fh.section_count; s++) {
-        GalaxySectionHeader sh;
-        if (fread(&sh, sizeof(sh), 1, f) != 1) { printf("--- GALAXY FILE: truncated ---\n"); return 0; }
-        sh.tag[sizeof(sh.tag) - 1] = '\0';
-        if (sh.elem_size == 0 || sh.count > (uint64_t)1 << 32) { printf("--- GALAXY FILE: corrupt section '%s' ---\n", sh.tag); return 0; }
-        uint64_t bytes = (uint64_t)sh.elem_size * sh.count;
-        int k = -1;
-        for (int i = 0; i < n; i++) if (strcmp(sec[i].tag, sh.tag) == 0) { k = i; break; }
-        if (k < 0 || seen[k]) {
-            printf("[GALAXY] section '%s' not used by this version: skipped\n", sh.tag);
-            if (!galaxy_skip(f, bytes)) return 0;
-            skipped++;
-            continue;
-        }
-        seen[k] = true;
-        if (sh.elem_size != sec[k].elem_size || sh.layout != GALAXY_SECTION_LAYOUT) {
-            printf("[GALAXY] section '%s': layout changed (element %u B, layout %u; now %zu B, layout %u): pool starts empty\n",
-                   sh.tag, sh.elem_size, sh.layout, sec[k].elem_size, GALAXY_SECTION_LAYOUT);
-            if (sec[k].required) return 0;
-            seen[k] = false;
-            if (!galaxy_skip(f, bytes)) return 0;
-            skipped++;
-            continue;
-        }
-        file_count[k] = sh.count;
-        uint64_t take = sh.count < sec[k].count ? sh.count : sec[k].count;
-        if (take && fread(sec[k].ptr, sec[k].elem_size, (size_t)take, f) != (size_t)take) {
-            printf("--- GALAXY FILE: section '%s' truncated ---\n", sh.tag);
-            return 0;
-        }
-        if (sh.count > take && !galaxy_skip(f, (sh.count - take) * sh.elem_size)) return 0;
-    }
-    for (int i = 0; i < n; i++) {
-        if (!seen[i] && sec[i].required) { printf("--- GALAXY FILE: section '%s' missing ---\n", sec[i].tag); return 0; }
-    }
-
-    /* counts: validated against what the sections actually carried */
-    int ns = galaxy_sys_star_count_snapshot;   /* 0 when the section is absent */
-    bool sys_ok = ns >= 0 && ns <= SYS_MAX_STARS;
-    for (int i = 0; i < n && sys_ok; i++) {
-        uint64_t want;
-        if (strcmp(sec[i].tag, "sys_star_count") == 0) want = 1;
-        else if (strcmp(sec[i].tag, "sys_stars") == 0) want = (uint64_t)ns;
-        else if (strcmp(sec[i].tag, "sys_planets") == 0) want = (uint64_t)ns * SYS_PLANETS_PER_STAR;
-        else if (strcmp(sec[i].tag, "sys_moons") == 0) want = (uint64_t)ns * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET;
-        else continue;
-        if (!seen[i] || file_count[i] != want) sys_ok = false;
-    }
-    if (!sys_ok) {
-        if (ns != 0) printf("[GALAXY] star systems not loadable: they will be generated again\n");
-        memset(sys_stars, 0, sizeof(sys_stars));
-        memset(sys_planets, 0, sizeof(sys_planets));
-        memset(sys_moons, 0, sizeof(sys_moons));
-        ns = 0;
-    }
-    sys_star_count = ns;
+/* Load repairs of galaxies written by older versions (the format is the
+ * same; only some positions were wrong). */
+static void galaxy_repair_after_read(void) {
     /* A system generated before 2026.10.31.28 may reach past a quadrant
      * face (its radius took only the outermost planet's envelope): move
      * its star inward until the whole reach fits, orbits unchanged. */
@@ -448,10 +179,6 @@ static int load_galaxy_v2(FILE *f) {
         if (moved > 0) printf("[GALAXY] %d star systems moved inside their quadrant\n", moved);
     }
     { double t_ = sys_clock_s(); for (int s_ = 0; s_ < sys_star_count; s_++) sys_refresh_positions(s_, t_); }
-    cosmic_feature_count = galaxy_cosmic_count_snapshot;
-    if (cosmic_feature_count < 0 || cosmic_feature_count > MAX_COSMIC_FEATURES) cosmic_feature_count = 0;
-    if (skipped) printf("[GALAXY] %d section(s) skipped: the galaxy is completed below\n", skipped);
-    return 1;
 }
 
 /* After the load: complete the families a skipped section left empty, reset
@@ -667,18 +394,15 @@ int load_galaxy() {
     server_data_path(galaxy_path, sizeof(galaxy_path), "galaxy.dat");
     FILE *f = fopen(galaxy_path, "rb");
     if (!f) return 0;
-    char magic[8] = { 0 };
-    size_t got = fread(magic, 1, sizeof(magic), f);
-    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return 0; }
-    if (got != sizeof(magic) || memcmp(magic, GALAXY_FILE_MAGIC, 8) != 0) {
+    int r = galaxy_file_read(f, NULL);
+    fclose(f);
+    if (r == GALAXY_FILE_NOT_FORMAT2) {
         /* format 1 (the raw dump before 2026.10.31.19) or not a galaxy file */
         printf("--- GALAXY FILE NOT IN FORMAT 2 (old format or corrupt): a new galaxy is generated ---\n");
-        fclose(f);
         return 0;
     }
-    int ok = load_galaxy_v2(f);
-    fclose(f);
-    if (!ok) return 0;
+    if (r != GALAXY_FILE_OK) return 0;
+    galaxy_repair_after_read();
     /* no star systems after the load (a file whose star-system sections were
      * skipped): generate
      * them, in the quadrants that are still empty */

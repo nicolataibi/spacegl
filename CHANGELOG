@@ -1,3 +1,16 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.31
+  - Fix: the offline inspector spacegl_viewer (stats, map, list, players,
+  search, report) kept its own reader of galaxy.dat format 1, the raw dump
+  replaced by format 2 in 2026.10.31.19, so it could not read any galaxy
+  since: it reported a version mismatch and parsed the sections as raw
+  pools. The format now lives in its own module, src/server/galaxy_file.c
+  (section table, save image, reader, no policy), shared by the server and
+  the inspector; src/server/galaxy_io.c keeps the save scheduling and the
+  load policy (repairs, completion, report, index). The server's behaviour
+  is unchanged.
+  - galaxy_file test step 2d: the inspector reads the file the server saved
+  and reports the same planets and star systems. DEVELOPMENT.md section 8.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.30
   - Network, roadmap phase 5: per-object delta of the quadrant object list
   (UPD_OBJDELTA, include/obj_delta.h, shared by server and deck). Until now
