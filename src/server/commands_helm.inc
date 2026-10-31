@@ -38,7 +38,7 @@ void handle_pow(int i, const char *params, bool *should_disconnect) {
             players[i].state.power_dist[2] = w / total;
             players[i].state.energy -= COST_ACTION_MED;
             char msg[128];
-            sprintf(msg, "Power distribution stabilized: E:%.0f%% S:%.0f%% W:%.0f%%.", 
+            SG_SPRINTF(msg, "Power distribution stabilized: E:%.0f%% S:%.0f%% W:%.0f%%.", 
                     players[i].state.power_dist[0]*(double)YIELD_HARVEST_MAX, players[i].state.power_dist[1]*(double)YIELD_HARVEST_MAX, players[i].state.power_dist[2]*(double)YIELD_HARVEST_MAX);
             send_server_msg(i, "ENGINEERING", msg);
         } else send_server_msg(i, "COMPUTER", "Invalid power distribution ratio.");
@@ -64,7 +64,7 @@ void handle_nav(int i, const char *params, bool *should_disconnect) {
         }
         if (players[i].state.energy < COST_HYPERDRIVE_INIT || players[i].state.inventory[1] < 1) {
             char err_msg[128];
-            sprintf(err_msg, "Insufficient resources for Hyperdrive (Req: %d Energy, 1 Aetherium).", COST_HYPERDRIVE_INIT);
+            SG_SPRINTF(err_msg, "Insufficient resources for Hyperdrive (Req: %d Energy, 1 Aetherium).", COST_HYPERDRIVE_INIT);
             send_server_msg(i, "COMPUTER", err_msg);
             return;
         }
@@ -94,7 +94,7 @@ void handle_nav(int i, const char *params, bool *should_disconnect) {
         while(dh<-180) dh+=360;
         players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0) ? (GAME_TICK_RATE / 6) : (int)GAME_TICK_RATE;
         players[i].align_timer = players[i].nav_timer;
-        char msg[128]; sprintf(msg, "Course plotted. Aligning for Hyperdrive %.1f.", factor);
+        char msg[128]; SG_SPRINTF(msg, "Course plotted. Aligning for Hyperdrive %.1f.", factor);
         send_server_msg(i, "HELMSMAN", msg);
     } else send_server_msg(i, "COMPUTER", "Usage: nav <H> <M> <W> [Factor]");
 }
@@ -131,7 +131,7 @@ void handle_imp(int i, const char *params, bool *should_disconnect) {
             players[i].dy = cos(rad_m) * -cos(rad_h); 
             players[i].dz = sin(rad_m);
             
-            char msg[64]; sprintf(msg, "Impulse adjusted to %.0f%%.", players[i].hyper_speed * COEFF_IMPULSE_DIVISOR);
+            char msg[64]; SG_SPRINTF(msg, "Impulse adjusted to %.0f%%.", players[i].hyper_speed * COEFF_IMPULSE_DIVISOR);
             send_server_msg(i, "HELMSMAN", msg); players[i].nav_state = NAV_STATE_IMPULSE;
         }
         players[i].state.energy -= (COST_ACTION_HIGH / (uint64_t)RATIO_ENERGY_REDUCTION);
@@ -166,8 +166,8 @@ void handle_imp(int i, const char *params, bool *should_disconnect) {
         } else {
             players[i].nav_state = NAV_STATE_ALIGN_IMPULSE;
             char msg[128];
-            if (args == 4) sprintf(msg, "Course plotted. Aligning for Impulse drive (Dist: %.2f).", dist);
-            else sprintf(msg, "Course plotted. Aligning for Impulse drive.");
+            if (args == 4) SG_SPRINTF(msg, "Course plotted. Aligning for Impulse drive (Dist: %.2f).", dist);
+            else SG_SPRINTF(msg, "Course plotted. Aligning for Impulse drive.");
             send_server_msg(i, "HELMSMAN", msg);
         }
         players[i].state.energy -= COST_ACTION_HIGH;
@@ -256,7 +256,7 @@ void handle_vec(int i, const char *params, bool *should_disconnect) {
     } else {
         players[i].nav_state = NAV_STATE_IMPULSE;
         char msg[64];
-        sprintf(msg, "Vector thrust engaged at %.0f%%.", players[i].hyper_speed * COEFF_IMPULSE_DIVISOR);
+        SG_SPRINTF(msg, "Vector thrust engaged at %.0f%%.", players[i].hyper_speed * COEFF_IMPULSE_DIVISOR);
         send_server_msg(i, "HELMSMAN", msg);
     }
     players[i].state.energy -= COST_ACTION_HIGH;
@@ -369,7 +369,7 @@ void handle_apr(int i, const char *params, bool *should_disconnect) {
                 
                 /* 4. Improved Feedback */
                 char msg[128];
-                sprintf(msg, "Autopilot engaged. Approaching %s at %.1f sector units.", target_name, tdist);
+                SG_SPRINTF(msg, "Autopilot engaged. Approaching %s at %.1f sector units.", target_name, tdist);
                 send_server_msg(i, "HELMSMAN", msg);
             } else send_server_msg(i, "COMPUTER", "Target already in range.");
         } else send_server_msg(i, "COMPUTER", "Target not found or obscured (Targets for 'apr' must be in current quadrant).");

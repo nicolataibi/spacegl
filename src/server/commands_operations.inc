@@ -60,7 +60,7 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
         /* 2. Energy Cost Check: 5000 units */
         if (players[i].state.energy < COST_BOARDING_INIT) { 
             char err_msg[128];
-            sprintf(err_msg, "Insufficient energy for massive matter transport (Req: %d).", COST_BOARDING_INIT);
+            SG_SPRINTF(err_msg, "Insufficient energy for massive matter transport (Req: %d).", COST_BOARDING_INIT);
             send_server_msg(i, "COMPUTER", err_msg); 
             return; 
         }
@@ -109,14 +109,14 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
                     char menu[512];
                     if (target->faction == players[i].faction) {
                         players[i].pending_bor_type = 1; /* Ally */
-                        sprintf(menu, CYAN "\n--- BOARDING MENU: ALLIED VESSEL (%s) ---\n" RESET 
+                        SG_SPRINTF(menu, CYAN "\n--- BOARDING MENU: ALLIED VESSEL (%s) ---\n" RESET 
                                "1: Transfer Energy (%d units)\n"
                                "2: Technical Support (Repair random system)\n"
                                "3: Reinforce Crew (Transfer 20 personnel)\n"
                                YELLOW "Type the number to confirm choice." RESET, target->name, DMG_TORPEDO_PLATFORM);
                     } else {
                         players[i].pending_bor_type = 2; /* Enemy */
-                        sprintf(menu, RED "\n--- BOARDING MENU: HOSTILE VESSEL (%s) ---\n" RESET 
+                        SG_SPRINTF(menu, RED "\n--- BOARDING MENU: HOSTILE VESSEL (%s) ---\n" RESET 
                                "1: Sabotage (Damage random system)\n"
                                "2: Raid Cargo (Steal random resources)\n"
                                "3: Take Hostages (Capture officers as prisoners)\n"
@@ -134,14 +134,14 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
                         players[i].pending_bor_type = 4;
                         char menu[512];
                         if (derelicts[d_idx].faction == players[i].faction) {
-                            sprintf(menu, CYAN "\n--- BOARDING MENU: ALLIED WRECK [%d] ---\n" RESET 
+                            SG_SPRINTF(menu, CYAN "\n--- BOARDING MENU: ALLIED WRECK [%d] ---\n" RESET 
                                    "1: Salvage Resources\n"
                                    "2: Recover Data (Map reveal)\n"
                                    "3: Field Repairs\n"
                                    "4: Rescue Survivors (Crew)\n"
                                    YELLOW "Type the number to confirm choice." RESET, tid);
                         } else {
-                            sprintf(menu, RED "\n--- BOARDING MENU: ALIEN WRECK [%d] ---\n" RESET 
+                            SG_SPRINTF(menu, RED "\n--- BOARDING MENU: ALIEN WRECK [%d] ---\n" RESET 
                                    "1: Salvage Resources\n"
                                    "2: Recover Data (Map reveal)\n"
                                    "3: Field Repairs\n"
@@ -153,7 +153,7 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
                         players[i].pending_bor_target = tid;
                         players[i].pending_bor_type = 3;
                         char menu[512];
-                        sprintf(menu, YELLOW "\n--- BOARDING MENU: DEFENSE PLATFORM [%d] ---\n" RESET 
+                        SG_SPRINTF(menu, YELLOW "\n--- BOARDING MENU: DEFENSE PLATFORM [%d] ---\n" RESET 
                                "1: Reprogram IFF\n"
                                "2: Overload Reactor\n"
                                "3: Salvage Tech\n"
@@ -170,7 +170,7 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
                         players[i].pending_bor_target = tid;
                         players[i].pending_bor_type = 2; /* Enemy */
                         char menu[512];
-                        sprintf(menu, RED "\n--- BOARDING MENU: HOSTILE NPC [%d] ---\n" RESET 
+                        SG_SPRINTF(menu, RED "\n--- BOARDING MENU: HOSTILE NPC [%d] ---\n" RESET 
                                "1: Sabotage Engines\n"
                                "2: Raid Cargo Bay\n"
                                "3: Take Hostages\n"
@@ -186,7 +186,7 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
                             int found_people = 5 + rand() % 25;
                             players[i].state.prison_unit += found_people;
                             char m[128];
-                            sprintf(m, "Success! Captured %d enemy prisoners.", found_people);
+                            SG_SPRINTF(m, "Success! Captured %d enemy prisoners.", found_people);
                             send_server_msg(i, "SECURITY", m);
                         }
                     }
@@ -228,7 +228,7 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
         /* 2. Energy Cost Check */
         if (players[i].state.energy < COST_ACTION_EXTREME) {
             char err_msg[128];
-            sprintf(err_msg, "Insufficient energy for structural dismantling operation (Req: %d).", COST_ACTION_EXTREME);
+            SG_SPRINTF(err_msg, "Insufficient energy for structural dismantling operation (Req: %d).", COST_ACTION_EXTREME);
             send_server_msg(i, "COMPUTER", err_msg);
             return;
         }
@@ -269,7 +269,7 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                     broadcast_server_event(players[i].state.q1, players[i].state.q2, players[i].state.q3, IPC_EV_DISMANTLE, rs1, rs2, rs3, 0, 0, 0, target_npc->faction);
                     
                     char msg[128];
-                    sprintf(msg, "Vessel dismantled. Recovered %" PRIu64 " Neo-Titanium and %" PRIu64 " Synaptics.", yield, yield / 5);
+                    SG_SPRINTF(msg, "Vessel dismantled. Recovered %" PRIu64 " Neo-Titanium and %" PRIu64 " Synaptics.", yield, yield / 5);
                     send_server_msg(i, "ENGINEERING", msg);
                     slog("[DISMANTLE] Player %d dismantled NPC %d (Yield: %" PRIu64 ")\n", i, tid, yield);
                     if (players[i].state.lock_target == tid) {
@@ -279,7 +279,7 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                 } else {
                     char err_msg[128];
                     double dist = sqrt(dx * dx + dy * dy + dz * dz);
-                    sprintf(err_msg, "Not in range for dismantling (Dist %.2f > %.1f).", dist, DIST_DISMANTLE_MAX);
+                    SG_SPRINTF(err_msg, "Not in range for dismantling (Dist %.2f > %.1f).", dist, DIST_DISMANTLE_MAX);
                     send_server_msg(i, "COMPUTER", err_msg);
                     slog("[DISMANTLE] Player %d failed NPC %d: Distance %.2f\n", i, tid, dist);
                     return;
@@ -316,7 +316,7 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                     broadcast_server_event(players[i].state.q1, players[i].state.q2, players[i].state.q3, IPC_EV_DISMANTLE, rs1, rs2, rs3, 0, 0, 0, derelicts[d_idx].faction);
                     
                     char msg[128];
-                    sprintf(msg, "Ancient wreck dismantled. Recovered %" PRIu64 " Neo-Titanium and %" PRIu64 " Synaptics.", yield, yield / 4);
+                    SG_SPRINTF(msg, "Ancient wreck dismantled. Recovered %" PRIu64 " Neo-Titanium and %" PRIu64 " Synaptics.", yield, yield / 4);
                     send_server_msg(i, "ENGINEERING", msg);
                     slog("[DISMANTLE] Player %d dismantled Derelict %d (Yield: %" PRIu64 ")\n", i, tid, yield);
                     if (players[i].state.lock_target == tid) {
@@ -326,7 +326,7 @@ void handle_dis(int i, const char *params, bool *should_disconnect) {
                 } else {
                     char err_msg[128];
                     double dist = sqrt(dx * dx + dy * dy + dz * dz);
-                    sprintf(err_msg, "Not in range for dismantling (Dist %.2f > %.1f).", dist, DIST_DISMANTLE_MAX);
+                    SG_SPRINTF(err_msg, "Not in range for dismantling (Dist %.2f > %.1f).", dist, DIST_DISMANTLE_MAX);
                     send_server_msg(i, "COMPUTER", err_msg);
                     slog("[DISMANTLE] Player %d failed Derelict %d: Distance %.2f\n", i, tid, dist);
                     return;
@@ -451,11 +451,11 @@ void handle_min(int i, const char *params, bool *should_disconnect) {
         
         /* 4. Improved Feedback */
         char msg[128];
-        sprintf(msg, "[RADIO] MINING: Collected %d units of %s. Extraction efficiency: %.0f%%.", final_yield, res_names[r_type], yield_mult * 100);
+        SG_SPRINTF(msg, "[RADIO] MINING: Collected %d units of %s. Extraction efficiency: %.0f%%.", final_yield, res_names[r_type], yield_mult * 100);
         send_server_msg(i, "GEOLOGY", msg);
     } else {
         char err_msg[128];
-        sprintf(err_msg, "No planet or asteroid in range for mining (< %.1f units; %.1f from the centre of a system planet).", DIST_INTERACTION_MAX, sys_interaction_range(sys_planet_hit_radius(), DIST_INTERACTION_MAX));
+        SG_SPRINTF(err_msg, "No planet or asteroid in range for mining (< %.1f units; %.1f from the centre of a system planet).", DIST_INTERACTION_MAX, sys_interaction_range(sys_planet_hit_radius(), DIST_INTERACTION_MAX));
         send_server_msg(i, "COMPUTER", err_msg);
     }
 }
@@ -517,12 +517,12 @@ void handle_sco(int i, const char *params, bool *should_disconnect) {
         }
         
         char msg[128];
-        sprintf(msg, "Solar energy harvested: %" PRIu64 " units stored in Cargo Bay. Collectors efficiency: %.0f%%.", (uint64_t)gain, (aux_h/(double)YIELD_HARVEST_MAX)*100);
+        SG_SPRINTF(msg, "Solar energy harvested: %" PRIu64 " units stored in Cargo Bay. Collectors efficiency: %.0f%%.", (uint64_t)gain, (aux_h/(double)YIELD_HARVEST_MAX)*100);
         send_server_msg(i, "ENGINEERING", msg); 
     } 
     else {
         char err_msg[128];
-        sprintf(err_msg, "No star in proximity range (< %.1f units; %.1f from the centre of a system star).", DIST_SCOOPING_MAX, sys_interaction_range(sys_star_hit_radius(), DIST_SCOOPING_MAX));
+        SG_SPRINTF(err_msg, "No star in proximity range (< %.1f units; %.1f from the centre of a system star).", DIST_SCOOPING_MAX, sys_interaction_range(sys_star_hit_radius(), DIST_SCOOPING_MAX));
         send_server_msg(i, "COMPUTER", err_msg);
     }
 }
@@ -583,12 +583,12 @@ void handle_har(int i, const char *params, bool *should_disconnect) {
         }
         
         char msg[128];
-        sprintf(msg, "Antimatter harvested: %" PRIu64 " units. Aetherium crystals: +%d. Containment efficiency: %.0f%%.", energy_gain, crystal_gain, efficiency * 100);
+        SG_SPRINTF(msg, "Antimatter harvested: %" PRIu64 " units. Aetherium crystals: +%d. Containment efficiency: %.0f%%.", energy_gain, crystal_gain, efficiency * 100);
         send_server_msg(i, "ENGINEERING", msg); 
     } 
     else {
         char err_msg[128];
-        sprintf(err_msg, "No black hole in proximity range (< %.1f units).", DIST_INTERACTION_MAX);
+        SG_SPRINTF(err_msg, "No black hole in proximity range (< %.1f units).", DIST_INTERACTION_MAX);
         send_server_msg(i, "COMPUTER", err_msg);
     }
 }
@@ -612,7 +612,7 @@ void handle_doc(int i, const char *params, bool *should_disconnect) {
             players[i].hyper_speed = 0;
             players[i].pending_bor_target = base_idx + GALAXY_OBJECT_MIN_STARBASE;
             char alert[256];
-            sprintf(alert, "\033[31m*** RED ALERT: UNAUTHORIZED DOCKING ATTEMPT DETECTED! %s DEFENSIVE BATTERIES ARE POWERING UP! ***\033[0m", get_species_name(bases[base_idx].faction));
+            SG_SPRINTF(alert, "\033[31m*** RED ALERT: UNAUTHORIZED DOCKING ATTEMPT DETECTED! %s DEFENSIVE BATTERIES ARE POWERING UP! ***\033[0m", get_species_name(bases[base_idx].faction));
             send_server_msg(i, "STARBASE", alert);
             return;
         }
@@ -653,7 +653,7 @@ void handle_con(int i, const char *params, bool *should_disconnect) {
     /* 1. Hardware Requirement: Auxiliary (ID 9) */
     if (players[i].state.system_health[9] < (THRESHOLD_SYS_CRITICAL + (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION))) {
         char err_msg[128];
-        sprintf(err_msg, "CONVERTER FAILURE: Auxiliary systems integrity too low (< %.0f%%).", (THRESHOLD_SYS_CRITICAL + (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION)));
+        SG_SPRINTF(err_msg, "CONVERTER FAILURE: Auxiliary systems integrity too low (< %.0f%%).", (THRESHOLD_SYS_CRITICAL + (THRESHOLD_SYS_CRITICAL / RATIO_ENERGY_REDUCTION)));
         send_server_msg(i, "ENGINEERING", err_msg);
         return;
     }
@@ -661,7 +661,7 @@ void handle_con(int i, const char *params, bool *should_disconnect) {
     /* 2. Energy Cost: 100 units */
     if (players[i].state.energy < COST_ACTION_HIGH) {
         char err_msg[128];
-        sprintf(err_msg, "Insufficient energy for conversion cycle (Req: %d).", COST_ACTION_HIGH);
+        SG_SPRINTF(err_msg, "Insufficient energy for conversion cycle (Req: %d).", COST_ACTION_HIGH);
         send_server_msg(i, "COMPUTER", err_msg);
         return;
     }
@@ -682,32 +682,32 @@ void handle_con(int i, const char *params, bool *should_disconnect) {
         uint64_t gain = (uint64_t)(amount * YIELD_CONVERSION_AE * efficiency);
         players[i].state.cargo_energy += gain;
         if (players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY;
-        sprintf(msg, "Converted %d Aetherium into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+        SG_SPRINTF(msg, "Converted %d Aetherium into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
     } else if (type == 2) { /* Neo-Titanium -> Energy x2 */
         uint64_t gain = (uint64_t)(amount * 2 * efficiency);
         players[i].state.cargo_energy += gain;
         if (players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY;
-        sprintf(msg, "Converted %d Neo-Titanium into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+        SG_SPRINTF(msg, "Converted %d Neo-Titanium into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
     } else if (type == 3) { /* Void-Essence -> Torpedoes (1/20) */
         int gain = (int)((amount / YIELD_CONVERSION_TORP) * efficiency);
         players[i].state.cargo_torpedoes += gain;
         if (players[i].state.cargo_torpedoes > MAX_TORPEDO_CAPACITY) players[i].state.cargo_torpedoes = MAX_TORPEDO_CAPACITY;
-        sprintf(msg, "Converted %d Void-Essence into %d Torpedoes. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+        SG_SPRINTF(msg, "Converted %d Void-Essence into %d Torpedoes. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
     } else if (type == 6) { /* Gas -> Energy x5 */
         uint64_t gain = (uint64_t)(amount * YIELD_CONVERSION_GAS * efficiency);
         players[i].state.cargo_energy += gain;
         if (players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY;
-        sprintf(msg, "Converted %d Nebular Gas into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+        SG_SPRINTF(msg, "Converted %d Nebular Gas into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
     } else if (type == 7) { /* Composite -> Energy x4 */
         uint64_t gain = (uint64_t)(amount * YIELD_CONVERSION_COMP * efficiency);
         players[i].state.cargo_energy += gain;
         if (players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY;
-        sprintf(msg, "Converted %d Composite into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+        SG_SPRINTF(msg, "Converted %d Composite into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
     } else if (type == 8) { /* Dark-Matter -> Energy x25 */
         uint64_t gain = (uint64_t)(amount * YIELD_CONVERSION_DM * efficiency);
         players[i].state.cargo_energy += gain;
         if (players[i].state.cargo_energy > MAX_ENERGY_CAPACITY) players[i].state.cargo_energy = MAX_ENERGY_CAPACITY;
-        sprintf(msg, "Converted %d Dark-Matter into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
+        SG_SPRINTF(msg, "Converted %d Dark-Matter into %" PRIu64 " Energy units. Efficiency: %.1f%%.", amount, gain, efficiency * 100);
     } else {
         send_server_msg(i, "COMPUTER", "Resource type not suitable for atomic conversion.");
         players[i].state.energy += COST_ACTION_HIGH; /* Refund */
@@ -745,7 +745,7 @@ void handle_load(int i, const char *params, bool *should_disconnect) {
             players[i].state.energy += load_amount; 
             
             char msg[128];
-            sprintf(msg, "Energy transfer complete. %" PRIu64 " units loaded into main reactor.", load_amount);
+            SG_SPRINTF(msg, "Energy transfer complete. %" PRIu64 " units loaded into main reactor.", load_amount);
             send_server_msg(i, "ENGINEERING", msg); 
         }
         else if (type == 2) { /* Load Torpedoes */
@@ -757,7 +757,7 @@ void handle_load(int i, const char *params, bool *should_disconnect) {
             players[i].state.torpedoes += amount; 
             
             char msg[128];
-            sprintf(msg, "Torpedoes loaded. %d warheads moved to active tubes.", amount);
+            SG_SPRINTF(msg, "Torpedoes loaded. %d warheads moved to active tubes.", amount);
             send_server_msg(i, "TACTICAL", msg); 
         } else {
             send_server_msg(i, "COMPUTER", "Invalid transfer type. Use 1:Energy or 2:Torpedoes.");

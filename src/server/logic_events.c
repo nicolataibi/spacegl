@@ -632,7 +632,7 @@ void logic_update_supernova(unsigned int *ai_seed) {
         int sec = supernova_event.supernova_timer / GAME_TICK_RATE;
         if (sec > 0 && (supernova_event.supernova_timer % (5 * GAME_TICK_RATE) == 0 || (sec <= 10 && supernova_event.supernova_timer % (GAME_TICK_RATE / 2) == 0))) {
             char msg[128];
-            sprintf(msg, "!!! WARNING: SUPERNOVA IMMINENT IN Q-%d-%d-%d. T-MINUS %d SECONDS !!!", 
+            SG_SPRINTF(msg, "!!! WARNING: SUPERNOVA IMMINENT IN Q-%d-%d-%d. T-MINUS %d SECONDS !!!", 
                     supernova_event.supernova_q1, supernova_event.supernova_q2, supernova_event.supernova_q3, sec);
             for(int i=0; i<MAX_CLIENTS; i++) {
                 if(players[i].active) {

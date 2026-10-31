@@ -1335,7 +1335,7 @@ void generate_galaxy() {
         const char* s_name = spectrals[k];
         const char* n_name = (k < 6) ? neb_classes[k] : "";
         char n_val_str[32] = "";
-        if (k < 6) sprintf(n_val_str, "%s%-4d", B_GREEN, nebula_type_counts[k]);
+        if (k < 6) SG_SPRINTF(n_val_str, "%s%-4d", B_GREEN, nebula_type_counts[k]);
         printf("%s | %s %-12s: %s%-4d %s| %s %-12s: %-14s %s|\n", B_CYAN, B_WHITE, s_name, B_GREEN, star_spectral_counts[k], B_CYAN, B_WHITE, n_name, n_val_str, B_CYAN);
     }
 
@@ -1347,9 +1347,9 @@ void generate_galaxy() {
         int faction = 10 + k;
         char f_line[64] = "";
         if (faction <= 20) {
-            sprintf(f_line, "%s %-12s: %s%-4d", B_WHITE, get_species_name(faction), B_GREEN, faction_counts[faction]);
+            SG_SPRINTF(f_line, "%s %-12s: %s%-4d", B_WHITE, get_species_name(faction), B_GREEN, faction_counts[faction]);
         } else {
-            sprintf(f_line, "                       ");
+            SG_SPRINTF(f_line, "                       ");
         }
         printf("%s | %s %s| %s %-12s: %s%-4d %s|\n", B_CYAN, f_line, B_CYAN, B_WHITE, ship_classes_short[k], B_GREEN, class_der_counts[k], B_CYAN);
     }
@@ -1358,9 +1358,9 @@ void generate_galaxy() {
     printf("%s | %s [ ALIEN WRECKS ]                                             %s|\n", B_CYAN, B_YELLOW, B_CYAN);
     for(int f=10; f<=20; f+=2) {
         char f1[64], f2[64] = "";
-        sprintf(f1, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f), B_GREEN, faction_der_counts[f]);
+        SG_SPRINTF(f1, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f), B_GREEN, faction_der_counts[f]);
         if (f+1 <= 20) {
-            sprintf(f2, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f+1), B_GREEN, faction_der_counts[f+1]);
+            SG_SPRINTF(f2, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f+1), B_GREEN, faction_der_counts[f+1]);
         }
         printf("%s | %s %s| %s %s %s|\n", B_CYAN, f1, B_CYAN, B_CYAN, f2, B_CYAN);
     }
@@ -1435,9 +1435,9 @@ void generate_galaxy() {
     for (int f = 10; f <= 20; f += 2) {
         char fb1[64] = "";
         char fb2[64] = "";
-        sprintf(fb1, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f), B_GREEN, faction_base_counts[f]);
+        SG_SPRINTF(fb1, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f), B_GREEN, faction_base_counts[f]);
         if (f + 1 <= 20) {
-            sprintf(fb2, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f + 1), B_GREEN, faction_base_counts[f + 1]);
+            SG_SPRINTF(fb2, "%s %-12s: %s%-4d", B_WHITE, get_species_name(f + 1), B_GREEN, faction_base_counts[f + 1]);
         }
         printf("%s | %s %s| %s %s %s|\n", B_CYAN, fb1, B_CYAN, B_CYAN, fb2, B_CYAN);
     }

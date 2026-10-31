@@ -125,7 +125,7 @@ void handle_enc_common(int i, const char *params, int level, bool *should_discon
                     if (level == 4) players[i].state.encryption_flags |= 0x08;
                     else if (level == 3) players[i].state.encryption_flags |= 0x04;
                     else if (level == 2) players[i].state.encryption_flags |= 0x02;
-                    char msg[128]; sprintf(msg, "Deep Space encryption: %s ACTIVE.", others[o].name);
+                    char msg[128]; SG_SPRINTF(msg, "Deep Space encryption: %s ACTIVE.", others[o].name);
                     send_server_msg(i, "COMPUTER", msg);
                     found_other = true; break;
                 }

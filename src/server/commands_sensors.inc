@@ -51,7 +51,8 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
     }
     players[i].state.energy -= COST_ACTION_LOW;
 
-    char *b = calloc(LARGE_DATA_BUFFER, sizeof(char));
+    const size_t b_cap = LARGE_DATA_BUFFER;
+    char *b = calloc(b_cap, sizeof(char));
     if (!b) return;
 
     int q1=players[i].state.q1, q2=players[i].state.q2, q3=players[i].state.q3; 
@@ -62,15 +63,15 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
     /* Improved Feedback: Nebula and Ion Storm detection */
     extern bool is_player_in_nebula(int i);
     if (is_player_in_nebula(i)) {
-        strcat(b, YELLOW "WARNING: High-density nebular interference detected. Sensor range and accuracy degraded.\n" RESET);
+        sg_strcat_n(b, b_cap, YELLOW "WARNING: High-density nebular interference detected. Sensor range and accuracy degraded.\n" RESET);
     }
     long long g_val = spacegl_master.g[q1][q2][q3];
     if (g_val > 0 && (g_val / 10000000LL) % 10) {
-        strcat(b, RED "CRITICAL: Ion Storm in progress! Sub-space telemetry heavily scrambled.\n" RESET);
+        sg_strcat_n(b, b_cap, RED "CRITICAL: Ion Storm in progress! Sub-space telemetry heavily scrambled.\n" RESET);
     }
 
     snprintf(b+strlen(b), LARGE_DATA_BUFFER-strlen(b), "ENERGY: %" PRIu64 " | TORPEDOES: %d | STATUS: %s\n", players[i].state.energy, players[i].state.torpedoes, players[i].state.is_cloaked ? MAGENTA "CLOAKED" RESET : GREEN "NORMAL" RESET);
-    strcat(b, "\nTYPE       ID    POSITION      DIST   H / M         DETAILS\n");
+    sg_strcat_n(b, b_cap, "\nTYPE       ID    POSITION      DIST   H / M         DETAILS\n");
 
     QuadrantIndex *local_q = &spatial_index[q1][q2][q3];
     int locked_id = players[i].state.lock_target;
@@ -149,7 +150,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         int baid = ba->id + GALAXY_OBJECT_MIN_STARBASE;
         char status[64] = "";
         if (baid == locked_id) {
-            strcat(status, RED "[LOCKED]" RESET);
+            SG_STRCAT(status, RED "[LOCKED]" RESET);
         }
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🛰️  %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     %s Starbase %s\n", "Starbase", baid, ba->x, ba->y, ba->z, d, h, m, get_species_name(ba->faction), status);
     }
@@ -169,7 +170,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         int plid = pl->id + GALAXY_OBJECT_MIN_PLANET;
         char status[64] = "";
         if (plid == locked_id) {
-            strcat(status, RED "[LOCKED]" RESET);
+            SG_STRCAT(status, RED "[LOCKED]" RESET);
         }
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🪐 %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     %s Planet %s\n", "Planet", plid, pl->x, pl->y, pl->z, d, h, m, planet_class_name(pl->planet_class), status);
     }
@@ -189,7 +190,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
         int sid = st->id + GALAXY_OBJECT_MIN_STAR;
         char status[64] = "";
         if (sid == locked_id) {
-            strcat(status, RED "[LOCKED]" RESET);
+            SG_STRCAT(status, RED "[LOCKED]" RESET);
         }
         SAFE_APPEND(b, LARGE_DATA_BUFFER, "🌟 %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     Star %s\n", "Star", sid, st->x, st->y, st->z, d, h, m, status);
     }
@@ -202,7 +203,7 @@ void handle_srs(int i, const char *params, bool *should_disconnect) {
             double d_ = sqrt(dx_ * dx_ + dy_ * dy_ + dz_ * dz_); \
             double h_ = atan2(dx_, -dy_) * 180 / M_PI; if (h_ < 0) h_ += 360; \
             double m_ = (d_ > 0.001) ? asin(dz_ / d_) * 180 / M_PI : 0; \
-            char st_[64] = ""; if ((SOBJ)->id == locked_id) strcat(st_, RED "[LOCKED]" RESET); \
+            char st_[64] = ""; if ((SOBJ)->id == locked_id) SG_STRCAT(st_, RED "[LOCKED]" RESET); \
             SAFE_APPEND(b, LARGE_DATA_BUFFER, EMO " %-10s %-5d [%.2f,%.2f,%.2f] %-5.2f %03.0ff / %+03.0ff     %s %s\n", \
                         (LABEL), (SOBJ)->id, (SOBJ)->x, (SOBJ)->y, (SOBJ)->z, d_, h_, m_, (INFO), st_); \
         } while (0)

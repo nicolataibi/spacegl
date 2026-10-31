@@ -561,6 +561,15 @@ if(SG_RT_LIB)
 endif()
 add_test(NAME shm_layout COMMAND shm_layout_test)
 
+# --- Bounded string building (2026.10.31.18): include/sg_str.h ---------
+add_executable(sg_str_test sg_str_test.c)
+if(NOT MSVC)
+    target_compile_options(sg_str_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(sg_str_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME sg_str COMMAND sg_str_test)
+
 # --- B2-b: radio cipher table index bounds (ASan/UBSan) ---
 add_executable(crypto_table_oob_test crypto_table_oob_test.c)
 target_link_libraries(crypto_table_oob_test PRIVATE OpenSSL::Crypto)

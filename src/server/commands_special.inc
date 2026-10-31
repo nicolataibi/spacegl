@@ -46,7 +46,7 @@ void handle_jum(int i, const char *params, bool *should_disconnect) {
 
         if (players[i].state.energy < COST_WORMHOLE_INIT || players[i].state.inventory[1] < 1) {
              char err_msg[128];
-             sprintf(err_msg, "Insufficient resources for Jump (Req: %d Energy, 1 Aetherium).", COST_WORMHOLE_INIT);
+             SG_SPRINTF(err_msg, "Insufficient resources for Jump (Req: %d Energy, 1 Aetherium).", COST_WORMHOLE_INIT);
              send_server_msg(i, "ENGINEERING", err_msg);
              return;
         }
@@ -157,7 +157,7 @@ void handle_hull(int i, const char *params, bool *should_disconnect) {
     /* 3. Plating Limit: 5000 units */
     if (players[i].state.composite_plating >= COST_BOARDING_INIT) {
         char err_msg[128];
-        sprintf(err_msg, "Hull plating is already at maximum structural capacity (%d).", COST_BOARDING_INIT);
+        SG_SPRINTF(err_msg, "Hull plating is already at maximum structural capacity (%d).", COST_BOARDING_INIT);
         send_server_msg(i, "ENGINEERING", err_msg);
         return;
     }
@@ -165,7 +165,7 @@ void handle_hull(int i, const char *params, bool *should_disconnect) {
     /* Check Resources: 100 Composite (inventory[7]) */
     if ((uint32_t)players[i].state.inventory[7] < (uint32_t)COST_ACTION_HIGH) {
         char err_msg[128];
-        sprintf(err_msg, "Insufficient Composite materials for reinforcement (Req: %d).", COST_ACTION_HIGH);
+        SG_SPRINTF(err_msg, "Insufficient Composite materials for reinforcement (Req: %d).", COST_ACTION_HIGH);
         send_server_msg(i, "COMPUTER", err_msg);
         return;
     }
@@ -173,7 +173,7 @@ void handle_hull(int i, const char *params, bool *should_disconnect) {
     /* 2. Energy Cost Check: 1000 units */
     if (players[i].state.energy < COST_PROBE_LAUNCH) {
         char err_msg[128];
-        sprintf(err_msg, "Insufficient energy for hull reinforcement process (Req: %d).", COST_PROBE_LAUNCH);
+        SG_SPRINTF(err_msg, "Insufficient energy for hull reinforcement process (Req: %d).", COST_PROBE_LAUNCH);
         send_server_msg(i, "COMPUTER", err_msg);
         return;
     }
@@ -185,7 +185,7 @@ void handle_hull(int i, const char *params, bool *should_disconnect) {
     
     /* 4. Improved Feedback */
     char msg[128];
-    sprintf(msg, "Hull reinforced with Composite plating. Current plating: %d units.", players[i].state.composite_plating);
+    SG_SPRINTF(msg, "Hull reinforced with Composite plating. Current plating: %d units.", players[i].state.composite_plating);
     send_server_msg(i, "ENGINEERING", msg);
 }
 
@@ -381,7 +381,7 @@ void handle_map(int i, const char *params, bool *should_disconnect) {
             players[i].state.energy -= COST_ACTION_MED;
             char msg[128];
             char filter_name[3]; strncpy(filter_name, p, 2); filter_name[2] = '\0';
-            sprintf(msg, "Galaxy Map Filter: %s ACTIVE.", filter_name);
+            SG_SPRINTF(msg, "Galaxy Map Filter: %s ACTIVE.", filter_name);
             send_server_msg(i, "COMPUTER", msg);
         } else {
             send_server_msg(i, "COMPUTER", "Invalid map filter. Use: st,pl,bs,en,bh,ne,pu,is,co,as,de,mi,bu,pf,ri,mo,qu");
@@ -437,22 +437,22 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
         if (players[i].state.energy < COST_ACTION_LOW) { send_server_msg(i, "COMPUTER", "Insufficient energy for status diagnostic."); return; }
         players[i].state.energy -= COST_ACTION_LOW;
         char buf[1024];
-        sprintf(buf, "\n" CYAN ".--- AUXILIARY SYSTEMS: SENSOR PROBE NETWORK ---." RESET "\n"
+        SG_SPRINTF(buf, "\n" CYAN ".--- AUXILIARY SYSTEMS: SENSOR PROBE NETWORK ---." RESET "\n"
                      " SLOT  STATUS       LOCATION        ETA/UPTIME\n"
                      "-------------------------------------------------\n");
         for(int p=0; p<3; p++) {
             char line[256];
             if(players[i].state.probes[p].active) {
                 const char* st = (players[i].state.probes[p].status == 0) ? YELLOW "EN ROUTE" RESET : GREEN "ACTIVE  " RESET;
-                sprintf(line, "  %d    %s    Q[%d,%d,%d]    %.1fs\n", p+1, st, 
+                SG_SPRINTF(line, "  %d    %s    Q[%d,%d,%d]    %.1fs\n", p+1, st, 
                         players[i].state.probes[p].q1, players[i].state.probes[p].q2, players[i].state.probes[p].q3,
                         players[i].state.probes[p].eta);
             } else {
-                sprintf(line, "  %d    " WHITE "AVAILABLE" RESET "  ---             ---\n", p+1);
+                SG_SPRINTF(line, "  %d    " WHITE "AVAILABLE" RESET "  ---             ---\n", p+1);
             }
-            strcat(buf, line);
+            SG_STRCAT(buf, line);
         }
-        strcat(buf, "-------------------------------------------------\n"
+        SG_STRCAT(buf, "-------------------------------------------------\n"
                     " Usage: aux probe <Q1> <Q2> <Q3> | aux report <1-3>\n"
                     "        aux recover <1-3> | aux jettison");
         send_server_msg(i, "SCIENCE", buf);
@@ -460,7 +460,7 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
         /* 2. Jettison Energy Cost */
         if (players[i].state.energy < COST_PROBE_LAUNCH) {
             char err_msg[128];
-            sprintf(err_msg, "Insufficient energy for controlled core ejection (Req: %d).", COST_PROBE_LAUNCH);
+            SG_SPRINTF(err_msg, "Insufficient energy for controlled core ejection (Req: %d).", COST_PROBE_LAUNCH);
             send_server_msg(i, "ENGINEERING", err_msg);
             return;
         }
@@ -484,13 +484,13 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
         /* 3. Probe Hardware Requirements (Sensors ID 2, Computer ID 6) */
         if (players[i].state.system_health[2] < THRESHOLD_SYS_DAMAGED || players[i].state.system_health[6] < THRESHOLD_SYS_DAMAGED) {
             char err_msg[128];
-            sprintf(err_msg, "PROBE LAUNCH FAILURE: Sensors and Computer must be above %.0f%% integrity.", THRESHOLD_SYS_DAMAGED);
+            SG_SPRINTF(err_msg, "PROBE LAUNCH FAILURE: Sensors and Computer must be above %.0f%% integrity.", THRESHOLD_SYS_DAMAGED);
             send_server_msg(i, "SCIENCE", err_msg);
             return;
         }
         if (players[i].state.energy < COST_PROBE_LAUNCH) {
             char err_msg[128];
-            sprintf(err_msg, "Insufficient energy for probe launch (Req: %d).", COST_PROBE_LAUNCH);
+            SG_SPRINTF(err_msg, "Insufficient energy for probe launch (Req: %d).", COST_PROBE_LAUNCH);
             send_server_msg(i, "COMPUTER", err_msg);
             return;
         }
@@ -526,13 +526,13 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
             players[i].state.probes[p_idx].eta = time;
             players[i].state.probes[p_idx].status = 0;
             
-            char msg[128]; sprintf(msg, "Deep Space probe launched to [%d,%d,%d]. ETA: %.1f sec.", qx, qy, qz, time);
+            char msg[128]; SG_SPRINTF(msg, "Deep Space probe launched to [%d,%d,%d]. ETA: %.1f sec.", qx, qy, qz, time);
             send_server_msg(i, "SCIENCE", msg);
         } else send_server_msg(i, "COMPUTER", "Usage: aux probe <QX> <QY> <QZ>");
     } else if(strncmp(p_ptr, "report", 6) == 0) {
         if (players[i].state.energy < COST_ACTION_MED) { 
             char err_msg[128];
-            sprintf(err_msg, "Insufficient energy for telemetry (Req: %d).", COST_ACTION_MED);
+            SG_SPRINTF(err_msg, "Insufficient energy for telemetry (Req: %d).", COST_ACTION_MED);
             send_server_msg(i, "COMPUTER", err_msg); 
             return; 
         }
@@ -562,7 +562,7 @@ void handle_aux(int i, const char *params, bool *should_disconnect) {
             }
 
             char msg[2048];
-            sprintf(msg, "\n" CYAN ".--- PROBE P%d: REAL-TIME DEEP SPACE TELEMETRY ---." RESET "\n"
+            SG_SPRINTF(msg, "\n" CYAN ".--- PROBE P%d: REAL-TIME DEEP SPACE TELEMETRY ---." RESET "\n"
                          " QUADRANT: " WHITE "[%d, %d, %d]" RESET " | SECTOR: [%.2f, %.2f, %.2f]]]" RESET "\n"
                          "-------------------------------------------------\n"
                          " 🚀 PLAYERS:   %d    ⚔️  HOSTILES:  %d\n"
@@ -663,7 +663,7 @@ static void handle_dbgspn(int i, const char *args, bool *profile_deleted) {
         mspawn++;
     }
     char b[160];
-    sprintf(b, "TEMP-DEBUG: spawned %d NPCs, %d monsters in [%d,%d,%d]", nspawn, mspawn, q1, q2, q3);
+    SG_SPRINTF(b, "TEMP-DEBUG: spawned %d NPCs, %d monsters in [%d,%d,%d]", nspawn, mspawn, q1, q2, q3);
     send_server_msg(i, "COMPUTER", b);
 }
 
@@ -678,7 +678,7 @@ static void handle_dbgnpc(int i, const char *args, bool *profile_deleted) {
         if (strncmp(npcs[n].name, "Dbg", 3) != 0 &&
             !(npcs[n].q1 == q1 && npcs[n].q2 == q2 && npcs[n].q3 == q3)) continue;
         char b[192];
-        sprintf(b, "NPC n=%d id=%d q=[%d,%d,%d] xyz=(%.2f,%.2f,%.2f) gx=%.1f h=%d eng=%.1f ai=%d death=%d beam_ct=%d name=%s", n, npcs[n].id, npcs[n].q1, npcs[n].q2, npcs[n].q3, npcs[n].x, npcs[n].y, npcs[n].z, npcs[n].gx, npcs[n].health, npcs[n].engine_health, npcs[n].ai_state, npcs[n].death_timer, npcs[n].beam_count, npcs[n].name);
+        SG_SPRINTF(b, "NPC n=%d id=%d q=[%d,%d,%d] xyz=(%.2f,%.2f,%.2f) gx=%.1f h=%d eng=%.1f ai=%d death=%d beam_ct=%d name=%s", n, npcs[n].id, npcs[n].q1, npcs[n].q2, npcs[n].q3, npcs[n].x, npcs[n].y, npcs[n].z, npcs[n].gx, npcs[n].health, npcs[n].engine_health, npcs[n].ai_state, npcs[n].death_timer, npcs[n].beam_count, npcs[n].name);
         send_server_msg(i, "DEBUG", b);
         count++;
     }
@@ -687,12 +687,12 @@ static void handle_dbgnpc(int i, const char *args, bool *profile_deleted) {
         if (!monsters[m].active) continue;
         if (!(monsters[m].q1 == q1 && monsters[m].q2 == q2 && monsters[m].q3 == q3)) continue;
         char b[192];
-        sprintf(b, "MON m=%d type=%d q=[%d,%d,%d] xyz=(%.2f,%.2f,%.2f) h=%d beam_ct=%d", m, monsters[m].type, monsters[m].q1, monsters[m].q2, monsters[m].q3, monsters[m].x, monsters[m].y, monsters[m].z, monsters[m].health, monsters[m].beam_count);
+        SG_SPRINTF(b, "MON m=%d type=%d q=[%d,%d,%d] xyz=(%.2f,%.2f,%.2f) h=%d beam_ct=%d", m, monsters[m].type, monsters[m].q1, monsters[m].q2, monsters[m].q3, monsters[m].x, monsters[m].y, monsters[m].z, monsters[m].health, monsters[m].beam_count);
         send_server_msg(i, "DEBUG", b);
         mcount++;
     }
     char b[128];
-    sprintf(b, "TEMP-DEBUG: NPC report complete (%d shown).", count);
+    SG_SPRINTF(b, "TEMP-DEBUG: NPC report complete (%d shown).", count);
     send_server_msg(i, "COMPUTER", b);
 }
 

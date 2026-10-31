@@ -20,6 +20,7 @@
 #ifndef SERVER_INTERNAL_H
 #define SERVER_INTERNAL_H
 
+#include "sg_str.h"
 #include <stdbool.h>
 #include <pthread.h>
 #include "network.h"

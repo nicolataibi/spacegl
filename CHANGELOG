@@ -1,3 +1,16 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.18
+  - Server text building, roadmap phase 3: the 185 sprintf() and strcat()
+  calls of src/server are gone. New include/sg_str.h: SG_SPRINTF (snprintf
+  with the array size), SG_STRCAT and SG_APPENDF (append, cut to fit),
+  whose capacity comes from the array type; a pointer argument does not
+  compile, so no call can take sizeof(char *) by mistake. The two heap
+  buffers (status report, SRS) use sg_strcat_n / sg_appendf_n with an
+  explicit capacity. Every text is still written whole (they fit their
+  buffers; gcc -Wformat-truncation reports none), but an over-long one is
+  now cut instead of written past the buffer.
+  - Tests: sg_str_test (bounds with guard bytes, NUL termination,
+  truncation, heap forms).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.17
   - Server logic, roadmap phase 3: the NPC behaviour (nebula test, per-NPC
   runtime, obstacle avoidance and escape, collisions, AI step: 698 lines)

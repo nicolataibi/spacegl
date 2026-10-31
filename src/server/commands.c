@@ -287,11 +287,11 @@ void handle_orb(int i, const char *params, bool *should_disconnect) {
         if (d < DIST_BOARDING_MAX) {
             players[i].nav_state = NAV_STATE_ORBIT;
             char msg[128];
-            sprintf(msg, "Establishing stable orbit around target %s.", target_type);
+            SG_SPRINTF(msg, "Establishing stable orbit around target %s.", target_type);
             send_server_msg(i, "HELMSMAN", msg);
         } else {
             char err_msg[128];
-            sprintf(err_msg, "Target %s too distant for orbital capture (< %.1f required).", target_type, DIST_BOARDING_MAX);
+            SG_SPRINTF(err_msg, "Target %s too distant for orbital capture (< %.1f required).", target_type, DIST_BOARDING_MAX);
             send_server_msg(i, "COMPUTER", err_msg);
         }
     } else {
@@ -412,11 +412,11 @@ bool process_command(int i, const char *cmd) {
                         int found_people = YIELD_BOARD_NPC_MIN + rand()%YIELD_BOARD_CREW_RANGE;
                         if (derelicts[d_idx].faction == players[i].faction) {
                             players[i].state.crew_count += found_people;
-                            char msg[128]; sprintf(msg, "Search teams found %d survivors in stasis. They have been integrated into the crew.", found_people);
+                            char msg[128]; SG_SPRINTF(msg, "Search teams found %d survivors in stasis. They have been integrated into the crew.", found_people);
                             send_server_msg(i, "SECURITY", msg);
                         } else {
                             players[i].state.prison_unit += found_people;
-                            char msg[128]; sprintf(msg, "Boarding party secured %d enemy personnel from stasis pods. They have been moved to the prison unit.", found_people);
+                            char msg[128]; SG_SPRINTF(msg, "Boarding party secured %d enemy personnel from stasis pods. They have been moved to the prison unit.", found_people);
                             send_server_msg(i, "SECURITY", msg);
                         }
                     }

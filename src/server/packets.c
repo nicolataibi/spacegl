@@ -690,9 +690,9 @@ int dispatch_packet(PktIO *io, int32_t type) {
 
                         /* Notify the fleet of the new X25519 public key */
                         char key_info[256];
-                        sprintf(key_info, "[IDENTITY] Public Frequency for Captain %s: ", pkt.name);
-                        for(int k=0; k<8; k++) sprintf(key_info + strlen(key_info), "%02X", pkt.x25519_pubkey[k]);
-                        strcat(key_info, "... [UPLINK ACTIVE]");
+                        SG_SPRINTF(key_info, "[IDENTITY] Public Frequency for Captain %s: ", pkt.name);
+                        for(int k=0; k<8; k++) SG_APPENDF(key_info, "%02X", pkt.x25519_pubkey[k]);
+                        SG_STRCAT(key_info, "... [UPLINK ACTIVE]");
                         send_server_msg(-1, "COMPUTER", key_info);
                         players[slot].state.energy = MAX_ENERGY_CAPACITY;
                         players[slot].state.torpedoes = MAX_TORPEDO_CAPACITY;

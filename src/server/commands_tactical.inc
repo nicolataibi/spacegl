@@ -238,7 +238,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
             }
         }
         char msg[64];
-        sprintf(msg, "Ion Beams hit ID %d for %d effective damage.", tid, hit);
+        SG_SPRINTF(msg, "Ion Beams hit ID %d for %d effective damage.", tid, hit);
         send_server_msg(i, "TACTICAL", msg);
     } else {
         send_server_msg(i, "COMPUTER", "Target out of range.");
@@ -546,24 +546,24 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
         if (t) {
              if (t->active && t->state.q1 == pq1 && t->state.q2 == pq2 && t->state.q3 == pq3) {
                  found = true;
-                 sprintf(rep, CYAN "\n--- SENSOR SCAN ANALYSIS: TARGET ID %d ---" RESET "\n", tid);
-                 sprintf(rep+strlen(rep), "COMMANDER: %s | CLASS: %d\n", t->name, t->ship_class);
-                 if (scrambled) strcat(rep, "HULL INTEGRITY: [SCRAMBLED]\nENERGY: ????\n");
-                 else sprintf(rep + strlen(rep), "HULL INTEGRITY: %.1f%%\nENERGY: %" PRIu64 " | CREW: %d | TORPS: %d\n", t->state.hull_integrity, t->state.energy, t->state.crew_count, t->state.torpedoes);
-                 strcat(rep, BLUE "SYSTEMS STATUS:\n" RESET);
+                 SG_SPRINTF(rep, CYAN "\n--- SENSOR SCAN ANALYSIS: TARGET ID %d ---" RESET "\n", tid);
+                 SG_APPENDF(rep, "COMMANDER: %s | CLASS: %d\n", t->name, t->ship_class);
+                 if (scrambled) SG_STRCAT(rep, "HULL INTEGRITY: [SCRAMBLED]\nENERGY: ????\n");
+                 else SG_APPENDF(rep, "HULL INTEGRITY: %.1f%%\nENERGY: %" PRIu64 " | CREW: %d | TORPS: %d\n", t->state.hull_integrity, t->state.energy, t->state.crew_count, t->state.torpedoes);
+                 SG_STRCAT(rep, BLUE "SYSTEMS STATUS:\n" RESET);
                  const char* sys[] = {"Hyperdrive", "Impulse", "Sensors", "Transp", "Ion Beams", "Torps", "Computer", "Life", "Shields", "Aux"};
                  for(int s=0; s<10; s++) {
                      char line[64];
-                     if (scrambled && (rand()%100 > 50)) sprintf(line, " %-10s : [????]\n", sys[s]);
-                     else sprintf(line, " %-10s : %.1f%%\n", sys[s], t->state.system_health[s]);
-                     strcat(rep, line);
+                     if (scrambled && (rand()%100 > 50)) SG_SPRINTF(line, " %-10s : [????]\n", sys[s]);
+                     else SG_SPRINTF(line, " %-10s : %.1f%%\n", sys[s], t->state.system_health[s]);
+                     SG_STRCAT(rep, line);
                  }
              }
         } else if (target_npc) {
              if (target_npc->active && target_npc->q1 == pq1 && target_npc->q2 == pq2 && target_npc->q3 == pq3) {
                  found = true;
-                 sprintf(rep, CYAN "\n--- TACTICAL SCAN: NPC ID %d ---" RESET "\n", tid);
-                 sprintf(rep + strlen(rep), "SPECIES: %s\nENERGY: %" PRIu64 "\nPROPULSION: %.1f%%\n", 
+                 SG_SPRINTF(rep, CYAN "\n--- TACTICAL SCAN: NPC ID %d ---" RESET "\n", tid);
+                 SG_APPENDF(rep, "SPECIES: %s\nENERGY: %" PRIu64 "\nPROPULSION: %.1f%%\n", 
                      scrambled ? "UNKNOWN" : get_species_name(target_npc->faction), 
                      scrambled ? (uint64_t)0 : target_npc->energy, target_npc->engine_health);
             }
@@ -573,14 +573,14 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                 for (int p = 0; p < lq->planet_count; p++) {
                     if (lq->planets[p]->id + GALAXY_OBJECT_MIN_PLANET == tid) {
                         found = true;
-                        sprintf(rep, GREEN "\n--- PLANETARY SURVEY ---" RESET "\nCLASS: %s\nRESERVES: %d units\n", scrambled ? "Unknown" : planet_class_name(lq->planets[p]->planet_class), scrambled ? 0 : lq->planets[p]->amount);
+                        SG_SPRINTF(rep, GREEN "\n--- PLANETARY SURVEY ---" RESET "\nCLASS: %s\nRESERVES: %d units\n", scrambled ? "Unknown" : planet_class_name(lq->planets[p]->planet_class), scrambled ? 0 : lq->planets[p]->amount);
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_STAR && tid <= GALAXY_OBJECT_MAX_STAR) {
                 for (int s = 0; s < lq->star_count; s++) {
                     if (lq->stars[s]->id + GALAXY_OBJECT_MIN_STAR == tid) {
                         found = true;
-                        sprintf(rep, YELLOW "\n--- STELLAR ANALYSIS ---" RESET "\nTYPE: Main Sequence G-Class Star\nADVISORY: Proximity scooping active (sco).\n");
+                        SG_SPRINTF(rep, YELLOW "\n--- STELLAR ANALYSIS ---" RESET "\nTYPE: Main Sequence G-Class Star\nADVISORY: Proximity scooping active (sco).\n");
                     }
                 }
             } else if (sys_id_is_star(tid) || sys_id_is_planet(tid) || sys_id_is_moon(tid)) {
@@ -589,14 +589,14 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                     const NPCSysStar *ss_ = lq->sys_stars[0];
                     if (sys_id_is_star(tid) && tid == ss_->id) {
                         found = true;
-                        sprintf(rep, YELLOW "\n--- STELLAR ANALYSIS ---" RESET "\nSPECTRAL CLASS: %d (0=O .. 6=M)\nPLANETS IN ORBIT: %d\nADVISORY: Proximity scooping active (sco).\n",
+                        SG_SPRINTF(rep, YELLOW "\n--- STELLAR ANALYSIS ---" RESET "\nSPECTRAL CLASS: %d (0=O .. 6=M)\nPLANETS IN ORBIT: %d\nADVISORY: Proximity scooping active (sco).\n",
                                 scrambled ? -1 : ss_->star_class, ss_->n_planets);
                     } else if (sys_id_is_planet(tid)) {
                         for (int p = 0; p < lq->sys_planet_count; p++) {
                             const NPCSysPlanet *pl_ = lq->sys_planets[p];
                             if (!pl_ || !pl_->active || pl_->id != tid) continue;
                             found = true;
-                            sprintf(rep, GREEN "\n--- PLANETARY SURVEY ---" RESET "\nCLASS: %s\nRESERVES: %d units\nORBIT: %.1f units around the star\nMOONS: %d\n",
+                            SG_SPRINTF(rep, GREEN "\n--- PLANETARY SURVEY ---" RESET "\nCLASS: %s\nRESERVES: %d units\nORBIT: %.1f units around the star\nMOONS: %d\n",
                                     scrambled ? "Unknown" : planet_class_name(pl_->planet_class), scrambled ? 0 : pl_->amount,
                                     pl_->orbit_r, pl_->n_moons);
                         }
@@ -607,7 +607,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                             found = true;
                             const char *mn_ = obj_type_name(mo_->moon_type);
                             int parent_ = GALAXY_OBJECT_MIN_SYS_PLANET + sys_moon_planet(tid - GALAXY_OBJECT_MIN_SYS_MOON);
-                            sprintf(rep, GREEN "\n--- SELENOGRAPHIC SURVEY ---" RESET "\nTYPE: %s\nORBITING PLANET: %d\n", mn_ ? mn_ : "Moon", parent_);
+                            SG_SPRINTF(rep, GREEN "\n--- SELENOGRAPHIC SURVEY ---" RESET "\nTYPE: %s\nORBITING PLANET: %d\n", mn_ ? mn_ : "Moon", parent_);
                         }
                     }
                 }
@@ -615,7 +615,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                 for (int h = 0; h < lq->bh_count; h++) {
                     if (lq->black_holes[h]->id + GALAXY_OBJECT_MIN_BLACKHOLE == tid) {
                         found = true;
-                        sprintf(rep, MAGENTA "\n--- SINGULARITY ANALYSIS ---" RESET "\nTYPE: Schwarzschild Black Hole\nADVISORY: Gravity well detected (< %.1f units). Escape velocity required.\n", DIST_GRAVITY_WELL);
+                        SG_SPRINTF(rep, MAGENTA "\n--- SINGULARITY ANALYSIS ---" RESET "\nTYPE: Schwarzschild Black Hole\nADVISORY: Gravity well detected (< %.1f units). Escape velocity required.\n", DIST_GRAVITY_WELL);
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_NEBULA && tid <= GALAXY_OBJECT_MAX_NEBULA) {
@@ -630,14 +630,14 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                             "Gravimetric Class: Tactical advantage due to deep space distortion.",
                             "Temporal Class: Unpredictable holographic ghosting on sensors."
                         };
-                        sprintf(rep, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\n%s\n", (lq->nebulas[n]->type >= 0 && lq->nebulas[n]->type < 6) ? neb_desc[lq->nebulas[n]->type] : "Unknown phenomena.");
+                        SG_SPRINTF(rep, BLUE "\n--- STELLAR PHENOMENON ANALYSIS ---" RESET "\n%s\n", (lq->nebulas[n]->type >= 0 && lq->nebulas[n]->type < 6) ? neb_desc[lq->nebulas[n]->type] : "Unknown phenomena.");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_COMET && tid <= GALAXY_OBJECT_MAX_COMET) {
                 for (int c = 0; c < lq->comet_count; c++) {
                     if (lq->comets[c]->id + GALAXY_OBJECT_MIN_COMET == tid) {
                         found = true;
-                        sprintf(rep, WHITE "\n--- COMET ANALYSIS ---" RESET "\nCOMPOSITION: Ice and Silicates\nVELOCITY: High-relative\nADVISORY: Proximity impact risk.\n");
+                        SG_SPRINTF(rep, WHITE "\n--- COMET ANALYSIS ---" RESET "\nCOMPOSITION: Ice and Silicates\nVELOCITY: High-relative\nADVISORY: Proximity impact risk.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_ASTEROID && tid <= GALAXY_OBJECT_MAX_ASTEROID) {
@@ -647,7 +647,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                         const char* res_names[] = {"None", "Aetherium", "Neo-Titanium", "Void-Essence", "Graphene", "Synaptics", "Nebular Gas", "Composite", "Dark-Matter"};
                         int r_type = lq->asteroids[a]->resource_type;
                         const char* r_name = (r_type >= 0 && r_type <= 8) ? res_names[r_type] : "Unknown";
-                        sprintf(rep, WHITE "\n--- ASTEROID ANALYSIS ---" RESET "\nCOMPOSITION: %s\nRESERVES: %d units\nSIZE: Class-%.1f\n", 
+                        SG_SPRINTF(rep, WHITE "\n--- ASTEROID ANALYSIS ---" RESET "\nCOMPOSITION: %s\nRESERVES: %d units\nSIZE: Class-%.1f\n", 
                             r_name, lq->asteroids[a]->amount, lq->asteroids[a]->size * QUADRANT_SIZE);
                     }
                 }
@@ -655,28 +655,28 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                 for (int d = 0; d < lq->derelict_count; d++) {
                     if (lq->derelicts[d]->id + GALAXY_OBJECT_MIN_DERELICT == tid) {
                         found = true;
-                        sprintf(rep, WHITE "\n--- DERELICT ANALYSIS ---" RESET "\nSTATUS: DEAD\nPOWER: NONE\nADVISORY: Salvage operations authorized.\n");
+                        SG_SPRINTF(rep, WHITE "\n--- DERELICT ANALYSIS ---" RESET "\nSTATUS: DEAD\nPOWER: NONE\nADVISORY: Salvage operations authorized.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_MINE && tid <= GALAXY_OBJECT_MAX_MINE) {
                 for (int m = 0; m < lq->mine_count; m++) {
                     if (lq->mines[m]->id + GALAXY_OBJECT_MIN_MINE == tid) {
                         found = true;
-                        sprintf(rep, RED "\n--- WARNING: ORDNANCE DETECTED ---" RESET "\nTYPE: Proximity Mine\nSTATUS: ARMED\nADVISORY: Maintain safe distance.\n");
+                        SG_SPRINTF(rep, RED "\n--- WARNING: ORDNANCE DETECTED ---" RESET "\nTYPE: Proximity Mine\nSTATUS: ARMED\nADVISORY: Maintain safe distance.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_BUOY && tid <= GALAXY_OBJECT_MAX_BUOY) {
                 for (int b = 0; b < lq->buoy_count; b++) {
                     if (lq->buoys[b]->id + GALAXY_OBJECT_MIN_BUOY == tid) {
                         found = true;
-                        sprintf(rep, CYAN "\n--- COMMUNICATION BUOY ---" RESET "\nSTATUS: BROADCASTING\nFREQUENCY: Standard Alliance Band\n");
+                        SG_SPRINTF(rep, CYAN "\n--- COMMUNICATION BUOY ---" RESET "\nSTATUS: BROADCASTING\nFREQUENCY: Standard Alliance Band\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_RIFT && tid <= GALAXY_OBJECT_MAX_RIFT) {
                 for (int r = 0; r < lq->rift_count; r++) {
                     if (lq->rifts[r]->id + GALAXY_OBJECT_MIN_RIFT == tid) {
                         found = true;
-                        sprintf(rep, MAGENTA "\n--- SPATIAL RIFT ANALYSIS ---" RESET "\nTYPE: Subspace Rupture\nADVISORY: Extreme gravitational shear detected.\n");
+                        SG_SPRINTF(rep, MAGENTA "\n--- SPATIAL RIFT ANALYSIS ---" RESET "\nTYPE: Subspace Rupture\nADVISORY: Extreme gravitational shear detected.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_PULSAR && tid <= GALAXY_OBJECT_MAX_PULSAR) {
@@ -685,7 +685,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                         found = true;
                         const char *p_classes[] = {"Rotation-Powered", "Accretion-Powered", "Magnetar"};
                         int p_type = lq->pulsars[p]->type;
-                        sprintf(rep, YELLOW "\n--- NEUTRON STAR (PULSAR) ANALYSIS ---" RESET "\nCLASS: %s\nADVISORY: Lethal radiation beams. Maintain distance > %.1f units.\n", 
+                        SG_SPRINTF(rep, YELLOW "\n--- NEUTRON STAR (PULSAR) ANALYSIS ---" RESET "\nCLASS: %s\nADVISORY: Lethal radiation beams. Maintain distance > %.1f units.\n", 
                             (p_type >= 0 && p_type < 3) ? p_classes[p_type] : "Unknown", DIST_PULSAR_BEAM);
                     }
                 }
@@ -695,7 +695,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                         found = true;
                         const char *q_classes[] = {"Radio-loud", "Radio-quiet", "Broad absorption-line", "Type 2", "Red", "Optically violent variable", "Weak emission line"};
                         int q_type = lq->quasars[q]->type;
-                        sprintf(rep, YELLOW "\n--- EXTRAGALACTIC SOURCE (QUASAR) ANALYSIS ---" RESET "\nCLASS: %s\nADVISORY: Extreme energetic output. High gravimetric flux detected.\n", 
+                        SG_SPRINTF(rep, YELLOW "\n--- EXTRAGALACTIC SOURCE (QUASAR) ANALYSIS ---" RESET "\nCLASS: %s\nADVISORY: Extreme energetic output. High gravimetric flux detected.\n", 
                             (q_type >= 0 && q_type < 7) ? q_classes[q_type] : "Unknown");
                     }
                 }
@@ -703,7 +703,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                 for (int m = 0; m < lq->monster_count; m++) {
                     if (lq->monsters[m]->id + GALAXY_OBJECT_MIN_MONSTER == tid) {
                         found = true;
-                        sprintf(rep, RED "\n--- XENO-BIOLOGICAL THREAT ---" RESET "\nTYPE: %s\nADVISORY: Highly aggressive. Close proximity will result in rapid energy drain.\n", 
+                        SG_SPRINTF(rep, RED "\n--- XENO-BIOLOGICAL THREAT ---" RESET "\nTYPE: %s\nADVISORY: Highly aggressive. Close proximity will result in rapid energy drain.\n", 
                             (lq->monsters[m]->type == 30) ? "Crystalline Entity" : "Space Amoeba");
                     }
                 }
@@ -711,7 +711,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                 for (int p = 0; p < lq->platform_count; p++) {
                     if (lq->platforms[p]->id + GALAXY_OBJECT_MIN_PLATFORM == tid) {
                         found = true;
-                        sprintf(rep, CYAN "\n--- DEFENSE PLATFORM SCAN ---" RESET "\nENERGY: %" PRIu64 " units\nFACTION: %s\nSTATUS: ACTIVE\n",
+                        SG_SPRINTF(rep, CYAN "\n--- DEFENSE PLATFORM SCAN ---" RESET "\nENERGY: %" PRIu64 " units\nFACTION: %s\nSTATUS: ACTIVE\n",
                             scrambled ? (uint64_t)0 : lq->platforms[p]->energy, get_species_name(lq->platforms[p]->faction));
                     }
                 }
@@ -719,7 +719,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                 for (int b = 0; b < lq->base_count; b++) {
                     if (lq->bases[b]->id + GALAXY_OBJECT_MIN_STARBASE == tid) {
                         found = true;
-                        sprintf(rep, CYAN "\n--- STARBASE DEEP SCAN ---" RESET "\nID: %d\nFACTION: %s\nENERGY: %" PRIu64 " units\nSTATUS: ACTIVE\nADVISORY: Authorized docking available for allied vessels.\n", 
+                        SG_SPRINTF(rep, CYAN "\n--- STARBASE DEEP SCAN ---" RESET "\nID: %d\nFACTION: %s\nENERGY: %" PRIu64 " units\nSTATUS: ACTIVE\nADVISORY: Authorized docking available for allied vessels.\n", 
                             tid, get_species_name(lq->bases[b]->faction), scrambled ? (uint64_t)0 : lq->bases[b]->energy);
                     }
                 }
@@ -727,119 +727,119 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                 for (int d = 0; d < lq->dyson_count; d++) {
                     if (lq->dysons[d]->id + GALAXY_OBJECT_MIN_DYSON == tid) {
                         found = true;
-                        sprintf(rep, YELLOW "\n--- MEGASTRUCTURE FRAGMENT ANALYSIS ---" RESET "\nTYPE: Dyson Shell Component\nSTATUS: INERT\nADVISORY: Massive energy readings within internal conduits.\n");
+                        SG_SPRINTF(rep, YELLOW "\n--- MEGASTRUCTURE FRAGMENT ANALYSIS ---" RESET "\nTYPE: Dyson Shell Component\nSTATUS: INERT\nADVISORY: Massive energy readings within internal conduits.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_HUB && tid <= GALAXY_OBJECT_MAX_HUB) {
                 for (int h = 0; h < lq->hub_count; h++) {
                     if (lq->hubs[h]->id + GALAXY_OBJECT_MIN_HUB == tid) {
                         found = true;
-                        sprintf(rep, GREEN "\n--- INTERSTELLAR TRADING HUB ---" RESET "\nSTATUS: OPERATIONAL\nSERVICES: Logistics and Trade synchronization.\n");
+                        SG_SPRINTF(rep, GREEN "\n--- INTERSTELLAR TRADING HUB ---" RESET "\nSTATUS: OPERATIONAL\nSERVICES: Logistics and Trade synchronization.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_RELIC && tid <= GALAXY_OBJECT_MAX_RELIC) {
                 for (int r = 0; r < lq->relic_count; r++) {
                     if (lq->relics[r]->id + GALAXY_OBJECT_MIN_RELIC == tid) {
                         found = true;
-                        sprintf(rep, WHITE "\n--- ANCIENT RELIC SCAN ---" RESET "\nORIGIN: PRE-EXPANSION\nSTATUS: DORMANT\nADVISORY: High-density data cores detected.\n");
+                        SG_SPRINTF(rep, WHITE "\n--- ANCIENT RELIC SCAN ---" RESET "\nORIGIN: PRE-EXPANSION\nSTATUS: DORMANT\nADVISORY: High-density data cores detected.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_RUPTURE && tid <= GALAXY_OBJECT_MAX_RUPTURE) {
                 for (int r = 0; r < lq->rupture_count; r++) {
                     if (lq->ruptures[r]->id + GALAXY_OBJECT_MIN_RUPTURE == tid) {
                         found = true;
-                        sprintf(rep, RED "\n--- SUBSPACE RUPTURE DETECTED ---" RESET "\nSTATUS: VOLATILE\nADVISORY: High risk of ship displacement or structural failure.\n");
+                        SG_SPRINTF(rep, RED "\n--- SUBSPACE RUPTURE DETECTED ---" RESET "\nSTATUS: VOLATILE\nADVISORY: High risk of ship displacement or structural failure.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_SATELLITE && tid <= GALAXY_OBJECT_MAX_SATELLITE) {
                 for (int s = 0; s < lq->satellite_count; s++) {
                     if (lq->satellites[s]->id + GALAXY_OBJECT_MIN_SATELLITE == tid) {
                         found = true;
-                        sprintf(rep, CYAN "\n--- ORBITAL SATELLITE ANALYSIS ---" RESET "\nTYPE: Automated Relay\nSTATUS: ACTIVE\n");
+                        SG_SPRINTF(rep, CYAN "\n--- ORBITAL SATELLITE ANALYSIS ---" RESET "\nTYPE: Automated Relay\nSTATUS: ACTIVE\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_STORM && tid <= GALAXY_OBJECT_MAX_STORM) {
                 for (int s = 0; s < lq->storm_count; s++) {
                     if (lq->storms[s]->id + GALAXY_OBJECT_MIN_STORM == tid) {
                         found = true;
-                        sprintf(rep, BLUE "\n--- IONIC STORM ANALYSIS ---" RESET "\nTYPE: High-Energy Plasma Swirl\nADVISORY: Severe shield degradation expected upon entry.\n");
+                        SG_SPRINTF(rep, BLUE "\n--- IONIC STORM ANALYSIS ---" RESET "\nTYPE: High-Energy Plasma Swirl\nADVISORY: Severe shield degradation expected upon entry.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_ARTIFACT && tid <= GALAXY_OBJECT_MAX_ARTIFACT) {
                 for (int a = 0; a < lq->artifact_count; a++) {
                     if (lq->artifacts[a]->id + GALAXY_OBJECT_MIN_ARTIFACT == tid) {
                         found = true;
-                        sprintf(rep, WHITE "\n--- ALIEN ARTIFACT SCAN ---" RESET "\nSTATUS: UNKNOWN\nADVISORY: Proximity research recommended.\n");
+                        SG_SPRINTF(rep, WHITE "\n--- ALIEN ARTIFACT SCAN ---" RESET "\nSTATUS: UNKNOWN\nADVISORY: Proximity research recommended.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_WARP_GATE && tid <= GALAXY_OBJECT_MAX_WARP_GATE) {
                 for (int w = 0; w < lq->warp_gate_count; w++) {
                     if (lq->warp_gates[w]->id + GALAXY_OBJECT_MIN_WARP_GATE == tid) {
                         found = true;
-                        sprintf(rep, MAGENTA "\n--- WARP GATE ARRAY ---" RESET "\nSTATUS: STANDBY\nADVISORY: Gateway synchronization required for transit.\n");
+                        SG_SPRINTF(rep, MAGENTA "\n--- WARP GATE ARRAY ---" RESET "\nSTATUS: STANDBY\nADVISORY: Gateway synchronization required for transit.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_NEUTRON_STAR && tid <= GALAXY_OBJECT_MAX_NEUTRON_STAR) {
                 for (int n = 0; n < lq->neutron_star_count; n++) {
                     if (lq->neutron_stars[n]->id + GALAXY_OBJECT_MIN_NEUTRON_STAR == tid) {
                         found = true;
-                        sprintf(rep, YELLOW "\n--- NEUTRON STAR ANALYSIS ---" RESET "\nTYPE: Degenerate Stellar Core\nADVISORY: Intense gravity and radiation. Approach with caution.\n");
+                        SG_SPRINTF(rep, YELLOW "\n--- NEUTRON STAR ANALYSIS ---" RESET "\nTYPE: Degenerate Stellar Core\nADVISORY: Intense gravity and radiation. Approach with caution.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_MEGA_STRUCT && tid <= GALAXY_OBJECT_MAX_MEGA_STRUCT) {
                 for (int m = 0; m < lq->mega_struct_count; m++) {
                     if (lq->mega_structs[m]->id + GALAXY_OBJECT_MIN_MEGA_STRUCT == tid) {
                         found = true;
-                        sprintf(rep, WHITE "\n--- MEGASTRUCTURE ANALYSIS ---" RESET "\nTYPE: Large-scale Habitability Ring or Array\nSTATUS: ACTIVE\n");
+                        SG_SPRINTF(rep, WHITE "\n--- MEGASTRUCTURE ANALYSIS ---" RESET "\nTYPE: Large-scale Habitability Ring or Array\nSTATUS: ACTIVE\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_DARK_CLOUD && tid <= GALAXY_OBJECT_MAX_DARK_CLOUD) {
                 for (int d = 0; d < lq->dark_cloud_count; d++) {
                     if (lq->dark_clouds[d]->id + GALAXY_OBJECT_MIN_DARK_CLOUD == tid) {
                         found = true;
-                        sprintf(rep, BLUE "\n--- DARK MATTER CLOUD ANALYSIS ---" RESET "\nTYPE: Non-baryonic accumulation\nADVISORY: Visual and sensor range reduced within cloud.\n");
+                        SG_SPRINTF(rep, BLUE "\n--- DARK MATTER CLOUD ANALYSIS ---" RESET "\nTYPE: Non-baryonic accumulation\nADVISORY: Visual and sensor range reduced within cloud.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_SINGULARITY && tid <= GALAXY_OBJECT_MAX_SINGULARITY) {
                 for (int s = 0; s < lq->singularity_count; s++) {
                     if (lq->singularities[s]->id + GALAXY_OBJECT_MIN_SINGULARITY == tid) {
                         found = true;
-                        sprintf(rep, MAGENTA "\n--- QUANTUM SINGULARITY SCAN ---" RESET "\nTYPE: Stable Micro-Black Hole\nADVISORY: Potential source of energy or spatial distortion.\n");
+                        SG_SPRINTF(rep, MAGENTA "\n--- QUANTUM SINGULARITY SCAN ---" RESET "\nTYPE: Stable Micro-Black Hole\nADVISORY: Potential source of energy or spatial distortion.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_PLASMA_STORM && tid <= GALAXY_OBJECT_MAX_PLASMA_STORM) {
                 for (int p = 0; p < lq->plasma_storm_count; p++) {
                     if (lq->plasma_storms[p]->id + GALAXY_OBJECT_MIN_PLASMA_STORM == tid) {
                         found = true;
-                        sprintf(rep, RED "\n--- PLASMA STORM ANALYSIS ---" RESET "\nTYPE: Superheated ionized gas\nADVISORY: Extreme thermal stress on hull.\n");
+                        SG_SPRINTF(rep, RED "\n--- PLASMA STORM ANALYSIS ---" RESET "\nTYPE: Superheated ionized gas\nADVISORY: Extreme thermal stress on hull.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_ORBITAL_RING && tid <= GALAXY_OBJECT_MAX_ORBITAL_RING) {
                 for (int r = 0; r < lq->orbital_ring_count; r++) {
                     if (lq->orbital_rings[r]->id + GALAXY_OBJECT_MIN_ORBITAL_RING == tid) {
                         found = true;
-                        sprintf(rep, WHITE "\n--- ORBITAL RING ARRAY ---" RESET "\nTYPE: Planetary Transit System\nSTATUS: OPERATIONAL\n");
+                        SG_SPRINTF(rep, WHITE "\n--- ORBITAL RING ARRAY ---" RESET "\nTYPE: Planetary Transit System\nSTATUS: OPERATIONAL\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_TIME_ANOMALY && tid <= GALAXY_OBJECT_MAX_TIME_ANOMALY) {
                 for (int t = 0; t < lq->time_anomaly_count; t++) {
                     if (lq->time_anomalies[t]->id + GALAXY_OBJECT_MIN_TIME_ANOMALY == tid) {
                         found = true;
-                        sprintf(rep, MAGENTA "\n--- TEMPORAL ANOMALY SCAN ---" RESET "\nTYPE: Localized Time Dialation Field\nADVISORY: Extreme risk of causal paradox or displacement.\n");
+                        SG_SPRINTF(rep, MAGENTA "\n--- TEMPORAL ANOMALY SCAN ---" RESET "\nTYPE: Localized Time Dialation Field\nADVISORY: Extreme risk of causal paradox or displacement.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_VOID_CRYSTAL && tid <= GALAXY_OBJECT_MAX_VOID_CRYSTAL) {
                 for (int v = 0; v < lq->void_crystal_count; v++) {
                     if (lq->void_crystals[v]->id + GALAXY_OBJECT_MIN_VOID_CRYSTAL == tid) {
                         found = true;
-                        sprintf(rep, CYAN "\n--- VOID CRYSTAL CLUSTER ---" RESET "\nTYPE: Subspace growth\nADVISORY: Resonates with warp fields.\n");
+                        SG_SPRINTF(rep, CYAN "\n--- VOID CRYSTAL CLUSTER ---" RESET "\nTYPE: Subspace growth\nADVISORY: Resonates with warp fields.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_SUBSPACE_ANOM && tid <= GALAXY_OBJECT_MAX_SUBSPACE_ANOM) {
                 for (int s = 0; s < lq->subspace_anomaly_count; s++) {
                     if (lq->subspace_anomalies[s]->id + GALAXY_OBJECT_MIN_SUBSPACE_ANOM == tid) {
                         found = true;
-                        sprintf(rep, BLUE "\n--- SUBSPACE ANOMALY ANALYSIS ---" RESET "\nTYPE: Spatial discontinuity\nADVISORY: Sensors reporting impossible physics readings.\n");
+                        SG_SPRINTF(rep, BLUE "\n--- SUBSPACE ANOMALY ANALYSIS ---" RESET "\nTYPE: Spatial discontinuity\nADVISORY: Sensors reporting impossible physics readings.\n");
                     }
                 }
             } else if (tid >= GALAXY_OBJECT_MIN_PROBE && tid <= GALAXY_OBJECT_MAX_PROBE) {
@@ -849,7 +849,7 @@ void handle_scan(int i, const char *params, bool *should_disconnect) {
                     found = true;
                     const char *status_str[] = {"LAUNCHED", "ARRIVED", "TRANSMITTING"};
                     int s = players[p_idx].state.probes[pr_idx].status;
-                    sprintf(rep, CYAN "\n--- SENSOR PROBE ANALYSIS ---" RESET "\nID: %d\nORIGIN: %s\nSTATUS: %s\n", 
+                    SG_SPRINTF(rep, CYAN "\n--- SENSOR PROBE ANALYSIS ---" RESET "\nID: %d\nORIGIN: %s\nSTATUS: %s\n", 
                         tid, players[p_idx].name, (s >= 0 && s < 3) ? status_str[s] : "UNKNOWN");
                 }
             }
