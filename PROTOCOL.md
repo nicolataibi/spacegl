@@ -75,12 +75,15 @@ mask         = HMAC-SHA256(PRK, "spacegl v2 galaxy verify" || 0x01)
 ## 4. Identity: PKT_QUERY and PKT_LOGIN
 
 `PacketLogin` (220 bytes): `name[64]` @4, `faction` @68, `ship_class` @72,
-`pass_hash[32]` @76, `salt[16]` @108, `pass_hash_legacy[32]` @124,
+`pass_hash[32]` @76, `salt[16]` @108, `reserved[32]` @124,
 `x25519_pubkey[32]` @156, `ed25519_pubkey[32]` @188.
 
 - `pass_hash = HMAC-SHA256(K, "SPACEGL-ID-V2" || name || 0 || salt || 0 || password)`;
-  `pass_hash_legacy = HMAC-SHA256(K, password)` (legacy accounts only).
-- On the wire `pass_hash`, `salt` and `pass_hash_legacy` (80 contiguous
+  `reserved` held the unsalted `HMAC-SHA256(K, password)` until
+  2026.10.31.24: it is now sent as zeros and ignored (the layout is
+  unchanged). A record without `identity.salt` (the unsalted scheme) is
+  refused with status 3: remove `captains/<name>` to enroll again.
+- On the wire `pass_hash`, `salt` and `reserved` (80 contiguous
   bytes) are XORed with a mask from the session key and the packet's
   sequence number since the handshake (`hs_v2_cred_xor`): a captured
   packet cannot be replayed on another session.

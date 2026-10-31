@@ -165,17 +165,14 @@ static void identity_load(const char *name, IdentityRecord *r) {
     }
 }
 
-/* Does the packet prove the password of this record? Salted (v2) record:
- * the client's salt must be the stored one and pass_hash must match.
- * Legacy (unsalted) record: pass_hash_legacy or pass_hash may match.
- * Constant-time comparisons (CRYPTO_memcmp): the hashes are secrets. */
+/* Does the packet prove the password of this record? The client's salt
+ * must be the stored one and pass_hash must match (constant-time
+ * comparisons: the hashes are secrets). A record without identity.salt
+ * (the unsalted scheme used before 2026) proves nothing: since
+ * 2026.10.31.25 it is refused, the captain enrolls again. */
 static bool identity_hash_ok(const IdentityRecord *r, const PacketLogin *pkt) {
-    if (!r->exists || !r->have_hash) return false;
-    if (r->have_salt) {
-        return CRYPTO_memcmp(pkt->salt, r->salt, 16) == 0 &&
-               CRYPTO_memcmp(r->hash, pkt->pass_hash, 32) == 0;
-    }
-    return CRYPTO_memcmp(r->hash, pkt->pass_hash_legacy, 32) == 0 ||
+    if (!r->exists || !r->have_hash || !r->have_salt) return false;
+    return CRYPTO_memcmp(pkt->salt, r->salt, 16) == 0 &&
            CRYPTO_memcmp(r->hash, pkt->pass_hash, 32) == 0;
 }
 
@@ -470,9 +467,8 @@ int dispatch_packet(PktIO *io, int32_t type) {
                      * Identity scheme v2 (per-user salt):
                      *   identity.hash = HMAC-SHA256(master, "SPACEGL-ID-V2" || name || 0 || salt || 0 || password)
                      *   identity.salt = random 16-byte per-captain salt (issued at enrollment)
-                     * Legacy unsalted identity.hash files remain verifiable and are
-                     * transparently migrated to the salted scheme on first successful
-                     * login (the client proved the password and supplied a fresh salt). */
+                     * A record without identity.salt (the unsalted scheme used
+                     * before 2026) is refused (2026.10.31.25). */
                     IdentityRecord rec;
                     identity_load(pkt.name, &rec);
                     const char *auth_path = rec.auth_path;
@@ -498,28 +494,14 @@ int dispatch_packet(PktIO *io, int32_t type) {
                                 auth_ok = identity_hash_ok(&rec, &pkt);
                             }
                         } else {
-                            /* Legacy account (no salt on disk) */
-                            auth_ok = identity_hash_ok(&rec, &pkt);
-                            if (auth_ok && client_salt_zero) {
-                                /* Password proved, but no salt supplied yet: ask for one
-                                   so the record can be migrated to the salted scheme. */
-                                status = PKT_ID_STATUS_SALT_REQUIRED; /* reply carries zeros */
-                                auth_ok = false;
-                            } else if (auth_ok) {
-                                /* Transparent migration of the stored record */
-                                FILE *fm = fopen(auth_path, "wb");
-                                if (fm) {
-                                    fwrite(pkt.pass_hash, 1, 32, fm);
-                                    if (fchmod(fileno(fm), 0600) != 0) { /* best effort */ }
-                                    fclose(fm);
-                                }
-                                FILE *fsm = fopen(salt_path, "wb");
-                                if (fsm) {
-                                    fwrite(pkt.salt, 1, 16, fsm);
-                                    if (fchmod(fileno(fsm), 0600) != 0) { /* best effort */ }
-                                    fclose(fsm);
-                                }
-                            }
+                            /* Record without a salt (pre-2026 unsalted scheme):
+                             * no longer accepted. Refused like a wrong password;
+                             * the operator removes captains/<name> so that the
+                             * captain can enroll again. */
+                            SG_WARNING(SG_CAT_SECURITY,
+                                       "captain '%s': identity record without salt (old scheme) refused; "
+                                       "remove captains/%s to enroll again", pkt.name, pkt.name);
+                            status = 3;
                         }
 
                         if (status != 3 && status != PKT_ID_STATUS_SALT_REQUIRED) {

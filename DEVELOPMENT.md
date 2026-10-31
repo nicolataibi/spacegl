@@ -341,15 +341,16 @@ number and element count.
   starts empty and the completion spawners refill the families they know
   (evolved stars, moons, protostellar objects, star systems). Only the
   `master` section is required; without it a new galaxy is generated.
-- **Format 1** (the raw dump written before 2026.10.31.19) is still read when
-  its version int equals `GALAXY_VERSION`; the next save converts it.
+- **Format 1** (the raw dump written before 2026.10.31.19) is no longer read
+  (2026.10.31.25): like any file without the `SGGALAX2` magic it makes the
+  server generate a new galaxy.
 - **Rule for a change to a persisted struct.** A change of size is detected
   by itself. A change of the fields that keeps the size (a reorder, a type
   swap of equal width) is not: bump `GALAXY_SECTION_LAYOUT` for it in
   `galaxy_io.c` (per-section numbers if more than one struct moves).
 - **Test.** `tests/galaxy_file_test.sh` (ctest `galaxy_file`) runs the real
-  server through a new galaxy, a restart, a format-1 file, a section with a
-  changed layout and a corrupt file.
+  server through a new galaxy, a restart, a format-1 file (refused, a new
+  galaxy is generated), a section with a changed layout and a corrupt file.
 
 ## 9. Coverage, fuzzing and static analysis in CI
 

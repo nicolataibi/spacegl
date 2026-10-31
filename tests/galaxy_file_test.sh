@@ -10,7 +10,8 @@
 #      galaxy.dat.tmp left behind), mode 0600;
 #   2. a restart loads it with the same astrometrics counts;
 #   3. a format-1 file (the previous raw dump, rebuilt here from the format-2
-#      payloads) is loaded and converted by the next save;
+#      payloads) is no longer read (2026.10.31.25): a new galaxy is
+#      generated and saved in format 2;
 #   4. a section whose element size changed is skipped, the rest is loaded;
 #   5. a corrupt file makes the server generate a new galaxy, no crash.
 #
@@ -56,6 +57,7 @@ run_server() {
 counts() { grep -oE "(Planets|NATURAL MOONS|TOTAL FEATURES): *[0-9]+|SYSTEM (STARS|PLANETS|MOONS) *\| READY *\| *[0-9]+" "$1" | tr -s ' ' | sort -u; }
 
 magic() { head -c 8 "$DATA/galaxy.dat" 2>/dev/null; }
+not_grep() { ! grep -q "$1" "$2"; }
 
 # 1. new galaxy, format 2
 check "boot on an empty data dir"           run_server "$WORK/1.log"
@@ -72,7 +74,7 @@ check "loaded, not generated"               grep -q "PERSISTENT GALAXY LOADED SU
 counts "$WORK/2.log" > "$WORK/c2.txt"
 check "same counts after the restart"       cmp -s "$WORK/c1.txt" "$WORK/c2.txt"
 
-# 3. format 1 (version int + the payloads in the same order) -> converted
+# 3. format 1 (version int + the payloads in the same order) -> refused
 python3 - "$DATA/galaxy.dat" "$WORK/v1.dat" <<'EOF'
 import struct, sys
 src, dst = sys.argv[1], sys.argv[2]
@@ -86,12 +88,12 @@ for _ in range(nsec):
 open(dst, 'wb').write(b''.join(out))
 EOF
 cp "$WORK/v1.dat" "$DATA/galaxy.dat"
-check "format-1 file accepted"              run_server "$WORK/3.log"
-check "format 1 recognised"                 grep -q "previous format: loaded" "$WORK/3.log"
-check "format 1 loaded"                     grep -q "PERSISTENT GALAXY LOADED SUCCESSFULLY" "$WORK/3.log"
+check "boot with a format-1 file"            run_server "$WORK/3.log"
+check "format 1 refused"                    grep -q "GALAXY FILE NOT IN FORMAT 2" "$WORK/3.log"
+check "format 1 not loaded"                 not_grep "PERSISTENT GALAXY LOADED SUCCESSFULLY" "$WORK/3.log"
+check "a new galaxy was generated"          grep -q "Generating Master Galaxy" "$WORK/3.log"
+check "saved in format 2 (SGGALAX2)"        test "$(magic)" = "SGGALAX2"
 counts "$WORK/3.log" > "$WORK/c3.txt"
-check "same counts from format 1"           cmp -s "$WORK/c1.txt" "$WORK/c3.txt"
-check "converted to format 2 on save"       test "$(magic)" = "SGGALAX2"
 
 # 4. a section whose element size changed is skipped, the galaxy still loads
 python3 - "$DATA/galaxy.dat" <<'EOF'
@@ -116,7 +118,7 @@ check "file with a changed section"         run_server "$WORK/4.log"
 check "the changed section is reported"     grep -q "section 'mines': layout changed" "$WORK/4.log"
 check "the rest is loaded"                  grep -q "PERSISTENT GALAXY LOADED SUCCESSFULLY" "$WORK/4.log"
 counts "$WORK/4.log" > "$WORK/c4.txt"
-check "planets, moons, systems unchanged"   cmp -s "$WORK/c1.txt" "$WORK/c4.txt"
+check "planets, moons, systems unchanged"   cmp -s "$WORK/c3.txt" "$WORK/c4.txt"
 
 # 5. corrupt file: a new galaxy, no crash
 head -c 4096 /dev/urandom > "$DATA/galaxy.dat"

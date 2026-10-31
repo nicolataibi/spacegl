@@ -320,7 +320,10 @@ traceable in the changelog:
 *   master key removed from the server boot banner;
 *   galaxy-state integrity (HMAC-verified state, not a plaintext
     trust);
-*   unsalted password hash replaced with a salted construction;
+*   unsalted password hash replaced with a salted construction; the
+    unsalted hash is no longer sent nor verified, and a record without
+    `identity.salt` is refused (2026.10.31.25) — pinned by
+    `tests/login_auth_test` case 5;
 *   strict captain-name sanitization; `zztop` (permanent profile
     deletion) hardening;
 *   client-side message-length clamp before reading;

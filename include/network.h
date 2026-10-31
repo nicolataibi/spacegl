@@ -214,15 +214,16 @@ typedef struct {
 /*
  * Identity (password) verification protocol (v2):
  *   - pass_hash        = HMAC-SHA256(master, "SPACEGL-ID-V2" || name || 0 || salt || 0 || password)
- *   - pass_hash_legacy = HMAC-SHA256(master, password)   [legacy accounts only]
+ *   - reserved[32]: the unsalted legacy hash until 2026.10.31.24; zeros
+ *     now, ignored by the server (identity records without a salt are refused)
  *   - Salt exchange: the client starts with an all-zero salt ("I hold no salt
  *     for this account"). The server replies with status
  *     PKT_ID_STATUS_SALT_REQUIRED plus uint8[16]: the stored salt for existing
- *     salted accounts, or zeros for new/legacy accounts (the client then
- *     generates its own random salt). The client retries with the resulting
- *     salt; for new accounts the retry creates the record (identity.hash +
- *     identity.salt), and for legacy accounts it transparently migrates the
- *     stored record to the salted scheme.
+ *     accounts, or zeros for a new account (the client then generates its
+ *     own random salt). The client retries with the resulting salt; for a
+ *     new account the retry creates the record (identity.hash +
+ *     identity.salt). A record without identity.salt (the unsalted scheme
+ *     used before 2026) is refused since 2026.10.31.25.
  *   - S -> C reply: int32 status, followed by uint8[16] salt when
  *     status == PKT_ID_STATUS_SALT_REQUIRED.
  *   - PKT_LOGIN carries the same name, salt and hashes and is verified
@@ -232,7 +233,7 @@ typedef struct {
  *     PKT_LOGIN for a captain still bound to another connection takes the
  *     captain over and the older socket is shut down.
  *   - On the wire, PKT_QUERY and PKT_LOGIN carry pass_hash, salt and
- *     pass_hash_legacy XORed with a mask keyed by the session key and the
+ *     reserved XORed with a mask keyed by the session key and the
  *     packet's sequence number since the handshake (hs_v2_cred_xor,
  *     handshake_v2.h, 2026.10.31.09); a packet received before the
  *     handshake is dropped.
@@ -315,16 +316,17 @@ typedef struct {
     int32_t ship_class;
     uint8_t pass_hash[32];      /* V2 salted identity hash (see protocol note above) */
     uint8_t salt[16];           /* Per-captain salt (random at enrollment) */
-    uint8_t pass_hash_legacy[32]; /* Legacy unsalted hash; verified only for legacy accounts */
+    uint8_t reserved[32];       /* was pass_hash_legacy (unsalted hash, dropped 2026.10.31.25):
+                                 * kept so the wire layout is unchanged; sent as zeros, ignored */
     uint8_t x25519_pubkey[32];
     uint8_t ed25519_pubkey[32]; /* signing key of this session (2026.10.31.10): the
                                    server binds it to the authenticated login and
                                    strips relayed signatures made with any other */
 } PacketLogin;
-/* pass_hash, salt, pass_hash_legacy: one 80-byte run, masked as a whole
+/* pass_hash, salt, reserved: one 80-byte run, masked as a whole
  * under the session key (hs_v2_cred_xor, handshake_v2.h). */
 _Static_assert(offsetof(PacketLogin, salt) == offsetof(PacketLogin, pass_hash) + 32 &&
-               offsetof(PacketLogin, pass_hash_legacy) == offsetof(PacketLogin, salt) + 16,
+               offsetof(PacketLogin, reserved) == offsetof(PacketLogin, salt) + 16,
                "PacketLogin credential fields must be contiguous");
 
 typedef struct {

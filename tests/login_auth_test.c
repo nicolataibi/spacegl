@@ -14,8 +14,9 @@
  *     login's ed25519_pubkey becomes the slot's radio signing key.
  *  4. A second verified PKT_LOGIN for "alice" on another connection takes
  *     the captain over: the new fd is bound, the old one is shut down.
- *  5. A legacy (unsalted) record accepts the matching legacy hash and
- *     refuses another one.
+ *  5. (2026.10.31.25) a record without identity.salt (the old unsalted
+ *     scheme) is refused, whatever the packet carries: the hash stored in
+ *     it, in pass_hash or in the reserved field.
  *  6. (2026.10.31.09) credentials sent in clear instead of masked under the
  *     session key, and a PKT_LOGIN with no handshake, are refused.
  *  7. (2026.10.31.14) a handshake that never logs in is closed once its
@@ -198,14 +199,14 @@ static bool fd_closed(int fd) {
     return fcntl(fd, F_GETFD) == -1 && errno == EBADF;
 }
 
-static PacketLogin mk(int type, const char *name, uint8_t hash_byte, uint8_t salt_byte, uint8_t legacy_byte) {
+static PacketLogin mk(int type, const char *name, uint8_t hash_byte, uint8_t salt_byte, uint8_t reserved_byte) {
     PacketLogin p;
     memset(&p, 0, sizeof(p));
     p.type = type;
     strncpy(p.name, name, sizeof(p.name) - 1);
     memset(p.pass_hash, hash_byte, 32);
     memset(p.salt, salt_byte, 16);
-    memset(p.pass_hash_legacy, legacy_byte, 32);
+    memset(p.reserved, reserved_byte, 32);   /* ignored by the server */
     memset(p.x25519_pubkey, 0x5a, 32);
     memset(p.ed25519_pubkey, 0x5b, 32);
     return p;
@@ -358,7 +359,7 @@ int main(void) {
         printf("[4] second verified login takes the captain over, old fd shut down: OK\n");
     }
 
-    /* 5. legacy record: identity.hash only, no salt file */
+    /* 5. old unsalted record: identity.hash only, no salt file -> refused */
     {
         char dir[1200], path[1300];
         snprintf(dir, sizeof(dir), "%s/captains/oldtimer", sandbox);
@@ -370,19 +371,34 @@ int main(void) {
         TEST_CHECK(fwrite(legacy, 1, 32, f) == 32);
         fclose(f);
 
+        /* the stored hash in the reserved (ex pass_hash_legacy) field */
         int sv[2]; make_pair_hs(sv);
-        PacketLogin bad = mk(PKT_LOGIN, "oldtimer", 0x11, 0x22, 0x78);
-        TEST_CHECK(send_pkt(sv, &bad) == 1);
+        PacketLogin old_field = mk(PKT_LOGIN, "oldtimer", 0x11, 0x22, 0x77);
+        TEST_CHECK(send_pkt(sv, &old_field) == 1);
         TEST_CHECK(fd_closed(sv[1]));
         close(sv[0]);
 
+        /* the stored hash in pass_hash, which the old scheme also accepted */
         int sw[2]; make_pair_hs(sw);
-        PacketLogin ok = mk(PKT_LOGIN, "oldtimer", 0x11, 0x22, 0x77);
-        TEST_CHECK(send_pkt(sw, &ok) == 0);
-        int s = slot_of("oldtimer");
-        TEST_CHECK(s >= 0 && players[s].socket == sw[1]);
-        close(sw[0]); close(sw[1]);
-        printf("[5] legacy record: matching legacy hash accepted, other refused: OK\n");
+        PacketLogin in_hash = mk(PKT_LOGIN, "oldtimer", 0x77, 0x22, 0x00);
+        TEST_CHECK(send_pkt(sw, &in_hash) == 1);
+        TEST_CHECK(fd_closed(sw[1]));
+        close(sw[0]);
+        TEST_CHECK(slot_of("oldtimer") < 0);
+
+        /* PKT_QUERY: no migration any more, status 3, record untouched */
+        int sq[2]; make_pair_hs(sq);
+        PacketLogin q = mk(PKT_QUERY, "oldtimer", 0x77, 0x22, 0x77);
+        TEST_CHECK(send_pkt(sq, &q) == 0);
+        int32_t status = 0;
+        TEST_CHECK(read(sq[0], &status, sizeof(status)) == (ssize_t)sizeof(status));
+        TEST_CHECK(status == 3);
+        char salt_path[1300];
+        snprintf(salt_path, sizeof(salt_path), "%s/identity.salt", dir);
+        struct stat st_salt;
+        TEST_CHECK(stat(salt_path, &st_salt) != 0);     /* not migrated */
+        close(sq[0]); close(sq[1]);
+        printf("[5] record without salt refused (LOGIN with the stored hash in pass_hash or reserved, QUERY status 3, no migration): OK\n");
     }
 
     /* 6. credentials not masked under the session key, and no handshake */

@@ -49,9 +49,8 @@
  * changing the fields of a persisted struct without changing its size
  * needs its layout number bumped in GALAXY_SECTION_LAYOUT (below).
  *
- * The previous format is still read when its version int matches
- * GALAXY_VERSION (load_galaxy_v1): the first save after the upgrade
- * writes format 2.
+ * Only format 2 is read (2026.10.31.25): a file in format 1 or any other
+ * content is not loaded and the server generates a new galaxy.
  * ---------------------------------------------------------------------- */
 #define GALAXY_FILE_MAGIC   "SGGALAX2"
 #define GALAXY_FILE_FORMAT  2u
@@ -75,7 +74,7 @@ typedef struct {
 _Static_assert(sizeof(GalaxyFileHeader) == 24, "galaxy.dat header layout");
 _Static_assert(sizeof(GalaxySectionHeader) == 40, "galaxy.dat section header layout");
 
-/* The fixed-size pools, in the order of format 1. */
+/* The fixed-size pools, in file order. */
 #define GALAXY_FIXED_POOLS(X) \
     X(npcs, NPCShip, MAX_NPC) \
     X(stars_data, NPCStar, MAX_STARS) \
@@ -231,8 +230,7 @@ static GalaxyImage *galaxy_image_build(void) {
 }
 
 /* Write the image to galaxy.dat.tmp, fsync, rename over galaxy.dat: a
- * crash in the middle leaves the previous galaxy.dat intact (format 1
- * truncated galaxy.dat first and wrote it in place). */
+ * crash in the middle leaves the previous galaxy.dat intact. */
 static bool galaxy_image_write(const GalaxyImage *img) {
     char path[1088], tmp[1100];
     server_data_path(path, sizeof(path), "galaxy.dat");
@@ -340,117 +338,6 @@ void save_galaxy() {
     save_galaxy_async();
 }
 
-/* Format 1 reader (the file the previous versions wrote): kept verbatim so
- * that a galaxy saved before 2026.10.31.19 is still loaded once. */
-static int load_galaxy_v1(FILE *f) {
-#define CHECK_READ(ptr, sz, count, stream) \
-    if (fread(ptr, sz, count, stream) != (size_t)(count)) { perror("fread data"); fclose(stream); return 0; }
-
-    CHECK_READ(&spacegl_master, sizeof(SpaceGLGame), 1, f);
-    CHECK_READ(npcs, sizeof(NPCShip), MAX_NPC, f);
-    CHECK_READ(stars_data, sizeof(NPCStar), MAX_STARS, f);
-    CHECK_READ(black_holes, sizeof(NPCBlackHole), MAX_BH, f);
-    CHECK_READ(planets, sizeof(NPCPlanet), MAX_PLANETS, f);
-    CHECK_READ(bases, sizeof(NPCBase), MAX_BASES, f);
-    CHECK_READ(nebulas, sizeof(NPCNebula), MAX_NEBULAS, f);
-    CHECK_READ(pulsars, sizeof(NPCPulsar), MAX_PULSARS, f);
-    CHECK_READ(quasars, sizeof(NPCQuasar), MAX_QUASARS, f);
-    CHECK_READ(comets, sizeof(NPCComet), MAX_COMETS, f);
-    CHECK_READ(asteroids, sizeof(NPCAsteroid), MAX_ASTEROIDS, f);
-    CHECK_READ(derelicts, sizeof(NPCDerelict), MAX_DERELICTS, f);
-    CHECK_READ(mines, sizeof(NPCMine), MAX_MINES, f);
-    CHECK_READ(buoys, sizeof(NPCBuoy), MAX_BUOYS, f);
-    CHECK_READ(platforms, sizeof(NPCPlatform), MAX_PLATFORMS, f);
-    CHECK_READ(rifts, sizeof(NPCRift), MAX_RIFTS, f);
-    CHECK_READ(monsters, sizeof(NPCMonster), MAX_MONSTERS, f);
-    CHECK_READ(dysons, sizeof(NPCDyson), MAX_DYSON, f);
-    CHECK_READ(hubs, sizeof(NPCHub), MAX_HUBS, f);
-    CHECK_READ(relics, sizeof(NPCRelic), MAX_RELICS, f);
-    CHECK_READ(ruptures, sizeof(NPCRupture), MAX_RUPTURES, f);
-    CHECK_READ(satellites, sizeof(NPCSatellite), MAX_SATELLITES, f);
-    CHECK_READ(storms, sizeof(NPCStorm), MAX_STORMS, f);
-    CHECK_READ(artifacts, sizeof(NPCArtifact), MAX_ARTIFACTS, f);
-    CHECK_READ(warp_gates, sizeof(NPCWarpGate), MAX_WARP_GATES, f);
-    CHECK_READ(neutron_stars, sizeof(NPCNeutronStar), MAX_NEUTRON_STARS, f);
-    CHECK_READ(mega_structs, sizeof(NPCMegaStructure), MAX_MEGA_STRUCTS, f);
-    CHECK_READ(dark_clouds, sizeof(NPCDarkCloud), MAX_DARK_CLOUDS, f);
-    CHECK_READ(singularities, sizeof(NPCSingularity), MAX_SINGULARITIES, f);
-    CHECK_READ(plasma_storms, sizeof(NPCPlasmaStorm), MAX_PLASMA_STORMS, f);
-    CHECK_READ(orbital_rings, sizeof(NPCOrbitalRing), MAX_ORBITAL_RINGS, f);
-    CHECK_READ(time_anomalies, sizeof(NPCTimeAnomaly), MAX_TIME_ANOMALIES, f);
-    CHECK_READ(void_crystals, sizeof(NPCVoidCrystal), MAX_VOID_CRYSTALS, f);
-    CHECK_READ(subspace_anomalies, sizeof(NPCSubspaceAnomaly), MAX_SUBSPACE_ANOMALIES, f);
-
-    CHECK_READ(diffuse_nebulae, sizeof(NPCDiffuseNebula), MAX_DIFFUSE_NEBULAE, f);
-    CHECK_READ(dark_nebulae, sizeof(NPCDarkNebula), MAX_DARK_NEBULAE, f);
-    CHECK_READ(planetary_nebulae, sizeof(NPCPlanetaryNebula), MAX_PLANETARY_NEBULAE, f);
-    CHECK_READ(snrs, sizeof(NPCSNR), MAX_SNR, f);
-    CHECK_READ(gmcs, sizeof(NPCGMC), MAX_GMC, f);
-    CHECK_READ(interstellar_filaments, sizeof(NPCInterstellarFilament), MAX_INTERSTELLAR_FILAMENTS, f);
-    CHECK_READ(interstellar_bubbles, sizeof(NPCInterstellarBubble), MAX_INTERSTELLAR_BUBBLES, f);
-    CHECK_READ(bok_globules, sizeof(NPCBokGlobule), MAX_BOK_GLOBULES, f);
-    CHECK_READ(clump_cores, sizeof(NPCClumpCore), MAX_CLUMP_CORES, f);
-    CHECK_READ(accretion_disks, sizeof(NPCAccretionDisk), MAX_ACCRETION_DISKS, f);
-    CHECK_READ(relativistic_jets, sizeof(NPCRelativisticJet), MAX_RELATIVISTIC_JETS, f);
-    CHECK_READ(shock_waves, sizeof(NPCShockWave), MAX_SHOCK_WAVES, f);
-    CHECK_READ(stellar_bow_shocks, sizeof(NPCStellarBowShock), MAX_STELLAR_BOW_SHOCKS, f);
-    CHECK_READ(cosmic_voids, sizeof(NPCCosmicVoid), MAX_COSMIC_VOIDS, f);
-    CHECK_READ(cosmic_filaments, sizeof(NPCCosmicFilament), MAX_COSMIC_FILAMENTS, f);
-    CHECK_READ(event_horizons, sizeof(NPCEventHorizon), MAX_EVENT_HORIZONS, f);
-    CHECK_READ(kilonovae, sizeof(NPCKilonova), MAX_KILONOVAE, f);
-    CHECK_READ(grav_lenses, sizeof(NPCGravLens), MAX_GRAV_LENSES, f);
-    CHECK_READ(grbs, sizeof(NPCGRB), MAX_GRB, f);
-    CHECK_READ(grav_waves, sizeof(NPCGravWave), MAX_GRAV_WAVES, f);
-    CHECK_READ(protoplanetary_disks, sizeof(NPCProtoplanetaryDisk), MAX_PROTOPLANETARY_DISKS, f);
-    CHECK_READ(debris_disks, sizeof(NPCDebrisDisk), MAX_DEBRIS_DISKS, f);
-    CHECK_READ(planetesimals, sizeof(NPCPlanetesimal), MAX_PLANETESIMALS, f);
-    CHECK_READ(rogue_planets, sizeof(NPCRoguePlanet), MAX_ROGUE_PLANETS, f);
-    CHECK_READ(brown_dwarfs, sizeof(NPCBrownDwarf), MAX_BROWN_DWARFS, f);
-    CHECK_READ(isos, sizeof(NPCISO), MAX_ISO, f);
-    CHECK_READ(mag_reconns, sizeof(NPCMagReconn), MAX_MAG_RECONN, f);
-    CHECK_READ(current_sheets, sizeof(NPCCurrentSheet), MAX_CURRENT_SHEETS, f);
-    CHECK_READ(heliospheres, sizeof(NPCHeliosphere), MAX_HELIOSPHERES, f);
-    CHECK_READ(term_shocks, sizeof(NPCTermShock), MAX_TERM_SHOCKS, f);
-    CHECK_READ(magnetospheres, sizeof(NPCMagnetosphere), MAX_MAGNETOSPHERES, f);
-    CHECK_READ(cosmic_strings, sizeof(NPCCosmicString), MAX_COSMIC_STRINGS, f);
-    CHECK_READ(domain_walls, sizeof(NPCDomainWall), MAX_DOMAIN_WALLS, f);
-    CHECK_READ(dm_halos, sizeof(NPCDMHalo), MAX_DM_HALO, f);
-    CHECK_READ(igms, sizeof(NPCIGM), MAX_IGM, f);
-    CHECK_READ(cgms, sizeof(NPCCGM), MAX_CGM, f);
-    CHECK_READ(lyman_alphas, sizeof(NPCLymanAlpha), MAX_LYMAN_ALPHA, f);
-    CHECK_READ(cmbs, sizeof(NPCCMB), MAX_CMB, f);
-    memset(sys_stars, 0, sizeof(sys_stars));
-    memset(sys_planets, 0, sizeof(sys_planets));
-    memset(sys_moons, 0, sizeof(sys_moons));
-    CHECK_READ(&sys_star_count, sizeof(int), 1, f);
-    if (sys_star_count < 0 || sys_star_count > SYS_MAX_STARS) { printf("--- CORRUPT STAR SYSTEM COUNT ---\n"); sys_star_count = 0; fclose(f); return 0; }
-    CHECK_READ(sys_stars, sizeof(NPCSysStar), (size_t)sys_star_count, f);
-    CHECK_READ(sys_planets, sizeof(NPCSysPlanet), (size_t)sys_star_count * SYS_PLANETS_PER_STAR, f);
-    CHECK_READ(sys_moons, sizeof(NPCSysMoon), (size_t)sys_star_count * SYS_PLANETS_PER_STAR * SYS_MOONS_PER_PLANET, f);
-    { double t_ = sys_clock_s(); for (int s_ = 0; s_ < sys_star_count; s_++) sys_refresh_positions(s_, t_); }
-    if (fread(&cosmic_feature_count, sizeof(int), 1, f) != 1) { cosmic_feature_count = 0; }
-    /* Dynamically read cosmic_features handling legacy size (1024) and current size (MAX_COSMIC_FEATURES) */
-    memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
-    long feat_pos = ftell(f);
-    fseek(f, 0, SEEK_END);
-    long file_size = ftell(f);
-    fseek(f, feat_pos, SEEK_SET);
-    long remaining_bytes = file_size - feat_pos;
-    long players_bytes = (long)sizeof(ConnectedPlayer) * MAX_CLIENTS;
-    long available_feat_bytes = remaining_bytes - players_bytes;
-    int feats_in_file = (available_feat_bytes > 0) ? (int)(available_feat_bytes / sizeof(NPCCosmicFeature)) : 0;
-    if (feats_in_file > MAX_COSMIC_FEATURES) feats_in_file = MAX_COSMIC_FEATURES;
-    if (feats_in_file > 0) {
-        if (fread(cosmic_features, sizeof(NPCCosmicFeature), feats_in_file, f) != (size_t)feats_in_file) {
-            memset(cosmic_features, 0, sizeof(NPCCosmicFeature) * MAX_COSMIC_FEATURES);
-        }
-    }
-    CHECK_READ(players, sizeof(ConnectedPlayer), MAX_CLIENTS, f);
-    fclose(f);
-
-    return 1;
-}
-
 static bool galaxy_skip(FILE *f, uint64_t bytes) {
     return fseeko(f, (off_t)bytes, SEEK_CUR) == 0;
 }
@@ -536,11 +423,11 @@ static int load_galaxy_v2(FILE *f) {
     return 1;
 }
 
-/* After either reader: complete the families an older file lacks, reset
+/* After the load: complete the families a skipped section left empty, reset
  * the connection state of the captains, report and index. */
 static void galaxy_complete_after_load(void) {
-    /* galaxy.dat saved before the evolved stars existed: add them now (the
-     * layout is unchanged, only the generic feature array gets new entries). */
+    /* No evolved stars after the load (their section was skipped): add them
+     * (only the generic feature array gets new entries). */
     {
         int has_evolved = 0;
         for (int i = 0; i < MAX_COSMIC_FEATURES && !has_evolved; i++)
@@ -552,8 +439,8 @@ static void galaxy_complete_after_load(void) {
         }
     }
 
-    /* galaxy.dat saved before moons existed or with fewer moons than planets:
-     * ensure that EVERY active planet gets at least one moon. */
+    /* Fewer moons than planets after the load (a skipped section): ensure
+     * that EVERY active planet gets at least one moon. */
     {
         int existing_moons = 0;
         for (int i = 0; i < MAX_COSMIC_FEATURES; i++)
@@ -571,7 +458,7 @@ static void galaxy_complete_after_load(void) {
     /* Parent planet and orbit of every moon (deterministic assignment) */
     attach_moons_to_planets();
 
-    /* galaxy.dat saved before protostellar objects existed: add them now */
+    /* No protostellar objects after the load (a skipped section): add them */
     {
         int has_protostellar = 0;
         for (int i = 0; i < MAX_COSMIC_FEATURES && !has_protostellar; i++)
@@ -583,7 +470,7 @@ static void galaxy_complete_after_load(void) {
         }
     }
 
-    /* galaxy.dat saved before extended moons existed: add them now */
+    /* No extended moons after the load (a skipped section): add them */
     {
         int has_ext_moons = 0;
         for (int i = 0; i < MAX_COSMIC_FEATURES && !has_ext_moons; i++)
@@ -734,22 +621,17 @@ int load_galaxy() {
     char magic[8] = { 0 };
     size_t got = fread(magic, 1, sizeof(magic), f);
     if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return 0; }
-    int ok;
-    if (got == sizeof(magic) && memcmp(magic, GALAXY_FILE_MAGIC, 8) == 0) {
-        ok = load_galaxy_v2(f);
+    if (got != sizeof(magic) || memcmp(magic, GALAXY_FILE_MAGIC, 8) != 0) {
+        /* format 1 (the raw dump before 2026.10.31.19) or not a galaxy file */
+        printf("--- GALAXY FILE NOT IN FORMAT 2 (old format or corrupt): a new galaxy is generated ---\n");
         fclose(f);
-    } else {
-        int version = 0;
-        if (fread(&version, sizeof(int), 1, f) != 1 || version != GALAXY_VERSION) {
-            printf("--- GALAXY VERSION MISMATCH OR CORRUPT FILE ---\n");
-            fclose(f);
-            return 0;
-        }
-        printf("[GALAXY] galaxy.dat in the previous format: loaded, the next save converts it\n");
-        ok = load_galaxy_v1(f);    /* closes f */
+        return 0;
     }
+    int ok = load_galaxy_v2(f);
+    fclose(f);
     if (!ok) return 0;
-    /* no star systems after the load (an older or partial file): generate
+    /* no star systems after the load (a file whose star-system sections were
+     * skipped): generate
      * them, in the quadrants that are still empty */
     if (sys_star_count == 0) {
         spawn_star_systems();

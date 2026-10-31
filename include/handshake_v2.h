@@ -238,7 +238,7 @@ static inline bool hs_v2_client_finish(const uint8_t k[32], HsV2Client *st,
 }
 
 /* Login credentials under the session key (2026.10.31.09). PKT_QUERY and
- * PKT_LOGIN carry pass_hash, salt and pass_hash_legacy, 80 contiguous bytes
+ * PKT_LOGIN carry pass_hash, salt and reserved, 80 contiguous bytes
  * (network.h asserts the layout). They travelled in clear: a client of the
  * same deployment watching the network could capture another captain's
  * hash and replay it. Each such packet now XORs them with

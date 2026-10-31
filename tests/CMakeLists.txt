@@ -764,7 +764,7 @@ endif()
 
 # --- galaxy.dat format 2 (2026.10.31.19) ------------------------------
 # The REAL server: new galaxy saved in format 2 (atomic, 0600), restart with
-# the same counts, a format-1 file loaded and converted, a section with a
+# the same counts, a format-1 file refused (new galaxy), a section with a
 # changed layout skipped, a corrupt file replaced. RUN_SERIAL: port 5000.
 if(TARGET spacegl_server)
     add_test(NAME galaxy_file

@@ -655,7 +655,6 @@ static int check_frame_order(int64_t frame_id) {
 static char g_server_ip[64] = "127.0.0.1";
 static uint8_t g_saved_login_hash[32];
 static uint8_t g_saved_salt[16];
-static uint8_t g_saved_legacy_hash[32];
 static uint8_t g_saved_x25519_pubkey[32];
 static int g_saved_faction = 0;
 static int g_saved_ship_class = 0;
@@ -734,7 +733,7 @@ static int do_handshake(void) {
 }
 
 /* Send a PKT_QUERY / PKT_LOGIN with its credential fields (pass_hash,
- * salt, pass_hash_legacy) masked under the session key; the caller's packet
+ * salt, reserved) masked under the session key; the caller's packet
  * stays in clear (the reconnect path keeps those values). */
 static int send_identity_packet(const PacketLogin *p) {
     PacketLogin wire = *p;
@@ -754,7 +753,6 @@ static int do_login_reconnect(void) {
     lpkt.ship_class = g_saved_ship_class;
     memcpy(lpkt.pass_hash, g_saved_login_hash, 32);
     memcpy(lpkt.salt, g_saved_salt, 16);
-    memcpy(lpkt.pass_hash_legacy, g_saved_legacy_hash, 32);
     memcpy(lpkt.x25519_pubkey, g_saved_x25519_pubkey, 32);
     memcpy(lpkt.ed25519_pubkey, my_pubkey_bytes, 32);   /* signing key of this session */
 
@@ -1788,7 +1786,6 @@ int main(int argc, char *argv[]) {
 
     /* Password Input with Echo Disabled (Mandatory) */
     char password[64] = "";
-    uint8_t password_hash[32];
     
     while (strlen(password) == 0) {
         printf("Access Code   : ");
@@ -1809,10 +1806,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* Hash password with Master Key (legacy, kept for legacy-account verification) */
-    unsigned int pass_len = 32;
-    HMAC(EVP_sha256(), master_root_key, 32, (uint8_t*)password, strlen(password), password_hash, &pass_len);
-
     /* Personalize Frequencies based on Captain Name */
     derive_algo_keys(captain_name);
 
@@ -1832,7 +1825,6 @@ int main(int argc, char *argv[]) {
         strcpy(qpkt.name, captain_name);
         compute_identity_hash_v2(master_root_key, captain_name, id_salt, password, qpkt.pass_hash);
         memcpy(qpkt.salt, id_salt, 16);
-        memcpy(qpkt.pass_hash_legacy, password_hash, 32);
         memcpy(qpkt.x25519_pubkey, my_x25519_pubkey_bytes, 32);
         memcpy(qpkt.ed25519_pubkey, my_pubkey_bytes, 32);
         send_identity_packet(&qpkt);
@@ -1932,7 +1924,6 @@ int main(int argc, char *argv[]) {
     lpkt.ship_class = my_ship_class;
     compute_identity_hash_v2(master_root_key, captain_name, id_salt, password, lpkt.pass_hash);
     memcpy(lpkt.salt, id_salt, 16);
-    memcpy(lpkt.pass_hash_legacy, password_hash, 32);
     memcpy(lpkt.x25519_pubkey, my_x25519_pubkey_bytes, 32);
     memcpy(lpkt.ed25519_pubkey, my_pubkey_bytes, 32);   /* bound to this login by the server */
     
@@ -2007,7 +1998,6 @@ int main(int argc, char *argv[]) {
     g_saved_ship_class = my_ship_class;
     memcpy(g_saved_login_hash, lpkt.pass_hash, 32);
     memcpy(g_saved_salt, lpkt.salt, 16);
-    memcpy(g_saved_legacy_hash, lpkt.pass_hash_legacy, 32);
     memcpy(g_saved_x25519_pubkey, lpkt.x25519_pubkey, 32);
     g_reconnect_enabled = 1;
 

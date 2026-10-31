@@ -1,3 +1,22 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.25
+  - Legacy removed: galaxy.dat format 1 (the raw dump written before
+  2026.10.31.19) is no longer read; a file without the SGGALAX2 magic makes
+  the server report "GALAXY FILE NOT IN FORMAT 2" and generate a new galaxy
+  (load_galaxy_v1 removed from src/server/galaxy_io.c).
+  - The unsalted password hash (HMAC(K, password), pass_hash_legacy) is no
+  longer computed by the client nor verified by the server, and the
+  migration of unsalted records is gone: a captain record without
+  identity.salt is refused (PKT_QUERY status 3, PKT_LOGIN closed, a
+  security warning tells to remove captains/<name> to enroll again).
+  PacketLogin keeps its 220-byte layout: the field is now reserved[32],
+  sent as zeros and ignored, so the handshake and wire format are
+  unchanged.
+  - Tests: login_auth case 5 checks that a record without salt is refused
+  by QUERY and LOGIN (also with the stored hash in the reserved field);
+  galaxy_file step 3 checks that a format-1 file is refused and replaced by
+  a new format-2 galaxy. PROTOCOL.md, DEVELOPMENT.md and SECURITY.md
+  updated.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.24
   - Tests and CI, roadmap phase 6: coverage. New CMake option
   SPACEGL_COVERAGE (gcov) and a CI "coverage" job that runs the suite and

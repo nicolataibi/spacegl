@@ -16,7 +16,7 @@ Wire layout (include/network.h, all little-endian, no padding needed):
                   ephemeral X25519 key, [32:64) nonce, [64:96) HMAC)
   PacketLogin    i32 type, c[64] name, i32 faction, i32 ship_class,
                  u8[32] pass_hash, u8[16] salt,
-                 u8[32] pass_hash_legacy, u8[32] x25519_pubkey,
+                 u8[32] reserved, u8[32] x25519_pubkey,
                  u8[32] ed25519_pubkey                               (220 B)
   PacketCommand  i32 type, c[256] cmd                                  (260 B)
   PacketMessage  i32 type, c[64] from, i32 faction, i32 scope,
@@ -147,7 +147,7 @@ def login(name, faction=0, ship_class=0, salt=b"\xaa" * 16):
             + struct.pack("<ii", faction, ship_class)
             + b"\x42" * 32          # pass_hash (v2, salted)
             + salt
-            + b"\x24" * 32          # pass_hash_legacy
+            + b"\x24" * 32          # reserved (ignored by the server)
             + b"\x9c" * 32          # x25519_pubkey
             + b"\x5e" * 32)         # ed25519_pubkey (signing key bound at login)
 
