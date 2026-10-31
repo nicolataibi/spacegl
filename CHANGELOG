@@ -1,3 +1,11 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.22
+  - Command deck, LRS list (roadmap phase 5): the name and the icon of each
+  object now come from one table of ID bands (76 rows) instead of a chain
+  of 35 strstr() calls on the name per object. Two wrong icons fixed by it:
+  "Planetary Nebula" matched "Planet" and showed a planet (now the nebula
+  icon), and the star-system moons fell through to the unknown icon (now a
+  moon). Every other icon is unchanged.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.21
   - Static analysis, roadmap phase 4: repository clang-tidy profile
   (.clang-tidy: bugprone, cert, concurrency; each exclusion explained in

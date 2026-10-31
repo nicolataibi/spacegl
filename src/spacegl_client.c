@@ -18,6 +18,7 @@
  */
 
 const char* get_lrs_object_name(int id);
+static const char *get_lrs_object_icon(int id);
 #define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -1074,41 +1075,7 @@ void *network_listener(void *arg) {
                     NetObject *obj = &lrs_pkt.objects[n];
                     /* Icon Mapping consistent with SRS */
                     const char *name = get_lrs_object_name(obj->id);
-                    const char *icon = "❓";
-                    if (strstr(name, "Player")) icon = "🚀";
-                    else if (strstr(name, "NPC")) icon = "⚔️ ";
-                    else if (strstr(name, "Starbase")) icon = "🛰️ ";
-                    else if (strstr(name, "Planet")) icon = "🪐";
-                    else if (strstr(name, "Star")) icon = "🌟";
-                    else if (strstr(name, "Black Hole")) icon = "🕳️ ";
-                    else if (strstr(name, "Nebula")) icon = "🌫️ ";
-                    else if (strstr(name, "Pulsar")) icon = "☄️ ";
-                    else if (strstr(name, "Quasar")) icon = "🎇 ";
-                    else if (strstr(name, "Rift")) icon = "🌀 ";
-                    else if (strstr(name, "Comet")) icon = "☄️ ";
-                    else if (strstr(name, "Asteroid")) icon = "🪨 ";
-                    else if (strstr(name, "Monster")) icon = "👾 ";
-                    else if (strstr(name, "Subspace Anomaly")) icon = "💥 ";
-                    else if (strstr(name, "Buoy")) icon = "📍 ";
-                    else if (strstr(name, "Platform")) icon = "🏗️ ";
-                    else if (strstr(name, "Wreck") || strstr(name, "Derelict")) icon = "🏚️ ";
-                    else if (strstr(name, "Mine")) icon = "💣 ";
-                    else if (strstr(name, "Artifact")) icon = "🏺 ";
-                    else if (strstr(name, "Warp Gate")) icon = "🌌 ";
-                    else if (strstr(name, "Neutron Star")) icon = "🌟 ";
-                    else if (strstr(name, "Mega Struct")) icon = "🏛️ ";
-                    else if (strstr(name, "Dark Cloud")) icon = "🌑 ";
-                    else if (strstr(name, "Singularity")) icon = "🔮 ";
-                    else if (strstr(name, "Plasma Storm")) icon = "⚡ ";
-                    else if (strstr(name, "Orbital Ring")) icon = "💍 ";
-                    else if (strstr(name, "Time Anomaly")) icon = "⏳ ";
-                    else if (strstr(name, "Void Crystal")) icon = "💎 ";
-                    else if (strstr(name, "Dyson")) icon = "🏗️ ";
-                    else if (strstr(name, "Hub")) icon = "🌐 ";
-                    else if (strstr(name, "Relic")) icon = "📜 ";
-                    else if (strstr(name, "Rupture")) icon = "🔪 ";
-                    else if (strstr(name, "Satellite")) icon = "📡 ";
-                    else if (strstr(name, "Storm")) icon = "⛈️ ";
+                    const char *icon = get_lrs_object_icon(obj->id);
 
                     printf("%s %-10s %-5d [%.2f,%.2f,%.2f] %-10s\n", 
                            icon, name, obj->id, obj->net_x, obj->net_y, obj->net_z, "Active");
@@ -2469,82 +2436,103 @@ int main(int argc, char *argv[]) {
     close(sock);
     return 0;
 }
+/* LRS object bands (2026.10.31.22): the name and the icon of an object
+ * come from its ID band, one row each. Before, the icon was guessed with a
+ * chain of strstr() on the name: "Planetary Nebula" matched "Planet" and
+ * showed a planet, and the star-system moons ("Moon") fell through to the
+ * unknown icon. */
+typedef struct { int min_id, max_id; const char *name, *icon; } LrsBand;
+static const LrsBand LRS_BANDS[] = {
+    { GALAXY_OBJECT_MIN_PLAYER, GALAXY_OBJECT_MAX_PLAYER, "Player", "🚀" },
+    { GALAXY_OBJECT_MIN_NPC, GALAXY_OBJECT_MAX_NPC, "NPC Ship", "⚔️ " },
+    { GALAXY_OBJECT_MIN_STARBASE, GALAXY_OBJECT_MAX_STARBASE, "Starbase", "🛰️ " },
+    { GALAXY_OBJECT_MIN_PLANET, GALAXY_OBJECT_MAX_PLANET, "Planet", "🪐" },
+    { GALAXY_OBJECT_MIN_STAR, GALAXY_OBJECT_MAX_STAR, "Star", "🌟" },
+    { GALAXY_OBJECT_MIN_SYS_STAR, GALAXY_OBJECT_MAX_SYS_STAR, "Star", "🌟" },
+    { GALAXY_OBJECT_MIN_SYS_PLANET, GALAXY_OBJECT_MAX_SYS_PLANET, "Planet", "🪐" },
+    { GALAXY_OBJECT_MIN_SYS_MOON, GALAXY_OBJECT_MAX_SYS_MOON, "Moon", "🌙" },
+    { GALAXY_OBJECT_MIN_BLACKHOLE, GALAXY_OBJECT_MAX_BLACKHOLE, "Black Hole", "🕳️ " },
+    { GALAXY_OBJECT_MIN_NEBULA, GALAXY_OBJECT_MAX_NEBULA, "Nebula", "🌫️ " },
+    { GALAXY_OBJECT_MIN_PULSAR, GALAXY_OBJECT_MAX_PULSAR, "Pulsar", "☄️ " },
+    { GALAXY_OBJECT_MIN_COMET, GALAXY_OBJECT_MAX_COMET, "Comet", "☄️ " },
+    { GALAXY_OBJECT_MIN_DERELICT, GALAXY_OBJECT_MAX_DERELICT, "Derelict", "🏚️ " },
+    { GALAXY_OBJECT_MIN_ASTEROID, GALAXY_OBJECT_MAX_ASTEROID, "Asteroid", "🪨 " },
+    { GALAXY_OBJECT_MIN_MINE, GALAXY_OBJECT_MAX_MINE, "Mine", "💣 " },
+    { GALAXY_OBJECT_MIN_BUOY, GALAXY_OBJECT_MAX_BUOY, "Buoy", "📍 " },
+    { GALAXY_OBJECT_MIN_PLATFORM, GALAXY_OBJECT_MAX_PLATFORM, "Platform", "🏗️ " },
+    { GALAXY_OBJECT_MIN_RIFT, GALAXY_OBJECT_MAX_RIFT, "Rift", "🌀 " },
+    { GALAXY_OBJECT_MIN_MONSTER, GALAXY_OBJECT_MAX_MONSTER, "Monster", "👾 " },
+    { GALAXY_OBJECT_MIN_PROBE, GALAXY_OBJECT_MAX_PROBE, "Probe", "❓" },
+    { GALAXY_OBJECT_MIN_QUASAR, GALAXY_OBJECT_MAX_QUASAR, "Quasar", "🎇 " },
+    { GALAXY_OBJECT_MIN_DYSON, GALAXY_OBJECT_MAX_DYSON, "Dyson", "🏗️ " },
+    { GALAXY_OBJECT_MIN_HUB, GALAXY_OBJECT_MAX_HUB, "Hub", "🌐 " },
+    { GALAXY_OBJECT_MIN_RELIC, GALAXY_OBJECT_MAX_RELIC, "Relic", "📜 " },
+    { GALAXY_OBJECT_MIN_RUPTURE, GALAXY_OBJECT_MAX_RUPTURE, "Rupture", "🔪 " },
+    { GALAXY_OBJECT_MIN_SATELLITE, GALAXY_OBJECT_MAX_SATELLITE, "Satellite", "📡 " },
+    { GALAXY_OBJECT_MIN_STORM, GALAXY_OBJECT_MAX_STORM, "Storm", "⛈️ " },
+    { GALAXY_OBJECT_MIN_ARTIFACT, GALAXY_OBJECT_MAX_ARTIFACT, "Artifact", "🏺 " },
+    { GALAXY_OBJECT_MIN_WARP_GATE, GALAXY_OBJECT_MAX_WARP_GATE, "Warp Gate", "🌌 " },
+    { GALAXY_OBJECT_MIN_NEUTRON_STAR, GALAXY_OBJECT_MAX_NEUTRON_STAR, "Neutron Star", "🌟" },
+    { GALAXY_OBJECT_MIN_MEGA_STRUCT, GALAXY_OBJECT_MAX_MEGA_STRUCT, "Mega Struct", "🏛️ " },
+    { GALAXY_OBJECT_MIN_DARK_CLOUD, GALAXY_OBJECT_MAX_DARK_CLOUD, "Dark Cloud", "🌑 " },
+    { GALAXY_OBJECT_MIN_SINGULARITY, GALAXY_OBJECT_MAX_SINGULARITY, "Singularity", "🔮 " },
+    { GALAXY_OBJECT_MIN_PLASMA_STORM, GALAXY_OBJECT_MAX_PLASMA_STORM, "Plasma Storm", "⚡ " },
+    { GALAXY_OBJECT_MIN_ORBITAL_RING, GALAXY_OBJECT_MAX_ORBITAL_RING, "Orbital Ring", "💍 " },
+    { GALAXY_OBJECT_MIN_TIME_ANOMALY, GALAXY_OBJECT_MAX_TIME_ANOMALY, "Time Anomaly", "⏳ " },
+    { GALAXY_OBJECT_MIN_VOID_CRYSTAL, GALAXY_OBJECT_MAX_VOID_CRYSTAL, "Void Crystal", "💎 " },
+    { GALAXY_OBJECT_MIN_SUBSPACE_ANOM, GALAXY_OBJECT_MAX_SUBSPACE_ANOM, "Subspace Anomaly", "💥 " },
+    { GALAXY_OBJECT_MIN_DIFFUSE_NEBULA, GALAXY_OBJECT_MAX_DIFFUSE_NEBULA, "Diffuse Nebula", "🌫️ " },
+    { GALAXY_OBJECT_MIN_DARK_NEBULA, GALAXY_OBJECT_MAX_DARK_NEBULA, "Dark Nebula", "🌫️ " },
+    { GALAXY_OBJECT_MIN_PLANETARY_NEBULA, GALAXY_OBJECT_MAX_PLANETARY_NEBULA, "Planetary Nebula", "🌫️ " },
+    { GALAXY_OBJECT_MIN_SNR, GALAXY_OBJECT_MAX_SNR, "SNR", "❓" },
+    { GALAXY_OBJECT_MIN_GMC, GALAXY_OBJECT_MAX_GMC, "GMC", "❓" },
+    { GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT, GALAXY_OBJECT_MAX_INTERSTELLAR_FILAMENT, "Interstellar Filament", "❓" },
+    { GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE, GALAXY_OBJECT_MAX_INTERSTELLAR_BUBBLE, "Interstellar Bubble", "❓" },
+    { GALAXY_OBJECT_MIN_BOK_GLOBULE, GALAXY_OBJECT_MAX_BOK_GLOBULE, "Bok Globule", "❓" },
+    { GALAXY_OBJECT_MIN_CLUMP_CORE, GALAXY_OBJECT_MAX_CLUMP_CORE, "Clump Core", "❓" },
+    { GALAXY_OBJECT_MIN_ACCRETION_DISK, GALAXY_OBJECT_MAX_ACCRETION_DISK, "Accretion Disk", "❓" },
+    { GALAXY_OBJECT_MIN_RELATIVISTIC_JET, GALAXY_OBJECT_MAX_RELATIVISTIC_JET, "Relativistic Jet", "❓" },
+    { GALAXY_OBJECT_MIN_SHOCK_WAVE, GALAXY_OBJECT_MAX_SHOCK_WAVE, "Shock Wave", "❓" },
+    { GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK, GALAXY_OBJECT_MAX_STELLAR_BOW_SHOCK, "Stellar Bow Shock", "❓" },
+    { GALAXY_OBJECT_MIN_COSMIC_VOID, GALAXY_OBJECT_MAX_COSMIC_VOID, "Cosmic Void", "❓" },
+    { GALAXY_OBJECT_MIN_COSMIC_FILAMENT, GALAXY_OBJECT_MAX_COSMIC_FILAMENT, "Cosmic Filament", "❓" },
+    { GALAXY_OBJECT_MIN_EVENT_HORIZON, GALAXY_OBJECT_MAX_EVENT_HORIZON, "Event Horizon", "❓" },
+    { GALAXY_OBJECT_MIN_KILONOVA, GALAXY_OBJECT_MAX_KILONOVA, "Kilonova", "❓" },
+    { GALAXY_OBJECT_MIN_GRAV_LENS, GALAXY_OBJECT_MAX_GRAV_LENS, "Gravitational Lens", "❓" },
+    { GALAXY_OBJECT_MIN_GRB, GALAXY_OBJECT_MAX_GRB, "Gamma-Ray Burst", "❓" },
+    { GALAXY_OBJECT_MIN_GRAV_WAVE, GALAXY_OBJECT_MAX_GRAV_WAVE, "Gravitational Wave", "❓" },
+    { GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK, GALAXY_OBJECT_MAX_PROTOPLANETARY_DISK, "Protoplanetary Disk", "❓" },
+    { GALAXY_OBJECT_MIN_DEBRIS_DISK, GALAXY_OBJECT_MAX_DEBRIS_DISK, "Debris Disk", "❓" },
+    { GALAXY_OBJECT_MIN_PLANETESIMAL, GALAXY_OBJECT_MAX_PLANETESIMAL, "Planetesimal", "🪐" },
+    { GALAXY_OBJECT_MIN_ROGUE_PLANET, GALAXY_OBJECT_MAX_ROGUE_PLANET, "Rogue Planet", "🪐" },
+    { GALAXY_OBJECT_MIN_BROWN_DWARF, GALAXY_OBJECT_MAX_BROWN_DWARF, "Brown Dwarf", "❓" },
+    { GALAXY_OBJECT_MIN_ISO, GALAXY_OBJECT_MAX_ISO, "Interstellar Object", "❓" },
+    { GALAXY_OBJECT_MIN_MAG_RECONN, GALAXY_OBJECT_MAX_MAG_RECONN, "Magnetic Reconnection", "❓" },
+    { GALAXY_OBJECT_MIN_CURRENT_SHEET, GALAXY_OBJECT_MAX_CURRENT_SHEET, "Current Sheet", "❓" },
+    { GALAXY_OBJECT_MIN_HELIOSPHERE, GALAXY_OBJECT_MAX_HELIOSPHERE, "Heliosphere", "❓" },
+    { GALAXY_OBJECT_MIN_TERM_SHOCK, GALAXY_OBJECT_MAX_TERM_SHOCK, "Termination Shock", "❓" },
+    { GALAXY_OBJECT_MIN_MAGNETOSPHERE, GALAXY_OBJECT_MAX_MAGNETOSPHERE, "Magnetosphere", "❓" },
+    { GALAXY_OBJECT_MIN_COSMIC_STRING, GALAXY_OBJECT_MAX_COSMIC_STRING, "Cosmic String", "❓" },
+    { GALAXY_OBJECT_MIN_DOMAIN_WALL, GALAXY_OBJECT_MAX_DOMAIN_WALL, "Domain Wall", "❓" },
+    { GALAXY_OBJECT_MIN_DM_HALO, GALAXY_OBJECT_MAX_DM_HALO, "Dark Matter Halo", "❓" },
+    { GALAXY_OBJECT_MIN_IGM, GALAXY_OBJECT_MAX_IGM, "IGM", "❓" },
+    { GALAXY_OBJECT_MIN_CGM, GALAXY_OBJECT_MAX_CGM, "CGM", "❓" },
+    { GALAXY_OBJECT_MIN_LYMAN_ALPHA, GALAXY_OBJECT_MAX_LYMAN_ALPHA, "Lyman-Alpha Forest", "❓" },
+    { GALAXY_OBJECT_MIN_CMB, GALAXY_OBJECT_MAX_CMB, "CMB", "❓" },
+};
+
+static const LrsBand *lrs_band(int id) {
+    for (size_t k = 0; k < sizeof(LRS_BANDS) / sizeof(LRS_BANDS[0]); k++)
+        if (id >= LRS_BANDS[k].min_id && id <= LRS_BANDS[k].max_id) return &LRS_BANDS[k];
+    return NULL;
+}
+
 const char* get_lrs_object_name(int id) {
-    if (id >= GALAXY_OBJECT_MIN_PLAYER && id <= GALAXY_OBJECT_MAX_PLAYER) return "Player";
-    if (id >= GALAXY_OBJECT_MIN_NPC && id <= GALAXY_OBJECT_MAX_NPC) return "NPC Ship";
-    if (id >= GALAXY_OBJECT_MIN_STARBASE && id <= GALAXY_OBJECT_MAX_STARBASE) return "Starbase";
-    if (id >= GALAXY_OBJECT_MIN_PLANET && id <= GALAXY_OBJECT_MAX_PLANET) return "Planet";
-    if (id >= GALAXY_OBJECT_MIN_STAR && id <= GALAXY_OBJECT_MAX_STAR) return "Star";
-    if (id >= GALAXY_OBJECT_MIN_SYS_STAR && id <= GALAXY_OBJECT_MAX_SYS_STAR) return "Star";       /* star systems */
-    if (id >= GALAXY_OBJECT_MIN_SYS_PLANET && id <= GALAXY_OBJECT_MAX_SYS_PLANET) return "Planet";
-    if (id >= GALAXY_OBJECT_MIN_SYS_MOON && id <= GALAXY_OBJECT_MAX_SYS_MOON) return "Moon";
-    if (id >= GALAXY_OBJECT_MIN_BLACKHOLE && id <= GALAXY_OBJECT_MAX_BLACKHOLE) return "Black Hole";
-    if (id >= GALAXY_OBJECT_MIN_NEBULA && id <= GALAXY_OBJECT_MAX_NEBULA) return "Nebula";
-    if (id >= GALAXY_OBJECT_MIN_PULSAR && id <= GALAXY_OBJECT_MAX_PULSAR) return "Pulsar";
-    if (id >= GALAXY_OBJECT_MIN_COMET && id <= GALAXY_OBJECT_MAX_COMET) return "Comet";
-    if (id >= GALAXY_OBJECT_MIN_DERELICT && id <= GALAXY_OBJECT_MAX_DERELICT) return "Derelict";
-    if (id >= GALAXY_OBJECT_MIN_ASTEROID && id <= GALAXY_OBJECT_MAX_ASTEROID) return "Asteroid";
-    if (id >= GALAXY_OBJECT_MIN_MINE && id <= GALAXY_OBJECT_MAX_MINE) return "Mine";
-    if (id >= GALAXY_OBJECT_MIN_BUOY && id <= GALAXY_OBJECT_MAX_BUOY) return "Buoy";
-    if (id >= GALAXY_OBJECT_MIN_PLATFORM && id <= GALAXY_OBJECT_MAX_PLATFORM) return "Platform";
-    if (id >= GALAXY_OBJECT_MIN_RIFT && id <= GALAXY_OBJECT_MAX_RIFT) return "Rift";
-    if (id >= GALAXY_OBJECT_MIN_MONSTER && id <= GALAXY_OBJECT_MAX_MONSTER) return "Monster";
-    if (id >= GALAXY_OBJECT_MIN_PROBE && id <= GALAXY_OBJECT_MAX_PROBE) return "Probe";
-    if (id >= GALAXY_OBJECT_MIN_QUASAR && id <= GALAXY_OBJECT_MAX_QUASAR) return "Quasar";
-    if (id >= GALAXY_OBJECT_MIN_DYSON && id <= GALAXY_OBJECT_MAX_DYSON) return "Dyson";
-    if (id >= GALAXY_OBJECT_MIN_HUB && id <= GALAXY_OBJECT_MAX_HUB) return "Hub";
-    if (id >= GALAXY_OBJECT_MIN_RELIC && id <= GALAXY_OBJECT_MAX_RELIC) return "Relic";
-    if (id >= GALAXY_OBJECT_MIN_RUPTURE && id <= GALAXY_OBJECT_MAX_RUPTURE) return "Rupture";
-    if (id >= GALAXY_OBJECT_MIN_SATELLITE && id <= GALAXY_OBJECT_MAX_SATELLITE) return "Satellite";
-    if (id >= GALAXY_OBJECT_MIN_STORM && id <= GALAXY_OBJECT_MAX_STORM) return "Storm";
-    if (id >= GALAXY_OBJECT_MIN_ARTIFACT && id <= GALAXY_OBJECT_MAX_ARTIFACT) return "Artifact";
-    if (id >= GALAXY_OBJECT_MIN_WARP_GATE && id <= GALAXY_OBJECT_MAX_WARP_GATE) return "Warp Gate";
-    if (id >= GALAXY_OBJECT_MIN_NEUTRON_STAR && id <= GALAXY_OBJECT_MAX_NEUTRON_STAR) return "Neutron Star";
-    if (id >= GALAXY_OBJECT_MIN_MEGA_STRUCT && id <= GALAXY_OBJECT_MAX_MEGA_STRUCT) return "Mega Struct";
-    if (id >= GALAXY_OBJECT_MIN_DARK_CLOUD && id <= GALAXY_OBJECT_MAX_DARK_CLOUD) return "Dark Cloud";
-    if (id >= GALAXY_OBJECT_MIN_SINGULARITY && id <= GALAXY_OBJECT_MAX_SINGULARITY) return "Singularity";
-    if (id >= GALAXY_OBJECT_MIN_PLASMA_STORM && id <= GALAXY_OBJECT_MAX_PLASMA_STORM) return "Plasma Storm";
-    if (id >= GALAXY_OBJECT_MIN_ORBITAL_RING && id <= GALAXY_OBJECT_MAX_ORBITAL_RING) return "Orbital Ring";
-    if (id >= GALAXY_OBJECT_MIN_TIME_ANOMALY && id <= GALAXY_OBJECT_MAX_TIME_ANOMALY) return "Time Anomaly";
-    if (id >= GALAXY_OBJECT_MIN_VOID_CRYSTAL && id <= GALAXY_OBJECT_MAX_VOID_CRYSTAL) return "Void Crystal";
-    if (id >= GALAXY_OBJECT_MIN_SUBSPACE_ANOM && id <= GALAXY_OBJECT_MAX_SUBSPACE_ANOM) return "Subspace Anomaly";
-    if (id >= GALAXY_OBJECT_MIN_DIFFUSE_NEBULA && id <= GALAXY_OBJECT_MAX_DIFFUSE_NEBULA) return "Diffuse Nebula";
-    if (id >= GALAXY_OBJECT_MIN_DARK_NEBULA && id <= GALAXY_OBJECT_MAX_DARK_NEBULA) return "Dark Nebula";
-    if (id >= GALAXY_OBJECT_MIN_PLANETARY_NEBULA && id <= GALAXY_OBJECT_MAX_PLANETARY_NEBULA) return "Planetary Nebula";
-    if (id >= GALAXY_OBJECT_MIN_SNR && id <= GALAXY_OBJECT_MAX_SNR) return "SNR";
-    if (id >= GALAXY_OBJECT_MIN_GMC && id <= GALAXY_OBJECT_MAX_GMC) return "GMC";
-    if (id >= GALAXY_OBJECT_MIN_INTERSTELLAR_FILAMENT && id <= GALAXY_OBJECT_MAX_INTERSTELLAR_FILAMENT) return "Interstellar Filament";
-    if (id >= GALAXY_OBJECT_MIN_INTERSTELLAR_BUBBLE && id <= GALAXY_OBJECT_MAX_INTERSTELLAR_BUBBLE) return "Interstellar Bubble";
-    if (id >= GALAXY_OBJECT_MIN_BOK_GLOBULE && id <= GALAXY_OBJECT_MAX_BOK_GLOBULE) return "Bok Globule";
-    if (id >= GALAXY_OBJECT_MIN_CLUMP_CORE && id <= GALAXY_OBJECT_MAX_CLUMP_CORE) return "Clump Core";
-    if (id >= GALAXY_OBJECT_MIN_ACCRETION_DISK && id <= GALAXY_OBJECT_MAX_ACCRETION_DISK) return "Accretion Disk";
-    if (id >= GALAXY_OBJECT_MIN_RELATIVISTIC_JET && id <= GALAXY_OBJECT_MAX_RELATIVISTIC_JET) return "Relativistic Jet";
-    if (id >= GALAXY_OBJECT_MIN_SHOCK_WAVE && id <= GALAXY_OBJECT_MAX_SHOCK_WAVE) return "Shock Wave";
-    if (id >= GALAXY_OBJECT_MIN_STELLAR_BOW_SHOCK && id <= GALAXY_OBJECT_MAX_STELLAR_BOW_SHOCK) return "Stellar Bow Shock";
-    if (id >= GALAXY_OBJECT_MIN_COSMIC_VOID && id <= GALAXY_OBJECT_MAX_COSMIC_VOID) return "Cosmic Void";
-    if (id >= GALAXY_OBJECT_MIN_COSMIC_FILAMENT && id <= GALAXY_OBJECT_MAX_COSMIC_FILAMENT) return "Cosmic Filament";
-    if (id >= GALAXY_OBJECT_MIN_EVENT_HORIZON && id <= GALAXY_OBJECT_MAX_EVENT_HORIZON) return "Event Horizon";
-    if (id >= GALAXY_OBJECT_MIN_KILONOVA && id <= GALAXY_OBJECT_MAX_KILONOVA) return "Kilonova";
-    if (id >= GALAXY_OBJECT_MIN_GRAV_LENS && id <= GALAXY_OBJECT_MAX_GRAV_LENS) return "Gravitational Lens";
-    if (id >= GALAXY_OBJECT_MIN_GRB && id <= GALAXY_OBJECT_MAX_GRB) return "Gamma-Ray Burst";
-    if (id >= GALAXY_OBJECT_MIN_GRAV_WAVE && id <= GALAXY_OBJECT_MAX_GRAV_WAVE) return "Gravitational Wave";
-    if (id >= GALAXY_OBJECT_MIN_PROTOPLANETARY_DISK && id <= GALAXY_OBJECT_MAX_PROTOPLANETARY_DISK) return "Protoplanetary Disk";
-    if (id >= GALAXY_OBJECT_MIN_DEBRIS_DISK && id <= GALAXY_OBJECT_MAX_DEBRIS_DISK) return "Debris Disk";
-    if (id >= GALAXY_OBJECT_MIN_PLANETESIMAL && id <= GALAXY_OBJECT_MAX_PLANETESIMAL) return "Planetesimal";
-    if (id >= GALAXY_OBJECT_MIN_ROGUE_PLANET && id <= GALAXY_OBJECT_MAX_ROGUE_PLANET) return "Rogue Planet";
-    if (id >= GALAXY_OBJECT_MIN_BROWN_DWARF && id <= GALAXY_OBJECT_MAX_BROWN_DWARF) return "Brown Dwarf";
-    if (id >= GALAXY_OBJECT_MIN_ISO && id <= GALAXY_OBJECT_MAX_ISO) return "Interstellar Object";
-    if (id >= GALAXY_OBJECT_MIN_MAG_RECONN && id <= GALAXY_OBJECT_MAX_MAG_RECONN) return "Magnetic Reconnection";
-    if (id >= GALAXY_OBJECT_MIN_CURRENT_SHEET && id <= GALAXY_OBJECT_MAX_CURRENT_SHEET) return "Current Sheet";
-    if (id >= GALAXY_OBJECT_MIN_HELIOSPHERE && id <= GALAXY_OBJECT_MAX_HELIOSPHERE) return "Heliosphere";
-    if (id >= GALAXY_OBJECT_MIN_TERM_SHOCK && id <= GALAXY_OBJECT_MAX_TERM_SHOCK) return "Termination Shock";
-    if (id >= GALAXY_OBJECT_MIN_MAGNETOSPHERE && id <= GALAXY_OBJECT_MAX_MAGNETOSPHERE) return "Magnetosphere";
-    if (id >= GALAXY_OBJECT_MIN_COSMIC_STRING && id <= GALAXY_OBJECT_MAX_COSMIC_STRING) return "Cosmic String";
-    if (id >= GALAXY_OBJECT_MIN_DOMAIN_WALL && id <= GALAXY_OBJECT_MAX_DOMAIN_WALL) return "Domain Wall";
-    if (id >= GALAXY_OBJECT_MIN_DM_HALO && id <= GALAXY_OBJECT_MAX_DM_HALO) return "Dark Matter Halo";
-    if (id >= GALAXY_OBJECT_MIN_IGM && id <= GALAXY_OBJECT_MAX_IGM) return "IGM";
-    if (id >= GALAXY_OBJECT_MIN_CGM && id <= GALAXY_OBJECT_MAX_CGM) return "CGM";
-    if (id >= GALAXY_OBJECT_MIN_LYMAN_ALPHA && id <= GALAXY_OBJECT_MAX_LYMAN_ALPHA) return "Lyman-Alpha Forest";
-    if (id >= GALAXY_OBJECT_MIN_CMB && id <= GALAXY_OBJECT_MAX_CMB) return "CMB";
-    return "Unknown";
+    const LrsBand *bnd = lrs_band(id);
+    return bnd ? bnd->name : "Unknown";
+}
+
+static const char *get_lrs_object_icon(int id) {
+    const LrsBand *bnd = lrs_band(id);
+    return bnd ? bnd->icon : "❓";
 }
