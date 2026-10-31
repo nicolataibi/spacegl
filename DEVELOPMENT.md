@@ -374,6 +374,14 @@ number and element count.
 - **Static analysis.** `.clang-tidy` is the profile of the `lint` job (server
   sources, zero findings). Run it locally with
   `clang-tidy -p <build dir with compile_commands.json> <files>`.
+- **Formatting.** `.clang-format` describes the style of the tree as
+  closely as clang-format can (4 spaces, attached braces, no reflow of long
+  lines or comments). The CI `format` job checks only the lines a push or a
+  pull request changes (`tests/format_check.sh <base>`); fix them with
+  `git clang-format <base>`. The tree itself is not reformatted: doing it
+  once, when no branch is open, is
+  `git ls-files '*.c' '*.h' '*.inc' '*.inl' | xargs clang-format -i` in one
+  commit of its own (after it every line complies; the check is unchanged).
 - **Warnings.** `-DSPACEGL_WERROR=ON` (on in the CI matrix) turns warnings into
   errors. `-Wshadow` is on everywhere. `-Wconversion` is on for the server
   target (`spacegl_server`, 2026.10.31.26): an implicit conversion that can

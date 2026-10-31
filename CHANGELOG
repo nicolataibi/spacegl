@@ -1,3 +1,12 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.35
+  - Build hygiene, roadmap phase 4: clang-format profile (.clang-format)
+  matching the style of the tree as far as clang-format allows (4 spaces,
+  attached braces, short blocks kept on one line, no reflow of long lines
+  or comments) and a CI "format" job that checks the lines changed by a
+  push or a pull request (tests/format_check.sh; lines older than the
+  profile are never checked). The tree is not reformatted: the one-shot
+  command, to run when no branch is open, is in DEVELOPMENT.md section 9.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.34
   - Build hygiene, roadmap phase 4: -Wconversion on for the two graphical
   viewers (spacegl_3dview, spacegl_vulkan); every program of the project

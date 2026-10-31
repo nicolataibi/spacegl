@@ -1,0 +1,33 @@
+# clang-format profile (2026.10.31.35, roadmap phase 4). It describes the
+# style of the tree as closely as clang-format can (4 spaces, attached braces,
+# no line-length reflow, comments and trailing-comment alignment left alone)
+# and is enforced on CHANGED LINES only (tests/format_check.sh, CI "format"
+# job); a one-shot reformat of the whole tree is a separate decision
+# (DEVELOPMENT.md section 9).
+BasedOnStyle: LLVM
+Language: Cpp
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 0
+BreakBeforeBraces: Attach
+IndentCaseLabels: true
+PointerAlignment: Right
+DerivePointerAlignment: false
+SortIncludes: Never
+ReflowComments: false
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLoopsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Always
+AllowShortFunctionsOnASingleLine: All
+AllowShortCaseLabelsOnASingleLine: true
+AlignTrailingComments:
+  Kind: Leave
+AlignConsecutiveMacros: AcrossComments
+AlignEscapedNewlines: DontAlign
+AlignAfterOpenBracket: Align
+Cpp11BracedListStyle: false
+SpaceBeforeParens: ControlStatements
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: true
+IndentPPDirectives: None

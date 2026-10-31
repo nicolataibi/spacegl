@@ -245,6 +245,32 @@ jobs:
             xargs -P "$(nproc)" -n 1 clang-tidy -p build --quiet --warnings-as-errors='*'
 
   # ====================================================================
+  # Format (2026.10.31.35, roadmap phase 4): clang-format (.clang-format)
+  # on the lines this push or pull request changed, not on the whole tree;
+  # lines older than the profile are never checked. Fix locally with
+  # "git clang-format <base>".
+  # ====================================================================
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-format
+
+      - name: clang-format on the changed lines
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then base=HEAD~1; fi
+          intro=$(git log --diff-filter=A --format=%H -1 -- .clang-format)
+          if [ -n "$intro" ] && git merge-base --is-ancestor "$base" "$intro"; then base="$intro"; fi
+          bash tests/format_check.sh "$base"
+
+  # ====================================================================
   # Coverage (2026.10.31.24, roadmap phase 6): the suite under gcov, line
   # coverage of the server measured with gcovr. The floor is the committed
   # tests/coverage_threshold.txt (a ratchet: raise it when the coverage
