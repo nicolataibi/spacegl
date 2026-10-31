@@ -1,3 +1,24 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.40
+  - Server radio relay, roadmap (fewer copies): broadcast_message() zeroed
+  a 64 KiB plaintext buffer and copied every message into it, and for
+  every recipient copied the header and the text again into one reused
+  64 KiB packet, encrypting the message once per recipient. The fleet keys
+  are the same for every captain (derived from the server key and the
+  frequency), so all that work produced the same packet again and again.
+  Now the message is encoded once per distinct frequency and key and the
+  same packet is written to every recipient on it; a cleartext message
+  goes out from the received packet itself (no copy), and only a fleet
+  message the relay decrypts gets a plaintext buffer. The routing
+  snapshot moved from the heap to the stack. Recipients on the same
+  frequency now receive the same IV and ciphertext; each recipient still
+  has the key, and recipients with their own key get their own packet.
+  - Tests: relay_snapshot case 5, eleven recipients (six on AES with the
+  fleet key, two on ChaCha20, one with a key of its own, two in clear), a
+  cleartext and an encrypted fleet message: every recipient gets the
+  plaintext back, the six sharing a key get the same bytes (fails on the
+  old code). 200 relays of 16 KiB to them, Release: 55 ms before, 28 ms
+  after (reading included).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.39
   - Fix (server): two new captains logging in at the same time could knock
   each other out. At PKT_LOGIN a new captain took the first slot with no

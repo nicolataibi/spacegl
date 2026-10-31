@@ -325,7 +325,11 @@ LRS reply) is allowed; a thread holding a `socket_mutex` never takes
 - **Routing snapshots**: the radio relay and `send_server_msg()` copy the
   recipient's fd, frequency and key under the lock, then write without
   it; every write re-checks under `socket_mutex` that the slot still holds
-  that fd.
+  that fd. Outside the lock a fleet message is encoded once per distinct
+  frequency and key (`RelayEncoding`, src/server/net.c): the fleet keys
+  are the same for every captain, so the recipients on one frequency get
+  the same packet; a cleartext message to a cleartext recipient is written
+  from the received packet itself.
 - **Teardown**: `player_socket_detach()` shuts the socket down first (a
   writer blocked in `send()` returns at once), then clears it under
   `socket_mutex`; the caller closes the fd afterwards.

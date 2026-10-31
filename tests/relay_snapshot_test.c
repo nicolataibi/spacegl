@@ -15,6 +15,12 @@
  *  4. player_socket_detach() wakes a writer blocked in send() on a full
  *     socket (shutdown first), so it never waits on socket_mutex for long,
  *     and leaves the slot with socket == 0: later sends are skipped.
+ *  5. (2026.10.31.40) one encoding per frequency and key: eleven recipients
+ *     (six on AES with the fleet key, two on ChaCha20, one on AES with a
+ *     key of its own, two in clear) of a cleartext and of an encrypted
+ *     fleet message each get the plaintext back; the six that share a key
+ *     receive the same bytes (encrypted once), the one with its own key a
+ *     packet of its own. The time of 200 relays of 16 KiB is printed.
  */
 #define _DEFAULT_SOURCE
 #include <stdint.h>
@@ -358,6 +364,97 @@ int main(void) {
     }
 
     close(sa[0]); close(sa[1]); close(sb[0]); close(sb[1]); close(sc[0]); close(sc[1]);
+
+    /* ---- 5. one encoding per frequency and key ---- */
+    {
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            players[i].active = 0;
+            players[i].socket = 0;
+        }
+        enum { N = 12 };
+        int sp[N][2];
+        static const int algo_of[N] = { CRYPTO_NONE,                     /* 0: sender */
+                                        CRYPTO_AES, CRYPTO_AES, CRYPTO_AES,
+                                        CRYPTO_AES, CRYPTO_AES, CRYPTO_AES,
+                                        CRYPTO_CHACHA, CRYPTO_CHACHA,
+                                        CRYPTO_AES,                      /* 9: own key */
+                                        CRYPTO_NONE, CRYPTO_NONE };
+        uint8_t fleet[MAX_CRYPTO_ALGOS + 1][32];
+        for (int k = 0; k <= MAX_CRYPTO_ALGOS; k++) memset(fleet[k], 0x70 + k, 32);
+        for (int i = 0; i < N; i++) {
+            TEST_CHECK(socketpair(AF_UNIX, SOCK_STREAM, 0, sp[i]) == 0);
+            int b = 1 << 20;
+            setsockopt(sp[i][0], SOL_SOCKET, SO_SNDBUF, &b, sizeof(b));
+            setsockopt(sp[i][1], SOL_SOCKET, SO_RCVBUF, &b, sizeof(b));
+            char name[16];
+            snprintf(name, sizeof(name), "cpt%d", i);
+            set_player(i, name, sp[i][0], algo_of[i], (uint8_t)(0x80 + i));
+            if (i != 9) memcpy(players[i].algo_keys, fleet, sizeof(fleet));   /* the fleet keys */
+        }
+        enum { LEN = 16384 };
+        char *text = malloc(LEN);
+        for (int j = 0; j < LEN; j++) text[j] = (char)((j * 7 + 3) & 0xff);   /* NULs included */
+        PacketMessage *in = calloc(1, sizeof(PacketMessage));
+        PacketMessage *rx = calloc(N, sizeof(PacketMessage));
+        uint8_t *out = malloc(65536);
+
+        for (int round = 0; round < 2; round++) {
+            memset(in, 0, sizeof(PacketMessage));
+            in->type = PKT_MESSAGE;
+            strcpy(in->from, "cpt0");
+            if (round == 0) {                      /* cleartext from the sender */
+                memcpy(in->text, text, LEN);
+                in->length = LEN;
+            } else {                               /* fleet AES: decrypted by the relay */
+                in->crypto_algo = CRYPTO_AES;
+                in->is_encrypted = 0x01;
+                encrypt_payload(in, text, LEN, players[0].algo_keys[CRYPTO_AES], 7);
+                TEST_CHECK(in->is_encrypted == 0x01 && in->length == LEN);
+            }
+            broadcast_message(in);
+            for (int i = 0; i < N; i++) {
+                memset(&rx[i], 0, sizeof(PacketMessage));
+                TEST_CHECK(read_msg(sp[i][1], &rx[i]) == 0);
+                TEST_CHECK(rx[i].crypto_algo == (uint8_t)algo_of[i]);
+                if (algo_of[i] == CRYPTO_NONE) {
+                    TEST_CHECK(rx[i].is_encrypted == 0 && rx[i].length == LEN);
+                    TEST_CHECK(memcmp(rx[i].text, text, LEN) == 0);
+                } else {
+                    TEST_CHECK(rx[i].is_encrypted == 0x01);
+                    TEST_CHECK(decrypt_msg(&rx[i], players[i].algo_keys[algo_of[i]], out) == LEN);
+                    TEST_CHECK(memcmp(out, text, LEN) == 0);
+                }
+            }
+            for (int i = 2; i <= 6; i++)            /* same frequency, same key: one encoding */
+                TEST_CHECK(memcmp(&rx[i], &rx[1], offsetof(PacketMessage, text) + LEN) == 0);
+            TEST_CHECK(memcmp(&rx[8], &rx[7], offsetof(PacketMessage, text) + LEN) == 0);
+            TEST_CHECK(memcmp(rx[9].iv, rx[1].iv, 16) != 0);   /* its own key: its own packet */
+        }
+
+        /* 200 relays of a 16 KiB cleartext message to the eleven recipients */
+        double t0 = now_s();
+        for (int it = 0; it < 200; it++) {
+            memset(in, 0, offsetof(PacketMessage, text));
+            in->type = PKT_MESSAGE;
+            strcpy(in->from, "cpt0");
+            memcpy(in->text, text, LEN);
+            in->length = LEN;
+            broadcast_message(in);
+            for (int i = 0; i < N; i++) TEST_CHECK(read_msg(sp[i][1], &rx[i]) == 0);
+        }
+        double dt = now_s() - t0;
+        for (int i = 0; i < N; i++) {
+            close(sp[i][0]);
+            close(sp[i][1]);
+        }
+        free(text);
+        free(in);
+        free(rx);
+        free(out);
+        printf("[5] one encoding per frequency and key (6 AES + 2 ChaCha20 + 1 own key + 2 clear): OK;"
+               " 200 relays of 16 KiB in %.1f ms\n",
+               dt * 1000.0);
+    }
     printf("relay_snapshot_test: all checks passed\n");
     return 0;
 }

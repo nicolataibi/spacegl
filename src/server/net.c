@@ -212,14 +212,79 @@ static void relay_write(int i, int fd, const void *buf, size_t len) {
     pthread_mutex_unlock(&players[i].socket_mutex);
 }
 
+/* One encoding of a fleet message (2026.10.31.40): the packet every
+ * recipient on the same frequency with the same key receives. The fleet
+ * keys are the same for every captain (derived from the server key and the
+ * frequency), so a fleet message to sixteen captains on AES is encrypted
+ * once and written sixteen times, instead of encrypted and copied sixteen
+ * times into one reused buffer. */
+typedef struct {
+    int algo;
+    uint8_t key[32];
+    PacketMessage *pkt;    /* the packet to write (== msg for the clear one) */
+    bool owned;            /* pkt was allocated here */
+    size_t len;            /* bytes on the wire: header + text */
+} RelayEncoding;
+
+/* The encoding for (algo, key): an existing one, or a new one built from
+ * the header of msg and the validated plaintext. NULL on allocation
+ * failure (the recipient is skipped, as before). */
+static RelayEncoding *relay_encoding_for(RelayEncoding *enc, int *n_enc, PacketMessage *msg,
+                                         bool msg_is_plaintext, const char *plain, size_t plain_len,
+                                         int algo, const uint8_t *key, int64_t frame_id) {
+    for (int e = 0; e < *n_enc; e++) {
+        if (enc[e].algo != algo) continue;
+        if (algo == CRYPTO_NONE || CRYPTO_memcmp(enc[e].key, key, 32) == 0) return &enc[e];
+    }
+    RelayEncoding *r = &enc[*n_enc];
+    r->algo = algo;
+    if (algo != CRYPTO_NONE) memcpy(r->key, key, 32);
+    else memset(r->key, 0, 32);
+    if (algo == CRYPTO_NONE && msg_is_plaintext) {
+        /* A cleartext message to a cleartext recipient: msg itself, its
+         * text already being the validated plaintext (no copy). */
+        msg->is_encrypted = 0;
+        msg->crypto_algo = CRYPTO_NONE;
+        msg->text[plain_len] = '\0';
+        msg->length = (int32_t)plain_len;
+        r->pkt = msg;
+        r->owned = false;
+    } else {
+        PacketMessage *out = malloc(sizeof(PacketMessage));
+        if (!out) return NULL;
+        memcpy(out, msg, offsetof(PacketMessage, text));
+        if (algo != CRYPTO_NONE) {
+            /* Recipient wants encryption: encrypt the validated plaintext */
+            out->crypto_algo = (uint8_t)algo;
+            out->is_encrypted = 0x01;
+            encrypt_payload(out, plain, plain_len, key, frame_id);
+        } else {
+            /* Recipient wants cleartext (of a decrypted fleet message) */
+            out->is_encrypted = 0;
+            out->crypto_algo = CRYPTO_NONE;
+            memcpy(out->text, plain, plain_len);
+            out->text[plain_len] = '\0';
+            out->length = (int32_t)plain_len;
+        }
+        r->pkt = out;
+        r->owned = true;
+    }
+    r->len = offsetof(PacketMessage, text) + (size_t)r->pkt->length;
+    (*n_enc)++;
+    return r;
+}
+
 void broadcast_message(PacketMessage *msg) {
-    char *plaintext = malloc(65536);
-    if (!plaintext) return;
-    memset(plaintext, 0, 65536);
+    /* The plaintext: msg->text itself for a cleartext message; a buffer
+     * of its own only when a fleet message is decrypted here
+     * (2026.10.31.40: no 64 KiB buffer zeroed and copied into for every
+     * message). */
+    char *decrypted = NULL;
+    const char *plaintext = msg->text;
     size_t plain_len = 0;   /* exact plaintext length (may contain NUL bytes) */
 
-    RelayTarget *targets = calloc(MAX_CLIENTS, sizeof(RelayTarget));
-    if (!targets) { free(plaintext); return; }
+    RelayTarget targets[MAX_CLIENTS];
+    memset(targets, 0, sizeof(targets));
 
     /* 0x01 encrypted, 0x02 private, 0x04 peer, 0x08 exclusive */
     msg->from[sizeof(msg->from) - 1] = '\0';   /* network field: force a terminator */
@@ -247,6 +312,11 @@ void broadcast_message(PacketMessage *msg) {
             LOG_DEBUG("Encrypted Private/Peer/Exclusive message from %s. Relay mode: TRANSPARENT.\n", msg->from);
         } else {
             /* Level A (Fleet): Server must decrypt to allow cross-algorithm talk and cleartext fallback */
+            decrypted = malloc(65536);
+            if (!decrypted) {
+                pthread_mutex_unlock(&game_mutex);
+                return;
+            }
             EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
             int algo = msg->crypto_algo;
 
@@ -275,26 +345,28 @@ void broadcast_message(PacketMessage *msg) {
             if (is_gcm) EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL);
             EVP_DecryptInit_ex(ctx, NULL, NULL, k, msg->iv);
             int outlen;
-            EVP_DecryptUpdate(ctx, (uint8_t*)plaintext, &outlen, (const uint8_t*)msg->text, msg->length);
+            EVP_DecryptUpdate(ctx, (uint8_t *)decrypted, &outlen, (const uint8_t *)msg->text, msg->length);
             if (is_gcm) EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, msg->tag);
             int final_len;
-            if (EVP_DecryptFinal_ex(ctx, (uint8_t*)plaintext + outlen, &final_len) <= 0) {
+            if (EVP_DecryptFinal_ex(ctx, (uint8_t *)decrypted + outlen, &final_len) <= 0) {
                 /* Decryption failed */
                 send_server_msg(sender_idx, "COMPUTER", "TRANSMISSION ERROR: Frequency parity failure.");
                 EVP_CIPHER_CTX_free(ctx); pthread_mutex_unlock(&game_mutex);
-                OPENSSL_cleanse(plaintext, 65536); free(plaintext); free(targets); return;
+                OPENSSL_cleanse(decrypted, 65536);
+                free(decrypted);
+                return;
             }
             plain_len = (size_t)outlen + (size_t)final_len;   /* both >= 0 after a successful decrypt */
             if (plain_len > 65535) plain_len = 65535;
-            plaintext[plain_len] = '\0';
+            decrypted[plain_len] = '\0';
+            plaintext = decrypted;
             EVP_CIPHER_CTX_free(ctx);
         }
     } else {
-        /* Cleartext message */
-        size_t c_len = (msg->length < 65535) ? (size_t)msg->length : 65535;
-        memcpy(plaintext, msg->text, c_len);
-        plaintext[c_len] = '\0';
-        plain_len = c_len;
+        /* Cleartext message: the text is the plaintext (the wire length is
+         * validated to [0, 65535] by the dispatcher; clamped again here). */
+        plain_len = (msg->length <= 0) ? 0 : (msg->length < 65535) ? (size_t)msg->length
+                                                                   : 65535;
     }
 
     /* 2. ROUTING SNAPSHOT (under game_mutex): who receives the message, on
@@ -355,7 +427,8 @@ void broadcast_message(PacketMessage *msg) {
     pthread_mutex_unlock(&game_mutex);
 
     /* 3. BROADCAST LOOP (executed outside game_mutex) */
-    PacketMessage *out_pkt = transparent ? NULL : malloc(sizeof(PacketMessage));
+    RelayEncoding enc[MAX_CLIENTS];
+    int n_enc = 0;
     for (int i = 0; i < MAX_CLIENTS; i++) {
         RelayTarget *t = &targets[i];
         if (!t->deliver) continue;
@@ -364,31 +437,29 @@ void broadcast_message(PacketMessage *msg) {
             /* STRICT RELAY: No one gets cleartext if they are not the intended recipient with the key.
                This includes Exclusive Mode (0x08) to prevent noise on other frequencies. */
             relay_write(i, t->fd, msg, offsetof(PacketMessage, text) + (size_t)msg->length);
-        } else if (out_pkt) {
-            /* ADAPTIVE RELAY: Translate for recipient or send cleartext */
-            memcpy(out_pkt, msg, offsetof(PacketMessage, text));
-            if (t->algo != CRYPTO_NONE) {
-                /* Recipient wants encryption: encrypt the validated plaintext */
-                out_pkt->crypto_algo = (uint8_t)t->algo;
-                out_pkt->is_encrypted = 0x01;
-                encrypt_payload(out_pkt, plaintext, plain_len, t->key, frame_id);
-            } else {
-                /* Recipient wants cleartext */
-                out_pkt->is_encrypted = 0;
-                out_pkt->crypto_algo = CRYPTO_NONE;
-                memcpy(out_pkt->text, plaintext, plain_len);
-                out_pkt->text[plain_len] = '\0';
-                out_pkt->length = (int32_t)plain_len;
-            }
-            relay_write(i, t->fd, out_pkt, offsetof(PacketMessage, text) + (size_t)out_pkt->length);
+        } else {
+            /* ADAPTIVE RELAY: Translate for recipient or send cleartext,
+             * one encoding per distinct frequency and key */
+            RelayEncoding *r = relay_encoding_for(enc, &n_enc, msg, decrypted == NULL, plaintext,
+                                                  plain_len, t->algo, t->key, frame_id);
+            if (r) relay_write(i, t->fd, r->pkt, r->len);
         }
     }
 
-    if (out_pkt) { OPENSSL_cleanse(out_pkt, sizeof(PacketMessage)); free(out_pkt); }
-    OPENSSL_cleanse(targets, MAX_CLIENTS * sizeof(RelayTarget));
-    free(targets);
-    OPENSSL_cleanse(plaintext, 65536);
-    free(plaintext);
+    for (int e = 0; e < n_enc; e++) {
+        if (enc[e].owned) {
+            /* a cleartext copy of a decrypted fleet message is secret */
+            size_t used = enc[e].len + 1;
+            OPENSSL_cleanse(enc[e].pkt, used < sizeof(PacketMessage) ? used : sizeof(PacketMessage));
+            free(enc[e].pkt);
+        }
+    }
+    OPENSSL_cleanse(enc, sizeof(enc));
+    OPENSSL_cleanse(targets, sizeof(targets));
+    if (decrypted) {
+        OPENSSL_cleanse(decrypted, 65536);
+        free(decrypted);
+    }
 }
 
 /* Recipient route of a server message: fd, frequency and key captured when
