@@ -1,3 +1,20 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.03
+  - Client, regression of 2026.10.31.01: every cleartext message from the
+  server ("Welcome aboard, new Captain", every COMPUTER/SCIENCE report of a
+  session without encryption) was shown as "SIGNAL DISTURBED: FREQUENCY
+  MISMATCH" noise, and the CI smoke job failed on it. The decoder chain is
+  "if (msg->is_encrypted) {...} else if (msg->is_encrypted) {...} else
+  {cleartext}": the middle branch repeats the first condition and is the
+  dead one, the final else is the live cleartext path. 2026.10.31.01 read
+  it the other way round and replaced the cleartext branch with the noise.
+  The dead branch is now removed and the cleartext termination restored; a
+  failed decryption (CRYPTO_NONE frequency included) still shows the noise
+  through the "if (!success)" path of the encrypted branch.
+  - Tests: new smoke_e2e ctest (tests/smoke_test.sh), the CI smoke step's
+  commands and assertions run by every ctest, plus a check that a
+  cleartext session shows no FREQUENCY MISMATCH noise; RUN_SERIAL like the
+  stability test (both use port 5000).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.02
   - Server message relay, data race: broadcast_message() released
   game_mutex and then, in its send loop, read each recipient's frequency,

@@ -940,19 +940,15 @@ void *network_listener(void *arg) {
                         snprintf(msg->text, 65535, B_RED "<< SIGNAL DISTURBED: FREQUENCY MISMATCH >>" RESET "\n [HINT]: Tuning mismatch during transition. Raw data stream: %s...", noise);
                     }
                 } else {
-                    /* decryption_algo == CRYPTO_NONE inside an is_encrypted
-                     * message: frequency mismatch, show simulated binary
-                     * noise. (The condition was "else if (msg->is_encrypted)",
-                     * always true in this branch — the trailing else was dead
-                     * code; simplified to a plain else.) */
-                    char noise[128];
-                    int noise_len = (msg->length > 64) ? 64 : msg->length;
-                    for(int n=0; n<noise_len; n++) {
-                        unsigned char c_raw = (unsigned char)msg->text[n];
-                        noise[n] = (c_raw % 94) + 33; 
-                    }
-                    noise[noise_len] = '\0';
-                    snprintf(msg->text, 65535, B_RED "<< SIGNAL DISTURBED: FREQUENCY MISMATCH >>" RESET "\n [HINT]: Tuning mismatch. Signal is encrypted on a different frequency.\n [RAW_DATA]: %s...", noise);
+                    /* Cleartext message: terminate it at its wire length.
+                     * (2026.10.31.01 replaced this branch with the noise of
+                     * the dead "else if (msg->is_encrypted)" above it: every
+                     * cleartext server message was shown as FREQUENCY
+                     * MISMATCH noise. The dead branch is gone and this one
+                     * is back; an encrypted message whose decryption fails,
+                     * CRYPTO_NONE frequency included, still gets the noise
+                     * through "if (!success)" in the branch above.) */
+                    if (msg->length < 65536) msg->text[msg->length] = '\0';
                 }
             } else msg->text[0] = '\0';
             

@@ -610,6 +610,24 @@ if(TARGET spacegl_server AND TARGET spacegl_client)
     endif()
 endif()
 
+# --- End-to-end smoke (2026.10.31.03): the CI smoke step inside ctest ---
+# Same commands and assertions as the "End-to-end smoke" step of
+# .github/workflows/ci.yml, so every matrix job and rpm %ctest catches a
+# broken handshake/login/sync round-trip or a client that mangles the
+# server's cleartext messages (the 2026.10.31.01 regression). RUN_SERIAL:
+# the server always listens on port 5000, like the stability test.
+if(TARGET spacegl_server AND TARGET spacegl_client)
+    add_test(NAME smoke_e2e
+             COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/smoke_test.sh"
+                     $<TARGET_FILE:spacegl_server> $<TARGET_FILE:spacegl_client>)
+    set_tests_properties(smoke_e2e PROPERTIES
+        RUN_SERIAL TRUE
+        TIMEOUT 90
+        SKIP_RETURN_CODE 77
+        PASS_REGULAR_EXPRESSION "PASS: smoke_test"
+        FAIL_REGULAR_EXPRESSION "FAIL:")
+endif()
+
 # --- Standalone and developer convenience targets ---
 set(ALL_TEST_TARGETS
     gdd_contract_test
