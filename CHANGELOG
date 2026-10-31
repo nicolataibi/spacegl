@@ -1,3 +1,17 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.36
+  - Fix: a new captain starts at the centre of a random quadrant, and that
+  centre could be taken: a star system whose reach fills its quadrant has
+  its star exactly there (star systems since 2026.10.27; the larger and
+  correct reach of 2026.10.31.28 makes such systems a little more common),
+  or a star or a planet can sit on it. The login check then towed the
+  brand-new ship to another sector ("EMERGENCY RESCUE") and the captain
+  never got "Welcome aboard, new Captain." (seen as an intermittent
+  smoke_e2e failure). spawn_quadrant_pick() (src/server/targets.c) now
+  draws the quadrant again until its centre is clear of star systems,
+  stars and planets (about 14% of the quadrants are not).
+  - Tests: server_commands case 5, 4000 picks on a real galaxy, none with
+  a taken centre (575 of 4000 random quadrants have one).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.35
   - Build hygiene, roadmap phase 4: clang-format profile (.clang-format)
   matching the style of the tree as far as clang-format allows (4 spaces,

@@ -24,6 +24,8 @@
  *      no message sent to a slot outside [-1, MAX_CLIENTS).
  *   4. update_game_logic() runs between the commands (navigation,
  *      autopilot, combat, hazards).
+ *   5. spawn_quadrant_pick() never gives a new captain a quadrant whose
+ *      centre is taken by a star system, a star or a planet.
  *
  * Under ASan/UBSan (the matrix Debug jobs) any memory or undefined
  * behaviour error on these paths fails the test.
@@ -318,6 +320,35 @@ static void test_combat(void) {
     players[1].active = 0;
 }
 
+/* 5. A new captain's quadrant (2026.10.31.36): its centre, where the ship
+ * appears, is clear, so the login check never rescues a brand-new ship
+ * instead of welcoming it. Before, the quadrant was any random one. */
+static bool centre_taken(int q1, int q2, int q3) {
+    const QuadrantIndex *qi = &spatial_index[q1][q2][q3];
+    if (qi->sys_star_count > 0) return true;
+    const double c = QUADRANT_SIZE / 2.0;
+    for (int k = 0; k < qi->star_count; k++)
+        if (qi->stars[k] && fabs(qi->stars[k]->x - c) < 2.0 && fabs(qi->stars[k]->y - c) < 2.0 && fabs(qi->stars[k]->z - c) < 2.0) return true;
+    for (int k = 0; k < qi->planet_count; k++)
+        if (qi->planets[k] && fabs(qi->planets[k]->x - c) < 2.0 && fabs(qi->planets[k]->y - c) < 2.0 && fabs(qi->planets[k]->z - c) < 2.0) return true;
+    return false;
+}
+
+static void test_spawn_point(void) {
+    int taken_random = 0, taken_picked = 0;
+    for (int t = 0; t < 4000; t++) {
+        int q1 = rand() % GALAXY_SIZE + 1, q2 = rand() % GALAXY_SIZE + 1, q3 = rand() % GALAXY_SIZE + 1;
+        if (centre_taken(q1, q2, q3)) taken_random++;
+        spawn_quadrant_pick(&q1, &q2, &q3);
+        CHECK(q1 >= 1 && q1 <= GALAXY_SIZE && q2 >= 1 && q2 <= GALAXY_SIZE && q3 >= 1 && q3 <= GALAXY_SIZE,
+              "spawn quadrant (%d,%d,%d) outside the galaxy", q1, q2, q3);
+        if (centre_taken(q1, q2, q3)) taken_picked++;
+    }
+    CHECK(taken_random > 0, "the galaxy has quadrants with a taken centre (%d of 4000 random ones)", taken_random);
+    CHECK(taken_picked == 0, "spawn_quadrant_pick() chose %d quadrants with a taken centre", taken_picked);
+    printf("  spawn point: %d of 4000 random quadrants have a taken centre, 0 of the picked ones\n", taken_random);
+}
+
 int main(void) {
     char tmpl[] = "/tmp/spacegl_cmdtest.XXXXXX";
     char *dir = mkdtemp(tmpl);
@@ -328,6 +359,7 @@ int main(void) {
     init_static_spatial_index();
     printf("server_commands_test: galaxy generated in %s\n", dir);
 
+    test_spawn_point();
     spawn_captain(CAP, "TESTCAP", FACTION_ALLIANCE, SHIP_CLASS_EXPLORER, 10, 10, 10, 50.0, 50.0, 50.0);
     test_tour();
     test_ranges();

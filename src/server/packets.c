@@ -704,9 +704,10 @@ int dispatch_packet(PktIO *io, int32_t type) {
                             default: crew = (MAX_CREW_EXPLORER / 5); break;
                         }
                         players[slot].state.crew_count = crew;
-                        players[slot].state.q1 = rand()%GALAXY_SIZE + 1;
-                        players[slot].state.q2 = rand()%GALAXY_SIZE + 1;
-                        players[slot].state.q3 = rand()%GALAXY_SIZE + 1;
+                        /* a quadrant whose centre is clear (targets.c): a new
+                         * ship is never spawned inside a star */
+                        spawn_quadrant_pick(&players[slot].state.q1, &players[slot].state.q2,
+                                            &players[slot].state.q3);
                         players[slot].state.s1 = (QUADRANT_SIZE / 2.0);
                         players[slot].state.s2 = (QUADRANT_SIZE / 2.0);
                         players[slot].state.s3 = (QUADRANT_SIZE / 2.0);

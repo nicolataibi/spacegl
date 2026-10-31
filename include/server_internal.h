@@ -1312,6 +1312,8 @@ const void *target_find_global_active(int tid);
 void target_abs_pos(const TargetRangeDef *r, const void *e, double *ax, double *ay, double *az);
 void target_make_name(const TargetRangeDef *r, const void *e, char *buf, size_t len);
 bool target_visible(const TargetRangeDef *r, const void *e, int my_faction);
+/* Quadrant for a new captain: its centre is clear of star systems, stars and planets (targets.c). */
+void spawn_quadrant_pick(int *q1, int *q2, int *q3);
 void push_server_event(int p_idx, int type, double x1, double y1, double z1, double x2, double y2, double z2, int extra);
 bool is_player_in_nebula(int p_idx);
 void apply_hull_damage(int p_idx, double amount);

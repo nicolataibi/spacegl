@@ -40,6 +40,7 @@
  */
 
 #include <stdarg.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -432,4 +433,41 @@ void target_make_name(const TargetRangeDef *r, const void *e, char *buf, size_t 
 
 bool target_visible(const TargetRangeDef *r, const void *e, int my_faction) {
     return r->visible ? r->visible(e, my_faction) : true;
+}
+
+/* --- Spawn point of a new captain (2026.10.31.36) -------------------------
+ * A new captain starts at the centre of a random quadrant. The centre can
+ * be taken: a star system whose reach fills its quadrant has its star
+ * exactly there, and a star or a planet can sit on it. The login check
+ * (sync_client_task) then "rescued" the brand-new ship to another sector
+ * instead of welcoming it. The quadrant is drawn again until its centre
+ * is clear: no star system, no star or planet within SPAWN_CLEARANCE. */
+#define SPAWN_CLEARANCE 2.0
+#define SPAWN_TRIES     256
+
+static bool spawn_centre_clear(const QuadrantIndex *qi) {
+    if (qi->sys_star_count > 0) return false;
+    const double c = QUADRANT_SIZE / 2.0;
+    for (int s = 0; s < qi->star_count; s++) {
+        const NPCStar *o = qi->stars[s];
+        if (o && o->active && fabs(o->x - c) < SPAWN_CLEARANCE && fabs(o->y - c) < SPAWN_CLEARANCE &&
+            fabs(o->z - c) < SPAWN_CLEARANCE) return false;
+    }
+    for (int p = 0; p < qi->planet_count; p++) {
+        const NPCPlanet *o = qi->planets[p];
+        if (o && o->active && fabs(o->x - c) < SPAWN_CLEARANCE && fabs(o->y - c) < SPAWN_CLEARANCE &&
+            fabs(o->z - c) < SPAWN_CLEARANCE) return false;
+    }
+    return true;
+}
+
+void spawn_quadrant_pick(int *q1, int *q2, int *q3) {
+    for (int t = 0; t < SPAWN_TRIES; t++) {
+        *q1 = rand() % GALAXY_SIZE + 1;
+        *q2 = rand() % GALAXY_SIZE + 1;
+        *q3 = rand() % GALAXY_SIZE + 1;
+        if (!spatial_index || spawn_centre_clear(&spatial_index[*q1][*q2][*q3])) return;
+    }
+    /* 256 taken quadrants in a row: keep the last one (the login check
+     * still rescues the ship if it really is inside a body) */
 }
