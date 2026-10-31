@@ -1,3 +1,16 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.02
+  - Man pages aligned: spacegl-server(1) and spacegl-client(1), the
+  launcher scripts, describe the server identity (first boot, backup of
+  server_identity.key, --print-identity, the first-contact fingerprint,
+  "SERVER IDENTITY CHANGED"), the options and variables they pass through
+  (--data-dir, --io, SPACEGL_SERVER_KEY, SPACEGL_KNOWN_SERVERS,
+  SPACEGL_GPD) and how the script's key prompt relates to
+  SPACEGL_KEY_FILE. spacegl_server(1) and spacegl_client(1) no longer say
+  the binaries ask for the key interactively (the scripts do): they list
+  the real key sources (SPACEGL_KEY_FILE, SPACEGL_KEY, ~/.spacegl/key)
+  and the server identity; spacegl_client(1) the SPACEGL_GPD and
+  SPACEGL_GL_PROFILE variables it passes on to the viewers.
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.01
   - Documentation brought up to date with 2026.10.31.37 .. .43:
   DEVELOPMENT.md section 3 lists the 44 tests of the suite (it still said

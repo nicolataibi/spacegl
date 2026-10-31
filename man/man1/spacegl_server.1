@@ -11,9 +11,24 @@ It manages galaxy state, player sessions, NPC entities, and secure
 communication channels via shared memory (SHM) and TCP networking on
 port 5000.
 .PP
-Authentication is performed through a master key provided via the
+Server and decks share a deployment master key, read from
+.BR SPACEGL_KEY_FILE ,
+then
+.BR SPACEGL_KEY ,
+then
+.I ~/.spacegl/key
+(created when none exists); the launcher script
+.BR spacegl-server (1)
+asks for it interactively when
 .B SPACEGL_KEY
-environment variable or interactively at startup.
+is not set.
+.PP
+Each server also has an identity of its own, an Ed25519 key created on
+the first boot in
+.IR [DATA\-DIR]/server_identity.key .
+It signs every handshake (wire revision 4) and the decks pin it; its
+fingerprint is printed at boot and by
+.BR \-\-print\-identity .
 .SH OPTIONS
 .TP
 .B \-d
@@ -62,8 +77,14 @@ Print version information and exit.
 Display usage information and exit.
 .SH ENVIRONMENT
 .TP
+.B SPACEGL_KEY_FILE
+Path of a file holding the master key (64 hex digits, mode 0600: the
+server refuses a file readable by others). Preferred over
+.BR SPACEGL_KEY .
+.TP
 .B SPACEGL_KEY
-Master authentication key for the server session.
+The master key as a string (legacy; fallback
+.IR ~/.spacegl/key ).
 .SH FILES
 .TP
 .I /usr/bin/spacegl_server

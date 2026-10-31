@@ -7,28 +7,81 @@ spacegl-server \- SpaceGL galaxy server launcher script
 .SH DESCRIPTION
 .B spacegl-server
 is a Bash wrapper script that provides an interactive startup interface
-for the SpaceGL galaxy server. It displays the SpaceGL banner, handles
-master key authentication interactively when the
+for the SpaceGL galaxy server. It displays the SpaceGL banner, asks for
+the master key interactively when the
 .B SPACEGL_KEY
 environment variable is not already set, and then delegates execution
 to
-.BR spacegl_server (1).
+.BR spacegl_server (1)
+(looked up as
+.IR ./build/spacegl_server ,
+then
+.IR ./spacegl_server ,
+then in
+.BR PATH ).
 .PP
 All arguments passed to this script are forwarded verbatim to the
 underlying
 .B spacegl_server
 binary.
+.PP
+On its first boot the server creates its own identity key,
+.IR [DATA\-DIR]/server_identity.key ,
+and prints its fingerprint ("Server identity CREATED ... SHA256:...");
+on every later boot it prints "Server identity loaded". The decks pin
+this identity (wire revision 4): back the file up together with the data
+directory, or every deck that has met the server will refuse it as a
+changed server.
 .SH OPTIONS
 Any option accepted by
 .BR spacegl_server (1)
-is passed through unchanged.
+is passed through unchanged, in particular:
+.TP
+.B \-\-data\-dir DIR
+Root directory of the persistent state (galaxy.dat, captains/,
+server_identity.key).
+.TP
+.B \-\-print\-identity
+Print the server's fingerprint and the 64 hex digits of its public key
+(for
+.B SPACEGL_SERVER_KEY
+on the decks) and exit.
+.TP
+.B \-\-io=MODE
+.B legacy
+(default) or
+.B async
+event loop.
 .SH ENVIRONMENT
 .TP
 .B SPACEGL_KEY
 If set, the master key prompt is skipped and this value is used directly.
+.TP
+.B SPACEGL_KEY_FILE
+Read by
+.BR spacegl_server (1):
+a file holding the master key (64 hex digits, mode 0600). The script
+still asks for a key when
+.B SPACEGL_KEY
+is not set; with a key file, export
+.B SPACEGL_KEY
+or start
+.B spacegl_server
+directly.
+.SH FILES
+.TP
+.I [DATA\-DIR]/server_identity.key
+The server's identity (private key, mode 0600).
+.SH EXAMPLES
+.nf
+export SPACEGL_KEY="$(openssl rand \-hex 32)"
+\&./spacegl\-server
+\&./spacegl\-server \-\-print\-identity
+.fi
 .SH SEE ALSO
 .BR spacegl_server (1),
-.BR spacegl-client (1)
+.BR spacegl-client (1),
+.BR spacegl_client (1)
 .SH AUTHOR
 Nicola Taibi
 .SH LICENSE

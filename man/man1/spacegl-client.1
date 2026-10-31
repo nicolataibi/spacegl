@@ -8,8 +8,8 @@ spacegl-client \- SpaceGL tactical bridge launcher script
 .SH DESCRIPTION
 .B spacegl-client
 is a Bash wrapper script that provides an interactive startup interface
-for the SpaceGL game client. It displays the SpaceGL banner, handles
-master key authentication interactively when the
+for the SpaceGL game client. It displays the SpaceGL banner, asks for
+the master key interactively when the
 .B SPACEGL_KEY
 environment variable is not already set, and then delegates execution
 to
@@ -22,7 +22,18 @@ binary. Pass
 .B gl
 to use the OpenGL frontend or
 .B vk
-to use the Vulkan frontend.
+to use the Vulkan frontend (GPU-driven rendering by default, with a
+CPU-driven fallback;
+.B SPACEGL_GPD=0
+selects the CPU-driven path).
+.PP
+Server identity (wire revision 4): on the first connection to a server
+the deck prints the server's fingerprint and pins its key in
+.IR ~/.spacegl/known_servers .
+Check it against the fingerprint the server prints at boot. A later
+connection to the same address with another key is refused with
+"SERVER IDENTITY CHANGED"; if the change is legitimate (the server's data
+directory was replaced), remove that server's line from the file.
 .SH OPTIONS
 Any option accepted by
 .BR spacegl_client (1)
@@ -31,9 +42,27 @@ is passed through unchanged.
 .TP
 .B SPACEGL_KEY
 If set, the authentication key prompt is skipped and this value is used directly.
+.TP
+.B SPACEGL_SERVER_KEY
+The server's identity key (64 hex digits, from
+.BR "spacegl-server \-\-print\-identity" ):
+the deck accepts only a server that signs the handshake with it.
+.TP
+.B SPACEGL_KNOWN_SERVERS
+Path of the known_servers file (default ~/.spacegl/known_servers).
+.TP
+.B SPACEGL_GPD
+For the Vulkan frontend: unset or 1 GPU-driven (default), 0 CPU-driven.
+.SH FILES
+.TP
+.I ~/.spacegl/known_servers
+The pinned identity of every server this deck has met.
 .SH SEE ALSO
 .BR spacegl_client (1),
-.BR spacegl-server (1)
+.BR spacegl-server (1),
+.BR spacegl_server (1),
+.BR spacegl_vulkan (1),
+.BR spacegl_3dview (1)
 .SH AUTHOR
 Nicola Taibi
 .SH LICENSE

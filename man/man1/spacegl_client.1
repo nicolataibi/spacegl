@@ -22,9 +22,26 @@ or
 to launch the Vulkan frontend
 .RB ( spacegl_vulkan ).
 .PP
-Authentication is performed through a master key provided via the
+The deck and the server share a deployment master key, read from
+.BR SPACEGL_KEY_FILE ,
+then
+.BR SPACEGL_KEY ,
+then
+.I ~/.spacegl/key
+(created when none exists); the launcher script
+.BR spacegl-client (1)
+asks for it interactively when
 .B SPACEGL_KEY
-environment variable or interactively at startup.
+is not set.
+.PP
+Every server signs the handshake with its own identity key (wire revision
+4). On the first connection to a server the deck prints the server's
+fingerprint and pins the key in
+.IR ~/.spacegl/known_servers ;
+a later connection to the same address with another key is refused
+("SERVER IDENTITY CHANGED") before the login. Compare the fingerprint with
+the one the server prints at boot, or pin the key in advance with
+.BR SPACEGL_SERVER_KEY .
 .SH OPTIONS
 .TP
 .B gl
@@ -37,8 +54,14 @@ Start with the Vulkan 3D view.
 Print version information and exit.
 .SH ENVIRONMENT
 .TP
+.B SPACEGL_KEY_FILE
+Path of a file holding the master key (64 hex digits, mode 0600).
+Preferred over
+.BR SPACEGL_KEY .
+.TP
 .B SPACEGL_KEY
-Authentication key used to connect to the server.
+The master key as a string (legacy; fallback
+.IR ~/.spacegl/key ).
 .TP
 .B SPACEGL_SERVER_KEY
 The server's identity key (64 hex digits, from
@@ -48,6 +71,16 @@ not consult or update the known_servers file.
 .TP
 .B SPACEGL_KNOWN_SERVERS
 Path of the known_servers file (default ~/.spacegl/known_servers).
+.TP
+.B SPACEGL_GPD
+Passed on to the Vulkan viewer: unset or 1 selects the GPU-driven render
+path (the default, with a CPU-driven fallback), 0 the CPU-driven path
+(see
+.BR spacegl_vulkan (1)).
+.TP
+.B SPACEGL_GL_PROFILE
+Passed on to the OpenGL viewer: 1 prints its draw-call profile (see
+.BR spacegl_3dview (1)).
 .SH FILES
 .TP
 .I /usr/bin/spacegl_client
