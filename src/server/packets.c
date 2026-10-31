@@ -63,6 +63,44 @@ void packets_bind_signing_key(int slot, const uint8_t pub[32]) {
     g_sign_set[slot] = (acc != 0);
 }
 
+/* Pending handshakes: the fd the handshake bound to each slot (0 = none)
+ * and its deadline. Guarded by game_mutex. */
+static int g_hs_fd[MAX_CLIENTS];
+static time_t g_hs_deadline[MAX_CLIENTS];
+
+int packets_close_stale_handshakes(int epoll_fd, time_t now) {
+    int stale[MAX_CLIENTS];
+    int n = 0;
+    pthread_mutex_lock(&game_mutex);
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (g_hs_fd[i] == 0) continue;
+        if (players[i].socket != g_hs_fd[i] || players[i].active) {
+            g_hs_fd[i] = 0;              /* closed, moved or logged in meanwhile */
+            continue;
+        }
+        if (now > g_hs_deadline[i]) {
+            stale[n++] = g_hs_fd[i];
+            g_hs_fd[i] = 0;
+        }
+    }
+    pthread_mutex_unlock(&game_mutex);
+
+    for (int k = 0; k < n; k++) {
+        int fd = stale[k];
+        SG_WARNING(SG_CAT_SECURITY, "fd %d: no login %d s after the handshake: connection closed",
+                   fd, HANDSHAKE_PENDING_TIMEOUT_S);
+        Conn *c = (g_io_mode == SPACEGL_IO_ASYNC) ? conn_find(fd) : NULL;
+        if (c) {
+            conn_close(epoll_fd, c, CONN_CLOSE_REAP);
+        } else {
+            reap_player_fd(fd, CONN_CLOSE_REAP);
+            if (epoll_fd >= 0) epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+            close(fd);
+        }
+    }
+    return n;
+}
+
 bool packets_signing_key(int slot, uint8_t out[32]) {
     if (slot < 0 || slot >= MAX_CLIENTS || !g_sign_set[slot]) return false;
     memcpy(out, g_sign_pub[slot], 32);
@@ -310,6 +348,8 @@ int dispatch_packet(PktIO *io, int32_t type) {
             if (slot != -1) {
                 memcpy(players[slot].session_key, hs_session, 32);
                 g_cred_seq[slot] = 0;
+                g_hs_fd[slot] = fd;
+                g_hs_deadline[slot] = time(NULL) + HANDSHAKE_PENDING_TIMEOUT_S;
                 LOG_DEBUG("Secure Session Key negotiated for Client FD %d (Slot %d)\n", fd, slot);
                 /* ACK = int32 type + the v2 reply (eS, Ns, server proof,
                  * masked galaxy verification key), one write. */
@@ -384,6 +424,8 @@ int dispatch_packet(PktIO *io, int32_t type) {
                 if (hs_slot != -1) {
                     memcpy(sk, players[hs_slot].session_key, 32);
                     seq = g_cred_seq[hs_slot]++;
+                    if (g_hs_fd[hs_slot] == fd)
+                        g_hs_deadline[hs_slot] = time(NULL) + HANDSHAKE_PENDING_TIMEOUT_S;
                 }
                 pthread_mutex_unlock(&game_mutex);
                 bool unmasked = (hs_slot != -1) &&
@@ -633,6 +675,8 @@ int dispatch_packet(PktIO *io, int32_t type) {
                     }
 
                     players[slot].socket = fd;
+                    g_hs_fd[slot] = 0;               /* logged in: not a pending handshake */
+                    if (handshake_slot != -1) g_hs_fd[handshake_slot] = 0;
                     int is_new = (players[slot].name[0] == '\0');
                     players[slot].active = 0; /* Block updates during sync */
 

@@ -18,6 +18,8 @@
  *     refuses another one.
  *  6. (2026.10.31.09) credentials sent in clear instead of masked under the
  *     session key, and a PKT_LOGIN with no handshake, are refused.
+ *  7. (2026.10.31.14) a handshake that never logs in is closed once its
+ *     deadline passes and its slot is freed; a logged-in one is kept.
  * Every connection runs the real v2 handshake first and masks its
  * credentials with hs_v2_cred_xor(), as the command deck does.
  */
@@ -396,6 +398,33 @@ int main(void) {
         TEST_CHECK(fd_closed(sn[1]));
         close(sn[0]);
         printf("[6] credentials in clear, or without a handshake, refused: OK\n");
+    }
+
+    /* 7. handshake that never logs in: closed once its deadline passes;
+     *    a logged-in connection is left alone */
+    {
+        int sv[2]; make_pair_hs(sv);                       /* handshake only */
+        int slot = -1;
+        for (int i = 0; i < MAX_CLIENTS; i++) if (players[i].socket == sv[1]) slot = i;
+        TEST_CHECK(slot >= 0);
+        time_t t0 = time(NULL);
+        TEST_CHECK(packets_close_stale_handshakes(-1, t0 + 60) == 0);   /* not yet */
+        TEST_CHECK(!fd_closed(sv[1]));
+
+        int sl[2]; make_pair_hs(sl);                       /* this one logs in */
+        PacketLogin ok = mk(PKT_LOGIN, "alice", 0x42, 0xaa, 0x24);
+        TEST_CHECK(send_pkt(sl, &ok) == 0);
+        int s_alice = slot_of("alice");
+        TEST_CHECK(s_alice >= 0 && players[s_alice].socket == sl[1]);
+
+        TEST_CHECK(packets_close_stale_handshakes(-1, t0 + HANDSHAKE_PENDING_TIMEOUT_S + 1) == 1);
+        TEST_CHECK(fd_closed(sv[1]));
+        TEST_CHECK(players[slot].socket == 0);             /* slot freed */
+        TEST_CHECK(!fd_closed(sl[1]));                     /* logged in: kept */
+        TEST_CHECK(players[s_alice].socket == sl[1]);
+        TEST_CHECK(packets_close_stale_handshakes(-1, t0 + 10 * HANDSHAKE_PENDING_TIMEOUT_S) == 0);
+        close(sv[0]); close(sl[0]); close(sl[1]);
+        printf("[7] handshake without login closed after its deadline, logged-in kept: OK\n");
     }
 
     printf("login_auth_test: all checks passed\n");

@@ -38,6 +38,7 @@
 #include <pthread.h>
 #include "server_internal.h"
 #include "conn.h"
+#include "packets.h"
 
 /* Same event capacity as the legacy loop (spacegl_server.c). */
 #define MAX_EVENTS (MAX_CLIENTS + GAME_MAX_PLAYERS)
@@ -361,6 +362,11 @@ void run_epoll_loop_async(int server_fd, int epoll_fd) {
     while (g_running) {
         /* 200ms timeout so the loop can observe g_running for a graceful stop */
         int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, 200);
+        {   /* about once a second: drop handshakes that never logged in */
+            static time_t last_sweep = 0;
+            time_t now = time(NULL);
+            if (now != last_sweep) { last_sweep = now; packets_close_stale_handshakes(epoll_fd, now); }
+        }
         if (nfds == -1) {
             if (errno == EINTR) continue;
             perror("epoll_wait");

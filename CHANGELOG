@@ -1,3 +1,18 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.14
+  - Server, idle handshakes (roadmap phase 2): the handshake binds the
+  connection to one of the 16 player slots, and a connection that never
+  logged in kept it until it closed, so a holder of the master key could
+  fill the server with idle connections ("Server full"). Each handshake
+  slot now has a deadline of HANDSHAKE_PENDING_TIMEOUT_S (180 s), renewed
+  by every PKT_QUERY (the deck asks for the captain's name and access code
+  after the handshake: a human may take a while) and cleared by a
+  successful PKT_LOGIN. Both event loops call
+  packets_close_stale_handshakes() about once a second; it closes the
+  expired connections (async: conn_close; legacy: reap, epoll DEL, close)
+  and frees their slots.
+  - Tests: login_auth_test case 7 (a handshake without login is closed
+  after its deadline and its slot freed; a logged-in connection is kept).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.13
   - ThreadSanitizer (roadmap phase 2). The real server in both I/O modes
   and two real command decks exchanging commands and fleet radio (clear

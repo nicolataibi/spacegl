@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <time.h>
 #include "conn.h"
 
 /*
@@ -68,5 +69,19 @@ int sanitize_captain_name(const char *name);
  * game_mutex (the login path does; tests may call it directly). */
 void packets_bind_signing_key(int slot, const uint8_t pub[32]);
 bool packets_signing_key(int slot, uint8_t out[32]);
+
+/* Connections that completed the handshake but never logged in
+ * (2026.10.31.14). The handshake binds the connection to one of the
+ * MAX_CLIENTS player slots; an idle one used to hold it until it closed,
+ * so a holder of the master key could fill the server with idle
+ * connections. Each handshake slot gets a deadline of
+ * HANDSHAKE_PENDING_TIMEOUT_S, renewed by every PKT_QUERY (the deck asks
+ * the captain's name and access code AFTER the handshake: a human may be
+ * slow) and cleared by a successful PKT_LOGIN. Both event loops call
+ * packets_close_stale_handshakes() about once a second; it closes the
+ * expired connections (epoll_fd < 0 in tests: legacy teardown without
+ * epoll) and frees their slots. Returns the number closed. */
+#define HANDSHAKE_PENDING_TIMEOUT_S 180
+int packets_close_stale_handshakes(int epoll_fd, time_t now);
 
 #endif
