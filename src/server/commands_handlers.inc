@@ -1548,7 +1548,7 @@ void handle_pha(int i, const char *params, bool *should_disconnect) {
     players[i].state.energy -= e;
     players[i].state.ion_beam_charge -= 15.0;
     
-    double tx, ty, tz; bool found = false;
+    double tx = 0.0, ty = 0.0, tz = 0.0; bool found = false;
     int pq1=players[i].state.q1, pq2=players[i].state.q2, pq3=players[i].state.q3;
     
     ConnectedPlayer *target_p = player_by_id(tid);
@@ -2408,7 +2408,7 @@ void handle_bor(int i, const char *params, bool *should_disconnect) {
             return; 
         }
         
-        double tx, ty, tz; bool found = false;
+        double tx = 0.0, ty = 0.0, tz = 0.0; bool found = false;
         ConnectedPlayer *target_p = player_by_id(tid);
         NPCShip *target_n = npc_by_id(tid);
         /* Resolve target position and validity (Use ABSOLUTE GALACTIC coordinates for distance) */

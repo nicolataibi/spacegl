@@ -1,3 +1,18 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.01
+  - Code hygiene (no behaviour change): silence the only warnings that touch
+  correctness under stricter compiler flags, leaving the project clean under
+  its own -Wall -Wextra -Wpedantic CI build.
+  - commands_handlers.inc (ion beam and lock targeting): the target position
+  tx/ty/tz is read only when "found" is set, so it was always initialised
+  before use, but clang's -Wconditional-uninitialized flagged it; the three
+  are now initialised to 0.0 at declaration in both sites.
+  - spacegl_client.c (incoming message decode): an inner "else if
+  (msg->is_encrypted)" sat inside a block already guarded by the same
+  condition, so it was always true and its trailing else was dead code
+  (gcc -Wduplicated-cond). Simplified to a plain else; the plain-text
+  terminator branch it shadowed was unreachable and is removed. Behaviour
+  is identical.
+
 * Fri Oct 30 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.30.05
   - Vulkan paths (CPU-driven and GPU-driven), torpedoes: a fired torpedo
   vanished half way across the quadrant. The viewer track of a torpedo was
