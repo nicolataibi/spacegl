@@ -1022,24 +1022,24 @@ int main(int argc, char *argv[]) {
             printf("%2d ", j);
             for (int i = 1; i <= GALAXY_SIZE; i++) {
                 long long bpnbs = spacegl_master.g[i][j][q3];
-                int quasar = (bpnbs / 100000000000000000LL) % 10;
-                int mon = (bpnbs / 10000000000000000LL) % 10;
-                int user = (bpnbs / 1000000000000000LL) % 10;
-                int rift = (bpnbs / 100000000000000LL) % 10;
-                int plat = (bpnbs / 10000000000000LL) % 10;
-                int buoy = (bpnbs / 1000000000000LL) % 10;
-                int mine = (bpnbs / 100000000000LL) % 10;
-                int der = (bpnbs / 10000000000LL) % 10;
-                int ast = (bpnbs / 1000000000LL) % 10;
-                int com = (bpnbs / 100000000LL) % 10;
-                int stm = (bpnbs / 10000000LL) % 10;
-                int pul = (bpnbs / 1000000LL) % 10;
-                int neb = (bpnbs / 100000LL) % 10;
-                int bh = (bpnbs / 10000LL) % 10;
-                int p = (bpnbs / 1000LL) % 10;
-                int n = (bpnbs / 100LL) % 10;
-                int b = (bpnbs / 10LL) % 10;
-                int s = bpnbs % 10;
+                int quasar = (int)((bpnbs / 100000000000000000LL) % 10);
+                int mon = (int)((bpnbs / 10000000000000000LL) % 10);
+                int user = (int)((bpnbs / 1000000000000000LL) % 10);
+                int rift = (int)((bpnbs / 100000000000000LL) % 10);
+                int plat = (int)((bpnbs / 10000000000000LL) % 10);
+                int buoy = (int)((bpnbs / 1000000000000LL) % 10);
+                int mine = (int)((bpnbs / 100000000000LL) % 10);
+                int der = (int)((bpnbs / 10000000000LL) % 10);
+                int ast = (int)((bpnbs / 1000000000LL) % 10);
+                int com = (int)((bpnbs / 100000000LL) % 10);
+                int stm = (int)((bpnbs / 10000000LL) % 10);
+                int pul = (int)((bpnbs / 1000000LL) % 10);
+                int neb = (int)((bpnbs / 100000LL) % 10);
+                int bh = (int)((bpnbs / 10000LL) % 10);
+                int p = (int)((bpnbs / 1000LL) % 10);
+                int n = (int)((bpnbs / 100LL) % 10);
+                int b = (int)((bpnbs / 10LL) % 10);
+                int s = (int)(bpnbs % 10);
                 
                 if (quasar > 0) {
                     printf(" Q "); /* Quasar */

@@ -66,7 +66,7 @@ static int recv_all(int sock, void* buf, size_t len) {
             if (errno == EINTR) continue;
             return -1;
         }
-        received += r;
+        received += (size_t)r;   /* r > 0 */
         timeouts = 0; // Reset timeouts on successful read
     }
     return (int)received;
@@ -288,7 +288,7 @@ int main(int argc, char** argv) {
         init_pair(7, 16, COLOR_BLACK); init_pair(8, 17, COLOR_BLACK); init_pair(9, 18, COLOR_BLACK);
         init_pair(10, 19, COLOR_BLACK); init_pair(11, 20, COLOR_BLACK); init_pair(12, 21, COLOR_BLACK);
     } else {
-        for(int i=7; i<=12; i++) init_pair(i, (i%6)+1, COLOR_BLACK);
+        for(int i=7; i<=12; i++) init_pair((short)i, (short)((i%6)+1), COLOR_BLACK);
     }
     init_pair(13, COLOR_WHITE, COLOR_BLACK);
 
@@ -410,7 +410,7 @@ int main(int argc, char** argv) {
                     continue;
                 }
 
-                int count = hdr.length / sizeof(TelemetryObject);
+                int count = (int)(hdr.length / sizeof(TelemetryObject));
                 if (count > 0) {
                     if (tel_reserve(&tel_pending, &tel_pending_cap, pending_obj_count + count)) {
                         if (recv_all(sock, &tel_pending[pending_obj_count], hdr.length) != (int)hdr.length) {
@@ -484,7 +484,7 @@ int main(int argc, char** argv) {
                 if (scroll_offset >= tel_obj_count) scroll_offset = (tel_obj_count > 0) ? tel_obj_count - 1 : 0;
                 for (int i = 0; i < tel_obj_count - scroll_offset && y < max_y; i++) {
                     TelemetryObject* o = &tel_objects[i + scroll_offset];
-                    int color = (o->color_pair >= 1 && o->color_pair <= 13) ? o->color_pair : 13;
+                    int color = (o->color_pair >= 1 && o->color_pair <= 13) ? (int)o->color_pair : 13;
                     
                     /* Create safe null-terminated copies for display */
                     char safe_id[17] = {0};   memcpy(safe_id, o->id, 16);

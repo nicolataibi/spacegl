@@ -181,7 +181,7 @@ void cycle_hud_colors() {
     short color = hud_colors[current_color_idx];
     /* Update pairs to the new theme color */
     for (int i = 1; i <= 6; i++) {
-        init_pair(i, color, COLOR_BLACK);
+        init_pair((short)i, color, COLOR_BLACK);
     }
     /* Pair 7 is ALWAYS Red for alerts */
     init_pair(7, COLOR_RED, COLOR_BLACK);

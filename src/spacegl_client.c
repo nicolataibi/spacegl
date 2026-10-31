@@ -254,7 +254,7 @@ void sign_packet_message(PacketMessage *msg) {
     
     size_t sig_len = 64;
     /* Ed25519 requires one-shot EVP_DigestSign */
-    if (EVP_DigestSign(mdctx, msg->signature, &sig_len, (uint8_t*)msg->text, msg->length) <= 0) {
+    if (EVP_DigestSign(mdctx, msg->signature, &sig_len, (uint8_t*)msg->text, (size_t)msg->length) <= 0) {
         EVP_MD_CTX_free(mdctx);
         return;
     }
@@ -265,8 +265,8 @@ void sign_packet_message(PacketMessage *msg) {
 }
 
 int encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *key, int64_t frame_id) {
-    int plaintext_len = strlen(plaintext);
-    if (plaintext_len > 65535) plaintext_len = 65535;
+    size_t plaintext_n = strlen(plaintext);
+    int plaintext_len = plaintext_n > 65535 ? 65535 : (int)plaintext_n;
 
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     RAND_bytes(msg->iv, 16); 
@@ -385,9 +385,9 @@ void enable_raw_mode() {
     tcgetattr(STDIN_FILENO, &orig_termios);
     atexit(disable_raw_mode);
     struct termios raw = orig_termios;
-    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN);
+    raw.c_lflag &= ~(tcflag_t)(ECHO | ICANON | IEXTEN);
     /* Leave ISIG active to allow Ctrl+C */
-    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    raw.c_iflag &= ~(tcflag_t)(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 1;
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
@@ -613,7 +613,7 @@ int read_all(int fd, void *buf, size_t len) {
             perror("read_all failed");
             return -1;
         }
-        total += n;
+        total += (size_t)n;   /* n > 0 */
     }
     return (int)total;
 }
@@ -630,7 +630,7 @@ int write_all(int fd, const void *buf, size_t len) {
     while (total < len) {
         ssize_t n = send(fd, p + total, len - total, 0);
         if (n <= 0) return (int)n;
-        total += n;
+        total += (size_t)n;   /* n > 0 */
     }
     return (int)total;
 }
@@ -873,7 +873,7 @@ void *network_listener(void *arg) {
             }
 
             if (msg->length > 0) {
-                if (read_all(sock, msg->text, msg->length) <= 0) {
+                if (read_all(sock, msg->text, (size_t)msg->length) <= 0) {
                     free(msg); g_running = 0; break;
                 }
                 
@@ -974,7 +974,7 @@ void *network_listener(void *arg) {
                             int final_len;
                             if (EVP_DecryptFinal_ex(ctx, (uint8_t*)decrypted + outlen, &final_len) > 0) {
                                 int total_len = outlen + final_len;
-                                memcpy(msg->text, decrypted, total_len);
+                                memcpy(msg->text, decrypted, (size_t)total_len);
                                 msg->text[total_len] = '\0';
                                 msg->length = total_len;
                                 success = 1;
@@ -992,7 +992,7 @@ void *network_listener(void *arg) {
                         int noise_len = (msg->length > 64) ? 64 : msg->length;
                         for(int n=0; n<noise_len; n++) {
                             unsigned char c_raw = (unsigned char)msg->text[n];
-                            noise[n] = (c_raw % 94) + 33; 
+                            noise[n] = (char)((c_raw % 94) + 33);
                         }
                         noise[noise_len] = '\0';
                         snprintf(msg->text, 65535, B_RED "<< SIGNAL DISTURBED: FREQUENCY MISMATCH >>" RESET "\n [HINT]: Tuning mismatch during transition. Raw data stream: %s...", noise);
@@ -1017,7 +1017,7 @@ void *network_listener(void *arg) {
                     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
                     if (EVP_DigestVerifyInit(mdctx, NULL, NULL, NULL, peer_key) > 0) {
                         /* Ed25519 requires one-shot EVP_DigestVerify */
-                        if (EVP_DigestVerify(mdctx, msg->signature, 64, (uint8_t*)msg->text, msg->length) == 1) {
+                        if (EVP_DigestVerify(mdctx, msg->signature, 64, (uint8_t*)msg->text, (size_t)msg->length) == 1) {
                             verified = 1;
                         }
                     }
@@ -1108,7 +1108,7 @@ void *network_listener(void *arg) {
                 /* event/torpedo/beam counts of the fixed part: clamped */
                 wire_sanitize_update_counts(&upd);
                 if (upd.object_count > 0) {
-                    int r_objs = read_all(sock, upd.objects, upd.object_count * sizeof(NetObject));
+                    int r_objs = read_all(sock, upd.objects, (size_t)upd.object_count * sizeof(NetObject));
                     if (r_objs <= 0) break;
                     current_pkt_size += r_objs;
                 }
@@ -1130,7 +1130,7 @@ void *network_listener(void *arg) {
                     current_state.s1 = b.s1; current_state.s2 = b.s2; current_state.s3 = b.s3;
                     current_state.van_h = b.van_h; current_state.van_m = b.van_m; current_state.van_r = b.van_r;
                     current_state.eta = b.eta;
-                    current_pkt_size += sizeof(b);
+                    current_pkt_size += (int)sizeof(b);
                 }
                 if (mask & UPD_VITALS) {
                     UpdateBlockVitals b; read_all(sock, &b, sizeof(b));
@@ -1138,24 +1138,24 @@ void *network_listener(void *arg) {
                     current_state.cargo_energy = b.cargo_energy; current_state.cargo_torpedoes = b.cargo_torpedoes;
                     current_state.crew_count = b.crew_count; current_state.prison_unit = b.prison_unit;
                     current_state.composite_plating = b.composite_plating; current_state.hull_integrity = b.hull_integrity;
-                    current_pkt_size += sizeof(b);
+                    current_pkt_size += (int)sizeof(b);
                 }
                 if (mask & UPD_SHIELDS) {
                     UpdateBlockShields b; read_all(sock, &b, sizeof(b));
                     memcpy(current_state.shields, b.shields, sizeof(b.shields));
-                    current_pkt_size += sizeof(b);
+                    current_pkt_size += (int)sizeof(b);
                 }
                 if (mask & UPD_SYSTEMS) {
                     UpdateBlockSystems b; read_all(sock, &b, sizeof(b));
                     memcpy(current_state.system_health, b.system_health, sizeof(b.system_health));
-                    current_pkt_size += sizeof(b);
+                    current_pkt_size += (int)sizeof(b);
                 }
                 if (mask & UPD_INTERNAL) {
                     UpdateBlockInternal b; read_all(sock, &b, sizeof(b));
                     memcpy(current_state.inventory, b.inventory, sizeof(b.inventory));
                     memcpy(current_state.power_dist, b.power_dist, sizeof(b.power_dist));
                     current_state.life_support = b.life_support; current_state.anti_matter_count = b.anti_matter_count;
-                    current_pkt_size += sizeof(b);
+                    current_pkt_size += (int)sizeof(b);
                 }
                 if (mask & UPD_COMBAT) {
                     UpdateBlockCombat b; read_all(sock, &b, sizeof(b));
@@ -1163,13 +1163,13 @@ void *network_listener(void *arg) {
                     memcpy(current_state.tube_load_timers, b.tube_load_timers, sizeof(b.tube_load_timers));
                     memcpy(current_state.tube_torpedo_etas, b.tube_torpedo_etas, sizeof(b.tube_torpedo_etas));
                     current_state.current_tube = b.current_tube; current_state.ion_beam_charge = b.ion_beam_charge;
-                    current_pkt_size += sizeof(b);
+                    current_pkt_size += (int)sizeof(b);
                     int32_t bc = 0;
                     if (read_all(sock, &bc, sizeof(int32_t)) != (int)sizeof(int32_t)) {
                         SG_ERROR(SG_CAT_LRS, "UPD_COMBAT: short read of beam_count - wire desync, closing");
                         break;
                     }
-                    current_pkt_size += sizeof(int32_t);
+                    current_pkt_size += (int)sizeof(int32_t);
                     /* === FIX (audit B3, 2026.10.31.06): bc is raw wire data
                      * and the length of the read into the static
                      * current_state.beams[MAX_NET_BEAMS]. It announces the
@@ -1202,7 +1202,7 @@ void *network_listener(void *arg) {
                     current_state.shm_crypto_algo = b.encryption_algo;
                     current_state.encryption_flags = b.encryption_flags;
                     current_state.radio_lock_target = b.radio_lock_target;
-                    current_pkt_size += sizeof(b);
+                    current_pkt_size += (int)sizeof(b);
                 }
                 if (mask & UPD_EFFECTS) {
                     UpdateBlockEffects b;
@@ -1212,12 +1212,12 @@ void *network_listener(void *arg) {
                     }
                     /* event/torpedo counts clamped to [0, MAX] (client_wire.h) */
                     wire_apply_effects(&current_state, &b);
-                    current_pkt_size += sizeof(b);
+                    current_pkt_size += (int)sizeof(b);
                 }
                 if (mask & UPD_PROBES) {
                     UpdateBlockProbes b; read_all(sock, &b, sizeof(b));
                     memcpy(current_state.probes, b.probes, sizeof(b.probes));
-                    current_pkt_size += sizeof(b);
+                    current_pkt_size += (int)sizeof(b);
                 }
                 if (mask & UPD_OBJECTS) {
                     /* === FIX+DIAG: the return values used to be ignored; a
@@ -1229,7 +1229,7 @@ void *network_listener(void *arg) {
                                  r_oc, (int)sizeof(int32_t));
                         break;
                     }
-                    current_pkt_size += sizeof(int32_t);
+                    current_pkt_size += (int)sizeof(int32_t);
                     /* === FIX (audit B3): oc is raw wire data that was used
                      * directly as the length of read_all() into the static
                      * current_state.objects[MAX_NET_OBJECTS]; a sick or
@@ -1245,13 +1245,13 @@ void *network_listener(void *arg) {
                     }
                     current_state.object_count = oc;
                     if (oc > 0) {
-                        int r_ob = read_all(sock, current_state.objects, oc * sizeof(NetObject));
+                        int r_ob = read_all(sock, current_state.objects, (size_t)oc * sizeof(NetObject));
                         if (r_ob != oc * (int)sizeof(NetObject)) {
                             SG_ERROR(SG_CAT_LRS, "UPD_OBJECTS: short read of objects (%d/%d bytes) - wire desync, closing",
                                      r_ob, oc * (int)sizeof(NetObject));
                             break;
                         }
-                        current_pkt_size += oc * sizeof(NetObject);
+                        current_pkt_size += oc * (int)sizeof(NetObject);   /* oc <= MAX_NET_OBJECTS */
                     }
                 } else if (mask & UPD_OBJDELTA) {
                     /* Per-object delta (wire revision 3, include/obj_delta.h):
@@ -1272,7 +1272,7 @@ void *network_listener(void *arg) {
                     memcpy(current_state.map_update_q, b.map_update_q, sizeof(b.map_update_q));
                     current_state.map_update_val2 = b.map_update_val2;
                     memcpy(current_state.map_update_q2, b.map_update_q2, sizeof(b.map_update_q2));
-                    current_pkt_size += sizeof(b);
+                    current_pkt_size += (int)sizeof(b);
                 }
             }
 
@@ -1303,7 +1303,7 @@ void *network_listener(void *arg) {
             
             if (link_start_ts.tv_sec == 0) link_start_ts = now_ts;
 
-            double now_secs = now_ts.tv_sec + now_ts.tv_nsec / 1e9;
+            double now_secs = (double)now_ts.tv_sec + (double)now_ts.tv_nsec / 1e9;
             if (last_packet_arrival > 0) {
                 double delta = (now_secs - last_packet_arrival) * 1000.0; /* ms */
                 double expected = 1000.0 / (double)GAME_TICK_RATE; /* ms per tick */
@@ -1316,11 +1316,11 @@ void *network_listener(void *arg) {
 
             /* shared memory write buffer + swap: under g_state_mutex */
             pthread_mutex_lock(&g_state_mutex);
-            double elapsed = (now_ts.tv_sec - last_ts.tv_sec) + (now_ts.tv_nsec - last_ts.tv_nsec) / 1e9;
+            double elapsed = (double)(now_ts.tv_sec - last_ts.tv_sec) + (double)(now_ts.tv_nsec - last_ts.tv_nsec) / 1e9;
 
             if (elapsed >= 1.0) {
                 if (g_shared_state) {
-                    g_shared_state->net_kbps = (bytes_this_sec / 1024.0 / elapsed);
+                    g_shared_state->net_kbps = ((double)bytes_this_sec / 1024.0 / elapsed);
                     g_shared_state->net_packet_count = (int)(packets_this_sec / elapsed);
                     g_shared_state->net_avg_packet_size = (packets_this_sec > 0) ? (int)(bytes_this_sec / packets_this_sec) : 0;
                     g_shared_state->net_jitter = (packets_this_sec > 0) ? (jitter_sum / packets_this_sec) : 0;
@@ -1471,7 +1471,7 @@ void *network_listener(void *arg) {
                     }
                 }
 
-                g_shared_state->beam_count = current_state.beam_count; memcpy(g_shared_state->beams, current_state.beams, sizeof(NetBeam) * current_state.beam_count);
+                g_shared_state->beam_count = current_state.beam_count; memcpy(g_shared_state->beams, current_state.beams, sizeof(NetBeam) * (size_t)current_state.beam_count);
                 for (int o=0; o < current_state.object_count; o++) {
                     g_shared_state->objects[o].shm_x = current_state.objects[o].net_x;
                     g_shared_state->objects[o].shm_y = current_state.objects[o].net_y;
@@ -1779,7 +1779,7 @@ int main(int argc, char *argv[]) {
         struct termios t_old, t_new;
         tcgetattr(STDIN_FILENO, &t_old);
         t_new = t_old;
-        t_new.c_lflag &= ~ECHO;
+        t_new.c_lflag &= ~(tcflag_t)ECHO;
         tcsetattr(STDIN_FILENO, TCSANOW, &t_new);
         if (scanf("%63s", password) != 1) { password[0] = '\0'; }
         tcsetattr(STDIN_FILENO, TCSANOW, &t_old);
@@ -1967,7 +1967,7 @@ int main(int argc, char *argv[]) {
                 printf(B_CYAN "[SECURE] Encryption Layer:   " B_GREEN "AES-256-GCM (PQC slots: experimental aliases)\n" RESET);
             } else {
                 printf(B_CYAN "[SECURE] DeepSpace Signature: " B_RED "VERIFICATION FAILED (HMAC-SHA256 MISMATCH) - DO NOT TRUST THIS SERVER\n" RESET);
-                master_sync->encryption_flags &= ~0x01; /* mark unverified in shared state */
+                master_sync->encryption_flags &= ~0x01u; /* mark unverified in shared state */
             }
         }
     } else {
@@ -2309,13 +2309,13 @@ int main(int argc, char *argv[]) {
                         pthread_mutex_unlock(&g_state_mutex);
                         if (current_algo != CRYPTO_NONE) {
                             mpkt->is_encrypted = 0x01 | (g_private_mode ? 0x02 : 0x00) | (g_peer_mode ? 0x04 : 0x00) | (g_exclusive_mode ? 0x08 : 0x00);
-                            mpkt->crypto_algo = current_algo;
+                            mpkt->crypto_algo = (uint8_t)current_algo;   /* CRYPTO_* ids, 0..21 */
 
                             /* For Peer/Exclusive Mode, resolve Target ID for server-side routing */
                             if (g_peer_mode && snap_target_found) mpkt->target_id = snap_target_id;
 
                             size_t plen = strlen(plaintext); if (plen > 65535) plen = 65535;
-                            memcpy(mpkt->text, plaintext, plen); mpkt->text[plen] = '\0'; mpkt->length = plen;
+                            memcpy(mpkt->text, plaintext, plen); mpkt->text[plen] = '\0'; mpkt->length = (int32_t)plen;   /* <= 65535 */
                             sign_packet_message(mpkt);
                             
                             uint8_t *k = deep_space_key;
@@ -2345,13 +2345,13 @@ int main(int argc, char *argv[]) {
                             if (plen > 65535) plen = 65535;
                             memcpy(mpkt->text, plaintext, plen);
                             mpkt->text[plen] = '\0';
-                            mpkt->length = plen;
+                            mpkt->length = (int32_t)plen;   /* <= 65535 */
                             
                             /* Sign the cleartext */
                             sign_packet_message(mpkt);
                         }
 
-                        size_t pkt_size = offsetof(PacketMessage, text) + mpkt->length;
+                        size_t pkt_size = offsetof(PacketMessage, text) + (size_t)mpkt->length;
                         if (pkt_size > sizeof(PacketMessage)) pkt_size = sizeof(PacketMessage);
                         
                         size_t svan_msg = 0;
@@ -2359,7 +2359,7 @@ int main(int argc, char *argv[]) {
                         while (svan_msg < pkt_size) {
                             ssize_t n = send(sock, p_msg + svan_msg, pkt_size - svan_msg, 0);
                             if (n <= 0) break;
-                            svan_msg += n;
+                            svan_msg += (size_t)n;   /* n > 0 */
                         }
                         free(mpkt);
                     } else {

@@ -1,3 +1,19 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.32
+  - Build hygiene, roadmap phase 4: -Wconversion on for the command deck
+  and the text tools (spacegl_client, spacegl_telemetry, spacegl_viewer,
+  spacegl_hud, spacegl_diag), as on the server; with SPACEGL_WERROR in CI
+  a new implicit narrowing or sign change fails the build. 77 sites made
+  explicit (counts of bytes and blocks of the update stream, message
+  lengths, terminal flags, ncurses color pairs, ELF offsets of the
+  diagnostics tool, the digits of the inspector's map cells).
+  - Machine code (objdump, Release) unchanged for every object file but
+  spacegl_client.c, where encrypt_payload() now compares the message
+  length as size_t before narrowing it to int (the same result for any
+  message the deck sends, at most 65535 bytes) and one comparison swaps
+  its operands.
+  - The graphical viewers are not yet under -Wconversion (DEVELOPMENT.md
+  section 9).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.31
   - Fix: the offline inspector spacegl_viewer (stats, map, list, players,
   search, report) kept its own reader of galaxy.dat format 1, the raw dump

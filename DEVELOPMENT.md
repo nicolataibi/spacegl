@@ -380,8 +380,10 @@ number and element count.
   change a value or a sign is written as an explicit cast, with a comment
   when the range that makes it safe is not obvious from the line. A random
   coordinate inside a quadrant is `galaxy_rand_coord()`
-  (`src/server/galaxy_internal.h`). The deck, the viewers and the tools
-  are not yet under it (mostly double to float for the graphics); they
-  follow one directory at a time, each change checked by comparing the
-  machine code (`objdump -d`) before and after.
+  (`src/server/galaxy_internal.h`). Since 2026.10.31.32 the deck
+  (`spacegl_client`) and the text tools (`spacegl_telemetry`,
+  `spacegl_viewer`, `spacegl_hud`, `spacegl_diag`) are under it too. The
+  graphical viewers (`spacegl_3dview`, `spacegl_vulkan`, about 2300 sites,
+  mostly double to float for the graphics) are not yet; each change is
+  checked by comparing the machine code (`objdump -d`) before and after.
 

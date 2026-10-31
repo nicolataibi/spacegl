@@ -261,6 +261,16 @@ target_link_libraries(spacegl_viewer ${COMMON_LIBS})
 add_executable(spacegl_hud src/spacegl_hud.c src/sglog.c)
 target_link_libraries(spacegl_hud ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 
+# -Wconversion on the deck and the text tools (2026.10.31.32, roadmap
+# phase 4), as on the server: the command deck, the telemetry console,
+# the galaxy inspector, the HUD, the diagnostics tool. The graphical
+# viewers (spacegl_3dview, spacegl_vulkan) are not yet under it.
+if(NOT MSVC)
+    foreach(t spacegl_client spacegl_telemetry spacegl_viewer spacegl_hud)
+        target_compile_options(${t} PRIVATE -Wconversion)
+    endforeach()
+endif()
+
 set(VULKAN_SRCS
     src/vulkan_main.c
     src/vulkan_device.c
@@ -277,6 +287,9 @@ add_dependencies(spacegl_vulkan spacegl_shaders)
 # 7. spacegl_diag
 add_executable(spacegl_diag src/spacegl_diag.c)
 target_link_libraries(spacegl_diag ${COMMON_LIBS} ${NCURSES_LIBRARIES})
+if(NOT MSVC)
+    target_compile_options(spacegl_diag PRIVATE -Wconversion)   # see spacegl_hud above
+endif()
 
 # --- Unit tests (tests/) ---
 # The test suite is part of the main build, gated by an option (default ON):
