@@ -22,6 +22,7 @@
 
 #include "gl_loader.h"
 #include <GL/glu.h>
+#include <stdbool.h>
 
 /* Mock constants for GLUT compatibility */
 #define GLUT_BITMAP_HELVETICA_10 (void*)10
@@ -48,6 +49,21 @@ void glutSolidTeapot(double size);
 void glutWireTeapot(double size);
 
 /* Text functions */
+/* Shared geometry (2026.10.31.41, src/glut_compat.c): the solid shapes are
+ * compiled into display lists by exact parameters and replayed. Counters
+ * since the last reset, for the viewer's draw-call profile
+ * (SPACEGL_GL_PROFILE=1). */
+typedef struct {
+    unsigned long calls;      /* glut shapes drawn */
+    unsigned long list_hits;  /* ... replayed from a display list */
+    unsigned long immediate;  /* ... tessellated in immediate mode */
+    unsigned long compiled;   /* display lists compiled */
+    int lists;                /* display lists alive */
+} GlutShapeStats;
+void glut_shape_stats(GlutShapeStats *out, bool reset);
+/* Overrides SPACEGL_GL_SHAPE_CACHE (tests, comparisons). */
+void glut_shape_cache_enable(bool on);
+
 void glutBitmapCharacter(void* font, int character);
 
 /* Bitmap glyph edge in window pixels (default: the native 8 px font size).

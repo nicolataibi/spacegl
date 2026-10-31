@@ -408,6 +408,22 @@ number and element count.
   base; `--reps`, `--tol`, `--gdd-tol`, `--no-gdd`). It skips, with the
   reason, when the base does not build or when the benchmark program
   itself changed between the two sides.
+- **OpenGL viewer: shared geometry and profile.** `src/glut_compat.c`
+  compiles every glut shape (sphere, cube, cone, cylinder, torus,
+  octahedron, icosahedron) into a display list by its exact parameters on
+  its second use and replays it afterwards; a parameter animated frame by
+  frame stays in immediate mode. Exact parameters, not a scaled unit
+  shape: the hull shader reads the object-space vertex. `gl_shape_cache`
+  (ctest, and the CI `gpu` job under xvfb) checks that the replay matches
+  immediate mode. `SPACEGL_GL_PROFILE=1` makes `spacegl_3dview` print every
+  300 frames the frame time, the time of each phase (sky, backdrop,
+  objects, effects, bloom, HUD; each phase waits for the GL, only while
+  profiling) and the shapes per frame; `SPACEGL_GL_PROFILE_FRAMES=N` exits
+  after N frames, `SPACEGL_GL_SHAPE_CACHE=0` turns the lists off. The
+  viewer inherits the deck's environment:
+  `SPACEGL_GL_PROFILE=1 spacegl_client gl`. Under llvmpipe (software GL,
+  1920x1080, 4x MSAA) the bloom chain is 86% of a frame (658 of 769 ms),
+  the shapes 1%.
 - **Static analysis.** `.clang-tidy` is the profile of the `lint` job (server
   sources, zero findings). Run it locally with
   `clang-tidy -p <build dir with compile_commands.json> <files>`.

@@ -1352,7 +1352,41 @@ void reshape(int w, int h) {
     glutBitmapTextSize(hudGlyphPx(h));
 }
 
+/* Draw-call profile (2026.10.31.41, SPACEGL_GL_PROFILE=1): the time of each
+ * phase of a frame. Each mark waits for the GL to finish (glFinish), so a
+ * phase is charged with its own rendering, not with the work it queued;
+ * that wait exists only while profiling. */
+enum { PROF_SKY,
+       PROF_BACKDROP,
+       PROF_OBJECTS,
+       PROF_EFFECTS,
+       PROF_BLOOM,
+       PROF_HUD,
+       PROF_PHASES };
+static const char *const k_prof_names[PROF_PHASES] = { "sky", "backdrop", "objects", "effects", "bloom", "hud" };
+static bool g_prof_on = false;
+static double g_prof_t = 0.0;
+static double g_prof_ms[PROF_PHASES];
+static int g_prof_phase = PROF_SKY;
+
+static void prof_begin(void) {
+    if (!g_prof_on) return;
+    glFinish();
+    g_prof_t = glfwGetTime();
+    g_prof_phase = PROF_SKY;
+}
+
+static void prof_mark(int next) {
+    if (!g_prof_on) return;
+    glFinish();
+    double t = glfwGetTime();
+    g_prof_ms[g_prof_phase] += (t - g_prof_t) * 1000.0;
+    g_prof_t = t;
+    g_prof_phase = next;
+}
+
 void display() {
+    prof_begin();
     /* Backstop: the bloom chain must match the live framebuffer size (the
      * resize callback does the same; this covers a missed/coalesced event). */
     ensureBloomFBO(g_fb_w, g_fb_h);
@@ -1476,6 +1510,7 @@ void display() {
         glPopMatrix();
     }
 
+    prof_mark(PROF_BACKDROP);
     /* --- RENDER TACTICAL VIEW (Fades Out) --- */
     if (map_anim < 0.99) {
         glPushMatrix();
@@ -1600,6 +1635,7 @@ void display() {
             glEnable(GL_LIGHTING);
         }
 
+        prof_mark(PROF_OBJECTS);
         /* Trails */
         for(int k=0; k<MAX_OBJECTS; k++) {
             if (objects[k].type == OBJ_PLAYER || objects[k].type >= 10) drawShipTrail(k);
@@ -1889,6 +1925,7 @@ void display() {
             glBindBuffer(GL_ARRAY_BUFFER, 0);
         }
 
+        prof_mark(PROF_EFFECTS);
         /* 3. TRANSPARENT EFFECTS (Drawn last with depth testing usually) */
         drawShieldEffect();
         drawIonBeams();
@@ -1927,6 +1964,7 @@ void display() {
     glMatrixMode(GL_PROJECTION); glPopMatrix(); glMatrixMode(GL_MODELVIEW); glPopMatrix();
     glEnable(GL_LIGHTING);
 
+    prof_mark(PROF_BLOOM);
     /* 2. BLOOM PASS: Resolve MSAA to standard texture */
     if (fbo_msaa != 0 && fbo_scene != 0) {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo_msaa);
@@ -1972,6 +2010,7 @@ void display() {
     }
 
     /* --- FINAL UI PASS (Drawn on top of everything, bypassed by Bloom for sharpness) --- */
+    prof_mark(PROF_HUD);
     /* HUD Overlay (Tactical Mode) - Fade Alpha */
     if (g_show_hud) {
         if (map_anim < 0.5) {
@@ -2960,6 +2999,9 @@ int main(int argc, char** argv) {
             printf("  --version      Display version information and exit\n\n");
             printf("Environment Variables:\n");
             printf("  DISPLAY        X11 Display for OpenGL output\n");
+            printf("  SPACEGL_GL_PROFILE=1         draw-call profile every 300 frames (stdout)\n");
+            printf("  SPACEGL_GL_PROFILE_FRAMES=N  with the profile: exit after N frames\n");
+            printf("  SPACEGL_GL_SHAPE_CACHE=0     shapes in immediate mode, no display lists\n");
             return 0;
         }
         if (strcmp(argv[1], "--version") == 0) {
@@ -3115,11 +3157,53 @@ int main(int argc, char** argv) {
     glMatrixMode(GL_MODELVIEW);
         
     printf("[3D VIEW] Ready. Sending handshake to parent (PID %d).\n", getppid());
-    kill(getppid(), SIGUSR2); 
-    
+    kill(getppid(), SIGUSR2);
+
+    /* Draw-call profile (2026.10.31.41): SPACEGL_GL_PROFILE=1 prints, every
+     * 300 frames, the time of a frame before the swap (display() and the
+     * GL work it queued: every phase mark waits with glFinish) and of each
+     * phase, and the glut shapes drawn per frame, replayed from display
+     * lists or tessellated in immediate mode (src/glut_compat.c).
+     * SPACEGL_GL_PROFILE_FRAMES=N exits after N frames (headless
+     * measurements). */
+    const char *prof_env = getenv("SPACEGL_GL_PROFILE");
+    bool gl_profile = prof_env && prof_env[0] == '1';
+    const char *prof_frames_env = getenv("SPACEGL_GL_PROFILE_FRAMES");
+    long prof_max_frames = prof_frames_env ? atol(prof_frames_env) : 0;
+    long prof_frame = 0;
+    double prof_build_ms = 0.0;
+    int prof_n = 0;
+    if (gl_profile) glut_shape_stats(NULL, true);
+    g_prof_on = gl_profile;
+
     while (!glfwWindowShouldClose(window)) {
         timer(0);
+        double t_build0 = gl_profile ? glfwGetTime() : 0.0;
         display();
+        prof_mark(PROF_SKY);   /* closes the last phase reached (the HUD) */
+        if (gl_profile) {
+            prof_build_ms += (glfwGetTime() - t_build0) * 1000.0;
+            prof_n++;
+            prof_frame++;
+            if (prof_n == 300 || (prof_max_frames > 0 && prof_frame >= prof_max_frames)) {
+                GlutShapeStats st;
+                glut_shape_stats(&st, true);
+                printf("[GL PROFILE] frames %ld: build %.3f ms/frame, shapes %.1f/frame "
+                       "(display lists %.1f, immediate %.1f), lists compiled %lu (alive %d)\n",
+                       prof_frame, prof_build_ms / prof_n, (double)st.calls / prof_n,
+                       (double)st.list_hits / prof_n, (double)st.immediate / prof_n, st.compiled, st.lists);
+                printf("[GL PROFILE]   per phase (ms/frame):");
+                for (int ph = 0; ph < PROF_PHASES; ph++) {
+                    printf(" %s %.3f", k_prof_names[ph], g_prof_ms[ph] / prof_n);
+                    g_prof_ms[ph] = 0.0;
+                }
+                printf("\n");
+                fflush(stdout);
+                prof_build_ms = 0.0;
+                prof_n = 0;
+            }
+            if (prof_max_frames > 0 && prof_frame >= prof_max_frames) break;
+        }
         glfwSwapBuffers(window);
         glfwPollEvents();
         /* usleep removed: glfwSwapInterval(1) handles timing natively and smoothly */

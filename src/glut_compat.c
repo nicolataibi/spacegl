@@ -19,7 +19,11 @@
 
 #include "glut_compat.h"
 #include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <GLFW/glfw3.h>
 
 #ifndef M_PI
@@ -37,7 +41,7 @@ void glutSwapBuffers(void) {
     // No-op: we swap buffers in the main GLFW loop
 }
 
-void glutSolidSphere(double radius, int slices, int stacks) {
+static void solid_sphere_imm(double radius, int slices, int stacks) {
     GLUquadric* q = gluNewQuadric();
     gluQuadricNormals(q, GLU_SMOOTH);
     gluSphere(q, radius, slices, stacks);
@@ -50,7 +54,7 @@ void glutWireSphere(double radius, int slices, int stacks) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void glutSolidCube(double size) {
+static void solid_cube_imm(double size) {
     double s = size / 2.0;
     glBegin(GL_QUADS);
     glNormal3f(0, 0, 1);
@@ -74,7 +78,7 @@ void glutWireCube(double size) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void glutSolidCone(double base, double height, int slices, int stacks) {
+static void solid_cone_imm(double base, double height, int slices, int stacks) {
     GLUquadric* q = gluNewQuadric();
     gluQuadricNormals(q, GLU_SMOOTH);
     gluCylinder(q, base, 0.0, height, slices, stacks);
@@ -91,7 +95,7 @@ void glutWireCone(double base, double height, int slices, int stacks) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void glutSolidCylinder(double radius, double height, int slices, int stacks) {
+static void solid_cylinder_imm(double radius, double height, int slices, int stacks) {
     GLUquadric* q = gluNewQuadric();
     gluQuadricNormals(q, GLU_SMOOTH);
     gluCylinder(q, radius, radius, height, slices, stacks);
@@ -112,7 +116,7 @@ void glutWireCylinder(double radius, double height, int slices, int stacks) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void glutSolidTorus(double innerRadius, double outerRadius, int nsides, int rings) {
+static void solid_torus_imm(double innerRadius, double outerRadius, int nsides, int rings) {
     for (int i = 0; i < rings; i++) {
         double theta1 = (double)i * 2.0 * M_PI / rings;
         double theta2 = (double)(i + 1) * 2.0 * M_PI / rings;
@@ -144,7 +148,7 @@ void glutWireTorus(double innerRadius, double outerRadius, int nsides, int rings
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void glutSolidOctahedron(void) {
+static void solid_octahedron_imm(void) {
     glBegin(GL_TRIANGLES);
     glNormal3f(1, 1, 1); glVertex3f(0, 1, 0); glVertex3f(1, 0, 0); glVertex3f(0, 0, 1);
     glNormal3f(-1, 1, 1); glVertex3f(0, 1, 0); glVertex3f(0, 0, 1); glVertex3f(-1, 0, 0);
@@ -163,7 +167,7 @@ void glutWireOctahedron(void) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void glutSolidIcosahedron(void) {
+static void solid_icosahedron_imm(void) {
     double t = (1.0 + sqrt(5.0)) / 2.0;
     GLfloat v[12][3] = {
         {-1, (GLfloat)t, 0}, {1, (GLfloat)t, 0}, {-1, -(GLfloat)t, 0}, {1, -(GLfloat)t, 0},
@@ -201,6 +205,181 @@ void glutWireDodecahedron(void) {
     glutSolidDodecahedron();
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
+
+/* --- Shared geometry (2026.10.31.41) ------------------------------------
+ * The viewer draws hundreds of glut shapes a frame, each tessellated again
+ * in immediate mode (and a GLU quadric allocated for every sphere, cone and
+ * cylinder). A shape with the same parameters is the same vertex stream
+ * every time, so it is compiled once into a display list and replayed.
+ *
+ * The key is the exact parameters (shape, two doubles, two ints): a list
+ * replays exactly the calls the immediate path makes, so the picture is
+ * the same. Shapes are not drawn as a scaled unit shape on purpose: the
+ * hull shader reads the object-space vertex (gl_Vertex) for its panels and
+ * lighting, which a scale in the modelview would change.
+ *
+ * A key is compiled on its SECOND use: a parameter animated frame by frame
+ * (a pulsing radius) never repeats exactly and stays in immediate mode, as
+ * before, instead of compiling a list per frame. The candidates seen once
+ * live in a small ring; compiled lists in a fixed table (when it is full,
+ * further shapes are drawn immediately). SPACEGL_GL_SHAPE_CACHE=0 turns the
+ * cache off (immediate mode for every shape, for comparisons). */
+
+enum { SHAPE_SPHERE = 1,
+       SHAPE_CUBE,
+       SHAPE_CONE,
+       SHAPE_CYLINDER,
+       SHAPE_TORUS,
+       SHAPE_OCTA,
+       SHAPE_ICOSA };
+
+typedef struct {
+    int shape;
+    int i, j;
+    double a, b;
+} ShapeKey;
+
+typedef struct {
+    ShapeKey key;
+    GLuint list;   /* 0: empty slot */
+} ShapeList;
+
+#define SHAPE_LISTS_MAX 1024   /* power of two; at most 3/4 used */
+#define SHAPE_SEEN_MAX  256     /* ring of the keys seen once */
+
+static ShapeList g_shape_lists[SHAPE_LISTS_MAX];
+static int g_shape_lists_used = 0;
+static ShapeKey g_shape_seen[SHAPE_SEEN_MAX];
+static int g_shape_seen_next = 0;
+static int g_shape_cache_mode = -1;   /* -1: not read yet, 0 off, 1 on */
+static GlutShapeStats g_shape_stats;
+
+static bool shape_key_eq(const ShapeKey *x, const ShapeKey *y) {
+    /* bitwise on the doubles: the exact parameters, as the key promises */
+    return x->shape == y->shape && x->i == y->i && x->j == y->j &&
+           memcmp(&x->a, &y->a, sizeof(double)) == 0 && memcmp(&x->b, &y->b, sizeof(double)) == 0;
+}
+
+static uint32_t shape_key_hash(const ShapeKey *k) {
+    uint32_t h = 2166136261u;
+    const unsigned char *p;
+    p = (const unsigned char *)&k->shape;
+    for (size_t n = 0; n < sizeof(k->shape); n++) h = (h ^ p[n]) * 16777619u;
+    p = (const unsigned char *)&k->i;
+    for (size_t n = 0; n < sizeof(k->i); n++) h = (h ^ p[n]) * 16777619u;
+    p = (const unsigned char *)&k->j;
+    for (size_t n = 0; n < sizeof(k->j); n++) h = (h ^ p[n]) * 16777619u;
+    p = (const unsigned char *)&k->a;
+    for (size_t n = 0; n < sizeof(k->a); n++) h = (h ^ p[n]) * 16777619u;
+    p = (const unsigned char *)&k->b;
+    for (size_t n = 0; n < sizeof(k->b); n++) h = (h ^ p[n]) * 16777619u;
+    return h;
+}
+
+static void shape_draw_imm(const ShapeKey *k) {
+    switch (k->shape) {
+        case SHAPE_SPHERE: solid_sphere_imm(k->a, k->i, k->j); break;
+        case SHAPE_CUBE: solid_cube_imm(k->a); break;
+        case SHAPE_CONE: solid_cone_imm(k->a, k->b, k->i, k->j); break;
+        case SHAPE_CYLINDER: solid_cylinder_imm(k->a, k->b, k->i, k->j); break;
+        case SHAPE_TORUS: solid_torus_imm(k->a, k->b, k->i, k->j); break;
+        case SHAPE_OCTA: solid_octahedron_imm(); break;
+        case SHAPE_ICOSA: solid_icosahedron_imm(); break;
+        default: break;
+    }
+}
+
+static void shape_draw(int shape, double a, double b, int i, int j) {
+    ShapeKey k;
+    memset(&k, 0, sizeof(k));   /* padding too: the key is compared as values, hashed by field */
+    k.shape = shape;
+    k.a = a;
+    k.b = b;
+    k.i = i;
+    k.j = j;
+    g_shape_stats.calls++;
+
+    if (g_shape_cache_mode < 0) {
+        const char *env = getenv("SPACEGL_GL_SHAPE_CACHE");
+        g_shape_cache_mode = (env && env[0] == '0') ? 0 : 1;
+    }
+    if (g_shape_cache_mode == 0) {
+        g_shape_stats.immediate++;
+        shape_draw_imm(&k);
+        return;
+    }
+
+    uint32_t mask = SHAPE_LISTS_MAX - 1;
+    uint32_t slot = shape_key_hash(&k) & mask;
+    while (g_shape_lists[slot].list != 0) {
+        if (shape_key_eq(&g_shape_lists[slot].key, &k)) {
+            g_shape_stats.list_hits++;
+            glCallList(g_shape_lists[slot].list);
+            return;
+        }
+        slot = (slot + 1) & mask;
+    }
+
+    /* Not compiled. Seen once before? Then compile it now. */
+    bool seen = false;
+    for (int n = 0; n < SHAPE_SEEN_MAX; n++) {
+        if (g_shape_seen[n].shape != 0 && shape_key_eq(&g_shape_seen[n], &k)) {
+            seen = true;
+            g_shape_seen[n].shape = 0;   /* promoted: free the candidate */
+            break;
+        }
+    }
+    if (seen && g_shape_lists_used < SHAPE_LISTS_MAX / 4 * 3) {
+        GLuint list = glGenLists(1);
+        if (list != 0) {
+            glNewList(list, GL_COMPILE);
+            shape_draw_imm(&k);
+            glEndList();
+            g_shape_lists[slot].key = k;
+            g_shape_lists[slot].list = list;
+            g_shape_lists_used++;
+            g_shape_stats.compiled++;
+            g_shape_stats.list_hits++;
+            glCallList(list);
+            return;
+        }
+    }
+    if (!seen) {
+        g_shape_seen[g_shape_seen_next] = k;
+        g_shape_seen_next = (g_shape_seen_next + 1) % SHAPE_SEEN_MAX;
+    }
+    g_shape_stats.immediate++;
+    shape_draw_imm(&k);
+}
+
+void glut_shape_cache_enable(bool on) { g_shape_cache_mode = on ? 1 : 0; }
+
+void glut_shape_stats(GlutShapeStats *out, bool reset) {
+    if (out) {
+        *out = g_shape_stats;
+        out->lists = g_shape_lists_used;
+    }
+    if (reset) {
+        g_shape_stats.calls = 0;
+        g_shape_stats.list_hits = 0;
+        g_shape_stats.immediate = 0;
+        g_shape_stats.compiled = 0;
+    }
+}
+
+void glutSolidSphere(double radius, int slices, int stacks) { shape_draw(SHAPE_SPHERE, radius, 0.0, slices, stacks); }
+void glutSolidCube(double size) { shape_draw(SHAPE_CUBE, size, 0.0, 0, 0); }
+void glutSolidCone(double base, double height, int slices, int stacks) {
+    shape_draw(SHAPE_CONE, base, height, slices, stacks);
+}
+void glutSolidCylinder(double radius, double height, int slices, int stacks) {
+    shape_draw(SHAPE_CYLINDER, radius, height, slices, stacks);
+}
+void glutSolidTorus(double innerRadius, double outerRadius, int nsides, int rings) {
+    shape_draw(SHAPE_TORUS, innerRadius, outerRadius, nsides, rings);
+}
+void glutSolidOctahedron(void) { shape_draw(SHAPE_OCTA, 0.0, 0.0, 0, 0); }
+void glutSolidIcosahedron(void) { shape_draw(SHAPE_ICOSA, 0.0, 0.0, 0, 0); }
 
 void glutSolidTeapot(double size) { (void)size; }
 void glutWireTeapot(double size) { (void)size; }

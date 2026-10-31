@@ -1,3 +1,32 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.41
+  - OpenGL viewer, roadmap (shared geometry): every glut shape was
+  tessellated again on every draw in immediate mode, with a GLU quadric
+  allocated and freed for each sphere, cone and cylinder. src/glut_compat.c
+  now compiles a shape into a display list by its exact parameters on its
+  second use and replays it from then on; a parameter animated frame by
+  frame (a pulsing radius) never repeats exactly and stays in immediate
+  mode, so no list is compiled per frame. The parameters are exact on
+  purpose, not a scaled unit shape: the hull shader reads the object-space
+  vertex for its panels and lighting. SPACEGL_GL_SHAPE_CACHE=0 turns the
+  lists off.
+  - OpenGL viewer, roadmap (draw-call profile): SPACEGL_GL_PROFILE=1 prints
+  every 300 frames the frame time before the swap, the time of each phase
+  (sky, backdrop, objects, effects, bloom, HUD; each phase waits for the GL
+  with glFinish, only while profiling) and the glut shapes per frame, from
+  display lists or in immediate mode; SPACEGL_GL_PROFILE_FRAMES=N exits
+  after N frames. In --help and the man page. First reading, llvmpipe
+  (software GL) at 1920x1080 with 4x MSAA, a real session: 769 ms a frame,
+  of which the bloom chain (MSAA resolve, six full-size blur passes,
+  combine) 658 ms, the sky 89, the objects 7, the HUD 10; 31 shapes a
+  frame, 30 of them from 22 display lists after the second frame.
+  - Tests: gl_shape_cache (needs an OpenGL context; the CI gpu job runs it
+  under xvfb, libgl1-mesa-dri added there): a scene of every shape, solid
+  and wire, lit, under a non-uniform scale, from display lists matches
+  immediate mode (77 of 262144 bytes differ by 1: Mesa triangulates the
+  quads of a list another way); compiled on the second use, replayed from
+  the third frame; an animated radius compiles nothing. 2000 small spheres
+  on llvmpipe: 340 ms immediate, 270 ms from a list.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.40
   - Server radio relay, roadmap (fewer copies): broadcast_message() zeroed
   a 64 KiB plaintext buffer and copied every message into it, and for

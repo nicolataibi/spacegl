@@ -420,6 +420,7 @@ jobs:
             libssl-dev libncurses-dev \
             libvulkan-dev vulkan-tools vulkan-validationlayers \
             mesa-vulkan-drivers glslc spirv-tools \
+            libgl1-mesa-dri \
             python3 python3-pil \
             xvfb
 
@@ -432,6 +433,9 @@ jobs:
         run: |
           ./build/tests/gdd_mesh_test ./build/shaders \
             --benchmark 100 tests/gdd_bench_thresholds.txt
+
+      - name: OpenGL viewer shared geometry (display lists vs immediate mode)
+        run: xvfb-run -a ./build/tests/gl_shape_cache_test
 
       - name: Golden render (CPU + GDD paths, deterministic flags)
         run: |

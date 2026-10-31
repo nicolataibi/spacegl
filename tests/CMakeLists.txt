@@ -850,6 +850,19 @@ if(TARGET spacegl_server AND TARGET spacegl_client)
         FAIL_REGULAR_EXPRESSION "FAIL: radio_e2e")
 endif()
 
+# --- OpenGL viewer shared geometry (2026.10.31.41) ----------------------
+# src/glut_compat.c compiles the glut shapes into display lists: the
+# replay must be pixel-identical to immediate mode. Needs an OpenGL
+# context (xvfb-run in the CI gpu job); exit 77 (SKIP) without one.
+if(TARGET spacegl_3dview)
+    add_executable(gl_shape_cache_test gl_shape_cache_test.c ${SG_ROOT}/src/glut_compat.c)
+    target_include_directories(gl_shape_cache_test PRIVATE ${GLFW_INCLUDE_DIRS})
+    target_link_libraries(gl_shape_cache_test PRIVATE ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} GLU m)
+    add_test(NAME gl_shape_cache COMMAND gl_shape_cache_test)
+    set_tests_properties(gl_shape_cache PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120
+        PASS_REGULAR_EXPRESSION "PASS: gl_shape_cache")
+endif()
+
 # --- Command deck paths (2026.10.31.39) --------------------------------
 # tests/deck_e2e_test.sh: what the smoke and radio tests leave out of the
 # deck (no server, wrong key, refused names, the faction menu with eleven

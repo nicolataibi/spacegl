@@ -22,6 +22,24 @@ to an existing shared memory segment.
 .TP
 .B \-\-version
 Print version information and exit.
+.SH ENVIRONMENT
+.TP
+.B DISPLAY
+X11 display for the OpenGL output.
+.TP
+.B SPACEGL_GL_PROFILE
+Set to 1 to print a draw-call profile every 300 frames: the time of a
+frame before the swap and of each phase (sky, backdrop, objects, effects,
+bloom, HUD; every phase waits for the GL to finish, only while profiling)
+and the glut shapes drawn per frame, replayed from display lists or
+tessellated in immediate mode.
+.TP
+.B SPACEGL_GL_PROFILE_FRAMES
+With the profile on: print it and exit after this many frames.
+.TP
+.B SPACEGL_GL_SHAPE_CACHE
+Set to 0 to draw every shape in immediate mode instead of replaying it
+from a display list (for comparisons).
 .SH FILES
 .TP
 .I /usr/bin/spacegl_3dview
