@@ -352,6 +352,12 @@ traceable in the changelog:
     station names (COMPUTER, STARBASE, SCIENCE, ...) are reserved for
     captains in any letter case (2026.10.31.05) — pinned by
     `tests/sender_stamp_test`;
+*   client counts from the server clamped in fixed blocks and validated in
+    variable ones (2026.10.31.06) — pinned by `tests/client_wire_test`;
+*   master key file created atomically and 0600 (O_EXCL temporary file +
+    link), a corrupt key file is no longer replaced by a new key, short
+    SPACEGL_KEY refused, no rand() fallback; shared memory 0600
+    (2026.10.31.07) — pinned by `tests/key_file_test`;
 *   TCP transport hardening (`TCP_NODELAY`, keepalive probes, buffer sizing)
     and token bucket rate limiting (200 pkt/s, DoS protection, 2026.10.17.04) —
     pinned by `tests/rate_limit_test`.

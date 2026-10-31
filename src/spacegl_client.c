@@ -418,7 +418,9 @@ void init_shm() {
 
     /* Unlink in case it already exists from a previous crash */    shm_unlink(shm_path);
     
-    shm_fd = shm_open(shm_path, O_CREAT | O_RDWR | O_EXCL, 0666);
+    /* 0600: the game state is for this user's viewers only (spawned by
+     * this process, same uid); 0666 let other local users read it. */
+    shm_fd = shm_open(shm_path, O_CREAT | O_RDWR | O_EXCL, 0600);
     if (shm_fd == -1) {
         perror("shm_open failed");
         exit(1);

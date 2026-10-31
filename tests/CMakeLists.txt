@@ -489,6 +489,19 @@ if(NOT MSVC)
 endif()
 add_test(NAME client_wire COMMAND client_wire_test)
 
+# --- Master key file (2026.10.31.07, roadmap phase 0) ---
+# load_master_key(): created 0600 atomically (O_EXCL temp + link), corrupt
+# file refused and untouched, loose mode tightened, short SPACEGL_KEY
+# refused, concurrent first start yields one key.
+add_executable(key_file_test key_file_test.c)
+target_link_libraries(key_file_test PRIVATE OpenSSL::Crypto)
+if(NOT MSVC)
+    target_compile_options(key_file_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(key_file_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME key_file COMMAND key_file_test)
+
 # --- B2-b: radio cipher table index bounds (ASan/UBSan) ---
 add_executable(crypto_table_oob_test crypto_table_oob_test.c)
 target_link_libraries(crypto_table_oob_test PRIVATE OpenSSL::Crypto)

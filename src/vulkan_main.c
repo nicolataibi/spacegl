@@ -583,7 +583,7 @@ int main(int argc, char** argv) {
              * the normal flow is unchanged (O_EXCL never succeeds there). */
             app->shm_fd = shm_open(argv[ai], O_RDWR, 0666);
             if (app->shm_fd == -1) {
-                int fd_new = shm_open(argv[ai], O_RDWR | O_CREAT | O_EXCL, 0666);
+                int fd_new = shm_open(argv[ai], O_RDWR | O_CREAT | O_EXCL, 0600);
                 if (fd_new != -1) {
                     if (ftruncate(fd_new, sizeof(SharedIPC)) == 0) {
                         shm_unlink(argv[ai]); /* no orphan segments */

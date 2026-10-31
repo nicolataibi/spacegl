@@ -31,6 +31,9 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -527,23 +530,36 @@ static inline int load_master_key(uint8_t key[32]) {
     /* 2. SPACEGL_KEY (legacy) */
     const char *key_env = getenv("SPACEGL_KEY");
     if (key_env && key_env[0]) {
-        if (strlen(key_env) == 64) {
+        size_t l = strlen(key_env);
+        if (l == 64) {
             for (int i = 0; i < 32; i++) {
                 if (sscanf(key_env + 2*i, "%2hhx", &key[i]) != 1) {
                     fprintf(stderr, "FATAL: invalid hex in SPACEGL_KEY at position %d\n", i);
                     return -1;
                 }
             }
+        } else if (l >= 32) {
+            /* Raw string backward compatibility: its first 32 bytes */
+            memcpy(key, key_env, 32);
         } else {
-            /* Raw string backward compatibility */
-            size_t l = strlen(key_env);
-            memcpy(key, key_env, (l > 32) ? 32 : l);
+            /* Shorter than 32 bytes: the rest of the key used to stay
+             * zero, a weak key with no warning (2026.10.31.07). */
+            fprintf(stderr, "FATAL: SPACEGL_KEY is %zu characters: use 64 hex characters, "
+                            "a string of at least 32 characters, or SPACEGL_KEY_FILE\n", l);
+            return -1;
         }
         fprintf(stderr, "\033[1;33m[SECURITY WARN]\033[0m Master key loaded from SPACEGL_KEY env var (legacy; prefer SPACEGL_KEY_FILE)\n");
         return 0;
     }
 
-    /* 3. Default: generate and store in $HOME/.spacegl/key */
+    /* 3. Default: $HOME/.spacegl/key, generated if absent.
+     * 2026.10.31.07: an existing file that does not hold 64 hex characters
+     * is an error, no longer silently replaced by a new key (which voided
+     * every captain identity HMAC'd with the old one); a group/world
+     * readable file is tightened to 0600; the new key is written to a
+     * private temporary file (O_EXCL, 0600, fsync) and published with
+     * link(), which fails if another process (server and client started
+     * together) published one first — then that key is used. */
     const char *home = getenv("HOME");
     if (!home || !home[0]) home = "/tmp";
     char dir_path[1024];
@@ -551,55 +567,105 @@ static inline int load_master_key(uint8_t key[32]) {
     snprintf(dir_path, sizeof(dir_path), "%s/.spacegl", home);
     snprintf(key_path, sizeof(key_path), "%s/.spacegl/key", home);
 
-    /* Try to read existing */
-    FILE *f = fopen(key_path, "r");
-    if (f) {
-        char hex[128] = {0};
-        if (fgets(hex, sizeof(hex), f)) {
-            hex[strcspn(hex, "\r\n")] = '\0';
-            if (strlen(hex) == 64) {
-                fclose(f);
-                for (int i = 0; i < 32; i++) {
-                    sscanf(hex + 2*i, "%2hhx", &key[i]);
+    for (int attempt = 0; attempt < 2; attempt++) {
+        /* Read an existing key */
+        int rfd = open(key_path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+        if (rfd >= 0) {
+            struct stat st;
+            if (fstat(rfd, &st) != 0 || !S_ISREG(st.st_mode)) {
+                close(rfd);
+                fprintf(stderr, "FATAL: '%s' is not a regular file\n", key_path);
+                return -1;
+            }
+            if ((st.st_mode & 077) != 0) {
+                if (fchmod(rfd, 0600) != 0) {
+                    close(rfd);
+                    fprintf(stderr, "FATAL: '%s' is readable by others (mode %o) and cannot be changed to 0600\n",
+                            key_path, (unsigned)(st.st_mode & 0777));
+                    return -1;
                 }
-                printf("[SECURITY] Master key loaded from '%s'\n", key_path);
-                return 0;
+                fprintf(stderr, "\033[1;33m[SECURITY WARN]\033[0m '%s' was mode %o: tightened to 0600\n",
+                        key_path, (unsigned)(st.st_mode & 0777));
+            }
+            char hex[130] = {0};
+            ssize_t n = read(rfd, hex, sizeof(hex) - 1);
+            close(rfd);
+            if (n < 0) n = 0;
+            hex[n] = '\0';
+            hex[strcspn(hex, "\r\n")] = '\0';
+            bool ok = (strlen(hex) == 64);
+            for (int i = 0; ok && i < 32; i++) {
+                if (sscanf(hex + 2*i, "%2hhx", &key[i]) != 1) ok = false;
+            }
+            if (!ok) {
+                if (attempt == 0 && n < 65) {
+                    /* maybe a writer is publishing it right now: retry once */
+                    struct timespec wait_ts = { 0, 100L * 1000L * 1000L };
+                    nanosleep(&wait_ts, NULL);
+                    continue;
+                }
+                fprintf(stderr, "FATAL: '%s' does not hold a 64-hex-character key; it is left untouched. "
+                                "Restore it, or remove it to generate a new key (this voids every existing captain identity)\n",
+                        key_path);
+                return -1;
+            }
+            printf("[SECURITY] Master key loaded from '%s'\n", key_path);
+            return 0;
+        }
+        if (errno != ENOENT) {
+            fprintf(stderr, "FATAL: cannot open '%s': %s\n", key_path, strerror(errno));
+            return -1;
+        }
+
+        /* Generate a new random key: the CSPRNG or the kernel, never rand() */
+        if (RAND_bytes(key, 32) != 1) {
+            int ur = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
+            ssize_t got = (ur >= 0) ? read(ur, key, 32) : -1;
+            if (ur >= 0) close(ur);
+            if (got != 32) {
+                fprintf(stderr, "FATAL: no secure random source for the master key\n");
+                return -1;
             }
         }
-        fclose(f);
-    }
 
-    /* Generate new random key */
-    if (RAND_bytes(key, 32) != 1) {
-        FILE *f_ur = fopen("/dev/urandom", "rb");
-        if (f_ur) {
-            if (fread(key, 1, 32, f_ur) != 32) { }
-            fclose(f_ur);
-        } else {
-            for (int i = 0; i < 32; i++) key[i] = (uint8_t)(rand() & 0xFF);
+        if (mkdir(dir_path, 0700) != 0 && errno != EEXIST) {
+            fprintf(stderr, "FATAL: cannot create '%s': %s\n", dir_path, strerror(errno));
+            return -1;
         }
+        char tmp_path[1100];
+        snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.%ld", key_path, (long)getpid());
+        unlink(tmp_path);
+        int wfd = open(tmp_path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+        if (wfd < 0) {
+            fprintf(stderr, "FATAL: cannot create key file '%s': %s\n", tmp_path, strerror(errno));
+            return -1;
+        }
+        char out[65];
+        for (int i = 0; i < 32; i++) snprintf(out + 2*i, 3, "%02x", key[i]);
+        out[64] = '\n';
+        bool wrote = (write(wfd, out, 65) == 65) && (fsync(wfd) == 0);
+        memset(out, 0, sizeof(out));
+        close(wfd);
+        if (!wrote) {
+            unlink(tmp_path);
+            fprintf(stderr, "FATAL: cannot write key file '%s'\n", tmp_path);
+            return -1;
+        }
+        int linked = link(tmp_path, key_path);
+        int link_errno = errno;
+        unlink(tmp_path);
+        if (linked == 0) {
+            printf("[SECURITY] Generated new master key, stored in '%s' (0600)\n", key_path);
+            return 0;
+        }
+        if (link_errno != EEXIST) {
+            fprintf(stderr, "FATAL: cannot publish key file '%s': %s\n", key_path, strerror(link_errno));
+            return -1;
+        }
+        /* another process published its key first: load that one */
     }
-
-    /* Create directory with 0700 permissions */
-    struct stat st;
-    if (stat(dir_path, &st) != 0) {
-        mkdir(dir_path, 0700);
-    }
-
-    /* Write key file (0600) */
-    f = fopen(key_path, "w");
-    if (!f) {
-        fprintf(stderr, "FATAL: cannot create key file '%s'\n", key_path);
-        return -1;
-    }
-    for (int i = 0; i < 32; i++) {
-        fprintf(f, "%02x", key[i]);
-    }
-    fprintf(f, "\n");
-    fclose(f);
-    chmod(key_path, 0600);
-    printf("[SECURITY] Generated new master key, stored in '%s' (0600)\n", key_path);
-    return 0;
+    fprintf(stderr, "FATAL: could not load or create '%s'\n", key_path);
+    return -1;
 }
 
 #endif

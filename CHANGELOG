@@ -1,3 +1,29 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.07
+  - Master key file (roadmap phase 0, problem 6), load_master_key() in
+  network.h, used by the server and the command deck:
+  - An existing $HOME/.spacegl/key that did not hold 64 hex characters was
+  silently replaced by a newly generated key, which voids every captain
+  identity HMAC'd with the old one. It is now an error and the file is
+  left untouched, with a message on how to recover.
+  - The key file was created with fopen("w") and chmod 0600 only after the
+  write (readable with the umask's mode meanwhile), and two processes
+  started together (server and deck on the first run) could each write a
+  different key. The key is now written to a private temporary file
+  (O_EXCL, O_NOFOLLOW, 0600, fsync) and published with link(), which
+  fails if another process published first: that key is then loaded.
+  - A key file readable by group or others is tightened to 0600 (refused
+  if that is not possible). No rand() fallback for the key: RAND_bytes,
+  then /dev/urandom, else a fatal error.
+  - SPACEGL_KEY shorter than 32 characters left the rest of the key zero;
+  it is now refused (64 hex characters or at least 32 characters, as
+  documented, still work; the CI key is unchanged).
+  - Shared memory: the deck creates its segment 0600 instead of 0666 (the
+  viewers are its own children, same user), as does the standalone Vulkan
+  viewer.
+  - Tests: new key_file_test (creation mode, reload, corrupt file kept,
+  mode tightened, SPACEGL_KEY rules, SPACEGL_KEY_FILE rule, 8 processes
+  creating the key at once share one key).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.06
   - Client, server-supplied counts (roadmap phase 0, problem 5): event_count
   and torpedo_count of the UPD_EFFECTS block were clamped only from above,
