@@ -119,7 +119,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             mat4 R_pitch_h, S_heading; mat4_identity(R_pitch_h); mat4_scale(S_heading, (vec3){2.5f * tactScale, 2.5f * tactScale, 2.5f * tactScale});
             /* Dynamic pitch rotation around the heading-dependent transverse axis */
             double h_rad = oh * M_PI / 180.0;
-            mat4_rotate(R_pitch_h, om * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
+            mat4_rotate(R_pitch_h, (float)(om * M_PI / 180.0f), (vec3){cosf((float)h_rad), 0, -sinf((float)h_rad)});
             /* Order: Scale * Rotate * Translate (in Row-Major C logic) -> T * R * S (in Shader Col-Major) */
             mat4_multiply(S_heading, R_pitch_h, hpc.model); 
             mat4_multiply(hpc.model, T_axes, hpc.model);
@@ -134,7 +134,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             mat4_scale(S_mark, (vec3){2.8f * tactScale, 2.8f * tactScale, 2.8f * tactScale});
             
             /* 1. Base alignment (+90) then Heading (-oh) around vertical Y */
-            mat4_rotate(R_head_m, (90.0f - oh) * M_PI / 180.0f, (vec3){0, 1, 0});
+            mat4_rotate(R_head_m, (float)((90.0f - oh) * M_PI / 180.0f), (vec3){0, 1, 0});
             
             /* Combine: Scale * Rotation * Translation */
             mat4_multiply(S_mark, R_head_m, mpc.model);
@@ -152,10 +152,10 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             mat4_scale(S_roll, (vec3){2.8f * tactScale, 2.8f * tactScale, 2.8f * tactScale});
 
             /* 1. Base alignment (+90) then Heading (-oh) around vertical Y */
-            mat4_rotate(R_roll_c, (90.0f - oh) * M_PI / 180.0f, (vec3){0, 1, 0});
+            mat4_rotate(R_roll_c, (float)((90.0f - oh) * M_PI / 180.0f), (vec3){0, 1, 0});
             /* 2. Pitch around dynamic transverse axis (to stay perpendicular to the vector) */
             double h_rad_r = oh * M_PI / 180.0;
-            mat4_rotate(R_roll_c, om * M_PI / 180.0f, (vec3){cosf(h_rad_r), 0, -sinf(h_rad_r)});
+            mat4_rotate(R_roll_c, (float)(om * M_PI / 180.0f), (vec3){cosf((float)h_rad_r), 0, -sinf((float)h_rad_r)});
 
             mat4_multiply(S_roll, R_roll_c, rpc.model);
             mat4_multiply(rpc.model, T_axes, rpc.model);
@@ -171,12 +171,12 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 PushConstants vpc = {0}; mat4_identity(vpc.model);
                 mat4 R_v, S_v; mat4_identity(R_v); mat4_scale(S_v, (vec3){tactScale, tactScale, tactScale});
                 /* 1. Base alignment: model is +X, we want it to point at +Z (North) */
-                mat4_rotate(R_v, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+                mat4_rotate(R_v, (float)(90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
                 /* 2. Heading (around vertical Y) */
-                mat4_rotate(R_v, -oh * M_PI / 180.0f, (vec3){0, 1, 0});
+                mat4_rotate(R_v, (float)(-oh * M_PI / 180.0f), (vec3){0, 1, 0});
                 /* 3. Pitch (around the dynamic horizontal axis, nose up = positive elevation) */
                 double h_rad_v = oh * M_PI / 180.0f;
-                mat4_rotate(R_v, om * M_PI / 180.0f, (vec3){cosf(h_rad_v), 0, -sinf(h_rad_v)});
+                mat4_rotate(R_v, (float)(om * M_PI / 180.0f), (vec3){cosf((float)h_rad_v), 0, -sinf((float)h_rad_v)});
                 
                 mat4_multiply(S_v, R_v, vpc.model);
                 mat4_multiply(vpc.model, T_axes, vpc.model);
@@ -195,20 +195,20 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 
                 /* 1. FIRST: Rotate model (+X) to point Up (+Y local) */
                 /* Using -90 to point towards the roof in the Vulkan coordinate mapping */
-                mat4_rotate(R_u, -90.0f * M_PI / 180.0f, (vec3){0, 0, 1});
+                mat4_rotate(R_u, (float)(-90.0f * M_PI / 180.0f), (vec3){0, 0, 1});
 
                 /* 2. Apply exactly the same rotations as the ship to stay synced */
                 /* Base alignment (+90 North) then Heading (-oh) around vertical Y */
-                mat4_rotate(R_u, (90.0f - oh) * M_PI / 180.0f, (vec3){0, 1, 0});
+                mat4_rotate(R_u, (float)((90.0f - oh) * M_PI / 180.0f), (vec3){0, 1, 0});
                 
                 /* Pitch around dynamic transverse axis */
                 double h_rad_u = oh * M_PI / 180.0;
-                mat4_rotate(R_u, om * M_PI / 180.0f, (vec3){cosf(h_rad_u), 0, -sinf(h_rad_u)});
+                mat4_rotate(R_u, (float)(om * M_PI / 180.0f), (vec3){cosf((float)h_rad_u), 0, -sinf((float)h_rad_u)});
                 
                 /* Roll around dynamic longitudinal axis (Nose direction) */
-                float pitch_rad_u = om * M_PI / 180.0f;
-                vec3 nose_u = {sinf(h_rad_u)*cosf(pitch_rad_u), sinf(pitch_rad_u), cosf(h_rad_u)*cosf(pitch_rad_u)};
-                mat4_rotate(R_u, oro * M_PI / 180.0f, nose_u);
+                float pitch_rad_u = (float)(om * M_PI / 180.0f);
+                vec3 nose_u = {sinf((float)h_rad_u)*cosf(pitch_rad_u), sinf(pitch_rad_u), cosf((float)h_rad_u)*cosf(pitch_rad_u)};
+                mat4_rotate(R_u, (float)(oro * M_PI / 180.0f), nose_u);
 
                 mat4_multiply(S_u, R_u, upc.model);
                 mat4_multiply(upc.model, T_axes, upc.model);
@@ -272,7 +272,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(stpc), &stpc);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->starfieldVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->starfieldIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, app->starfieldIndexCount, 1, 0, 0, 0);
+        vkCmdDrawIndexed(cb, (uint32_t)app->starfieldIndexCount, 1, 0, 0, 0);
 
         /* Render individual tactical objects */
         for (int o=0; o<st->object_count && o < MAX_OBJECTS; o++) {
@@ -314,18 +314,18 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             mat4_scale(S, (vec3){s,s,s});
             if (obj->type==1 || obj->type>=10) {
                 /* Align model (+X) to North (+Z) */
-                mat4_rotate(R, 90.0f * M_PI / 180.0f, (vec3){0,1,0});
+                mat4_rotate(R, (float)(90.0f * M_PI / 180.0f), (vec3){0,1,0});
                 /* Apply Smoothed Heading (around vertical Y) */
-                mat4_rotate(R, -oh * M_PI / 180.0f, (vec3){0,1,0});
+                mat4_rotate(R, (float)(-oh * M_PI / 180.0f), (vec3){0,1,0});
                 /* Apply Smoothed Pitch around dynamic horizontal axis */
-                float obj_h_rad = oh * M_PI / 180.0f;
-                mat4_rotate(R, om * M_PI / 180.0f, (vec3){cosf(obj_h_rad), 0, -sinf(obj_h_rad)});
+                float obj_h_rad = (float)(oh * M_PI / 180.0f);
+                mat4_rotate(R, (float)(om * M_PI / 180.0f), (vec3){cosf(obj_h_rad), 0, -sinf(obj_h_rad)});
                 /* Apply Smoothed Roll around local longitudinal axis (+X after North alignment) */
                 /* Model orientation: X is forward, Y is up, Z is right. 
                    After North alignment (+X to +Z), the forward axis is +Z in world space.
                    But we rotate around local axes. Pitch is local Z (horizontal). Roll is local X (longitudinal). */
-                float pitch_rad = om * M_PI / 180.0f;
-                mat4_rotate(R, or * M_PI / 180.0f, (vec3){sinf(obj_h_rad)*cosf(pitch_rad), sinf(pitch_rad), cosf(obj_h_rad)*cosf(pitch_rad)});
+                float pitch_rad = (float)(om * M_PI / 180.0f);
+                mat4_rotate(R, (float)(or * M_PI / 180.0f), (vec3){sinf(obj_h_rad)*cosf(pitch_rad), sinf(pitch_rad), cosf(obj_h_rad)*cosf(pitch_rad)});
                 if (o == 0) memcpy(app->playerR, R, sizeof(mat4));
             }
             /* Correct Order: Scale -> Rotate -> Translate (in C Row-Major: S * R * T) */
@@ -548,7 +548,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 /* Spin like a top around vertical axis */
                 mat4_rotate(R_q, pulse * 3.0f, (vec3){0, 1, 0});
                 /* Axial tilt for perspective */
-                mat4_rotate(R_q, 20.0f * M_PI / 180.0f, (vec3){1, 0, 0}); 
+                mat4_rotate(R_q, (float)(20.0f * M_PI / 180.0f), (vec3){1, 0, 0}); 
                 
                 /* SPIN IN PLACE: Apply R_q before Translation T */
                 mat4 M_spin; mat4_multiply(S, R_q, M_spin);
@@ -662,9 +662,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     else if (obj->type == OBJ_VOID_CRYSTAL) { ship_opc.color[0]=0.9f; ship_opc.color[1]=0.0f; ship_opc.color[2]=0.9f; } // Void Crystal
                     else if (obj_type_is_exotic(obj->type)) { 
                         int e_id = obj->type - OBJ_EXOTIC_FIRST;
-                        ship_opc.color[0]= (e_id % 3) * 0.5f; 
-                        ship_opc.color[1]= (e_id % 4) * 0.33f; 
-                        ship_opc.color[2]= (e_id % 5) * 0.25f + 0.2f; 
+                        ship_opc.color[0]= (float)(e_id % 3) * 0.5f; 
+                        ship_opc.color[1]= (float)(e_id % 4) * 0.33f; 
+                        ship_opc.color[2]= (float)(e_id % 5) * 0.25f + 0.2f; 
                         ship_opc.usePushColor = 1 + (e_id % 7); // Use various procedural shaders/FX available
                         ship_opc.metallic = 1.0f; 
                         ship_opc.roughness = 0.0f; 
@@ -719,7 +719,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     
                     /* Rotation speed based on class: Legacy (0) rotates faster */
                     mat4 R_q; mat4_identity(R_q);
-                    float rotSpeed = 1.0f + (12 - ship_cl) * 0.2f; 
+                    float rotSpeed = 1.0f + ((float)(12 - ship_cl)) * 0.2f; 
                     mat4_rotate(R_q, pulse * rotSpeed, (vec3){0.0f, 1.0f, 0.0f});
                     mat4_multiply(S_q, R_q, S_q);
                     
@@ -748,7 +748,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     
                     float speeds[3] = {2.8f, -2.1f, 3.5f};
                     float radii[3] = {0.15f * tactScale, 0.18f * tactScale, 0.21f * tactScale};
-                    vec3 axes[3] = {{1,1,0.3}, {0.3,1,1}, {1,0.3,1}};
+                    vec3 axes[3] = {{1,1,0.3f}, {0.3f,1,1}, {1,0.3f,1}};
                     
                     for (int ring_idx=0; ring_idx<3; ring_idx++) {
                         PushConstants rpc = {0};
@@ -796,10 +796,10 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 /* halo: 5 additive shells, alpha 0.7 / (1.5 i) (OpenGL drawGlow) */
                 vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
                 for (int k = 1; k <= 5; k++) {
-                    float rs = (QG_TORP_HALO + wave * 0.05f) * (1.0f + k * 0.2f) * tactScale;
+                    float rs = (QG_TORP_HALO + wave * 0.05f) * (1.0f + (float)k * 0.2f) * tactScale;
                     PushConstants hpc = {0}; mat4 S_h;
                     mat4_scale(S_h, (vec3){rs, rs, rs}); mat4_multiply(S_h, T_t, hpc.model);
-                    hpc.color[0]=1.0f; hpc.color[1]=0.2f; hpc.color[2]=0.1f; hpc.color[3]=0.7f / (k * 1.5f); hpc.usePushColor=1;
+                    hpc.color[0]=1.0f; hpc.color[1]=0.2f; hpc.color[2]=0.1f; hpc.color[3]=0.7f / ((float)k * 1.5f); hpc.usePushColor=1;
                     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(hpc), &hpc);
                     vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
                 }
@@ -1230,8 +1230,8 @@ void drawFrame(VulkanApp* app) {
     
     /* 1. Standard Orbital View (Tactical) */
     mat4 m_std; mat4_identity(m_std);
-    mat4_rotate(m_std, -app->angleY * M_PI / 180.0f, (vec3){0, 1, 0});
-    mat4_rotate(m_std, app->angleX * M_PI / 180.0f, (vec3){1, 0, 0});
+    mat4_rotate(m_std, (float)(-app->angleY * M_PI / 180.0f), (vec3){0, 1, 0});
+    mat4_rotate(m_std, (float)(app->angleX * M_PI / 180.0f), (vec3){1, 0, 0});
     mat4 T_cam; mat4_translate(T_cam, (vec3){0, 0, -qg_view_dist(app->cameraDist, app->mapAnim)});
     mat4_multiply(m_std, T_cam, m_std);
 
@@ -1249,12 +1249,12 @@ void drawFrame(VulkanApp* app) {
         /* Ship Rotation Matrix (Synchronized with recordCommandBuffer) */
         mat4 R_ship; mat4_identity(R_ship);
         /* Model alignment: +X -> +Z (South) */
-        mat4_rotate(R_ship, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_ship, (float)(90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
         /* Heading */
-        mat4_rotate(R_ship, -ph * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_ship, (float)(-ph * M_PI / 180.0f), (vec3){0, 1, 0});
         /* Pitch */
-        float h_rad = ph * M_PI / 180.0f;
-        mat4_rotate(R_ship, pm * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
+        float h_rad = (float)(ph * M_PI / 180.0f);
+        mat4_rotate(R_ship, (float)(pm * M_PI / 180.0f), (vec3){cosf(h_rad), 0, -sinf(h_rad)});
 
         /* Camera Position: exactly on the local Y-axis, slightly above the ship */
         float ly = (app->showBridge >= 11) ? (-BRIDGE_CAMERA_OFFSET_Y * SCALE_SHIP * tactScale) : (BRIDGE_CAMERA_OFFSET_Y * SCALE_SHIP * tactScale);
@@ -1269,15 +1269,15 @@ void drawFrame(VulkanApp* app) {
            We multiply R_base by R_ship to apply the ship's world rotations to the already oriented view. */
         mat4 R_cam_world;
         mat4 R_base; mat4_identity(R_base);
-        mat4_rotate(R_base, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_base, (float)(90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
 
         /* Rotation based on Mode (Look around) - Relative to the bow */
         int mode = app->showBridge % 10;
-        if (mode == 2) mat4_rotate(R_base, M_PI/2.0f, (vec3){0, 1, 0});       /* LEFT: +90 deg from forward */
-        else if (mode == 3) mat4_rotate(R_base, -M_PI/2.0f, (vec3){0, 1, 0});  /* RIGHT: -90 deg from forward */
-        else if (mode == 4) mat4_rotate(R_base, M_PI/4.0f, (vec3){0, 0, 1});   /* UP: +45 deg around local Z */
-        else if (mode == 5) mat4_rotate(R_base, -M_PI/4.0f, (vec3){0, 0, 1});  /* DOWN: -45 deg around local Z */
-        else if (mode == 6) mat4_rotate(R_base, M_PI, (vec3){0, 1, 0});        /* REAR: 180 deg from forward */
+        if (mode == 2) mat4_rotate(R_base, (float)(M_PI/2.0f), (vec3){0, 1, 0});       /* LEFT: +90 deg from forward */
+        else if (mode == 3) mat4_rotate(R_base, (float)(-M_PI/2.0f), (vec3){0, 1, 0});  /* RIGHT: -90 deg from forward */
+        else if (mode == 4) mat4_rotate(R_base, (float)(M_PI/4.0f), (vec3){0, 0, 1});   /* UP: +45 deg around local Z */
+        else if (mode == 5) mat4_rotate(R_base, (float)(-M_PI/4.0f), (vec3){0, 0, 1});  /* DOWN: -45 deg around local Z */
+        else if (mode == 6) mat4_rotate(R_base, (float)M_PI, (vec3){0, 1, 0});        /* REAR: 180 deg from forward */
 
         mat4_multiply(R_base, R_ship, R_cam_world);
 
@@ -1317,16 +1317,16 @@ void drawFrame(VulkanApp* app) {
         /* Build ship orientation: same sequence as bridge, plus roll   */
         mat4 R_ship; mat4_identity(R_ship);
         /* Model alignment: +X → +Z (South) */
-        mat4_rotate(R_ship, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_ship, (float)(90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
         /* Heading */
-        mat4_rotate(R_ship, -ph * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_ship, (float)(-ph * M_PI / 180.0f), (vec3){0, 1, 0});
         /* Pitch: same lateral axis as bridge */
-        float h_rad = ph * M_PI / 180.0f;
-        mat4_rotate(R_ship, pm * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
+        float h_rad = (float)(ph * M_PI / 180.0f);
+        mat4_rotate(R_ship, (float)(pm * M_PI / 180.0f), (vec3){cosf(h_rad), 0, -sinf(h_rad)});
         /* Roll: rotate around the ship's local forward axis (+X after  */
         /* the alignment rotation).  Forward in world-space after the   */
         /* heading rotation is (sin(ph), 0, cos(ph)) in Vulkan coords.  */
-        mat4_rotate(R_ship, pr * M_PI / 180.0f,
+        mat4_rotate(R_ship, (float)(pr * M_PI / 180.0f),
                     (vec3){sinf(h_rad), 0.0f, cosf(h_rad)});
 
         /* Camera sits at PILOT_CAMERA_OFFSET_Y above the ship on       */
@@ -1340,7 +1340,7 @@ void drawFrame(VulkanApp* app) {
         /* (same +90°Y base as bridge, mode == 1 = forward view)        */
         mat4 R_cam_world;
         mat4 R_base; mat4_identity(R_base);
-        mat4_rotate(R_base, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_base, (float)(90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
         mat4_multiply(R_base, R_ship, R_cam_world);
 
         /* View = T_inv * R_inv  (bridge exact convention)              */
@@ -1380,7 +1380,7 @@ void drawFrame(VulkanApp* app) {
     if (app->showPilot)
         current_fov = current_fov * (1.0f - app->pilotAnim) + PILOT_FOV_DEG * app->pilotAnim;
 
-    mat4_perspective(current_fov * M_PI / 180.0f, (float)app->swapChainExtent.width / (float)app->swapChainExtent.height, 0.1f, QG_FAR_PLANE, ubo.proj); ubo.proj[1][1] *= -1;
+    mat4_perspective((float)(current_fov * M_PI / 180.0f), (float)app->swapChainExtent.width / (float)app->swapChainExtent.height, 0.1f, QG_FAR_PLANE, ubo.proj); ubo.proj[1][1] *= -1;
     
     void* d; vkMapMemory(app->device, app->uniformBuffersMemory[app->currentFrame], 0, sizeof(ubo), 0, &d); memcpy(d, &ubo, sizeof(ubo)); vkUnmapMemory(app->device, app->uniformBuffersMemory[app->currentFrame]);
     VkPipelineStageFlags w = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;

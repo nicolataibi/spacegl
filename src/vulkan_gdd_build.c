@@ -242,11 +242,11 @@ static void gdd_list_add_identity(GddList *L, int mesh,
 /* the vertex).                                                       */
 /* ================================================================== */
 static void gdd_ship_rotation(const SmoothObj *so, gdd_m3 out) {
-    float h = so->h * M_PI / 180.0f;
-    float m = so->m * M_PI / 180.0f;
-    float r = so->r * M_PI / 180.0f;
+    float h = (float)(so->h * M_PI / 180.0f);
+    float m = (float)(so->m * M_PI / 180.0f);
+    float r = (float)(so->r * M_PI / 180.0f);
     gdd_m3_identity(out);
-    gdd_m3_rotate(out, 90.0f * M_PI / 180.0f, 0.0f, 1.0f, 0.0f);
+    gdd_m3_rotate(out, (float)(90.0f * M_PI / 180.0f), 0.0f, 1.0f, 0.0f);
     gdd_m3_rotate(out, -h, 0.0f, 1.0f, 0.0f);
     gdd_m3_rotate(out, m, cosf(h), 0.0f, -sinf(h));
     gdd_m3_rotate(out, r, sinf(h) * cosf(m), sinf(m), cosf(h) * cosf(m));
@@ -340,9 +340,9 @@ static void gdd_visual_for(int type, int faction, int ship_class, int plating,
     else if (type == OBJ_SUBSPACE_ANOMALY)            { v->color[0]=0.0f; v->color[1]=1.0f; v->color[2]=0.5f; }
     else if (obj_type_is_exotic(type)) {
         int e_id = type - OBJ_EXOTIC_FIRST;
-        v->color[0] = (e_id % 3) * 0.5f;
-        v->color[1] = (e_id % 4) * 0.33f;
-        v->color[2] = (e_id % 5) * 0.25f + 0.2f;
+        v->color[0] = (float)(e_id % 3) * 0.5f;
+        v->color[1] = (float)(e_id % 4) * 0.33f;
+        v->color[2] = (float)(e_id % 5) * 0.25f + 0.2f;
     }
 
     /* Unknown type (0 is an empty slot): keep the object visible (generic cosmic look below) but
@@ -985,7 +985,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             } else if (v.spin) {
                 gdd_m3_identity(m);
                 gdd_m3_rotate(m, pulse * 3.0f, 0.0f, 1.0f, 0.0f);
-                gdd_m3_rotate(m, 20.0f * M_PI / 180.0f, 1.0f, 0.0f, 0.0f);
+                gdd_m3_rotate(m, (float)(20.0f * M_PI / 180.0f), 1.0f, 0.0f, 0.0f);
                 gdd_orient_from_m3(o, m);
             } else {
                 gdd_orient_identity(o);
@@ -1007,7 +1007,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
             }
             gdd_list_add(&dyn, v.mesh, px, py, pz, sx, sy, sz,
                          v.color[0], v.color[1], v.color[2], 1.0f,
-                         0, v.additive, v.frag_mode, o,
+                         0, (uint32_t)v.additive, v.frag_mode, o,
                          v.metallic, v.roughness);
 
             /* --- QUANTUM CORE (Alliance ships: faction 0 or 1) --------- */
@@ -1036,7 +1036,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                 {
                     gdd_m3 rq;
                     gdd_m3_identity(rq);
-                    float rotSpeed = 1.0f + (12 - cl) * 0.2f;
+                    float rotSpeed = 1.0f + ((float)(12 - cl)) * 0.2f;
                     gdd_m3_rotate(rq, pulse * rotSpeed, 0.0f, 1.0f, 0.0f);
                     gdd_m3 mq;
                     gdd_m3_multiply(m, rq, mq); /* vertex: R_ship then R_q */
@@ -1125,10 +1125,10 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                              1.0f, 0.6f, 0.1f, 0.9f, 0, 1, GDD_FRAG_HYPERWARP, o, 0.0f, 1.0f);
             } else if (type == OBJ_COMET) { /* comet tail (thin box along heading) */
                 gdd_m3 m_obj;
-                float h = so->h * M_PI / 180.0f;
-                float mrot = so->m * M_PI / 180.0f;
+                float h = (float)(so->h * M_PI / 180.0f);
+                float mrot = (float)(so->m * M_PI / 180.0f);
                 gdd_m3_identity(m_obj);
-                gdd_m3_rotate(m_obj, 90.0f * M_PI / 180.0f - h, 0, 1, 0);
+                gdd_m3_rotate(m_obj, (float)(90.0f * M_PI / 180.0f - h), 0, 1, 0);
                 gdd_m3_rotate(m_obj, mrot, cosf(h), 0.0f, -sinf(h));
                 float d[3];
                 gdd_m3_xaxis(m_obj, d);
@@ -1187,12 +1187,12 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         cz = (GDD_QUADRANT - p0->y) * ts;
         float anchor[3] = { cx, cy, cz };
 
-        float h = p0->h * M_PI / 180.0f;      /* heading (CPU oh)  */
-        float mrot = p0->m * M_PI / 180.0f;   /* pitch   (CPU om)  */
-        float rrot = p0->r * M_PI / 180.0f;   /* roll    (CPU oro) */
+        float h = (float)(p0->h * M_PI / 180.0f);      /* heading (CPU oh)  */
+        float mrot = (float)(p0->m * M_PI / 180.0f);   /* pitch   (CPU om)  */
+        float rrot = (float)(p0->r * M_PI / 180.0f);   /* roll    (CPU oro) */
         float pitch_axis[3] = { cosf(h), 0.0f, -sinf(h) };
         float nose[3] = { sinf(h) * cosf(mrot), sinf(mrot), cosf(h) * cosf(mrot) };
-        float head_yaw = (90.0f * M_PI / 180.0f) - h;
+        float head_yaw = (float)((90.0f * M_PI / 180.0f) - h);
 
         /* The shared `o` still holds the orientation of the LAST object
          * processed in the loop above (e.g. an enemy ship). The global
@@ -1242,7 +1242,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         {
             gdd_m3 mring;
             gdd_m3_identity(mring);
-            gdd_m3_rotate(mring, 90.0f * M_PI / 180.0f, 0, 0, 1);
+            gdd_m3_rotate(mring, (float)(90.0f * M_PI / 180.0f), 0, 0, 1);
             gdd_m3_rotate(mring, head_yaw, 0, 1, 0);
             gdd_m3_rotate(mring, mrot, pitch_axis[0], pitch_axis[1], pitch_axis[2]);
             gdd_orient_from_m3(o, mring);
@@ -1265,7 +1265,7 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         {
             gdd_m3 mring;
             gdd_m3_identity(mring);
-            gdd_m3_rotate(mring, -90.0f * M_PI / 180.0f, 0, 0, 1);
+            gdd_m3_rotate(mring, (float)(-90.0f * M_PI / 180.0f), 0, 0, 1);
             gdd_m3_rotate(mring, head_yaw, 0, 1, 0);
             gdd_m3_rotate(mring, mrot, pitch_axis[0], pitch_axis[1], pitch_axis[2]);
             gdd_m3_rotate(mring, rrot, nose[0], nose[1], nose[2]);
@@ -1288,9 +1288,9 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                                   QG_TORP_CORE * ts, QG_TORP_CORE * ts, QG_TORP_CORE * ts,
                                   QG_TORP_CORE_R, QG_TORP_CORE_G, QG_TORP_CORE_B, 1.0f, 0, 0, GDD_FRAG_PBR, 0.3f, 0.4f);
             for (int k = 1; k <= 5; k++) {
-                float rs = (QG_TORP_HALO + wave * 0.05f) * (1.0f + k * 0.2f) * ts;
+                float rs = (QG_TORP_HALO + wave * 0.05f) * (1.0f + (float)k * 0.2f) * ts;
                 gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, px, py, pz, rs, rs, rs,
-                                      1.0f, 0.2f, 0.1f, 0.7f / (k * 1.5f), 0, 1, GDD_FRAG_UNLIT, 0, 0);
+                                      1.0f, 0.2f, 0.1f, 0.7f / ((float)k * 1.5f), 0, 1, GDD_FRAG_UNLIT, 0, 0);
             }
             for (int p = 0; p < 3; p++) {
                 for (int j = 0; j < 4; j++) {
@@ -1549,10 +1549,10 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
         !ctx->objs[0].first && ctx->shield_timers) {
         /* Sector orientation: (rx around Z, ry around Y), CPU table */
         static const float SHIELD_ROT_RX[6] = {
-            0.0f, 0.0f, -M_PI / 2.0f, M_PI / 2.0f, 0.0f, 0.0f
+            0.0f, 0.0f, (float)(-M_PI / 2.0f), (float)(M_PI / 2.0f), 0.0f, 0.0f
         };
         static const float SHIELD_ROT_RY[6] = {
-            0.0f, M_PI, 0.0f, 0.0f, M_PI / 2.0f, -M_PI / 2.0f
+            0.0f, (float)M_PI, 0.0f, 0.0f, (float)(M_PI / 2.0f), (float)(-M_PI / 2.0f)
         };
 
         int hit = 0;
@@ -1690,9 +1690,9 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                                                        quasar))
                             continue;
 
-                        float pxm = (offset + (x - 0.5f) * gap) * ms;
-                        float pym = (offset + (z - 0.5f) * gap) * ms;
-                        float pzm = (offset + ((float)GDD_GALAXY_SIZE + 0.5f - y) * gap) * ms;
+                        float pxm = (offset + ((float)x - 0.5f) * gap) * ms;
+                        float pym = (offset + ((float)z - 0.5f) * gap) * ms;
+                        float pzm = (offset + ((float)GDD_GALAXY_SIZE + 0.5f - (float)y) * gap) * ms;
 
                         int ef = ctx->map_filter;
                         float cr = 0.4f, cg = 0.4f, cb = 0.4f;
@@ -1802,9 +1802,9 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
              * camera distance (CPU wireframe-pipeline parity). */
             float ht = GDD_HAIRLINE;
             for (int i = 0; i <= steps; i++) {
-                float p = -hq + i * GDD_GRID_STEP;
+                float p = -hq + (float)i * GDD_GRID_STEP;
                 for (int j = 0; j <= steps; j++) {
-                    float q = -hq + j * GDD_GRID_STEP;
+                    float q = -hq + (float)j * GDD_GRID_STEP;
                     /* Lines parallel to Z */
                     gdd_list_add_identity(&map, GDD_MESH_LINE, p*ts, q*ts, -hq*ts,
                                           0, 0, GDD_QUADRANT_SPAN*ts,

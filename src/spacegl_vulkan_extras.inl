@@ -27,17 +27,17 @@ void drawBokGlobule_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float
         mat4 S, R, T_offset;
         
         /* Large scale (about the size of a small nebula) */
-        float scale = (5.0f + sinf(pulse * 0.2f + i)) * tactScale;
+        float scale = (5.0f + sinf(pulse * 0.2f + (float)i)) * tactScale;
         mat4_scale(S, (vec3){scale, scale * 0.9f, scale * 1.1f});
         
         mat4_identity(R);
-        mat4_rotate(R, pulse * 0.02f * (i+1), (vec3){0, 1, 0});
+        mat4_rotate(R, pulse * 0.02f * ((float)(i+1)), (vec3){0, 1, 0});
         
         /* Slight random offsets to create an irregular dark mass */
         mat4_translate(T_offset, (vec3){
-            sinf(i * 2.0f) * tactScale * 1.5f, 
-            cosf(i * 3.0f) * tactScale * 1.5f, 
-            sinf(i * 4.0f) * tactScale * 1.5f
+            sinf((float)i * 2.0f) * tactScale * 1.5f, 
+            cosf((float)i * 3.0f) * tactScale * 1.5f, 
+            sinf((float)i * 4.0f) * tactScale * 1.5f
         });
         
         mat4_multiply(S, R, pc.model);
@@ -47,7 +47,7 @@ void drawBokGlobule_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float
         /* Very dark, almost black, with slight dark blue/brown tint, very opaque */
         pc.color[0] = 0.02f; pc.color[1] = 0.02f; pc.color[2] = 0.04f; pc.color[3] = 0.95f;
         pc.usePushColor = 9; /* Volumetric Diffuse Nebula shader works well for dense clouds too */
-        pc.time = pulse + i * 5.0f;
+        pc.time = pulse + (float)i * 5.0f;
         
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         VkDeviceSize off = 0;
@@ -85,13 +85,13 @@ void drawClumpCore_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float 
         PushConstants pc_env = {0};
         mat4 S_env, R_env, T_env;
         
-        float env_scale = (3.5f + sinf(pulse * 0.3f + i)) * tactScale;
+        float env_scale = (3.5f + sinf(pulse * 0.3f + (float)i)) * tactScale;
         mat4_scale(S_env, (vec3){env_scale, env_scale * 0.9f, env_scale * 1.1f});
         
         mat4_identity(R_env);
-        mat4_rotate(R_env, pulse * 0.03f * (i+1), (vec3){0, 1, 0});
+        mat4_rotate(R_env, pulse * 0.03f * ((float)(i+1)), (vec3){0, 1, 0});
         
-        mat4_translate(T_env, (vec3){sinf(i)*tactScale, 0, cosf(i)*tactScale});
+        mat4_translate(T_env, (vec3){sinf((float)i)*tactScale, 0, cosf((float)i)*tactScale});
         
         mat4_multiply(S_env, R_env, pc_env.model);
         mat4_multiply(pc_env.model, T_env, pc_env.model);
@@ -100,7 +100,7 @@ void drawClumpCore_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float 
         /* Dark brownish-red envelope */
         pc_env.color[0]=0.2f; pc_env.color[1]=0.1f; pc_env.color[2]=0.05f; pc_env.color[3]=0.6f;
         pc_env.usePushColor = 9; /* Volumetric Diffuse Nebula shader */
-        pc_env.time = pulse + i * 10.0f;
+        pc_env.time = pulse + (float)i * 10.0f;
         
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc_env), &pc_env);
         VkDeviceSize off = 0;
@@ -172,7 +172,7 @@ void drawAccretionDisk_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, fl
         mat4_multiply(dpc.model, baseT, dpc.model);
         
         // Compute dynamic color per layer (cinematic cycling)
-        float hueMod = 0.5f * (sinf(pulse * 1.3f + i) + 1.0f);
+        float hueMod = 0.5f * (sinf(pulse * 1.3f + (float)i) + 1.0f);
         dpc.color[0] = layerColors[i][0] * hueMod;
         dpc.color[1] = layerColors[i][1] * hueMod;
         dpc.color[2] = layerColors[i][2] * hueMod;
@@ -358,9 +358,9 @@ void drawProtoplanetaryDisk_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 base
 
     for (int i = 0; i < 2; i++) {
         mat4 S, M;
-        float s = (3.5f + i * 1.2f) * tactScale;
+        float s = (3.5f + (float)i * 1.2f) * tactScale;
         mat4_scale(S, (vec3){s, 0.06f * tactScale, s});
-        mat4_rotate(S, pulse * (0.15f + i * 0.05f), (vec3){0.05f, 1.0f, 0.0f});
+        mat4_rotate(S, pulse * (0.15f + (float)i * 0.05f), (vec3){0.05f, 1.0f, 0.0f});
         mat4_multiply(S, baseT, M);
         
         PushConstants pc = {0}; memcpy(pc.model, M, sizeof(mat4));
@@ -547,7 +547,7 @@ void drawHeliosphere_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, floa
     /* Double-layered volumetric effect */
     for (int i = 0; i < 2; i++) {
         mat4 S, M;
-        float s = (20.0f + i * 2.0f) * tactScale;
+        float s = (20.0f + (float)i * 2.0f) * tactScale;
         mat4_scale(S, (vec3){s, s, s});
         mat4_multiply(S, baseT, M);
         
@@ -638,7 +638,7 @@ void drawDMHalo_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
     /* Use volumetric shader 9 for a "ghostly" lumpy appearance */
     for (int i = 0; i < 2; i++) {
         mat4 S, M;
-        float s = (30.0f + i * 5.0f) * tactScale;
+        float s = (30.0f + (float)i * 5.0f) * tactScale;
         mat4_scale(S, (vec3){s, s, s});
         mat4_multiply(S, baseT, M);
         
@@ -712,7 +712,7 @@ void drawCMB_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSc
     for (int i = 0; i < 2; i++) {
         mat4 S, M;
         /* Safe scale to stay within Far Plane (1000.0f) */
-        float s = (15.0f + i * 3.0f) * tactScale;
+        float s = (15.0f + (float)i * 3.0f) * tactScale;
         mat4_scale(S, (vec3){s, s, s});
         mat4_multiply(S, baseT, M);
         

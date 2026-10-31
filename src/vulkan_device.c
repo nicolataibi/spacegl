@@ -88,10 +88,10 @@ static char* readShaderFile(const char* filename, size_t* pSize) {
     FILE* file = fopen(filename, "rb");
     if (!file) { fprintf(stderr, "Shader not found: %s\n", filename); return NULL; }
     fseek(file, 0, SEEK_END); long size = ftell(file); fseek(file, 0, SEEK_SET);
-    char* buf = malloc(size);
+    char* buf = malloc((size_t)size);
     if (!buf) { fprintf(stderr, "Out of memory reading shader: %s\n", filename); fclose(file); return NULL; }
-    if (fread(buf, 1, size, file) != (size_t)size) { free(buf); fclose(file); return NULL; }
-    fclose(file); *pSize = size; return buf;
+    if (fread(buf, 1, (size_t)size, file) != (size_t)size) { free(buf); fclose(file); return NULL; }
+    fclose(file); *pSize = (size_t)size; return buf;
 }
 
 VkShaderModule createShaderModule(VkDevice device, const char* code, size_t codeSize) {

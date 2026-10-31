@@ -86,12 +86,12 @@ const uint32_t starbaseIndices[] = {
 };
 
 const Vertex torpVertices[] = {
-    {{ 0.45, 0.0, 0.0}, {1.0, 1.0, 0.0}, { 1.0, 0.0, 0.0}}, /* Nose */
-    {{-0.45, 0.0, 0.0}, {1.0, 0.4, 0.0}, {-1.0, 0.0, 0.0}}, /* Tail */
-    {{ 0.0,  0.1, 0.1}, {1.0, 0.8, 0.0}, { 0.0, 1.0, 1.0}},
-    {{ 0.0,  0.1,-0.1}, {1.0, 0.8, 0.0}, { 0.0, 1.0,-1.0}},
-    {{ 0.0, -0.1, 0.1}, {1.0, 0.8, 0.0}, { 0.0,-1.0, 1.0}},
-    {{ 0.0, -0.1,-0.1}, {1.0, 0.8, 0.0}, { 0.0,-1.0,-1.0}}
+    {{ 0.45f, 0.0, 0.0}, {1.0, 1.0, 0.0}, { 1.0, 0.0, 0.0}}, /* Nose */
+    {{(float)(-0.45), 0.0, 0.0}, {1.0, 0.4f, 0.0}, {-1.0, 0.0, 0.0}}, /* Tail */
+    {{ 0.0,  0.1f, 0.1f}, {1.0, 0.8f, 0.0}, { 0.0, 1.0, 1.0}},
+    {{ 0.0,  0.1f,(float)(-0.1)}, {1.0, 0.8f, 0.0}, { 0.0, 1.0,-1.0}},
+    {{ 0.0, (float)(-0.1), 0.1f}, {1.0, 0.8f, 0.0}, { 0.0,-1.0, 1.0}},
+    {{ 0.0, (float)(-0.1),(float)(-0.1)}, {1.0, 0.8f, 0.0}, { 0.0,-1.0,-1.0}}
 };
 /* Torpedo star rays (OpenGL drawTorpedo): 4 rays in the XY plane, each in two LINE_LIST segments so the
  * colour runs from red at the centre to yellow and fades out at the tip (vertex colours, unit length). */
@@ -189,7 +189,7 @@ void getObjectColor(int type, int faction, float* r, float* g, float* b) {
 void drawWormholeCore_v1(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse, int type) {
     VkDeviceSize off = 0;
     mat4 R_rot; mat4_identity(R_rot);
-    mat4_rotate(R_rot, pulse * 10.0f * M_PI / 180.0f, (vec3){0, 0, 1});
+    mat4_rotate(R_rot, (float)(pulse * 10.0f * M_PI / 180.0f), (vec3){0, 0, 1});
     mat4 M_rot; mat4_multiply(R_rot, modelBase, M_rot);
 
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -208,7 +208,7 @@ void drawWormholeCore_v1(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, flo
 void drawWormholeCore_v2(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse, int type) {
     VkDeviceSize off = 0;
     mat4 R_rot; mat4_identity(R_rot);
-    mat4_rotate(R_rot, pulse * 5.0f * M_PI / 180.0f, (vec3){1, 1, 1});
+    mat4_rotate(R_rot, (float)(pulse * 5.0f * M_PI / 180.0f), (vec3){1, 1, 1});
     mat4 M_rot; mat4_multiply(R_rot, modelBase, M_rot);
 
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -240,7 +240,7 @@ void drawWormholeCore(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float 
 void drawSwarmCube(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse) {
     VkDeviceSize off = 0;
     mat4 R_rot; mat4_identity(R_rot);
-    mat4_rotate(R_rot, pulse * 5.0f * M_PI / 180.0f, (vec3){1, 1, 1});
+    mat4_rotate(R_rot, (float)(pulse * 5.0f * M_PI / 180.0f), (vec3){1, 1, 1});
     mat4 M_rot; mat4_multiply(R_rot, modelBase, M_rot);
 
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -269,9 +269,9 @@ void drawWormhole_v1(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
     mat4 T, R, S_base;
     mat4_translate(T, (vec3){x, y, z});
     mat4_identity(R);
-    mat4_rotate(R, -h * M_PI / 180.0f, (vec3){0, 1, 0});
-    float h_rad = h * M_PI / 180.0f;
-    mat4_rotate(R, m * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
+    mat4_rotate(R, (float)(-h * M_PI / 180.0f), (vec3){0, 1, 0});
+    float h_rad = (float)(h * M_PI / 180.0f);
+    mat4_rotate(R, (float)(m * M_PI / 180.0f), (vec3){cosf(h_rad), 0, -sinf(h_rad)});
 
     float finalScale = 1.0f * tactScale * closingScale;
     mat4 M_base;
@@ -282,7 +282,7 @@ void drawWormhole_v1(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
 
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
     mat4 RR; mat4_identity(RR);
-    mat4_rotate(RR, M_PI / 2.0f, (vec3){0, 1, 0});
+    mat4_rotate(RR, (float)(M_PI / 2.0f), (vec3){0, 1, 0});
     mat4 M_funnel_base;
     mat4_multiply(RR, M_base, M_funnel_base);
 
@@ -296,15 +296,15 @@ void drawWormhole_v1(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
     vkCmdBindIndexBuffer(cb, app->whIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
     mat4 R_spin1; mat4_identity(R_spin1);
-    mat4_rotate(R_spin1, pulse * 50.0f * M_PI / 180.0f, (vec3){0, 0, 1});
+    mat4_rotate(R_spin1, (float)(pulse * 50.0f * M_PI / 180.0f), (vec3){0, 0, 1});
     mat4_multiply(R_spin1, M_funnel_base, pc.model);
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     vkCmdDrawIndexed(cb, app->whIndexCount, 1, 0, 0, 0);
 
     mat4 R_flip, R_spin2; mat4_identity(R_flip);
-    mat4_rotate(R_flip, M_PI, (vec3){0, 1, 0});
+    mat4_rotate(R_flip, (float)M_PI, (vec3){0, 1, 0});
     mat4_identity(R_spin2);
-    mat4_rotate(R_spin2, -pulse * 50.0f * M_PI / 180.0f, (vec3){0, 0, 1});
+    mat4_rotate(R_spin2, (float)(-pulse * 50.0f * M_PI / 180.0f), (vec3){0, 0, 1});
     mat4_multiply(R_spin2, R_flip, pc.model);
     mat4_multiply(pc.model, M_funnel_base, pc.model);
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
@@ -315,10 +315,10 @@ void drawWormhole_v1(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
     vkCmdBindIndexBuffer(cb, app->circleIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
     for (int r = 0; r < 3; r++) {
         mat4 S_ring, R_ring, M_ring;
-        float r_scale = (0.5f + r * 0.4f);
+        float r_scale = (0.5f + (float)r * 0.4f);
         mat4_scale(S_ring, (vec3){r_scale, r_scale, r_scale});
         mat4_identity(R_ring);
-        mat4_rotate(R_ring, (pulse * (40.0f + r * 20.0f) + r * 45.0f) * M_PI / 180.0f, (vec3){0, 0, 1});
+        mat4_rotate(R_ring, (float)((pulse * (40.0f + (float)r * 20.0f) + (float)r * 45.0f) * M_PI / 180.0f), (vec3){0, 0, 1});
         mat4_multiply(S_ring, R_ring, M_ring);
         mat4_multiply(M_ring, M_funnel_base, pc.model);
         pc.color[0] = (r == 0) ? 1.0f : 0.4f;
@@ -334,9 +334,9 @@ void drawWormhole_v2(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
     mat4 T, R, S_base;
     mat4_translate(T, (vec3){x, y, z});
     mat4_identity(R);
-    mat4_rotate(R, -h * M_PI / 180.0f, (vec3){0, 1, 0});
-    float h_rad = h * M_PI / 180.0f;
-    mat4_rotate(R, m * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
+    mat4_rotate(R, (float)(-h * M_PI / 180.0f), (vec3){0, 1, 0});
+    float h_rad = (float)(h * M_PI / 180.0f);
+    mat4_rotate(R, (float)(m * M_PI / 180.0f), (vec3){cosf(h_rad), 0, -sinf(h_rad)});
 
     float finalScale = 1.35f * tactScale * closingScale;
     mat4 M_base;
@@ -347,7 +347,7 @@ void drawWormhole_v2(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
 
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
     mat4 RR; mat4_identity(RR);
-    mat4_rotate(RR, M_PI / 2.0f, (vec3){0, 1, 0});
+    mat4_rotate(RR, (float)(M_PI / 2.0f), (vec3){0, 1, 0});
     mat4 M_funnel_base;
     mat4_multiply(RR, M_base, M_funnel_base);
 
@@ -361,15 +361,15 @@ void drawWormhole_v2(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
     vkCmdBindIndexBuffer(cb, app->whIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
     mat4 R_spin1; mat4_identity(R_spin1);
-    mat4_rotate(R_spin1, pulse * 35.0f * M_PI / 180.0f, (vec3){0, 0, 1});
+    mat4_rotate(R_spin1, (float)(pulse * 35.0f * M_PI / 180.0f), (vec3){0, 0, 1});
     mat4_multiply(R_spin1, M_funnel_base, pc.model);
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     vkCmdDrawIndexed(cb, app->whIndexCount, 1, 0, 0, 0);
 
     mat4 R_flip, R_spin2; mat4_identity(R_flip);
-    mat4_rotate(R_flip, M_PI, (vec3){0, 1, 0});
+    mat4_rotate(R_flip, (float)M_PI, (vec3){0, 1, 0});
     mat4_identity(R_spin2);
-    mat4_rotate(R_spin2, -pulse * 35.0f * M_PI / 180.0f, (vec3){0, 0, 1});
+    mat4_rotate(R_spin2, (float)(-pulse * 35.0f * M_PI / 180.0f), (vec3){0, 0, 1});
     mat4_multiply(R_spin2, R_flip, pc.model);
     mat4_multiply(pc.model, M_funnel_base, pc.model);
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
@@ -380,10 +380,10 @@ void drawWormhole_v2(VkCommandBuffer cb, VulkanApp* app, float x, float y, float
     vkCmdBindIndexBuffer(cb, app->circleIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
     for (int r = 0; r < 4; r++) {
         mat4 S_ring, R_ring, M_ring;
-        float r_scale = (0.4f + r * 0.35f);
+        float r_scale = (0.4f + (float)r * 0.35f);
         mat4_scale(S_ring, (vec3){r_scale, r_scale, r_scale});
         mat4_identity(R_ring);
-        mat4_rotate(R_ring, (pulse * (25.0f + r * 15.0f) + r * 30.0f) * M_PI / 180.0f, (vec3){0, 0, 1});
+        mat4_rotate(R_ring, (float)((pulse * (25.0f + (float)r * 15.0f) + (float)r * 30.0f) * M_PI / 180.0f), (vec3){0, 0, 1});
         mat4_multiply(S_ring, R_ring, M_ring);
         mat4_multiply(M_ring, M_funnel_base, pc.model);
         pc.color[0] = (r % 2 == 0) ? 0.9f : 0.2f;
@@ -428,7 +428,7 @@ void drawNebula(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int subType, flo
         mat4 S_core, R_core;
         mat4_scale(S_core, (vec3){core_scale, core_scale * 0.8f, core_scale * 1.2f});
         mat4_identity(R_core);
-        mat4_rotate(R_core, pulse * 0.05f * (cl + 1), (vec3){0, 1, 0});
+        mat4_rotate(R_core, pulse * 0.05f * ((float)(cl + 1)), (vec3){0, 1, 0});
         
         mat4_multiply(S_core, R_core, pc.model);
         mat4_multiply(pc.model, baseT, pc.model);
@@ -551,9 +551,9 @@ void drawGalaxyMap(VkCommandBuffer cb, VulkanApp* app, GameState* st, float puls
 
                 if (ef > 0 && !is_my_q && !mapSectorMatchesFilter(ef, c)) continue;
 
-                float px = (offset + (x - 0.5f) * gap) * mapScale;
-                float py = (offset + (z - 0.5f) * gap) * mapScale;
-                float pz = (offset + ((float)GALAXY_SIZE + 0.5f - y) * gap) * mapScale;
+                float px = (offset + ((float)x - 0.5f) * gap) * mapScale;
+                float py = (offset + ((float)z - 0.5f) * gap) * mapScale;
+                float pz = (offset + ((float)GALAXY_SIZE + 0.5f - (float)y) * gap) * mapScale;
                 mat4 T_sec, S_sec;
                 mat4_translate(T_sec, (vec3){px, py, pz});
 
@@ -622,11 +622,11 @@ void drawGalaxyMap(VkCommandBuffer cb, VulkanApp* app, GameState* st, float puls
 void drawShieldGlow(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float radius, float r, float g, float b, float alpha, float pulse) {
     VkDeviceSize off = 0;
     for (int i = 1; i <= 4; i++) {
-        float s = radius * (1.2f + i * 0.4f);
+        float s = radius * (1.2f + (float)i * 0.4f);
         PushConstants pc = {0};
         mat4 S; mat4_scale(S, (vec3){s, s, s});
         mat4_multiply(S, modelBase, pc.model);
-        pc.color[0] = r; pc.color[1] = g; pc.color[2] = b; pc.color[3] = alpha / (i * 1.2f);
+        pc.color[0] = r; pc.color[1] = g; pc.color[2] = b; pc.color[3] = alpha / ((float)i * 1.2f);
         pc.usePushColor = 7; pc.time = pulse;
         pc.metallic = pulse * 10.0f;
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
@@ -661,17 +661,17 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
 
     struct { float rx, ry; } shield_rot[] = {
         {0, 0},           /* 0: Front (+X) */
-        {0, M_PI},        /* 1: Rear (-X) */
-        {-M_PI/2.0f, 0},  /* 2: Top (+Y) */
-        {M_PI/2.0f, 0},   /* 3: Bottom (-Y) */
-        {0, M_PI/2.0f},   /* 4: Left (+Z) */
-        {0, -M_PI/2.0f}   /* 5: Right (-Z) */
+        {0, (float)M_PI},        /* 1: Rear (-X) */
+        {(float)(-M_PI/2.0f), 0},  /* 2: Top (+Y) */
+        {(float)(M_PI/2.0f), 0},   /* 3: Bottom (-Y) */
+        {0, (float)(M_PI/2.0f)},   /* 4: Left (+Z) */
+        {0, (float)(-M_PI/2.0f)}   /* 5: Right (-Z) */
     };
 
     for (int s = 0; s < 6; s++) {
         if (app->shieldHitTimers[s] <= 0) continue;
 
-        float t = app->shieldHitTimers[s] / 80.0f;
+        float t = (float)app->shieldHitTimers[s] / 80.0f;
         float alpha = (t > 0.5f) ? 1.0f : t * 2.0f;
         float scale = (1.2f + (1.0f - t) * 0.3f) * tactScale;
 
@@ -764,9 +764,9 @@ void createSceneMeshes(VulkanApp* app) {
 
     Vertex cVerts[CIRCLE_SEGMENTS]; uint32_t cInds[CIRCLE_SEGMENTS * 2];
     for (int i=0; i<CIRCLE_SEGMENTS; i++) {
-        float rad = (i * 5.0f) * M_PI / 180.0f;
+        float rad = (float)(((float)i * 5.0f) * M_PI / 180.0f);
         cVerts[i] = (Vertex){{sinf(rad), 0, cosf(rad)}, {1,1,1}, {0,1,0}};
-        cInds[i*2] = i; cInds[i*2+1] = (i+1)%CIRCLE_SEGMENTS;
+        cInds[i*2] = (uint32_t)i; cInds[i*2+1] = (uint32_t)((i+1)%CIRCLE_SEGMENTS);
     }
     createBuffer(app, sizeof(cVerts), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->circleVertexBuffer, &app->circleVertexBufferMemory);
     vkMapMemory(app->device, app->circleVertexBufferMemory, 0, sizeof(cVerts), 0, &d); memcpy(d, cVerts, sizeof(cVerts)); vkUnmapMemory(app->device, app->circleVertexBufferMemory);
@@ -775,9 +775,9 @@ void createSceneMeshes(VulkanApp* app) {
 
     Vertex aVerts[ARC_SEGMENTS]; uint32_t aInds[(ARC_SEGMENTS-1) * 2] = {0};
     for (int i=0; i<ARC_SEGMENTS; i++) {
-        float rad = ((i * 5.0f) - 90.0f) * M_PI / 180.0f;
+        float rad = (float)((((float)i * 5.0f) - 90.0f) * M_PI / 180.0f);
         aVerts[i] = (Vertex){{cosf(rad), sinf(rad), 0}, {1,1,0}, {0,0,1}};
-        if (i < ARC_SEGMENTS - 1) { aInds[i*2] = i; aInds[i*2+1] = i+1; }
+        if (i < ARC_SEGMENTS - 1) { aInds[i*2] = (uint32_t)i; aInds[i*2+1] = (uint32_t)(i+1); }
     }
     createBuffer(app, sizeof(aVerts), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->arcVertexBuffer, &app->arcVertexBufferMemory);
     vkMapMemory(app->device, app->arcVertexBufferMemory, 0, sizeof(aVerts), 0, &d); memcpy(d, aVerts, sizeof(aVerts)); vkUnmapMemory(app->device, app->arcVertexBufferMemory);
@@ -786,9 +786,9 @@ void createSceneMeshes(VulkanApp* app) {
 
     Vertex rVerts[CIRCLE_SEGMENTS]; uint32_t rInds[CIRCLE_SEGMENTS * 2];
     for (int i=0; i<CIRCLE_SEGMENTS; i++) {
-        float rad = (i * 5.0f) * M_PI / 180.0f;
+        float rad = (float)(((float)i * 5.0f) * M_PI / 180.0f);
         rVerts[i] = (Vertex){{0, sinf(rad), cosf(rad)}, {1,1,0}, {1,0,0}};
-        rInds[i*2] = i; rInds[i*2+1] = (i+1)%CIRCLE_SEGMENTS;
+        rInds[i*2] = (uint32_t)i; rInds[i*2+1] = (uint32_t)((i+1)%CIRCLE_SEGMENTS);
     }
     createBuffer(app, sizeof(rVerts), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->rollCircleVertexBuffer, &app->rollCircleVertexBufferMemory);
     vkMapMemory(app->device, app->rollCircleVertexBufferMemory, 0, sizeof(rVerts), 0, &d); memcpy(d, rVerts, sizeof(rVerts)); vkUnmapMemory(app->device, app->rollCircleVertexBufferMemory);
@@ -797,16 +797,16 @@ void createSceneMeshes(VulkanApp* app) {
 
     int steps = QG_GRID_CELLS;   /* 20 cells per axis; the cell side follows the cube */
     const float cell = QG_SIZE / (float)QG_GRID_CELLS;
-    uint64_t grid_v_count = (uint64_t)(steps + 1) * (steps + 1) * 3 * 2;
+    uint64_t grid_v_count = (uint64_t)(steps + 1) * ((uint64_t)(steps + 1)) * 3 * 2;
     Vertex* gVerts_dyn = malloc(grid_v_count * sizeof(Vertex));
     uint32_t* gInds_dyn = malloc(grid_v_count * sizeof(uint32_t));
     if (!gVerts_dyn || !gInds_dyn) { free(gVerts_dyn); free(gInds_dyn); fprintf(stderr, "[VK] Out of memory: tactical grid buffers\n"); exit(1); }
     uint64_t gv = 0;
     float hq = QUADRANT_SIZE / 2.0f;
     for (int i = 0; i <= steps; i++) {
-        float p = -hq + i * cell;
+        float p = -hq + (float)i * cell;
         for (int j = 0; j <= steps; j++) {
-            float q = -hq + j * cell;
+            float q = -hq + (float)j * cell;
             vec3 gcol = {0.0f, 1.0f, 0.2f}, gnorm = {0,0,0};
             gVerts_dyn[gv] = (Vertex){{p, q, -hq}, {gcol[0], gcol[1], gcol[2]}, {gnorm[0], gnorm[1], gnorm[2]}}; gInds_dyn[gv] = (uint32_t)gv; gv++;
             gVerts_dyn[gv] = (Vertex){{p, q,  hq}, {gcol[0], gcol[1], gcol[2]}, {gnorm[0], gnorm[1], gnorm[2]}}; gInds_dyn[gv] = (uint32_t)gv; gv++;
@@ -832,9 +832,9 @@ void createSceneMeshes(VulkanApp* app) {
     uint32_t sInds[SPHERE_LATS * SPHERE_LONGS * 6];
     int sv = 0;
     for (int i = 0; i <= SPHERE_LATS; i++) {
-        float lat = M_PI * i / SPHERE_LATS;
+        float lat = (float)(M_PI * i / SPHERE_LATS);
         for (int j = 0; j <= SPHERE_LONGS; j++) {
-            float lon = 2.0f * M_PI * j / SPHERE_LONGS;
+            float lon = (float)(2.0f * M_PI * j / SPHERE_LONGS);
             float px = sinf(lat) * cosf(lon), py = cosf(lat), pz = sinf(lat) * sinf(lon);
             sVerts[sv++] = (Vertex){{px, py, pz}, {1, 1, 1}, {px, py, pz}};
         }
@@ -844,8 +844,8 @@ void createSceneMeshes(VulkanApp* app) {
         for (int j = 0; j < SPHERE_LONGS; j++) {
             int first = i * (SPHERE_LONGS + 1) + j;
             int second = first + SPHERE_LONGS + 1;
-            sInds[sphere_idx++] = first; sInds[sphere_idx++] = second; sInds[sphere_idx++] = first + 1;
-            sInds[sphere_idx++] = second; sInds[sphere_idx++] = second + 1; sInds[sphere_idx++] = first + 1;
+            sInds[sphere_idx++] = (uint32_t)first; sInds[sphere_idx++] = (uint32_t)second; sInds[sphere_idx++] = (uint32_t)(first + 1);
+            sInds[sphere_idx++] = (uint32_t)second; sInds[sphere_idx++] = (uint32_t)(second + 1); sInds[sphere_idx++] = (uint32_t)(first + 1);
         }
     }
     createBuffer(app, sizeof(sVerts), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->sphereVertexBuffer, &app->sphereVertexBufferMemory);
@@ -864,27 +864,27 @@ void createSceneMeshes(VulkanApp* app) {
         float r = wh_rs + u * (wh_rmax - wh_rs);
         float z = -0.5f * logf(r / wh_rs + 0.01f);
         for (int j = 0; j < WH_NT; j++) {
-            float th = 2.0f * M_PI * j / WH_NT;
+            float th = (float)(2.0f * M_PI * j / WH_NT);
             whVerts[whv++] = (Vertex){{r * cosf(th), r * sinf(th), z}, {1, 1, 1}, {0, 0, 1}};
         }
     }
     for (int i = 0; i < WH_NR - 1; i++) {
         for (int j = 0; j < WH_NT; j++) {
-            whInds[whi++] = i * WH_NT + j;
-            whInds[whi++] = (i + 1) * WH_NT + j;
+            whInds[whi++] = (uint32_t)(i * WH_NT + j);
+            whInds[whi++] = (uint32_t)((i + 1) * WH_NT + j);
         }
     }
     for (int i = 0; i < WH_NR; i++) {
         for (int j = 0; j < WH_NT; j++) {
-            whInds[whi++] = i * WH_NT + j;
-            whInds[whi++] = i * WH_NT + (j + 1) % WH_NT;
+            whInds[whi++] = (uint32_t)(i * WH_NT + j);
+            whInds[whi++] = (uint32_t)(i * WH_NT + (j + 1) % WH_NT);
         }
     }
-    app->whIndexCount = whi;
+    app->whIndexCount = (uint32_t)whi;
     createBuffer(app, sizeof(whVerts), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->whVertexBuffer, &app->whVertexBufferMemory);
     vkMapMemory(app->device, app->whVertexBufferMemory, 0, sizeof(whVerts), 0, &d); memcpy(d, whVerts, sizeof(whVerts)); vkUnmapMemory(app->device, app->whVertexBufferMemory);
-    createBuffer(app, whi * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->whIndexBuffer, &app->whIndexBufferMemory);
-    vkMapMemory(app->device, app->whIndexBufferMemory, 0, whi * sizeof(uint32_t), 0, &d); memcpy(d, whInds, whi * sizeof(uint32_t)); vkUnmapMemory(app->device, app->whIndexBufferMemory);
+    createBuffer(app, (size_t)whi * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->whIndexBuffer, &app->whIndexBufferMemory);
+    vkMapMemory(app->device, app->whIndexBufferMemory, 0, (size_t)whi * sizeof(uint32_t), 0, &d); memcpy(d, whInds, (size_t)whi * sizeof(uint32_t)); vkUnmapMemory(app->device, app->whIndexBufferMemory);
 
     for (int cl = 0; cl <= 13; ++cl) {
         int eq_sides = 3 + cl;
@@ -896,20 +896,20 @@ void createSceneMeshes(VulkanApp* app) {
         ringVerts[0] = (Vertex){{0.0f, 1.0f, 0.0f}, {1, 1, 1}, {0, 1, 0}};
         ringVerts[1] = (Vertex){{0.0f, -1.0f, 0.0f}, {1, 1, 1}, {0, -1, 0}};
         for (int e = 0; e < eq_sides; ++e) {
-            float th = 2.0f * M_PI * e / eq_sides;
+            float th = (float)(2.0f * M_PI * e / eq_sides);
             ringVerts[2 + e] = (Vertex){{cosf(th), 0.0f, sinf(th)}, {1, 1, 1}, {cosf(th), 0, sinf(th)}};
         }
         int idx = 0;
         for (int e = 0; e < eq_sides; ++e) {
             int next_e = (e + 1) % eq_sides;
-            ringInds[idx++] = 0; ringInds[idx++] = 2 + e; ringInds[idx++] = 2 + next_e;
-            ringInds[idx++] = 1; ringInds[idx++] = 2 + next_e; ringInds[idx++] = 2 + e;
+            ringInds[idx++] = 0; ringInds[idx++] = (uint32_t)(2 + e); ringInds[idx++] = (uint32_t)(2 + next_e);
+            ringInds[idx++] = 1; ringInds[idx++] = (uint32_t)(2 + next_e); ringInds[idx++] = (uint32_t)(2 + e);
         }
-        app->coreICount[cl] = num_indices;
-        createBuffer(app, num_vertices * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->coreVB[cl], &app->coreVBM[cl]);
-        vkMapMemory(app->device, app->coreVBM[cl], 0, num_vertices * sizeof(Vertex), 0, &d); memcpy(d, ringVerts, num_vertices * sizeof(Vertex)); vkUnmapMemory(app->device, app->coreVBM[cl]);
-        createBuffer(app, num_indices * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->coreIB[cl], &app->coreIBM[cl]);
-        vkMapMemory(app->device, app->coreIBM[cl], 0, num_indices * sizeof(uint32_t), 0, &d); memcpy(d, ringInds, num_indices * sizeof(uint32_t)); vkUnmapMemory(app->device, app->coreIBM[cl]);
+        app->coreICount[cl] = (uint32_t)num_indices;
+        createBuffer(app, (size_t)num_vertices * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->coreVB[cl], &app->coreVBM[cl]);
+        vkMapMemory(app->device, app->coreVBM[cl], 0, (size_t)num_vertices * sizeof(Vertex), 0, &d); memcpy(d, ringVerts, (size_t)num_vertices * sizeof(Vertex)); vkUnmapMemory(app->device, app->coreVBM[cl]);
+        createBuffer(app, (size_t)num_indices * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->coreIB[cl], &app->coreIBM[cl]);
+        vkMapMemory(app->device, app->coreIBM[cl], 0, (size_t)num_indices * sizeof(uint32_t), 0, &d); memcpy(d, ringInds, (size_t)num_indices * sizeof(uint32_t)); vkUnmapMemory(app->device, app->coreIBM[cl]);
     }
 }
 
@@ -936,17 +936,17 @@ void createStarfield(VulkanApp* app) {
 #else
     int s_lats = 4, s_longs = 8;
     int multiplier = (STARFIELD_MODE == STARFIELD_MODE_HALO) ? 2 : 1;
-    uint64_t verts_per_star = (uint64_t)(s_lats + 1) * (s_longs + 1);
-    uint64_t inds_per_star = (uint64_t)s_lats * s_longs * 6;
-    uint64_t total_verts = (uint64_t)MAX_STARS * verts_per_star * multiplier;
-    uint64_t total_inds = (uint64_t)MAX_STARS * inds_per_star * multiplier;
+    uint64_t verts_per_star = (uint64_t)(s_lats + 1) * ((uint64_t)(s_longs + 1));
+    uint64_t inds_per_star = (uint64_t)s_lats * (uint64_t)s_longs * 6;
+    uint64_t total_verts = (uint64_t)MAX_STARS * verts_per_star * (uint64_t)multiplier;
+    uint64_t total_inds = (uint64_t)MAX_STARS * inds_per_star * (uint64_t)multiplier;
     Vertex* v = malloc(total_verts * sizeof(Vertex));
     uint32_t* inds = malloc(total_inds * sizeof(uint32_t));
     if (!v || !inds) { free(v); free(inds); fprintf(stderr, "[VK] Out of memory: starfield buffers\n"); exit(1); }
     uint64_t vc = 0, ic = 0;
     for (uint64_t s = 0; s < MAX_STARS; s++) {
-        float theta = (float)(rand() % 3600) * 0.1f * M_PI / 180.0f;
-        float phi = (float)(rand() % 1800) * 0.1f * M_PI / 180.0f;
+        float theta = (float)((float)(rand() % 3600) * 0.1f * M_PI / 180.0f);
+        float phi = (float)((float)(rand() % 1800) * 0.1f * M_PI / 180.0f);
         float r = (120.0f + (float)(rand() % 1000) * 0.1f) * QG_SCALE;
         float sx = r * sinf(phi) * cosf(theta); float sy = r * cosf(phi); float sz = r * sinf(phi) * sinf(theta);
         float cr = 0.4f + (float)(rand() % 60) / 100.0f;
@@ -959,9 +959,9 @@ void createStarfield(VulkanApp* app) {
             float s_alpha = (m == 0) ? 1.0f : 0.3f;
             uint64_t base_v = vc;
             for (int i = 0; i <= s_lats; i++) {
-                float lat = M_PI * i / s_lats;
+                float lat = (float)(M_PI * i / s_lats);
                 for (int j = 0; j <= s_longs; j++) {
-                    float lon = 2.0f * M_PI * j / s_longs;
+                    float lon = (float)(2.0f * M_PI * j / s_longs);
                     float px = sx + s_scale * sinf(lat) * cosf(lon);
                     float py = sy + s_scale * cosf(lat);
                     float pz = sz + s_scale * sinf(lat) * sinf(lon);
@@ -970,7 +970,7 @@ void createStarfield(VulkanApp* app) {
             }
             for (int i = 0; i < s_lats; i++) {
                 for (int j = 0; j < s_longs; j++) {
-                    uint32_t first = (uint32_t)(base_v + i * (s_longs + 1) + j);
+                    uint32_t first = (uint32_t)(base_v + (uint64_t)(i * (s_longs + 1)) + (uint64_t)j);
                     uint32_t second = first + (uint32_t)s_longs + 1;
                     inds[ic++] = first; inds[ic++] = second; inds[ic++] = first + 1;
                     inds[ic++] = second; inds[ic++] = second + 1; inds[ic++] = first + 1;
@@ -1179,9 +1179,9 @@ void scene_update(VulkanApp* app, float deltaTime) {
                 app->activeBooms[i].seed = (float)(rand() % 1001);
                 app->activeBooms[i].style = 2;
                 for (int p=0; p<EXPLOSION_PIXELS; p++){
-                    float speed = (p < 48) ? (4.0f + (rand()%300)/100.0f) : (1.5f + (rand()%350)/100.0f);
-                    float theta = (float)(rand()%3600) * 0.1f * M_PI / 180.0f;
-                    float phi = (float)(rand()%1800 - 900) * 0.1f * M_PI / 180.0f;
+                    float speed = (p < 48) ? (4.0f + (float)(rand()%300)/100.0f) : (1.5f + (float)(rand()%350)/100.0f);
+                    float theta = (float)((float)(rand()%3600) * 0.1f * M_PI / 180.0f);
+                    float phi = (float)((float)(rand()%1800 - 900) * 0.1f * M_PI / 180.0f);
                     app->activeBooms[i].offsets[p][0] = speed * cosf(phi) * cosf(theta);
                     app->activeBooms[i].offsets[p][1] = speed * sinf(phi);
                     app->activeBooms[i].offsets[p][2] = speed * cosf(phi) * sinf(theta);
@@ -1263,9 +1263,9 @@ void scene_update(VulkanApp* app, float deltaTime) {
                 app->activeBooms[oldest_boom].seed = (float)(rand() % 1001);
                 app->activeBooms[oldest_boom].style = 1;
                 for (int p=0; p<EXPLOSION_PIXELS; p++){
-                    float speed = (p < 32) ? (3.5f + (rand()%200)/100.0f) : (1.0f + (rand()%250)/100.0f);
-                    float theta = (float)(rand()%3600) * 0.1f * M_PI / 180.0f;
-                    float phi = (float)(rand()%1800 - 900) * 0.1f * M_PI / 180.0f;
+                    float speed = (p < 32) ? (3.5f + (float)(rand()%200)/100.0f) : (1.0f + (float)(rand()%250)/100.0f);
+                    float theta = (float)((float)(rand()%3600) * 0.1f * M_PI / 180.0f);
+                    float phi = (float)((float)(rand()%1800 - 900) * 0.1f * M_PI / 180.0f);
                     app->activeBooms[oldest_boom].offsets[p][0] = speed * cosf(phi) * cosf(theta);
                     app->activeBooms[oldest_boom].offsets[p][1] = speed * sinf(phi);
                     app->activeBooms[oldest_boom].offsets[p][2] = speed * cosf(phi) * sinf(theta);
@@ -1294,7 +1294,7 @@ void scene_update(VulkanApp* app, float deltaTime) {
                 app->jumpArrival.age = 0.0f;
                 for (int i = 0; i < MAX_ARRIVAL_PARTICLES; i++) {
                     app->arrivalParticles[i].active = 1;
-                    app->arrivalParticles[i].angle = (float)(rand() % 3600) * 0.1f * M_PI / 180.0f;
+                    app->arrivalParticles[i].angle = (float)((float)(rand() % 3600) * 0.1f * M_PI / 180.0f);
                     app->arrivalParticles[i].radius = 30.0f + (float)(rand() % 600) * 0.1f;
                     app->arrivalParticles[i].speed = 3.0f + (float)(rand() % 40) * 0.1f;
                     app->arrivalParticles[i].x = 0; app->arrivalParticles[i].y = 0; app->arrivalParticles[i].z = 0;

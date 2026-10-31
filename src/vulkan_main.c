@@ -627,7 +627,7 @@ int main(int argc, char** argv) {
 
     /* Deterministic RNG: seed BEFORE the starfields are generated
        (gdd_init / createStarfield both draw from rand()). */
-    if (s_rng_seed >= 0) srand(s_rng_seed);
+    if (s_rng_seed >= 0) srand((unsigned int)s_rng_seed);
 
     app->window = glfwCreateWindow(win_w, win_h, "Space GL", NULL, NULL);
     if (!app->window) {

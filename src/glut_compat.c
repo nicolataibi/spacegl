@@ -54,17 +54,17 @@ void glutSolidCube(double size) {
     double s = size / 2.0;
     glBegin(GL_QUADS);
     glNormal3f(0, 0, 1);
-    glVertex3f(-s, -s, s); glVertex3f(s, -s, s); glVertex3f(s, s, s); glVertex3f(-s, s, s);
+    glVertex3f((GLfloat)(-s), (GLfloat)(-s), (GLfloat)s); glVertex3f((GLfloat)s, (GLfloat)(-s), (GLfloat)s); glVertex3f((GLfloat)s, (GLfloat)s, (GLfloat)s); glVertex3f((GLfloat)(-s), (GLfloat)s, (GLfloat)s);
     glNormal3f(0, 0, -1);
-    glVertex3f(-s, -s, -s); glVertex3f(-s, s, -s); glVertex3f(s, s, -s); glVertex3f(s, -s, -s);
+    glVertex3f((GLfloat)(-s), (GLfloat)(-s), (GLfloat)(-s)); glVertex3f((GLfloat)(-s), (GLfloat)s, (GLfloat)(-s)); glVertex3f((GLfloat)s, (GLfloat)s, (GLfloat)(-s)); glVertex3f((GLfloat)s, (GLfloat)(-s), (GLfloat)(-s));
     glNormal3f(0, 1, 0);
-    glVertex3f(-s, s, -s); glVertex3f(-s, s, s); glVertex3f(s, s, s); glVertex3f(s, s, -s);
+    glVertex3f((GLfloat)(-s), (GLfloat)s, (GLfloat)(-s)); glVertex3f((GLfloat)(-s), (GLfloat)s, (GLfloat)s); glVertex3f((GLfloat)s, (GLfloat)s, (GLfloat)s); glVertex3f((GLfloat)s, (GLfloat)s, (GLfloat)(-s));
     glNormal3f(0, -1, 0);
-    glVertex3f(-s, -s, -s); glVertex3f(s, -s, -s); glVertex3f(s, -s, s); glVertex3f(-s, -s, s);
+    glVertex3f((GLfloat)(-s), (GLfloat)(-s), (GLfloat)(-s)); glVertex3f((GLfloat)s, (GLfloat)(-s), (GLfloat)(-s)); glVertex3f((GLfloat)s, (GLfloat)(-s), (GLfloat)s); glVertex3f((GLfloat)(-s), (GLfloat)(-s), (GLfloat)s);
     glNormal3f(1, 0, 0);
-    glVertex3f(s, -s, -s); glVertex3f(s, s, -s); glVertex3f(s, s, s); glVertex3f(s, -s, s);
+    glVertex3f((GLfloat)s, (GLfloat)(-s), (GLfloat)(-s)); glVertex3f((GLfloat)s, (GLfloat)s, (GLfloat)(-s)); glVertex3f((GLfloat)s, (GLfloat)s, (GLfloat)s); glVertex3f((GLfloat)s, (GLfloat)(-s), (GLfloat)s);
     glNormal3f(-1, 0, 0);
-    glVertex3f(-s, -s, -s); glVertex3f(-s, -s, s); glVertex3f(-s, s, s); glVertex3f(-s, s, -s);
+    glVertex3f((GLfloat)(-s), (GLfloat)(-s), (GLfloat)(-s)); glVertex3f((GLfloat)(-s), (GLfloat)(-s), (GLfloat)s); glVertex3f((GLfloat)(-s), (GLfloat)s, (GLfloat)s); glVertex3f((GLfloat)(-s), (GLfloat)s, (GLfloat)(-s));
     glEnd();
 }
 
@@ -100,7 +100,7 @@ void glutSolidCylinder(double radius, double height, int slices, int stacks) {
     gluDisk(q, 0.0, radius, slices, 1);
     glPopMatrix();
     glPushMatrix();
-    glTranslatef(0, 0, height);
+    glTranslatef(0, 0, (GLfloat)height);
     gluDisk(q, 0.0, radius, slices, 1);
     glPopMatrix();
     gluDeleteQuadric(q);
@@ -125,14 +125,14 @@ void glutSolidTorus(double innerRadius, double outerRadius, int nsides, int ring
             double x1 = (outerRadius + innerRadius * cos_phi) * cos(theta1);
             double y1 = (outerRadius + innerRadius * cos_phi) * sin(theta1);
             double z1 = innerRadius * sin_phi;
-            glNormal3f(cos_phi * cos(theta1), cos_phi * sin(theta1), sin_phi);
-            glVertex3f(x1, y1, z1);
+            glNormal3f((GLfloat)(cos_phi * cos(theta1)), (GLfloat)(cos_phi * sin(theta1)), (GLfloat)sin_phi);
+            glVertex3f((GLfloat)x1, (GLfloat)y1, (GLfloat)z1);
             
             double x2 = (outerRadius + innerRadius * cos_phi) * cos(theta2);
             double y2 = (outerRadius + innerRadius * cos_phi) * sin(theta2);
             double z2 = innerRadius * sin_phi;
-            glNormal3f(cos_phi * cos(theta2), cos_phi * sin(theta2), sin_phi);
-            glVertex3f(x2, y2, z2);
+            glNormal3f((GLfloat)(cos_phi * cos(theta2)), (GLfloat)(cos_phi * sin(theta2)), (GLfloat)sin_phi);
+            glVertex3f((GLfloat)x2, (GLfloat)y2, (GLfloat)z2);
         }
         glEnd();
     }
@@ -178,9 +178,9 @@ void glutSolidIcosahedron(void) {
     };
     glBegin(GL_TRIANGLES);
     for (int i = 0; i < 20; i++) {
-        float nx = (v[f[i][0]][0] + v[f[i][1]][0] + v[f[i][2]][0]) / 3.0;
-        float ny = (v[f[i][0]][1] + v[f[i][1]][1] + v[f[i][2]][1]) / 3.0;
-        float nz = (v[f[i][0]][2] + v[f[i][1]][2] + v[f[i][2]][2]) / 3.0;
+        float nx = (float)((v[f[i][0]][0] + v[f[i][1]][0] + v[f[i][2]][0]) / 3.0);
+        float ny = (float)((v[f[i][0]][1] + v[f[i][1]][1] + v[f[i][2]][1]) / 3.0);
+        float nz = (float)((v[f[i][0]][2] + v[f[i][1]][2] + v[f[i][2]][2]) / 3.0);
         glNormal3f(nx, ny, nz);
         glVertex3fv(v[f[i][0]]);
         glVertex3fv(v[f[i][1]]);
@@ -342,7 +342,7 @@ void glutBitmapCharacter(void* font, int character) {
                 scaled[y * px + x] = (bitmap[src_y] >> (7 - (x * 8) / px)) & 1;
             }
         }
-        glBitmap(px, px, 0, 0, px, 0, scaled);
+        glBitmap(px, px, 0, 0, (GLfloat)px, 0, scaled);
     }
 
     glPopAttrib();

@@ -264,7 +264,7 @@ target_link_libraries(spacegl_hud ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 # -Wconversion on the deck and the text tools (2026.10.31.32, roadmap
 # phase 4), as on the server: the command deck, the telemetry console,
 # the galaxy inspector, the HUD, the diagnostics tool. The graphical
-# viewers (spacegl_3dview, spacegl_vulkan) are not yet under it.
+# viewers follow below (2026.10.31.34).
 if(NOT MSVC)
     foreach(t spacegl_client spacegl_telemetry spacegl_viewer spacegl_hud)
         target_compile_options(${t} PRIVATE -Wconversion)
@@ -283,6 +283,12 @@ set(VULKAN_SRCS
 add_executable(spacegl_vulkan ${VULKAN_SRCS})
 target_link_libraries(spacegl_vulkan ${COMMON_LIBS} Vulkan::Vulkan ${GLFW_LIBRARIES})
 add_dependencies(spacegl_vulkan spacegl_shaders)
+# -Wconversion on both graphical viewers (2026.10.31.34, roadmap phase 4):
+# with it every program of the project is under the flag (the tests are not).
+if(NOT MSVC)
+    target_compile_options(spacegl_vulkan PRIVATE -Wconversion)
+    target_compile_options(spacegl_3dview PRIVATE -Wconversion)
+endif()
 
 # 7. spacegl_diag
 add_executable(spacegl_diag src/spacegl_diag.c)

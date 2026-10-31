@@ -18,7 +18,7 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         pc.color[0]=1.0f; pc.color[1]=0.1f; pc.color[2]=0.0f; pc.usePushColor=6; /* Red Glow */
         for (int i=0; i<4; i++) {
             mat4 S_spike, R_spike, T_spike;
-            mat4_identity(R_spike); mat4_rotate(R_spike, i*M_PI/2.0f + pulse*0.5f, (vec3){0,1,0});
+            mat4_identity(R_spike); mat4_rotate(R_spike, (float)(i*M_PI/2.0f + pulse*0.5f), (vec3){0,1,0});
             mat4_scale(S_spike, (vec3){0.2f*tactScale, 0.2f*tactScale, 3.5f*tactScale});
             mat4_translate(T_spike, (vec3){0, 0, 1.2f*tactScale});
             mat4_multiply(S_spike, T_spike, pc.model); mat4_multiply(pc.model, R_spike, pc.model); mat4_multiply(pc.model, baseT, pc.model);
@@ -31,8 +31,8 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
         for(int i=0; i<3; i++) {
-            mat4 S_sph, T_sph; float s = (1.2f + 0.4f*sinf(pulse*2.0f + i))*tactScale;
-            mat4_scale(S_sph, (vec3){s, s, s}); mat4_translate(T_sph, (vec3){0, (i-1)*tactScale*1.0f, 0});
+            mat4 S_sph, T_sph; float s = (1.2f + 0.4f*sinf(pulse*2.0f + (float)i))*tactScale;
+            mat4_scale(S_sph, (vec3){s, s, s}); mat4_translate(T_sph, (vec3){0, ((float)(i-1))*tactScale*1.0f, 0});
             mat4_multiply(S_sph, T_sph, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
             vkCmdDrawIndexed(cb, SPHERE_LATS*SPHERE_LONGS*6, 1, 0, 0, 0);
@@ -44,9 +44,9 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         pc.color[0]=0.1f; pc.color[1]=0.1f; pc.color[2]=0.1f; pc.color[3]=1.0f; pc.usePushColor=5;
         for(int i=0; i<8; i++) {
             mat4 S_c, R_c, T_c;
-            mat4_identity(R_c); mat4_rotate(R_c, pulse*0.5f + i, (vec3){1,1,1});
+            mat4_identity(R_c); mat4_rotate(R_c, pulse*0.5f + (float)i, (vec3){1,1,1});
             mat4_scale(S_c, (vec3){0.8f*tactScale, 0.8f*tactScale, 0.8f*tactScale});
-            mat4_translate(T_c, (vec3){sinf(i)*1.5f*tactScale, cosf(i)*1.5f*tactScale, sinf(i*2.0f)*1.5f*tactScale});
+            mat4_translate(T_c, (vec3){sinf((float)i)*1.5f*tactScale, cosf((float)i)*1.5f*tactScale, sinf((float)i*2.0f)*1.5f*tactScale});
             mat4_multiply(S_c, R_c, pc.model); mat4_multiply(pc.model, T_c, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
             vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
@@ -58,7 +58,7 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         pc.color[0]=0.8f; pc.color[1]=0.8f; pc.color[2]=0.9f; pc.color[3]=1.0f; pc.usePushColor=5;
         for(int i=-1; i<=1; i+=2) {
             mat4 S_p, T_p; mat4_scale(S_p, (vec3){0.4f*tactScale, 4.0f*tactScale, 0.4f*tactScale});
-            mat4_translate(T_p, (vec3){i*1.2f*tactScale, 0, 0});
+            mat4_translate(T_p, (vec3){(float)i*1.2f*tactScale, 0, 0});
             mat4_multiply(S_p, T_p, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
             vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
@@ -67,9 +67,9 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
         pc.color[0]=1.0f; pc.color[1]=0.0f; pc.color[2]=1.0f; pc.color[3]=0.8f; pc.usePushColor=1;
         for(int i=-1; i<=1; i++) {
-            mat4 S_r, T_r, R_r; mat4_identity(R_r); mat4_rotate(R_r, M_PI/2.0f, (vec3){1,0,0}); mat4_rotate(R_r, pulse*2.0f, (vec3){0,0,1});
+            mat4 S_r, T_r, R_r; mat4_identity(R_r); mat4_rotate(R_r, (float)(M_PI/2.0f), (vec3){1,0,0}); mat4_rotate(R_r, pulse*2.0f, (vec3){0,0,1});
             mat4_scale(S_r, (vec3){2.0f*tactScale, 2.0f*tactScale, 2.0f*tactScale});
-            mat4_translate(T_r, (vec3){0, i*2.0f*tactScale, 0});
+            mat4_translate(T_r, (vec3){0, (float)i*2.0f*tactScale, 0});
             mat4_multiply(S_r, R_r, pc.model); mat4_multiply(pc.model, T_r, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
             vkCmdDraw(cb, 64, 1, 0, 0);
@@ -86,8 +86,8 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
         pc.color[0]=0.5f; pc.color[1]=0.0f; pc.color[2]=0.8f; pc.color[3]=0.8f; pc.usePushColor=1;
         for(int i=0; i<3; i++) {
-            mat4 S_r, R_r; mat4_identity(R_r); mat4_rotate(R_r, pulse*(1.0f+i), (vec3){1,1,0});
-            mat4_scale(S_r, (vec3){(1.8f+i*0.6f)*tactScale, (1.8f+i*0.6f)*tactScale, (1.8f+i*0.6f)*tactScale});
+            mat4 S_r, R_r; mat4_identity(R_r); mat4_rotate(R_r, pulse*(1.0f+(float)i), (vec3){1,1,0});
+            mat4_scale(S_r, (vec3){(1.8f+(float)i*0.6f)*tactScale, (1.8f+(float)i*0.6f)*tactScale, (1.8f+(float)i*0.6f)*tactScale});
             mat4_multiply(S_r, R_r, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
             vkCmdDraw(cb, 64, 1, 0, 0);
@@ -98,7 +98,7 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
         pc.color[0]=1.0f; pc.color[1]=0.5f; pc.color[2]=0.0f; pc.color[3]=1.0f; pc.usePushColor=6;
         for(int i=0; i<4; i++) {
-            mat4 S_c, R_c; mat4_identity(R_c); mat4_rotate(R_c, pulse*0.2f + i*M_PI/4.0f, (vec3){0,1,1});
+            mat4 S_c, R_c; mat4_identity(R_c); mat4_rotate(R_c, (float)(pulse*0.2f + i*M_PI/4.0f), (vec3){0,1,1});
             mat4_scale(S_c, (vec3){1.5f*tactScale, 0.4f*tactScale, 1.5f*tactScale});
             mat4_multiply(S_c, R_c, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
@@ -115,7 +115,7 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         pc.color[0]=0.4f; pc.color[1]=0.6f; pc.color[2]=0.1f; pc.usePushColor=6;
         for(int i=-1; i<=1; i+=2) {
             mat4 S_g, T_g; mat4_scale(S_g, (vec3){2.1f*tactScale, 0.3f*tactScale, 2.1f*tactScale});
-            mat4_translate(T_g, (vec3){0, i*1.0f*tactScale, 0});
+            mat4_translate(T_g, (vec3){0, (float)i*1.0f*tactScale, 0});
             mat4_multiply(S_g, T_g, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
             vkCmdDrawIndexed(cb, sizeof(cubeSolidIndices)/4, 1, 0, 0, 0);
@@ -132,8 +132,8 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
         pc.usePushColor=1;
         for(int i=0; i<3; i++) {
-            mat4 S_r, R_r; mat4_identity(R_r); mat4_rotate(R_r, M_PI/2.0f, (vec3){1,0,0}); mat4_rotate(R_r, pulse*0.5f*(i+1), (vec3){0,0,1});
-            mat4_scale(S_r, (vec3){(1.8f+i*0.5f)*tactScale, (1.8f+i*0.5f)*tactScale, (1.8f+i*0.5f)*tactScale});
+            mat4 S_r, R_r; mat4_identity(R_r); mat4_rotate(R_r, (float)(M_PI/2.0f), (vec3){1,0,0}); mat4_rotate(R_r, pulse*0.5f*((float)(i+1)), (vec3){0,0,1});
+            mat4_scale(S_r, (vec3){(1.8f+(float)i*0.5f)*tactScale, (1.8f+(float)i*0.5f)*tactScale, (1.8f+(float)i*0.5f)*tactScale});
             mat4_multiply(S_r, R_r, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
             vkCmdDraw(cb, 64, 1, 0, 0);
@@ -144,8 +144,8 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
         pc.color[0]=0.7f; pc.color[1]=1.0f; pc.color[2]=0.0f; pc.color[3]=0.6f; pc.usePushColor=1;
         for(int i=0; i<3; i++) {
-            mat4 S_w, R_w; mat4_identity(R_w); mat4_rotate(R_w, pulse*(1.0f+i), (vec3){0.5f, 1, 0});
-            float w_s = (1.5f + 0.5f*sinf(pulse*3.0f + i))*tactScale;
+            mat4 S_w, R_w; mat4_identity(R_w); mat4_rotate(R_w, pulse*(1.0f+(float)i), (vec3){0.5f, 1, 0});
+            float w_s = (1.5f + 0.5f*sinf(pulse*3.0f + (float)i))*tactScale;
             mat4_scale(S_w, (vec3){w_s, w_s*0.8f, w_s});
             mat4_multiply(S_w, R_w, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
@@ -157,8 +157,8 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
         pc.color[0]=0.0f; pc.color[1]=0.8f; pc.color[2]=1.0f; pc.color[3]=0.8f; pc.usePushColor=6;
         for(int i=0; i<5; i++) {
-            mat4 S_i, R_i, T_i; mat4_identity(R_i); mat4_rotate(R_i, i*M_PI*2.0f/5.0f + pulse*0.2f, (vec3){0,1,0});
-            mat4_scale(S_i, (vec3){0.3f*tactScale, (2.5f+sinf(i))*tactScale, 0.3f*tactScale});
+            mat4 S_i, R_i, T_i; mat4_identity(R_i); mat4_rotate(R_i, (float)(i*M_PI*2.0f/5.0f + pulse*0.2f), (vec3){0,1,0});
+            mat4_scale(S_i, (vec3){0.3f*tactScale, (2.5f+sinf((float)i))*tactScale, 0.3f*tactScale});
             mat4_translate(T_i, (vec3){0,0,1.2f*tactScale});
             mat4_multiply(S_i, T_i, pc.model); mat4_multiply(pc.model, R_i, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
@@ -225,7 +225,7 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         for(int i=0; i<2; i++) {
             mat4 S_aux, T_aux, R_aux;
             mat4_identity(R_aux);
-            mat4_rotate(R_aux, -pulse * 0.4f * (i+1), (vec3){0,1,0});
+            mat4_rotate(R_aux, -pulse * 0.4f * ((float)(i+1)), (vec3){0,1,0});
             mat4_scale(S_aux, (vec3){1.0f * tactScale, 0.08f * tactScale, 1.0f * tactScale});
             mat4_translate(T_aux, (vec3){0, diskOffsets[i] * tactScale, 0});
             mat4_multiply(S_aux, R_aux, pc.model);
@@ -303,7 +303,7 @@ void drawPulsar(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale 
         /* Very long and thin spike */
         mat4_scale(S_jet, (vec3){0.08f * tactScale, 8.0f * tactScale, 0.08f * tactScale});
         /* Offset vertically from core */
-        mat4_translate(T_jet, (vec3){0, 4.0f * i * tactScale, 0});
+        mat4_translate(T_jet, (vec3){0, 4.0f * (float)i * tactScale, 0});
         
         mat4_multiply(S_jet, R_jet, pc.model);
         mat4_multiply(pc.model, T_jet, pc.model);
@@ -327,9 +327,9 @@ void drawComet(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float h, float m,
     /* Orientation for the tail: Align with heading/pitch */
     mat4 R_orient;
     mat4_identity(R_orient);
-    mat4_rotate(R_orient, (h - 90.0f) * M_PI / 180.0f, (vec3){0, 1, 0});
-    mat4_rotate(R_orient, m * M_PI / 180.0f, (vec3){0, 0, 1});
-    mat4_rotate(R_orient, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+    mat4_rotate(R_orient, (float)((h - 90.0f) * M_PI / 180.0f), (vec3){0, 1, 0});
+    mat4_rotate(R_orient, (float)(m * M_PI / 180.0f), (vec3){0, 0, 1});
+    mat4_rotate(R_orient, (float)(90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
 
     /* 1. THE NUCLEUS (Irregular Crystalline Sphere) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -360,22 +360,22 @@ void drawComet(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float h, float m,
     /* 3. THE TAIL (Volumetric Plasma Trail) */
     mat4 R_tail;
     mat4_identity(R_tail);
-    mat4_rotate(R_tail, M_PI, (vec3){0, 1, 0}); /* Tail trails behind */
+    mat4_rotate(R_tail, (float)M_PI, (vec3){0, 1, 0}); /* Tail trails behind */
     
     for (int i=0; i<3; i++) {
         mat4 S_tail, R_wobble;
-        float t_len = 3.0f + i * 2.0f;
-        float t_wid = 0.25f + i * 0.2f;
+        float t_len = 3.0f + (float)i * 2.0f;
+        float t_wid = 0.25f + (float)i * 0.2f;
         mat4_scale(S_tail, (vec3){t_wid * tactScale, t_wid * tactScale, t_len * tactScale});
         mat4_identity(R_wobble);
-        mat4_rotate(R_wobble, sinf(pulse * 3.5f + i) * 0.08f, (vec3){1,0,0});
+        mat4_rotate(R_wobble, sinf(pulse * 3.5f + (float)i) * 0.08f, (vec3){1,0,0});
         
         mat4_multiply(S_tail, R_wobble, pc.model);
         mat4_multiply(pc.model, R_tail, pc.model);
         mat4_multiply(pc.model, R_orient, pc.model);
         mat4_multiply(pc.model, baseT, pc.model);
         
-        pc.color[0]=0.6f; pc.color[1]=0.9f; pc.color[2]=1.0f; pc.color[3]=0.5f - i*0.15f;
+        pc.color[0]=0.6f; pc.color[1]=0.9f; pc.color[2]=1.0f; pc.color[3]=0.5f - (float)i*0.15f;
         pc.usePushColor=1;
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->whVertexBuffer, &off);
@@ -428,7 +428,7 @@ void drawAsteroid(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float size, in
     for (int i=0; i<4; i++) {
         mat4 S_node, T_node, R_node;
         mat4_identity(R_node);
-        mat4_rotate(R_node, (float)i * 90.0f * M_PI / 180.0f, (vec3){0, 1, 1});
+        mat4_rotate(R_node, (float)((float)i * 90.0f * M_PI / 180.0f), (vec3){0, 1, 1});
         mat4_scale(S_node, (vec3){nodeScales[i][0] * finalScale, nodeScales[i][1] * finalScale, nodeScales[i][2] * finalScale});
         mat4_translate(T_node, (vec3){nodeOffsets[i][0] * finalScale, nodeOffsets[i][1] * finalScale, nodeOffsets[i][2] * finalScale});
         
@@ -473,14 +473,14 @@ void drawMonster(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int type, float
         for (int i=0; i<6; i++) {
             mat4 S_f, R_f;
             mat4_identity(R_f);
-            mat4_rotate(R_f, (float)i * 60.0f * M_PI / 180.0f + pulse, (vec3){1, 1, 0});
+            mat4_rotate(R_f, (float)((float)i * 60.0f * M_PI / 180.0f + pulse), (vec3){1, 1, 0});
             mat4_scale(S_f, (vec3){0.3f * tactScale, 1.8f * tactScale, 0.3f * tactScale});
             mat4_multiply(S_f, R_f, pc.model);
             mat4_multiply(pc.model, baseT, pc.model);
             
             /* Rainbow shimmer based on facet index */
-            pc.color[0]=0.4f + 0.3f * sinf(pulse + i);
-            pc.color[1]=0.7f + 0.2f * cosf(pulse * 0.8f + i);
+            pc.color[0]=0.4f + 0.3f * sinf(pulse + (float)i);
+            pc.color[1]=0.7f + 0.2f * cosf(pulse * 0.8f + (float)i);
             pc.color[2]=1.0f;
             pc.usePushColor = 6; /* Hyper-Glow */
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
@@ -509,9 +509,9 @@ void drawMonster(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int type, float
             float d = 0.8f + 0.4f * sinf(phase);
             float s = 0.5f + 0.2f * cosf(phase * 0.5f);
             
-            float tx = d * cosf((float)i * 45.0f * M_PI / 180.0f);
+            float tx = d * cosf((float)((float)i * 45.0f * M_PI / 180.0f));
             float ty = 0.3f * sinf(phase * 2.0f);
-            float tz = d * sinf((float)i * 45.0f * M_PI / 180.0f);
+            float tz = d * sinf((float)((float)i * 45.0f * M_PI / 180.0f));
             
             mat4_scale(S_n, (vec3){s * tactScale, s * tactScale, s * tactScale});
             mat4_translate(T_n, (vec3){tx * tactScale, ty * tactScale, tz * tactScale});
@@ -582,7 +582,7 @@ void drawTradingHub(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSc
         for (int j=0; j<4; j++) {
             mat4 S_pad, T_pad, R_pad;
             mat4_identity(R_pad);
-            mat4_rotate(R_pad, (float)j * 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+            mat4_rotate(R_pad, (float)((float)j * 90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
             mat4_scale(S_pad, (vec3){0.3f * tactScale, 0.2f * tactScale, 0.3f * tactScale});
             mat4_translate(T_pad, (vec3){ringScales[i] * tactScale, 0, 0});
             
@@ -637,8 +637,8 @@ void drawMine(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __
         mat4 S_spike, R_spike;
         mat4_identity(R_spike);
         if (i == 0) mat4_rotate(R_spike, 0, (vec3){1,0,0});
-        else if (i == 1) mat4_rotate(R_spike, M_PI/2.0, (vec3){0,1,0});
-        else mat4_rotate(R_spike, M_PI/2.0, (vec3){0,0,1});
+        else if (i == 1) mat4_rotate(R_spike, (float)(M_PI/2.0), (vec3){0,1,0});
+        else mat4_rotate(R_spike, (float)(M_PI/2.0), (vec3){0,0,1});
 
         mat4_scale(S_spike, (vec3){1.2f * tactScale, 0.12f * tactScale, 0.12f * tactScale});
         
@@ -702,7 +702,7 @@ void drawCommBuoy(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         if (i==0) continue;
         mat4 S_wing, T_wing;
         mat4_scale(S_wing, (vec3){0.8f * tactScale, 0.05f * tactScale, 0.4f * tactScale});
-        mat4_translate(T_wing, (vec3){i * 0.5f * tactScale, 0, 0});
+        mat4_translate(T_wing, (vec3){(float)i * 0.5f * tactScale, 0, 0});
         mat4_multiply(S_wing, T_wing, pc.model);
         mat4_multiply(pc.model, R_body, pc.model);
         mat4_multiply(pc.model, baseT, pc.model);
@@ -729,7 +729,7 @@ void drawCommBuoy(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
     vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->circleIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
     for (int i=0; i<3; i++) {
-        float waveScale = fmodf(pulse * 0.8f + i * 0.5f, 1.5f);
+        float waveScale = fmodf(pulse * 0.8f + (float)i * 0.5f, 1.5f);
         mat4 S_wave, T_wave;
         mat4_scale(S_wave, (vec3){waveScale * tactScale, waveScale * tactScale, waveScale * tactScale});
         mat4_translate(T_wave, (vec3){0, 1.2f * tactScale, 0});
@@ -782,7 +782,7 @@ void drawPlatform(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int faction, f
     for (int i=0; i<3; i++) {
         mat4 S_bar, R_bar;
         mat4_identity(R_bar);
-        mat4_rotate(R_bar, (float)i * 60.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_bar, (float)((float)i * 60.0f * M_PI / 180.0f), (vec3){0, 1, 0});
         mat4_scale(S_bar, (vec3){1.5f * tactScale, 0.4f * tactScale, 0.5f * tactScale});
         
         mat4_multiply(S_bar, R_bar, pc.model);
@@ -797,7 +797,7 @@ void drawPlatform(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int faction, f
     for (int i=0; i<4; i++) {
         mat4 S_pod, T_pod, R_pod;
         mat4_identity(R_pod);
-        mat4_rotate(R_pod, (float)i * 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_pod, (float)((float)i * 90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
         mat4_scale(S_pod, (vec3){0.3f * tactScale, 0.3f * tactScale, 0.3f * tactScale});
         mat4_translate(T_pod, (vec3){0.8f * tactScale, 0, 0});
         
@@ -863,12 +863,12 @@ void drawRift(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __
     for (int i=0; i<6; i++) {
         mat4 S_ring, R_ring;
         mat4_identity(R_ring);
-        mat4_rotate(R_ring, pulse * (1.5f + i * 0.5f), (vec3){sinf(i), cosf(i), 0.5f});
-        mat4_scale(S_ring, (vec3){(0.4f + i * 0.15f) * tactScale, (0.4f + i * 0.15f) * tactScale, (0.4f + i * 0.15f) * tactScale});
+        mat4_rotate(R_ring, pulse * (1.5f + (float)i * 0.5f), (vec3){sinf((float)i), cosf((float)i), 0.5f});
+        mat4_scale(S_ring, (vec3){(0.4f + (float)i * 0.15f) * tactScale, (0.4f + (float)i * 0.15f) * tactScale, (0.4f + (float)i * 0.15f) * tactScale});
         mat4_multiply(S_ring, R_ring, pc.model);
         mat4_multiply(pc.model, baseT, pc.model);
         
-        pc.color[0]=0.0f; pc.color[1]=0.8f; pc.color[2]=1.0f; pc.color[3]=0.8f - i*0.12f;
+        pc.color[0]=0.0f; pc.color[1]=0.8f; pc.color[2]=1.0f; pc.color[3]=0.8f - (float)i*0.12f;
         pc.usePushColor=6; /* Glow for additive feel */
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdDrawIndexed(cb, CIRCLE_SEGMENTS * 2, 1, 0, 0, 0);
@@ -880,9 +880,9 @@ void drawRift(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __
     vkCmdBindIndexBuffer(cb, app->beamIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
     for (int i=0; i<4; i++) {
         mat4 S_beam, R_beam;
-        float b_len = 1.2f + 0.5f * sinf(pulse * 10.0f + i);
+        float b_len = 1.2f + 0.5f * sinf(pulse * 10.0f + (float)i);
         mat4_identity(R_beam);
-        mat4_rotate(R_beam, (float)i * 90.0f * M_PI / 180.0f + pulse * 5.0f, (vec3){1, 1, 1});
+        mat4_rotate(R_beam, (float)((float)i * 90.0f * M_PI / 180.0f + pulse * 5.0f), (vec3){1, 1, 1});
         mat4_scale(S_beam, (vec3){b_len * tactScale, 0, 0}); /* Linear beam */
         
         mat4_multiply(S_beam, R_beam, pc.model);
@@ -914,7 +914,7 @@ void drawAlienArtifact(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
     for (int i=0; i<4; i++) {
         mat4 S_facet, R_facet;
         mat4_identity(R_facet);
-        mat4_rotate(R_facet, (float)i * 45.0f * M_PI / 180.0f + pulse, (vec3){1, 1, 1});
+        mat4_rotate(R_facet, (float)((float)i * 45.0f * M_PI / 180.0f + pulse), (vec3){1, 1, 1});
         mat4_scale(S_facet, (vec3){0.4f * tactScale, 0.4f * tactScale, 0.4f * tactScale});
         
         mat4_multiply(S_facet, R_facet, pc.model);
@@ -930,13 +930,13 @@ void drawAlienArtifact(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
     pc.usePushColor=5; pc.metallic=1.0f; pc.roughness=0.2f;
     for (int i=0; i<4; i++) {
         mat4 S_shard, T_shard, R_shard;
-        float ang = pulse * 2.0f + (float)i * M_PI / 2.0f;
+        float ang = (float)(pulse * 2.0f + (float)i * M_PI / 2.0f);
         float r = 0.8f * tactScale;
         
         mat4_identity(R_shard);
         mat4_rotate(R_shard, pulse * 3.0f, (vec3){0, 1, 0});
         mat4_scale(S_shard, (vec3){0.12f * tactScale, 0.12f * tactScale, 0.12f * tactScale});
-        mat4_translate(T_shard, (vec3){r * cosf(ang), 0.3f * sinf(pulse + i) * tactScale, r * sinf(ang)});
+        mat4_translate(T_shard, (vec3){r * cosf(ang), 0.3f * sinf(pulse + (float)i) * tactScale, r * sinf(ang)});
         
         mat4_multiply(S_shard, R_shard, pc.model);
         mat4_multiply(pc.model, T_shard, pc.model);
@@ -951,7 +951,7 @@ void drawAlienArtifact(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
     vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->circleIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
     for (int i=0; i<3; i++) {
-        float waveScale = fmodf(pulse * 0.5f + i * 0.66f, 2.0f);
+        float waveScale = fmodf(pulse * 0.5f + (float)i * 0.66f, 2.0f);
         mat4 S_ring;
         mat4_scale(S_ring, (vec3){waveScale * tactScale, waveScale * tactScale, waveScale * tactScale});
         mat4_multiply(S_ring, baseT, pc.model);
@@ -1003,11 +1003,11 @@ void drawNeutronStar(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->circleIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
     for (int i=0; i<2; i++) {
-        float r_pulse = fmodf(pulse * 1.5f + i * 0.75f, 1.0f);
+        float r_pulse = fmodf(pulse * 1.5f + (float)i * 0.75f, 1.0f);
         float r_scale = (0.5f + r_pulse * 1.5f) * tactScale;
         mat4 S_ring, R_ring;
         mat4_identity(R_ring);
-        mat4_rotate(R_ring, M_PI/2.0f, (vec3){1, 0, 0});
+        mat4_rotate(R_ring, (float)(M_PI/2.0f), (vec3){1, 0, 0});
         mat4_scale(S_ring, (vec3){r_scale, r_scale, r_scale});
         mat4_multiply(S_ring, R_ring, pc.model);
         mat4_multiply(pc.model, baseT, pc.model);
@@ -1040,7 +1040,7 @@ void drawMegaStructure(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
     for (int i=0; i<4; i++) {
         mat4 S_arm, R_arm;
         mat4_identity(R_arm);
-        mat4_rotate(R_arm, (float)i * 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_arm, (float)((float)i * 90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
         mat4_scale(S_arm, (vec3){4.0f * tactScale, 0.8f * tactScale, 0.8f * tactScale});
         
         mat4_multiply(S_arm, R_arm, pc.model);
@@ -1116,8 +1116,8 @@ void drawVoidCrystal(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     for (int i=0; i<5; i++) {
         mat4 S_fac, R_fac;
         mat4_identity(R_fac);
-        mat4_rotate(R_fac, (float)i * 72.0f * M_PI / 180.0f + pulse * 0.2f, (vec3){1, 0.5f, 0});
-        mat4_scale(S_fac, (vec3){(0.3f + i*0.1f) * tactScale, (0.8f + i*0.2f) * tactScale, (0.3f + i*0.1f) * tactScale});
+        mat4_rotate(R_fac, (float)((float)i * 72.0f * M_PI / 180.0f + pulse * 0.2f), (vec3){1, 0.5f, 0});
+        mat4_scale(S_fac, (vec3){(0.3f + (float)i*0.1f) * tactScale, (0.8f + (float)i*0.2f) * tactScale, (0.3f + (float)i*0.1f) * tactScale});
         
         mat4_multiply(S_fac, R_fac, pc.model);
         mat4_multiply(pc.model, R_void, pc.model);
@@ -1178,7 +1178,7 @@ void drawSatellite(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSca
         if (i==0) continue;
         mat4 S_wing, T_wing;
         mat4_scale(S_wing, (vec3){1.0f * tactScale, 0.04f * tactScale, 0.5f * tactScale});
-        mat4_translate(T_wing, (vec3){i * 0.7f * tactScale, 0, 0});
+        mat4_translate(T_wing, (vec3){(float)i * 0.7f * tactScale, 0, 0});
         mat4_multiply(S_wing, T_wing, pc.model);
         mat4_multiply(pc.model, R_body, pc.model);
         mat4_multiply(pc.model, baseT, pc.model);
@@ -1194,7 +1194,7 @@ void drawSatellite(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSca
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
     mat4 S_dish, T_dish, R_dish;
     mat4_identity(R_dish);
-    mat4_rotate(R_dish, M_PI/2.0f, (vec3){1, 0, 0}); /* Point forward/up */
+    mat4_rotate(R_dish, (float)(M_PI/2.0f), (vec3){1, 0, 0}); /* Point forward/up */
     mat4_scale(S_dish, (vec3){0.45f * tactScale, 0.15f * tactScale, 0.45f * tactScale});
     mat4_translate(T_dish, (vec3){0, 0.45f * tactScale, 0});
     mat4_multiply(S_dish, T_dish, pc.model);
@@ -1255,7 +1255,7 @@ void drawDysonFragment(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
     
     mat4 S_back, R_back;
     mat4_identity(R_back);
-    mat4_rotate(R_back, M_PI/2.0f, (vec3){0, 0, 1});
+    mat4_rotate(R_back, (float)(M_PI/2.0f), (vec3){0, 0, 1});
     mat4_scale(S_back, (vec3){3.0f * tactScale, 0.15f * tactScale, 0.15f * tactScale});
     mat4_multiply(S_back, R_back, pc.model);
     mat4_multiply(pc.model, R_dyson, pc.model);
@@ -1298,7 +1298,7 @@ void drawInterstellarFilament(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, fl
         mat4 S, R, T_offset;
         mat4_identity(R);
         /* Twist each strand slightly differently based on time and index */
-        vec3 axis = {sinf(i * 1.5f), cosf(i * 2.1f), sinf(i * 0.8f + 1.0f)};
+        vec3 axis = {sinf((float)i * 1.5f), cosf((float)i * 2.1f), sinf((float)i * 0.8f + 1.0f)};
         float alen = sqrtf(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2]);
         if (alen > 0.001f) { axis[0] /= alen; axis[1] /= alen; axis[2] /= alen; }
         mat4_rotate(R, pulse * 0.05f + (float)i * 1.2f, axis);
@@ -1307,7 +1307,7 @@ void drawInterstellarFilament(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, fl
         mat4_scale(S, (vec3){0.4f * tactScale, 6.0f * tactScale, 0.4f * tactScale});
         
         /* Offset them slightly from the center */
-        mat4_translate(T_offset, (vec3){sinf(pulse*0.3f + i)*0.6f * tactScale, 0, cosf(pulse*0.4f + i)*0.6f * tactScale});
+        mat4_translate(T_offset, (vec3){sinf(pulse*0.3f + (float)i)*0.6f * tactScale, 0, cosf(pulse*0.4f + (float)i)*0.6f * tactScale});
         
         mat4_multiply(S, R, pc.model);
         mat4_multiply(pc.model, T_offset, pc.model);
@@ -1348,7 +1348,7 @@ void drawAncientRelic(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tact
     for (int i=0; i<3; i++) {
         mat4 S_dia, R_dia;
         mat4_identity(R_dia);
-        mat4_rotate(R_dia, (float)i * 60.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_dia, (float)((float)i * 60.0f * M_PI / 180.0f), (vec3){0, 1, 0});
         mat4_scale(S_dia, (vec3){0.4f * tactScale, 0.8f * tactScale, 0.4f * tactScale});
         
         mat4_multiply(S_dia, R_dia, pc.model);
@@ -1381,13 +1381,13 @@ void drawAncientRelic(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tact
 
     for (int i=0; i<4; i++) {
         mat4 S_gly, T_gly, R_gly;
-        float ang = pulse * 1.5f + (float)i * M_PI / 2.0f;
+        float ang = (float)(pulse * 1.5f + (float)i * M_PI / 2.0f);
         float r = 0.9f * tactScale;
         
         mat4_identity(R_gly);
         mat4_rotate(R_gly, pulse * 4.0f, (vec3){1, 1, 1});
         mat4_scale(S_gly, (vec3){0.15f * tactScale, 0.15f * tactScale, 0.15f * tactScale});
-        mat4_translate(T_gly, (vec3){r * cosf(ang), r * 0.5f * sinf(pulse + i) * tactScale, r * sinf(ang)});
+        mat4_translate(T_gly, (vec3){r * cosf(ang), r * 0.5f * sinf(pulse + (float)i) * tactScale, r * sinf(ang)});
         
         mat4_multiply(S_gly, R_gly, pc.model);
         mat4_multiply(pc.model, T_gly, pc.model);
@@ -1427,9 +1427,9 @@ void drawSubspaceRupture(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
     pc.color[0]=1.0f; pc.color[1]=0.0f; pc.color[2]=0.6f; pc.color[3]=0.8f;
     for (int i=0; i<6; i++) {
         mat4 S_crack, R_crack;
-        float flick = 0.5f + 0.5f * sinf(pulse * 20.0f + i);
+        float flick = 0.5f + 0.5f * sinf(pulse * 20.0f + (float)i);
         mat4_identity(R_crack);
-        mat4_rotate(R_crack, (float)i * 60.0f * M_PI / 180.0f + pulse, (vec3){0, 1, 0.5f});
+        mat4_rotate(R_crack, (float)((float)i * 60.0f * M_PI / 180.0f + pulse), (vec3){0, 1, 0.5f});
         mat4_scale(S_crack, (vec3){0.05f * tactScale, 2.0f * flick * tactScale, 0.05f * tactScale});
         
         mat4_multiply(S_crack, R_crack, pc.model);
@@ -1448,7 +1448,7 @@ void drawSubspaceRupture(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
         float r_scale = r_pulse * 3.0f * tactScale;
         mat4 S_ring, R_ring;
         mat4_identity(R_ring);
-        mat4_rotate(R_ring, M_PI/2.0f, (vec3){1, 0, 0});
+        mat4_rotate(R_ring, (float)(M_PI/2.0f), (vec3){1, 0, 0});
         mat4_scale(S_ring, (vec3){r_scale, r_scale, r_scale});
         
         mat4_multiply(S_ring, R_ring, pc.model);
@@ -1477,11 +1477,11 @@ void drawDarkMatterCloud(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
 
     for (int i=0; i<3; i++) {
         mat4 S_mass, R_mass, T_mass;
-        float ang = pulse * 0.2f + (float)i * 120.0f * M_PI / 180.0f;
+        float ang = (float)(pulse * 0.2f + (float)i * 120.0f * M_PI / 180.0f);
         mat4_identity(R_mass);
         mat4_rotate(R_mass, ang, (vec3){0, 1, 0.5f});
-        mat4_scale(S_mass, (vec3){(1.5f + i*0.2f) * tactScale, (1.2f + i*0.1f) * tactScale, (1.5f + i*0.2f) * tactScale});
-        mat4_translate(T_mass, (vec3){0.2f * sinf(pulse + i) * tactScale, 0, 0});
+        mat4_scale(S_mass, (vec3){(1.5f + (float)i*0.2f) * tactScale, (1.2f + (float)i*0.1f) * tactScale, (1.5f + (float)i*0.2f) * tactScale});
+        mat4_translate(T_mass, (vec3){0.2f * sinf(pulse + (float)i) * tactScale, 0, 0});
         
         mat4_multiply(S_mass, R_mass, pc.model);
         mat4_multiply(pc.model, T_mass, pc.model);
@@ -1508,7 +1508,7 @@ void drawDarkMatterCloud(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
         float r_scale = r_pulse * 4.0f * tactScale;
         mat4 S_ring, R_ring;
         mat4_identity(R_ring);
-        mat4_rotate(R_ring, M_PI/2.0f, (vec3){1, 0, 0.2f});
+        mat4_rotate(R_ring, (float)(M_PI/2.0f), (vec3){1, 0, 0.2f});
         mat4_scale(S_ring, (vec3){r_scale, r_scale, r_scale});
         
         mat4_multiply(S_ring, R_ring, pc.model);
@@ -1546,10 +1546,10 @@ void drawSingularity(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     
     for (int i=0; i<3; i++) {
         mat4 S_ring, R_ring;
-        float r_scale = (1.5f + i*0.5f) * tactScale;
+        float r_scale = (1.5f + (float)i*0.5f) * tactScale;
         mat4_identity(R_ring);
-        mat4_rotate(R_ring, M_PI/2.0f, (vec3){1, 0.1f, 0}); /* Tilted disk */
-        mat4_rotate(R_ring, pulse * (3.0f - i), (vec3){0, 0, 1}); /* Spinning */
+        mat4_rotate(R_ring, (float)(M_PI/2.0f), (vec3){1, 0.1f, 0}); /* Tilted disk */
+        mat4_rotate(R_ring, pulse * (3.0f - (float)i), (vec3){0, 0, 1}); /* Spinning */
         mat4_scale(S_ring, (vec3){r_scale, r_scale, r_scale});
         
         mat4_multiply(S_ring, R_ring, pc.model);
@@ -1576,7 +1576,7 @@ void drawSingularity(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
         if (i==0) continue;
         mat4 S_jet, T_jet;
         mat4_scale(S_jet, (vec3){0.02f * tactScale, 5.0f * tactScale, 0.02f * tactScale});
-        mat4_translate(T_jet, (vec3){0, i * 2.5f * tactScale, 0});
+        mat4_translate(T_jet, (vec3){0, (float)i * 2.5f * tactScale, 0});
         
         mat4_multiply(S_jet, T_jet, pc.model);
         /* Apply the same tilt as the disk to be orthogonal (roughly) */
@@ -1644,11 +1644,11 @@ void drawIonStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
     pc.color[0]=secCol[0]; pc.color[1]=secCol[1]; pc.color[2]=secCol[2]; pc.color[3]=1.0f;
     pc.usePushColor=6;
     for (int i=0; i<8; i++) {
-        float flick = (sinf(pulse * 30.0f + i*2.0f) > 0.6f) ? 1.0f : 0.0f;
+        float flick = (sinf(pulse * 30.0f + (float)i*2.0f) > 0.6f) ? 1.0f : 0.0f;
         if (flick < 0.5f) continue;
         mat4 S_spike, R_spike, T_spike;
         mat4_identity(R_spike);
-        mat4_rotate(R_spike, (float)i * 45.0f * M_PI / 180.0f + pulse, (vec3){sinf(i), 1, cosf(i)});
+        mat4_rotate(R_spike, (float)((float)i * 45.0f * M_PI / 180.0f + pulse), (vec3){sinf((float)i), 1, cosf((float)i)});
         mat4_scale(S_spike, (vec3){0.05f * tactScale, 2.0f * tactScale, 0.05f * tactScale});
         mat4_translate(T_spike, (vec3){0, 0.5f * tactScale, 0});
         mat4_multiply(S_spike, R_spike, pc.model);
@@ -1666,7 +1666,7 @@ void drawIonStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         float r_scale = r_pulse * 3.5f * tactScale;
         mat4 S_ring, R_ring;
         mat4_identity(R_ring);
-        mat4_rotate(R_ring, M_PI/2.0f, (vec3){1, 0.2f*i, 0});
+        mat4_rotate(R_ring, (float)(M_PI/2.0f), (vec3){1, 0.2f*(float)i, 0});
         mat4_scale(S_ring, (vec3){r_scale, r_scale, r_scale});
         mat4_multiply(S_ring, R_ring, pc.model);
         mat4_multiply(pc.model, baseT, pc.model);
@@ -1690,14 +1690,14 @@ void drawPlasmaStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     
     for (int i=0; i<3; i++) {
         mat4 S_fire, R_fire;
-        float s_mod = (1.0f + 0.3f * sinf(pulse * 8.0f + i)) * tactScale;
+        float s_mod = (1.0f + 0.3f * sinf(pulse * 8.0f + (float)i)) * tactScale;
         mat4_identity(R_fire);
-        mat4_rotate(R_fire, pulse * (1.0f + i), (vec3){0, 1, 0.2f});
+        mat4_rotate(R_fire, pulse * (1.0f + (float)i), (vec3){0, 1, 0.2f});
         mat4_scale(S_fire, (vec3){s_mod, s_mod, s_mod});
         mat4_multiply(S_fire, R_fire, pc.model);
         mat4_multiply(pc.model, baseT, pc.model);
         
-        pc.color[0]=1.0f; pc.color[1]=0.3f + i*0.2f; pc.color[2]=0.0f; pc.color[3]=0.8f;
+        pc.color[0]=1.0f; pc.color[1]=0.3f + (float)i*0.2f; pc.color[2]=0.0f; pc.color[3]=0.8f;
         pc.usePushColor=6; /* Fire Glow */
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
@@ -1710,11 +1710,11 @@ void drawPlasmaStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     pc.color[0]=0.0f; pc.color[1]=0.8f; pc.color[2]=1.0f;
     for (int i=0; i<6; i++) {
         mat4 S_arc, R_arc, T_arc;
-        float flick = (sinf(pulse * 25.0f + i) > 0.5f) ? 1.0f : 0.0f;
+        float flick = (sinf(pulse * 25.0f + (float)i) > 0.5f) ? 1.0f : 0.0f;
         if (flick < 0.1f) continue;
         
         mat4_identity(R_arc);
-        mat4_rotate(R_arc, (float)i * 60.0f * M_PI / 180.0f + pulse * 2.0f, (vec3){1, 0.5f, 0});
+        mat4_rotate(R_arc, (float)((float)i * 60.0f * M_PI / 180.0f + pulse * 2.0f), (vec3){1, 0.5f, 0});
         mat4_scale(S_arc, (vec3){0.02f * tactScale, 2.5f * tactScale, 0.02f * tactScale});
         mat4_translate(T_arc, (vec3){0.5f * sinf(pulse*10.0f) * tactScale, 0, 0});
         
@@ -1734,8 +1734,8 @@ void drawPlasmaStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     for (int i=0; i<2; i++) {
         mat4 S_turb, R_turb;
         mat4_identity(R_turb);
-        mat4_rotate(R_turb, -pulse * (2.0f + i), (vec3){0.3f, 1, 0});
-        mat4_scale(S_turb, (vec3){(2.0f + i*0.5f) * tactScale, (2.0f + i*0.5f) * tactScale, (2.0f + i*0.5f) * tactScale});
+        mat4_rotate(R_turb, -pulse * (2.0f + (float)i), (vec3){0.3f, 1, 0});
+        mat4_scale(S_turb, (vec3){(2.0f + (float)i*0.5f) * tactScale, (2.0f + (float)i*0.5f) * tactScale, (2.0f + (float)i*0.5f) * tactScale});
         mat4_multiply(S_turb, R_turb, pc.model);
         mat4_multiply(pc.model, baseT, pc.model);
         
@@ -1775,11 +1775,11 @@ void drawTimeAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
 
     for (int i=0; i<4; i++) {
         mat4 S_ring, R_ring;
-        float r_scale = (1.2f + i*0.3f) * tactScale;
+        float r_scale = (1.2f + (float)i*0.3f) * tactScale;
         mat4_identity(R_ring);
         /* Orient rings at different angles */
-        if (i < 2) mat4_rotate(R_ring, M_PI/2.0f, (vec3){1, 0, 0});
-        else mat4_rotate(R_ring, M_PI/2.0f, (vec3){0, 1, 0});
+        if (i < 2) mat4_rotate(R_ring, (float)(M_PI/2.0f), (vec3){1, 0, 0});
+        else mat4_rotate(R_ring, (float)(M_PI/2.0f), (vec3){0, 1, 0});
         
         /* Rotate like clock hands: one fast, one slow */
         mat4_rotate(R_ring, pulse * (float)(i + 1) * 0.5f, (vec3){0, 0, 1});
@@ -1799,7 +1799,7 @@ void drawTimeAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     
     for (int i=0; i<3; i++) {
         mat4 S_ghost, R_ghost;
-        float g_scale = (1.0f + 0.5f * sinf(pulse * 0.5f + i)) * tactScale;
+        float g_scale = (1.0f + 0.5f * sinf(pulse * 0.5f + (float)i)) * tactScale;
         mat4_identity(R_ghost);
         mat4_rotate(R_ghost, pulse * 0.2f, (vec3){0, 1, 0});
         mat4_scale(S_ghost, (vec3){g_scale, g_scale, g_scale});
@@ -1815,11 +1815,11 @@ void drawTimeAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     /* 4. CHRONO-RIPPLES (Expanding and Contracting) */
     vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
     for (int i=0; i<3; i++) {
-        float r_pulse = 0.5f + 0.5f * sinf(pulse * 0.7f + i);
+        float r_pulse = 0.5f + 0.5f * sinf(pulse * 0.7f + (float)i);
         float r_scale = (1.0f + r_pulse * 3.0f) * tactScale;
         mat4 S_rip, R_rip;
         mat4_identity(R_rip);
-        mat4_rotate(R_rip, M_PI/2.0f, (vec3){1, 0, 0});
+        mat4_rotate(R_rip, (float)(M_PI/2.0f), (vec3){1, 0, 0});
         mat4_scale(S_rip, (vec3){r_scale, r_scale, r_scale});
         
         mat4_multiply(S_rip, R_rip, pc.model);
@@ -1873,7 +1873,7 @@ void drawSubspaceAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
     pc.usePushColor=6;
     
     for (int i=0; i<8; i++) {
-        float flick = (sinf(pulse * 15.0f + i) > 0.6f) ? 1.0f : 0.0f;
+        float flick = (sinf(pulse * 15.0f + (float)i) > 0.6f) ? 1.0f : 0.0f;
         if (flick < 0.1f) continue;
         
         mat4 S_pix, T_pix;

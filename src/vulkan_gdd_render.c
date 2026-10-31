@@ -557,7 +557,7 @@ static bool gdd_create_frame_descs(GddState *g, uint32_t i) {
     /* cull dyn: 0 inst, 1 vis, 2 cnt */
     for (int k = 0; k < 3; k++) {
         w[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        w[n].dstSet = f->desc_cull_dyn; w[n].dstBinding = k; w[n].dstArrayElement = 0;
+        w[n].dstSet = f->desc_cull_dyn; w[n].dstBinding = (uint32_t)k; w[n].dstArrayElement = 0;
         w[n].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         w[n].descriptorCount = 1; w[n].pBufferInfo = &bi[k];
         n++;
@@ -565,7 +565,7 @@ static bool gdd_create_frame_descs(GddState *g, uint32_t i) {
     /* cull map */
     for (int k = 0; k < 3; k++) {
         w[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        w[n].dstSet = f->desc_cull_map; w[n].dstBinding = k; w[n].dstArrayElement = 0;
+        w[n].dstSet = f->desc_cull_map; w[n].dstBinding = (uint32_t)k; w[n].dstArrayElement = 0;
         w[n].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         w[n].descriptorCount = 1; w[n].pBufferInfo = &bmap[k];
         n++;
@@ -573,7 +573,7 @@ static bool gdd_create_frame_descs(GddState *g, uint32_t i) {
     /* expand dyn: 0 inst, 1 vis, 2 cnt, 3 verts, 4 feedback */
     for (int k = 0; k < 5; k++) {
         w[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        w[n].dstSet = f->desc_exp_dyn; w[n].dstBinding = k; w[n].dstArrayElement = 0;
+        w[n].dstSet = f->desc_exp_dyn; w[n].dstBinding = (uint32_t)k; w[n].dstArrayElement = 0;
         w[n].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         w[n].descriptorCount = 1; w[n].pBufferInfo = &bi[k];
         n++;
@@ -581,7 +581,7 @@ static bool gdd_create_frame_descs(GddState *g, uint32_t i) {
     /* expand map: 0 inst, 1 vis, 2 cnt, 3 verts, 4 feedback */
     for (int k = 0; k < 5; k++) {
         w[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        w[n].dstSet = f->desc_exp_map; w[n].dstBinding = k; w[n].dstArrayElement = 0;
+        w[n].dstSet = f->desc_exp_map; w[n].dstBinding = (uint32_t)k; w[n].dstArrayElement = 0;
         w[n].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         w[n].descriptorCount = 1; w[n].pBufferInfo = &bmap[k];
         n++;
@@ -592,7 +592,7 @@ static bool gdd_create_frame_descs(GddState *g, uint32_t i) {
     bfin[1] = bi[2];
     for (int k = 0; k < 2; k++) {
         w[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        w[n].dstSet = f->desc_final; w[n].dstBinding = k; w[n].dstArrayElement = 0;
+        w[n].dstSet = f->desc_final; w[n].dstBinding = (uint32_t)k; w[n].dstArrayElement = 0;
         w[n].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         w[n].descriptorCount = 1; w[n].pBufferInfo = &bfin[k];
         n++;
@@ -604,7 +604,7 @@ static bool gdd_create_frame_descs(GddState *g, uint32_t i) {
     w[n].descriptorCount = 1; w[n].pBufferInfo = &bi[3];
     n++;
 
-    vkUpdateDescriptorSets(d, n, w, 0, NULL);
+    vkUpdateDescriptorSets(d, (uint32_t)n, w, 0, NULL);
     return true;
 }
 
@@ -810,8 +810,8 @@ static bool gdd_create_scene_pipelines(GddState *g) {
 static void gdd_build_starfield(GddState *g) {
     for (uint32_t s = 0; s < GDD_STAR_COUNT; s++) {
         GddStar *st = &g->stars[s];
-        float theta = (float)(rand() % 3600) * 0.1f * M_PI / 180.0f;
-        float phi = (float)(rand() % 1800) * 0.1f * M_PI / 180.0f;
+        float theta = (float)((float)(rand() % 3600) * 0.1f * M_PI / 180.0f);
+        float phi = (float)((float)(rand() % 1800) * 0.1f * M_PI / 180.0f);
         /* the shell follows the camera (QG_SCALE): with the 100 cube the camera sits 200 from the centre, inside an
          * unscaled 120..220 shell, and the nearest star triangles filled the screen. Size scales too (CPU parity). */
         float r = (120.0f + (float)(rand() % 1000) * 0.1f) * QG_SCALE;
@@ -1012,8 +1012,8 @@ void gdd_recreate_size_dependent(VulkanApp *app) {
 static void gdd_compute_view(VulkanApp *app, mat4 view, float cam_world[3]) {
     /* 1. Standard orbital view (tactical) */
     mat4 m_std; mat4_identity(m_std);
-    mat4_rotate(m_std, -app->angleY * M_PI / 180.0f, (vec3){0, 1, 0});
-    mat4_rotate(m_std, app->angleX * M_PI / 180.0f, (vec3){1, 0, 0});
+    mat4_rotate(m_std, (float)(-app->angleY * M_PI / 180.0f), (vec3){0, 1, 0});
+    mat4_rotate(m_std, (float)(app->angleX * M_PI / 180.0f), (vec3){1, 0, 0});
     mat4 T_cam; mat4_translate(T_cam, (vec3){0, 0, -qg_view_dist(app->cameraDist, app->mapAnim)});
     mat4_multiply(m_std, T_cam, m_std);
 
@@ -1037,10 +1037,10 @@ static void gdd_compute_view(VulkanApp *app, mat4 view, float cam_world[3]) {
         float pm = app->smoothObjs[0].m;
 
         mat4 R_ship; mat4_identity(R_ship);
-        mat4_rotate(R_ship, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
-        mat4_rotate(R_ship, -ph * M_PI / 180.0f, (vec3){0, 1, 0});
-        float h_rad = ph * M_PI / 180.0f;
-        mat4_rotate(R_ship, pm * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
+        mat4_rotate(R_ship, (float)(90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
+        mat4_rotate(R_ship, (float)(-ph * M_PI / 180.0f), (vec3){0, 1, 0});
+        float h_rad = (float)(ph * M_PI / 180.0f);
+        mat4_rotate(R_ship, (float)(pm * M_PI / 180.0f), (vec3){cosf(h_rad), 0, -sinf(h_rad)});
 
         float ly = (app->showBridge >= 11)
                  ? (-GDD_BRIDGE_CAMERA_OFFSET * tactScale)
@@ -1051,13 +1051,13 @@ static void gdd_compute_view(VulkanApp *app, mat4 view, float cam_world[3]) {
         cam_brg[0] = wx; cam_brg[1] = wy; cam_brg[2] = wz;
 
         mat4 R_base; mat4_identity(R_base);
-        mat4_rotate(R_base, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_base, (float)(90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
         int mode = app->showBridge % 10;
-        if (mode == 2) mat4_rotate(R_base, M_PI / 2.0f, (vec3){0, 1, 0});
-        else if (mode == 3) mat4_rotate(R_base, -M_PI / 2.0f, (vec3){0, 1, 0});
-        else if (mode == 4) mat4_rotate(R_base, M_PI / 4.0f, (vec3){0, 0, 1});
-        else if (mode == 5) mat4_rotate(R_base, -M_PI / 4.0f, (vec3){0, 0, 1});
-        else if (mode == 6) mat4_rotate(R_base, M_PI, (vec3){0, 1, 0});
+        if (mode == 2) mat4_rotate(R_base, (float)(M_PI / 2.0f), (vec3){0, 1, 0});
+        else if (mode == 3) mat4_rotate(R_base, (float)(-M_PI / 2.0f), (vec3){0, 1, 0});
+        else if (mode == 4) mat4_rotate(R_base, (float)(M_PI / 4.0f), (vec3){0, 0, 1});
+        else if (mode == 5) mat4_rotate(R_base, (float)(-M_PI / 4.0f), (vec3){0, 0, 1});
+        else if (mode == 6) mat4_rotate(R_base, (float)M_PI, (vec3){0, 1, 0});
 
         mat4 R_cam_world;
         mat4_multiply(R_base, R_ship, R_cam_world);
@@ -1087,12 +1087,12 @@ static void gdd_compute_view(VulkanApp *app, mat4 view, float cam_world[3]) {
         float pr = (float)app->shm->buffers[r_idx_p].shm_r;
 
         mat4 R_ship; mat4_identity(R_ship);
-        mat4_rotate(R_ship, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
-        mat4_rotate(R_ship, -ph * M_PI / 180.0f, (vec3){0, 1, 0});
-        float h_rad = ph * M_PI / 180.0f;
-        mat4_rotate(R_ship, pm * M_PI / 180.0f, (vec3){cosf(h_rad), 0, -sinf(h_rad)});
+        mat4_rotate(R_ship, (float)(90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
+        mat4_rotate(R_ship, (float)(-ph * M_PI / 180.0f), (vec3){0, 1, 0});
+        float h_rad = (float)(ph * M_PI / 180.0f);
+        mat4_rotate(R_ship, (float)(pm * M_PI / 180.0f), (vec3){cosf(h_rad), 0, -sinf(h_rad)});
         /* Roll: rotate around the ship's forward axis */
-        mat4_rotate(R_ship, pr * M_PI / 180.0f,
+        mat4_rotate(R_ship, (float)(pr * M_PI / 180.0f),
                     (vec3){sinf(h_rad), 0.0f, cosf(h_rad)});
 
         float ly = GDD_PILOT_CAMERA_OFFSET * tactScale;
@@ -1103,7 +1103,7 @@ static void gdd_compute_view(VulkanApp *app, mat4 view, float cam_world[3]) {
         cam_pilot[0] = wx; cam_pilot[1] = wy; cam_pilot[2] = wz;
 
         mat4 R_base; mat4_identity(R_base);
-        mat4_rotate(R_base, 90.0f * M_PI / 180.0f, (vec3){0, 1, 0});
+        mat4_rotate(R_base, (float)(90.0f * M_PI / 180.0f), (vec3){0, 1, 0});
         mat4 R_cam_world;
         mat4_multiply(R_base, R_ship, R_cam_world);
 
@@ -1410,7 +1410,7 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
                            cam_world[1] * cam_world[1] +
                            cam_world[2] * cam_world[2]);
     if (cam_dist < 1.0f) cam_dist = 1.0f;
-    float wu_per_px = 2.0f * cam_dist * tanf(fov * M_PI / 360.0f)
+    float wu_per_px = 2.0f * cam_dist * tanf((float)(fov * M_PI / 360.0f))
                     / (float)app->swapChainExtent.height;
     pc.line_min_wu = 0.5f * GDD_LINE_MIN_PX * wu_per_px;
 
@@ -1643,7 +1643,7 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
     memset(&spc, 0, sizeof(spc));
     memcpy(spc.cam, cam_world, sizeof(spc.cam));
     mat4 proj; mat4 mvp;
-    mat4_perspective(fov * M_PI / 180.0f,
+    mat4_perspective((float)(fov * M_PI / 180.0f),
                      (float)app->swapChainExtent.width / (float)app->swapChainExtent.height,
                      0.1f, QG_FAR_PLANE, proj);
     proj[1][1] *= -1.0f; /* CPU-path Y flip, kept for exact parity */
@@ -1804,8 +1804,8 @@ void gdd_draw_frame(VulkanApp *app) {
 
     clock_gettime(CLOCK_MONOTONIC, &ts_cpu_end);
     g->metrics.cpu_upload_ms =
-        (ts_cpu_end.tv_sec - ts_cpu_start.tv_sec) * 1000.0f +
-        (ts_cpu_end.tv_nsec - ts_cpu_start.tv_nsec) / 1e6f;
+        ((float)(ts_cpu_end.tv_sec - ts_cpu_start.tv_sec)) * 1000.0f +
+        ((float)(ts_cpu_end.tv_nsec - ts_cpu_start.tv_nsec)) / 1e6f;
 
     gdd_record(f->cmd, app, imgIdx);
 
@@ -1845,8 +1845,8 @@ void gdd_draw_frame(VulkanApp *app) {
     struct timespec ts_frame_end;
     clock_gettime(CLOCK_MONOTONIC, &ts_frame_end);
     g->metrics.total_ms =
-        (ts_frame_end.tv_sec - ts_cpu_start.tv_sec) * 1000.0f +
-        (ts_frame_end.tv_nsec - ts_cpu_start.tv_nsec) / 1e6f;
+        ((float)(ts_frame_end.tv_sec - ts_cpu_start.tv_sec)) * 1000.0f +
+        ((float)(ts_frame_end.tv_nsec - ts_cpu_start.tv_nsec)) / 1e6f;
 
     g->current_frame = (slot + 1) % GDD_MAX_FRAMES;
 

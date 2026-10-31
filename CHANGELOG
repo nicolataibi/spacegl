@@ -1,3 +1,15 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.34
+  - Build hygiene, roadmap phase 4: -Wconversion on for the two graphical
+  viewers (spacegl_3dview, spacegl_vulkan); every program of the project
+  is now under it, gcc and clang. 2340 implicit conversions made explicit
+  (float literals given as doubles to the GL and math calls, double
+  geometry stored in float vertices, counts multiplied by sizes, ...).
+  - The machine code and the constant data of every object file of both
+  viewers are identical before and after (objdump -d and -s, Release):
+  the casts sit exactly where the compiler converted. In the 24 compound
+  assignments to a float with a double right-hand side the explicit form
+  keeps the double arithmetic (x = (float)(x + d)).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.33
   - Tests, roadmap phase 6: new ctest radio_e2e, two real command decks
   (ALPHA talks, BRAVO listens) on the real server. Each message goes deck

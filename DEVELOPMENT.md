@@ -382,8 +382,11 @@ number and element count.
   coordinate inside a quadrant is `galaxy_rand_coord()`
   (`src/server/galaxy_internal.h`). Since 2026.10.31.32 the deck
   (`spacegl_client`) and the text tools (`spacegl_telemetry`,
-  `spacegl_viewer`, `spacegl_hud`, `spacegl_diag`) are under it too. The
-  graphical viewers (`spacegl_3dview`, `spacegl_vulkan`, about 2300 sites,
-  mostly double to float for the graphics) are not yet; each change is
-  checked by comparing the machine code (`objdump -d`) before and after.
+  `spacegl_viewer`, `spacegl_hud`, `spacegl_diag`) are under it too, and
+  since 2026.10.31.34 the graphical viewers (`spacegl_3dview`,
+  `spacegl_vulkan`): every program of the project. Each change was checked
+  by comparing the machine code and the constant data (`objdump -d -s`)
+  before and after. In a compound assignment to a float (`x += d`, `d` a
+  double) the explicit form is `x = (float)(x + d)`, not
+  `x += (float)d`, which would add in float instead of double.
 
