@@ -337,6 +337,14 @@ traceable in the changelog:
     sync failure path no longer tears down a slot rebound to a new login;
     the relay keeps embedded NUL bytes (explicit length, no `strlen`)
     (2026.10.31.02) — pinned by `tests/relay_snapshot_test`;
+*   PKT_LOGIN proves the identity: it was bound to the captain's slot by
+    name alone (the access code was checked only by PKT_QUERY, and the
+    reconnect path sends PKT_LOGIN without it), so a client holding the
+    server key could enter as any captain or take an active session; now
+    the record must exist and the salt and hash must match (constant-time
+    compare), and a verified login takes over a captain still bound to an
+    older connection, whose socket is shut down (2026.10.31.04) — pinned
+    by `tests/login_auth_test`;
 *   TCP transport hardening (`TCP_NODELAY`, keepalive probes, buffer sizing)
     and token bucket rate limiting (200 pkt/s, DoS protection, 2026.10.17.04) —
     pinned by `tests/rate_limit_test`.

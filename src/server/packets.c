@@ -36,6 +36,7 @@
 #include <pthread.h>
 #include <time.h>
 #include <errno.h>
+#include <openssl/crypto.h>
 #include "server_internal.h"
 #include "conn.h"
 #include "packets.h"
@@ -60,6 +61,55 @@ int sanitize_captain_name(const char *name) {
         }
     }
     return 1;
+}
+
+/* Captain identity record on disk: captains/<name>/identity.hash (32 B)
+ * and, for salted (v2) accounts, captains/<name>/identity.salt (16 B). */
+typedef struct {
+    bool exists;          /* identity.hash could be opened             */
+    bool have_hash;       /* ... and holds 32 bytes                    */
+    bool have_salt;       /* identity.salt holds 16 bytes (v2 account) */
+    uint8_t hash[32];
+    uint8_t salt[16];
+    char auth_path[1024];
+    char salt_path[1024];
+} IdentityRecord;
+
+/* name must already have passed sanitize_captain_name(). */
+static void identity_load(const char *name, IdentityRecord *r) {
+    memset(r, 0, sizeof(*r));
+    char rel_auth[192];
+    char rel_salt[192];
+    snprintf(rel_auth, sizeof(rel_auth), "captains/%s/identity.hash", name);
+    snprintf(rel_salt, sizeof(rel_salt), "captains/%s/identity.salt", name);
+    server_data_path(r->auth_path, sizeof(r->auth_path), rel_auth);
+    server_data_path(r->salt_path, sizeof(r->salt_path), rel_salt);
+
+    FILE *fa = fopen(r->auth_path, "rb");
+    if (!fa) return;
+    r->exists = true;
+    r->have_hash = (fread(r->hash, 1, 32, fa) == 32);
+    fclose(fa);
+
+    FILE *fs = fopen(r->salt_path, "rb");
+    if (fs) {
+        r->have_salt = (fread(r->salt, 1, 16, fs) == 16);
+        fclose(fs);
+    }
+}
+
+/* Does the packet prove the password of this record? Salted (v2) record:
+ * the client's salt must be the stored one and pass_hash must match.
+ * Legacy (unsalted) record: pass_hash_legacy or pass_hash may match.
+ * Constant-time comparisons (CRYPTO_memcmp): the hashes are secrets. */
+static bool identity_hash_ok(const IdentityRecord *r, const PacketLogin *pkt) {
+    if (!r->exists || !r->have_hash) return false;
+    if (r->have_salt) {
+        return CRYPTO_memcmp(pkt->salt, r->salt, 16) == 0 &&
+               CRYPTO_memcmp(r->hash, pkt->pass_hash, 32) == 0;
+    }
+    return CRYPTO_memcmp(r->hash, pkt->pass_hash_legacy, 32) == 0 ||
+           CRYPTO_memcmp(r->hash, pkt->pass_hash, 32) == 0;
 }
 
 /* Fetch the next chunk of the packet body. LEGACY mode (io->rx == NULL)
@@ -323,16 +373,10 @@ int dispatch_packet(PktIO *io, int32_t type) {
                      * Legacy unsalted identity.hash files remain verifiable and are
                      * transparently migrated to the salted scheme on first successful
                      * login (the client proved the password and supplied a fresh salt). */
-                    char rel_auth[192];
-                    char rel_salt[192];
-                    char auth_path[1024];
-                    char salt_path[1024];
-                    snprintf(rel_auth, sizeof(rel_auth), "captains/%s/identity.hash", pkt.name);
-                    snprintf(rel_salt, sizeof(rel_salt), "captains/%s/identity.salt", pkt.name);
-                    server_data_path(auth_path, sizeof(auth_path), rel_auth);
-                    server_data_path(salt_path, sizeof(salt_path), rel_salt);
-
-                    bool have_stored_salt = false;
+                    IdentityRecord rec;
+                    identity_load(pkt.name, &rec);
+                    const char *auth_path = rec.auth_path;
+                    const char *salt_path = rec.salt_path;
                     bool auth_ok = false;
 
                     /* A zero salt is the client's "I do not hold a salt for
@@ -342,32 +386,20 @@ int dispatch_packet(PktIO *io, int32_t type) {
                     bool client_salt_zero = true;
                     for(int b=0; b<16; b++) if (pkt.salt[b] != 0) { client_salt_zero = false; break; }
 
-                    FILE *fa = fopen(auth_path, "rb");
-                    if (fa) {
-                        uint8_t stored_hash[32] = {0};
-                        bool have_stored_hash = (fread(stored_hash, 1, 32, fa) == 32);
-                        fclose(fa);
-
-                        FILE *fs = fopen(salt_path, "rb");
-                        if (fs) {
-                            if (fread(stored_salt, 1, 16, fs) == 16) have_stored_salt = true;
-                            fclose(fs);
-                        }
-
-                        if (have_stored_salt) {
+                    if (rec.exists) {
+                        if (rec.have_salt) {
                             /* Salted (v2) account */
+                            memcpy(stored_salt, rec.salt, 16);
                             if (client_salt_zero) {
                                 status = PKT_ID_STATUS_SALT_REQUIRED; /* reply carries the stored salt */
-                            } else if (memcmp(pkt.salt, stored_salt, 16) != 0) {
+                            } else if (CRYPTO_memcmp(pkt.salt, rec.salt, 16) != 0) {
                                 status = 3; /* Wrong salt: verification fails */
                             } else {
-                                auth_ok = have_stored_hash && (memcmp(stored_hash, pkt.pass_hash, 32) == 0);
+                                auth_ok = identity_hash_ok(&rec, &pkt);
                             }
                         } else {
                             /* Legacy account (no salt on disk) */
-                            auth_ok = have_stored_hash &&
-                                (memcmp(stored_hash, pkt.pass_hash_legacy, 32) == 0 ||
-                                 memcmp(stored_hash, pkt.pass_hash, 32) == 0);
+                            auth_ok = identity_hash_ok(&rec, &pkt);
                             if (auth_ok && client_salt_zero) {
                                 /* Password proved, but no salt supplied yet: ask for one
                                    so the record can be migrated to the salted scheme. */
@@ -422,7 +454,7 @@ int dispatch_packet(PktIO *io, int32_t type) {
                         server_data_path(captains_path, sizeof(captains_path), "captains");
                         mkdir(captains_path, 0700);
                         mkdir(dir_path, 0700);
-                        fa = fopen(auth_path, "wb");
+                        FILE *fa = fopen(auth_path, "wb");
                         if (fa) {
                             fwrite(pkt.pass_hash, 1, 32, fa);
                             if (fchmod(fileno(fa), 0600) != 0) { /* best effort */ }
@@ -456,7 +488,31 @@ int dispatch_packet(PktIO *io, int32_t type) {
                 }
                 if (io_write(io, reply, reply_len) != 0) return 1;
             } else {
-                /* PKT_LOGIN: Re-using the same packet read for login */
+                /* PKT_LOGIN: the identity must be proved here too. PKT_QUERY
+                 * verifies the access code, but nothing ties a later
+                 * PKT_LOGIN to it, and the reconnect path sends PKT_LOGIN
+                 * alone: without this check a client holding the server key
+                 * entered as any captain with any hash. The record must
+                 * exist (created by PKT_QUERY for a new captain) and the
+                 * packet must carry the matching hash. Checked before
+                 * game_mutex: a refusal reaps the handshake slot, and
+                 * reap_player_fd() takes game_mutex itself. */
+                {
+                    IdentityRecord rec;
+                    identity_load(pkt.name, &rec);
+                    bool proved = identity_hash_ok(&rec, &pkt);
+                    OPENSSL_cleanse(rec.hash, sizeof(rec.hash));
+                    if (!proved) {
+                        SG_WARNING(SG_CAT_SECURITY,
+                                   "login refused for '%s' on fd %d: %s",
+                                   pkt.name, fd,
+                                   rec.exists ? "identity not proved" : "no identity record (PKT_QUERY first)");
+                        fprintf(stderr, "\033[1;33m[SECURITY]\033[0m Rejected login for '%s' on FD %d: identity not proved (connection closed).\n",
+                                pkt.name, fd);
+                        OPENSSL_cleanse(&pkt, sizeof(pkt));
+                        return io_close(io, CONN_CLOSE_REAP);
+                    }
+                }
                 pthread_mutex_lock(&game_mutex);
                 int slot = -1;
                 /* 1. Try to find a player with the same name (persistence) */
@@ -500,6 +556,21 @@ int dispatch_packet(PktIO *io, int32_t type) {
                         if (players[handshake_slot].name[0] == '\0') {
                             players[handshake_slot].socket = 0;
                         }
+                    }
+
+                    /* The captain is still bound to another connection (a
+                     * reconnect after a network drop the server has not
+                     * noticed yet, or a second terminal). The identity is
+                     * proved above, so the newest connection takes the
+                     * captain over: the old socket is shut down and
+                     * detached (its epoll/pump path then closes it and
+                     * finds no slot to reap), and the generation bump below
+                     * cancels a galaxy sync still in flight for it. */
+                    if (players[slot].socket != 0 && players[slot].socket != fd) {
+                        SG_NOTICE(SG_CAT_CLIENT, "captain %s: session taken over by fd %d (old fd %d detached)",
+                                  pkt.name, fd, players[slot].socket);
+                        player_socket_detach(slot);
+                        players[slot].active = 0;
                     }
 
                     players[slot].socket = fd;

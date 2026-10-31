@@ -26,9 +26,11 @@ Wire layout (include/network.h, all little-endian, no padding needed):
 
 The fuzzer's MASTER_SESSION_KEY is all-zero (harness default), so a
 VALID handshake is simply pubkey[32:64) = the magic string itself.
-A new-captain login (unknown name + non-zero salt) creates the identity
-records in the harness's temp sandbox and activates the player, so the
-following PKT_COMMAND packets reach process_command().
+A new-captain PKT_QUERY (unknown name + non-zero salt) creates the
+identity records in the harness's temp sandbox; the PKT_LOGIN that follows
+carries the same hash and salt, proves the identity (2026.10.31.04: a
+PKT_LOGIN without a matching record is refused) and activates the player,
+so the following PKT_COMMAND packets reach process_command().
 
 Usage:  python3 tests/fuzz/gen_corpus.py [corpus_dir]
 """
@@ -65,6 +67,16 @@ def login(name, faction=0, ship_class=0, salt=b"\xaa" * 16):
             + salt
             + b"\x24" * 32          # pass_hash_legacy
             + b"\x9c" * 32)         # x25519_pubkey
+
+
+def query(name, faction=0, ship_class=0, salt=b"\xaa" * 16):
+    """PKT_QUERY: same body as PKT_LOGIN; creates a new captain's record."""
+    return hdr(T_QUERY) + login(name, faction, ship_class, salt)[4:]
+
+
+def enroll(name, salt=b"\xaa" * 16):
+    """What the real client sends: PKT_QUERY (identity) then PKT_LOGIN."""
+    return query(name, salt=salt) + login(name, salt=salt)
 
 
 def command(text):
@@ -108,7 +120,7 @@ def main():
     os.makedirs(corpus, exist_ok=True)
     print(f"corpus dir: {corpus}")
 
-    auth = handshake() + login(b"SEEDCAPTAIN")
+    auth = handshake() + enroll(b"SEEDCAPTAIN")
 
     # 1. Happy path: handshake -> login -> common commands -> message
     #    -> profile deletion (zztop closes the connection; the close is
@@ -199,7 +211,7 @@ def main():
     write(corpus, "handshake_only.pkt", handshake())
     write(corpus, "double_handshake.pkt",
           handshake() + handshake(key=b"\x22" * 32)
-          + login(b"SEEDCAPTAIN") + command("who"))
+          + enroll(b"SEEDCAPTAIN") + command("who"))
     write(corpus, "login_bad_name_traversal.pkt",
           handshake() + login(b"../evil"))
     write(corpus, "login_bad_name_dot.pkt",
@@ -207,8 +219,15 @@ def main():
     write(corpus, "login_bad_name_long.pkt",
           handshake() + login(b"A" * 33))
     write(corpus, "login_salt_probe.pkt",  # all-zero salt (client probe)
-          handshake() + login(b"SEEDCAPTAIN", salt=b"\x00" * 16)
-          + login(b"SEEDCAPTAIN", salt=b"\xbb" * 16))
+          handshake() + query(b"SEEDCAPTAIN", salt=b"\x00" * 16)
+          + enroll(b"SEEDCAPTAIN"))
+    # PKT_LOGIN without the matching identity: refused, connection closed.
+    write(corpus, "login_without_identity.pkt",
+          handshake() + login(b"NOIDENTITY") + command("who"))
+    write(corpus, "login_wrong_salt.pkt",
+          handshake() + enroll(b"SEEDCAPTAIN")
+          + handshake() + login(b"SEEDCAPTAIN", salt=b"\xbb" * 16)
+          + command("who"))
 
     # 6. Unauthenticated commands (p_idx == -1): the body MUST still be
     #    consumed, or the stream desynchronizes.

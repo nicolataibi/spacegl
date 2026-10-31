@@ -437,6 +437,27 @@ endif()
 add_test(NAME relay_snapshot COMMAND relay_snapshot_test)
 set_tests_properties(relay_snapshot PROPERTIES TIMEOUT 60)
 
+# --- PKT_LOGIN identity proof (2026.10.31.04, roadmap phase 0) ---
+# The real dispatcher refuses PKT_LOGIN without an identity record, with a
+# wrong hash or a wrong salt; a verified login binds the slot and takes over
+# a captain still bound to another connection. Same sources as rate_limit.
+string(REPLACE "rate_limit_test.c" "login_auth_test.c" LOGIN_AUTH_SRCS "${RATE_LIMIT_SRCS}")
+add_executable(login_auth_test ${LOGIN_AUTH_SRCS})
+target_link_libraries(login_auth_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+if(OpenMP_C_FOUND)
+    target_link_libraries(login_auth_test PRIVATE OpenMP::OpenMP_C)
+endif()
+if(SG_ATOMIC_LIB)
+    target_link_libraries(login_auth_test PRIVATE ${SG_ATOMIC_LIB})
+endif()
+if(NOT MSVC)
+    target_compile_options(login_auth_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(login_auth_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME login_auth COMMAND login_auth_test)
+set_tests_properties(login_auth PROPERTIES TIMEOUT 60)
+
 # --- B2-b: radio cipher table index bounds (ASan/UBSan) ---
 add_executable(crypto_table_oob_test crypto_table_oob_test.c)
 target_link_libraries(crypto_table_oob_test PRIVATE OpenSSL::Crypto)

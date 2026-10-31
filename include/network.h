@@ -215,6 +215,12 @@ typedef struct {
  *     stored record to the salted scheme.
  *   - S -> C reply: int32 status, followed by uint8[16] salt when
  *     status == PKT_ID_STATUS_SALT_REQUIRED.
+ *   - PKT_LOGIN carries the same name, salt and hashes and is verified
+ *     again against the stored record (2026.10.31.04): no record, a wrong
+ *     salt or a wrong hash closes the connection. The reconnect path sends
+ *     PKT_LOGIN alone, so this check is the one that guards it. A verified
+ *     PKT_LOGIN for a captain still bound to another connection takes the
+ *     captain over and the older socket is shut down.
  */
 #define PKT_ID_STATUS_SALT_REQUIRED 5
 

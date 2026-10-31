@@ -1,3 +1,29 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.04
+  - Security (roadmap phase 0, problem 1): PKT_LOGIN did not check the
+  access code. It bound the connection to the captain's slot by name; the
+  password was verified only by PKT_QUERY, and nothing tied the two packets
+  (the reconnect path even sends PKT_LOGIN alone). A client holding the
+  server key could enter as any existing captain, or take a session in
+  use by overwriting the slot's socket. PKT_LOGIN now loads the captain's
+  identity record and requires the stored salt and a matching hash
+  (salted account) or a matching legacy hash (unsalted account); a missing
+  record or a mismatch closes the connection and reaps the handshake slot.
+  - The record lookup and the hash check are one pair of functions
+  (identity_load, identity_hash_ok) shared by PKT_QUERY and PKT_LOGIN; the
+  hashes are compared in constant time (CRYPTO_memcmp). PKT_QUERY statuses
+  are unchanged.
+  - Session takeover: a verified PKT_LOGIN for a captain still bound to
+  another connection (a reconnect after a drop the server has not noticed
+  yet) binds the new connection; the old socket is shut down and detached
+  with player_socket_detach(), and the generation bump cancels a galaxy
+  sync still in flight for it.
+  - Tests: new login_auth_test (real dispatcher over socketpairs, sandboxed
+  captains/: no record, wrong hash, wrong salt, verified login, takeover,
+  legacy record). Fuzz corpus: tests/fuzz/gen_corpus.py enrolls the seed
+  captain with PKT_QUERY before PKT_LOGIN, as the real client does, so the
+  seeds still reach process_command(); two new seeds (login without an
+  identity, login with a wrong salt). Protocol note in network.h updated.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.03
   - Client, regression of 2026.10.31.01: every cleartext message from the
   server ("Welcome aboard, new Captain", every COMPUTER/SCIENCE report of a
