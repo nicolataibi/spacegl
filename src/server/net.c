@@ -36,6 +36,7 @@
 #include "radio_crypto.h"
 #include "server_internal.h"
 #include "conn.h"
+#include "obj_delta.h"
 
 extern uint8_t deep_space_key[32];
 extern void ensure_player_algo_key(int p_idx, int k, bool private_mode);
@@ -556,6 +557,8 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     
     if (upd->beam_count > 0 || p->last_sent_state.beam_count > 0) mask |= UPD_COMBAT; 
     
+    ObjDeltaKind od_kind = OBJDELTA_NONE;
+    ObjDeltaPlan od_plan = {0};
     bool quadrant_changed = (p->last_q1 != upd->q1 || p->last_q2 != upd->q2 || p->last_q3 != upd->q3);
     p->full_update_timer++;
     if (quadrant_changed || p->full_update_timer > (5ULL * GAME_TICK_RATE)) {
@@ -570,46 +573,19 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
             "player %d (%s): UPD_OBJECTS forced into delta (quadrant_changed=%d, full_refresh) objs=%d frame=%llu",
             p_idx, p->name, (int)quadrant_changed, upd->object_count, (unsigned long long)upd->frame_id);
     } else {
-        bool meta_changed = false;
-        bool kin_changed = false;
-        
-        if (p->last_sent_state.object_count != upd->object_count) {
-            meta_changed = true;
+        /* Per-object delta (wire revision 3, include/obj_delta.h): only the
+         * objects that changed, the motion alone when only it changed; the
+         * whole list when that would not be smaller. */
+        od_kind = objdelta_plan(p->last_sent_state.objects, p->last_sent_state.object_count,
+                                upd->objects, upd->object_count, OBJDELTA_MAX_SIZE, &od_plan);
+        if (od_kind == OBJDELTA_FULL) {
+            mask |= UPD_OBJECTS;
             SG_TRACE3(SG_CAT_PROTOCOL,
-                "player %d (%s): UPD_OBJECTS membership change %d -> %d frame=%llu",
+                "player %d (%s): UPD_OBJECTS (delta not smaller) %d -> %d objs frame=%llu",
                 p_idx, p->name, p->last_sent_state.object_count, upd->object_count, (unsigned long long)upd->frame_id);
-        } else {
-            for (int i = 0; i < upd->object_count; i++) {
-                if (p->last_sent_state.objects[i].type != upd->objects[i].type ||
-                    p->last_sent_state.objects[i].ship_class != upd->objects[i].ship_class ||
-                    p->last_sent_state.objects[i].active != upd->objects[i].active ||
-                    p->last_sent_state.objects[i].health_pct != upd->objects[i].health_pct ||
-                    p->last_sent_state.objects[i].plating != upd->objects[i].plating ||
-                    p->last_sent_state.objects[i].hull_integrity != upd->objects[i].hull_integrity ||
-                    p->last_sent_state.objects[i].energy != upd->objects[i].energy ||
-                    p->last_sent_state.objects[i].faction != upd->objects[i].faction ||
-                    p->last_sent_state.objects[i].id != upd->objects[i].id ||
-                    p->last_sent_state.objects[i].is_cloaked != upd->objects[i].is_cloaked ||
-                    memcmp(p->last_sent_state.objects[i].name, upd->objects[i].name, 64) != 0) {
-                    meta_changed = true;
-                    break;
-                }
-                if (p->last_sent_state.objects[i].net_x != upd->objects[i].net_x ||
-                    p->last_sent_state.objects[i].net_y != upd->objects[i].net_y ||
-                    p->last_sent_state.objects[i].net_z != upd->objects[i].net_z ||
-                    p->last_sent_state.objects[i].vx != upd->objects[i].vx ||
-                    p->last_sent_state.objects[i].vy != upd->objects[i].vy ||
-                    p->last_sent_state.objects[i].vz != upd->objects[i].vz ||
-                    p->last_sent_state.objects[i].h != upd->objects[i].h ||
-                    p->last_sent_state.objects[i].m != upd->objects[i].m ||
-                    p->last_sent_state.objects[i].r != upd->objects[i].r) {
-                    kin_changed = true;
-                }
-            }
+        } else if (od_kind == OBJDELTA_DELTA) {
+            mask |= UPD_OBJDELTA;
         }
-        
-        if (meta_changed) mask |= UPD_OBJECTS;
-        else if (kin_changed) mask |= UPD_KINEMATICS;
     }
 
     if (mask == 0) {
@@ -692,17 +668,8 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     if (mask & UPD_OBJECTS) {
         int32_t oc = upd->object_count; memcpy(ptr, &oc, sizeof(int32_t)); ptr += sizeof(int32_t);
         if (oc > 0) { memcpy(ptr, upd->objects, (size_t)oc * sizeof(NetObject)); ptr += (size_t)oc * sizeof(NetObject); }
-    } else if (mask & UPD_KINEMATICS) {
-        int32_t oc = upd->object_count; memcpy(ptr, &oc, sizeof(int32_t)); ptr += sizeof(int32_t);
-        for (int i = 0; i < oc; i++) {
-            NetKinematics k = { 
-                upd->objects[i].id, 
-                (float)upd->objects[i].net_x, (float)upd->objects[i].net_y, (float)upd->objects[i].net_z,
-                (float)upd->objects[i].vx, (float)upd->objects[i].vy, (float)upd->objects[i].vz 
-            };
-            memcpy(ptr, &k, sizeof(NetKinematics));
-            ptr += sizeof(NetKinematics);
-        }
+    } else if (mask & UPD_OBJDELTA) {
+        ptr += objdelta_write(p->last_sent_state.objects, upd->objects, &od_plan, ptr);
     }
     if (mask & UPD_MAP) {
         UpdateBlockMap b = {upd->map_update_val, {upd->map_update_q[0], upd->map_update_q[1], upd->map_update_q[2]}, upd->map_update_val2, {upd->map_update_q2[0], upd->map_update_q2[1], upd->map_update_q2[2]}};

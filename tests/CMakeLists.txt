@@ -570,6 +570,30 @@ if(NOT MSVC)
 endif()
 add_test(NAME sg_str COMMAND sg_str_test)
 
+# --- Per-object update delta (2026.10.31.30): include/obj_delta.h --------
+# Round trip against the encoder on 3000 random steps, the attitude in the
+# motion records, the block sizes, hostile and truncated blocks refused.
+add_executable(obj_delta_test obj_delta_test.c)
+target_link_libraries(obj_delta_test PRIVATE m)
+if(NOT MSVC)
+    target_compile_options(obj_delta_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(obj_delta_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME obj_delta COMMAND obj_delta_test)
+
+# The REAL send_optimized_update() (net.c) on a socketpair, read back by a
+# reference parser of the delta packet: the deck's list follows the server
+# over 900 ticks, a busy quadrant travels as UPD_OBJDELTA.
+add_executable(update_delta_test update_delta_test.c
+    ${SG_ROOT}/src/server/net.c ${SG_ROOT}/src/sglog.c)
+target_link_libraries(update_delta_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+if(NOT MSVC)
+    target_compile_options(update_delta_test PRIVATE ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(update_delta_test PRIVATE ${SG_TEST_SAN_FLAGS})
+endif()
+add_test(NAME update_delta COMMAND update_delta_test)
+
 # --- Checked number parsing (2026.10.31.27): include/sg_parse.h ---------
 # sg_scan_nums() against the real sscanf() on valid input, the refusal of
 # out-of-range ints, NaN and infinity, sg_hex_decode() for the key files.

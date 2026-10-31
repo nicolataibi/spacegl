@@ -46,7 +46,7 @@ deployment master key (`SPACEGL_KEY_FILE`, `SPACEGL_KEY` or
 `~/.spacegl/key`); it never travels on the wire.
 
 ```
-C -> S  PacketHandshake: type = 6, pubkey_len = 0x32565348 ("HSV2")
+C -> S  PacketHandshake: type = 6, pubkey_len = 0x33565348 ("HSV3")
         pubkey[ 0..31]  eC   client ephemeral X25519 public key
         pubkey[32..63]  Nc   client nonce (32 random bytes)
         pubkey[64..95]  HMAC-SHA256(K, "SPACEGL-HS-V2/client" || eC || Nc)
@@ -61,7 +61,12 @@ session key  = HMAC-SHA256(PRK, "spacegl v2 session key"  || 0x01)
 mask         = HMAC-SHA256(PRK, "spacegl v2 galaxy verify" || 0x01)
 ```
 
-- A hello whose `pubkey_len` is not the v2 marker (the v1 hello) is refused.
+- `pubkey_len` is "HSV" followed by the **wire revision**, the layout of
+  every packet after the handshake: revision 3 since 2026.10.31.30 (the
+  per-object update delta), revision 2 from 2026.10.31.08. A hello with
+  another value (a revision-2 deck, the v1 hello) is refused and the
+  connection closed; the handshake exchange itself is the same v2 in both
+  revisions.
 - Both sides prove they know `K`; the session key comes from the ephemeral
   exchange (forward secrecy: a later leak of `K` does not open past
   sessions).
@@ -134,12 +139,28 @@ then one block per set bit, **in this order**:
 | 7 `UPD_EFFECTS` | supernova, torpedoes, wormhole, events, visible torpedoes |
 | 8 `UPD_PROBES` | 3 probes |
 | 9 `UPD_OBJECTS` | `int32 n` + `n` objects (177 B each): the full list of the quadrant |
-| 12 `UPD_KINEMATICS` | `int32 n` + `n` positions/velocities (28 B each), when only motion changed |
+| 13 `UPD_OBJDELTA` | the objects that changed, see below (instead of bit 9) |
 | 10 `UPD_MAP` | map cell updates |
 
-The full object list is sent when the membership or the metadata of an
-object changes, on a quadrant change and at least every 5 s; otherwise only
-the kinematics. A tick with no change sends nothing.
+Bit 12 (`UPD_KINEMATICS`, positions and velocities of every object) was
+used up to wire revision 2 and is not sent any more.
+
+`UPD_OBJDELTA` (`include/obj_delta.h`) changes the deck's list in place:
+
+```
+int32 object_count        length of the list after the update (0..1024)
+int32 n_full              n_full x { int32 index; NetObject (177 B) }
+int32 n_motion            n_motion x { int32 index; float x, y, z, vx, vy, vz, h, m, r }
+```
+
+An object whose fields other than the motion changed, and every slot at or
+past the previous length, comes as a full record; an object that only
+moved or turned comes as a motion record (40 bytes, the attitude
+included); the list is cut to `object_count`. Indices are strictly
+increasing inside each run and below `object_count`; the deck closes the
+connection on any other block. The full list (`UPD_OBJECTS`) is sent on a
+quadrant change, at least every 5 s, and whenever the delta would not be
+smaller. A tick with no change sends nothing.
 
 ## 7. Radio messages
 

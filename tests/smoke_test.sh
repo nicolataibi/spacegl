@@ -89,6 +89,14 @@ check "listening on port $PORT"      "$SERVER_LOG" "server: listening on port $P
 check "Galaxy Map synchronized"      "$CLIENT_LOG" "client: Galaxy Map synchronized"
 check "Welcome aboard, new Captain"  "$CLIENT_LOG" "client: Welcome aboard, new Captain"
 check "Command Deck ready"           "$CLIENT_LOG" "client: Command Deck ready"
+# The update stream decoded without a protocol error (the per-object
+# delta of wire revision 3 included, 2026.10.31.30).
+if grep -q "protocol error\|wire desync" "$CLIENT_LOG"; then
+    echo "  FAIL client: protocol error in the update stream"
+    rc=1
+else
+    echo "  ok   client: update stream decoded without protocol errors"
+fi
 if grep -q "FREQUENCY MISMATCH" "$CLIENT_LOG"; then
     echo "  FAIL client: a cleartext message was shown as FREQUENCY MISMATCH noise"
     rc=1

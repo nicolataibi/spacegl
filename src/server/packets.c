@@ -312,8 +312,15 @@ int dispatch_packet(PktIO *io, int32_t type) {
              * the master key on the wire (MAGIC XOR K). A v1 client is
              * told nothing it could use and dropped. */
             if (h_pkt.pubkey_len != HANDSHAKE_V2_MARKER) {
-                SG_WARNING(SG_CAT_SECURITY, "fd %d: handshake v1 refused (client too old: protocol v2 required)", fd);
-                fprintf(stderr, "\033[1;33m[SECURITY]\033[0m Handshake v1 refused on FD %d: the client must be updated (protocol v2).\n", fd);
+                if (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV2) {
+                    SG_WARNING(SG_CAT_SECURITY, "fd %d: deck of wire revision 2 refused (revision %d required)",
+                               fd, SPACEGL_WIRE_REVISION);
+                    fprintf(stderr, "\033[1;33m[SECURITY]\033[0m Deck of wire revision 2 refused on FD %d: the client must be updated (revision %d).\n",
+                            fd, SPACEGL_WIRE_REVISION);
+                } else {
+                    SG_WARNING(SG_CAT_SECURITY, "fd %d: handshake v1 refused (client too old: protocol v2 required)", fd);
+                    fprintf(stderr, "\033[1;33m[SECURITY]\033[0m Handshake v1 refused on FD %d: the client must be updated (protocol v2).\n", fd);
+                }
                 return io_close(io, CONN_CLOSE_SILENT);
             }
             /* Verify the client's proof of K and build the reply OUTSIDE

@@ -32,7 +32,8 @@
  *   session key = HMAC-SHA256(PRK, "spacegl v2 session key" || 0x01)
  *   mask        = HMAC-SHA256(PRK, "spacegl v2 galaxy verify" || 0x01)
  *                                     (HKDF-Expand, L = 32, one block)
- * A v1 request (pubkey_len != HANDSHAKE_V2_MARKER) is refused.
+ * A v1 request, or one of another wire revision (pubkey_len !=
+ * HANDSHAKE_V2_MARKER), is refused.
  *
  * K is a secret shared by every client of a deployment: v2 keeps it off the
  * wire, but a holder of K (any legitimate client) can still run the
@@ -51,7 +52,16 @@
 #include <openssl/hmac.h>
 #include <openssl/rand.h>
 
-#define HANDSHAKE_V2_MARKER    0x32565348   /* "HSV2" (little endian) in pubkey_len */
+/* pubkey_len of the hello: "HSV" + the wire revision. The handshake is v2
+ * in every revision; the revision numbers the layout of the packets that
+ * follow it, so a deck and a server of different revisions refuse each
+ * other at the hello instead of misreading the stream:
+ *   "HSV2"  revision 2, 2026.10.31.08 .. 2026.10.31.29
+ *   "HSV3"  revision 3, 2026.10.31.30: per-object update delta
+ *           (UPD_OBJDELTA, include/obj_delta.h) */
+#define SPACEGL_WIRE_REVISION  3
+#define HANDSHAKE_V2_MARKER    0x33565348   /* "HSV3" (little endian) in pubkey_len */
+#define HANDSHAKE_MARKER_REV2  0x32565348   /* "HSV2": a revision-2 deck, refused */
 #define HANDSHAKE_V2_REQ_LEN   96           /* eC + Nc + MAC used in pubkey[] */
 #define HANDSHAKE_V2_REPLY_LEN 128          /* eS + Ns + MAC + masked verify key */
 

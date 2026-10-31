@@ -47,6 +47,7 @@ static const char *get_lrs_object_icon(int id);
 #include <stdatomic.h>
 #include "network.h"
 #include "client_wire.h"
+#include "obj_delta.h"
 #include "handshake_v2.h"
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 #error "spacegl_client must not be built with FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION (fixed handshake keys)"
@@ -615,6 +616,12 @@ int read_all(int fd, void *buf, size_t len) {
         total += n;
     }
     return (int)total;
+}
+
+/* objdelta_apply() reader: exactly len bytes from the socket in ctx. */
+static bool deck_read_exact(void *ctx, void *buf, size_t len) {
+    int fd = *(const int *)ctx;
+    return read_all(fd, buf, len) == (int)len;
 }
 
 int write_all(int fd, const void *buf, size_t len) {
@@ -1246,40 +1253,17 @@ void *network_listener(void *arg) {
                         }
                         current_pkt_size += oc * sizeof(NetObject);
                     }
-                } else if (mask & UPD_KINEMATICS) {
-                    int32_t oc; int r_oc = read_all(sock, &oc, sizeof(int32_t));
-                    if (r_oc != (int)sizeof(int32_t)) {
-                        SG_ERROR(SG_CAT_LRS, "UPD_KINEMATICS: short read of object_count - wire desync, closing");
+                } else if (mask & UPD_OBJDELTA) {
+                    /* Per-object delta (wire revision 3, include/obj_delta.h):
+                     * a malformed block cannot be skipped without losing the
+                     * stream alignment, so it closes the connection. */
+                    long used = objdelta_apply(current_state.objects, &current_state.object_count,
+                                               deck_read_exact, &sock);
+                    if (used < 0) {
+                        SG_ERROR(SG_CAT_LRS, "UPD_OBJDELTA: malformed or short block - protocol error, closing");
                         break;
                     }
-                    current_pkt_size += sizeof(int32_t);
-                    if (!wire_count_ok(oc, MAX_NET_OBJECTS)) {
-                        SG_ERROR(SG_CAT_LRS, "UPD_KINEMATICS: object_count %d out of range [0,%d] - protocol error, closing",
-                                 oc, MAX_NET_OBJECTS);
-                        break;
-                    }
-                    current_state.object_count = oc;
-                    bool kin_short = false;
-                    if (oc > 0) {
-                        for (int i = 0; i < oc; i++) {
-                            NetKinematics k;
-                            int r_ob = read_all(sock, &k, sizeof(NetKinematics));
-                            if (r_ob != sizeof(NetKinematics)) {
-                                SG_ERROR(SG_CAT_LRS, "UPD_KINEMATICS: short read of object - wire desync, closing");
-                                kin_short = true;   /* this break only leaves the for */
-                                break;
-                            }
-                            current_pkt_size += sizeof(NetKinematics);
-                            current_state.objects[i].id = k.id;
-                            current_state.objects[i].net_x = k.net_x;
-                            current_state.objects[i].net_y = k.net_y;
-                            current_state.objects[i].net_z = k.net_z;
-                            current_state.objects[i].vx = k.vx;
-                            current_state.objects[i].vy = k.vy;
-                            current_state.objects[i].vz = k.vz;
-                        }
-                    }
-                    if (kin_short) break;   /* close, as the message says */
+                    current_pkt_size += (int)used;
                 }
                 
                 if (mask & UPD_MAP) {
@@ -1763,7 +1747,8 @@ int main(int argc, char *argv[]) {
     /* Handshake v2: the same do_handshake() as every reconnect. */
     if (!do_handshake()) {
         fprintf(stderr, B_RED "SECURITY ERROR: Master Key mismatch or Handshake rejected by server "
-                              "(protocol v2 required on both ends).\n" RESET);
+                              "(handshake v2, wire revision %d required on both ends: a server "
+                              "of another revision closes the link).\n" RESET, SPACEGL_WIRE_REVISION);
         close(sock);
         exit(1);
     }

@@ -1,3 +1,37 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.30
+  - Network, roadmap phase 5: per-object delta of the quadrant object list
+  (UPD_OBJDELTA, include/obj_delta.h, shared by server and deck). Until now
+  a change of any field other than the motion of any object of the quadrant
+  re-sent the whole list (177 bytes per object, up to 181 KB); the
+  captain's own entry is in the list and its energy changes nearly every
+  tick, so in a running session the full list went out on almost every
+  tick. Now only the objects that
+  changed travel: a full record for a changed or new object, a 40-byte
+  motion record for one that only moved or turned; the full list is still
+  sent on a quadrant change, every 5 s, and whenever the delta would not
+  be smaller (a quadrant with only the captain). Measured by the new
+  update_delta test on 900 ticks of a 121-object quadrant: 481 KB instead
+  of 19.3 MB of object blocks.
+  - The motion record carries the attitude: the former UPD_KINEMATICS block
+  sent positions and velocities only, so a ship turning in front of the
+  deck kept its old heading until the next full refresh (up to 5 s). Bit
+  12 is no longer used.
+  - Wire revision 3: the hello marker is "HSV3" (handshake v2 unchanged).
+  A deck of revision 2 is refused by the server with an explicit message
+  ("deck of wire revision 2 refused"); a revision-2 server closes the link
+  of a new deck, which reports the revision it requires. Deck and server
+  must be updated together.
+  - The deck closes the connection on a malformed block (count out of range,
+  indices not increasing, a new slot not sent as a full record, a short
+  read), as it does for the other counted blocks.
+  - Tests: obj_delta (round trip on 3000 random steps, attitude, sizes,
+  hostile and truncated blocks); update_delta (the real
+  send_optimized_update() on a socketpair, decoded by a reference reader);
+  smoke_e2e/smoke_async fail on any protocol error in the deck log. Fuzz
+  corpus: hello marker moved to revision 3 in the seeds and in the grown
+  units, new seed for the refused revision-2 hello. PROTOCOL.md sections 3
+  and 6.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.29
   - Tests, roadmap phase 6: new ctest server_commands, the command
   handlers on a real galaxy. The production galaxy, command, logic and
