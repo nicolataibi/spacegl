@@ -834,6 +834,22 @@ endif()
 add_test(NAME server_commands COMMAND server_commands_test)
 set_tests_properties(server_commands PROPERTIES TIMEOUT 300)
 
+# --- Radio between two real decks (2026.10.31.33) ------------------------
+# Two command decks on the real server: clear, fleet-encrypted (AES-256-GCM,
+# ChaCha20), identity-frequency and peer (X25519 link) messages reach the
+# other deck decrypted and signature-verified. RUN_SERIAL: port 5000.
+if(TARGET spacegl_server AND TARGET spacegl_client)
+    add_test(NAME radio_e2e
+             COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/radio_e2e_test.sh"
+                     $<TARGET_FILE:spacegl_server> $<TARGET_FILE:spacegl_client>)
+    set_tests_properties(radio_e2e PROPERTIES
+        RUN_SERIAL TRUE
+        TIMEOUT 120
+        SKIP_RETURN_CODE 77
+        PASS_REGULAR_EXPRESSION "PASS: radio_e2e"
+        FAIL_REGULAR_EXPRESSION "FAIL: radio_e2e")
+endif()
+
 # --- Telemetry protocol (2026.10.31.28) ---------------------------------
 # The REAL server's telemetry port (TCP 5001): every category subscribed
 # in turn, frames checked object by object, static populations compared

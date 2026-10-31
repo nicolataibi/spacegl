@@ -284,6 +284,15 @@ jobs:
             --gcov-ignore-errors=no_working_dir_found --gcov-ignore-parse-errors=all \
             --print-summary --fail-under-line "$(cat tests/coverage_threshold.txt)"
 
+      # The command deck (2026.10.31.33): its own floor, a ratchet like the
+      # server's (tests/coverage_threshold_deck.txt; target 60).
+      - name: Command deck line coverage
+        run: |
+          gcovr -r . build-cov \
+            --filter 'src/spacegl_client.c' \
+            --gcov-ignore-errors=no_working_dir_found --gcov-ignore-parse-errors=all \
+            --print-summary --fail-under-line "$(cat tests/coverage_threshold_deck.txt)"
+
   # ====================================================================
   # Fuzz: the REAL libFuzzer harness (tests/fuzz_packets.c) driving
   # dispatch_packet() + the command parser over a socketpair, seeded

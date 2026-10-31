@@ -1,3 +1,17 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.33
+  - Tests, roadmap phase 6: new ctest radio_e2e, two real command decks
+  (ALPHA talks, BRAVO listens) on the real server. Each message goes deck
+  -> server relay -> deck, signed with the Ed25519 key bound at login: in
+  clear, on the fleet frequency with AES-256-GCM and with ChaCha20, on
+  ALPHA's identity frequency (BRAVO tuned to it, [PRIVATE]) and on a peer
+  link (link on both sides, X25519 secret, [P2P]); each one must reach
+  BRAVO decrypted and [VERIFIED]. Both decks also run the status, sensor
+  and report commands and decode the update stream without a protocol
+  error.
+  - Deck line coverage measured in the CI coverage job with its own floor
+  (tests/coverage_threshold_deck.txt): src/spacegl_client.c at 71.1%,
+  from 49.0% (roadmap target 60%); floor 69. Server: 84.7%.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.32
   - Build hygiene, roadmap phase 4: -Wconversion on for the command deck
   and the text tools (spacegl_client, spacegl_telemetry, spacegl_viewer,
