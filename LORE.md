@@ -3992,7 +3992,7 @@ To ensure that encryption functions like a true tactical radio, the system adopt
 *   `rad <MSG>`: **Galactic Radio**. Sends a message to all vessels on the same frequency.
     *   **Strict Syntax**: 
         *   `rad <message>`: Global message.
-        *   `rad @Faction <message>`: Faction-restricted message (e.g., `@Alliance`).
+        *   `rad @Faction <message>`: Faction-restricted message (e.g., `@Alliance`). The channel is always your own faction's: the server routes the message by the sender's faction, so no captain can write on another faction's channel.
         *   `rad #ID <message>`: Private message directed to a specific ID (e.g., `#1`).
     *   **Note**: Messages starting with numbers (e.g., `rad 1 hello`) are no longer confused with private messages unless the `#` prefix is used.
     *   **Cost**: 5 Energy units per transmission.

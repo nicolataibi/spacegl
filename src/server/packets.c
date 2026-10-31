@@ -340,12 +340,20 @@ int dispatch_packet(PktIO *io, int32_t type) {
             LOG_DEBUG("game_mutex ACQUIRED for FD %d\n", fd);
             int slot = -1;
             for(int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) { slot = i; break; }
+            /* A free slot: an unnamed one first, so the handshake does not
+             * sit on the slot an offline captain keeps for his return
+             * (2026.10.31.39); a named offline slot only when no unnamed
+             * one is left. */
             if (slot == -1) {
-                for(int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == 0) {
-                    slot = i;
-                    players[i].socket = fd;
-                    players[i].active = 0;
-                    break;
+                for (int pass = 0; pass < 2 && slot == -1; pass++) {
+                    for (int i = 0; i < MAX_CLIENTS; i++) {
+                        if (players[i].socket != 0) continue;
+                        if (pass == 0 && players[i].name[0] != '\0') continue;
+                        slot = i;
+                        players[i].socket = fd;
+                        players[i].active = 0;
+                        break;
+                    }
                 }
             }
 
@@ -612,21 +620,36 @@ int dispatch_packet(PktIO *io, int32_t type) {
                     }
                 }
 
-                /* 2. If not found, find a TRULY empty slot (no name) */
+                /* 2. If not found, a TRULY empty slot: no name and no other
+                 * connection on it. An unnamed slot whose socket is another
+                 * fd is that connection's pending handshake: taking it
+                 * detached the other captain in the middle of his login
+                 * (two new captains logging in at the same time,
+                 * 2026.10.31.39). This connection's own handshake slot is
+                 * the first choice. */
+                if (slot == -1) {
+                    for (int j = 0; j < MAX_CLIENTS; j++) {
+                        if (players[j].socket == fd && players[j].name[0] == '\0') {
+                            slot = j;
+                            break;
+                        }
+                    }
+                }
                 if (slot == -1) {
                     for(int j=0; j<MAX_CLIENTS; j++) {
-                        if (players[j].name[0] == '\0') {
+                        if (players[j].name[0] == '\0' && players[j].socket == 0) {
                             slot = j;
                             break;
                         }
                     }
                 }
 
-                /* 3. Fallback: if server is full of named players, reuse an inactive slot (socket == 0)
-                   but we MUST clear it first so it's treated as a new player. */
+                /* 3. Fallback: if server is full of named players, reuse an inactive slot (socket == 0,
+                   or this connection's own handshake slot) but we MUST clear it first so it's treated
+                   as a new player. */
                 if (slot == -1) {
                     for(int j=0; j<MAX_CLIENTS; j++) {
-                        if (players[j].socket == 0) {
+                        if (players[j].socket == 0 || players[j].socket == fd) {
                             slot = j;
                             memset(players[slot].name, 0, 64); /* Force is_new = true */
                             break;
@@ -642,10 +665,12 @@ int dispatch_packet(PktIO *io, int32_t type) {
                     if (handshake_slot != -1 && handshake_slot != slot) {
                         memcpy(players[slot].session_key, players[handshake_slot].session_key, 32);
                         g_cred_seq[slot] = g_cred_seq[handshake_slot];
-                        /* If the temporary slot was just for handshake, clear it */
-                        if (players[handshake_slot].name[0] == '\0') {
-                            players[handshake_slot].socket = 0;
-                        }
+                        /* The temporary handshake slot is released, also when
+                         * it is the slot of an offline captain (the name
+                         * stays, for his return): left bound to this fd, two
+                         * slots shared one socket and the departure reaped
+                         * only the first (2026.10.31.39). */
+                        players[handshake_slot].socket = 0;
                     }
 
                     /* The captain is still bound to another connection (a

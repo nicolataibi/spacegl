@@ -1,3 +1,37 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.39
+  - Fix (server): two new captains logging in at the same time could knock
+  each other out. At PKT_LOGIN a new captain took the first slot with no
+  name, and a slot holding another connection's pending handshake has no
+  name either: the "session takeover" path then detached that connection,
+  whose captain never got the galaxy ("Failed to synchronize Galaxy Map",
+  "Identity check: no response from server"). Eleven decks logging in at
+  once lost four. A new captain now takes his own handshake slot, or a
+  slot with no name and no connection (src/server/packets.c).
+  - Fix (server): when a handshake had to use the slot an offline captain
+  keeps for his return, the slot stayed bound to the new connection after
+  its login moved to another slot: two slots shared one socket, the
+  departure reaped only one, and a later connection on the same fd number
+  could find the stale one (a handshake answered with update packets).
+  The handshake slot is now always released at login, and a handshake
+  takes an unnamed slot first.
+  - Tests: login_auth case 8 (two new captains, interleaved: both bound,
+  one slot each; fails on the old code) and case 9 (a handshake parked on
+  an offline captain's slot is released at login).
+  - Tests, roadmap (deck coverage): tests/deck_e2e_test.sh (ctest
+  deck_e2e) drives the command deck where the smoke and radio tests do
+  not: --help, --version, an unresolvable host, a refused connection,
+  another master key, three refused names, eleven new captains of
+  factions 1..11 logging in at once, the input line (backspace, empty
+  line, ESC, axs, grd, tune, the usage of rad and enc3, enc3 without a
+  link, every cipher name, enc off, rad @faction, rad #id), the same name
+  while on board, a wrong and a right access code, and a reconnect after
+  a server restart on the same data directory. Deck line coverage 71.1%
+  -> 86.8% (floor 69 -> 84, target 80 reached); server 85.3% (floor 83 ->
+  84).
+  - Documented (LORE.md): a faction message ("rad @Faction") goes to the
+  sender's own faction; the server rewrites the faction from the sender's
+  slot.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.38
   - CI, roadmap phase 5: a 5% regression gate on the server tick. The
   committed thresholds are absolute and sized for the slowest runner (they

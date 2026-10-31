@@ -21,6 +21,11 @@
  *     session key, and a PKT_LOGIN with no handshake, are refused.
  *  7. (2026.10.31.14) a handshake that never logs in is closed once its
  *     deadline passes and its slot is freed; a logged-in one is kept.
+ *  8. (2026.10.31.39) two new captains logging in at the same time are
+ *     both bound, one slot each (the first took the other's pending
+ *     handshake slot and detached him).
+ *  9. (2026.10.31.39) a handshake parked on an offline captain's slot is
+ *     released when its connection logs in.
  * Every connection runs the real v2 handshake first and masks its
  * credentials with hs_v2_cred_xor(), as the command deck does.
  */
@@ -441,6 +446,96 @@ int main(void) {
         TEST_CHECK(packets_close_stale_handshakes(-1, t0 + 10 * HANDSHAKE_PENDING_TIMEOUT_S) == 0);
         close(sv[0]); close(sl[0]); close(sl[1]);
         printf("[7] handshake without login closed after its deadline, logged-in kept: OK\n");
+    }
+
+    /* The connections above were closed by hand, not reaped: release their
+     * slots as the server's departure path would (the fd numbers are
+     * reused by the next socketpairs). */
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        players[i].socket = 0;
+        players[i].active = 0;
+    }
+
+    /* 8. (2026.10.31.39) two new captains logging in at the same time: the
+     *    first to send PKT_LOGIN must not take the other's pending handshake
+     *    slot (it did: an unnamed slot counted as free even with another
+     *    connection on it, and the "takeover" detached that connection). */
+    {
+        int sb[2];
+        make_pair_hs(sb);                       /* carol: lower slot */
+        int sa[2];
+        make_pair_hs(sa);                       /* bob */
+        PacketLogin qb = mk(PKT_QUERY, "bob", 0x61, 0xb1, 0);
+        PacketLogin qc = mk(PKT_QUERY, "carol", 0x62, 0xc1, 0);
+        int32_t status = 0;
+        TEST_CHECK(send_pkt(sa, &qb) == 0);
+        TEST_CHECK(read(sa[0], &status, sizeof(status)) == (ssize_t)sizeof(status) && status == 2);
+        TEST_CHECK(send_pkt(sb, &qc) == 0);
+        TEST_CHECK(read(sb[0], &status, sizeof(status)) == (ssize_t)sizeof(status) && status == 2);
+        PacketLogin lb = mk(PKT_LOGIN, "bob", 0x61, 0xb1, 0);
+        TEST_CHECK(send_pkt(sa, &lb) == 0);                /* bob first */
+        PacketLogin lc = mk(PKT_LOGIN, "carol", 0x62, 0xc1, 0);
+        TEST_CHECK(send_pkt(sb, &lc) == 0);
+        int s_bob = slot_of("bob"), s_carol = slot_of("carol");
+        TEST_CHECK(s_bob >= 0 && s_carol >= 0 && s_bob != s_carol);
+        TEST_CHECK(players[s_bob].socket == sa[1]);
+        TEST_CHECK(players[s_carol].socket == sb[1]);
+        TEST_CHECK(!fd_closed(sa[1]) && !fd_closed(sb[1]));
+        int bound_a = 0, bound_b = 0;
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if (players[i].socket == sa[1]) bound_a++;
+            if (players[i].socket == sb[1]) bound_b++;
+        }
+        TEST_CHECK(bound_a == 1 && bound_b == 1);          /* one slot per connection */
+        close(sa[0]);
+        close(sa[1]);
+        close(sb[0]);
+        close(sb[1]);
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            players[i].socket = 0;
+            players[i].active = 0;
+        }
+        printf("[8] two new captains logging in at the same time: both bound, one slot each: OK\n");
+    }
+
+    /* 9. (2026.10.31.39) a handshake that had to sit on an offline
+     *    captain's slot (no unnamed slot left) releases it at login: the
+     *    returning captain is bound to his own slot only, the offline
+     *    captain's slot keeps its name and no socket. */
+    {
+        char ghost_names[MAX_CLIENTS];
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            ghost_names[i] = (players[i].name[0] == '\0');
+            if (ghost_names[i]) snprintf(players[i].name, sizeof(players[i].name), "ghost%d", i);
+        }
+        int sv[2];
+        make_pair_hs(sv);
+        int hs_slot = -1;
+        for (int i = 0; i < MAX_CLIENTS; i++)
+            if (players[i].socket == sv[1]) hs_slot = i;
+        TEST_CHECK(hs_slot >= 0);
+        int s_bob = slot_of("bob");
+        TEST_CHECK(s_bob >= 0 && s_bob != hs_slot);        /* the handshake went elsewhere */
+        char hs_name[64];
+        snprintf(hs_name, sizeof(hs_name), "%s", players[hs_slot].name);
+        TEST_CHECK(hs_name[0] != '\0');                   /* an offline captain's slot */
+        PacketLogin ok = mk(PKT_LOGIN, "bob", 0x61, 0xb1, 0);
+        TEST_CHECK(send_pkt(sv, &ok) == 0);
+        TEST_CHECK(players[s_bob].socket == sv[1]);
+        TEST_CHECK(players[hs_slot].socket == 0);          /* released */
+        TEST_CHECK(strcmp(players[hs_slot].name, hs_name) == 0);
+        int bound = 0;
+        for (int i = 0; i < MAX_CLIENTS; i++)
+            if (players[i].socket == sv[1]) bound++;
+        TEST_CHECK(bound == 1);
+        close(sv[0]);
+        close(sv[1]);
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            players[i].socket = 0;
+            players[i].active = 0;
+            if (ghost_names[i]) players[i].name[0] = '\0';
+        }
+        printf("[9] handshake on an offline captain's slot released at login: OK\n");
     }
 
     printf("login_auth_test: all checks passed\n");

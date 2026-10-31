@@ -380,7 +380,13 @@ number and element count.
   At 2026.10.31.29 the server is at 84.5% (floor 83, target 80% reached);
   the command handlers run on a real galaxy in `tests/server_commands_test.c`
   and the telemetry port in `tests/telemetry_test.sh`. The least covered
-  files are logic_events.c and commands.c (about 65%).
+  files are logic_events.c and commands.c (about 65%). The command deck
+  (`src/spacegl_client.c`) has its own floor,
+  `tests/coverage_threshold_deck.txt`: 86.8% at 2026.10.31.39 (floor 84),
+  with `tests/deck_e2e_test.sh` driving the paths the smoke and radio tests
+  leave out (no server, wrong key, refused names, the faction menu, the
+  input line, duplicate and wrong logins, the reconnect after a server
+  restart). The server's floor is 84 (85.3% measured).
 - **Fuzzing.** The `fuzz` job of `ci.yml` runs libFuzzer for 3 minutes on
   every push; `nightly-fuzz.yml` runs it for one hour every night and keeps
   any finding as an artifact (replay it with `build-fuzz/tests/fuzz_packets

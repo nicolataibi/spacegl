@@ -850,6 +850,24 @@ if(TARGET spacegl_server AND TARGET spacegl_client)
         FAIL_REGULAR_EXPRESSION "FAIL: radio_e2e")
 endif()
 
+# --- Command deck paths (2026.10.31.39) --------------------------------
+# tests/deck_e2e_test.sh: what the smoke and radio tests leave out of the
+# deck (no server, wrong key, refused names, the faction menu with eleven
+# captains logging in at once, the input line, a duplicate login, a wrong
+# and a right access code, the reconnect after a server restart).
+# RUN_SERIAL: port 5000.
+if(TARGET spacegl_server AND TARGET spacegl_client)
+    add_test(NAME deck_e2e
+             COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/deck_e2e_test.sh"
+                     $<TARGET_FILE:spacegl_server> $<TARGET_FILE:spacegl_client>)
+    set_tests_properties(deck_e2e PROPERTIES
+        RUN_SERIAL TRUE
+        TIMEOUT 180
+        SKIP_RETURN_CODE 77
+        PASS_REGULAR_EXPRESSION "PASS: deck_e2e"
+        FAIL_REGULAR_EXPRESSION "FAIL: deck_e2e")
+endif()
+
 # --- Telemetry protocol (2026.10.31.28) ---------------------------------
 # The REAL server's telemetry port (TCP 5001): every category subscribed
 # in turn, frames checked object by object, static populations compared

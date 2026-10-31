@@ -311,7 +311,8 @@ jobs:
             --print-summary --fail-under-line "$(cat tests/coverage_threshold.txt)"
 
       # The command deck (2026.10.31.33): its own floor, a ratchet like the
-      # server's (tests/coverage_threshold_deck.txt; target 60).
+      # server's (tests/coverage_threshold_deck.txt; target 80, reached at
+      # 2026.10.31.39 with tests/deck_e2e_test.sh).
       - name: Command deck line coverage
         run: |
           gcovr -r . build-cov \
