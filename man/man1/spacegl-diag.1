@@ -1,35 +1,80 @@
-.TH SPACEGL-DIAG 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.TH SPACEGL-DIAG 1 "2026-11-01" "SpaceGL @VERSION@" "SpaceGL Manual"
 .SH NAME
 spacegl-diag \- SpaceGL diagnostic scanner launcher script
 .SH SYNOPSIS
 .B spacegl-diag
+.RB [ \-\-no\-banner ]
+.RI [ PID ]
+.RI [ "DIAG OPTIONS" ]
 .SH DESCRIPTION
 .B spacegl-diag
-is a Bash launcher script for the SpaceGL real-time diagnostic tool.
-It automatically detects the PID of the running
-.BR spacegl_server (1)
-process using
-.BR pgrep (1)
-and launches
-.BR spacegl_diag (1)
-in a dedicated
+starts the real-time diagnostic,
+.BR spacegl_diag (1),
+on a running
+.BR spacegl_server (1):
+the one given by
+.IR PID ,
+or the only one running (found with
+.BR pgrep (1);
+with several the PID must be given). When a graphical display and
 .BR xterm (1)
-window with optimized geometry (160x50), monospace font, and a black
-background with green text appropriate for diagnostic output.
+are available the diagnostic opens in a dedicated window (160x50,
+monospace, green on black) that stays open if it exits with an error;
+otherwise, or with
+.BR SPACEGL_DIAG_TERMINAL=here ,
+it runs in the current terminal.
+.SH OPTIONS
+.TP
+.B \-\-no\-banner
+No banner and no screen clearing.
+.TP
+.BR \-h ", " \-\-help
+Usage.
+.TP
+.I PID
+The process to watch: it must be a running
+.BR spacegl_server .
 .PP
-The script aborts with an error message if no running
-.B spacegl_server
-process is found.
+Further arguments are passed to
+.BR spacegl_diag .
+.SH ENVIRONMENT
+.TP
+.B SPACEGL_DIAG_TERMINAL
+.B xterm
+(default: a new xterm window when possible) or
+.B here
+(this terminal).
+.TP
+.B SPACEGL_BIN_DIR
+Directory of the program to run. Without it the script looks in the
+build tree next to itself, in its own directory (an installed
+.IR /usr/bin ),
+in
+.I ./build
+and
+.I .
+of the current directory, then in
+.BR PATH .
+.TP
+.B SPACEGL_NO_BANNER
+1: no banner and no screen clearing (like
+.BR \-\-no\-banner ).
+.TP
+.B NO_COLOR
+Set: no colours (they are also off when the output is not a terminal).
 .SH EXIT STATUS
 .TP
 .B 0
-Diagnostic launcher started successfully.
+The diagnostic window was opened (or, in this terminal, the
+diagnostic's own status).
 .TP
 .B 1
-.B spacegl_server
-not running, or
+No spacegl_server running, several running without a PID, or a PID
+that is not a spacegl_server.
+.TP
+.B 127
 .B spacegl_diag
-binary not found.
+not found.
 .SH SEE ALSO
 .BR spacegl_diag (1),
 .BR spacegl_server (1),

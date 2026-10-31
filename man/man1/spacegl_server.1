@@ -66,8 +66,9 @@ session.
 .B \-\-print\-identity
 Print the server identity (its fingerprint, then the 64 hex digits of its
 Ed25519 public key) and exit; the identity is created if it does not exist
-yet. The decks pin this key: compare the fingerprint they show on the
-first connection with it, or give the key to them in
+yet; no master key is needed. The decks pin this key: compare the
+fingerprint they show on the first connection with it, or give the key
+to them in
 .BR SPACEGL_SERVER_KEY .
 .TP
 .B \-\-version

@@ -884,6 +884,18 @@ add_executable(known_servers_test known_servers_test.c)
 target_link_libraries(known_servers_test PRIVATE OpenSSL::Crypto)
 add_test(NAME known_servers COMMAND known_servers_test)
 
+# --- Launcher scripts (2026.11.01.03) ------------------------------------
+# spacegl-server, spacegl-client, spacegl-diag with stub programs:
+# arguments passed unchanged, exit status, key sources and the key prompt
+# (on a pseudo-terminal), --help / --print-identity, a missing program, the
+# diagnostic's server lookup. Integrated mode only (the scripts live in the
+# source root). RUN_SERIAL: it starts fake "spacegl_server" processes.
+if(TARGET spacegl_server AND EXISTS "${SG_ROOT}/spacegl-server")
+    add_test(NAME launcher COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/launcher_test.sh")
+    set_tests_properties(launcher PROPERTIES RUN_SERIAL TRUE TIMEOUT 120
+        SKIP_RETURN_CODE 77 PASS_REGULAR_EXPRESSION "PASS: launcher" FAIL_REGULAR_EXPRESSION "FAIL: launcher")
+endif()
+
 # --- Command deck paths (2026.10.31.39) --------------------------------
 # tests/deck_e2e_test.sh: what the smoke and radio tests leave out of the
 # deck (no server, wrong key, refused names, the faction menu with eleven

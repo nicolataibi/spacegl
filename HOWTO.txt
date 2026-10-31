@@ -33,6 +33,12 @@ export SPACEGL_KEY="<paste the same value generated above>"
 
 # NOTE: server and clients MUST run with the identical SPACEGL_KEY,
 # otherwise the secure handshake will be rejected.
+# The launchers take the key from SPACEGL_KEY_FILE, SPACEGL_KEY or
+# ~/.spacegl/key, in this order; only when none exists they ask for it on
+# the terminal (not echoed). For a permanent setup prefer a key file:
+#   export SPACEGL_KEY_FILE=~/.spacegl/master.key   (64 hex digits, chmod 600)
+# Launcher options: --no-banner (no banner, no screen clearing); see
+# spacegl-server(1), spacegl-client(1), spacegl-diag(1).
 
 # 4. Server identity (wire revision 4). On its first boot the server creates
 #    its own identity key, server_identity.key in its data directory, and

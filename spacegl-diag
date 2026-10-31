@@ -1,68 +1,205 @@
-#!/usr/bin/bash
-# SpaceGL Diagnostic Launcher
-# Launches the scanner in a dedicated high-resolution terminal
-# Space GL - Copyright (C) 2026 Nicola Taibi
+#!/usr/bin/env bash
+# spacegl-diag — launcher of the SpaceGL real-time diagnostic (spacegl_diag).
+# Copyright (C) 2026 Nicola Taibi
 # License: GPL-3.0-or-later
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# Professional Startup Script
+#
+# Finds the running spacegl_server (or takes its PID), then starts
+# spacegl_diag on it in a dedicated xterm (160x50, green on black) when a
+# graphical display and xterm are available, otherwise in this terminal.
+# See spacegl-diag(1).
+#
+# Usage: spacegl-diag [--no-banner] [PID] [DIAG OPTIONS]
+# Environment: SPACEGL_BIN_DIR (where spacegl_diag is), NO_COLOR,
+#   SPACEGL_DIAG_TERMINAL=xterm|here (default: xterm when possible).
 
-# Colors
-RED='\033[1;31m'
-GREEN='\033[1;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-CYAN='\033[1;36m'
-NC='\033[0m' # No Color
+# --- common part (identical in spacegl-server, spacegl-client, spacegl-diag) ---
+set -o nounset -o pipefail
 
-clear
-echo -e "${RED}  ____________________________________________________________________________"
-echo -e ' /                                                                            \'
-echo -e " | ${CYAN}   ███████╗██████╗  █████╗  ██████╗███████╗     ██████╗ ██╗              ${RED}  |"
-echo -e " | ${CYAN}   ██╔════╝██╔══██╗██╔══██╗██╔════╝██╔════╝    ██╔════╝ ██║              ${RED}  |"
-echo -e " | ${CYAN}   ███████╗██████╔╝███████║██║     █████╗      ██║  ███╗██║              ${RED}  |"
-echo -e " | ${CYAN}   ╚════██║██╔═══╝ ██╔══██║██║     ██╔══╝      ██║   ██║██║              ${RED}  |"
-echo -e " | ${CYAN}   ███████║██║     ██║  ██║╚██████╗███████╗    ╚██████╔╝███████╗         ${RED}  |"
-echo -e " | ${CYAN}   ╚══════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚══════╝     ╚═════╝ ╚══════╝         ${RED}  |"
-echo -e ' |                                                                            |'
-echo -e " | ${RED}    ---  G A L A C T I C   S E R V E R   D I A G N O S T I C  ---         ${RED} |"
-echo -e " | ${YELLOW}          \"Per Tenebras, Lumen\" (Through darkness, light)                 ${RED} |"
-echo -e ' \____________________________________________________________________________/'"${NC}"
-echo ""
+PROG=${0##*/}
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 
-# 1. Find Server PID (exclude script, find binary)
-# Using -x to match the executable name exactly
-SERVER_PID=$(pgrep -x "spacegl_server" | head -n 1)
-
-if [ -z "$SERVER_PID" ]; then
-    echo "Error: SpaceGL Server process not found."
-    echo "Ensure spacegl_server is running before launching diagnostics."
-    exit 1
-fi
-
-echo "Targeting Server PID: $SERVER_PID"
-
-# Binary verification with build folder priority
-if [ -f "./build/spacegl_diag" ]; then
-    DIAG_BIN="./build/spacegl_diag"
-elif [ -f "./spacegl_diag" ]; then
-    DIAG_BIN="./spacegl_diag"
+# Colours only on a terminal, and never with NO_COLOR (https://no-color.org).
+if [[ -t 1 && -z ${NO_COLOR:-} ]]; then
+    RED=$'\033[1;31m' GREEN=$'\033[1;32m' YELLOW=$'\033[1;33m'
+    BLUE=$'\033[1;34m' CYAN=$'\033[1;36m' NC=$'\033[0m'
 else
-    DIAG_BIN=$(which spacegl_diag 2>/dev/null || echo "/usr/bin/spacegl_diag")
+    RED='' GREEN='' YELLOW='' BLUE='' CYAN='' NC=''
 fi
 
-if [ ! -x "$DIAG_BIN" ]; then
-    echo "Error: Diagnostic binary not found or not executable: $DIAG_BIN"
-    exit 1
-fi
+info() { printf '%s[%s]%s %s\n' "$BLUE" "$PROG" "$NC" "$*"; }
+ok()   { printf '%s[%s]%s %s\n' "$GREEN" "$PROG" "$NC" "$*"; }
+warn() { printf '%s[%s]%s %s\n' "$YELLOW" "$PROG" "$NC" "$*" >&2; }
+die()  { # die <exit code> <message>
+    local code=$1; shift
+    printf '%s[%s] ERROR:%s %s\n' "$RED" "$PROG" "$NC" "$*" >&2
+    exit "$code"
+}
 
-# 3. Launch XTerm
-# Added a trap/read to keep the window open if the binary crashes or exits with error
-echo "Launching $DIAG_BIN..."
-xterm -geometry 160x50 \
-      -fa 'Monospace' -fs 10 \
-      -bg black -fg "#00ff00" \
-      -T "SPACE GL - REAL-TIME DIAGNOSTIC [PID: $SERVER_PID]" \
-      -e "bash -c '$DIAG_BIN $SERVER_PID || { echo; echo \"Process exited with error. Press Enter to close.\"; read; }'" &
+# find_bin <name>: the program to run. SPACEGL_BIN_DIR (packaging, tests)
+# is authoritative when set; otherwise the build tree next to this script,
+# this script's own directory (an installed /usr/bin), the build tree of
+# the current directory, the current directory, then PATH.
+find_bin() {
+    local name=$1 dir
+    if [[ -n ${SPACEGL_BIN_DIR:-} ]]; then
+        [[ -x $SPACEGL_BIN_DIR/$name && ! -d $SPACEGL_BIN_DIR/$name ]] || return 1
+        printf '%s\n' "$SPACEGL_BIN_DIR/$name"
+        return 0
+    fi
+    for dir in "$SCRIPT_DIR/build" "$SCRIPT_DIR" "$PWD/build" "$PWD"; do
+        if [[ -x $dir/$name && ! -d $dir/$name ]]; then
+            printf '%s\n' "$dir/$name"
+            return 0
+        fi
+    done
+    command -v -- "$name" 2>/dev/null
+}
+
+# A key the programs accept (include/network.h): 64 hex digits, or a
+# string of at least 32 characters.
+key_ok() {
+    local k=$1
+    [[ $k =~ ^[0-9A-Fa-f]{64}$ ]] && return 0
+    (( ${#k} >= 32 ))
+}
+
+# ensure_key: the master key, from the first source that exists:
+# SPACEGL_KEY_FILE, SPACEGL_KEY, ~/.spacegl/key (read by the program
+# itself); only when none exists, and only on a terminal, the key is asked
+# for (not echoed) and passed in SPACEGL_KEY. Without a terminal (a pipe, a
+# service) nothing is asked: the program then creates ~/.spacegl/key.
+ensure_key() {
+    if [[ -n ${SPACEGL_KEY_FILE:-} ]]; then
+        ok "Master key: file $SPACEGL_KEY_FILE"
+        return 0
+    fi
+    if [[ -n ${SPACEGL_KEY:-} ]]; then
+        ok "Master key: SPACEGL_KEY"
+        return 0
+    fi
+    if [[ -n ${HOME:-} && -f $HOME/.spacegl/key ]]; then
+        ok "Master key: $HOME/.spacegl/key"
+        return 0
+    fi
+    if [[ ! -t 0 ]]; then
+        warn "no master key (SPACEGL_KEY_FILE, SPACEGL_KEY, ~/.spacegl/key) and no terminal to ask for one: a new ~/.spacegl/key will be created"
+        return 0
+    fi
+    local key='' _try
+    for _try in 1 2 3; do
+        printf '%s[AUTH]%s Master key of this deployment (64 hex digits, or at least 32 characters): ' "$CYAN" "$NC" >&2
+        IFS= read -r -s key || { printf '\n' >&2; die 2 "no key entered"; }
+        printf '\n' >&2
+        if key_ok "$key"; then
+            export SPACEGL_KEY=$key
+            return 0
+        fi
+        warn "not a valid key (${#key} characters)"
+    done
+    die 2 "no valid master key after 3 attempts"
+}
+
+# quiet_args <args...>: true when the run only prints information
+# (--help, --version, --print-identity): no banner, no key prompt.
+quiet_args() {
+    local a
+    for a in "$@"; do
+        case $a in -h|--help|--version|--print-identity) return 0 ;; esac
+    done
+    return 1
+}
+# --- end of the common part ---
+
+# The banner lines end in a literal backslash on purpose (the box border).
+# shellcheck disable=SC1003
+banner() {
+    echo -e "${RED}  ____________________________________________________________________________"
+    echo -e ' /                                                                            \'
+    echo -e " | ${CYAN}   ███████╗██████╗  █████╗  ██████╗███████╗     ██████╗ ██╗              ${RED}  |"
+    echo -e " | ${CYAN}   ██╔════╝██╔══██╗██╔══██╗██╔════╝██╔════╝    ██╔════╝ ██║              ${RED}  |"
+    echo -e " | ${CYAN}   ███████╗██████╔╝███████║██║     █████╗      ██║  ███╗██║              ${RED}  |"
+    echo -e " | ${CYAN}   ╚════██║██╔═══╝ ██╔══██║██║     ██╔══╝      ██║   ██║██║              ${RED}  |"
+    echo -e " | ${CYAN}   ███████║██║     ██║  ██║╚██████╗███████╗    ╚██████╔╝███████╗         ${RED}  |"
+    echo -e " | ${CYAN}   ╚══════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚══════╝     ╚═════╝ ╚══════╝         ${RED}  |"
+    echo -e ' |                                                                            |'
+    echo -e " | ${RED}    ---  G A L A C T I C   S E R V E R   D I A G N O S T I C  ---         ${RED} |"
+    echo -e " | ${YELLOW}          \"Per Tenebras, Lumen\" (Through darkness, light)                 ${RED} |"
+    echo -e ' \____________________________________________________________________________/'"${NC}"
+    echo
+}
+
+usage() {
+    cat <<USAGE
+Usage: $PROG [--no-banner] [PID] [DIAG OPTIONS]
+Starts spacegl_diag on the running spacegl_server: the one given by PID, or
+the only one running (with several, give the PID). In a dedicated xterm
+when a display and xterm are available (SPACEGL_DIAG_TERMINAL=here: in this
+terminal).
+USAGE
+}
+
+# is_server_pid <pid>: a running process whose executable is spacegl_server
+is_server_pid() {
+    local pid=$1 comm=''
+    [[ $pid =~ ^[1-9][0-9]*$ && -r /proc/$pid/comm ]] || return 1
+    IFS= read -r comm < "/proc/$pid/comm" || return 1
+    [[ $comm == spacegl_server ]]
+}
+
+main() {
+    local show_banner=1 args=() a
+    [[ ${SPACEGL_NO_BANNER:-0} == 1 ]] && show_banner=0
+    for a in "$@"; do
+        case $a in
+            --no-banner) show_banner=0 ;;
+            -h|--help) usage; return 0 ;;
+            *) args+=("$a") ;;
+        esac
+    done
+
+    local bin
+    bin=$(find_bin spacegl_diag) || die 127 "spacegl_diag not found (looked in ${SPACEGL_BIN_DIR:-$SCRIPT_DIR/build, $SCRIPT_DIR, ./build, . and PATH})"
+
+    local pid=''
+    if (( ${#args[@]} > 0 )) && [[ ${args[0]} =~ ^[0-9]+$ ]]; then
+        pid=${args[0]}
+        args=("${args[@]:1}")
+        is_server_pid "$pid" || die 1 "process $pid is not a running spacegl_server"
+    else
+        local pids=()
+        mapfile -t pids < <(pgrep -x spacegl_server || true)
+        case ${#pids[@]} in
+            0) die 1 "no spacegl_server is running: start it first (spacegl-server)" ;;
+            1) pid=${pids[0]} ;;
+            *) die 1 "${#pids[@]} spacegl_server processes are running (PIDs ${pids[*]}): give the one to watch, e.g. $PROG ${pids[0]}" ;;
+        esac
+    fi
+
+    if (( show_banner )) && [[ -t 1 ]]; then
+        clear 2>/dev/null || true
+        banner
+    fi
+    info "Watching spacegl_server PID $pid with $bin"
+
+    local where=${SPACEGL_DIAG_TERMINAL:-xterm}
+    if [[ $where == xterm ]] && [[ -n ${DISPLAY:-}${WAYLAND_DISPLAY:-} ]] && command -v xterm >/dev/null 2>&1; then
+        # The positional parameters carry the paths: no quoting of them in
+        # the -e string. The window stays open on an error exit.
+        # shellcheck disable=SC2016  # "$@" expands in the child bash
+        xterm -geometry 160x50 -fa Monospace -fs 10 -bg black -fg '#00ff00' \
+              -T "SPACE GL - REAL-TIME DIAGNOSTIC [PID: $pid]" \
+              -e bash -c '"$@" || { s=$?; echo; echo "spacegl_diag exited with status $s. Press Enter to close."; read -r _; }' \
+                 spacegl-diag "$bin" "$pid" "${args[@]+"${args[@]}"}" &
+        disown 2>/dev/null || true
+        info "Diagnostic opened in a new xterm window"
+        return 0
+    fi
+    [[ $where == xterm ]] && info "no graphical display or no xterm: running in this terminal"
+    exec "$bin" "$pid" "${args[@]+"${args[@]}"}"
+}
+
+main "$@"

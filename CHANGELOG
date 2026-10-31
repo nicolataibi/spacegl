@@ -1,3 +1,46 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.03
+  - Launcher scripts rewritten (spacegl-server, spacegl-client,
+  spacegl-diag), one structure for the three:
+  - the master key: the first existing source is used and named
+  (SPACEGL_KEY_FILE, SPACEGL_KEY, ~/.spacegl/key); the key is asked for
+  only when none exists and only on a terminal, without echo, checked (64
+  hex digits or at least 32 characters, three attempts, exit 2). Before,
+  the scripts asked whenever SPACEGL_KEY was unset, also with a key file,
+  and read the answer from standard input even when it was a pipe (the
+  deck's input); an empty answer was exported as an empty key;
+  - the program replaces the script (exec): every argument is passed
+  unchanged (quoted), the exit status and the signals are the program's;
+  - the program is looked up in SPACEGL_BIN_DIR when set, otherwise next
+  to the script (the build tree, then its own directory: an installed
+  /usr/bin), then ./build, ., PATH; a missing program is exit 127 with a
+  message;
+  - banner and screen clearing only on a terminal, --no-banner /
+  SPACEGL_NO_BANNER=1 to skip them, colours off without a terminal or with
+  NO_COLOR; --help prints the script's usage and the program's; --help,
+  --version and --print-identity show no banner and ask nothing;
+  - messages that were not true are gone ("Master Key validated", printed
+  before anything was validated; "Server listening on port 5000", printed
+  before the server started), and the developer's note with a key in
+  spacegl-client;
+  - spacegl-diag: an explicit PID (checked: it must be a running
+  spacegl_server), otherwise the only running server (with several: the
+  list and exit 1); xterm only with a graphical display and xterm
+  installed, otherwise the current terminal (SPACEGL_DIAG_TERMINAL=here
+  forces it); the paths reach xterm as arguments, no longer spliced into a
+  quoted command string; further arguments go to spacegl_diag.
+  - spacegl_server --print-identity needs no master key (it no longer
+  creates ~/.spacegl/key as a side effect).
+  - Tests: launcher (ctest; stub programs): arguments, exit status,
+  untouched standard input, the three key sources, the prompt on a pseudo
+  terminal (short key refused, the key not echoed, exit 2 after three),
+  --help / --version / --print-identity, a missing program, the
+  diagnostic's server lookup. CI lint job: shellcheck on the three scripts
+  and the test (clean).
+  - Man pages spacegl-server(1), spacegl-client(1), spacegl-diag(1)
+  rewritten for the new behaviour (MASTER KEY, EXIT STATUS, SPACEGL_BIN_DIR,
+  SPACEGL_NO_BANNER, NO_COLOR, SPACEGL_DIAG_TERMINAL); HOWTO.txt and
+  README.md updated.
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.02
   - Man pages aligned: spacegl-server(1) and spacegl-client(1), the
   launcher scripts, describe the server identity (first boot, backup of

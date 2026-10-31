@@ -700,8 +700,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* --print-identity only reads (or creates) the server identity: it
+     * needs no master key (and must not create ~/.spacegl/key). */
+    bool print_identity = false;
+    for (int i = 1; i < argc; i++)
+        if (strcmp(argv[i], "--print-identity") == 0) print_identity = true;
+
     /* Security Initialization: validate or generate master key */
-    if (load_master_key(MASTER_SESSION_KEY) != 0) {
+    if (!print_identity && load_master_key(MASTER_SESSION_KEY) != 0) {
         SG_FATAL(SG_CAT_SECURITY, "Failed to load master key");
         fprintf(stderr, "\033[1;31mSECURITY ERROR: Could not load or generate master key.\033[0m\n");
         exit(1);  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
@@ -734,9 +740,6 @@ int main(int argc, char *argv[]) {
         }
         if (strcmp(argv[i], "-d") == 0) g_debug = 1;
     }
-    bool print_identity = false;
-    for (int i = 1; i < argc; i++)
-        if (strcmp(argv[i], "--print-identity") == 0) print_identity = true;
 
     SG_INFO(SG_CAT_SYSTEM, "SpaceGL Galactic Server Core (pid %d, log level %s)",
             (int)getpid(), sglog_sev_name(sglog_threshold()));

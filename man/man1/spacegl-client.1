@@ -1,31 +1,34 @@
-.TH SPACEGL-CLIENT 1 "2026-04-19" "SpaceGL @VERSION@" "SpaceGL Manual"
+.TH SPACEGL-CLIENT 1 "2026-11-01" "SpaceGL @VERSION@" "SpaceGL Manual"
 .SH NAME
 spacegl-client \- SpaceGL tactical bridge launcher script
 .SH SYNOPSIS
 .B spacegl-client
-.RI [ OPTIONS ]
+.RB [ \-\-no\-banner ]
 .RI [ gl | vk ]
+.RI [ "DECK OPTIONS" ]
 .SH DESCRIPTION
 .B spacegl-client
-is a Bash wrapper script that provides an interactive startup interface
-for the SpaceGL game client. It displays the SpaceGL banner, asks for
-the master key interactively when the
-.B SPACEGL_KEY
-environment variable is not already set, and then delegates execution
-to
-.BR spacegl_client (1).
-.PP
-All arguments passed to this script are forwarded verbatim to the
-underlying
-.B spacegl_client
-binary. Pass
+starts the command deck,
+.BR spacegl_client (1):
+it shows the SpaceGL banner (on a terminal), makes sure a master key is
+available, then replaces itself with the deck. Every argument except
+.B \-\-no\-banner
+is passed on unchanged; the exit status and the signals are the deck's
+own, and the deck's standard input (the captain's answers) is not read
+by the script. Pass
 .B gl
-to use the OpenGL frontend or
+for the OpenGL frontend or
 .B vk
-to use the Vulkan frontend (GPU-driven rendering by default, with a
+for the Vulkan frontend (GPU-driven rendering by default, with a
 CPU-driven fallback;
 .B SPACEGL_GPD=0
-selects the CPU-driven path).
+selects the CPU-driven path). The deck starts the viewer it finds as
+.I ./build/spacegl_3dview
+(or
+.IR spacegl_vulkan ),
+.I ./spacegl_3dview
+or in
+.BR PATH .
 .PP
 Server identity (wire revision 4): on the first connection to a server
 the deck prints the server's fingerprint and pins its key in
@@ -35,13 +38,38 @@ connection to the same address with another key is refused with
 "SERVER IDENTITY CHANGED"; if the change is legitimate (the server's data
 directory was replaced), remove that server's line from the file.
 .SH OPTIONS
-Any option accepted by
-.BR spacegl_client (1)
-is passed through unchanged.
+.TP
+.B \-\-no\-banner
+No banner and no screen clearing.
+.TP
+.BR \-h ", " \-\-help
+The script's usage, then the deck's.
+.PP
+Every other option is the deck's (see
+.BR spacegl_client (1)).
+.SH MASTER KEY
+The key is taken from the first source that exists:
+.B SPACEGL_KEY_FILE
+(a file of 64 hex digits, mode 0600),
+.BR SPACEGL_KEY ,
+.IR ~/.spacegl/key ;
+the script names the source it found and the program reads it. Only when
+none exists, and only on a terminal, the script asks for the key (not
+echoed; 64 hex digits or at least 32 characters, three attempts) and
+passes it in
+.BR SPACEGL_KEY .
+Without a terminal (a pipe, a service) nothing is asked and the program
+creates
+.IR ~/.spacegl/key .
+.B \-\-help ,
+.B \-\-version
+and
+.B \-\-print\-identity
+show no banner and ask nothing.
 .SH ENVIRONMENT
 .TP
-.B SPACEGL_KEY
-If set, the authentication key prompt is skipped and this value is used directly.
+.BR SPACEGL_KEY_FILE ", " SPACEGL_KEY
+The master key (see MASTER KEY).
 .TP
 .B SPACEGL_SERVER_KEY
 The server's identity key (64 hex digits, from
@@ -53,14 +81,40 @@ Path of the known_servers file (default ~/.spacegl/known_servers).
 .TP
 .B SPACEGL_GPD
 For the Vulkan frontend: unset or 1 GPU-driven (default), 0 CPU-driven.
+.TP
+.B SPACEGL_BIN_DIR
+Directory of the program to run. Without it the script looks in the
+build tree next to itself, in its own directory (an installed
+.IR /usr/bin ),
+in
+.I ./build
+and
+.I .
+of the current directory, then in
+.BR PATH .
+.TP
+.B SPACEGL_NO_BANNER
+1: no banner and no screen clearing (like
+.BR \-\-no\-banner ).
+.TP
+.B NO_COLOR
+Set: no colours (they are also off when the output is not a terminal).
+.SH EXIT STATUS
+The program's own (the script replaces itself with it);
+.B 2
+when no valid key was entered,
+.B 127
+when the program is not found.
 .SH FILES
 .TP
 .I ~/.spacegl/known_servers
 The pinned identity of every server this deck has met.
+.TP
+.I ~/.spacegl/key
+The default master key.
 .SH SEE ALSO
 .BR spacegl_client (1),
 .BR spacegl-server (1),
-.BR spacegl_server (1),
 .BR spacegl_vulkan (1),
 .BR spacegl_3dview (1)
 .SH AUTHOR

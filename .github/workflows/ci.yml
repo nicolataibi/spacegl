@@ -233,7 +233,12 @@ jobs:
             cmake gcc clang clang-tidy libomp-dev pkgconf \
             libglfw3-dev libglu1-mesa-dev \
             libssl-dev libncurses-dev \
-            libvulkan-dev glslc
+            libvulkan-dev glslc shellcheck
+
+      - name: shellcheck (launcher scripts)
+        run: |
+          shellcheck --version
+          shellcheck spacegl-server spacegl-client spacegl-diag tests/launcher_test.sh
 
       - name: Configure (compile_commands.json)
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
