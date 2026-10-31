@@ -194,6 +194,9 @@ set(SERVER_SRCS
     src/server/commands.c
     src/server/conn.c
     src/server/galaxy.c
+    src/server/galaxy_index.c
+    src/server/galaxy_io.c
+    src/server/galaxy_names.c
     src/server/globals.c
     src/server/log.c
     src/server/logic.c

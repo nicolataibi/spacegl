@@ -1,3 +1,14 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.16
+  - Server galaxy, roadmap phase 3: galaxy.c (2216 lines) split into four
+  translation units without code change: galaxy.c (global pools,
+  generation, moons, star systems, 1465 lines), galaxy_index.c (static
+  index, dirty quadrants, LRS grid, per-tick rebuild), galaxy_io.c
+  (asynchronous save, save requests, load) and galaxy_names.c (species and
+  ship names). The only edits: spawn_evolved_stars, spawn_protostellar_objects,
+  spawn_moons and print_star_system_report lose "static" (load_galaxy() now
+  in galaxy_io.c calls them) and are declared, with get_random_ship_name, in
+  the private src/server/galaxy_internal.h.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.15
   - Server commands, roadmap phase 3: commands_handlers.inc (4290 lines)
   split by domain into eight files without any code change: comms (enc),
