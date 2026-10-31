@@ -829,6 +829,17 @@ static void gdd_build_starfield(GddState *g) {
 /* gdd_init / gdd_cleanup                                              */
 /* ------------------------------------------------------------------ */
 bool gdd_init(VulkanApp *app, GddMsaaMode msaa_mode) {
+    /* Test hook (2026.10.31.42): SPACEGL_GDD_FAIL_INIT=1 makes the init
+     * fail as a device without the GPU-driven path would, so the default
+     * fallback to the CPU-driven path can be tested on any machine
+     * (tests/gdd_default_test.sh). */
+    {
+        const char *fail = getenv("SPACEGL_GDD_FAIL_INIT");
+        if (fail && fail[0] == '1') {
+            fprintf(stderr, "[GDD] SPACEGL_GDD_FAIL_INIT=1: simulated init failure\n");
+            return false;
+        }
+    }
     GddState *g = calloc(1, sizeof(GddState));
     if (!g) return false;
     g->device = app->device;

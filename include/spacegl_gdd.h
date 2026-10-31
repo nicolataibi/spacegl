@@ -53,8 +53,9 @@
  *        input), the fragment shader re-implements the 10 procedural
  *        color modes of the CPU path (shader.frag).
  *
- * Selection: the SPACEGL_GPD environment variable (0 or unset ->
- * legacy CPU-driven path, 1 -> GPU-driven). If the device cannot
+ * Selection: the SPACEGL_GPD environment variable (unset or 1 ->
+ * GPU-driven, the default since 2026.10.31.42; 0 -> legacy CPU-driven
+ * path). If the device cannot
  * support the GPU-driven path (no graphics+compute queue, feature
  * request failure, pipeline creation failure) the client falls back to
  * the CPU-driven path automatically and prints a banner.

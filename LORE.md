@@ -929,16 +929,16 @@ Both architectures live in the **same binary**; the switch is made at startup by
 
 | `SPACEGL_GPD` | Architecture | Notes |
 | :--- | :--- | :--- |
-| *(unset)* or `0` | **CPU-driven** (legacy) | Default. Per-object draw calls, `LINE_LIST` primitives, 4× MSAA. Completely unchanged by 3.2. |
-| `1` | **GPU-driven (GDD)** | One instance upload + 3 compute passes + 2 `vkCmdDrawIndirect`. Requires Vulkan ≥ 1.3 (instance created at 1.4 when the driver exposes it) and a queue family with both graphics and compute. |
+| *(unset)* or `1` | **GPU-driven (GDD)** | **Default since 2026.10.31.42.** One instance upload + 3 compute passes + 2 `vkCmdDrawIndirect`. Requires Vulkan ≥ 1.3 (instance created at 1.4 when the driver exposes it) and a queue family with both graphics and compute; otherwise the CPU-driven path, automatically. |
+| `0` | **CPU-driven** (legacy) | Per-object draw calls, `LINE_LIST` primitives, 4× MSAA. The default until 2026.10.31.41, and the automatic fallback. |
 
 ```bash
-# CPU-driven (default — the variable can be left unset)
+# GPU-driven (default since 2026.10.31.42 — the variable can be left unset)
 ./spacegl_vulkan
-SPACEGL_GPD=0 ./spacegl_vulkan
-
-# GPU-driven (the new architecture)
 SPACEGL_GPD=1 ./spacegl_vulkan
+
+# CPU-driven (the legacy architecture)
+SPACEGL_GPD=0 ./spacegl_vulkan
 
 # GPU-driven, validation layer requested explicitly
 # (audits the GDD synchronization / pipeline code)
@@ -1062,14 +1062,14 @@ The scene fragment shader (`gdd_scene.frag`) re-implements the procedural color 
 
 ### ✅ Requirements and Graceful Fallback
 
-| Condition | Behavior with `SPACEGL_GPD=1` |
+| Condition | Behavior with `SPACEGL_GPD` unset or `1` |
 | :--- | :--- |
 | Driver Vulkan < 1.3 | Instance created at 1.0, GDD disabled, banner, CPU-driven path. |
 | No queue family with graphics+compute | Banner, CPU-driven path. |
 | Compute/scene pipeline or per-frame buffer creation failure | Banner, CPU-driven path. |
 | All requirements satisfied | GDD active; `[GDD] GPU-driven path initialized …` banner. |
 
-`SPACEGL_GPD=0` (or unset) never attempts GDD initialization.
+`SPACEGL_GPD=0` never attempts GDD initialization. With an explicit `SPACEGL_GPD=1`, a `--screenshot` run whose GDD cannot start exits with an error instead of rendering the CPU-driven path (the golden parity test compares the two). `SPACEGL_GDD_FAIL_INIT=1` simulates a GDD that cannot start (test hook, `tests/gdd_default_test.sh`).
 
 ### 📁 Code Layout, Shaders and Tests
 

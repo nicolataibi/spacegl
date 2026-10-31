@@ -668,6 +668,20 @@ if(TARGET spacegl_vulkan)
                          ENVIRONMENT "SPACEGL_SHADERS_DIR=${CMAKE_BINARY_DIR}/shaders")
 endif()
 
+# --- Vulkan viewer default path (2026.10.31.42) ------------------------
+# The GPU-driven path is the default, SPACEGL_GPD=0 the CPU-driven one, and
+# a GDD that cannot start falls back to the CPU-driven path (simulated with
+# SPACEGL_GDD_FAIL_INIT=1). Needs a display or xvfb-run and a Vulkan ICD:
+# SKIP (77) otherwise.
+if(TARGET spacegl_vulkan)
+    add_test(NAME gdd_default
+             COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/gdd_default_test.sh
+                     $<TARGET_FILE:spacegl_vulkan>)
+    set_tests_properties(gdd_default PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300 RUN_SERIAL TRUE
+                         ENVIRONMENT "SPACEGL_SHADERS_DIR=${CMAKE_BINARY_DIR}/shaders"
+                         PASS_REGULAR_EXPRESSION "PASS: gdd_default")
+endif()
+
 # --- GDD per-pass benchmark (2026.10.11.01) --------------------------
 # Median ms of the cull/expand/final passes (100 runs, warmup done,
 # one fence-wait per pass — the client's per-pass rhythm) against the

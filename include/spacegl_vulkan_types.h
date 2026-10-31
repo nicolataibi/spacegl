@@ -269,7 +269,7 @@ typedef struct VulkanApp {
     int    jsRetroActive;      /* 1 while the hat stays off-center         */
 
 
-    /* --- GPU-driven path (SPACEGL_GPD=1; NULL gdd => CPU-driven) --- */
+    /* --- GPU-driven path (the default; SPACEGL_GPD=0 or a failed init => NULL gdd => CPU-driven) --- */
     bool gdd_wanted;          /* the env var requested the GDD path */
     uint32_t gdd_queue_family;/* queue family used for the device queue */
     GddState* gdd;            /* GPU-driven state (NULL when inactive) */

@@ -434,6 +434,9 @@ jobs:
           ./build/tests/gdd_mesh_test ./build/shaders \
             --benchmark 100 tests/gdd_bench_thresholds.txt
 
+      - name: Vulkan viewer default path (GDD default, CPU-driven fallback)
+        run: bash tests/gdd_default_test.sh ./build/spacegl_vulkan
+
       - name: OpenGL viewer shared geometry (display lists vs immediate mode)
         run: xvfb-run -a ./build/tests/gl_shape_cache_test
 

@@ -1,3 +1,31 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.42
+  - Vulkan viewer, roadmap 2 (option A): the GPU-driven path (GDD) is the
+  default. SPACEGL_GPD unset or 1 selects it, SPACEGL_GPD=0 the CPU-driven
+  path. The fallback to the CPU-driven path stays at every step where the
+  GDD can be ruled out: a driver older than Vulkan 1.3 (instance at 1.0),
+  no graphics+compute queue family, no synchronization2/dynamicRendering,
+  a pipeline, image or buffer that cannot be created; one banner says so
+  ("GPU-driven path unavailable: falling back to CPU-driven rendering"),
+  also when the instance or the device already ruled it out. The command
+  deck sets nothing, so "spacegl_client vk" now starts the GPU-driven path.
+  On a machine with several GPUs the viewer now takes the first one that
+  can run the GDD (as SPACEGL_GPD=1 did), not always the first one.
+  - With an explicit SPACEGL_GPD=1 a --screenshot run whose GDD cannot
+  start exits with an error, also when the instance or the device ruled it
+  out (before, only a failed gdd_init): the golden parity test must not
+  compare the CPU-driven path with itself. Without the variable the
+  screenshot falls back like any run.
+  - Test hook SPACEGL_GDD_FAIL_INIT=1: gdd_init() fails as on a device
+  without the GDD. tests/gdd_default_test.sh (ctest gdd_default; CI gpu
+  job): unset -> GPU-driven path ACTIVE, frame matching SPACEGL_GPD=1;
+  SPACEGL_GPD=0 -> CPU-driven; unset with a failing GDD -> banner,
+  CPU-driven, frame matching SPACEGL_GPD=0, exit 0; SPACEGL_GPD=1 with a
+  failing GDD -> exit 1. Frames compared with golden_test.py (regression
+  tolerances; the CPU and GDD frames of the same scene fail that check, so
+  it tells the paths apart).
+  - Documented in README.md, LORE.md, include/spacegl_gdd.h, --help and
+  the spacegl_vulkan man page (new ENVIRONMENT section).
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.41
   - OpenGL viewer, roadmap (shared geometry): every glut shape was
   tessellated again on every draw in immediate mode, with a GLU quadric

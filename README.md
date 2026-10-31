@@ -35,7 +35,7 @@ SpaceGL is a C-based, multi-user space flight and combat simulator inspired by t
 
 The project separates simulation and network synchronization from rendering. The server owns the authoritative game state; clients exchange updates over a binary TCP protocol; local visualization processes consume synchronized state through shared memory. The graphics front ends include an OpenGL/GLFW path and a Vulkan renderer.
 
-The current project documentation describes two Vulkan rendering modes: the established CPU-driven renderer and an optional GPU-driven rendering (GDD) path. GDD is enabled at startup with `SPACEGL_GPD=1`; the CPU-driven path remains the default and is used as a graceful fallback when the required Vulkan capabilities are unavailable.
+The current project documentation describes two Vulkan rendering modes: the established CPU-driven renderer and an optional GPU-driven rendering (GDD) path. Since 2026.10.31.42 GDD is the default; `SPACEGL_GPD=0` selects the CPU-driven renderer, which is also the automatic fallback when the required Vulkan capabilities are unavailable.
 
 > **Project status:** the supplied documentation describes version 3.3, *The Living Catalog* (release 2026.10.24), which extends the numbered object catalog to IDs 0–177 (natural moons, evolved stars, protostellar objects, exotic compact objects) on top of the GPU-driven rendering path introduced in 3.2. Refer to the repository changelog and release assets for the exact state of a particular checkout.
 
@@ -142,8 +142,8 @@ The Vulkan viewer supports two rendering architectures, selected at process star
 
 | Setting | Renderer | Behavior |
 |---|---|---|
-| Unset or `SPACEGL_GPD=0` | CPU-driven (legacy) | Default path; CPU records per-object draw work |
-| `SPACEGL_GPD=1` | GPU-driven (GDD) | CPU uploads compact instance lists; GPU performs culling, geometry expansion, and indirect-draw setup |
+| Unset or `SPACEGL_GPD=1` | GPU-driven (GDD) | Default path (since 2026.10.31.42); CPU uploads compact instance lists; GPU performs culling, geometry expansion, and indirect-draw setup |
+| `SPACEGL_GPD=0` | CPU-driven (legacy) | CPU records per-object draw work; also the automatic fallback |
 
 The GDD path uses compute shaders for culling, geometry expansion, and final draw-command generation. It then renders opaque and additive passes using indirect drawing. The CPU/GPU data contract is shared between `include/spacegl_gdd.h` and `assets/shaders/gdd_common.glsl`, with compile-time layout assertions and contract tests.
 
@@ -151,19 +151,19 @@ The GDD path uses compute shaders for culling, geometry expansion, and final dra
 
 - GPU-driven rendering requires a Vulkan 1.3-or-newer-capable driver and a queue family that supports both graphics and compute.
 - The build requires `glslc` to compile the shader sources.
-- If GDD initialization is not supported or fails, the documented behavior is to print a diagnostic and fall back to the CPU-driven renderer.
+- If GDD initialization is not supported or fails, the viewer prints a diagnostic and falls back to the CPU-driven renderer. With an explicit `SPACEGL_GPD=1` a `--screenshot` run exits with an error instead (the golden parity test must not compare a path with itself).
 - Debug builds request `VK_LAYER_KHRONOS_validation` by default. `SPACEGL_VALIDATION=0` disables it; `SPACEGL_VALIDATION=1` requests it even in Release builds.
 
 Examples:
 
 ```bash
-# Default CPU-driven renderer
+# Default: GPU-driven renderer, CPU-driven fallback
 ./build/spacegl_vulkan
 
-# Explicitly select the CPU-driven renderer
+# Select the CPU-driven renderer
 SPACEGL_GPD=0 ./build/spacegl_vulkan
 
-# Request GPU-driven rendering
+# Request GPU-driven rendering explicitly
 SPACEGL_GPD=1 ./build/spacegl_vulkan
 
 # Request GPU-driven rendering and Vulkan validation

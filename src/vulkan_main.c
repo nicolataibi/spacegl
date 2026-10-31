@@ -520,19 +520,31 @@ int main(int argc, char** argv) {
     memset(app, 0, sizeof(VulkanApp));
     app->shm_fd = -1;
 
-    /* Architectural switch: SPACEGL_GPD=0 (or unset) keeps the legacy
-     * CPU-driven path; SPACEGL_GPD=1 selects the GPU-driven one (with
-     * automatic fallback to CPU-driven if the device cannot support it). */
+    /* Architectural switch (2026.10.31.42, roadmap 2 option A): the
+     * GPU-driven path is the default. SPACEGL_GPD=0 selects the legacy
+     * CPU-driven path; SPACEGL_GPD=1 (or unset) the GPU-driven one. When
+     * the driver or the device cannot run it (Vulkan < 1.3, no
+     * graphics+compute queue, no synchronization2/dynamicRendering, a
+     * pipeline or buffer that cannot be created) the viewer falls back to
+     * the CPU-driven path, at every one of those steps. */
     sglog_init("vkv");
     sglog_apply_args(argc, argv);
 
     const char *gpd = getenv("SPACEGL_GPD");
-    app->gdd_wanted = (gpd != NULL && atoi(gpd) == 1);
+    bool gpd_set = (gpd != NULL && gpd[0] != '\0');
+    app->gdd_wanted = !(gpd_set && strcmp(gpd, "0") == 0);
+    /* Explicit SPACEGL_GPD=1: a screenshot run must not silently render
+     * the other path (the golden parity test compares the two). */
+    bool gdd_explicit = gpd_set && app->gdd_wanted;
+    bool gdd_requested = app->gdd_wanted;   /* before the instance/device checks clear it */
     if (app->gdd_wanted) {
-        printf("[GDD] SPACEGL_GPD=1: requesting the GPU-driven path (Vulkan 1.3+)\n");
-        SG_NOTICE(SG_CAT_VULKAN, "SPACEGL_GPD=1: requesting GPU-driven path (pid %d)", (int)getpid());
+        printf("[GDD] %s: requesting the GPU-driven path (Vulkan 1.3+, CPU-driven fallback)\n",
+               gdd_explicit ? "SPACEGL_GPD=1" : "default");
+        SG_NOTICE(SG_CAT_VULKAN, "%s: requesting GPU-driven path (pid %d)",
+                  gdd_explicit ? "SPACEGL_GPD=1" : "default", (int)getpid());
     } else {
-        SG_NOTICE(SG_CAT_VULKAN, "CPU-driven path (SPACEGL_GPD unset/0, pid %d)", (int)getpid());
+        printf("[GDD] SPACEGL_GPD=0: CPU-driven path\n");
+        SG_NOTICE(SG_CAT_VULKAN, "CPU-driven path (SPACEGL_GPD=0, pid %d)", (int)getpid());
     }
 
     /* CLI options (2026.10.11.01): the screenshot/golden-render flags
@@ -569,6 +581,9 @@ int main(int argc, char** argv) {
                    VIEW_WINDOW_WIDTH, VIEW_WINDOW_HEIGHT);
             printf("  --version           display version information and exit\n");
             printf("  --help, -h          display this help and exit\n");
+            printf("Environment:\n");
+            printf("  SPACEGL_GPD=0       CPU-driven render path (default: GPU-driven, CPU fallback)\n");
+            printf("  SPACEGL_GPD=1       GPU-driven path, explicitly (a --screenshot run fails without it)\n");
             glfwTerminate();
             free(app);
             return 0;
@@ -695,17 +710,20 @@ int main(int argc, char** argv) {
        VK_ERROR_OUT_OF_DATE_KHR on every frame and the display freezes
        (see recreateSwapChain). */
     glfwSetFramebufferSizeCallback(app->window, framebufferSizeCallback);
-    
-    initVulkan(app); 
+
+    initVulkan(app);
 
     /* GPU-driven path: create the compute/scene pipelines and the
      * per-frame ring. On failure app->gdd stays NULL and the client
-     * transparently runs the CPU-driven path. */
+     * transparently runs the CPU-driven path (as it does when the
+     * instance or the device already ruled it out: gdd_wanted false). */
     if (app->gdd_wanted && !gdd_init(app, s_no_msaa ? GDD_MSAA_OFF : GDD_MSAA_4X)) {
         app->gdd_wanted = false;
+    }
+    if (gdd_requested && !app->gdd) {
         SG_WARNING(SG_CAT_VULKAN, "GPU-driven path unavailable: falling back to CPU-driven rendering");
         printf("[GDD] GPU-driven path unavailable: falling back to CPU-driven rendering\n");
-        if (s_shot_path[0]) {
+        if (s_shot_path[0] && gdd_explicit) {
             fprintf(stderr, "[GDD] ERROR: screenshot requested with SPACEGL_GPD=1 but GPU-driven path failed to initialize\n");
             cleanup(app);
             free(app);

@@ -46,6 +46,24 @@ Print version information and exit.
 .TP
 .B \-h\fR,\fB \-\-help
 Print usage summary and exit.
+.SH ENVIRONMENT
+.TP
+.B SPACEGL_GPD
+Unset or 1: the GPU-driven render path (the default), which falls back to
+the CPU-driven path when the driver or the device cannot run it (Vulkan
+older than 1.3, no graphics+compute queue family, no synchronization2 or
+dynamicRendering, a pipeline that cannot be created). 0: the CPU-driven
+path. With an explicit 1, a
+.B \-\-screenshot
+run exits with an error when the GPU-driven path cannot start.
+.TP
+.B SPACEGL_VALIDATION
+1 requests the Vulkan validation layer, 0 disables it (on by default in
+Debug builds).
+.TP
+.B SPACEGL_NO_MSAA
+1 disables multisampling (like
+.BR \-\-no\-msaa ).
 .SH FILES
 .TP
 .I /usr/bin/spacegl_vulkan
