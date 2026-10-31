@@ -504,7 +504,34 @@ void save_galaxy_async() {
     save_task(copy);
 }
 
-void save_galaxy() { save_galaxy_async(); }
+/* Who saves (2026.10.31.13, ThreadSanitizer). The save reads players[] and
+ * every pool while the caller holds game_mutex, but the game thread writes
+ * each player's send state (last_sent_state, full_update_timer, ...) in
+ * send_pending_updates(), outside the lock: a save from another thread
+ * (a departure on the epoll thread, the legacy loop, a command) raced with
+ * it. While the game thread runs, such a save is a request that the game
+ * thread carries out at its next tick, inside the lock, where nothing else
+ * writes players[]; the game thread itself, boot and shutdown save at once. */
+static atomic_bool g_save_requested = false;
+static atomic_bool g_game_thread_set = false;
+static pthread_t g_game_thread;
+
+void save_galaxy_set_game_thread(bool running) {
+    if (running) g_game_thread = pthread_self();
+    atomic_store(&g_game_thread_set, running);
+}
+
+bool save_galaxy_take_request(void) {
+    return atomic_exchange(&g_save_requested, false);
+}
+
+void save_galaxy() {
+    if (atomic_load(&g_game_thread_set) && !pthread_equal(pthread_self(), g_game_thread)) {
+        atomic_store(&g_save_requested, true);
+        return;
+    }
+    save_galaxy_async();
+}
 
 /* Evolved stars (red giants .. pulsating white dwarfs): 17 types stored in the
  * generic cosmic_features[] array after the exotic objects, type =

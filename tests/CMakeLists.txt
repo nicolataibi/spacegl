@@ -115,6 +115,18 @@ endif()
 # directory, never the product targets).
 add_compile_options(-ffp-contract=off)
 
+# Sanitizer of the test executables (2026.10.31.13). Default: ASan + UBSan,
+# as before. -DSPACEGL_TEST_SANITIZER=thread builds the same tests with
+# ThreadSanitizer (incompatible with ASan), for the data-race job; "none"
+# builds them plain. The libFuzzer target keeps fuzzer,address,undefined.
+set(SPACEGL_TEST_SANITIZER "address,undefined" CACHE STRING
+    "Sanitizer for the test executables: address,undefined | thread | none")
+if(SPACEGL_TEST_SANITIZER STREQUAL "none")
+    set(SG_TEST_SAN_FLAGS "")
+else()
+    set(SG_TEST_SAN_FLAGS "-fsanitize=${SPACEGL_TEST_SANITIZER}")
+endif()
+
 # libatomic: needed by the targets that link logic.c (its `#pragma omp
 # atomic` on 64-bit state emits __atomic_* calls; clang, unlike gcc,
 # does not link libatomic automatically — shared resolution in
@@ -274,8 +286,8 @@ if(SG_ATOMIC_LIB)
 endif()
 if(NOT MSVC)
     target_compile_options(target_bounds_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(target_bounds_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(target_bounds_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME target_bounds COMMAND target_bounds_test)
 
@@ -307,8 +319,8 @@ if(SG_ATOMIC_LIB)
 endif()
 if(NOT MSVC)
     target_compile_options(vec_thrust_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(vec_thrust_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(vec_thrust_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME vec_thrust COMMAND vec_thrust_test)
 
@@ -332,8 +344,8 @@ if(SG_ATOMIC_LIB)
 endif()
 if(NOT MSVC)
     target_compile_options(collision_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(collision_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(collision_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME collision COMMAND collision_test)
 
@@ -380,8 +392,8 @@ if(SG_ATOMIC_LIB)
 endif()
 if(NOT MSVC)
     target_compile_options(fuzz_corpus_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(fuzz_corpus_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(fuzz_corpus_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME fuzz_corpus
          COMMAND fuzz_corpus_test "${CMAKE_CURRENT_SOURCE_DIR}/fuzz/corpus")
@@ -414,8 +426,8 @@ if(SG_ATOMIC_LIB)
 endif()
 if(NOT MSVC)
     target_compile_options(rate_limit_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(rate_limit_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(rate_limit_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME rate_limit COMMAND rate_limit_test)
 
@@ -434,8 +446,8 @@ if(SG_ATOMIC_LIB)
 endif()
 if(NOT MSVC)
     target_compile_options(relay_snapshot_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(relay_snapshot_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(relay_snapshot_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME relay_snapshot COMMAND relay_snapshot_test)
 set_tests_properties(relay_snapshot PROPERTIES TIMEOUT 60)
@@ -455,8 +467,8 @@ if(SG_ATOMIC_LIB)
 endif()
 if(NOT MSVC)
     target_compile_options(login_auth_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(login_auth_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(login_auth_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME login_auth COMMAND login_auth_test)
 set_tests_properties(login_auth PROPERTIES TIMEOUT 60)
@@ -475,8 +487,8 @@ if(SG_ATOMIC_LIB)
 endif()
 if(NOT MSVC)
     target_compile_options(sender_stamp_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(sender_stamp_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(sender_stamp_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME sender_stamp COMMAND sender_stamp_test)
 set_tests_properties(sender_stamp PROPERTIES TIMEOUT 60)
@@ -487,8 +499,8 @@ set_tests_properties(sender_stamp PROPERTIES TIMEOUT 60)
 add_executable(client_wire_test client_wire_test.c)
 if(NOT MSVC)
     target_compile_options(client_wire_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(client_wire_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(client_wire_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME client_wire COMMAND client_wire_test)
 
@@ -500,8 +512,8 @@ add_executable(key_file_test key_file_test.c)
 target_link_libraries(key_file_test PRIVATE OpenSSL::Crypto)
 if(NOT MSVC)
     target_compile_options(key_file_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(key_file_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(key_file_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME key_file COMMAND key_file_test)
 
@@ -519,8 +531,8 @@ if(SG_ATOMIC_LIB)
 endif()
 if(NOT MSVC)
     target_compile_options(handshake_v2_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(handshake_v2_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(handshake_v2_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME handshake_v2 COMMAND handshake_v2_test)
 set_tests_properties(handshake_v2 PROPERTIES TIMEOUT 60)
@@ -535,8 +547,8 @@ if(SG_ATOMIC_LIB)
 endif()
 if(NOT MSVC)
     target_compile_options(shm_layout_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(shm_layout_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(shm_layout_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 find_library(SG_RT_LIB rt)
 if(SG_RT_LIB)
@@ -549,8 +561,8 @@ add_executable(crypto_table_oob_test crypto_table_oob_test.c)
 target_link_libraries(crypto_table_oob_test PRIVATE OpenSSL::Crypto)
 if(NOT MSVC)
     target_compile_options(crypto_table_oob_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(crypto_table_oob_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(crypto_table_oob_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME crypto_table_oob COMMAND crypto_table_oob_test)
 
@@ -558,8 +570,8 @@ add_test(NAME crypto_table_oob COMMAND crypto_table_oob_test)
 add_executable(net_count_oob_test net_count_oob_test.c)
 if(NOT MSVC)
     target_compile_options(net_count_oob_test PRIVATE
-        -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(net_count_oob_test PRIVATE -fsanitize=address,undefined)
+        ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(net_count_oob_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME net_count_oob COMMAND net_count_oob_test)
 
@@ -716,6 +728,23 @@ if(TARGET spacegl_server AND TARGET spacegl_client)
         set_tests_properties(stability PROPERTIES
             ENVIRONMENT "ASAN_OPTIONS=quarantine_size_mb=1;STABILITY_LEAK_THRESHOLD_MB=30")
     endif()
+endif()
+
+# --- ThreadSanitizer end-to-end (2026.10.31.13, roadmap phase 2) ---
+# Only in a TSan build (-DSPACEGL_TEST_SANITIZER=thread with
+# CMAKE_C_FLAGS=-fsanitize=thread, see the CI "tsan" job): the real server
+# and two real decks in both I/O modes, radio relay in clear and encrypted,
+# no ThreadSanitizer report allowed. RUN_SERIAL: port 5000.
+if(SPACEGL_TEST_SANITIZER STREQUAL "thread" AND TARGET spacegl_server AND TARGET spacegl_client)
+    add_test(NAME tsan_e2e
+             COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tsan_e2e.sh"
+                     $<TARGET_FILE:spacegl_server> $<TARGET_FILE:spacegl_client>)
+    set_tests_properties(tsan_e2e PROPERTIES
+        RUN_SERIAL TRUE
+        TIMEOUT 240
+        SKIP_RETURN_CODE 77
+        PASS_REGULAR_EXPRESSION "PASS: tsan_e2e"
+        FAIL_REGULAR_EXPRESSION "FAIL:")
 endif()
 
 # --- End-to-end smoke (2026.10.31.03): the CI smoke step inside ctest ---

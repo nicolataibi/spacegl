@@ -43,6 +43,7 @@ const char* get_lrs_object_name(int id);
 #include <openssl/hmac.h>
 #include <openssl/provider.h>
 #include <netdb.h>
+#include <stdatomic.h>
 #include "network.h"
 #include "client_wire.h"
 #include "handshake_v2.h"
@@ -363,7 +364,9 @@ char g_input_buf[256] = {0};
 int g_input_ptr = 0;
 struct termios orig_termios;
 
-volatile sig_atomic_t g_running = 1;
+/* Shared by the main thread, the network listener and the signal handler:
+ * a lock-free atomic, not volatile sig_atomic_t (2026.10.31.13). */
+atomic_int g_running = 1;
 
 /* Network-listener thread (created in main after the visualizer
  * handshake). main joins it in the orderly shutdown BEFORE cleanup()
@@ -386,6 +389,23 @@ void enable_raw_mode() {
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 1;
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
+
+/* Threads of the command deck (2026.10.31.13, ThreadSanitizer): the main
+ * thread (keyboard, commands) and network_listener (server packets).
+ *  - g_state_mutex guards what both touch: the write buffer of the shared
+ *    memory (g_shared_state and its contents), the buffer swap, and the
+ *    peer table g_peers. The listener holds it while it applies an update
+ *    and swaps; the main thread for its few reads and writes.
+ *  - the input line (g_input_buf / g_input_ptr) belongs to the main thread
+ *    alone: after printing a message the listener only requests a prompt
+ *    redraw, which the main loop performs (it wakes every 100 ms).
+ * Lock order: never take another lock while holding g_state_mutex. */
+static pthread_mutex_t g_state_mutex = PTHREAD_MUTEX_INITIALIZER;
+static atomic_bool g_prompt_dirty = false;
+
+static void request_prompt_redraw(void) {
+    atomic_store(&g_prompt_dirty, true);
 }
 
 void reprint_prompt() {
@@ -412,9 +432,11 @@ static volatile sig_atomic_t g_visualizer_reaped = 0;
 
 void handle_sigchld(int sig) {
     (void)sig;
+    int saved_errno = errno;   /* waitpid() may change it under the interrupted code */
     int status;
     while (waitpid(-1, &status, WNOHANG) > 0)
         g_visualizer_reaped = 1;
+    errno = saved_errno;
 }
 
 void init_shm() {
@@ -743,6 +765,7 @@ static int do_login_reconnect(void) {
 
     int master_read = read_all(sock, master_sync, sizeof(SpaceGLGame));
     if (master_read == sizeof(SpaceGLGame)) {
+        pthread_mutex_lock(&g_state_mutex);
         if (g_shared_state) {
             memcpy(g_shm->shm_galaxy, master_sync->g, sizeof(master_sync->g));
             g_shared_state->shm_crypto_algo = CRYPTO_NONE;
@@ -750,6 +773,7 @@ static int do_login_reconnect(void) {
             memcpy(g_shared_state->shm_server_signature, master_sync->server_signature, 64);
             memcpy(g_shared_state->shm_server_pubkey, master_sync->server_pubkey, 32);
         }
+        pthread_mutex_unlock(&g_state_mutex);
         free(master_sync);
         return 1;
     }
@@ -808,11 +832,13 @@ void *network_listener(void *arg) {
             PacketQueryKey res;
             if (read_all(sock, ((char*)&res) + sizeof(int), sizeof(PacketQueryKey) - sizeof(int)) > 0) {
                 if (res.found) {
+                    pthread_mutex_lock(&g_state_mutex);
                     derive_peer_secret(res.target_name, res.x25519_pubkey);
-                    reprint_prompt();
+                    pthread_mutex_unlock(&g_state_mutex);
+                    request_prompt_redraw();
                 } else {
                     printf("\r\033[K" B_RED "[ERROR] Captain %s not found in active fleet.\n" RESET, res.target_name);
-                    reprint_prompt();
+                    request_prompt_redraw();
                 }
             }
         } else if (type == PKT_MESSAGE) {
@@ -870,6 +896,7 @@ void *network_listener(void *arg) {
                        2. For Private (enc2) or Peer (enc3) messages, trust the packet's crypto_algo IF we are tuned in.
                        3. For standard (enc) captain messages, strictly use OUR active_algo.
                     */
+                    pthread_mutex_lock(&g_state_mutex);   /* frequency + g_peers, until free(decrypted) */
                     int active_algo = (g_shared_state) ? g_shared_state->shm_crypto_algo : CRYPTO_NONE;
                     bool is_private = (msg->is_encrypted & 0x02);
                     bool is_peer = (msg->is_encrypted & 0x04) || (msg->is_encrypted & 0x08);
@@ -951,6 +978,7 @@ void *network_listener(void *arg) {
                        }
                     }
                     free(decrypted);
+                    pthread_mutex_unlock(&g_state_mutex);
 
                     if (!success) {
                         /* Decryption failed (likely due to algorithm mismatch or key synchronization during transition) */
@@ -1011,7 +1039,7 @@ void *network_listener(void *arg) {
                        (msg->faction == FACTION_ALLIANCE) ? "Alliance Command" : "Alien", msg->text);
             }
             free(msg);
-            reprint_prompt();
+            request_prompt_redraw();
         } else if (type == PKT_LRS_UPDATE) {
             PacketLRSUpdate lrs_pkt;
             memset(&lrs_pkt, 0, sizeof(PacketLRSUpdate));
@@ -1337,6 +1365,8 @@ void *network_listener(void *arg) {
             bytes_this_sec += current_pkt_size;
             packets_this_sec++;
 
+            /* shared memory write buffer + swap: under g_state_mutex */
+            pthread_mutex_lock(&g_state_mutex);
             double elapsed = (now_ts.tv_sec - last_ts.tv_sec) + (now_ts.tv_nsec - last_ts.tv_nsec) / 1e9;
 
             if (elapsed >= 1.0) {
@@ -1590,6 +1620,7 @@ void *network_listener(void *arg) {
                 swap_buffers();
                 sem_post(&g_shm->data_ready);
             }
+            pthread_mutex_unlock(&g_state_mutex);
         }
     }
     return NULL;
@@ -2113,6 +2144,7 @@ int main(int argc, char *argv[]) {
         /* VMIN=0 VTIME=1 makes read() return after 100ms if no key press,  */
         /* so the drain runs at ~10 Hz — matching JS_IMP_INTERVAL.          */
         if (g_shm) process_ipc_commands(sock);
+        if (atomic_exchange(&g_prompt_dirty, false)) reprint_prompt();
 
         char c;
 
@@ -2123,7 +2155,9 @@ int main(int argc, char *argv[]) {
                     g_input_buf[g_input_ptr] = 0;
                     
                     if (strcmp(g_input_buf, "xxx") == 0 || strcmp(g_input_buf, "exit") == 0 || strcmp(g_input_buf, "quit") == 0) {
+                        pthread_mutex_lock(&g_state_mutex);
                         if (g_shared_state) g_shared_state->shm_force_shutdown = 1;
+                        pthread_mutex_unlock(&g_state_mutex);
                         if (g_shm) atomic_store(&g_shm->force_shutdown, 1);
                         PacketCommand cpkt = {PKT_COMMAND, ""};
                         strcpy(cpkt.cmd, g_input_buf);
@@ -2206,6 +2240,7 @@ int main(int argc, char *argv[]) {
                         if (new_algo >= CRYPTO_BLOWFISH && new_algo <= CRYPTO_GOST) { printf("\033[1;33m[Warning] Legacy frequencies might cause mixed-version compatibility issues.\033[0m\n"); }
                         else if (strstr(p, "off")) new_algo = CRYPTO_NONE;
 
+                        pthread_mutex_lock(&g_state_mutex);
                         if (g_shared_state) {
                             g_shared_state->shm_crypto_algo = new_algo;
                             g_private_mode = is_enc2; 
@@ -2227,6 +2262,7 @@ int main(int argc, char *argv[]) {
                             }
                             if (new_algo != CRYPTO_NONE && !is_enc3 && !is_enc4) ensure_algo_key(new_algo, is_enc2);
                         }
+                        pthread_mutex_unlock(&g_state_mutex);
                         PacketCommand cpkt = {PKT_COMMAND, ""};
                         snprintf(cpkt.cmd, sizeof(cpkt.cmd), "%s", g_input_buf);
                         send(sock, &cpkt, sizeof(cpkt), 0);
@@ -2296,20 +2332,45 @@ int main(int argc, char *argv[]) {
                             strncpy(plaintext, msg_start, 4095);
                         }
                         
-                        int current_algo = (g_shared_state) ? g_shared_state->shm_crypto_algo : CRYPTO_NONE;
+                        /* One snapshot under g_state_mutex (the listener
+                         * writes all of these): frequency, frame, the peer
+                         * target's id and the peer's shared secret. */
+                        int current_algo = CRYPTO_NONE;
+                        int64_t snap_frame = 0;
+                        int32_t snap_target_id = 0;
+                        bool snap_target_found = false;
+                        uint8_t snap_peer_key[32];
+                        bool snap_peer_found = false;
+                        pthread_mutex_lock(&g_state_mutex);
+                        if (g_shared_state) {
+                            current_algo = g_shared_state->shm_crypto_algo;
+                            snap_frame = (int64_t)g_shared_state->frame_id;
+                            if (g_peer_mode) {
+                                for (int o = 0; o < g_shared_state->object_count && o < MAX_OBJECTS; o++) {
+                                    if (g_shared_state->objects[o].active && strcmp(g_shared_state->objects[o].shm_name, g_peer_target) == 0) {
+                                        snap_target_id = g_shared_state->objects[o].id;
+                                        snap_target_found = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (g_peer_mode) {
+                            for (int i = 0; i < g_peer_count; i++) {
+                                if (strcmp(g_peers[i].name, g_peer_target) == 0) {
+                                    memcpy(snap_peer_key, g_peers[i].shared_secret, 32);
+                                    snap_peer_found = true;
+                                    break;
+                                }
+                            }
+                        }
+                        pthread_mutex_unlock(&g_state_mutex);
                         if (current_algo != CRYPTO_NONE) {
                             mpkt->is_encrypted = 0x01 | (g_private_mode ? 0x02 : 0x00) | (g_peer_mode ? 0x04 : 0x00) | (g_exclusive_mode ? 0x08 : 0x00);
                             mpkt->crypto_algo = current_algo;
 
                             /* For Peer/Exclusive Mode, resolve Target ID for server-side routing */
-                            if (g_peer_mode && g_shared_state) {
-                                for (int o = 0; o < g_shared_state->object_count; o++) {
-                                    if (g_shared_state->objects[o].active && strcmp(g_shared_state->objects[o].shm_name, g_peer_target) == 0) {
-                                        mpkt->target_id = g_shared_state->objects[o].id;
-                                        break;
-                                    }
-                                }
-                            }
+                            if (g_peer_mode && snap_target_found) mpkt->target_id = snap_target_id;
 
                             size_t plen = strlen(plaintext); if (plen > 65535) plen = 65535;
                             memcpy(mpkt->text, plaintext, plen); mpkt->text[plen] = '\0'; mpkt->length = plen;
@@ -2317,10 +2378,8 @@ int main(int argc, char *argv[]) {
                             
                             uint8_t *k = deep_space_key;
                             if (g_peer_mode) {
-                                int peer_idx = -1;
-                                for(int i=0; i<g_peer_count; i++) if (strcmp(g_peers[i].name, g_peer_target) == 0) { peer_idx = i; break; }
-                                if (peer_idx != -1) {
-                                    k = g_peers[peer_idx].shared_secret;
+                                if (snap_peer_found) {
+                                    k = snap_peer_key;
                                 } else {
                                     printf(B_RED "[ERROR] Peer '%s' not found. Cannot encrypt message.\n" RESET, g_peer_target);
                                     free(mpkt);
@@ -2332,7 +2391,7 @@ int main(int argc, char *argv[]) {
                                 else k = ALGO_KEYS[current_algo];
                             }
                             
-                            if (!encrypt_payload(mpkt, plaintext, k, (g_shared_state ? g_shared_state->frame_id : 0))) {
+                            if (!encrypt_payload(mpkt, plaintext, k, snap_frame)) {
                                 printf(B_RED "[ERROR] Encryption failed. Message NOT sent.\n" RESET);
                                 free(mpkt);
                                 g_input_ptr = 0; g_input_buf[0] = 0; reprint_prompt(); continue;
@@ -2367,7 +2426,10 @@ int main(int argc, char *argv[]) {
                         if (clen > 255) clen = 255;
                         memcpy(cpkt.cmd, g_input_buf, clen);
                         cpkt.cmd[clen] = '\0';
-                        send(sock, &cpkt, sizeof(cpkt), 0); swap_buffers();
+                        /* No swap_buffers() here (2026.10.31.13): a plain
+                         * command changes no shared state, and the swap is
+                         * the listener's (it raced with it). */
+                        send(sock, &cpkt, sizeof(cpkt), 0);
                     }
                     
                     g_input_ptr = 0;

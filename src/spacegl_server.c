@@ -57,7 +57,7 @@ int global_tick = 0;
  * cleanly, and main() performs the final save and resource cleanup. */
 /* Exported (conn.h): the async event loop (src/server/conn.c) observes the
  * same flag as the legacy loop. */
-volatile sig_atomic_t g_running = 1;
+atomic_int g_running = 1;
 
 static void handle_shutdown_signal(int sig) {
     (void)sig;
@@ -319,6 +319,7 @@ void *game_loop_thread(void *arg) {
     (void)arg;
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
+    save_galaxy_set_game_thread(true);
     while (g_running) {
         ts.tv_nsec += GAME_TICK_NSEC; 
         if (ts.tv_nsec >= 1000000000) { ts.tv_sec++; ts.tv_nsec -= 1000000000; }
@@ -332,14 +333,19 @@ void *game_loop_thread(void *arg) {
         extern void telemetry_sync_state();
         telemetry_sync_state();
 
+        /* A save requested by another thread runs here, under the lock,
+         * where nothing else writes players[] (see save_galaxy()). */
+        if (save_galaxy_take_request()) save_galaxy_async();
+
         pthread_mutex_unlock(&game_mutex);
 
-        /* Re-sign the galaxy state after every simulation tick so that the
-         * integrity signature always reflects the current state (not just the
-         * boot-time state). Runs outside the game lock: the login snapshot
-         * path re-signs under the lock, so consistency is preserved where it
-         * matters (client verification at full synchronization). */
-        sign_galaxy_data();
+        /* No per-tick re-signing of spacegl_master (2026.10.31.13). It ran
+         * outside the lock and rewrote the signature fields while the
+         * login sync copied the struct under the lock (ThreadSanitizer):
+         * a client could receive a half-written signature. The only
+         * consumer of the signature is that sync, which signs its own
+         * snapshot under the lock (sync_client_task); the saved copy is
+         * never verified. It also saves an HMAC over ~0.5 MB per tick. */
 
         /* Send all pending player network updates OUTSIDE game_mutex.
          * This decouples blocking TCP writes from the 60Hz simulation lock,
@@ -350,6 +356,7 @@ void *game_loop_thread(void *arg) {
         extern void telemetry_broadcast();
         telemetry_broadcast();
     }
+    save_galaxy_set_game_thread(false);
     return NULL;
 }
 #include <sys/utsname.h>

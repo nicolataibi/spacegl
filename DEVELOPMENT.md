@@ -265,3 +265,62 @@ SECURITY.md if it pins an audit item.
 | `README.md` | product overview + technical sections |
 | `SECURITY.md` | threat model + audit registry (B items) |
 | `HOWTO.txt` | run instructions (key + server + clients) |
+
+## 7. Threads and locks
+
+Verified under ThreadSanitizer by `tests/tsan_e2e.sh` (CI job `tsan`):
+the real server in both I/O modes and two real decks, no report allowed.
+Build it locally with
+`cmake -B build-tsan -DCMAKE_BUILD_TYPE=Debug -DSPACEGL_TEST_SANITIZER=thread -DCMAKE_C_FLAGS=-fsanitize=thread -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread`
+and run with `OMP_NUM_THREADS=1` (libgomp is not instrumented).
+
+### Server threads
+
+| Thread | Runs | Holds `game_mutex` |
+| :--- | :--- | :--- |
+| main (epoll loop, legacy or async) | accept, `dispatch_packet()`, teardown (`reap_player_fd`) | per packet, briefly |
+| game loop (60 Hz) | `update_game_logic()`, telemetry snapshot, requested saves; then, **after** the unlock, `send_pending_updates()` and `telemetry_broadcast()` | for the tick |
+| thread pool workers | galaxy sync at login, server messages (ASYNC mode), fleet radio relay | to snapshot, never while writing a socket |
+| telemetry uplink | accepts telemetry clients, subscriptions | never |
+
+### Locks and their order
+
+| Lock | Guards |
+| :--- | :--- |
+| `game_mutex` | the simulation: `players[]` (except the send state below), every NPC/object pool, `spacegl_master`, the packet-side tables of `packets.c` (`g_cred_seq`, the signing keys) |
+| `players[i].socket_mutex` | writes on player `i`'s socket and the clearing of `players[i].socket` (`player_socket_detach`) |
+| `tel_clients_mutex`, `cat_mutexes[]` | the telemetry client table and the per-category caches |
+
+Order: **`game_mutex` → `socket_mutex`**, never the reverse. A thread that
+writes a socket while holding `game_mutex` (legacy `send_server_msg`, the
+LRS reply) is allowed; a thread holding a `socket_mutex` never takes
+`game_mutex`.
+
+### Ownership rules
+
+- **Send state**: `last_sent_state`, `full_update_timer`, `last_q*`,
+  `pending_send` of each player are written only by the game loop
+  (`send_pending_updates`, outside the lock). Anything that reads the
+  whole `players[]` array must therefore run on the game thread: a save
+  requested by another thread (`save_galaxy()`) is carried out by the game
+  loop at its next tick, under the lock.
+- **Signatures**: `spacegl_master` is signed at boot only; the login sync
+  signs its own snapshot under the lock. Nothing rewrites the shared
+  struct outside the lock.
+- **Routing snapshots**: the radio relay and `send_server_msg()` copy the
+  recipient's fd, frequency and key under the lock, then write without
+  it; every write re-checks under `socket_mutex` that the slot still holds
+  that fd.
+- **Teardown**: `player_socket_detach()` shuts the socket down first (a
+  writer blocked in `send()` returns at once), then clears it under
+  `socket_mutex`; the caller closes the fd afterwards.
+- **Shutdown flag**: `g_running` is a lock-free `atomic_int` (stored by the
+  signal handler, read by every thread).
+
+### Command deck threads
+
+The main thread (keyboard, commands) and `network_listener` (server
+packets). `g_state_mutex` guards the shared-memory write buffer
+(`g_shared_state` and its contents), the buffer swap and the peer table
+`g_peers`; nothing else is taken while it is held. The input line belongs
+to the main thread alone: the listener only requests a prompt redraw.

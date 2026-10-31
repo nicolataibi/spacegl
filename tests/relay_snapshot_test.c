@@ -37,6 +37,7 @@
 #include <openssl/hmac.h>
 #include <openssl/rand.h>
 #include <poll.h>
+#include <stdatomic.h>
 #include "radio_crypto.h"
 
 #include "server_internal.h"
@@ -151,7 +152,7 @@ uint8_t deep_space_key[32] = {0};
 
 QuadrantIndex (*spatial_index)[41][41] = NULL;
 threadpool_t *g_pool = NULL;
-volatile sig_atomic_t g_running = 1;
+atomic_int g_running = 1;
 
 /* Stubs */
 void sync_client_task(void *arg) { free(arg); }
@@ -238,7 +239,7 @@ static void set_player(int i, const char *name, int fd, int algo, uint8_t fill) 
     memset(players[i].session_key, fill, 32);
 }
 
-typedef struct { int slot; int fd; volatile int done; int result; } BlockedWriter;
+typedef struct { int slot; int fd; atomic_int done; int result; } BlockedWriter;
 
 static void *blocked_writer(void *arg) {
     BlockedWriter *w = arg;
@@ -248,7 +249,7 @@ static void *blocked_writer(void *arg) {
     w->result = write_all(w->fd, buf, len);   /* blocking socket: blocks in send() */
     pthread_mutex_unlock(&players[w->slot].socket_mutex);
     free(buf);
-    w->done = 1;
+    atomic_store(&w->done, 1);
     return NULL;
 }
 
@@ -331,11 +332,12 @@ int main(void) {
         int sd[2];
         TEST_CHECK(socketpair(AF_UNIX, SOCK_STREAM, 0, sd) == 0);   /* blocking */
         set_player(3, "dave", sd[0], CRYPTO_NONE, 0x40);
-        BlockedWriter w = { .slot = 3, .fd = sd[0], .done = 0, .result = 0 };
+        BlockedWriter w = { .slot = 3, .fd = sd[0], .result = 0 };
+        atomic_init(&w.done, 0);
         pthread_t th;
         TEST_CHECK(pthread_create(&th, NULL, blocked_writer, &w) == 0);
         usleep(300 * 1000);              /* the writer is now blocked in send() */
-        TEST_CHECK(!w.done);
+        TEST_CHECK(!atomic_load(&w.done));
 
         pthread_mutex_lock(&game_mutex);
         double t0 = now_s();
@@ -344,7 +346,7 @@ int main(void) {
         pthread_mutex_unlock(&game_mutex);
 
         pthread_join(th, NULL);
-        TEST_CHECK(w.done);
+        TEST_CHECK(atomic_load(&w.done));
         TEST_CHECK(dt < 2.0);
         TEST_CHECK(players[3].socket == 0);
         TEST_CHECK(w.result < (int)(8u << 20));   /* the write was cut short */

@@ -28,7 +28,14 @@
 /* Graceful-shutdown flag: defined in spacegl_server.c (set by the signal
  * handler). Exported here so the async event loop (run_epoll_loop_async)
  * can observe it exactly like the legacy loop does. */
-extern volatile sig_atomic_t g_running;
+/* Shutdown flag: set by the SIGINT/SIGTERM handler, read by the game,
+ * epoll and worker threads. An atomic_int (2026.10.31.13): volatile
+ * sig_atomic_t is only safe between a signal handler and the thread it
+ * interrupts, and ThreadSanitizer reported the cross-thread race. A
+ * lock-free atomic may be stored from a signal handler (C11 7.14.1.1). */
+#include <stdatomic.h>
+_Static_assert(ATOMIC_INT_LOCK_FREE == 2, "g_running must be a lock-free atomic");
+extern atomic_int g_running;
 
 /* Event-loop I/O strategy, selected with --io=legacy|async (default
  * legacy, the current bounded behavior). Set by main() before the loop

@@ -34,6 +34,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdatomic.h>
 #include <poll.h>
 #include "object_types.h"
 #include "telemetry.h"
@@ -58,7 +59,17 @@ static int tel_unix_fd = -1;
 static int tel_epoll_fd = -1;
 static pthread_t tel_thread;
 static bool tel_thread_created = false;
-static bool tel_running = false;
+/* Written by main (init, shutdown), read by the game thread and the uplink
+ * thread: atomic (2026.10.31.13, ThreadSanitizer). */
+static atomic_bool tel_running = false;
+
+/* Global stats, computed by telemetry_sync_state() while the game thread
+ * holds game_mutex and sent by telemetry_broadcast() on the same thread
+ * after the unlock. telemetry_broadcast() used to count players[] and npcs[]
+ * itself, outside the lock, while the dispatcher was rewriting them. */
+static uint32_t tel_stats_tick;
+static uint32_t tel_stats_players;
+static uint32_t tel_stats_npcs;
 
 const char* cat_names_diag[] = {
     "SHIPS ALLIANCE", "SHIPS KORTHIAN", "SHIPS XYLARI", "SHIPS SWARM", 
@@ -2467,6 +2478,13 @@ static void disconnect_client(int i) {
 
 void telemetry_sync_state() {
     if (!tel_running) return;
+
+    /* Global stats under game_mutex (caller holds it) */
+    tel_stats_tick = (uint32_t)global_tick;
+    tel_stats_players = 0;
+    tel_stats_npcs = 0;
+    for (int j = 0; j < MAX_CLIENTS; j++) if (players[j].active) tel_stats_players++;
+    for (int j = 0; j < MAX_NPC; j++) if (npcs[j].active) tel_stats_npcs++;
     
     /* Identify which categories need caching this tick */
     bool needs_update[TEL_CAT_COUNT] = {false};
@@ -2492,10 +2510,10 @@ void telemetry_broadcast() {
     /* Prepare global stats (Snapshot taken from global variables) */
     TelemetryHeader shdr = {TEL_PKT_STATS, sizeof(TelemetryStats)};
     TelemetryStats stats = {0};
-    stats.tick = global_tick;
-    /* We read these without game lock, but they are simple ints, safe enough for telemetry */
-    for(int j=0; j<MAX_CLIENTS; j++) if(players[j].active) stats.active_players++;
-    for(int j=0; j<MAX_NPC; j++) if(npcs[j].active) stats.active_npcs++;
+    /* snapshot taken by telemetry_sync_state() under game_mutex */
+    stats.tick = tel_stats_tick;
+    stats.active_players = tel_stats_players;
+    stats.active_npcs = tel_stats_npcs;
 
     for (int i = 0; i < MAX_TEL_CLIENTS; i++) {
         pthread_mutex_lock(&tel_clients_mutex);

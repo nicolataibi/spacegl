@@ -1235,6 +1235,11 @@ void spawn_star_systems(void);               /* generation: systems in empty qua
 void update_star_systems(void);              /* tick: refresh x,y,z of the systems players are in */
 void save_galaxy();
 void save_galaxy_async();
+/* The game thread registers itself (true at start, false at exit) and runs
+ * the saves other threads request (save_galaxy_take_request, under
+ * game_mutex). */
+void save_galaxy_set_game_thread(bool running);
+bool save_galaxy_take_request(void);
 void refresh_lrs_grid();
 void spawn_derelict(int q1, int q2, int q3, double x, double y, double z, int faction, int ship_class, const char* name);
 const char* get_species_name(int s);

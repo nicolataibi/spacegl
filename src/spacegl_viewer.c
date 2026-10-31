@@ -682,7 +682,7 @@ int main(int argc, char *argv[]) {
         printf("Version: %d\n", version);
         printf("Security & Cryptographic Telemetry:\n");
         if (spacegl_master.encryption_flags & 0x01) {
-            printf("  [INTEGRITY]  Signature: VERIFIED (HMAC-SHA256)\n");
+            printf("  [INTEGRITY]  Signature: HMAC-SHA256 (verified by the command deck at login)\n");
             printf("  [SECURITY]   Encryption: ACTIVE (Status: 0x%02X)\n", spacegl_master.encryption_flags);
             printf("  [ALGORITHM]  Frequency:  %s\n", get_crypto_name(spacegl_master.shm_crypto_algo));
             if (spacegl_master.encryption_flags & 0x02) printf("  [PQC-ALIAS]  Post-Quantum slots (experimental): mapped to AES-256-GCM\n");

@@ -224,7 +224,7 @@ threadpool_t *g_pool = NULL;
 
 /* Defined in spacegl_server.c (the main file, not linked); conn.c
  * observes it for its graceful-stop loop. */
-volatile sig_atomic_t g_running = 1;
+atomic_int g_running = 1;
 
 /* ================================================================== */
 /* Stubs for the exports of spacegl_server.c (the main file, not     */

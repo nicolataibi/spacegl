@@ -147,7 +147,7 @@ uint8_t deep_space_key[32] = {0};
 
 QuadrantIndex (*spatial_index)[41][41] = NULL;
 threadpool_t *g_pool = NULL;
-volatile sig_atomic_t g_running = 1;
+atomic_int g_running = 1;
 
 /* Stubs */
 void sync_client_task(void *arg) { free(arg); }

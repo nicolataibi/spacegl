@@ -1,3 +1,42 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.13
+  - ThreadSanitizer (roadmap phase 2). The real server in both I/O modes
+  and two real command decks exchanging commands and fleet radio (clear
+  and encrypted) for ~40 s: 9 data-race reports in the server and ~145 in
+  the deck. All fixed; the scenario is now a test and a CI job.
+  - Server, galaxy signature: the game loop re-signed spacegl_master after
+  every tick outside game_mutex, while the login sync copied it under the
+  lock (a client could receive a half-written signature) and the save
+  wrote it out. The only consumer of the signature is that sync, which
+  signs its own snapshot under the lock; the per-tick re-signing is gone
+  (it was also an HMAC over ~0.5 MB at 60 Hz). spacegl_viewer no longer
+  prints "VERIFIED" for a signature it does not check.
+  - Server, saves: save_galaxy() reads players[] while the game thread
+  writes each player's send state outside the lock (send_pending_updates).
+  A save requested by another thread (a departure, the legacy loop, a
+  command) is now carried out by the game thread at its next tick, under
+  the lock; the game thread itself, boot and shutdown save at once.
+  - Server, telemetry: telemetry_broadcast() counted players[] and npcs[]
+  outside the lock; the counts are taken by telemetry_sync_state() under
+  it. tel_running is an atomic_bool.
+  - Server and deck: g_running (shutdown flag) was volatile sig_atomic_t,
+  which is safe only towards a signal handler of the same thread; it is a
+  lock-free atomic_int (asserted), valid from a signal handler too.
+  - Deck: swap_buffers() ran on both the network listener and the main
+  thread (after every command), racing on the triple-buffer indices and
+  the write buffer the viewer reads. g_state_mutex now guards the shared
+  memory write buffer, the swap and the peer table; the main thread no
+  longer swaps; its radio path takes one snapshot (frequency, frame,
+  target id, peer key) under the lock. The input line belongs to the main
+  thread: the listener requests a prompt redraw instead of printing it.
+  The SIGCHLD handler keeps errno.
+  - Tests: new tsan_e2e (tests/tsan_e2e.sh; in ctest only for a TSan
+  build); SPACEGL_TEST_SANITIZER (address,undefined by default, thread,
+  none) selects the sanitizer of the test executables, so the same tests
+  build under TSan. New CI job "tsan": the server, the deck and the
+  network tests under ThreadSanitizer. relay_snapshot_test: its own
+  writer flag is atomic. DEVELOPMENT.md section 7 documents the threads,
+  the locks, their order and the ownership rules.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.12
   - Shared memory layout (roadmap phase 2): SharedIPC, the segment shared
   by the command deck, the viewers and the HUD, was declared inside

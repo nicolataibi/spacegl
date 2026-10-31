@@ -171,6 +171,50 @@ jobs:
             build/spacegl_server build/spacegl_client
 
   # ====================================================================
+  # TSan: the server, the command deck and the network tests built with
+  # ThreadSanitizer (2026.10.31.13). tsan_e2e runs the real server and two
+  # real decks in both I/O modes (radio relay in clear and encrypted) and
+  # fails on any data race report; the unit tests drive the dispatcher,
+  # the relay and the socket teardown under TSan.
+  # ====================================================================
+  tsan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ clang libomp-dev pkgconf \
+            libglfw3-dev libglu1-mesa-dev \
+            libssl-dev libncurses-dev \
+            libvulkan-dev vulkan-tools vulkan-validationlayers \
+            mesa-vulkan-drivers glslc spirv-tools
+
+      - name: Configure (ThreadSanitizer)
+        run: |
+          cmake -B build-tsan -DCMAKE_BUILD_TYPE=Debug \
+            -DSPACEGL_TEST_SANITIZER=thread \
+            -DCMAKE_C_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread"
+
+      - name: Build (server, deck, network tests)
+        run: |
+          cmake --build build-tsan -j"$(nproc)" --target \
+            spacegl_server spacegl_client \
+            relay_snapshot_test login_auth_test sender_stamp_test \
+            rate_limit_test handshake_v2_test shm_layout_test
+
+      - name: Run under ThreadSanitizer
+        run: |
+          # libgomp is not instrumented: one OpenMP thread, no false reports.
+          export OMP_NUM_THREADS=1
+          export TSAN_OPTIONS="halt_on_error=1 second_deadlock_stack=1"
+          cd build-tsan && ctest --output-on-failure \
+            -R "^(tsan_e2e|relay_snapshot|login_auth|sender_stamp|rate_limit|handshake_v2|shm_layout)$"
+
+  # ====================================================================
   # Fuzz: the REAL libFuzzer harness (tests/fuzz_packets.c) driving
   # dispatch_packet() + the command parser over a socketpair, seeded
   # from tests/fuzz/corpus. clang is the fuzzer compiler (libFuzzer is
