@@ -328,6 +328,15 @@ traceable in the changelog:
 *   typed entity lookups (`player_by_id`, `npc_by_id`, `planet_by_id`,
     `base_by_id`, `star_by_id`) enforcing global bounds validation across
     all target resolution sites (2026.10.11.03);
+*   message relay routing snapshot: `broadcast_message()` and
+    `send_server_msg()` capture recipient fd, frequency and key under
+    `game_mutex` instead of reading `players[]` from the send loop or a
+    thread-pool worker; `player_socket_detach()` (shutdown, then
+    `socket = 0` under `socket_mutex`) closes the window in which a
+    writer could hit an fd that was being closed or reused; the galaxy
+    sync failure path no longer tears down a slot rebound to a new login;
+    the relay keeps embedded NUL bytes (explicit length, no `strlen`)
+    (2026.10.31.02) — pinned by `tests/relay_snapshot_test`;
 *   TCP transport hardening (`TCP_NODELAY`, keepalive probes, buffer sizing)
     and token bucket rate limiting (200 pkt/s, DoS protection, 2026.10.17.04) —
     pinned by `tests/rate_limit_test`.

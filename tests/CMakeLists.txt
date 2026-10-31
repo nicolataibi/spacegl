@@ -416,6 +416,27 @@ if(NOT MSVC)
 endif()
 add_test(NAME rate_limit COMMAND rate_limit_test)
 
+# --- Relay routing snapshot (2026.10.31.02): encrypt_payload explicit ---
+# length (NULs kept), byte-exact fleet relay to cleartext and encrypted
+# recipients, captured route of send_server_msg, player_socket_detach()
+# waking a writer blocked in send(). Same sources as rate_limit_test.
+string(REPLACE "rate_limit_test.c" "relay_snapshot_test.c" RELAY_SNAPSHOT_SRCS "${RATE_LIMIT_SRCS}")
+add_executable(relay_snapshot_test ${RELAY_SNAPSHOT_SRCS})
+target_link_libraries(relay_snapshot_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+if(OpenMP_C_FOUND)
+    target_link_libraries(relay_snapshot_test PRIVATE OpenMP::OpenMP_C)
+endif()
+if(SG_ATOMIC_LIB)
+    target_link_libraries(relay_snapshot_test PRIVATE ${SG_ATOMIC_LIB})
+endif()
+if(NOT MSVC)
+    target_compile_options(relay_snapshot_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(relay_snapshot_test PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME relay_snapshot COMMAND relay_snapshot_test)
+set_tests_properties(relay_snapshot PROPERTIES TIMEOUT 60)
+
 # --- B2-b: radio cipher table index bounds (ASan/UBSan) ---
 add_executable(crypto_table_oob_test crypto_table_oob_test.c)
 target_link_libraries(crypto_table_oob_test PRIVATE OpenSSL::Crypto)

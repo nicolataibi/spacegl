@@ -121,6 +121,16 @@ Conn *conn_find(int fd) {
 /* Teardown                                                           */
 /* ------------------------------------------------------------------ */
 
+void player_socket_detach(int slot) {
+    if (slot < 0 || slot >= MAX_CLIENTS) return;
+    int fd = players[slot].socket;
+    if (fd == 0) return;
+    shutdown(fd, SHUT_RDWR);
+    pthread_mutex_lock(&players[slot].socket_mutex);
+    players[slot].socket = 0;
+    pthread_mutex_unlock(&players[slot].socket_mutex);
+}
+
 void reap_player_fd(int fd, ConnCloseReason reason) {
     if (reason == CONN_CLOSE_SILENT) return;
     pthread_mutex_lock(&game_mutex);
@@ -137,7 +147,7 @@ void reap_player_fd(int fd, ConnCloseReason reason) {
             slog("\033[1;35m[DISCONNECT]\033[0m Captain \033[1;37m%-15s\033[0m has left the galaxy.    [\033[1;33m%s\033[0m]\n",
                  players[i].name[0] ? players[i].name : "Unknown", time_str);
         }
-        players[i].socket = 0;
+        player_socket_detach(i);
         players[i].active = 0;
         players[i].radio_lock_target = 0;
         memset(players[i].session_key, 0, 32);

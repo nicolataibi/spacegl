@@ -29,6 +29,7 @@
 #include <time.h>
 #include <errno.h>
 #include <stddef.h>
+#include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include "network.h"
@@ -83,9 +84,12 @@ int write_all(int fd, const void *buf, size_t len) {
     return (int)total;
 }
 
-void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *key, int64_t frame_id) {
-    int plaintext_len = strlen(plaintext);
-    if (plaintext_len > 65535) plaintext_len = 65535;
+/* plaintext_len is explicit (not strlen): the adaptive relay re-encrypts a
+ * decrypted fleet message, whose bytes may contain a NUL; strlen() cut the
+ * message at the first one. Clamped to 65535, the validated wire bound. */
+void encrypt_payload(PacketMessage *msg, const char *plaintext, size_t plaintext_len_in,
+                     const uint8_t *key, int64_t frame_id) {
+    int plaintext_len = (plaintext_len_in > 65535) ? 65535 : (int)plaintext_len_in;
 
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     RAND_bytes(msg->iv, 16); 
@@ -139,8 +143,7 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
     
     if (EVP_EncryptInit_ex(ctx, NULL, NULL, key, msg->iv) <= 0) {
         msg->is_encrypted = 0;
-        size_t plen = strlen(plaintext);
-        if (plen > 65535) plen = 65535;
+        size_t plen = (size_t)plaintext_len;
         memcpy(msg->text, plaintext, plen);
         msg->text[plen] = '\0';
         msg->length = plen;
@@ -153,8 +156,7 @@ void encrypt_payload(PacketMessage *msg, const char *plaintext, const uint8_t *k
     int final_len;
     if (EVP_EncryptFinal_ex(ctx, (uint8_t*)msg->text + outlen, &final_len) <= 0) {
         msg->is_encrypted = 0;
-        size_t plen = strlen(plaintext);
-        if (plen > 65535) plen = 65535;
+        size_t plen = (size_t)plaintext_len;
         memcpy(msg->text, plaintext, plen);
         msg->text[plen] = '\0';
         msg->length = plen;
@@ -178,13 +180,55 @@ void broadcast_task(void *arg) {
     }
 }
 
+/* Per-recipient routing snapshot of broadcast_message(): everything the
+ * send loop needs, copied under game_mutex, so that the loop (which runs
+ * outside game_mutex to keep slow sockets off the simulation lock) never
+ * reads players[] fields that the game thread may be rewriting (crypto
+ * frequency, keys, radio lock, active/socket). */
+typedef struct {
+    bool deliver;
+    int fd;                /* players[i].socket when the snapshot was taken */
+    int algo;              /* recipient frequency (state.shm_crypto_algo)   */
+    uint8_t key[32];       /* recipient key for that frequency              */
+} RelayTarget;
+
+static bool relay_is_system_sender(const char *from) {
+    return strcmp(from, "SERVER") == 0 || strcmp(from, "COMPUTER") == 0 ||
+           strcmp(from, "SCIENCE") == 0 || strcmp(from, "TACTICAL") == 0 ||
+           strcmp(from, "ENGINEERING") == 0 || strcmp(from, "HELMSMAN") == 0 ||
+           strcmp(from, "WARNING") == 0 || strcmp(from, "DAMAGE CONTROL") == 0 ||
+           strcmp(from, "STARBASE") == 0 || strcmp(from, "Alliance Command") == 0;
+}
+
+/* Write under the recipient's socket_mutex, only if the slot still holds the
+ * fd seen in the snapshot: a slot whose socket was detached (0) or rebound to
+ * a new connection in the meantime is skipped instead of being written to. */
+static void relay_write(int i, int fd, const void *buf, size_t len) {
+    pthread_mutex_lock(&players[i].socket_mutex);
+    if (players[i].socket != 0 && players[i].socket == fd) write_all(fd, buf, len);
+    pthread_mutex_unlock(&players[i].socket_mutex);
+}
+
 void broadcast_message(PacketMessage *msg) {
     char *plaintext = malloc(65536);
     if (!plaintext) return;
     memset(plaintext, 0, 65536);
+    size_t plain_len = 0;   /* exact plaintext length (may contain NUL bytes) */
+
+    RelayTarget *targets = calloc(MAX_CLIENTS, sizeof(RelayTarget));
+    if (!targets) { free(plaintext); return; }
+
+    /* 0x01 encrypted, 0x02 private, 0x04 peer, 0x08 exclusive */
+    msg->from[sizeof(msg->from) - 1] = '\0';   /* network field: force a terminator */
+    bool is_encrypted = (msg->is_encrypted != 0);
+    bool is_private = (msg->is_encrypted & 0x02);
+    bool is_peer = (msg->is_encrypted & 0x04);
+    bool is_exclusive_msg = (msg->is_encrypted & 0x08);
+    bool transparent = (is_peer || is_private || is_exclusive_msg);
+    bool from_system = relay_is_system_sender(msg->from);
 
     pthread_mutex_lock(&game_mutex);
-    
+
     int sender_idx = -1;
     for(int j=0; j<MAX_CLIENTS; j++) {
         if (players[j].active && strcmp(players[j].name, msg->from) == 0) {
@@ -194,20 +238,15 @@ void broadcast_message(PacketMessage *msg) {
     }
 
     /* 1. CLASSIFY AND VALIDATE */
-    bool is_encrypted = (msg->is_encrypted != 0);
-    bool is_private = (msg->is_encrypted & 0x02);
-    bool is_peer = (msg->is_encrypted & 0x04);
-    bool is_exclusive_msg = (msg->is_encrypted & 0x08);
-
     if (is_encrypted && sender_idx != -1) {
-        if (is_peer || is_private || is_exclusive_msg) {
+        if (transparent) {
             /* PRIVACY ENFORCEMENT: We don't touch these. We relay the encrypted blob. */
             LOG_DEBUG("Encrypted Private/Peer/Exclusive message from %s. Relay mode: TRANSPARENT.\n", msg->from);
         } else {
             /* Level A (Fleet): Server must decrypt to allow cross-algorithm talk and cleartext fallback */
             EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
             int algo = msg->crypto_algo;
-            
+
             ensure_player_algo_key(sender_idx, algo, false);
 
             /* B5: the shared client/server cipher table (radio_crypto.h).
@@ -239,167 +278,180 @@ void broadcast_message(PacketMessage *msg) {
             if (EVP_DecryptFinal_ex(ctx, (uint8_t*)plaintext + outlen, &final_len) <= 0) {
                 /* Decryption failed */
                 send_server_msg(sender_idx, "COMPUTER", "TRANSMISSION ERROR: Frequency parity failure.");
-                EVP_CIPHER_CTX_free(ctx); pthread_mutex_unlock(&game_mutex); free(plaintext); return;
+                EVP_CIPHER_CTX_free(ctx); pthread_mutex_unlock(&game_mutex);
+                OPENSSL_cleanse(plaintext, 65536); free(plaintext); free(targets); return;
             }
-            plaintext[outlen + final_len] = '\0';
+            plain_len = (size_t)(outlen + final_len);
+            if (plain_len > 65535) plain_len = 65535;
+            plaintext[plain_len] = '\0';
             EVP_CIPHER_CTX_free(ctx);
         }
     } else {
         /* Cleartext message */
-        size_t c_len = (msg->length < 65535) ? msg->length : 65535;
+        size_t c_len = (msg->length < 65535) ? (size_t)msg->length : 65535;
         memcpy(plaintext, msg->text, c_len);
         plaintext[c_len] = '\0';
+        plain_len = c_len;
     }
 
-    /* Release game_mutex before the broadcast send loop.
-     * All data needed for routing and encryption has already been read above.
-     * Each write_all is protected by the per-player socket_mutex, so no
-     * shared state is accessed unsafely after this point. */
-    pthread_mutex_unlock(&game_mutex);
-
-    /* 2. BROADCAST LOOP (executed outside game_mutex) */
-    for (int i = 0; i < MAX_CLIENTS; i++) {
-        if (players[i].active && players[i].socket != 0) {
-            
-            /* LEVEL D: EXCLUSIVE MODE HARD-LOCK */
-            if (is_exclusive_msg) {
-                /* Resolve destination: Priority 1: Packet target_id, Priority 2: Sender Lock, Priority 3: Reciprocity */
-                int target_idx = -1;
-                
-                if (msg->target_id > 0) {
-                    target_idx = msg->target_id - 1;
-                } else if (sender_idx != -1) {
-                    target_idx = players[sender_idx].radio_lock_target - 1;
-                    if (target_idx < 0) {
-                        for (int j = 0; j < MAX_CLIENTS; j++) {
-                            if (players[j].active && players[j].radio_lock_target == (sender_idx + 1)) {
-                                target_idx = j;
-                                break;
-                            }
-                        }
+    /* 2. ROUTING SNAPSHOT (under game_mutex): who receives the message, on
+     *    which fd, with which frequency and key. */
+    int exclusive_target = -1;
+    if (is_exclusive_msg) {
+        /* Resolve destination: Priority 1: Packet target_id, Priority 2: Sender Lock, Priority 3: Reciprocity */
+        if (msg->target_id > 0) {
+            exclusive_target = msg->target_id - 1;
+        } else if (sender_idx != -1) {
+            exclusive_target = players[sender_idx].radio_lock_target - 1;
+            if (exclusive_target < 0) {
+                for (int j = 0; j < MAX_CLIENTS; j++) {
+                    if (players[j].active && players[j].radio_lock_target == (sender_idx + 1)) {
+                        exclusive_target = j;
+                        break;
                     }
                 }
-                
-                /* Deliver ONLY to sender (loopback) and resolved target */
-                if (i != sender_idx && i != target_idx) {
-                    continue; 
-                }
-            } else {
-                /* STANDARD FILTERS (only for non-exclusive messages) */
-                if (msg->scope == SCOPE_FACTION && players[i].faction != msg->faction) continue;
-                if (msg->scope == SCOPE_PRIVATE && (i + 1) != msg->target_id && i != sender_idx) continue;
-
-                /* Recipient-side Exclusive Lock: if recipient is in enc4, they only hear their partner */
-                if (players[i].radio_lock_target > 0) {
-                    int locked_partner_idx = players[i].radio_lock_target - 1;
-                    bool is_sys = (strcmp(msg->from, "SERVER") == 0 || strcmp(msg->from, "COMPUTER") == 0 ||
-                                   strcmp(msg->from, "SCIENCE") == 0 || strcmp(msg->from, "TACTICAL") == 0 ||
-                                   strcmp(msg->from, "ENGINEERING") == 0 || strcmp(msg->from, "HELMSMAN") == 0 ||
-                                   strcmp(msg->from, "WARNING") == 0 || strcmp(msg->from, "DAMAGE CONTROL") == 0 ||
-                                   strcmp(msg->from, "STARBASE") == 0 || strcmp(msg->from, "Alliance Command") == 0);
-                    
-                    if (!is_sys && sender_idx != locked_partner_idx && i != sender_idx) {
-                        continue;
-                    }
-                }
-            }
-
-            /* RELAY EXECUTION */
-            if (is_peer || is_private || is_exclusive_msg) {
-                /* STRICT RELAY: No one gets cleartext if they are not the intended recipient with the key.
-                   This includes Exclusive Mode (0x08) to prevent noise on other frequencies. */
-                size_t pkt_size = offsetof(PacketMessage, text) + msg->length;
-                pthread_mutex_lock(&players[i].socket_mutex);
-                if (players[i].socket != 0) write_all(players[i].socket, msg, pkt_size);
-                pthread_mutex_unlock(&players[i].socket_mutex);
-            } else {
-                /* ADAPTIVE RELAY: Translate for recipient or send cleartext */
-                PacketMessage *out_pkt = malloc(sizeof(PacketMessage));
-                if (!out_pkt) continue;
-                memcpy(out_pkt, msg, offsetof(PacketMessage, text));
-                int recip_algo = players[i].state.shm_crypto_algo;
-
-                if (recip_algo != CRYPTO_NONE) {
-                    /* Recipient wants encryption: encrypt the validated plaintext */
-                    /* Fallback to player's key if it exists */
-                    uint8_t *rk = (recip_algo >= 1 && recip_algo <= MAX_CRYPTO_ALGOS) ? 
-                                   players[i].algo_keys[recip_algo] : players[i].session_key;
-                    
-                    out_pkt->crypto_algo = recip_algo;
-                    out_pkt->is_encrypted = 0x01;
-                    encrypt_payload(out_pkt, plaintext, rk, spacegl_master.frame_id);
-                } else {
-                    /* Recipient wants cleartext */
-                    out_pkt->is_encrypted = 0;
-                    out_pkt->crypto_algo = CRYPTO_NONE;
-                    size_t plen = strlen(plaintext);
-                    if (plen > 65535) plen = 65535;
-                    memcpy(out_pkt->text, plaintext, plen);
-                    out_pkt->text[plen] = '\0';
-                    out_pkt->length = plen;
-                }
-
-                size_t pkt_size = offsetof(PacketMessage, text) + out_pkt->length;
-                pthread_mutex_lock(&players[i].socket_mutex);
-                if (players[i].socket != 0) write_all(players[i].socket, out_pkt, pkt_size);
-                pthread_mutex_unlock(&players[i].socket_mutex);
-                free(out_pkt);
             }
         }
     }
+
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (!players[i].active || players[i].socket == 0) continue;
+
+        if (is_exclusive_msg) {
+            /* LEVEL D: EXCLUSIVE MODE HARD-LOCK — deliver ONLY to sender
+               (loopback) and resolved target */
+            if (i != sender_idx && i != exclusive_target) continue;
+        } else {
+            /* STANDARD FILTERS (only for non-exclusive messages) */
+            if (msg->scope == SCOPE_FACTION && players[i].faction != msg->faction) continue;
+            if (msg->scope == SCOPE_PRIVATE && (i + 1) != msg->target_id && i != sender_idx) continue;
+
+            /* Recipient-side Exclusive Lock: if recipient is in enc4, they only hear their partner */
+            if (players[i].radio_lock_target > 0) {
+                int locked_partner_idx = players[i].radio_lock_target - 1;
+                if (!from_system && sender_idx != locked_partner_idx && i != sender_idx) continue;
+            }
+        }
+
+        RelayTarget *t = &targets[i];
+        t->deliver = true;
+        t->fd = players[i].socket;
+        t->algo = players[i].state.shm_crypto_algo;
+        if (!transparent && t->algo != CRYPTO_NONE) {
+            /* Fallback to the session key for an out-of-table frequency */
+            const uint8_t *rk = (t->algo >= 1 && t->algo <= MAX_CRYPTO_ALGOS) ?
+                                players[i].algo_keys[t->algo] : players[i].session_key;
+            memcpy(t->key, rk, 32);
+        }
+    }
+    int64_t frame_id = spacegl_master.frame_id;
+
+    /* Release game_mutex before the send loop: from here on only the
+     * snapshot (targets[], plaintext, msg) is read; each write takes the
+     * recipient's socket_mutex and re-checks the fd (relay_write). */
+    pthread_mutex_unlock(&game_mutex);
+
+    /* 3. BROADCAST LOOP (executed outside game_mutex) */
+    PacketMessage *out_pkt = transparent ? NULL : malloc(sizeof(PacketMessage));
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        RelayTarget *t = &targets[i];
+        if (!t->deliver) continue;
+
+        if (transparent) {
+            /* STRICT RELAY: No one gets cleartext if they are not the intended recipient with the key.
+               This includes Exclusive Mode (0x08) to prevent noise on other frequencies. */
+            relay_write(i, t->fd, msg, offsetof(PacketMessage, text) + (size_t)msg->length);
+        } else if (out_pkt) {
+            /* ADAPTIVE RELAY: Translate for recipient or send cleartext */
+            memcpy(out_pkt, msg, offsetof(PacketMessage, text));
+            if (t->algo != CRYPTO_NONE) {
+                /* Recipient wants encryption: encrypt the validated plaintext */
+                out_pkt->crypto_algo = (uint8_t)t->algo;
+                out_pkt->is_encrypted = 0x01;
+                encrypt_payload(out_pkt, plaintext, plain_len, t->key, frame_id);
+            } else {
+                /* Recipient wants cleartext */
+                out_pkt->is_encrypted = 0;
+                out_pkt->crypto_algo = CRYPTO_NONE;
+                memcpy(out_pkt->text, plaintext, plain_len);
+                out_pkt->text[plain_len] = '\0';
+                out_pkt->length = (int32_t)plain_len;
+            }
+            relay_write(i, t->fd, out_pkt, offsetof(PacketMessage, text) + (size_t)out_pkt->length);
+        }
+    }
+
+    if (out_pkt) { OPENSSL_cleanse(out_pkt, sizeof(PacketMessage)); free(out_pkt); }
+    OPENSSL_cleanse(targets, MAX_CLIENTS * sizeof(RelayTarget));
+    free(targets);
+    OPENSSL_cleanse(plaintext, 65536);
     free(plaintext);
 }
 
-/* Synchronous core (original body): builds the PacketMessage, encrypts it
- * for the recipient and write_all()s it under the per-player socket_mutex.
- * LEGACY mode calls it directly; ASYNC mode runs it on a thread-pool worker
- * so the single-threaded epoll loop (and the 60 Hz game thread) never
- * blocks on a send. */
-static void send_server_msg_sync(int p_idx, const char *from, const char *text) {
+/* Recipient route of a server message: fd, frequency and key captured when
+ * send_server_msg() is called — in the caller's context, normally under
+ * game_mutex — instead of being read later from players[] on a thread-pool
+ * worker that holds no game lock (ASYNC mode). */
+typedef struct {
+    int p_idx;
+    int fd;
+    int algo;
+    uint8_t key[32];
+} MsgRoute;
+
+static bool msg_route_capture(int p_idx, MsgRoute *r) {
+    if (p_idx < 0 || p_idx >= MAX_CLIENTS) return false;
+    memset(r, 0, sizeof(*r));
+    r->p_idx = p_idx;
+    r->fd = players[p_idx].socket;
+    if (r->fd == 0) return false;
+    r->algo = players[p_idx].state.shm_crypto_algo;
+    if (r->algo != CRYPTO_NONE) {
+        const uint8_t *k = (r->algo >= 1 && r->algo <= MAX_CRYPTO_ALGOS) ?
+                           players[p_idx].algo_keys[r->algo] : players[p_idx].session_key;
+        memcpy(r->key, k, 32);
+    }
+    return true;
+}
+
+/* Synchronous core: builds the PacketMessage, encrypts it for the captured
+ * route and write_all()s it under the per-player socket_mutex, only if the
+ * slot still holds the captured fd. LEGACY mode calls it directly; ASYNC
+ * mode runs it on a thread-pool worker so the single-threaded epoll loop
+ * (and the 60 Hz game thread) never blocks on a send. */
+static void send_server_msg_sync(const MsgRoute *r, const char *from, const char *text) {
     PacketMessage *msg = malloc(sizeof(PacketMessage));
     if (!msg) return;
     memset(msg, 0, sizeof(PacketMessage));
     msg->type = PKT_MESSAGE;
     strncpy(msg->from, from, 63);
-    
-    if (p_idx == -1) {
-        /* Broadcast system message to all */
-        for (int i = 0; i < MAX_CLIENTS; i++) {
-            if (players[i].active && players[i].socket != 0) {
-                send_server_msg(i, from, text);
-            }
-        }
-        free(msg);
-        return;
-    }
 
-    if (players[p_idx].state.shm_crypto_algo != CRYPTO_NONE) {
+    size_t tlen = strlen(text);
+    if (tlen > 65535) tlen = 65535;
+    if (r->algo != CRYPTO_NONE) {
         msg->is_encrypted = 1;
-        msg->crypto_algo = players[p_idx].state.shm_crypto_algo;
-        
-        uint8_t *k = (msg->crypto_algo >= 1 && msg->crypto_algo <= MAX_CRYPTO_ALGOS) ? players[p_idx].algo_keys[msg->crypto_algo] : players[p_idx].session_key;
-        
-        encrypt_payload(msg, text, k, spacegl_master.frame_id);
+        msg->crypto_algo = (uint8_t)r->algo;
+        encrypt_payload(msg, text, tlen, r->key, spacegl_master.frame_id);
     } else {
         msg->is_encrypted = 0;
-        size_t plen = strlen(text);
-        if (plen > 65535) plen = 65535;
-        memcpy(msg->text, text, plen);
-        msg->text[plen] = '\0';
-        msg->length = plen;
+        memcpy(msg->text, text, tlen);
+        msg->text[tlen] = '\0';
+        msg->length = (int32_t)tlen;
     }
-    
-    size_t pkt_size = offsetof(PacketMessage, text) + msg->length;
-    pthread_mutex_lock(&players[p_idx].socket_mutex);
-    if (players[p_idx].socket != 0) write_all(players[p_idx].socket, msg, pkt_size);
-    pthread_mutex_unlock(&players[p_idx].socket_mutex);
+
+    size_t pkt_size = offsetof(PacketMessage, text) + (size_t)msg->length;
+    pthread_mutex_lock(&players[r->p_idx].socket_mutex);
+    if (players[r->p_idx].socket != 0 && players[r->p_idx].socket == r->fd)
+        write_all(r->fd, msg, pkt_size);
+    pthread_mutex_unlock(&players[r->p_idx].socket_mutex);
+    OPENSSL_cleanse(msg, sizeof(PacketMessage));
     free(msg);
 }
 
 extern threadpool_t *g_pool;
 
 typedef struct {
-    int p_idx;
+    MsgRoute route;
     char from[64];
     char *text;   /* heap copy, freed by the task */
 } ServerMsgTask;
@@ -407,13 +459,25 @@ typedef struct {
 static void server_msg_task(void *arg) {
     ServerMsgTask *t = (ServerMsgTask *)arg;
     if (t) {
-        if (t->text) send_server_msg_sync(t->p_idx, t->from, t->text);
+        if (t->text) send_server_msg_sync(&t->route, t->from, t->text);
         free(t->text);
+        OPENSSL_cleanse(t, sizeof(*t));
         free(t);
     }
 }
 
 void send_server_msg(int p_idx, const char *from, const char *text) {
+    if (p_idx == -1) {
+        /* Broadcast system message to all connected captains */
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if (players[i].active && players[i].socket != 0) send_server_msg(i, from, text);
+        }
+        return;
+    }
+
+    MsgRoute route;
+    if (!msg_route_capture(p_idx, &route)) return;   /* no such slot / not connected */
+
     /* ASYNC mode: the caller is (or sits on) the single-threaded epoll
      * loop, which must never block on a send — delegate the (blocking,
      * bounded) write to the thread pool, exactly like the other outbound
@@ -422,7 +486,7 @@ void send_server_msg(int p_idx, const char *from, const char *text) {
     if (g_io_mode == SPACEGL_IO_ASYNC && g_pool) {
         ServerMsgTask *t = malloc(sizeof(ServerMsgTask));
         if (t) {
-            t->p_idx = p_idx;
+            t->route = route;
             strncpy(t->from, from, 63);
             t->from[63] = '\0';
             size_t tlen = strlen(text);
@@ -431,16 +495,19 @@ void send_server_msg(int p_idx, const char *from, const char *text) {
             if (t->text) {
                 memcpy(t->text, text, tlen);
                 t->text[tlen] = '\0';
-                if (threadpool_add_task(g_pool, server_msg_task, t) == 0) return; /* delegated */
+                if (threadpool_add_task(g_pool, server_msg_task, t) == 0) {
+                    OPENSSL_cleanse(&route, sizeof(route));
+                    return; /* delegated */
+                }
                 free(t->text);
-                free(t);
-            } else {
-                free(t);
             }
+            OPENSSL_cleanse(t, sizeof(*t));
+            free(t);
         }
         /* Allocation or enqueue failure: degrade to the sync path. */
     }
-    send_server_msg_sync(p_idx, from, text);
+    send_server_msg_sync(&route, from, text);
+    OPENSSL_cleanse(&route, sizeof(route));
 }
 
 void send_optimized_update(int p_idx, PacketUpdate *upd) {

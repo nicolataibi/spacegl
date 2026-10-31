@@ -114,6 +114,17 @@ void  conn_close(int epoll_fd, Conn *c, ConnCloseReason reason);
  * when no slot is bound to fd. */
 void  reap_player_fd(int fd, ConnCloseReason reason);
 
+/* Detach the socket of player slot `slot` (caller holds game_mutex):
+ * shutdown(SHUT_RDWR) first, so that a writer blocked in send() on that fd
+ * (thread-pool relay, galaxy sync, delta update) fails at once with EPIPE
+ * instead of keeping socket_mutex for up to the 30 s write_all() bound,
+ * then players[slot].socket = 0 under socket_mutex, so that no writer can
+ * pass its "socket != 0" check and then write to an fd that the caller is
+ * about to close (and that accept() may hand to another connection).
+ * Lock order game_mutex -> socket_mutex, the order already used by every
+ * sender that runs under game_mutex. The fd itself is NOT closed here. */
+void  player_socket_detach(int slot);
+
 /* Non-blocking pump: consumes whatever the socket currently has, advances
  * the RX state machine and dispatches complete packets. Never blocks. */
 void  conn_pump(int epoll_fd, Conn *c);

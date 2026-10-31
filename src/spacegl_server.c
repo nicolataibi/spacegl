@@ -295,10 +295,15 @@ void sync_client_task(void *arg) {
         slog("\033[1;32m[CONNECTION]\033[0m Captain \033[1;37m%-15s\033[0m has entered the galaxy. [\033[1;33m%s\033[0m]\n", 
                players[slot].name, time_str);
     } else {
-        /* Failed to send master data, slot remains inactive */
+        /* Failed to send master data, slot remains inactive. Only if the
+         * slot still belongs to this connection: a new login may have
+         * rebound it (new fd / generation) while the write was failing,
+         * and that session must not be torn down. */
         pthread_mutex_lock(&game_mutex);
-        players[slot].socket = 0;
-        players[slot].active = 0;
+        if (players[slot].socket == fd && players[slot].generation == task->generation) {
+            player_socket_detach(slot);
+            players[slot].active = 0;
+        }
         pthread_mutex_unlock(&game_mutex);
         LOG_DEBUG("Sync Failed: Client FD %d disconnected during Galaxy Master transmission\n", fd);
     }
@@ -533,9 +538,10 @@ static void run_legacy_loop(int server_fd, int epoll_fd) {
                         slog("\033[1;35m[DISCONNECT]\033[0m Captain \033[1;37m%-15s\033[0m has left the galaxy.    [\033[1;33m%s\033[0m]\n", 
                                players[i].name[0] ? players[i].name : "Unknown", time_disc);
 
-                        players[i].socket = 0;
+                        player_socket_detach(i);
                         players[i].active = 0;
-                        players[i].radio_lock_target = 0;                        memset(players[i].session_key, 0, 32);
+                        players[i].radio_lock_target = 0;
+                        memset(players[i].session_key, 0, 32);
                         save_galaxy();
                         break; 
                     }

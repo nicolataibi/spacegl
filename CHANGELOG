@@ -1,3 +1,35 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.02
+  - Server message relay, data race: broadcast_message() released
+  game_mutex and then, in its send loop, read each recipient's frequency,
+  keys, radio lock and active/socket from players[], fields that the game
+  thread may rewrite at the same time. The routing decision and a copy of
+  each recipient's fd, frequency and key are now taken under game_mutex
+  (RelayTarget snapshot); the send loop reads only the snapshot. The same
+  for send_server_msg(): the route (fd, frequency, key) is captured when it
+  is called, in the caller's context, no longer read later on the
+  thread-pool worker (ASYNC mode). Key copies are wiped after use.
+  - Socket teardown, TOCTOU: a writer checked "socket != 0" under
+  socket_mutex while the teardown cleared socket under game_mutex only, so
+  a write could land on an fd being closed (or already handed by accept()
+  to another connection). New player_socket_detach() (caller holds
+  game_mutex): shutdown(SHUT_RDWR) first, which wakes a writer blocked in
+  send() at once, then socket = 0 under socket_mutex. Used by
+  reap_player_fd() (ASYNC), the LEGACY disconnect path and the galaxy sync
+  failure path. Every write re-checks that the slot still holds the fd it
+  was routed to.
+  - Galaxy sync failure: the slot was cleared without checking that it
+  still belonged to the failing connection; a new login rebound to the
+  same slot meanwhile could be disconnected. Now only when fd and
+  generation still match.
+  - Fleet relay truncation: encrypt_payload() and the adaptive relay used
+  strlen() on the decrypted plaintext, so a message with an embedded NUL
+  was cut at the first one. encrypt_payload() takes an explicit length and
+  the relay forwards the exact decrypted length.
+  - Tests: new relay_snapshot_test (embedded NULs kept by encrypt_payload
+  and by the relay to cleartext and encrypted recipients, captured route of
+  send_server_msg, player_socket_detach() waking a writer blocked in
+  send()). SECURITY.md hardening list updated.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.01
   - Code hygiene (no behaviour change): silence the only warnings that touch
   correctness under stricter compiler flags, leaving the project clean under
