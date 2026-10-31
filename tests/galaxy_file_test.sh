@@ -8,7 +8,10 @@
 # server binary:
 #   1. a new galaxy is saved in format 2 (magic SGGALAX2), atomically (no
 #      galaxy.dat.tmp left behind), mode 0600;
-#   2. a restart loads it with the same astrometrics counts;
+#   2. a restart loads it with the same astrometrics counts; a protostellar
+#      object placed outside its quadrant and a star system whose reach
+#      crosses a face (galaxies generated before 2026.10.31.28) are moved
+#      back inside and the repair is saved;
 #   3. a format-1 file (the previous raw dump, rebuilt here from the format-2
 #      payloads) is no longer read (2026.10.31.25): a new galaxy is
 #      generated and saved in format 2;
@@ -73,6 +76,46 @@ check "restart"                             run_server "$WORK/2.log"
 check "loaded, not generated"               grep -q "PERSISTENT GALAXY LOADED SUCCESSFULLY" "$WORK/2.log"
 counts "$WORK/2.log" > "$WORK/c2.txt"
 check "same counts after the restart"       cmp -s "$WORK/c1.txt" "$WORK/c2.txt"
+
+# 2b. a protostellar object outside its quadrant and a star system against
+#     a face (galaxies generated before 2026.10.31.28) are moved on load
+python3 - "$DATA/galaxy.dat" <<'EOF' || { echo "FAIL - galaxy.dat edit for step 2b"; fail=1; }
+import struct, sys
+p = sys.argv[1]
+b = bytearray(open(p, 'rb').read())
+_, _, _, nsec, _ = struct.unpack_from('<8sIIII', b, 0)
+off = 24
+for _ in range(nsec):
+    tag, esz, layout, cnt = struct.unpack_from('<24sIIQ', b, off)
+    if tag.rstrip(b'\0') == b'cosmic_features':
+        assert esz == 112, esz            # NPCCosmicFeature (packed)
+        base = off + 40
+        for k in range(cnt):
+            e = base + k * esz
+            typ = struct.unpack_from('<i', b, e + 4)[0]
+            active = struct.unpack_from('<i', b, e + 44)[0]
+            if active and 149 <= typ <= 164:      # OBJ_PROTOSTELLAR_FIRST..LAST
+                struct.pack_into('<ddd', b, e + 20, -60.3, 259.9, 312.3)
+                break
+        else:
+            raise SystemExit("no protostellar object")
+    elif tag.rstrip(b'\0') == b'sys_stars':
+        assert esz == 56, esz             # NPCSysStar
+        for k in range(cnt):
+            e = off + 40 + k * esz
+            if struct.unpack_from('<i', b, e + 52)[0]:          # active
+                struct.pack_into('<d', b, e + 16, 1.0)          # x: against the face
+                break
+        else:
+            raise SystemExit("no star system")
+    off += 40 + esz * cnt
+open(p, 'wb').write(b)
+EOF
+check "restart with a misplaced protostellar"  run_server "$WORK/2b.log"
+check "it is moved back inside its quadrant"   grep -q "1 protostellar objects moved back inside their quadrant" "$WORK/2b.log"
+check "a star system against a face is moved"  grep -q "1 star systems moved inside their quadrant" "$WORK/2b.log"
+check "restart after the repair"               run_server "$WORK/2c.log"
+check "the repair was saved"                   not_grep "moved back inside their quadrant\|star systems moved" "$WORK/2c.log"
 
 # 3. format 1 (version int + the payloads in the same order) -> refused
 python3 - "$DATA/galaxy.dat" "$WORK/v1.dat" <<'EOF'

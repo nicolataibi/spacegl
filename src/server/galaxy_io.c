@@ -416,6 +416,37 @@ static int load_galaxy_v2(FILE *f) {
         ns = 0;
     }
     sys_star_count = ns;
+    /* A system generated before 2026.10.31.28 may reach past a quadrant
+     * face (its radius took only the outermost planet's envelope): move
+     * its star inward until the whole reach fits, orbits unchanged. */
+    {
+        int moved = 0;
+        for (int s_ = 0; s_ < sys_star_count; s_++) {
+            NPCSysStar *st = &sys_stars[s_];
+            if (!st->active) continue;
+            double orbit_r[SYS_PLANETS_PER_STAR] = {0};
+            int n_moons[SYS_PLANETS_PER_STAR] = {0};
+            int np = st->n_planets < SYS_PLANETS_PER_STAR ? st->n_planets : SYS_PLANETS_PER_STAR;
+            if (np < 0) np = 0;
+            for (int k = 0; k < np; k++) {
+                const NPCSysPlanet *pl = &sys_planets[sys_planet_slot(s_, k)];
+                if (!pl->active) continue;
+                orbit_r[k] = pl->orbit_r;
+                n_moons[k] = pl->n_moons < SYS_MOONS_PER_PLANET ? pl->n_moons : SYS_MOONS_PER_PLANET;
+            }
+            double reach = sys_reach(orbit_r, n_moons, np);
+            double lo = reach + SYS_FACE_MARGIN, hi = (double)QUADRANT_SIZE - reach - SYS_FACE_MARGIN;
+            if (lo > hi) continue;   /* cannot fit at all: left as it is */
+            double *c[3] = { &st->x, &st->y, &st->z };
+            bool out = false;
+            for (int i_ = 0; i_ < 3; i_++) {
+                if (*c[i_] < lo) { *c[i_] = lo; out = true; }
+                else if (*c[i_] > hi) { *c[i_] = hi; out = true; }
+            }
+            if (out) moved++;
+        }
+        if (moved > 0) printf("[GALAXY] %d star systems moved inside their quadrant\n", moved);
+    }
     { double t_ = sys_clock_s(); for (int s_ = 0; s_ < sys_star_count; s_++) sys_refresh_positions(s_, t_); }
     cosmic_feature_count = galaxy_cosmic_count_snapshot;
     if (cosmic_feature_count < 0 || cosmic_feature_count > MAX_COSMIC_FEATURES) cosmic_feature_count = 0;
@@ -468,6 +499,24 @@ static void galaxy_complete_after_load(void) {
             spawn_protostellar_objects();
             printf("[GALAXY] added %d protostellar objects to the loaded galaxy\n", cosmic_feature_count - before);
         }
+    }
+
+    /* Protostellar objects of a galaxy generated before 2026.10.31.28 lie up
+     * to 300 units from their nursery, outside their quadrant: put each
+     * coordinate that is out of range back at a random place inside it. */
+    {
+        int moved = 0;
+        for (int i = 0; i < cosmic_feature_count && i < MAX_COSMIC_FEATURES; i++) {
+            NPCCosmicFeature *f = &cosmic_features[i];
+            if (!f->active || !obj_type_is_protostellar(f->type)) continue;
+            bool out = false;
+            if (!(f->x >= 0.0 && f->x < QUADRANT_SIZE)) { f->x = galaxy_rand_coord(); out = true; }
+            if (!(f->y >= 0.0 && f->y < QUADRANT_SIZE)) { f->y = galaxy_rand_coord(); out = true; }
+            if (!(f->z >= 0.0 && f->z < QUADRANT_SIZE)) { f->z = galaxy_rand_coord(); out = true; }
+            if (out) moved++;
+        }
+        if (moved > 0)
+            printf("[GALAXY] %d protostellar objects moved back inside their quadrant\n", moved);
     }
 
     /* No extended moons after the load (a skipped section): add them */

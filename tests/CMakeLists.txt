@@ -774,9 +774,33 @@ if(SPACEGL_TEST_SANITIZER STREQUAL "thread" AND TARGET spacegl_server AND TARGET
         FAIL_REGULAR_EXPRESSION "FAIL:")
 endif()
 
+# --- Telemetry protocol (2026.10.31.28) ---------------------------------
+# The REAL server's telemetry port (TCP 5001): every category subscribed
+# in turn, frames checked object by object, static populations compared
+# with the boot table. RUN_SERIAL: ports 5000/5001.
+add_executable(telemetry_client_test telemetry_client_test.c)
+target_link_libraries(telemetry_client_test PRIVATE m)
+if(NOT MSVC)
+    target_compile_options(telemetry_client_test PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(telemetry_client_test PRIVATE -fsanitize=address,undefined)
+endif()
+if(TARGET spacegl_server)
+    add_test(NAME telemetry
+             COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/telemetry_test.sh"
+                     $<TARGET_FILE:spacegl_server> $<TARGET_FILE:telemetry_client_test>)
+    set_tests_properties(telemetry PROPERTIES
+        RUN_SERIAL TRUE
+        TIMEOUT 180
+        SKIP_RETURN_CODE 77
+        PASS_REGULAR_EXPRESSION "PASS: telemetry_client_test"
+        FAIL_REGULAR_EXPRESSION "FAIL")
+endif()
+
 # --- galaxy.dat format 2 (2026.10.31.19) ------------------------------
 # The REAL server: new galaxy saved in format 2 (atomic, 0600), restart with
-# the same counts, a format-1 file refused (new galaxy), a section with a
+# the same counts, misplaced protostellar objects and star systems moved
+# back inside their quadrant, a format-1 file refused (new galaxy), a section with a
 # changed layout skipped, a corrupt file replaced. RUN_SERIAL: port 5000.
 if(TARGET spacegl_server)
     add_test(NAME galaxy_file

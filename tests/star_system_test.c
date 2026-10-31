@@ -82,6 +82,9 @@ static int check_system_inside(unsigned seed, double Q, int *planets_hist, int *
         if (L.n_moons[k] > 0 && inner < SYS_STAR_RADIUS + SYS_MOON_MAX_RADIUS) return 3;
         if (L.planet_r[k] - SYS_PLANET_RADIUS < SYS_STAR_RADIUS) return 4;
         if (k > 0 && L.planet_r[k] <= L.planet_r[k - 1]) return 5;
+        /* r_sys bounds EVERY planet envelope, not only the outermost one
+         * (2026.10.31.28: an inner planet with four moons reached past it) */
+        if (L.planet_r[k] + sys_planet_envelope(L.n_moons[k]) > L.r_sys + 1e-9) return 8;
         *moons_total += L.n_moons[k];
         for (int ti = 0; ti < 6; ti++) {
             double t = 137.0 * ti + (double)(seed % 1000);

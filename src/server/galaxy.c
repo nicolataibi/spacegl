@@ -168,19 +168,23 @@ void spawn_protostellar_objects(void) {
             double y = galaxy_rand_coord();
             double z = galaxy_rand_coord();
 
-            /* Cluster in star-forming nurseries (GMC, Dark Nebula) */
+            /* Cluster in star-forming nurseries (GMC, Dark Nebula): within
+             * 3 (GMC) or 2 (dark nebula) units of the nursery, inside its
+             * quadrant. Until 2026.10.31.27 the offset was +-300 / +-200
+             * units in local coordinates, so most of these objects lay
+             * outside their quadrant, where nothing could reach them. */
             int gmc_idx = (t * GALAXY_CREATE_PROTOSTELLAR_PER_TYPE + i) % MAX_GMC;
             int dark_idx = (t * GALAXY_CREATE_PROTOSTELLAR_PER_TYPE + i) % MAX_DARK_NEBULAE;
             if (gmcs[gmc_idx].active && IS_Q_VALID(gmcs[gmc_idx].q1, gmcs[gmc_idx].q2, gmcs[gmc_idx].q3)) {
                 q1 = gmcs[gmc_idx].q1; q2 = gmcs[gmc_idx].q2; q3 = gmcs[gmc_idx].q3;
-                x = gmcs[gmc_idx].x + ((rand() % 600) - 300);
-                y = gmcs[gmc_idx].y + ((rand() % 600) - 300);
-                z = gmcs[gmc_idx].z + ((rand() % 600) - 300);
+                x = galaxy_clamp_local(gmcs[gmc_idx].x + (double)((rand() % 600) - 300) / 100.0);
+                y = galaxy_clamp_local(gmcs[gmc_idx].y + (double)((rand() % 600) - 300) / 100.0);
+                z = galaxy_clamp_local(gmcs[gmc_idx].z + (double)((rand() % 600) - 300) / 100.0);
             } else if (dark_nebulae[dark_idx].active && IS_Q_VALID(dark_nebulae[dark_idx].q1, dark_nebulae[dark_idx].q2, dark_nebulae[dark_idx].q3)) {
                 q1 = dark_nebulae[dark_idx].q1; q2 = dark_nebulae[dark_idx].q2; q3 = dark_nebulae[dark_idx].q3;
-                x = dark_nebulae[dark_idx].x + ((rand() % 400) - 200);
-                y = dark_nebulae[dark_idx].y + ((rand() % 400) - 200);
-                z = dark_nebulae[dark_idx].z + ((rand() % 400) - 200);
+                x = galaxy_clamp_local(dark_nebulae[dark_idx].x + (double)((rand() % 400) - 200) / 100.0);
+                y = galaxy_clamp_local(dark_nebulae[dark_idx].y + (double)((rand() % 400) - 200) / 100.0);
+                z = galaxy_clamp_local(dark_nebulae[dark_idx].z + (double)((rand() % 400) - 200) / 100.0);
             }
 
             cosmic_features[cosmic_feature_count] = (NPCCosmicFeature){

@@ -25,6 +25,13 @@ static inline float galaxy_rand_coord(void) {
     return (float)(rand() % (int)(QUADRANT_SIZE * RATIO_COORD_RANDOM)) / RATIO_COORD_RANDOM;
 }
 
+/* A local coordinate forced inside the quadrant, [0, QUADRANT_SIZE). */
+static inline double galaxy_clamp_local(double v) {
+    const double hi = QUADRANT_SIZE - 1.0 / RATIO_COORD_RANDOM;
+    if (!(v >= 0.0)) return 0.0;   /* NaN too */
+    return v > hi ? hi : v;
+}
+
 void spawn_evolved_stars(void);
 void spawn_protostellar_objects(void);
 void spawn_moons(void);

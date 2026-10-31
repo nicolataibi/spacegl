@@ -1,3 +1,25 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.28
+  - Tests, roadmap phase 6: the telemetry port had no test. New ctest
+  telemetry: the real server, a client that subscribes to each of the 174
+  categories, reads two frames per category and checks every object (ids
+  and names terminated, quadrant in range, coordinates finite and inside
+  the quadrant) and the static populations against the boot table.
+  - Two defects found by it. Protostellar objects clustered around a giant
+  molecular cloud or a dark nebula were placed +-300 / +-200 units from it
+  in local coordinates, so most of them (8 types of 16) lay outside their
+  quadrant where no command could reach them: the offset is now +-3 / +-2
+  units and the coordinate is kept inside the quadrant.
+  - Star systems: the radius used to place the star took the envelope of
+  the outermost planet only; with overlapping envelopes an inner planet
+  with four moons reaches farther, and its moons could leave the quadrant
+  by up to 0.5 units (94 layouts in 20000). The radius is now the
+  farthest envelope (sys_layout_radii in include/star_system.h);
+  star_system_test checks the bound for every planet.
+  - Loaded galaxies are repaired: a protostellar coordinate outside the
+  quadrant is drawn again inside it, and a star system that reaches past
+  a face has its star moved inward (orbits unchanged); the next save keeps
+  the repair. galaxy_file step 2b pins both.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.27
   - Command parsing, roadmap phase 6: the 24 sscanf() calls that read the
   numbers of a command (pow, nav, imp, pos, vec, apr, pha, tor, she, scan,

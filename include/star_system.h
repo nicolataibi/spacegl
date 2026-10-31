@@ -92,6 +92,7 @@ static inline double sys_planet_envelope(int n_moons) {
  * [0,1]: 0 = planet envelopes do not overlap, 0.5 = they overlap by half. */
 static inline void sys_layout_radii(SysLayout *L, double overlap) {
     double prev_e = 0.0, r = 0.0;
+    L->r_sys = 0.0;
     for (int k = 0; k < L->n_planets; k++) {
         double e = sys_planet_envelope(L->n_moons[k]);
         /* Every planet keeps its whole envelope clear of the star (a moon of an
@@ -104,8 +105,24 @@ static inline void sys_layout_radii(SysLayout *L, double overlap) {
         }
         L->planet_r[k] = r;
         prev_e = e;
+        /* The reach of the system is the farthest envelope, which is not
+         * always the outermost planet's: with overlapping envelopes an
+         * inner planet with four moons can reach past an outer planet
+         * with none (until 2026.10.31.28 r_sys took the last planet only,
+         * and such a moon could leave the quadrant by up to 0.5 units). */
+        if (r + e > L->r_sys) L->r_sys = r + e;
     }
-    L->r_sys = (L->n_planets > 0) ? L->planet_r[L->n_planets - 1] + prev_e : 0.0;
+}
+
+/* Reach of a stored system: the farthest planet envelope around the star,
+ * from the saved orbit radii and moon counts (galaxy.dat). */
+static inline double sys_reach(const double *orbit_r, const int *n_moons, int n_planets) {
+    double reach = 0.0;
+    for (int k = 0; k < n_planets; k++) {
+        double r = orbit_r[k] + sys_planet_envelope(n_moons[k]);
+        if (r > reach) reach = r;
+    }
+    return reach;
 }
 
 /* Draws and fits a layout for `seed` in a quadrant of side `quadrant_size`.
