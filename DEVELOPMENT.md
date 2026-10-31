@@ -283,6 +283,21 @@ and run with `OMP_NUM_THREADS=1` (libgomp is not instrumented).
 | thread pool workers | galaxy sync at login, server messages (ASYNC mode), fleet radio relay | to snapshot, never while writing a socket |
 | telemetry uplink | accepts telemetry clients, subscriptions | never |
 
+### One server tick
+
+`update_game_logic()` (`src/server/logic.c`, under `game_mutex`) runs, in
+this order: autosave, moon and star-system orbits, LRS grid, nebula
+refill, death timers; then for each active captain
+`player_tick_survival()` (a ship with no hull or no crew is towed away and
+skips the rest), `player_tick_life_support()`, `player_tick_shields()`,
+`player_tick_weapons()`, `player_tick_probes()`,
+`player_tick_navigation()` (one `nav_tick_*()` per navigation state) and
+the collision check; then `logic_generate_events()`; then for each
+connected captain the update packet (`update_fill_state()`,
+`update_fill_objects()`, `update_fill_effects()`); last, the beam queues
+and the transient NPC effects are reset. The order is part of the
+behaviour: a phase reads what the previous ones wrote.
+
 ### Locks and their order
 
 | Lock | Guards |

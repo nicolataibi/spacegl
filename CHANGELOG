@@ -1,3 +1,19 @@
+* Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.37
+  - Server logic, roadmap phase 3: update_game_logic() was one function of
+  1085 lines. It is now a 144-line orchestrator of 18 functions, one per
+  phase of the tick: player_tick_survival (dead hull, lost crew),
+  player_tick_life_support, player_tick_shields, player_tick_weapons,
+  player_tick_probes, player_tick_navigation with one nav_tick_*() per
+  navigation state (align, hyperdrive, impulse, align only, approach,
+  chase, docking, drift, idle), and update_fill_state, update_fill_objects,
+  update_fill_effects for the update packet. The code is moved, not
+  rewritten; the order of the phases is unchanged (DEVELOPMENT.md
+  section 7, "One server tick").
+  - Equivalence: a trace of 900 ticks on a fixed galaxy with six captains
+  (dead ship, lost crew, hyperdrive, impulse, align, vector thrust, jump,
+  approach, chase, fire), the hash of the whole game state after every
+  tick, is identical before and after, with one thread and with OpenMP.
+
 * Sat Oct 31 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.10.31.36
   - Fix: a new captain starts at the centre of a random quadrant, and that
   centre could be taken: a star system whose reach fills its quadrant has
