@@ -1,0 +1,9 @@
+[2026-11-01 08:24:09.053] [vkv] [NOTICE  ] [VULKAN    ] SPACEGL_GPD=1: requesting GPU-driven path (pid 21761)
+[2026-11-01 08:24:09.107] [vkv] [SUCCESS ] [VULKAN    ] GPU-driven path ACTIVE (beams/effects render via gdd_build_frame)
+[GDD] SPACEGL_GPD=1: requesting the GPU-driven path (Vulkan 1.3+, CPU-driven fallback)
+[PILOT] No Thrustmaster flight stick found — pilot mode input disabled.
+[GDD] creating Vulkan instance at API version 1.3 (driver exposes 1.4.363)
+[VK] device 0 of 2: Intel(R) Arc(tm) A770 Graphics (DG2) (discrete GPU, Vulkan 1.4.354)
+[GDD] device queue family 0 (graphics+compute): synchronization2 + dynamicRendering enabled
+[GDD] GPU-driven path initialized (queue family 0, 4096 instance slots, 512000 vertex capacity, 4 sample MSAA)
+[VK] screenshot: /home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/gpu-golden-20261101-082408/vk_gdd.ppm (640x480, slot 2, image 1, GPU-driven path)

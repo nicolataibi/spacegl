@@ -57,6 +57,13 @@ path. With an explicit 1, a
 .B \-\-screenshot
 run exits with an error when the GPU-driven path cannot start.
 .TP
+.B SPACEGL_VK_DEVICE
+The Vulkan device to use: its index, or a part of its name (any case).
+Without it the viewer prefers a discrete GPU, then an integrated one, then
+the rest, a software driver (llvmpipe/lavapipe) last, and with the
+GPU-driven path a device that can run it; the choice is printed at start
+("[VK] device N of M: NAME (type, Vulkan x.y.z)").
+.TP
 .B SPACEGL_VALIDATION
 1 requests the Vulkan validation layer, 0 disables it (on by default in
 Debug builds).

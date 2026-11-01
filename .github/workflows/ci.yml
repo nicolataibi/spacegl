@@ -242,7 +242,7 @@ jobs:
       - name: shellcheck (launcher scripts)
         run: |
           shellcheck --version
-          shellcheck spacegl-server spacegl-client spacegl-diag tests/launcher_test.sh
+          shellcheck spacegl-server spacegl-client spacegl-diag tests/launcher_test.sh tests/gpu_golden_check.sh
 
       - name: Configure (compile_commands.json)
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
@@ -574,32 +574,15 @@ jobs:
             --benchmark 100 tests/gdd_bench_thresholds.txt
           echo "GDD benchmark passed on real GPU"
 
-      - name: Golden render on real GPU (region-based, Prompt 6A)
+      - name: Golden renders on the real GPU (roadmap 10)
         if: steps.check_gpu.outputs.gpu == 'true'
         run: |
-          set -euo pipefail
-          # Real GPU or xvfb (the viewer creates a real GLFW window).
-          if [ -z "${DISPLAY:-}" ]; then
-            RUNX="xvfb-run -a"
-          else
-            RUNX=""
-          fi
-          # Deterministic flags, same as the lavapipe job: frame 30 of
-          # both render paths (one binary / SPACEGL_GPD switch) over an
-          # empty SHM segment.
-          $RUNX env SPACEGL_GPD=0 ./build/spacegl_vulkan /sg_golden_shm \
-            --window 640x480 --seed 1 --no-rotate \
-            --screenshot /tmp/golden_cpu.ppm --screenshot-frame 30
-          $RUNX env SPACEGL_GPD=1 ./build/spacegl_vulkan /sg_golden_shm \
-            --window 640x480 --seed 1 --no-rotate \
-            --screenshot /tmp/golden_gdd.ppm --screenshot-frame 30
-          # 1. Cross-path parity, region-based (per-region tolerances
-          #    calibrated above the measured cross-path floor).
-          python3 tests/golden_test.py /tmp/golden_cpu.ppm /tmp/golden_gdd.ppm --mode parity
-          # 2. Same-path regression pin vs the committed golden image:
-          #    this is where a driver that rasterizes a compute pass
-          #    differently shows up (center 8.0 / HUD 5.0 / global 30).
-          python3 tests/golden_test.py /tmp/golden_gdd.ppm tests/golden/golden_gdd.ppm --mode regression
+          # tests/gpu_golden_check.sh: Vulkan CPU vs GDD parity, GDD vs
+          # tests/golden/golden_gdd.ppm, OpenGL vs tests/golden/golden_gl.ppm,
+          # after checking that the GPU (not a software driver) rendered.
+          # The runner must run in a graphical session (DISPLAY): most GPU
+          # drivers cannot present under xvfb.
+          bash tests/gpu_golden_check.sh build --out gpu-golden
 
       - name: GDD smoke (1 frame, screenshot not black/white)
         if: steps.check_gpu.outputs.gpu == 'true'
@@ -641,3 +624,10 @@ jobs:
         with:
           name: gpu-real-smoke
           path: /tmp/gdd_smoke.ppm
+
+      - name: Upload golden captures and report (artifact)
+        if: always() && steps.check_gpu.outputs.gpu == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-real-golden
+          path: gpu-golden/

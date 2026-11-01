@@ -446,6 +446,19 @@ number and element count.
   base; `--reps`, `--tol`, `--gdd-tol`, `--no-gdd`). It skips, with the
   reason, when the base does not build or when the benchmark program
   itself changed between the two sides.
+- **Golden renders on a real GPU (roadmap 10).** The committed golden
+  images come from the software drivers (lavapipe, llvmpipe). On a machine
+  with a GPU, in its graphical session, after a Release build:
+  `tests/gpu_golden_check.sh [build dir] [--out DIR]` renders the Vulkan
+  CPU-driven and GPU-driven frames and the OpenGL frame on the GPU, refuses
+  to go on if a software driver rendered (`SPACEGL_VK_DEVICE=<index or name
+  part>` picks the Vulkan device), and compares: Vulkan CPU vs GDD (parity),
+  GDD vs `golden_gdd.ppm` and OpenGL vs `golden_gl.ppm` (regression). It
+  writes the captures and `report.txt` into the output directory. The CI
+  `gpu_real` job runs it on a self-hosted runner labelled `gpu` (repo
+  variable `GPU_RUNNER_ENABLED=true`; the runner needs a graphical session).
+  The viewer prints its device at start, and prefers a real GPU over the
+  software driver.
 - **OpenGL viewer: golden render and bloom.** `spacegl_3dview --screenshot
   FILE [--screenshot-frame N] [--seed N] [--no-rotate] [--window WxH]`
   renders frame N with a fixed clock (one frame = 1/60 s; every animation

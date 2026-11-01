@@ -26,6 +26,7 @@
 
 #include "vulkan_device_internal.h"
 #include <sys/mman.h>
+#include <ctype.h>
 
 bool s_no_msaa = false;
 char vertex_shader_path[512] = "/usr/share/spacegl/shaders/shader.vert.spv";
@@ -224,6 +225,53 @@ static VkSampleCountFlagBits getMaxUsableSampleCount(VkPhysicalDevice pDevice) {
     return VK_SAMPLE_COUNT_1_BIT;
 }
 
+static const char *device_type_name(VkPhysicalDeviceType t) {
+    switch (t) {
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: return "discrete GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: return "integrated GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: return "virtual GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_CPU: return "CPU (software)";
+        default: return "other";
+    }
+}
+
+/* Preference of a device (higher first): the type, and +100 when the
+ * GPU-driven path is wanted and the device can run it. */
+static int device_score(VkPhysicalDevice d, bool gdd_wanted) {
+    VkPhysicalDeviceProperties pr;
+    vkGetPhysicalDeviceProperties(d, &pr);
+    int score;
+    switch (pr.deviceType) {
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: score = 40; break;
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: score = 30; break;
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: score = 20; break;
+        case VK_PHYSICAL_DEVICE_TYPE_CPU: score = 0; break;
+        default: score = 10; break;
+    }
+    uint32_t qfam = 0;
+    if (gdd_wanted && pr.apiVersion >= VK_MAKE_API_VERSION(0, 1, 3, 0) && gdd_pick_queue(d, &qfam)) {
+        VkPhysicalDeviceVulkan13Features q13 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
+        VkPhysicalDeviceFeatures2 q = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &q13 };
+        vkGetPhysicalDeviceFeatures2(d, &q);
+        if (q13.synchronization2 && q13.dynamicRendering) score += 100;
+    }
+    return score;
+}
+
+/* SPACEGL_VK_DEVICE: the device index, or a part of its name (any case). */
+static bool device_matches(VkPhysicalDevice d, uint32_t index, const char *want) {
+    if (strspn(want, "0123456789") == strlen(want)) return strtoul(want, NULL, 10) == index;
+    VkPhysicalDeviceProperties pr;
+    vkGetPhysicalDeviceProperties(d, &pr);
+    size_t wl = strlen(want);
+    for (const char *p = pr.deviceName; *p; p++) {
+        size_t k = 0;
+        while (k < wl && p[k] && tolower((unsigned char)p[k]) == tolower((unsigned char)want[k])) k++;
+        if (k == wl) return true;
+    }
+    return false;
+}
+
 void pickPhysicalDevice(VulkanApp* app) {
     uint32_t count = 0;
     vkEnumeratePhysicalDevices(app->instance, &count, NULL);
@@ -235,19 +283,40 @@ void pickPhysicalDevice(VulkanApp* app) {
     if (!devs) { fprintf(stderr, "[VK] Out of memory: device list\n"); exit(1); }
     vkEnumeratePhysicalDevices(app->instance, &count, devs);
 
+    /* The device (2026.11.01.10): a real GPU before a software one (a
+     * machine with Mesa installed lists llvmpipe/lavapipe too, sometimes
+     * first), discrete before integrated, and with the GPU-driven path
+     * requested a device that can run it before one that cannot.
+     * SPACEGL_VK_DEVICE=<index> or =<part of the name> picks one
+     * explicitly. */
     uint32_t chosen_idx = 0;
-    if (app->gdd_wanted && count > 1) {
-        for (uint32_t i = 0; i < count; i++) {
-            uint32_t qfam = 0;
-            if (!gdd_pick_queue(devs[i], &qfam)) continue;
-            VkPhysicalDeviceVulkan13Features q13 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
-            VkPhysicalDeviceFeatures2 q = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &q13 };
-            vkGetPhysicalDeviceFeatures2(devs[i], &q);
-            if (q13.synchronization2 && q13.dynamicRendering) {
+    const char *want = getenv("SPACEGL_VK_DEVICE");
+    bool picked = false;
+    if (want && want[0]) {
+        for (uint32_t i = 0; i < count && !picked; i++) {
+            if (device_matches(devs[i], i, want)) {
                 chosen_idx = i;
-                break;
+                picked = true;
             }
         }
+        if (!picked) fprintf(stderr, "[VK] SPACEGL_VK_DEVICE=%s matches no device: using the default choice\n", want);
+    }
+    if (!picked) {
+        int best = -1;
+        for (uint32_t i = 0; i < count; i++) {
+            int score = device_score(devs[i], app->gdd_wanted);
+            if (score > best) {
+                best = score;
+                chosen_idx = i;
+            }
+        }
+    }
+    {
+        VkPhysicalDeviceProperties pr;
+        vkGetPhysicalDeviceProperties(devs[chosen_idx], &pr);
+        printf("[VK] device %u of %u: %s (%s, Vulkan %u.%u.%u)\n", chosen_idx, count, pr.deviceName,
+               device_type_name(pr.deviceType), VK_VERSION_MAJOR(pr.apiVersion), VK_VERSION_MINOR(pr.apiVersion),
+               VK_VERSION_PATCH(pr.apiVersion));
     }
 
     app->physicalDevice = devs[chosen_idx];

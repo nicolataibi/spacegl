@@ -3229,7 +3229,8 @@ int main(int argc, char** argv) {
         glfwTerminate();
         return 1;
     }
-    printf("[3D VIEW] OpenGL functions loaded. OpenGL Version: %s\n", glGetString(GL_VERSION));
+    printf("[3D VIEW] OpenGL functions loaded. OpenGL Version: %s, renderer: %s\n", glGetString(GL_VERSION),
+           glGetString(GL_RENDERER));
 
     /* Initialize from the LIVE framebuffer size (may differ from the window
      * request, e.g. HiDPI): viewport, bloom FBOs and HUD font in one shot. */

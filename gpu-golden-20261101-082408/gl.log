@@ -1,0 +1,8 @@
+[3D VIEW] Starting...
+[3D VIEW] Connecting to SHM: sg_gpu_golden_21728_gl
+[3D VIEW] Shared memory mapped successfully.
+[3D VIEW] Initializing GLFW...
+[3D VIEW] OpenGL functions loaded. OpenGL Version: 4.6 (Compatibility Profile) Mesa 26.2.5, renderer: Mesa Intel(R) Arc(tm) A770 Graphics (DG2)
+[BLOOM] FBOs initialized at 640x480 (blur 640x480, full).
+[3D VIEW] Ready (screenshot run: no deck to notify).
+[3D VIEW] screenshot: /home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/gpu-golden-20261101-082408/gl.ppm (640x480)

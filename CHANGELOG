@@ -1,3 +1,26 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.10
+  - Roadmap 10, golden renders on a real GPU: tests/gpu_golden_check.sh,
+  to run on the GPU machine in its graphical session. It renders the
+  Vulkan CPU-driven and GPU-driven frames and the OpenGL frame of the
+  golden scene on the GPU, checks that the GPU rendered them and not a
+  software driver (the Vulkan device line, the OpenGL renderer; exit 2
+  otherwise, with how to select the GPU), and compares them: Vulkan CPU vs
+  GDD (parity), GDD vs tests/golden/golden_gdd.ppm and OpenGL vs
+  tests/golden/golden_gl.ppm (regression, the committed tolerances). The
+  captures and report.txt go into one directory to send back when a check
+  fails. The CI gpu_real job (self-hosted runner) runs the script and
+  uploads that directory. shellcheck-clean (0.9 and 0.11), in the lint job.
+  - Vulkan viewer, device choice: it took the first device (or the first
+  one able to run the GPU-driven path); a machine with Mesa installed also
+  lists the software driver, sometimes first. It now prefers a discrete
+  GPU, then an integrated one, then the rest, the software driver last
+  (and, with the GPU-driven path, a device that can run it), prints the
+  device it chose ("[VK] device N of M: NAME (type, Vulkan x.y.z)"), and
+  SPACEGL_VK_DEVICE=<index or part of the name> picks one explicitly (a
+  value matching nothing is reported and the default choice is used).
+  - OpenGL viewer: the start-up line names the renderer too.
+  - spacegl_vulkan(1): SPACEGL_VK_DEVICE.
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.09
   - OpenGL viewer, bloom resolution: SPACEGL_GL_BLOOM=full (the default,
   unchanged: the blur at the window size, six passes), half (the blur at
