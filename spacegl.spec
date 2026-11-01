@@ -3,7 +3,7 @@
 %global _docdir_fmt %{name}
 
 Name:           spacegl
-Version:        2026.11.01.11
+Version:        2026.11.01.12
 Release:        %autorelease
 Summary:        Space exploration and combat game engine (client/server)
 
@@ -22,6 +22,7 @@ BuildRequires:  pkgconfig(ncurses)
 BuildRequires:  pkgconfig(glfw3)
 BuildRequires:  pkgconfig(vulkan)
 BuildRequires:  glslc
+BuildRequires:  systemd-rpm-macros
 
 # Automatic dependency generation handles libraries
 Requires:       %{name}-data = %{version}-%{release}
@@ -60,7 +61,9 @@ and additional assets explaining the SpaceGL engine and game play.
 %conf
 # The server_tick_bench wall-clock gate is meaningless on shared builders
 # (COPR/Koji): keep the report in the log, never fail the build on it.
-%cmake -DSPACEGL_TICK_BENCH_GATE=OFF
+# The optional server unit goes to the system unit directory; the package
+# never enables it (systemctl enable --now spacegl-server).
+%cmake -DSPACEGL_TICK_BENCH_GATE=OFF -DSPACEGL_SYSTEMD_UNITDIR=%{_unitdir}
 
 
 %build
@@ -85,6 +88,18 @@ and additional assets explaining the SpaceGL engine and game play.
 %ctest
 
 
+# The optional unit: registered with systemd, enabled only by the
+# administrator (or a preset); restarted on upgrade when it runs.
+%post
+%systemd_post spacegl-server.service
+
+%preun
+%systemd_preun spacegl-server.service
+
+%postun
+%systemd_postun_with_restart spacegl-server.service
+
+
 %files
 %license LICENSE
 %{_bindir}/spacegl_server
@@ -99,6 +114,7 @@ and additional assets explaining the SpaceGL engine and game play.
 %{_bindir}/spacegl-server
 %{_bindir}/spacegl-client
 %{_bindir}/spacegl-diag
+%{_unitdir}/spacegl-server.service
 
 %{_mandir}/man1/spacegl_3dview.1*
 %{_mandir}/man1/spacegl_client.1*

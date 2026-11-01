@@ -13,7 +13,8 @@
 #      is untouched (the deck reads the captain's answers from it);
 #   3. an existing key source (SPACEGL_KEY_FILE, SPACEGL_KEY,
 #      ~/.spacegl/key) is used without asking;
-#   4. on a terminal with no key source the key is asked for, not echoed, a
+#   4. on a terminal with no key source the key is asked for, not echoed
+#      (not even when typed the moment the prompt appears), a
 #      key that is too short is refused and asked again, the valid one is
 #      passed in SPACEGL_KEY; three wrong answers end with exit 2;
 #   5. --help prints the launcher's usage and the program's; --help,
@@ -41,6 +42,7 @@ for a in "\$@"; do [[ \$a == --help ]] && echo "STUB HELP $name"; done
 printf 'STUB %s' "$name"; printf ' [%s]' "\$@"; printf '\n'
 echo "KEYLEN=\${#SPACEGL_KEY}"
 [[ -t 0 ]] || echo "STDIN=\$(cat)"
+[[ -t 0 ]] && echo "TTYECHO=\$(stty -a | tr ' ' '\\n' | grep -x -e echo -e -echo)"
 exit "\${STUB_EXIT:-0}"
 STUB
     chmod +x "$T/bin/$name"
@@ -114,6 +116,19 @@ PY
     check "terminal: the key is not echoed"     hasnt tty.out "$GOOD"
     check "terminal: the valid key passed on"   has tty.out "KEYLEN=64"
     check "terminal: then the deck runs"        has tty.out "STUB spacegl_client [gl]"
+    check "terminal: echo is back on for the deck" has tty.out "TTYECHO=echo"
+    # A key typed the moment the prompt appears (2026.11.01.12, seen in the
+    # COPR el10 chroot): strace delays the launcher after each write, so the
+    # answer arrives before read -s starts; echo must already be off.
+    if command -v strace >/dev/null 2>&1 && strace -qq -o /dev/null true 2>/dev/null; then
+        python3 "$T/ptyrun.py" "$GOOD" -- strace -qq -f -o /dev/null -e trace=write \
+            -e inject=write:delay_exit=300000 "$ROOT/spacegl-client" --no-banner gl >"$T/ttyslow.out" 2>&1
+        check "slow terminal: a key typed at once is not echoed" hasnt ttyslow.out "$GOOD"
+        check "...and is passed on"                 has ttyslow.out "KEYLEN=64"
+        check "...and echo is back on"              has ttyslow.out "TTYECHO=echo"
+    else
+        echo "  (strace not usable: the slow-terminal case skipped)"
+    fi
     python3 "$T/ptyrun.py" a b c -- "$ROOT/spacegl-server" --no-banner >"$T/tty3.out" 2>&1
     check "terminal: three wrong keys, exit 2"  has tty3.out "EXIT=2"
     check "...and the server never starts"      hasnt tty3.out "STUB spacegl_server"

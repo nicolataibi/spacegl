@@ -1,0 +1,82 @@
+# SPACE GL - 3D LOGIC ENGINE
+# Copyright (C) 2026 Nicola Taibi
+# License: GPL-3.0-or-later
+#
+# spacegl-server.service — OPTIONAL: the SpaceGL server as a system
+# service (2026.11.01.12). Installed but neither enabled nor started: the
+# server can still be run by hand (spacegl-server). To use it:
+#
+#   1. the deployment key K (the same one every deck uses), readable by
+#      root only:
+#        sudo install -d -m 0700 /etc/spacegl
+#        openssl rand -hex 32 | sudo install -m 0600 /dev/stdin /etc/spacegl/key
+#      (or copy the key the decks already use: 64 hex digits on one line)
+#   2. optional settings in /etc/spacegl/server.env (KEY=value lines):
+#        SPACEGL_SERVER_OPTS="--io=async"     extra spacegl_server options
+#        SPACEGL_LOG_LEVEL=NOTICE             log level (spacegl_server(1))
+#   3. sudo systemctl enable --now spacegl-server
+#   4. its identity, for the decks:
+#        journalctl -u spacegl-server -g "Server identity"
+#        sudo spacegl_server --data-dir /var/lib/spacegl --print-identity
+#
+# The service runs with a transient unprivileged user (DynamicUser), its
+# state (galaxy.dat, captains/, server_identity.key, the frequency keys) in
+# /var/lib/spacegl: back that directory up, it holds the server identity
+# the decks pin. The key reaches the server as a systemd credential, so
+# /etc/spacegl/key stays readable by root only. Logs: journalctl -u
+# spacegl-server. Open TCP port 5000 in the firewall for remote decks.
+# Local changes: "systemctl edit spacegl-server" (a drop-in), not this file.
+
+[Unit]
+Description=SpaceGL galactic server (game port 5000/tcp, TLS 1.3)
+Documentation=man:spacegl_server(1)
+Wants=network-online.target
+After=network-online.target
+AssertPathExists=/etc/spacegl/key
+
+[Service]
+Type=exec
+LoadCredential=master_key:/etc/spacegl/key
+Environment=SPACEGL_KEY_FILE=%d/master_key
+EnvironmentFile=-/etc/spacegl/server.env
+ExecStart=@SPACEGL_UNIT_BINDIR@/spacegl_server --data-dir %S/spacegl $SPACEGL_SERVER_OPTS
+WorkingDirectory=%S/spacegl
+StateDirectory=spacegl
+StateDirectoryMode=0700
+UMask=0077
+DynamicUser=yes
+# SIGTERM: the server stops the simulation and saves the galaxy.
+TimeoutStopSec=90
+Restart=on-failure
+RestartSec=5
+
+# Hardening: what the server does not need, it cannot do.
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+DevicePolicy=closed
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

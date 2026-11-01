@@ -94,17 +94,52 @@ ensure_key() {
         return 0
     fi
     local key='' _try
+    # Echo off BEFORE the prompt is shown, back on before returning or
+    # exiting (also on Ctrl+C). read -s alone turns it off only when it
+    # starts reading: a key typed or pasted as soon as the prompt appeared
+    # was echoed in clear (2026.11.01.12, seen on a fast pseudo-terminal).
+    SG_TTY_STATE=$(stty -g 2>/dev/null) || SG_TTY_STATE=''
+    if [[ -n $SG_TTY_STATE ]]; then
+        stty -echo 2>/dev/null
+        trap 'tty_restore; printf "\n" >&2; exit 130' INT TERM
+    fi
     for _try in 1 2 3; do
         printf '%s[AUTH]%s Master key of this deployment (64 hex digits, or at least 32 characters): ' "$CYAN" "$NC" >&2
-        IFS= read -r -s key || { printf '\n' >&2; die 2 "no key entered"; }
+        if ! read_key; then
+            tty_restore
+            printf '\n' >&2
+            die 2 "no key entered"
+        fi
         printf '\n' >&2
         if key_ok "$key"; then
+            tty_restore
             export SPACEGL_KEY=$key
             return 0
         fi
         warn "not a valid key (${#key} characters)"
     done
+    tty_restore
     die 2 "no valid master key after 3 attempts"
+}
+
+# read_key: one line into the caller's $key. stty has turned echo off:
+# a plain read (read -s would put back ITS saved settings, echo off, after
+# the Ctrl+C trap had restored the terminal); read -s only without stty.
+read_key() {
+    if [[ -n ${SG_TTY_STATE:-} ]]; then
+        IFS= read -r key
+    else
+        IFS= read -r -s key
+    fi
+}
+
+# tty_restore: the terminal settings saved before the key prompt
+tty_restore() {
+    if [[ -n ${SG_TTY_STATE:-} ]]; then
+        stty "$SG_TTY_STATE" 2>/dev/null || true
+        SG_TTY_STATE=''
+        trap - INT TERM
+    fi
 }
 
 # quiet_args <args...>: true when the run only prints information

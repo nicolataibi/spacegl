@@ -219,6 +219,35 @@ chown spacegl:spacegl /etc/spacegl/master.key
 #  user running a client needs their own 0600 copy of the key)
 ```
 
+#### The server as a system service (optional, 2026.11.01.12)
+
+The unit `spacegl-server.service` (`systemd/spacegl-server.service.in`)
+is installed but never enabled by the build or the package. When the
+administrator enables it:
+
+- the key file is `/etc/spacegl/key`, mode 0600, **owned by root**: the
+  service never reads it directly; systemd hands it over as a credential
+  (`LoadCredential=`), a copy readable only by the service's user in a
+  private credentials directory, and `SPACEGL_KEY_FILE` points there;
+- the service user is transient (`DynamicUser=yes`): no account to
+  manage, no file of the server owned by a login user; its state
+  (`galaxy.dat`, `captains/`, `server_identity.key`) is in
+  `/var/lib/spacegl`, mode 0700, files created 0600 (`UMask=0077`);
+- the sandbox removes what the server does not use: no capabilities, no
+  new privileges, a read-only system (`ProtectSystem=strict`), no home
+  directories, private `/tmp` and `/dev`, kernel tunables, modules, logs,
+  clock and control groups protected, IPv4/IPv6/Unix sockets only, no
+  namespaces, no realtime, no writable-executable memory, the system
+  calls limited to `@system-service` without `@privileged` and
+  `@resources` (refused with EPERM). `systemd-analyze security` rates the
+  exposure 1.2 ("OK"); `tests/systemd_unit_test.sh` keeps it at most 2.0.
+  Every system call the server makes in a session (first boot, TLS
+  logins, radio, shutdown; traced with strace when the unit was written)
+  is in the allowed set.
+
+Run by hand (the launcher, a terminal), the server keeps the key sources
+of the table above.
+
 #### Security notes
 
 - The key is **never logged** (not in stdout, not in stderr, not

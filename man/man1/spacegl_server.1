@@ -93,6 +93,35 @@ server refuses a file readable by others). Preferred over
 .B SPACEGL_KEY
 The master key as a string (legacy; fallback
 .IR ~/.spacegl/key ).
+.SH SYSTEM SERVICE
+Optional. The installation provides the systemd unit
+.BR spacegl-server.service ,
+which is never enabled by itself: running the server by hand keeps
+working. To use it, put the master key (64 hex digits, the same the decks
+use) in
+.I /etc/spacegl/key
+(mode 0600, root only) and run
+.BR "systemctl enable \-\-now spacegl-server" .
+The service runs as a transient unprivileged user in a sandbox, receives
+the key as a systemd credential
+.RB ( SPACEGL_KEY_FILE
+points into the credentials directory), keeps its data directory in
+.I /var/lib/spacegl
+and logs to the journal
+.RB ( "journalctl \-u spacegl-server" ;
+its identity: add
+.BR "\-g \(dqServer identity\(dq" ).
+SIGTERM from
+.B systemctl stop
+saves the galaxy before the server exits; it is restarted after a crash.
+Extra options go in
+.I /etc/spacegl/server.env
+as
+.BR SPACEGL_SERVER_OPTS="\-\-io=async" ;
+local changes to the unit with
+.BR "systemctl edit spacegl-server" .
+Do not start a second server by hand while the service runs: both need
+port 5000.
 .SH FILES
 .TP
 .I /usr/bin/spacegl_server
@@ -110,11 +139,27 @@ The server's Ed25519 identity (private key, 64 hex digits, mode 0600),
 created on the first boot; it signs every handshake (wire revision 4).
 Back it up with the data directory: a new key looks like another server
 to every deck that has met this one.
+.TP
+.I /usr/lib/systemd/system/spacegl-server.service
+The optional system service (see SYSTEM SERVICE).
+.TP
+.I /etc/spacegl/key
+The master key of the service (mode 0600, root only).
+.TP
+.I /etc/spacegl/server.env
+Optional settings of the service
+.RB ( SPACEGL_SERVER_OPTS ,
+.BR SPACEGL_LOG_LEVEL ).
+.TP
+.I /var/lib/spacegl/
+The data directory of the service.
 .SH SEE ALSO
 .BR spacegl_client (1),
 .BR spacegl-server (1),
 .BR spacegl_3dview (1),
-.BR spacegl_vulkan (1)
+.BR spacegl_vulkan (1),
+.BR systemctl (1),
+.BR journalctl (1)
 .SH AUTHOR
 Nicola Taibi
 .SH LICENSE

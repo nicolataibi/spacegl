@@ -12,6 +12,8 @@ System requirements depend on the project's implementation, dependencies, and su
 
 Follow the instructions provided in [INSTALL.md](INSTALL.md). Ensure that all prerequisites are satisfied before proceeding.
 
+To have the server start at boot, an optional systemd unit (`spacegl-server.service`) is installed but never enabled by itself; see "Optional: the server as a system service" in [README.md](README.md).
+
 ## 4. How can I build the project from source?
 
 Refer to [BUILD.md](BUILD.md) for the build procedure and relevant development requirements.

@@ -1,3 +1,69 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.12
+  - Launchers (spacegl-server, spacegl-client, spacegl-diag), key prompt:
+  COPR (centos-stream+epel-10) failed the launcher test "terminal: the key
+  is not echoed". The prompt was printed before read -s turned echo off,
+  so a key typed or pasted the moment the prompt appeared was echoed in
+  clear (the test types its answer at once; a slow builder showed it).
+  Echo is now turned off with stty BEFORE the prompt and turned back on
+  before the launcher returns or exits, also on Ctrl+C (exit 130; read -s,
+  which would put back its own echo-off settings after the trap, is used
+  only where stty is missing). Reproduced deterministically by delaying
+  the launcher after each write (strace inject): 10 echoes out of 10
+  before, 0 after. tests/launcher_test.sh: the same slow-terminal case
+  when strace is usable, and echo back on for the program afterwards.
+  - Optional systemd unit for the server: spacegl-server.service
+  (systemd/spacegl-server.service.in, configured by CMake with the install
+  prefix). Installed by make install and by the RPM, never enabled by
+  either: the server still runs by hand as before, and whoever wants it
+  at boot runs "systemctl enable --now spacegl-server" after putting the
+  master key in /etc/spacegl/key (mode 0600, root only). The key reaches
+  the server as a systemd credential (LoadCredential, SPACEGL_KEY_FILE
+  into the credentials directory); a transient unprivileged user
+  (DynamicUser); the state in /var/lib/spacegl (StateDirectory, 0700,
+  UMask 0077); SIGTERM saves the galaxy (TimeoutStopSec 90); restarted
+  after a crash; extra options in /etc/spacegl/server.env
+  (SPACEGL_SERVER_OPTS, SPACEGL_LOG_LEVEL); logs in the journal. Sandbox:
+  no capabilities, ProtectSystem=strict, ProtectHome, private /tmp and
+  /dev, kernel and clock protections, IPv4/IPv6/Unix sockets only, no
+  namespaces, no W+X memory, system calls @system-service without
+  @privileged and @resources: systemd-analyze security 1.2 ("OK"). Every
+  system call of a traced session (first boot, TLS logins, radio,
+  shutdown) is in the allowed set; a run as an unprivileged user with no
+  home, a 0400 key file and a 0700 data directory logs a deck in.
+  - CMake: SPACEGL_INSTALL_SYSTEMD_UNIT (ON on Linux) and
+  SPACEGL_SYSTEMD_UNITDIR. spacegl.spec: BuildRequires
+  systemd-rpm-macros, the unit in %{_unitdir}, %systemd_post /
+  %systemd_preun / %systemd_postun_with_restart (registered, not enabled).
+  - tests/systemd_unit_test.sh (ctest systemd_unit, 48 tests):
+  systemd-analyze verify --man=no on the configured unit (without it,
+  verify runs man(1) for Documentation= and fails wherever the page is not
+  installed yet, as on any build tree: "Can't show spacegl_server(1)"),
+  the man page of Documentation= looked for in man/ instead, the credential, state
+  and user directives, the exposure at most 2.0, a boot of the real server
+  on a 0400 credential; SKIP without systemd-analyze. shellcheck-clean, in
+  the lint job.
+  - README.md (security notes: also the TLS 1.3 transport, missing since
+  2026.11.01.11; "Optional: the server as a system service"), HOWTO.txt
+  step 6, INSTALL.md, BUILD.md, SECURITY.md section 1.5, DEVELOPMENT.md,
+  spacegl_server(1) (SYSTEM SERVICE, FILES), spacegl-server(1).
+  - CI coverage gate of the command deck: 83.5% against the 84% floor
+  (tests/coverage_threshold_deck.txt) after 2026.11.01.11. The deck's new
+  refusal paths had no test: a server that does not speak TLS, and a
+  handshake signed by another identity than the TLS certificate (step 8,
+  the changed identity, is now refused at the TLS stage and no longer
+  reached the inner check). The floor stays where it is; the paths get
+  their tests.
+  - tests/tls_fake_server.c: one connection on the game port as a server
+  without TLS (plain), as a relay terminating TLS with its own identity
+  and answering the handshake v2 signed by another one (relay: what a
+  holder of K tunnelling a server's handshake would present), or as a
+  server that resets the link after the hello (reset).
+  tests/deck_e2e_test.sh step 10 runs a deck against each: "No TLS 1.3
+  session with the server"; "signed by another identity than the TLS
+  certificate", after the TLS session and before the login; "read_all
+  failed" and the failed handshake. Deck line coverage 84.2% (server
+  85.1%).
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.11
   - TLS 1.3 on the game port (wire revision 5): every deck <-> server
   connection on port 5000 runs inside TLS 1.3, with no plaintext mode.

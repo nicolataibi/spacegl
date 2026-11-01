@@ -40,6 +40,8 @@ Apply any configuration required by the application before launching it. Configu
 
 Use appropriate permissions and avoid storing credentials or other sensitive information in publicly accessible configuration files.
 
+The server can optionally run as a system service: the installation provides the systemd unit `spacegl-server.service`, which is never enabled automatically. Its setup (the master key in `/etc/spacegl/key`, `systemctl enable --now spacegl-server`, the state in `/var/lib/spacegl`) is described in [README.md](README.md) ("Optional: the server as a system service") and in `HOWTO.txt`, step 6.
+
 ## 6. Verification
 
 After installation, verify that the software starts correctly and that its essential functionality is available.

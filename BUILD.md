@@ -51,6 +51,8 @@ After compilation, run the available automated tests and validation procedures.
 
 Confirm that the generated artifacts are present and that the resulting executable or library behaves as expected. Where applicable, review compiler warnings and test results before considering the build complete.
 
+The installation (`cmake --install build`) also places the optional systemd unit `spacegl-server.service` in `<prefix>/lib/systemd/system` (never enabled; `-DSPACEGL_INSTALL_SYSTEMD_UNIT=OFF` leaves it out). Its use is described in README.md, "Optional: the server as a system service".
+
 ## 7. Build Artifacts
 
 Generated binaries, libraries, intermediate files, and other build artifacts should be kept separate from tracked source files unless the project explicitly requires them to be version-controlled.

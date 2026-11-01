@@ -32,15 +32,20 @@
 #   9. (2026.11.01.11, wire revision 5) the transport: the decks ran inside
 #      TLS 1.3; tests/tls_probe.py finds TLS 1.3 only on the port, the
 #      identity key in the certificate, a hello in clear refused with no
-#      byte back; a connection that never starts TLS is closed.
+#      byte back; a connection that never starts TLS is closed;
+#  10. (2026.11.01.12) tests/tls_fake_server.c: a server without TLS is
+#      reported as such, a relay whose TLS identity is not the one that
+#      signs the handshake is refused before the login, a server that
+#      resets the link during the handshake is reported.
 # No DISPLAY: the decks run in CLI mode, as in smoke_test.sh.
 #
-# Usage: deck_e2e_test.sh <spacegl_server> <spacegl_client>
+# Usage: deck_e2e_test.sh <spacegl_server> <spacegl_client> [tls_fake_server]
 # Exit: 0 PASS, 1 FAIL, 77 SKIP.
 set -uo pipefail
 
 SERVER_BIN=${1:-}
 CLIENT_BIN=${2:-}
+FAKE_BIN=${3:-}   # tests/tls_fake_server.c (step 10, optional)
 if [ ! -x "$SERVER_BIN" ] || [ ! -x "$CLIENT_BIN" ]; then
     echo "SKIP: deck_e2e needs the spacegl_server and spacegl_client binaries"
     exit 77
@@ -273,6 +278,33 @@ silent_closed() {
 check "a silent connection is closed"           silent_closed
 check "...for its TLS handshake"                grep -qF "TLS handshake not completed" "$WORK/server.log"
 stop_server
+
+# --- 10. servers the deck refuses at the transport --------------------
+# tests/tls_fake_server.c on the game port: a server without TLS (wire
+# revision 4 or older), and a relay whose TLS identity is not the one that
+# signs the handshake v2 (a holder of K tunnelling a server's handshake).
+if [ -x "$FAKE_BIN" ]; then
+    fake() {   # fake <mode>: one connection of a deck against the fake server
+        "$FAKE_BIN" "$1" >"$WORK/fake_$1.log" 2>&1 &
+        local fp=$!
+        local i
+        for ((i = 0; i < 50; i++)); do grep -q READY "$WORK/fake_$1.log" 2>/dev/null && break; sleep 0.2; done
+        printf '127.0.0.1\n' | SPACEGL_KNOWN_SERVERS="$WORK/known_servers_$1" deck "fake_$1" 60
+        wait "$fp" 2>/dev/null
+    }
+    fake plain
+    check "a server without TLS: no TLS session"  has fake_plain "No TLS 1.3 session with the server"
+    check "...and the deck stops"                 hasnt fake_plain "Commander Name:"
+    fake relay
+    check "a relay with another TLS identity: refused" has fake_relay "signed by another identity than the TLS certificate"
+    check "...after the TLS session"              has fake_relay "Transport:          TLS 1.3"
+    check "...and before the login"               hasnt fake_relay "Commander Name:"
+    fake reset
+    check "a server that resets the link: reported" has fake_reset "read_all failed"
+    check "...as a failed handshake"              has fake_reset "Handshake rejected"
+else
+    echo "  skip the fake servers (no tls_fake_server)"
+fi
 
 if [ $rc -ne 0 ]; then
     for f in charlie delta f1 dup wrongpass returning; do

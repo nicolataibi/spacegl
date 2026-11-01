@@ -295,11 +295,24 @@ The launcher scripts take the key from `SPACEGL_KEY_FILE`, `SPACEGL_KEY` or `~/.
 
 On the first connection to a server the deck prints the server's identity fingerprint and pins it in `~/.spacegl/known_servers` (wire revision 4, like SSH's `known_hosts`): compare it with the fingerprint the server prints at boot (or `spacegl_server --print-identity`). A later connection to the same address with another identity is refused with `SERVER IDENTITY CHANGED`. To pin the key without trusting the first contact, give the deck the server's public key: `SPACEGL_SERVER_KEY=<64 hex digits>`. Back up the server's `server_identity.key` with its data directory. The whole connection runs inside TLS 1.3 (wire revision 5): the server's certificate is made from that same identity, so there is no certificate to install or renew, and a deck older than revision 5 is refused at the first byte (update decks and server together).
 
+### Optional: the server as a system service
+
+The installation also provides a systemd unit, `spacegl-server.service`, which is **never enabled by itself**: starting the server by hand as above keeps working, and the unit is there for whoever wants a server that starts at boot, restarts after a crash and logs to the journal. To use it, put the master key (the same 64 hex digits the clients use) in `/etc/spacegl/key`, readable by root only, and enable the service:
+
+```bash
+sudo install -d -m 0700 /etc/spacegl
+printf '%s\n' "$SPACEGL_KEY" | sudo install -m 0600 /dev/stdin /etc/spacegl/key
+sudo systemctl enable --now spacegl-server
+journalctl -u spacegl-server -g "Server identity"   # the fingerprint the decks pin
+```
+
+The service runs as a transient unprivileged user (`DynamicUser`) in a sandbox (no access to home directories, a read-only system, no privileges; `systemd-analyze security` rates it 1.2, "OK"), receives the key as a systemd credential, and keeps its state (`galaxy.dat`, `captains/`, `server_identity.key`) in `/var/lib/spacegl`: back that directory up. Extra server options go in `/etc/spacegl/server.env` (`SPACEGL_SERVER_OPTS="--io=async"`, `SPACEGL_LOG_LEVEL=NOTICE`); logs: `journalctl -u spacegl-server`; stop using it: `sudo systemctl disable --now spacegl-server`. Open TCP port 5000 in the firewall for decks on other machines. The unit file documents the same steps (`systemctl cat spacegl-server`).
+
 > These commands follow `HOWTO.txt`. The launcher scripts are in the repository root; if you installed from a package, use the entry points that package provides.
 
 ## Testing
 
-The development guide documents a CTest suite of 47 tests covering CPU/GPU data contracts, shader/mesh parity, navigation math, spatial indexing, packet lengths, cryptographic table behavior, bounds checks, packet fuzzing, the handshake, the server identity pins and the TLS 1.3 transport, the radio relay, end-to-end sessions of real decks on the real server, rendering parity, the Vulkan viewer's default path, the OpenGL viewer's shared geometry and golden render, the launcher scripts, and benchmarks. In CI the server tick is also compared with the base commit (`tests/bench_ab.sh`, a 5% gate) and the line coverage of the server and of the command deck has a floor.
+The development guide documents a CTest suite of 48 tests covering CPU/GPU data contracts, shader/mesh parity, navigation math, spatial indexing, packet lengths, cryptographic table behavior, bounds checks, packet fuzzing, the handshake, the server identity pins and the TLS 1.3 transport, the radio relay, end-to-end sessions of real decks on the real server, rendering parity, the Vulkan viewer's default path, the OpenGL viewer's shared geometry and golden render, the launcher scripts, the optional systemd unit, and benchmarks. In CI the server tick is also compared with the base commit (`tests/bench_ab.sh`, a 5% gate) and the line coverage of the server and of the command deck has a floor.
 
 ### Integrated test suite
 
@@ -352,6 +365,7 @@ Security-related behavior is described in the project documentation and should b
 
 - The runtime handshake expects the same master key on the server and authorized clients, supplied through `SPACEGL_KEY_FILE` (preferred, mode `0600`) or `SPACEGL_KEY`.
 - Every server signs the handshake with an Ed25519 identity key of its own (`server_identity.key` in its data directory); the deck pins it per server (`~/.spacegl/known_servers`, or `SPACEGL_SERVER_KEY`), so a holder of the shared master key cannot pose as a server the deck already knows.
+- Every connection runs inside TLS 1.3 (wire revision 5): commands, positions, the login and the galaxy snapshot never travel in clear, and the server's certificate is that same identity key, so there is no certificate to install or renew.
 - The project documents HMAC-SHA256 integrity mechanisms and per-session keying.
 - Radio encryption options documented in the game include AES-256-GCM, ChaCha20-Poly1305, and an `enc off` cleartext mode.
 - Keep secrets out of Git, logs, screenshots, public issue reports, and command examples containing real values.

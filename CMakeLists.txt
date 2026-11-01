@@ -344,6 +344,18 @@ install(TARGETS spacegl_server spacegl_client spacegl_3dview spacegl_viewer spac
 install(PROGRAMS spacegl-server spacegl-client spacegl-diag
         DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+# Optional systemd unit for the server (2026.11.01.12): installed, never
+# enabled by the build or the package (systemctl enable --now
+# spacegl-server). systemd/spacegl-server.service.in documents its setup.
+option(SPACEGL_INSTALL_SYSTEMD_UNIT "Install the optional spacegl-server.service systemd unit" ON)
+set(SPACEGL_SYSTEMD_UNITDIR "${CMAKE_INSTALL_PREFIX}/lib/systemd/system"
+    CACHE PATH "Directory of the systemd system units (the RPM passes %{_unitdir})")
+set(SPACEGL_UNIT_BINDIR "${CMAKE_INSTALL_FULL_BINDIR}")
+configure_file(systemd/spacegl-server.service.in ${CMAKE_BINARY_DIR}/spacegl-server.service @ONLY)
+if(SPACEGL_INSTALL_SYSTEMD_UNIT AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    install(FILES ${CMAKE_BINARY_DIR}/spacegl-server.service DESTINATION ${SPACEGL_SYSTEMD_UNITDIR})
+endif()
+
 install(FILES ${SHADER_SPV_FILES}
         DESTINATION ${CMAKE_INSTALL_DATADIR}/spacegl/shaders)
 

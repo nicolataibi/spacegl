@@ -911,6 +911,18 @@ endif()
 add_test(NAME sg_tls COMMAND sg_tls_test)
 set_tests_properties(sg_tls PROPERTIES TIMEOUT 120 PASS_REGULAR_EXPRESSION "PASS: sg_tls")
 
+# --- Optional systemd unit (2026.11.01.12) -----------------------------
+# The configured spacegl-server.service: systemd-analyze verify, the
+# credential / state directory / dynamic user directives, the sandbox
+# exposure, a boot of the real server on a 0400 credential. SKIP (77)
+# without systemd-analyze. RUN_SERIAL: the boot binds port 5000.
+if(TARGET spacegl_server)
+    add_test(NAME systemd_unit COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/systemd_unit_test.sh"
+                                       "${CMAKE_BINARY_DIR}/spacegl-server.service" $<TARGET_FILE:spacegl_server>)
+    set_tests_properties(systemd_unit PROPERTIES RUN_SERIAL TRUE TIMEOUT 180 SKIP_RETURN_CODE 77
+        PASS_REGULAR_EXPRESSION "PASS: systemd_unit" FAIL_REGULAR_EXPRESSION "FAIL: systemd_unit")
+endif()
+
 # --- Launcher scripts (2026.11.01.03) ------------------------------------
 # spacegl-server, spacegl-client, spacegl-diag with stub programs:
 # arguments passed unchanged, exit status, key sources and the key prompt
@@ -930,9 +942,15 @@ endif()
 # and a right access code, the reconnect after a server restart).
 # RUN_SERIAL: port 5000.
 if(TARGET spacegl_server AND TARGET spacegl_client)
+    # The two servers a deck must refuse at the transport (step 10,
+    # 2026.11.01.12): one without TLS, one whose TLS identity is not the
+    # one that signs the handshake.
+    add_executable(tls_fake_server tls_fake_server.c ${SG_ROOT}/src/sg_tls.c)
+    target_link_libraries(tls_fake_server PRIVATE Threads::Threads OpenSSL::SSL OpenSSL::Crypto)
     add_test(NAME deck_e2e
              COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/deck_e2e_test.sh"
-                     $<TARGET_FILE:spacegl_server> $<TARGET_FILE:spacegl_client>)
+                     $<TARGET_FILE:spacegl_server> $<TARGET_FILE:spacegl_client>
+                     $<TARGET_FILE:tls_fake_server>)
     set_tests_properties(deck_e2e PROPERTIES
         RUN_SERIAL TRUE
         TIMEOUT 600

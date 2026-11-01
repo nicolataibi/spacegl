@@ -61,3 +61,18 @@ export SPACEGL_SERVER_KEY="<the 64 hex digits printed above>"
 # 5. Vulkan viewer: the GPU-driven renderer is the default (it falls back to
 #    the CPU-driven one by itself); to force the CPU-driven renderer:
 #    SPACEGL_GPD=0 ./spacegl-client vk
+
+# 6. OPTIONAL: the server as a system service (systemd). The package (or
+#    "make install") installs spacegl-server.service but never enables it:
+#    running the server by hand (step 2) keeps working. To use it instead:
+sudo install -d -m 0700 /etc/spacegl
+printf '%s\n' "$SPACEGL_KEY" | sudo install -m 0600 /dev/stdin /etc/spacegl/key
+#    (the same 64 hex digits the clients use; the file stays root-only:
+#    the service receives it as a systemd credential)
+sudo systemctl enable --now spacegl-server
+journalctl -u spacegl-server -g "Server identity"   # the fingerprint to compare
+#    State (galaxy.dat, captains/, server_identity.key): /var/lib/spacegl,
+#    back it up. Extra options: SPACEGL_SERVER_OPTS="--io=async" in
+#    /etc/spacegl/server.env, then "sudo systemctl restart spacegl-server".
+#    Open TCP port 5000 in the firewall for clients on other machines.
+#    To go back to running it by hand: sudo systemctl disable --now spacegl-server
