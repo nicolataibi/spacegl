@@ -36,6 +36,9 @@
 #include <unistd.h>
 #include <time.h>
 
+/* src/vulkan_render.c: --bench-frames turns the frame limiter off */
+extern bool s_frame_limit_off;
+
 
 /* Forward: VulkanApp fields used by the device-side functions (the
  * full definition lives in include/spacegl_vulkan_types.h; here only
@@ -1863,7 +1866,7 @@ void gdd_draw_frame(VulkanApp *app) {
 
     /* Same frame limiter as the CPU path (~144 fps cap). */
     struct timespec frame_limit = { 0, 6944444L };
-    nanosleep(&frame_limit, NULL);
+    if (!s_frame_limit_off) nanosleep(&frame_limit, NULL);   /* off for --bench-frames */
 
     /* Decrement shield hit timers (CPU-path parity, done per frame). */
     for (int s = 0; s < 6; s++)

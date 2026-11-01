@@ -111,6 +111,12 @@ extern int  s_shot_frame;
 extern int  s_rng_seed;
 extern bool s_no_rotate;
 extern int  s_frame_no;
+/* --bench-frames N / --bench-warmup W / --bench-scene N (2026.11.01.15,
+ * include/frame_bench.h): frame times; the ~144 fps limiter is off. */
+extern int s_bench_frames;
+extern int s_bench_warmup;
+extern int s_bench_objects;
+extern bool s_frame_limit_off;
 
 /* --- vulkan_device.c --- */
 void resolve_shader_paths(void);

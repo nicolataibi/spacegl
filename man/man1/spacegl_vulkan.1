@@ -41,6 +41,22 @@ Disable multisampling (forces 1 sample for deterministic golden render testing).
 .BI \-\-window " WxH"
 Window extent (default 1280x720).
 .TP
+.BI \-\-bench\-frames " N"
+Time N frames and exit, printing one line: [BENCH] renderer, window size,
+objects, frame time average, p50, p95, p99, max (ms) and fps. Each frame
+waits for the GPU to finish it, so the time is its whole cost (CPU and GPU,
+no overlap between frames); the ~144 fps frame limiter is off. A missing shared-memory segment is
+created empty.
+.TP
+.BI \-\-bench\-warmup " W"
+Frames before the timed ones (default 30).
+.TP
+.BI \-\-bench\-scene " N"
+Fill the empty segment with a busy quadrant: the captain's ship and N\-1
+objects of the common kinds at fixed places (up to 256), the same scene on
+every run. Also with
+.BR \-\-screenshot .
+.TP
 .B \-\-version
 Print version information and exit.
 .TP

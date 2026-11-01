@@ -122,7 +122,7 @@ cmake --build build -j
 
 ## 3. Running the test suite
 
-The suite has **49 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
+The suite has **51 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
@@ -169,12 +169,14 @@ The suite has **49 tests** (integrated mode; the standalone mode builds the ones
 | 41 | `sg_tls` | TLS 1.3 on the game port on socketpairs: handshake and identity key from the certificate, packets buffered in the session, a deck in clear refused, a silent peer timed out, one reader and two writers on one session (TSan in CI) | `src/sg_tls.c` |
 | 42 | `systemd_unit` | the optional `spacegl-server.service` as configured: `systemd-analyze verify`, the key as a credential, the state directory, the dynamic user, the sandbox exposure (at most 2.0), a boot of the real server on a 0400 credential (no `systemd-analyze`: skip) | `systemd/spacegl-server.service.in` |
 | 43 | `tick_monitor` | the server's measure of its tick with synthetic ticks: no warning inside the budget, one per 10 s with the worst tick by phase, a tick waiting for a CPU named, the summary, `SPACEGL_TICK_THREADS` | `include/tick_monitor.h` |
-| 44 | `launcher` | the launcher scripts with stub programs: arguments, exit status, key sources and prompt (pseudo-terminal), `--help`, a missing program, the diagnostic's server lookup | `spacegl-server`, `spacegl-client`, `spacegl-diag` |
-| 45 | `deck_e2e` | the deck's own paths: no server, wrong key, refused names, eleven concurrent logins, the input line, duplicate/wrong logins, reconnect after a restart, server identity pinning, the TLS 1.3 transport (`tests/tls_probe.py`: TLS 1.3 only, certificate = identity, clear text refused; a silent connection closed), servers the deck refuses at the transport (`tests/tls_fake_server.c`: no TLS, a TLS identity that is not the one signing the handshake, a link reset during the handshake) | `spacegl_server` + `spacegl_client` (black-box) |
-| 46 | `telemetry` | the telemetry port (TCP 5001): every category, frames checked against the boot table | `spacegl_server` + `telemetry_client_test` |
-| 47 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
-| 48 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
-| 49 | `smoke_async` | the same with the server in `--io=async` | same |
+| 44 | `frame_bench` | the viewers' frame-time helpers: warm-up, average, percentiles; the busy quadrant of `--bench-scene` | `include/frame_bench.h`, `include/bench_scene.h` |
+| 45 | `viewer_bench` | both viewers with `--bench-frames`/`--bench-scene`: one `[BENCH]` line each, the scene loaded (display or xvfb-run and a Vulkan ICD: skip otherwise) | `spacegl_vulkan`, `spacegl_3dview` |
+| 46 | `launcher` | the launcher scripts with stub programs: arguments, exit status, key sources and prompt (pseudo-terminal), `--help`, a missing program, the diagnostic's server lookup | `spacegl-server`, `spacegl-client`, `spacegl-diag` |
+| 47 | `deck_e2e` | the deck's own paths: no server, wrong key, refused names, eleven concurrent logins, the input line, duplicate/wrong logins, reconnect after a restart, server identity pinning, the TLS 1.3 transport (`tests/tls_probe.py`: TLS 1.3 only, certificate = identity, clear text refused; a silent connection closed), servers the deck refuses at the transport (`tests/tls_fake_server.c`: no TLS, a TLS identity that is not the one signing the handshake, a link reset during the handshake) | `spacegl_server` + `spacegl_client` (black-box) |
+| 48 | `telemetry` | the telemetry port (TCP 5001): every category, frames checked against the boot table | `spacegl_server` + `telemetry_client_test` |
+| 49 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
+| 50 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
+| 51 | `smoke_async` | the same with the server in `--io=async` | same |
 
 The tests that use port 5000/5001 run serially (`RUN_SERIAL`); an image or GPU test without a display or an ICD returns 77 (SKIP). Every end-to-end script uses a private `known_servers` file (`SPACEGL_KNOWN_SERVERS`), so a new data directory is not taken for a changed server.
 
@@ -304,7 +306,7 @@ SECURITY.md if it pins an audit item.
 | `include/` | shared headers; `spacegl_gdd.h` is the CPU/GPU contract, `object_types.h` the single table of object `type` values (X-macro; server, HUD, viewers and the GDD builder all use its `OBJ_*` names and predicates),
   `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks, `handshake_v2.h` the handshake (wire revision 4, the server identity signature), `sg_tls.h` the TLS 1.3 transport of the game port (wire revision 5, one seam for the socket I/O of server and deck, with its traffic counters), `effects_wire.h` the effects block on the wire (wire revision 6), `obj_delta.h` the object list delta (full, motion and status records), `tick_monitor.h` the server's measure of its tick, `known_servers.h` the deck's pins of server identities |
 | `assets/shaders/` | GLSL sources (legacy `shader.*` + GDD `gdd_*`, shared `gdd_common.glsl`/`gdd_ops.glsl`) |
-| `tests/` | the 49-test suite (dual-mode CMake project), `bench_ab.sh` (A/B benchmark gate), `load_test.sh` (the real server under N real decks: traffic and slow ticks, by hand), `format_check.sh`, `fuzz/` (libFuzzer harness seeds and their generator/migration scripts) |
+| `tests/` | the 51-test suite (dual-mode CMake project), `bench_ab.sh` (A/B benchmark gate), `load_test.sh` (the real server under N real decks: traffic and slow ticks, by hand), `format_check.sh`, `fuzz/` (libFuzzer harness seeds and their generator/migration scripts) |
 | `systemd/` | `spacegl-server.service.in`, the optional system service of the server (configured by CMake with the install prefix, never enabled by the build or the package) |
 | `PROTOCOL.md` | the wire protocol (TLS transport, packets, handshake, identity, limits) |
 | `cmake/SpaceGLVulkanSDK.cmake` | the shared Vulkan SDK resolution chain |
@@ -473,6 +475,17 @@ number and element count.
   CPU time; `SPACEGL_TICK_THREADS`, default 1). A change of the benchmark
   program makes the next `bench_ab` run skip (the two sides would measure
   different programs).
+- **Frame times of the viewers (2026.11.01.15).** `spacegl_vulkan` and
+  `spacegl_3dview` take `--bench-frames N [--bench-warmup W]
+  [--bench-scene N]`: N frames, each waiting for the GPU (the frame's whole
+  cost; no vsync, no frame limiter), then one `[BENCH]` line (average,
+  p50, p95, p99, max). `--bench-scene` fills the empty segment with a busy
+  quadrant (the captain + up to 255 objects, `include/bench_scene.h`).
+  `tests/gpu_golden_check.sh` runs them on the GPU after the golden
+  checks: Vulkan CPU-driven and GPU-driven, OpenGL with each bloom mode,
+  on the empty scene and on 256 objects, at 1920x1080 (`--bench-window`),
+  300 frames (`--frames`), against a 16.7 ms budget on p95 (`--budget`;
+  reported, or exit 3 with `--enforce-budget`).
 - **Traffic (2026.11.01.14).** The server counts every connection's bytes
   (protocol and TLS, `sg_net_counters()`) and the bytes of each update
   block, and logs one `NETWORK` line every `SPACEGL_NET_REPORT_S` seconds

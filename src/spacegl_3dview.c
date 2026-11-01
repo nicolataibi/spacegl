@@ -43,6 +43,8 @@ _Static_assert(OBJ_MOON_FIRST == 89 && OBJ_MOON_LAST == 98,
 #include <omp.h>
 #include "spacegl_extras_glfw.h"
 #include "shared_state.h"
+#include "bench_scene.h"
+#include "frame_bench.h"
 #include "sglog.h"
 
 #define IS_Q_VALID(q1,q2,q3) ((q1)>=1 && (q1)<=GALAXY_SIZE && (q2)>=1 && (q2)<=GALAXY_SIZE && (q3)>=1 && (q3)<=GALAXY_SIZE)
@@ -3065,6 +3067,10 @@ int main(int argc, char** argv) {
             printf("  --seed N              fixed random seed (deterministic starfield)\n");
             printf("  --no-rotate           no automatic camera orbit\n");
             printf("  --window WxH          window size (default %dx%d)\n", TACTICAL_CUBE_W, TACTICAL_CUBE_H);
+            printf("  --bench-frames N      time N frames (each waits for the GPU; no vsync), print one\n");
+            printf("                        [BENCH] line and exit (a missing SHM segment is created empty)\n");
+            printf("  --bench-warmup W      frames before the timed ones (default 30)\n");
+            printf("  --bench-scene N       fill the empty segment with N objects (up to %d)\n", MAX_OBJECTS);
             printf("  --help, -h            display this help and exit\n");
             printf("  --version             display version information and exit\n\n");
             printf("Environment Variables:\n");
@@ -3098,6 +3104,7 @@ int main(int argc, char** argv) {
     const char *shot_path = NULL;
     int shot_frame = 30, rng_seed = -1, win_w = TACTICAL_CUBE_W, win_h = TACTICAL_CUBE_H;
     bool no_rotate = false, shm_named = false;
+    int bench_frames = 0, bench_warmup = 30, bench_objects = 0;   /* --bench-*, include/frame_bench.h */
     for (int ai = 1; ai < argc; ai++) {
         if (strcmp(argv[ai], "--screenshot") == 0 && ai + 1 < argc) shot_path = argv[++ai];
         else if (strcmp(argv[ai], "--screenshot-frame") == 0 && ai + 1 < argc) {
@@ -3105,7 +3112,16 @@ int main(int argc, char** argv) {
             if (shot_frame < 1) shot_frame = 30;
         } else if (strcmp(argv[ai], "--seed") == 0 && ai + 1 < argc) rng_seed = atoi(argv[++ai]);   // NOLINT(cert-err34-c)
         else if (strcmp(argv[ai], "--no-rotate") == 0) no_rotate = true;
-        else if (strcmp(argv[ai], "--window") == 0 && ai + 1 < argc) {
+        else if (strcmp(argv[ai], "--bench-frames") == 0 && ai + 1 < argc) {
+            bench_frames = atoi(argv[++ai]);   // NOLINT(cert-err34-c): a count, invalid = off
+            if (bench_frames < 0) bench_frames = 0;
+        } else if (strcmp(argv[ai], "--bench-warmup") == 0 && ai + 1 < argc) {
+            bench_warmup = atoi(argv[++ai]);   // NOLINT(cert-err34-c)
+            if (bench_warmup < 0) bench_warmup = 0;
+        } else if (strcmp(argv[ai], "--bench-scene") == 0 && ai + 1 < argc) {
+            bench_objects = atoi(argv[++ai]);   // NOLINT(cert-err34-c)
+            if (bench_objects < 0) bench_objects = 0;
+        } else if (strcmp(argv[ai], "--window") == 0 && ai + 1 < argc) {
             int ww = 0, wh = 0;
             if (sscanf(argv[++ai], "%dx%d", &ww, &wh) == 2 && ww > 0 && wh > 0) {
                 win_w = ww;
@@ -3130,7 +3146,8 @@ int main(int argc, char** argv) {
     /* A screenshot run with no command deck: create the segment EMPTY
      * (the scene both viewers' golden renders use) instead of waiting. */
     bool shm_created = false;
-    if (shot_path) {
+    bool standalone = shot_path || bench_frames > 0;   /* no command deck */
+    if (standalone) {
         shm_fd = shm_open(shm_name, O_RDWR, 0666);
         if (shm_fd == -1) {
             shm_fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, 0600);
@@ -3174,6 +3191,7 @@ int main(int argc, char** argv) {
         exit(1);
     }
     if (shm_created) shm_layout_stamp(g_shm);
+    if (bench_objects > 0) bench_objects = shm_created ? bench_scene_fill(g_shm, bench_objects) : 0;
     {
         const char *why = shm_layout_check(g_shm);
         if (why) {
@@ -3184,7 +3202,8 @@ int main(int argc, char** argv) {
     
     /* Set initial read buffer */
     g_shared_state = &g_shm->buffers[atomic_load(&g_shm->read_index)];
-        
+    if (bench_objects > 0) g_data_dirty = 1;   /* no deck posts data_ready: load the bench scene once */
+
     printf("[3D VIEW] Shared memory mapped successfully.\n");
     pthread_t stid;
     
@@ -3218,7 +3237,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); /* Enable VSync: Native 60FPS synchronization */
+    glfwSwapInterval(bench_frames > 0 ? 0 : 1); /* VSync (60 FPS), off when timing frames */
     glfwSetFramebufferSizeCallback(window, glfw_reshape_callback);
     glfwSetKeyCallback(window, glfw_key_callback);
     
@@ -3275,8 +3294,8 @@ int main(int argc, char** argv) {
     gluPerspective(45, (double)g_fb_w/g_fb_h, 1, 500.0 * QG_SCALE); 
     glMatrixMode(GL_MODELVIEW);
 
-    if (shot_path) {
-        printf("[3D VIEW] Ready (screenshot run: no deck to notify).\n");
+    if (standalone) {
+        printf("[3D VIEW] Ready (%s run: no deck to notify).\n", shot_path ? "screenshot" : "benchmark");
     } else {
         printf("[3D VIEW] Ready. Sending handshake to parent (PID %d).\n", getppid());
         kill(getppid(), SIGUSR2);
@@ -3299,7 +3318,10 @@ int main(int argc, char** argv) {
     if (gl_profile) glut_shape_stats(NULL, true);
     g_prof_on = gl_profile;
 
+    FrameBench bench;
+    bool bench_on = bench_frames > 0 && frame_bench_init(&bench, bench_frames, bench_warmup);
     while (!glfwWindowShouldClose(window)) {
+        double bench_t0 = bench_on ? glfwGetTime() : 0.0;
         timer(0);
         double t_build0 = gl_profile ? glfwGetTime() : 0.0;
         display();
@@ -3337,6 +3359,16 @@ int main(int argc, char** argv) {
             glut_clock_step(1000.0 / 60.0);
         }
         glfwSwapBuffers(window);
+        if (bench_on) {
+            glFinish();   /* the frame's whole cost: until the GPU has finished it */
+            if (frame_bench_add(&bench, (glfwGetTime() - bench_t0) * 1000.0)) {
+                static const char *const names[] = { "opengl-bloom-full", "opengl-bloom-half", "opengl-bloom-off" };
+                int bm = bloom_mode();
+                frame_bench_report(&bench, (bm >= 0 && bm <= 2) ? names[bm] : "opengl", g_fb_w, g_fb_h, bench_objects);
+                frame_bench_free(&bench);
+                break;
+            }
+        }
         glfwPollEvents();
         /* usleep removed: glfwSwapInterval(1) handles timing natively and smoothly */
     }

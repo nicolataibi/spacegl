@@ -25,6 +25,7 @@
  */
 
 #include "vulkan_device_internal.h"
+#include "bench_scene.h"
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/mman.h>
@@ -551,6 +552,7 @@ int main(int argc, char** argv) {
        plus the SHM segment name (the first non-option argument, as
        before). --window must be parsed BEFORE glfwCreateWindow. */
     int win_w = VIEW_WINDOW_WIDTH, win_h = VIEW_WINDOW_HEIGHT;
+    bool shm_fresh = false;   /* an empty segment this process created */
     for (int ai = 1; ai < argc; ai++) {
         if (strcmp(argv[ai], "--screenshot") == 0 && ai + 1 < argc) {
             snprintf(s_shot_path, sizeof(s_shot_path), "%s", argv[++ai]);
@@ -563,6 +565,17 @@ int main(int argc, char** argv) {
             s_no_rotate = true;
         } else if (strcmp(argv[ai], "--no-msaa") == 0) {
             s_no_msaa = true;
+        } else if (strcmp(argv[ai], "--bench-frames") == 0 && ai + 1 < argc) {
+            s_bench_frames = atoi(argv[++ai]);   // NOLINT(cert-err34-c): a count, invalid = off
+            if (s_bench_frames < 0) s_bench_frames = 0;
+            s_frame_limit_off = s_bench_frames > 0;
+        } else if (strcmp(argv[ai], "--bench-warmup") == 0 && ai + 1 < argc) {
+            s_bench_warmup = atoi(argv[++ai]);   // NOLINT(cert-err34-c)
+            if (s_bench_warmup < 0) s_bench_warmup = 0;
+        } else if (strcmp(argv[ai], "--bench-scene") == 0 && ai + 1 < argc) {
+            s_bench_objects = atoi(argv[++ai]);   // NOLINT(cert-err34-c)
+            if (s_bench_objects < 0) s_bench_objects = 0;
+            if (s_bench_objects > MAX_OBJECTS) s_bench_objects = MAX_OBJECTS;
         } else if (strcmp(argv[ai], "--window") == 0 && ai + 1 < argc) {
             int ww = 0, wh = 0;
             if (sscanf(argv[++ai], "%dx%d", &ww, &wh) == 2 && ww > 0 && wh > 0) {
@@ -579,6 +592,11 @@ int main(int argc, char** argv) {
             printf("  --no-msaa           disable multisampling (forces 1 sample for deterministic golden renders)\n");
             printf("  --window WxH        window extent (default %dx%d)\n",
                    VIEW_WINDOW_WIDTH, VIEW_WINDOW_HEIGHT);
+            printf("  --bench-frames N    time N frames (each waits for the GPU; no frame limiter),\n");
+            printf("                        print one [BENCH] line and exit\n");
+            printf("  --bench-warmup W    frames before the timed ones (default 30)\n");
+            printf("  --bench-scene N     fill an EMPTY segment with N objects (the captain + N-1, up to %d)\n",
+                   MAX_OBJECTS);
             printf("  --version           display version information and exit\n");
             printf("  --help, -h          display this help and exit\n");
             printf("Environment:\n");
@@ -629,6 +647,7 @@ int main(int argc, char** argv) {
                     app->shm = NULL;
                 } else if (shm_created) {
                     shm_layout_stamp(app->shm);
+                    shm_fresh = true;
                 } else {
                     const char *why = shm_layout_check(app->shm);
                     if (why) {
@@ -638,6 +657,12 @@ int main(int argc, char** argv) {
                 }
             }
         }
+    }
+
+    /* --bench-scene N: a busy quadrant in the empty segment (include/bench_scene.h) */
+    if (s_bench_objects > 0) {
+        if (shm_fresh) s_bench_objects = bench_scene_fill(app->shm, s_bench_objects);
+        else s_bench_objects = 0;   /* a deck's segment: its own scene */
     }
 
     /* Deterministic RNG: seed BEFORE the starfields are generated

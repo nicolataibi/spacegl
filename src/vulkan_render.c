@@ -26,6 +26,7 @@
 
 #include "object_types.h"
 #include "vulkan_device_internal.h"
+#include "frame_bench.h"
 #include <time.h>
 
 char s_shot_path[512] = {0};
@@ -33,6 +34,10 @@ int  s_shot_frame     = 30;
 int  s_rng_seed       = -1;
 bool s_no_rotate      = false;
 int  s_frame_no       = 0;
+int s_bench_frames = 0;
+int s_bench_warmup = 30;
+int s_bench_objects = 0;
+bool s_frame_limit_off = false;
 
 void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,NULL,0,NULL}; vkBeginCommandBuffer(cb, &bi);
@@ -1409,18 +1414,40 @@ void drawFrame(VulkanApp* app) {
 
     /* Frame limiter: cap at ~144fps to avoid saturating the CPU on MAILBOX/IMMEDIATE present */
     struct timespec frame_limit = {0, 6944444L}; /* ~144fps = 1s/144 ≈ 6.94ms */
-    nanosleep(&frame_limit, NULL);
+    if (!s_frame_limit_off) nanosleep(&frame_limit, NULL);   /* off for --bench-frames */
 
     /* Decrement Shield Hit Timers */
     for (int s = 0; s < 6; s++) if (app->shieldHitTimers[s] > 0) app->shieldHitTimers[s]--;
 }
 
 
+static double bench_now_ms(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (double)t.tv_sec * 1000.0 + (double)t.tv_nsec / 1.0e6;
+}
+
 void render_frame(VulkanApp* app, float dt) {
     (void)dt;
+    static FrameBench bench;
+    static bool bench_on = false;
+    if (s_bench_frames > 0 && !bench_on) bench_on = frame_bench_init(&bench, s_bench_frames, s_bench_warmup);
+    double t0 = bench_on ? bench_now_ms() : 0.0;
     app->lastImgIdx = UINT32_MAX;
     if (app->gdd) gdd_draw_frame(app);
     else drawFrame(app);
+    if (bench_on) {
+        /* the frame's whole cost: wait until the GPU has finished it */
+        vkQueueWaitIdle(app->graphicsQueue);
+        if (frame_bench_add(&bench, bench_now_ms() - t0)) {
+            frame_bench_report(&bench, app->gdd ? "vulkan-gdd" : "vulkan-cpu", (int)app->swapChainExtent.width,
+                               (int)app->swapChainExtent.height, s_bench_objects);
+            frame_bench_free(&bench);
+            bench_on = false;
+            s_bench_frames = 0;
+            glfwSetWindowShouldClose(app->window, GLFW_TRUE);
+        }
+    }
 
     s_frame_no++;
     if (s_shot_path[0] && s_frame_no == s_shot_frame &&

@@ -1,3 +1,35 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.15
+  - Performance, phase 4 (the viewers' frame times on a real GPU).
+  spacegl_vulkan and spacegl_3dview take --bench-frames N (with
+  --bench-warmup W, default 30): N frames, each one waiting for the GPU to
+  finish it (vkQueueWaitIdle / glFinish: the frame's whole cost, CPU and
+  GPU, no overlap between frames), with no vsync (OpenGL) and no ~144 fps
+  frame limiter (Vulkan), then one line
+      [BENCH] <renderer> <W>x<H>, <n> objects: <N> frames, frame time
+      average A ms, p50, p95, p99, max (fps)
+  and exit (include/frame_bench.h). --bench-scene N fills the empty
+  shared-memory segment with a busy quadrant: the captain's ship and up to
+  255 objects of the common kinds at fixed places, the same on every run
+  (include/bench_scene.h; also with --screenshot). The OpenGL viewer loads
+  it at once (no command deck posts data_ready).
+  - tests/gpu_golden_check.sh, after the golden checks: frame times of
+  Vulkan CPU-driven and GPU-driven and of OpenGL with each bloom mode
+  (full, half, off), on the empty scene and on 256 objects, at 1920x1080
+  (--bench-window), 300 frames each (--frames; 0 = none), in a table with
+  the 16.7 ms budget of a 60 Hz frame checked on p95 (--budget); reported
+  ("FRAME BUDGET: ..."), or exit 3 when over with --enforce-budget. The
+  logs of every run stay in the output directory. Under --xvfb the screen
+  is 2048x1152.
+  - On the software drivers of this machine (Release, 1280x720, 20
+  frames; a test of the script, not a measure of a GPU): Vulkan GPU-driven
+  12.9 ms empty, 49.8 ms with 256 objects; Vulkan CPU-driven 15.3 and
+  424 ms; OpenGL bloom full / half / off 206 / 76 / 53 ms empty.
+  - Tests: frame_bench (the helpers: warm-up, average, percentiles; the
+  busy quadrant), viewer_bench (both viewers with the bench options: one
+  [BENCH] line each, the scene loaded; skip without a display or a Vulkan
+  ICD). 51 tests. spacegl_vulkan(1), spacegl_3dview(1), DEVELOPMENT.md,
+  README.md.
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.14
   - Performance, phase 2 (the traffic to the decks). The server now
   measures it: every connection counts its bytes, those of the protocol

@@ -914,6 +914,29 @@ endif()
 add_test(NAME sg_tls COMMAND sg_tls_test)
 set_tests_properties(sg_tls PROPERTIES TIMEOUT 120 PASS_REGULAR_EXPRESSION "PASS: sg_tls")
 
+# --- The viewers' frame times (2026.11.01.15) ----------------------------
+# include/frame_bench.h (warm-up, average, percentiles) and
+# include/bench_scene.h (the busy quadrant of --bench-scene), ASan/UBSan.
+add_executable(frame_bench_test frame_bench_test.c)
+if(NOT MSVC)
+    target_compile_options(frame_bench_test PRIVATE ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(frame_bench_test PRIVATE ${SG_TEST_SAN_FLAGS})
+endif()
+add_test(NAME frame_bench COMMAND frame_bench_test)
+set_tests_properties(frame_bench PROPERTIES TIMEOUT 30 PASS_REGULAR_EXPRESSION "PASS: frame_bench")
+
+# The two viewers with --bench-frames and --bench-scene: one [BENCH] line
+# each, the scene loaded. Needs a display or xvfb-run (and a Vulkan ICD for
+# spacegl_vulkan): SKIP (77) otherwise.
+if(TARGET spacegl_vulkan AND TARGET spacegl_3dview)
+    add_test(NAME viewer_bench
+             COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/viewer_bench_test.sh
+                     $<TARGET_FILE:spacegl_vulkan> $<TARGET_FILE:spacegl_3dview>)
+    set_tests_properties(viewer_bench PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600 RUN_SERIAL TRUE
+                         ENVIRONMENT "SPACEGL_SHADERS_DIR=${CMAKE_BINARY_DIR}/shaders"
+                         PASS_REGULAR_EXPRESSION "PASS: viewer_bench")
+endif()
+
 # --- The server's tick monitor (2026.11.01.13) ---------------------------
 # include/tick_monitor.h with synthetic ticks: no warning inside the
 # budget, one per interval with the worst tick, a starved tick named,
