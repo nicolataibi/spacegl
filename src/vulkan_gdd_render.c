@@ -1173,6 +1173,14 @@ void gdd_build_frame(VulkanApp *app, float pulse) {
 
     GddBuildCtx ctx;
     memset(&ctx, 0, sizeof(ctx));
+    /* The per-object columns ctx points to: declared HERE, at function
+     * scope, because gdd_build_instances() reads them after the
+     * `if (app->shm)` block that fills them. Declared inside that block
+     * (until 2026.11.01.16) their lifetime ended before the read: ASan
+     * reported stack-use-after-scope (CI viewer_bench, Debug job), and an
+     * optimising compiler may reuse that stack space. */
+    int types[MAX_OBJECTS], factions[MAX_OBJECTS], ship_classes[MAX_OBJECTS];
+    int cloaked[MAX_OBJECTS], active[MAX_OBJECTS], platings[MAX_OBJECTS], ids[MAX_OBJECTS];
     ctx.objs = app->smoothObjs;
     ctx.beams = app->activeBeams;
     ctx.booms = app->activeBooms;
@@ -1217,8 +1225,6 @@ void gdd_build_frame(VulkanApp *app, float pulse) {
             }
         }
 
-        int types[MAX_OBJECTS], factions[MAX_OBJECTS], ship_classes[MAX_OBJECTS];
-        int cloaked[MAX_OBJECTS], active[MAX_OBJECTS], platings[MAX_OBJECTS], ids[MAX_OBJECTS];
         int n = st->object_count;
         if (n > MAX_OBJECTS) n = MAX_OBJECTS;
         for (int o = 0; o < n; o++) {
