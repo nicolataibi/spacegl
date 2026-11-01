@@ -1,3 +1,8 @@
+* Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.02
+  - Tests: format_check passes again. The lines of 2026.11.02.01 in
+  vulkan_device.c and vulkan_render.c (createBuffer, frame_pace) are
+  formatted with git clang-format; no change in behaviour.
+
 * Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.01
   - Performance, the Vulkan viewer's frame pacing and diagnosis. The frame
   cap was a fixed 6.94 ms sleep after every frame plus 1 ms in mainLoop:

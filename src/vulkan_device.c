@@ -85,10 +85,13 @@ void createBuffer(VulkanApp* app, VkDeviceSize size, VkBufferUsageFlags usage, V
     if (props == hv && (usage & ~(VkBufferUsageFlags)(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT)) == 0) {
         uint32_t t = findMemoryTypeStrict(app->physicalDevice, mReqs.memoryTypeBits, hv | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         if (t != UINT32_MAX) {
-            VkMemoryAllocateInfo vInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, NULL, mReqs.size, t};
+            VkMemoryAllocateInfo vInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, NULL, mReqs.size, t };
             if (vkAllocateMemory(app->device, &vInfo, NULL, mem) == VK_SUCCESS) {
                 vkBindBufferMemory(app->device, *buf, *mem, 0);
-                if (!logged) { logged = true; printf("[VK] static mesh buffers in device-local host-visible memory (type %u)\n", t); }
+                if (!logged) {
+                    logged = true;
+                    printf("[VK] static mesh buffers in device-local host-visible memory (type %u)\n", t);
+                }
                 return;
             }
         }

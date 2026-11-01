@@ -78,14 +78,23 @@ void vkgt_reset_stats(void) {
 static void vkgt_try_init(VulkanApp *app) {
     const char *e = getenv("SPACEGL_VK_GPU_TIMES");
     bool env_on = e && e[0] == '1';
-    if (!env_on && s_bench_frames <= 0) { g_gt.state = -1; return; }
+    if (!env_on && s_bench_frames <= 0) {
+        g_gt.state = -1;
+        return;
+    }
     VkPhysicalDeviceProperties props;
     vkGetPhysicalDeviceProperties(app->physicalDevice, &props);
     uint32_t nq = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(app->physicalDevice, &nq, NULL);
-    if (nq == 0) { g_gt.state = -1; return; }
+    if (nq == 0) {
+        g_gt.state = -1;
+        return;
+    }
     VkQueueFamilyProperties *qp = (VkQueueFamilyProperties *)calloc(nq, sizeof(*qp));
-    if (!qp) { g_gt.state = -1; return; }
+    if (!qp) {
+        g_gt.state = -1;
+        return;
+    }
     vkGetPhysicalDeviceQueueFamilyProperties(app->physicalDevice, &nq, qp);
     g_gt.valid_bits = qp[0].timestampValidBits;   /* the graphics queue is family 0 */
     free(qp);
@@ -97,7 +106,10 @@ static void vkgt_try_init(VulkanApp *app) {
     VkQueryPoolCreateInfo qi = { .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
                                  .queryType = VK_QUERY_TYPE_TIMESTAMP,
                                  .queryCount = VKGT_SLOTS * VKGT_MAX_MARKS };
-    if (vkCreateQueryPool(app->device, &qi, NULL, &g_gt.pool) != VK_SUCCESS) { g_gt.state = -1; return; }
+    if (vkCreateQueryPool(app->device, &qi, NULL, &g_gt.pool) != VK_SUCCESS) {
+        g_gt.state = -1;
+        return;
+    }
     g_gt.dev = app->device;
     g_gt.ms_per_tick = (double)props.limits.timestampPeriod * 1.0e-6;
     g_gt.print_every = (env_on && s_bench_frames <= 0) ? 120 : 0;
@@ -1561,9 +1573,15 @@ static void frame_pace(void) {
     long period_ns = (long)(1.0e9 / cap);
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    if (!have_next) { next = now; have_next = true; }
+    if (!have_next) {
+        next = now;
+        have_next = true;
+    }
     next.tv_nsec += period_ns;
-    while (next.tv_nsec >= 1000000000L) { next.tv_nsec -= 1000000000L; next.tv_sec++; }
+    while (next.tv_nsec >= 1000000000L) {
+        next.tv_nsec -= 1000000000L;
+        next.tv_sec++;
+    }
     double late_ns = (double)(now.tv_sec - next.tv_sec) * 1.0e9 + (double)(now.tv_nsec - next.tv_nsec);
     if (late_ns > 0.0) {
         /* behind schedule: no sleep; after a long stall start again from now (no catch-up burst) */
