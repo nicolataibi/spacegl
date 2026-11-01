@@ -942,6 +942,72 @@ static void nav_tick_idle(int i) {
     players[i].gz = (players[i].state.q3 - 1) * QUADRANT_SIZE + players[i].state.s3;
 }
 
+static_assert(ORBIT_TICK_RATE == GAME_TICK_RATE, "orbit_math.h assumes the server tick rate");
+
+/* NAV_STATE_ORBIT: circular orbit round the object the captain locked with "orb". The centre
+ * is read again every tick (a moving body carries the ship along), the ship is placed on the
+ * circle (orbit_math.h) and turned along its direction of travel. The orbit ends when the
+ * object is gone or the thrusters fail. Any other navigation command replaces the state. */
+static void nav_tick_orbit(int i) {
+    int tid = players[i].orbit.target;
+    const TargetRangeDef *tr = target_range_for(tid);
+    const void *obj = tr ? target_find_global_active(tid) : NULL;
+    if (!obj || !players[i].orbit.active) {
+        players[i].nav_state = NAV_STATE_IDLE;
+        players[i].orbit.active = 0;
+        players[i].dx = 0;
+        players[i].dy = 0;
+        players[i].dz = 0;
+        send_server_msg(i, "COMPUTER", "Orbit target lost. Orbit abandoned.");
+        nav_tick_idle(i);
+        return;
+    }
+    if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
+        players[i].nav_state = NAV_STATE_IDLE;
+        players[i].orbit.active = 0;
+        players[i].dx = 0;
+        players[i].dy = 0;
+        players[i].dz = 0;
+        send_server_msg(i, "ENGINEERING", "Maneuvering thrusters failing. Orbit abandoned.");
+        nav_tick_idle(i);
+        return;
+    }
+
+    double cx, cy, cz;
+    target_abs_pos(tr, obj, &cx, &cy, &cz);
+    double off[3], dir[3];
+    orbit_advance(&players[i].orbit, off, dir);
+    players[i].gx = cx + off[0];
+    players[i].gy = cy + off[1];
+    players[i].gz = cz + off[2];
+    players[i].dx = dir[0];
+    players[i].dy = dir[1];
+    players[i].dz = dir[2];
+
+    /* Nose along the direction of travel (same smoothing as the approach autopilot) */
+    double th = atan2(dir[0], -dir[1]) * 180.0 / M_PI;
+    if (th < 0) {
+        th += 360;
+    }
+    double tm = asin(fmax(-1.0, fmin(1.0, dir[2]))) * 180.0 / M_PI;
+    double dh = th - players[i].state.van_h;
+    while (dh > 180) {
+        dh -= 360;
+    }
+    while (dh < -180) {
+        dh += 360;
+    }
+    players[i].state.van_h = fmod(players[i].state.van_h + dh * 0.15 + 360.0, 360.0);
+    players[i].state.van_m = (players[i].state.van_m + (tm - players[i].state.van_m) * 0.15);
+
+    players[i].state.q1 = get_q_from_g(players[i].gx);
+    players[i].state.q2 = get_q_from_g(players[i].gy);
+    players[i].state.q3 = get_q_from_g(players[i].gz);
+    players[i].state.s1 = (players[i].gx - (players[i].state.q1 - 1) * QUADRANT_SIZE);
+    players[i].state.s2 = (players[i].gy - (players[i].state.q2 - 1) * QUADRANT_SIZE);
+    players[i].state.s3 = (players[i].gz - (players[i].state.q3 - 1) * QUADRANT_SIZE);
+}
+
 /* One tick of the navigation state machine. */
 static void player_tick_navigation(int i) {
     if (players[i].nav_state == NAV_STATE_ALIGN || players[i].nav_state == NAV_STATE_ALIGN_IMPULSE) {
@@ -962,6 +1028,8 @@ static void player_tick_navigation(int i) {
         nav_tick_docking(i);
     } else if (players[i].nav_state == NAV_STATE_DRIFT) {
         nav_tick_drift(i);
+    } else if (players[i].nav_state == NAV_STATE_ORBIT) {
+        nav_tick_orbit(i);
     } else {
         nav_tick_idle(i);
     }

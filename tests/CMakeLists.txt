@@ -217,6 +217,11 @@ add_executable(steer_avoid_test steer_avoid_test.c)
 target_link_libraries(steer_avoid_test PRIVATE m)
 add_test(NAME steer_avoid COMMAND steer_avoid_test)
 
+# --- Orbit geometry (include/orbit_math.h): the circle of the `orb` command ---
+add_executable(orbit_test orbit_test.c)
+target_link_libraries(orbit_test PRIVATE m)
+add_test(NAME orbit COMMAND orbit_test)
+
 # --- Obstacle provider on the per-quadrant index (include/obstacles.h) ---
 add_executable(obstacles_test obstacles_test.c)
 target_link_libraries(obstacles_test PRIVATE m)

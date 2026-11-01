@@ -24,6 +24,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include "network.h"
+#include "orbit_math.h"
 #include "game_config.h"
 #include "star_system.h"
 #include "sglog.h"
@@ -70,7 +71,8 @@ typedef struct {
     double eta;
     double approach_dist;
     int apr_target;
-    
+    OrbitState orbit;       /* NAV_STATE_ORBIT: plane, radius and phase of the circular orbit (orbit_math.h) */
+
     /* Torpedo System (4-Tube Rotary System) */
     struct {
         bool active;

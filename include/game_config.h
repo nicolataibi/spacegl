@@ -114,6 +114,7 @@
 #define DIST_EPSILON            0.05f           /* Numerical tolerance for proximity and stop calculations */
 #define DIST_DISMANTLE_MAX      1.5f            /* Tractor beam range for wreck dismantling (DIS) */
 #define DIST_BOARDING_MAX       1.0f            /* Maximum teleport range for boarding (BOR) */
+#define DIST_ORBIT_CAPTURE_BAND 1.5f            /* Orbital capture (ORB): reach beyond the object's safe orbit radius */
 #define DIST_COLLISION_SHIP     0.8f            /* Physical collision radius between ships and solid objects */
 #define DIST_COLLISION_TORP     0.8f            /* Torpedo warhead activation radius for impact */
 #define DIST_GRAVITY_WELL       3.0f            /* Range of action of the fatal attraction of Black Holes */

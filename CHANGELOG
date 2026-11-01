@@ -1,3 +1,28 @@
+* Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.03
+  - Fix, `orb` puts the ship in a real circular orbit. The command only
+  set NAV_STATE_ORBIT and no tick handled that state (the ship fell into
+  nav_tick_idle and stayed where it was). Now nav_tick_orbit carries the
+  ship round the object: constant radius (the distance at capture, never
+  below the safe radius of the object: from nearer in it spirals out
+  onto it without a jump), one plane (the ship's own motion), constant
+  angular rate with a Kepler-like period (20 s at radius 3, r^1.5), nose
+  along the direction of travel. A moving body (star-system planets and
+  moons) carries the ship along. The orbit ends with `orb off`, with any
+  other navigation command, when the object is gone or the thrusters
+  fail. Geometry in include/orbit_math.h.
+  - `orb` reach and objects. The old test (< 1.0) was inside the contact
+  radius and compared sector coordinates without the quadrant. Now it
+  uses absolute positions and a reach of safe radius + 1.5 (3.5 for a
+  planet or star, see LORE.md). New table include/orbitables.h, one row
+  per object: planet, star, black hole, pulsar, quasar, neutron star,
+  brown dwarf, rogue planet, orbital ring, mega structure, quantum
+  singularity and the stars, planets and moons of star systems. Not
+  orbitable: comets (`cha`), satellites and starbases (`apr`, `doc`),
+  asteroids.
+  - Tests: new orbit_test (geometry); server_commands_test walks the
+  table and checks radius, plane, rate, period, capture without a jump,
+  settling, reach, `orb off` and the other-quadrant case on a real galaxy.
+
 * Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.02
   - Tests: format_check passes again. The lines of 2026.11.02.01 in
   vulkan_device.c and vulkan_render.c (createBuffer, frame_pace) are

@@ -33,6 +33,8 @@
 #include "nav_math.h"
 #include "ui.h"
 #include "sg_parse.h"
+#include "obstacles.h"
+#include "orbitables.h"
 #include <stddef.h>
 
 /* Helper macro to safely append to a buffer with length check (used in handle_srs).
@@ -141,67 +143,67 @@ void normalize_upright(double *h, double *m) {
 
 #include "commands_handlers.inc"
 static const CommandDef command_registry[] = {
-    {"dbgspn", handle_dbgspn, "TEMP-DEBUG: spawn local NPCs/monsters"},
-    {"dbgnpc", handle_dbgnpc, "TEMP-DEBUG: report NPC state"},
-    {"nav", handle_nav, "Hyperdrive Navigation (H 0-359, M -90/90, W Dist, F Factor 1-9.9)"},
-    {"imp", handle_imp, "Impulse Drive (H, M, Speed 0.0-1.0). imp 0 0 0 to stop."},
-    {"pos", handle_pos, "Position Ship (Align orientation without movement)"},
-    {"vec", handle_vec, "Vector Thrust (H, M, Speed 0.0-1.0): move along course without changing attitude. vec H M 0 to stop."},
-    {"jum", handle_jum, "Wormhole Jump (Usage: jum [type] q1 q2 q3)"},
-    {"apr", handle_apr, "Approach target autopilot (ID DIST). Works on Lock."},
-    {"cha",  handle_cha, "Chase locked target (Inter-sector aware)"},
-    {"srs",  handle_srs, "Short Range Sensors (Current Quadrant View)"},
-    {"lrs",  handle_lrs, "Long Range Sensors (LCARS Tactical Grid)"},
-    {"pha", handle_pha, "Fire Ion Beams at locked target (uses Energy E)"},
-    {"tor",  handle_tor, "Launch Plasma Torpedo at locked target or Heading/Mark"},
-    {"she", handle_she, "Shield Configuration (F R T B L RI)"},
-    {"lock", handle_lock, "Target Lock-on (ID or 'off' to release)"},
-    {"pow", handle_pow,  "Power Allocation (Engines, Shields, Weapons %)"},
-    {"psy",  handle_psy,  "Psychological Warfare (Anti-Matter Bluff)"},
-    {"scan", handle_scan, "Detailed analysis of vessel or anomaly"},
-    {"clo",  handle_clo, "Toggle Cloaking Device (Consumes constant Energy)"},
-    {"bor",  handle_bor, "Boarding party operation (Dist < 1.0). Works on Lock."},
-    {"dis",  handle_dis, "Dismantle enemy wreck/derelict (Dist < 1.5)"},
-    {"min",  handle_min, "Planetary Mining (Must be in orbit dist < 2.0)"},
-    {"sco",  handle_sco, "Solar scooping for energy"},
-    {"har",  handle_har, "Antimatter harvest from Black Hole"},
-    {"doc",  handle_doc, "Dock with Starbase (Replenish/Repair, same faction)"},
-    {"con", handle_con, "Convert resources (1:Aeth->E, 2:Neo-Ti->E, 3:Void-E->Torps, 6:Gas->E, 7:Comp->E)"},
-    {"load", handle_load, "Load from Cargo Bay (1:Energy, 2:Torps)"},
-    {"rep",  handle_rep, "Repair System (Uses 50 Neo-Titanium + 10 Synaptics)"},
-    {"fix",  handle_fix, "Field Hull Repair (50 Graphene + 20 Neo-Ti)"},
-    {"sta",  handle_sta, "Mission Status Report"},
-    {"inv",  handle_inv, "Cargo Inventory Report"},
-    {"dam",  handle_dam, "Detailed Damage Report"},
-    {"cal", handle_cal, "Hyperdrive Calc (Pinpoint Precision Route & ETA)"},
-    {"ical", handle_ical, "Impulse Calculator (Sector ETA at current power)"},
-    {"who",  handle_who, "List active captains in galaxy"},
-    {"rad",  NULL,       "Radio Subspace (rad <msg>, rad @Faction <msg>, rad #ID <msg>)"},
-    {"tune", NULL,       "Identity Tuner (tune <CaptainName>): Listen to a Captain's Level B frequency"},
-    {"enc",  handle_enc,  "Fleet Encryption (enc <algo>): Standard Fleet-wide frequency (Level A)"},
-    {"enc2", handle_enc2, "Identity Mode (enc2 <algo>): Broadcast on your personal frequency (Level B)"},
-    {"enc3", handle_enc3, "Peer Mode (enc3 <CaptainName> <algo>): Secure P2P communication (Level C)"},
-    {"enc4", handle_enc4, "Exclusive Mode (enc4 <CaptainName> <algo>): Filtered Private Link (Level D)"},
-    {"link", handle_link, "Tactical Link (link <CaptainName>): Reciprocal X25519 E2E Handshake"},
-    {"help", handle_help, "Display LCARS Command Directory"},
-    {"exit", NULL,        "Exit game and disconnect from server"},
-    {"quit", NULL,        "Exit game and disconnect from server (alias)"},
-    {"aux", handle_aux, "Auxiliary (probe/report/recover/jettison)"},
-    {"xxx",  handle_xxx, "Emergency Repositioning (Tactical Warp)"},
-    {"zztop", handle_zztop, "PERMANENT PROFILE DELETION (NO UNDO!)"},
-    {"hull", handle_hull, "Reinforce Hull (Uses 100 Composite for +500 Plating)"},
-    {"supernova", handle_supernova, "Admin: Trigger Supernova"},
-    {"axs",  handle_axs,  "Toggle AR Compass"},
-    {"grd",  handle_grd,  "Toggle Tactical Grid"},
-    {"bridge", handle_bridge, "Change Bridge View (top, bottom, up, down, left, right, rear, off)"},
-    {"pilot", handle_pilot, "Cockpit Pilot Mode: flight stick drives the ship (pilot on/off)"},
+    { "dbgspn", handle_dbgspn, "TEMP-DEBUG: spawn local NPCs/monsters" },
+    { "dbgnpc", handle_dbgnpc, "TEMP-DEBUG: report NPC state" },
+    { "nav", handle_nav, "Hyperdrive Navigation (H 0-359, M -90/90, W Dist, F Factor 1-9.9)" },
+    { "imp", handle_imp, "Impulse Drive (H, M, Speed 0.0-1.0). imp 0 0 0 to stop." },
+    { "pos", handle_pos, "Position Ship (Align orientation without movement)" },
+    { "vec", handle_vec, "Vector Thrust (H, M, Speed 0.0-1.0): move along course without changing attitude. vec H M 0 to stop." },
+    { "jum", handle_jum, "Wormhole Jump (Usage: jum [type] q1 q2 q3)" },
+    { "apr", handle_apr, "Approach target autopilot (ID DIST). Works on Lock." },
+    { "cha", handle_cha, "Chase locked target (Inter-sector aware)" },
+    { "srs", handle_srs, "Short Range Sensors (Current Quadrant View)" },
+    { "lrs", handle_lrs, "Long Range Sensors (LCARS Tactical Grid)" },
+    { "pha", handle_pha, "Fire Ion Beams at locked target (uses Energy E)" },
+    { "tor", handle_tor, "Launch Plasma Torpedo at locked target or Heading/Mark" },
+    { "she", handle_she, "Shield Configuration (F R T B L RI)" },
+    { "lock", handle_lock, "Target Lock-on (ID or 'off' to release)" },
+    { "pow", handle_pow, "Power Allocation (Engines, Shields, Weapons %)" },
+    { "psy", handle_psy, "Psychological Warfare (Anti-Matter Bluff)" },
+    { "scan", handle_scan, "Detailed analysis of vessel or anomaly" },
+    { "clo", handle_clo, "Toggle Cloaking Device (Consumes constant Energy)" },
+    { "bor", handle_bor, "Boarding party operation (Dist < 1.0). Works on Lock." },
+    { "dis", handle_dis, "Dismantle enemy wreck/derelict (Dist < 1.5)" },
+    { "min", handle_min, "Planetary Mining (Must be in orbit dist < 2.0)" },
+    { "sco", handle_sco, "Solar scooping for energy" },
+    { "har", handle_har, "Antimatter harvest from Black Hole" },
+    { "doc", handle_doc, "Dock with Starbase (Replenish/Repair, same faction)" },
+    { "con", handle_con, "Convert resources (1:Aeth->E, 2:Neo-Ti->E, 3:Void-E->Torps, 6:Gas->E, 7:Comp->E)" },
+    { "load", handle_load, "Load from Cargo Bay (1:Energy, 2:Torps)" },
+    { "rep", handle_rep, "Repair System (Uses 50 Neo-Titanium + 10 Synaptics)" },
+    { "fix", handle_fix, "Field Hull Repair (50 Graphene + 20 Neo-Ti)" },
+    { "sta", handle_sta, "Mission Status Report" },
+    { "inv", handle_inv, "Cargo Inventory Report" },
+    { "dam", handle_dam, "Detailed Damage Report" },
+    { "cal", handle_cal, "Hyperdrive Calc (Pinpoint Precision Route & ETA)" },
+    { "ical", handle_ical, "Impulse Calculator (Sector ETA at current power)" },
+    { "who", handle_who, "List active captains in galaxy" },
+    { "rad", NULL, "Radio Subspace (rad <msg>, rad @Faction <msg>, rad #ID <msg>)" },
+    { "tune", NULL, "Identity Tuner (tune <CaptainName>): Listen to a Captain's Level B frequency" },
+    { "enc", handle_enc, "Fleet Encryption (enc <algo>): Standard Fleet-wide frequency (Level A)" },
+    { "enc2", handle_enc2, "Identity Mode (enc2 <algo>): Broadcast on your personal frequency (Level B)" },
+    { "enc3", handle_enc3, "Peer Mode (enc3 <CaptainName> <algo>): Secure P2P communication (Level C)" },
+    { "enc4", handle_enc4, "Exclusive Mode (enc4 <CaptainName> <algo>): Filtered Private Link (Level D)" },
+    { "link", handle_link, "Tactical Link (link <CaptainName>): Reciprocal X25519 E2E Handshake" },
+    { "help", handle_help, "Display LCARS Command Directory" },
+    { "exit", NULL, "Exit game and disconnect from server" },
+    { "quit", NULL, "Exit game and disconnect from server (alias)" },
+    { "aux", handle_aux, "Auxiliary (probe/report/recover/jettison)" },
+    { "xxx", handle_xxx, "Emergency Repositioning (Tactical Warp)" },
+    { "zztop", handle_zztop, "PERMANENT PROFILE DELETION (NO UNDO!)" },
+    { "hull", handle_hull, "Reinforce Hull (Uses 100 Composite for +500 Plating)" },
+    { "supernova", handle_supernova, "Admin: Trigger Supernova" },
+    { "axs", handle_axs, "Toggle AR Compass" },
+    { "grd", handle_grd, "Toggle Tactical Grid" },
+    { "bridge", handle_bridge, "Change Bridge View (top, bottom, up, down, left, right, rear, off)" },
+    { "pilot", handle_pilot, "Cockpit Pilot Mode: flight stick drives the ship (pilot on/off)" },
 
-    {"map",    handle_map,    "Toggle Galaxy Map. Filters: st,pl,bs,en,bh,ne,pu,is,co,as,de,mi,bu,pf,ri,mo,qu"},
-    {"red",    handle_red,    "Toggle Red Alert / Condition Green"},
-    {"orb",    handle_orb,    "Enter orbit around target celestial body (Planet, Star, BH, Pulsar, Quasar) < 1.0"},
-    {"und",    handle_und,    "Undock from Starbase"},
-    {"undock", handle_und,    "Undock from Starbase (alias)"},
-    {NULL, NULL, NULL}
+    { "map", handle_map, "Toggle Galaxy Map. Filters: st,pl,bs,en,bh,ne,pu,is,co,as,de,mi,bu,pf,ri,mo,qu" },
+    { "red", handle_red, "Toggle Red Alert / Condition Green" },
+    { "orb", handle_orb, "Circular orbit around the locked celestial object ('orb off' leaves)" },
+    { "und", handle_und, "Undock from Starbase" },
+    { "undock", handle_und, "Undock from Starbase (alias)" },
+    { NULL, NULL, NULL }
 };
 
 void handle_red(int i, const char *params, bool *should_disconnect) {
@@ -227,78 +229,64 @@ void handle_red(int i, const char *params, bool *should_disconnect) {
     }
 }
 
+/* orb       : circular orbit around the locked object (the kinds listed in orbitables.h)
+ * orb off   : leaves the orbit (the ship stops where it is) */
 void handle_orb(int i, const char *params, bool *should_disconnect) {
-    (void)params; (void)should_disconnect;
+    (void)should_disconnect;
+    const char *a = params ? params : "";
+    while (*a == ' ' || *a == '\t') a++;
+    if (strncmp(a, "off", 3) == 0 || strncmp(a, "stop", 4) == 0) {
+        if (players[i].nav_state == NAV_STATE_ORBIT) {
+            players[i].nav_state = NAV_STATE_IDLE;
+            players[i].orbit.active = 0;
+            players[i].dx = 0;
+            players[i].dy = 0;
+            players[i].dz = 0;
+            send_server_msg(i, "HELMSMAN", "Leaving orbit. Engines holding position.");
+        } else {
+            send_server_msg(i, "COMPUTER", "Not in orbit.");
+        }
+        return;
+    }
+
     if (players[i].state.system_health[1] < THRESHOLD_SYS_CRITICAL) {
         send_server_msg(i, "ENGINEERING", "ORBITAL ENTRY FAILURE: Maneuvering thrusters offline.");
         return;
     }
     int tid = players[i].state.lock_target;
-    double target_x = -1, target_y = -1, target_z = -1;
-    const char *target_type = "object";
-    bool valid_target = false;
-
-    NPCPlanet *target_planet = planet_by_id(tid);
-    NPCStar *target_star = star_by_id(tid);
-    if (target_planet && target_planet->active) {
-        target_x = target_planet->x;
-        target_y = target_planet->y;
-        target_z = target_planet->z;
-        target_type = "planet";
-        valid_target = true;
-    } else if (target_star && target_star->active) {
-        target_x = target_star->x;
-        target_y = target_star->y;
-        target_z = target_star->z;
-        target_type = "star";
-        valid_target = true;
-    } else if (tid >= GALAXY_OBJECT_MIN_BLACKHOLE && tid <= GALAXY_OBJECT_MAX_BLACKHOLE) {
-        int b = tid - GALAXY_OBJECT_MIN_BLACKHOLE;
-        if (b >= 0 && b < MAX_BH && black_holes[b].active) {
-            target_x = black_holes[b].x;
-            target_y = black_holes[b].y;
-            target_z = black_holes[b].z;
-            target_type = "black hole";
-            valid_target = true;
-        }
-    } else if (tid >= GALAXY_OBJECT_MIN_PULSAR && tid <= GALAXY_OBJECT_MAX_PULSAR) {
-        int p = tid - GALAXY_OBJECT_MIN_PULSAR;
-        if (p >= 0 && p < MAX_PULSARS && pulsars[p].active) {
-            target_x = pulsars[p].x;
-            target_y = pulsars[p].y;
-            target_z = pulsars[p].z;
-            target_type = "pulsar";
-            valid_target = true;
-        }
-    } else if (tid >= GALAXY_OBJECT_MIN_QUASAR && tid <= GALAXY_OBJECT_MAX_QUASAR) {
-        int q = tid - GALAXY_OBJECT_MIN_QUASAR;
-        if (q >= 0 && q < MAX_QUASARS && quasars[q].active) {
-            target_x = quasars[q].x;
-            target_y = quasars[q].y;
-            target_z = quasars[q].z;
-            target_type = "quasar";
-            valid_target = true;
-        }
-    }
-
-    if (valid_target) {
-        double dx = target_x - players[i].state.s1;
-        double dy_val = target_y - players[i].state.s2;
-        double dz = target_z - players[i].state.s3;
-        double d = sqrt(dx*dx + dy_val*dy_val + dz*dz);
-        if (d < DIST_BOARDING_MAX) {
-            players[i].nav_state = NAV_STATE_ORBIT;
-            char msg[128];
-            SG_SPRINTF(msg, "Establishing stable orbit around target %s.", target_type);
-            send_server_msg(i, "HELMSMAN", msg);
-        } else {
-            char err_msg[128];
-            SG_SPRINTF(err_msg, "Target %s too distant for orbital capture (< %.1f required).", target_type, DIST_BOARDING_MAX);
-            send_server_msg(i, "COMPUTER", err_msg);
-        }
-    } else {
+    const OrbitableDef *def = orbitable_for(tid);
+    const TargetRangeDef *tr = def ? target_range_for(tid) : NULL;
+    const void *obj = tr ? target_find_global_active(tid) : NULL;
+    if (!def || !obj) {
         send_server_msg(i, "COMPUTER", "No valid celestial object locked for orbital entry.");
+        return;
     }
+
+    /* Absolute positions: the object may be in another quadrant than the
+     * ship (sector coordinates alone would compare unrelated points). */
+    double tx, ty, tz;
+    target_abs_pos(tr, obj, &tx, &ty, &tz);
+    double rel[3] = { players[i].gx - tx, players[i].gy - ty, players[i].gz - tz };
+    double d = orb_len(rel);
+
+    double r_min = orbitable_safe_radius(def);
+    double capture = orbitable_capture_reach(def);
+    char msg[160];
+    if (d > capture) {
+        SG_SPRINTF(msg, "Target %s too distant for orbital capture (< %.1f required).", def->label, capture);
+        send_server_msg(i, "COMPUTER", msg);
+        return;
+    }
+
+    double vel[3] = { players[i].vx, players[i].vy, players[i].vz };
+    orbit_start(&players[i].orbit, tid, rel, vel, r_min);
+    players[i].nav_state = NAV_STATE_ORBIT;
+    players[i].apr_target = 0;
+    players[i].hyper_speed = 0;
+    players[i].eta = 0;
+    SG_SPRINTF(msg, "Establishing stable orbit around target %s: radius %.1f, period %.0f s.",
+               def->label, players[i].orbit.r_goal, orbit_period_s(players[i].orbit.r_goal));
+    send_server_msg(i, "HELMSMAN", msg);
 }
 
 void handle_link(int i, const char *params, bool *should_disconnect) {

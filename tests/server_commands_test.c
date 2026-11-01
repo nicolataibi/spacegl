@@ -33,6 +33,8 @@
  */
 #include "server_internal.h"
 #include "game_state.h"
+#include "obstacles.h"
+#include "orbitables.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -320,6 +322,222 @@ static void test_combat(void) {
     players[1].active = 0;
 }
 
+/* 6. `orb`: a real circular orbit (2026.11.01.18). Before, the command only set NAV_STATE_ORBIT and
+ * no tick handled it, so the ship stayed where it was. For one active object of every kind `orb`
+ * accepts: the ship is carried round it on a circle (constant radius, one plane, constant angular
+ * rate, a full turn in one period), nothing jumps at capture, a ship closer than the safe radius
+ * settles outwards onto it, a ship out of reach is refused, `orb off` stops it, and an object in
+ * another quadrant with the same sector coordinates is not "near" (the old check compared sector
+ * coordinates alone). */
+static void place_captain_abs(double ax, double ay, double az) {
+    int q1 = (int)floor(ax / QUADRANT_SIZE) + 1, q2 = (int)floor(ay / QUADRANT_SIZE) + 1, q3 = (int)floor(az / QUADRANT_SIZE) + 1;
+    spawn_captain(CAP, "TESTCAP", FACTION_ALLIANCE, SHIP_CLASS_EXPLORER, q1, q2, q3,
+                  ax - (q1 - 1) * QUADRANT_SIZE, ay - (q2 - 1) * QUADRANT_SIZE, az - (q3 - 1) * QUADRANT_SIZE);
+}
+
+static double ship_dist_to(double cx, double cy, double cz) {
+    const ConnectedPlayer *p = &players[CAP];
+    return sqrt((p->gx - cx) * (p->gx - cx) + (p->gy - cy) * (p->gy - cy) + (p->gz - cz) * (p->gz - cz));
+}
+
+static int orbit_cases = 0;
+
+static void orbit_one(const OrbitableDef *def, int tid, const TargetRangeDef *r, const void *e) {
+    const char *label = def->label;
+    /* A body that moves (star systems) is read again every tick, like the server does; the position is
+     * a function of the real clock, so what the test reads a few ms after the tick differs by speed x dt. */
+    const int moving = def->moving;
+    const double tol = moving ? 0.02 : 1e-6;
+    double cx, cy, cz;
+    target_abs_pos(r, e, &cx, &cy, &cz);
+    const double lo = 12.0, hi = GALAXY_SIZE * QUADRANT_SIZE - 12.0;
+    if (cx < lo || cy < lo || cz < lo || cx > hi || cy > hi || cz > hi) return;   /* keep the circle inside the galaxy */
+    double r_min = orbitable_safe_radius(def);
+    double capture = orbitable_capture_reach(def);
+    char what[96];
+
+    /* --- capture from inside the reach, between the safe radius and the edge of the reach */
+    double d0 = r_min + 0.4 * DIST_ORBIT_CAPTURE_BAND;
+    place_captain_abs(cx + d0, cy, cz);
+    ticks(2);
+    if (moving) target_abs_pos(r, e, &cx, &cy, &cz);
+    refuel();
+    players[CAP].state.lock_target = tid;
+    double px = players[CAP].gx, py = players[CAP].gy, pz = players[CAP].gz;
+    snprintf(what, sizeof(what), "%s: orb", label);
+    run("orb");
+    CHECK(players[CAP].nav_state == NAV_STATE_ORBIT, "%s: not in orbit at %.2f (reach %.2f): \"%s\"", label, d0, capture, g_last_text);
+    if (players[CAP].nav_state != NAV_STATE_ORBIT) return;
+    CHECK(players[CAP].orbit.active && players[CAP].orbit.target == tid, "%s: orbit state not filled", label);
+    CHECK(fabs(players[CAP].orbit.r_goal - d0) < (moving ? 0.05 : 1e-9), "%s: the orbit should keep the capture distance (%.3f vs %.3f)", label, players[CAP].orbit.r_goal, d0);
+
+    OrbitState snap = players[CAP].orbit;       /* plane and radius at capture */
+    double n[3];
+    orb_cross(snap.e1, snap.e2, n);
+    double period_ticks = orbit_period_s(snap.r_goal) * GAME_TICK_RATE;
+    int n_ticks = (int)(period_ticks * 1.25) + 2;
+    double swept = 0.0, prev_ang = 0.0, max_step = 0.0, max_dr = 0.0, max_out_of_plane = 0.0, max_domega = 0.0;
+    double ppx = px, ppy = py, ppz = pz;
+    double pcx = cx, pcy = cy, pcz = cz;          /* centre at the previous tick (a moving body carries the ship along) */
+    double worst_excess = 0.0;
+    double hull0 = players[CAP].state.hull_integrity;
+    int turns_at = -1;
+    for (int t = 1; t <= n_ticks; t++) {
+        if (t % 120 == 0) {
+            refuel();
+            players[CAP].state.lock_target = tid;
+        }
+        ticks(1);
+        if (moving) target_abs_pos(r, e, &cx, &cy, &cz);
+        const ConnectedPlayer *p = &players[CAP];
+        if (p->nav_state != NAV_STATE_ORBIT) {
+            CHECK(0, "%s: left the orbit at tick %d (\"%s\")", label, t, g_last_text);
+            return;
+        }
+        double ox = p->gx - cx, oy = p->gy - cy, oz = p->gz - cz;
+        double off[3] = { ox, oy, oz };
+        double dr = fabs(sqrt(ox * ox + oy * oy + oz * oz) - snap.r_goal);
+        if (dr > max_dr) max_dr = dr;
+        double oop = fabs(orb_dot(off, n));
+        if (oop > max_out_of_plane) max_out_of_plane = oop;
+        double ang = atan2(orb_dot(off, snap.e2), orb_dot(off, snap.e1));
+        double da = ang - prev_ang;
+        while (da > M_PI) da -= 2.0 * M_PI;
+        while (da <= -M_PI) da += 2.0 * M_PI;
+        swept += da;
+        prev_ang = ang;
+        double dom = fabs(da - orbit_omega(snap.r_goal));
+        if (dom > max_domega) max_domega = dom;
+        double step = sqrt((p->gx - ppx) * (p->gx - ppx) + (p->gy - ppy) * (p->gy - ppy) + (p->gz - ppz) * (p->gz - ppz));
+        if (step > max_step) max_step = step;
+        {   /* the ship's step may not exceed its orbital step + how far the body itself moved */
+            double bm = sqrt((cx - pcx) * (cx - pcx) + (cy - pcy) * (cy - pcy) + (cz - pcz) * (cz - pcz));
+            double ex = step - (snap.r_goal * orbit_omega(snap.r_goal) * 1.01 + bm + (moving ? 0.02 : 1e-9));
+            if (ex > worst_excess) worst_excess = ex;
+            pcx = cx;
+            pcy = cy;
+            pcz = cz;
+        }
+        ppx = p->gx;
+        ppy = p->gy;
+        ppz = p->gz;
+        if (turns_at < 0 && swept >= 2.0 * M_PI) turns_at = t;
+        /* the captain's sector coordinates follow the absolute ones */
+        double sx = p->state.s1 + (p->state.q1 - 1) * QUADRANT_SIZE;
+        if (fabs(sx - p->gx) > 1e-6) {
+            CHECK(0, "%s: sector x out of step with gx at tick %d", label, t);
+            return;
+        }
+    }
+    CHECK(max_dr < tol, "%s: radius not constant, worst error %.3g", label, max_dr);
+    CHECK(max_out_of_plane < tol, "%s: ship left the orbital plane by %.3g", label, max_out_of_plane);
+    CHECK(moving || max_domega < 1e-9, "%s: angular rate not constant, worst error %.3g rad/tick", label, max_domega);
+    CHECK(worst_excess <= 0.0, "%s: the ship jumped: a step exceeded orbital speed + the body's own motion by %.4f", label, worst_excess);
+    CHECK(turns_at > 0 && abs(turns_at - (int)period_ticks) <= 2, "%s: one turn took %d ticks, expected %d", label, turns_at, (int)period_ticks);
+    CHECK(swept > 2.0 * M_PI * 1.2, "%s: swept only %.2f rad in 1.25 periods", label, swept);
+    CHECK(players[CAP].state.hull_integrity >= hull0 - 1e-3, "%s: the hull took damage in a stable orbit", label);
+
+    /* --- leaving the orbit */
+    run("orb off");
+    CHECK(players[CAP].nav_state == NAV_STATE_IDLE, "%s: orb off did not leave the orbit", label);
+    double hx = players[CAP].gx, hy = players[CAP].gy, hz = players[CAP].gz;
+    ticks(30);
+    CHECK(fabs(players[CAP].gx - hx) + fabs(players[CAP].gy - hy) + fabs(players[CAP].gz - hz) < 1e-9,
+          "%s: the ship moved after orb off", label);
+    refuel();
+    run("orb off");                              /* not in orbit: answers, changes nothing */
+
+    /* --- out of reach: refused */
+    if (moving) target_abs_pos(r, e, &cx, &cy, &cz);
+    place_captain_abs(cx + capture + 1.0, cy, cz);
+    ticks(2);
+    refuel();
+    players[CAP].state.lock_target = tid;
+    run("orb");
+    CHECK(players[CAP].nav_state != NAV_STATE_ORBIT, "%s: orbit accepted at %.2f, reach is %.2f", label, capture + 1.0, capture);
+    CHECK(strstr(g_last_text, "too distant") != NULL, "%s: no 'too distant' answer: \"%s\"", label, g_last_text);
+
+    /* --- closer than the safe radius: settles outwards, never jumps */
+    if (moving) target_abs_pos(r, e, &cx, &cy, &cz);
+    place_captain_abs(cx + 0.5, cy, cz);
+    ticks(2);
+    refuel();
+    players[CAP].state.lock_target = tid;
+    run("orb");
+    CHECK(players[CAP].nav_state == NAV_STATE_ORBIT, "%s: refused at 0.5: \"%s\"", label, g_last_text);
+    if (players[CAP].nav_state == NAV_STATE_ORBIT) {
+        CHECK(fabs(players[CAP].orbit.r_goal - r_min) < (moving ? 0.05 : 1e-9), "%s: should settle on the safe radius %.2f, not %.2f", label, r_min, players[CAP].orbit.r_goal);
+        double last_d = ship_dist_to(cx, cy, cz), worst_back = 0.0;
+        int settled = -1;
+        for (int t = 1; t < 2000; t++) {
+            ticks(1);
+            if (moving) target_abs_pos(r, e, &cx, &cy, &cz);
+            double dd = ship_dist_to(cx, cy, cz);
+            if (dd < last_d - (moving ? 0.02 : 1e-9)) worst_back = fmax(worst_back, last_d - dd);
+            last_d = dd;
+            if (settled < 0 && fabs(dd - r_min) < (moving ? 0.02 : 1e-9)) {
+                settled = t;
+                break;
+            }
+        }
+        CHECK(settled > 0, "%s: never reached the safe radius %.2f (at %.3f)", label, r_min, last_d);
+        CHECK(worst_back < (moving ? 0.02 : 1e-9), "%s: the radius shrank while settling", label);
+        CHECK(players[CAP].nav_state == NAV_STATE_ORBIT, "%s: orbit lost while settling", label);
+    }
+    snprintf(what, sizeof(what), "%s orbit", label);
+    check_sane(what);
+    run("orb off");
+    orbit_cases++;
+}
+
+static void test_orbit(void) {
+    int kinds_done = 0;
+    for (int k = 0; k < ORBITABLES_COUNT; k++) {
+        const OrbitableDef *def = &ORBITABLES[k];
+        const TargetRangeDef *r = target_range_for(def->min_id);
+        CHECK(r != NULL, "%s: no target range", def->label);
+        if (!r) continue;
+        CHECK(r->min_id == def->min_id && r->max_id == def->max_id, "%s: ID range of orbitables.h and of the target registry differ", def->label);
+        CHECK(orbitable_safe_radius(def) >= 2.0 - 1e-9, "%s: safe radius %.2f is inside the contact radius", def->label, orbitable_safe_radius(def));
+        int before = orbit_cases, tried = 0;
+        for (size_t s = 0; s < r->capacity && tried < 2; s++) {
+            const void *c = (const char *)r->base + s * r->stride;
+            if (!r->is_active(c)) continue;
+            int n0 = orbit_cases;
+            orbit_one(def, r->min_id + (int)s, r, c);
+            if (orbit_cases > n0) tried++;
+            if (tried == 0 && s > 400) break;     /* the first ones are all too near the galaxy edge: stop looking */
+        }
+        if (orbit_cases > before) kinds_done++;
+        else fprintf(stderr, "  orb: no %s in the galaxy was suitable for the test\n", def->label);
+    }
+    CHECK(kinds_done >= 6, "orbit tested on only %d kinds of object", kinds_done);
+
+    /* the old bug: the same sector coordinates in another quadrant is not "near" */
+    const TargetRangeDef *pr = target_range_for(GALAXY_OBJECT_MIN_PLANET);
+    for (size_t s = 0; pr && s < pr->capacity; s++) {
+        const NPCPlanet *pl = &planets[s];
+        if (!pl->active) continue;
+        int oq = pl->q1 < GALAXY_SIZE ? pl->q1 + 1 : pl->q1 - 1;
+        spawn_captain(CAP, "TESTCAP", FACTION_ALLIANCE, SHIP_CLASS_EXPLORER, oq, pl->q2, pl->q3, pl->x + 0.5, pl->y, pl->z);
+        ticks(2);
+        refuel();
+        players[CAP].state.lock_target = GALAXY_OBJECT_MIN_PLANET + (int)s;
+        run("orb");
+        CHECK(players[CAP].nav_state != NAV_STATE_ORBIT, "orb accepted a planet one quadrant away (same sector coordinates)");
+        break;
+    }
+
+    /* nothing locked / not an orbitable object */
+    spawn_captain(CAP, "TESTCAP", FACTION_ALLIANCE, SHIP_CLASS_EXPLORER, 10, 10, 10, 50.0, 50.0, 50.0);
+    ticks(2);
+    players[CAP].state.lock_target = 0;
+    run("orb");
+    CHECK(players[CAP].nav_state != NAV_STATE_ORBIT, "orb with nothing locked");
+    CHECK(strstr(g_last_text, "No valid celestial object") != NULL, "no answer for an empty lock: \"%s\"", g_last_text);
+    printf("  orbit: %d object(s) of %d kinds in circular orbit, plane/radius/rate/period checked\n", orbit_cases, kinds_done);
+}
+
 /* 5. A new captain's quadrant (2026.10.31.36): its centre, where the ship
  * appears, is clear, so the login check never rescues a brand-new ship
  * instead of welcoming it. Before, the quadrant was any random one. */
@@ -364,6 +582,7 @@ int main(void) {
     test_tour();
     test_ranges();
     test_combat();
+    test_orbit();
 
     /* the permanent profile deletion, last */
     refuel();

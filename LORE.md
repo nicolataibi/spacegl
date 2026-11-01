@@ -3580,7 +3580,15 @@ Distances expressed in sector units (0.0 - 100.0). If your distance is greater t
 | **Comm Buoy** | (Passive) | **< 1.2** | Signal boost or auto-messages |
 | **Space Amoeba** | (Contact) | **< 1.5** | Critical energy drain start |
 | **Crystalline E.** | (Resonance) | **< 4.0** | Range of the resonance beam |
-| **Quasar** | `orb` | **< 1.0** | Stable orbital entry |
+| **Planet / Star / Quasar / Brown Dwarf / Rogue Planet** | `orb` | **< 3.5** | Circular orbit (safe radius 2.0 + capture band 1.5) |
+| **Neutron Star** | `orb` | **< 4.0** | Circular orbit, safe radius 2.5 (compact, intense field) |
+| **Pulsar** | `orb` | **< 5.2** | Circular orbit, outside the 3.7 keep-out distance of its beam |
+| **Black Hole / Quantum Singularity** | `orb` | **< 5.7** | Circular orbit, outside the 4.2 keep-out distance of the gravity well |
+| **Orbital Ring** | `orb` | **< 5.5** | Circular orbit, safe radius 4.0 (clear of the ring) |
+| **Mega Structure** | `orb` | **< 7.0** | Circular orbit, safe radius 5.5 (clear of the spire and arms) |
+| **System Star** | `orb` | **< 6.0** | Circular orbit (safe radius 4.5), follows the star |
+| **System Planet** | `orb` | **< 5.3** | Circular orbit (safe radius 3.8), follows the planet along its own orbit |
+| **System Moon** | `orb` | **< 4.6** | Circular orbit (safe radius 3.1), follows the moon along its own orbit |
 | **Celestial Body** | (Collision) | **< 1.0** | Hull damage and emergency rescue trigger |
 | **System Star** | `sco` | **< 5.6** (from the centre) | Solar scooping: the usual 2.3 margin outside its larger contact sphere |
 | **System Planet** | `min` | **< 4.9** (from the centre) | Planetary mining (same reserves and yield as the other planets) |
@@ -3610,7 +3618,7 @@ The `apr <ID> <DIST>` command allows you to automatically approach any object de
 | **Spatial Rifts** | 24000 - 24999 | `scan` | - | Current quadrant only |
 | **Space Monsters** | 25000 - 25999 | `pha`, `tor`, `scan` | **< 1.5** | Current quadrant only |
 | **Probes** | 26000 - 26999 | `scan` | - | Current quadrant only |
-| **Quasars** | 27000 - 27999 | `orb`, `scan` | **< 1.0** | Current quadrant only |
+| **Quasars** | 27000 - 27999 | `orb`, `scan` | **< 3.5** | Current quadrant only |
 | **Dyson Fragments** | 28000 - 28999 | `har`, `scan` | **< 3.1** | Energy induction field |
 | **Trading Hubs** | 29000 - 29999 | `doc`, `scan` | **< 3.1** | Commercial interaction |
 | **Ancient Relics** | 30000 - 30999 | `bor`, `scan` | **< 1.0** | Subsystem repair field |
@@ -3875,7 +3883,7 @@ The Space GL bridge operates via a high-precision Command Line Interface (CLI). 
 
 #### 🛰️ Advanced Navigation & Utility Commands
 *   `red`: **Red Alert**. Toggles combat readiness. Automatically balances power to shields and weapons. High visibility red HUD.
-* `orb`: **Celestial Orbit**. Enters a stable orbit around the locked planet, star, black hole, pulsar, or quasar (< 1.0 units). Provides tactical stability and sensor focus.
+* `orb`: **Celestial Orbit**. Puts the ship in a circular orbit around the locked object, within its capture reach (safe radius + 1.5; table above). Orbitable: planet, star, black hole, pulsar, quasar, neutron star, brown dwarf, rogue planet, orbital ring, mega structure, quantum singularity, and the stars, planets and moons of star systems. Comets are followed with `cha`, satellites and starbases are only approached (`apr`, `doc`), asteroids are not orbitable. The ship keeps the distance it had at capture (never closer than the safe radius: from nearer in it spirals out onto it), flies in the plane of its own motion, and a lower orbit is faster (period 20 s at radius 3, growing with r^1.5). It follows a body that moves. The orbit ends with `orb off`, with any other navigation command, when the object is gone, or when the thrusters fail.
 *   `nav <H> <M> <W> [F]`: **Hyperdrive Navigation**. Plots a Hyperdrive course towards relative coordinates. `H`: Heading (0-359), `M`: Mark (-90/+90), `W`: Distance in quadrants, `F`: Optional Hyperdrive Factor (1.0 - 9.9).
 *   `imp <H> <M> <S> [Dist]`: **Impulse Drive**. Sub-light engines. `S` represents speed from 0.0 to 10.0.
     *   **Requirements**: Minimum 10% Impulse system integrity (ID 1).
