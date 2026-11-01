@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2016,SC2329  # bash -c checks expand their own "$0"/"$1"; check/has/hasnt/cleanup are called indirectly
+# shellcheck disable=SC2016,SC2317,SC2329  # bash -c checks expand their own "$0"/"$1"; check/has/hasnt/cleanup are called indirectly
 # SPACE GL - 3D LOGIC ENGINE
 # Copyright (C) 2026 Nicola Taibi
 # License: GPL-3.0-or-later

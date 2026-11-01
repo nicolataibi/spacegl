@@ -1,3 +1,11 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.05
+  - CI lint: shellcheck 0.9 (the Ubuntu runner's) failed on
+  tests/launcher_test.sh with SC2317 ("command appears to be unreachable")
+  for cleanup(), has() and hasnt(), which run through the EXIT trap and
+  check(); the file disabled only SC2329, the name of that check from
+  shellcheck 0.10 on. It now disables both; the four scripts are checked
+  clean with shellcheck 0.9.0 and 0.11.0.
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.04
   - Fix (deck): since 2026.10.31.43 every login printed "[SECURE] DeepSpace
   Signature: VERIFICATION FAILED (HMAC-SHA256 MISMATCH) - DO NOT TRUST THIS

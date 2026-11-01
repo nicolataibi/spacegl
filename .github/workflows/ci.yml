@@ -236,6 +236,9 @@ jobs:
             libssl-dev libncurses-dev \
             libvulkan-dev glslc shellcheck
 
+      # Ubuntu's shellcheck is 0.9 (SC2317 "unreachable" for functions
+      # called indirectly; 0.10+ calls it SC2329): the scripts carry both
+      # codes and are clean on 0.9 and 0.11.
       - name: shellcheck (launcher scripts)
         run: |
           shellcheck --version
