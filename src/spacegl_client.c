@@ -2025,39 +2025,39 @@ int main(int argc, char *argv[]) {
 
         /* GENUINE integrity verification: recompute the HMAC-SHA256 galaxy
          * signature with the stable verification key received at handshake
-         * (mirrors the server-side construction), and cross-check the server
-         * identity digest against the local master key. The "VERIFIED" badge
-         * is shown ONLY when the signature actually checks out. */
+         * (mirrors the server-side construction), and check that the server
+         * identity the galaxy carries is the key that signed this session's
+         * handshake (wire revision 4; up to revision 3 it was SHA-256 of the
+         * master key, and 2026.10.31.43 still compared it with that: every
+         * login reported a failed verification). The "VERIFIED" badge is
+         * shown ONLY when both check out. */
         int signature_valid = 0;
+        int identity_valid = 0;
         uint8_t expect_sig[32];
         uint8_t inner[32];
         uint8_t head[14 + 8];
-        uint8_t expect_pub[32];
         unsigned int inner_len = 32, sig_len = 32;
         memcpy(head, "SPACEGL-SIG-V1", 14);
         memcpy(head + 14, &master_sync->frame_id, 8);
         HMAC(EVP_sha256(), galaxy_verify_key, 32, head, sizeof(head), inner, &inner_len);
         HMAC(EVP_sha256(), inner, 32, (const uint8_t*)master_sync->g,
              sizeof(master_sync->g) + sizeof(master_sync->z), expect_sig, &sig_len);
-        SHA256(master_root_key, 32, expect_pub);
-        signature_valid = (memcmp(expect_sig, master_sync->server_signature, 32) == 0) &&
-                          (memcmp(expect_pub, master_sync->server_pubkey, 32) == 0);
+        signature_valid = CRYPTO_memcmp(expect_sig, master_sync->server_signature, 32) == 0;
+        identity_valid = g_server_id_set && CRYPTO_memcmp(master_sync->server_pubkey, g_server_id, 32) == 0;
         memset(inner, 0, sizeof(inner));
         memset(head, 0, sizeof(head));
-        memset(expect_pub, 0, sizeof(expect_pub));
 
         if (master_sync->encryption_flags & 0x01) {
-            if (signature_valid) {
+            if (signature_valid && identity_valid) {
                 printf(B_CYAN "[SECURE] DeepSpace Signature: " B_GREEN "VERIFIED (HMAC-SHA256)\n" RESET);
-                /* The galaxy carries the server's identity key too: it must
-                 * be the one that signed the handshake. */
-                if (CRYPTO_memcmp(master_sync->server_pubkey, g_server_id, 32) != 0)
-                    printf(B_CYAN "[SECURE] Galaxy identity:    " B_RED
-                                  "differs from the handshake's - DO NOT TRUST THIS SERVER\n" RESET);
                 printf(B_CYAN "[SECURE] Encryption Layer:   " B_GREEN "AES-256-GCM (PQC slots: experimental aliases)\n" RESET);
-            } else {
+            } else if (!signature_valid) {
                 printf(B_CYAN "[SECURE] DeepSpace Signature: " B_RED "VERIFICATION FAILED (HMAC-SHA256 MISMATCH) - DO NOT TRUST THIS SERVER\n" RESET);
                 master_sync->encryption_flags &= ~0x01u; /* mark unverified in shared state */
+            } else {
+                printf(B_CYAN "[SECURE] DeepSpace Signature: " B_RED "the galaxy's server identity differs from the "
+                              "handshake's - DO NOT TRUST THIS SERVER\n" RESET);
+                master_sync->encryption_flags &= ~0x01u;
             }
         }
     } else {

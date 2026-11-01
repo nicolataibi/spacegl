@@ -1,3 +1,18 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.04
+  - Fix (deck): since 2026.10.31.43 every login printed "[SECURE] DeepSpace
+  Signature: VERIFICATION FAILED (HMAC-SHA256 MISMATCH) - DO NOT TRUST THIS
+  SERVER" and marked the galaxy unverified. The galaxy signature itself was
+  right; the deck also required the galaxy's server_pubkey to be SHA-256
+  of the master key, the value of wire revision 3, while revision 4 puts
+  the server's Ed25519 identity there. The deck now requires it to be the
+  identity key that signed this session's handshake, and tells the two
+  failures apart (a wrong signature; an identity that differs from the
+  handshake's).
+  - Tests: the smoke test (and the CI smoke step), radio_e2e (both decks)
+  and deck_e2e (a new captain, a returning one, a SPACEGL_SERVER_KEY
+  login) now require "DeepSpace Signature: VERIFIED": no test looked at
+  it, which is how the regression got through.
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.03
   - Launcher scripts rewritten (spacegl-server, spacegl-client,
   spacegl-diag), one structure for the three:

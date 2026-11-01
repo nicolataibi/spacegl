@@ -93,6 +93,10 @@ check "listening on port $PORT"      "$SERVER_LOG" "server: listening on port $P
 check "Galaxy Map synchronized"      "$CLIENT_LOG" "client: Galaxy Map synchronized"
 check "Welcome aboard, new Captain"  "$CLIENT_LOG" "client: Welcome aboard, new Captain"
 check "Command Deck ready"           "$CLIENT_LOG" "client: Command Deck ready"
+# The galaxy master verified: HMAC signature and the server identity of
+# the handshake (2026.11.01.04: 2026.10.31.43 reported a failure on every
+# login and no test looked).
+check "DeepSpace Signature: .*VERIFIED (HMAC" "$CLIENT_LOG" "client: galaxy signature VERIFIED"
 # The update stream decoded without a protocol error (the per-object
 # delta of wire revision 3 included, 2026.10.31.30).
 if grep -q "protocol error\|wire desync" "$CLIENT_LOG"; then

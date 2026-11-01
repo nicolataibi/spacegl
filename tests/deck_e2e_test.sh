@@ -166,6 +166,8 @@ check "faction captains 1..11 all logged in" \
     bash -c 'for f in 1 2 3 4 5 6 7 8 9 10 11; do grep -q "Command Deck ready" "$0/f$f.txt" || exit 1; done' "$WORK"
 check "no class menu for a non-Alliance captain" hasnt f5 "SELECT YOUR CLASS"
 check "CHARLIE logged in"                       has charlie "Command Deck ready"
+check "galaxy signature and identity verified"  has charlie "DeepSpace Signature: VERIFIED (HMAC-SHA256)"
+check "...for the returning captain too"        has returning "DeepSpace Signature: VERIFIED (HMAC-SHA256)"
 check "backspace edits the line (srs ran)"      has charlie "SHORT RANGE"
 check "tune with no captain resets the tuner"   has charlie "Tuner reset to self-frequency"
 check "rad alone prints its usage"              has charlie "Usage: rad <MSG>"
@@ -204,6 +206,7 @@ check "...before the login"                     hasnt impostor "Commander Name:"
 { login EXPLICIT e-code; printf '0\n0\n'; sleep 3; printf 'exit\n'; sleep 1; } | SPACEGL_SERVER_KEY="$OTHER_HEX" deck explicit 20
 check "SPACEGL_SERVER_KEY with its key: accepted" has explicit "[SPACEGL_SERVER_KEY]"
 check "...and the deck logs in"                 has explicit "Command Deck ready"
+check "...and with SPACEGL_SERVER_KEY"          has explicit "DeepSpace Signature: VERIFIED (HMAC-SHA256)"
 { login WRONGPIN w-code; sleep 2; } | SPACEGL_SERVER_KEY="$(printf '%064d' 0)" deck wrongpin 15
 check "SPACEGL_SERVER_KEY with another key: refused" has wrongpin "not the key of SPACEGL_SERVER_KEY"
 stop_server

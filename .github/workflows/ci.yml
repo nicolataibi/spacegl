@@ -158,6 +158,7 @@ jobs:
           grep -q "Galaxy Map synchronized" client.log
           grep -q "Welcome aboard, new Captain" client.log
           grep -q "Command Deck ready" client.log
+          grep -q "DeepSpace Signature: .*VERIFIED (HMAC" client.log
           # The login must have persisted the captain in the data dir.
           test -d "$DATA/captains/CI_SMOKE"
 

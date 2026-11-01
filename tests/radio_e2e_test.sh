@@ -101,6 +101,8 @@ check() {   # check <label> <command...>
 radio() { grep -qF "[RADIO]$2 [VERIFIED] ALPHA (Alliance Command): $1" "$WORK/b.txt"; }
 check "ALPHA logged in"                         grep -q "Command Deck ready" "$WORK/a.txt"
 check "BRAVO logged in"                         grep -q "Command Deck ready" "$WORK/b.txt"
+check "galaxy signature verified on ALPHA"      grep -q "DeepSpace Signature: VERIFIED" "$WORK/a.txt"
+check "galaxy signature verified on BRAVO"      grep -q "DeepSpace Signature: VERIFIED" "$WORK/b.txt"
 check "clear message reached BRAVO, verified"   radio "Clear signal from Alpha" ""
 check "AES fleet message decrypted, verified"   radio "Encrypted greetings from Alpha" ""
 check "ChaCha20 fleet message decrypted"        radio "Second cipher from Alpha" ""
