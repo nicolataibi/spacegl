@@ -1,3 +1,39 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.17
+  - Performance, the OpenGL viewer's text. Every character of the HUD and
+  of the object labels was drawn with its own glBitmap: on an Arc A770 the
+  HUD of a busy quadrant (256 objects, about 6 000 characters) took 12.4
+  of the 18.4 ms of a frame at 1920x1080, on llvmpipe 45 ms. Now
+  glutBitmapCharacter() and the new glutBitmapString() (the freeglut call;
+  the viewer draws its strings with it) read the raster position and
+  colour that glBitmap would use, once a string, and queue one textured
+  quad a character from a glyph atlas (one texel a pixel, nearest
+  filtering); glutBitmapFlush() draws the queue in one call, and the
+  viewer flushes before the bloom pass, after the labels, at the end of
+  each HUD block and of the frame. The depth test and blending of each
+  character are those it was queued under. At 1920x1080 the frame is
+  pixel-identical to the glBitmap one but where a label overlaps a health
+  bar: the labels are now drawn over the bars (930 pixels of the busy
+  scene). llvmpipe: HUD 45 -> 16 ms a frame.
+  - Fixed: at any window height other than 1080 every text of the OpenGL
+  viewer was blank. The glyph resampled to the scaled size held one byte
+  a pixel where glBitmap reads one bit. The atlas is built at the size in
+  use, so the text is drawn at every size; tests/golden/golden_gl.ppm
+  (640x480) now has its text and was re-baselined (llvmpipe).
+  - The instanced asteroids of the OpenGL viewer reset their attribute
+  divisors after drawing (some drivers alias generic attributes 1-3 with
+  the fixed-function arrays the text uses).
+  - Tests: gl_text (the text as quads: every character at 8 px with the
+  font's pixels and the raster colour, the raster position moved on as by
+  glBitmap, exact glyphs at 5, 12 and 16 px, depth test as when queued, an
+  invalid raster position, glutBitmapString against the characters one by
+  one and longer than the queue, the time of 6 000 characters; under the
+  viewer's GL state: point sprites with GL_COORD_REPLACE, which blanked
+  the glyphs on Mesa, and texturing left on another unit). 52 tests. CI
+  gpu job: gl_text under xvfb. DEVELOPMENT.md, README.md.
+
+ * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.16
+  - Tests: CI build and test gcc/clang debug
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.15
   - Performance, phase 4 (the viewers' frame times on a real GPU).
   spacegl_vulkan and spacegl_3dview take --bench-frames N (with

@@ -1,6 +1,6 @@
 void drawText3D(float x, float y, float z, const char* text) {
     glRasterPos3f(x, y, z);
-    for(size_t i=0; i<strlen(text); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, text[i]);
+    glutBitmapString(GLUT_BITMAP_HELVETICA_12, (const unsigned char *)text);
 }
 
 void getFactionColor(int f, float* r, float* g, float* b) {
@@ -182,7 +182,7 @@ void drawHUD(int obj_idx) {
         }
         
         glRasterPos2f((GLfloat)(winX - ((GLdouble)(strlen(buf)*4))), (GLfloat)(winY + 25));
-        for(size_t i=0; i<strlen(buf); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, buf[i]);
+        glutBitmapString(GLUT_BITMAP_HELVETICA_10, (const unsigned char *)buf);
 
         /* Draw Health Bar (Ships, Bases, Platforms, Monsters) */
         if (type == OBJ_PLAYER || type == OBJ_BASE || obj_type_is_npc_ship(type) || type == OBJ_DERELICT || type == OBJ_PLATFORM || type >= 30) {
@@ -220,7 +220,7 @@ void drawHUD(int obj_idx) {
             else if (obj->hull_integrity > 25) glColor3f(1, 1, 0);
             else glColor3f(1, 0, 0);
             glRasterPos2f((GLfloat)(winX + w/2 + 5), (GLfloat)winY);
-            for(size_t i=0; i<strlen(hbuf); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, hbuf[i]);
+            glutBitmapString(GLUT_BITMAP_HELVETICA_10, (const unsigned char *)hbuf);
 
             /* Plating indicator if present */
             if (obj->plating > 0) {
@@ -228,7 +228,7 @@ void drawHUD(int obj_idx) {
                 sprintf(pbuf, "HULL: +%d", obj->plating);
                 glColor3f(1.0, 0.8f, 0.0); /* Yellow for Composite */
                 glRasterPos2f((GLfloat)(winX - ((GLdouble)(strlen(pbuf)*4))), (GLfloat)(winY + 35));
-                for(size_t i=0; i<strlen(pbuf); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, pbuf[i]);
+                glutBitmapString(GLUT_BITMAP_HELVETICA_10, (const unsigned char *)pbuf);
             }
         }
 
@@ -3242,8 +3242,8 @@ void drawFaceLabels() {
             
             glColor3f(0.0, 0.8f, 0.8f); /* Cyan-ish LCARS */
             glRasterPos2f((GLfloat)(winX - 25), (GLfloat)winY);
-            for(size_t k=0; k<strlen(buf); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, buf[k]);
-            
+            glutBitmapString(GLUT_BITMAP_HELVETICA_12, (const unsigned char *)buf);
+
             glEnable(GL_DEPTH_TEST); glEnable(GL_LIGHTING);
             glMatrixMode(GL_PROJECTION); glPopMatrix();
             glMatrixMode(GL_MODELVIEW); glPopMatrix();

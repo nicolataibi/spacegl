@@ -496,46 +496,231 @@ static const unsigned char font8x8[128][8] = {
     [126] = {0x00,0x00,0x3b,0x6e,0x00,0x00,0x00,0x00}, // ~
 };
 
+#define GLYPH_MAX_PX_LIMIT 64
 /* Glyph edge in window pixels (default: the native 8 px font size). */
 static int g_bitmap_glyph_px = 8;
 
 void glutBitmapTextSize(int px) {
     if (px < 1) px = 1;
-    if (px > 64) px = 64;
+    if (px > GLYPH_MAX_PX_LIMIT) px = GLYPH_MAX_PX_LIMIT;
+    if (px != g_bitmap_glyph_px) glutBitmapFlush();   /* the queued glyphs keep their size */
     g_bitmap_glyph_px = px;
 }
 
-void glutBitmapCharacter(void* font, int character) {
-    (void)font;
-    if (character < 32 || character > 126) return;
-    const unsigned char* bitmap = font8x8[character];
+/* Bitmap text as textured quads (2026.11.01.17). glutBitmapCharacter()
+ * drew each character with glBitmap: the HUD of a busy quadrant (6 000
+ * characters a frame) cost 12.4 of the 18.4 ms of a frame on an Arc A770
+ * at 1920x1080, 45 ms on llvmpipe, and at any window height other than
+ * 1080 every text was blank (the resampled glyph was one BYTE per pixel
+ * where glBitmap reads one BIT). Now a string (glutBitmapString, or one
+ * character) reads the raster position and colour glBitmap would use,
+ * queues a quad a glyph at those pixels and that depth, and moves the
+ * raster position on as glBitmap did; the queue is drawn in one call
+ * from a glyph atlas texture (one texel per pixel,
+ * nearest filtering: the same pixels as glBitmap) when glutBitmapFlush()
+ * is called, when the glyph size or the depth test or blending state (as
+ * they were when the character was queued) changes, or when it is full;
+ * the queue is drawn under that depth and blend state. The caller
+ * flushes before it changes framebuffer and before the frame is shown. */
+#define GLYPH_ATLAS_COLS  16
+#define GLYPH_ATLAS_ROWS  6   /* 95 glyphs, 32..126 */
+#define TEXT_BATCH_GLYPHS 4096
 
-    // Set pixel store mode to avoid noise/corruption due to alignment
-    glPushAttrib(GL_PIXEL_MODE_BIT);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+static GLuint g_glyph_tex = 0;
+static int g_glyph_tex_px = 0;
+static float g_tb_xyz[TEXT_BATCH_GLYPHS * 4 * 3];
+static float g_tb_uv[TEXT_BATCH_GLYPHS * 4 * 2];
+static float g_tb_rgba[TEXT_BATCH_GLYPHS * 4 * 4];
+static int g_tb_n = 0;      /* glyphs queued */
+static int g_tb_px = 0;     /* their size */
+static GLboolean g_tb_depth = GL_FALSE, g_tb_blend = GL_FALSE;   /* the state they were queued under */
 
-    if (g_bitmap_glyph_px == 8) {
-        // glBitmap expects the bitmap to be flipped vertically (bottom-to-top)
-        unsigned char flipped[8];
-        for (int i = 0; i < 8; i++) {
-            flipped[i] = bitmap[7 - i];
+static void glyph_atlas_build(int px) {
+    int tw = GLYPH_ATLAS_COLS * px, th = GLYPH_ATLAS_ROWS * px;
+    unsigned char *img = calloc((size_t)tw * (size_t)th, 1);
+    if (!img) return;
+    for (int c = 32; c <= 126; c++) {
+        int i = c - 32, cx = (i % GLYPH_ATLAS_COLS) * px, cy = (i / GLYPH_ATLAS_COLS) * px;
+        const unsigned char *src = font8x8[c];
+        for (int y = 0; y < px; y++) {   /* texture row 0 = the glyph's bottom */
+            int src_y = 7 - (y * 8) / px;
+            for (int x = 0; x < px; x++)
+                if ((src[src_y] >> (7 - (x * 8) / px)) & 1) img[(size_t)(cy + y) * (size_t)tw + (size_t)(cx + x)] = 255;
         }
-        // Draw the bitmap and advance the raster position by 8 pixels
-        glBitmap(8, 8, 0, 0, 8, 0, flipped);
-    } else {
-        // glBitmap ignores the current transform and draws in window pixels,
-        // so a scaled HUD resamples the 8x8 glyph here (nearest neighbor) to
-        // the requested pixel size; the raster advance follows the size.
-        unsigned char scaled[64 * 64];
-        int px = g_bitmap_glyph_px;
-        for (int y = 0; y < px; y++) {
-            int src_y = 7 - (y * 8) / px; // destination row 0 = glyph bottom
-            for (int x = 0; x < px; x++) {
-                scaled[y * px + x] = (bitmap[src_y] >> (7 - (x * 8) / px)) & 1;
-            }
-        }
-        glBitmap(px, px, 0, 0, (GLfloat)px, 0, scaled);
     }
+    if (!g_glyph_tex) glGenTextures(1, &g_glyph_tex);
+    GLint prev = 0;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev);
+    glBindTexture(GL_TEXTURE_2D, g_glyph_tex);
+    glPushClientAttrib(GL_CLIENT_PIXEL_STORE_BIT);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tw, th, 0, GL_ALPHA, GL_UNSIGNED_BYTE, img);
+    glPopClientAttrib();
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, (GLuint)prev);
+    free(img);
+    g_glyph_tex_px = px;
+}
 
-    glPopAttrib();
+void glutBitmapFlush(void) {
+    if (g_tb_n == 0) return;
+    int px = g_tb_px;
+    GLint prog = 0, active = GL_TEXTURE0, abuf = 0, vp[4] = { 0, 0, 1, 1 };
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &abuf);
+    glGetIntegerv(GL_VIEWPORT, vp);
+    if (prog) glUseProgram(0);
+    glActiveTexture(GL_TEXTURE0);
+    if (abuf) glBindBuffer(GL_ARRAY_BUFFER, 0);
+    if (px != g_glyph_tex_px || !g_glyph_tex) glyph_atlas_build(px);
+
+    glPushAttrib(GL_ENABLE_BIT | GL_TEXTURE_BIT | GL_COLOR_BUFFER_BIT | GL_CURRENT_BIT | GL_TRANSFORM_BIT |
+                 GL_POLYGON_BIT | GL_LIGHTING_BIT | GL_POINT_BIT);
+    glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT);
+    glMatrixMode(GL_TEXTURE);
+    glPushMatrix();
+    glLoadIdentity();
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    /* window coordinates of the current viewport, window depth as z */
+    glOrtho(vp[0], vp[0] + vp[2], vp[1], vp[1] + vp[3], 0.0, -1.0);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glDisable(GL_POINT_SPRITE);   /* with GL_COORD_REPLACE Mesa replaced the glyphs' coordinates: blank text */
+    glDisable(GL_LIGHTING);
+    glDisable(GL_FOG);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_TEXTURE_1D);
+    glDisable(GL_TEXTURE_GEN_S);
+    glDisable(GL_TEXTURE_GEN_T);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    if (g_tb_depth) glEnable(GL_DEPTH_TEST);
+    else glDisable(GL_DEPTH_TEST);
+    if (g_tb_blend) glEnable(GL_BLEND);
+    else glDisable(GL_BLEND);
+    /* only unit 0 textures the glyphs: the viewer leaves texturing state
+     * on other units (the bloom combine leaves GL_TEXTURE1 active), which
+     * would modulate the text by whatever they hold. glPopAttrib
+     * (GL_ENABLE_BIT) restores the enables of every unit. */
+    static GLint units = 0;
+    if (units == 0) {
+        glGetIntegerv(GL_MAX_TEXTURE_UNITS, &units);
+        if (units < 1) units = 1;
+        if (units > 32) units = 32;
+    }
+    for (GLint u = 1; u < units; u++) {
+        glActiveTexture((GLenum)(GL_TEXTURE0 + u));
+        glDisable(GL_TEXTURE_1D);
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_TEXTURE_3D);
+        glDisable(GL_TEXTURE_CUBE_MAP);
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glDisable(GL_TEXTURE_3D);
+    glDisable(GL_TEXTURE_CUBE_MAP);
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, g_glyph_tex);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    /* the glyph's set pixels only, as glBitmap draws them */
+    glEnable(GL_ALPHA_TEST);
+    glAlphaFunc(GL_GREATER, 0.0f);
+
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    glEnableClientState(GL_COLOR_ARRAY);
+    glDisableClientState(GL_NORMAL_ARRAY);
+    glVertexPointer(3, GL_FLOAT, 0, g_tb_xyz);
+    glTexCoordPointer(2, GL_FLOAT, 0, g_tb_uv);
+    glColorPointer(4, GL_FLOAT, 0, g_tb_rgba);
+    glDrawArrays(GL_QUADS, 0, g_tb_n * 4);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_TEXTURE);
+    glPopMatrix();
+    glPopClientAttrib();
+    glPopAttrib();   /* the matrix mode too (GL_TRANSFORM_BIT) */
+
+    if (abuf) glBindBuffer(GL_ARRAY_BUFFER, (GLuint)abuf);
+    glActiveTexture((GLenum)active);
+    if (prog) glUseProgram((GLuint)prog);
+    g_tb_n = 0;
+}
+
+/* Queue the printable characters of text[0..n) at the current raster
+ * position: the GL state is read once for the whole run (glGet can stall a
+ * threaded driver, such as Mesa's glthread), and the raster position moves
+ * on once by the width of the characters drawn, as one glBitmap per
+ * character did. Characters outside 32..126 draw nothing and do not move,
+ * as before. */
+static void text_queue(const unsigned char *text, size_t n) {
+    size_t drawn = 0;
+    for (size_t k = 0; k < n; k++) drawn += text[k] >= 32 && text[k] <= 126;
+    if (drawn == 0) return;
+    GLint valid = GL_FALSE;
+    glGetIntegerv(GL_CURRENT_RASTER_POSITION_VALID, &valid);
+    if (!valid) return;   /* glBitmap draws nothing and does not move */
+    int px = g_bitmap_glyph_px;
+    GLboolean depth = glIsEnabled(GL_DEPTH_TEST), blend = glIsEnabled(GL_BLEND);
+    if (g_tb_n > 0 && (px != g_tb_px || depth != g_tb_depth || blend != g_tb_blend)) glutBitmapFlush();
+    g_tb_px = px;
+    g_tb_depth = depth;
+    g_tb_blend = blend;
+
+    GLfloat pos[4], col[4];
+    glGetFloatv(GL_CURRENT_RASTER_POSITION, pos);
+    glGetFloatv(GL_CURRENT_RASTER_COLOR, col);
+    /* glBitmap puts the lower-left corner at floor(raster position); the
+     * advance is a whole number of pixels, so each next character starts
+     * px pixels further on */
+    float x0 = floorf(pos[0]), y0 = floorf(pos[1]), z = pos[2];
+    float y1 = y0 + (float)px;
+    for (size_t k = 0; k < n; k++) {
+        int ch = text[k];
+        if (ch < 32 || ch > 126) continue;
+        if (g_tb_n == TEXT_BATCH_GLYPHS) glutBitmapFlush();   /* keeps px, depth, blend */
+        float x1 = x0 + (float)px;
+        int i = ch - 32;
+        float u0 = (float)(i % GLYPH_ATLAS_COLS) / GLYPH_ATLAS_COLS, u1 = u0 + 1.0f / GLYPH_ATLAS_COLS;
+        float v0 = (float)(i / GLYPH_ATLAS_COLS) / GLYPH_ATLAS_ROWS, v1 = v0 + 1.0f / GLYPH_ATLAS_ROWS;
+        float *p = &g_tb_xyz[g_tb_n * 12], *t = &g_tb_uv[g_tb_n * 8], *c = &g_tb_rgba[g_tb_n * 16];
+        const float xs[4] = { x0, x1, x1, x0 }, ys[4] = { y0, y0, y1, y1 };
+        const float us[4] = { u0, u1, u1, u0 }, vs[4] = { v0, v0, v1, v1 };
+        for (int q = 0; q < 4; q++) {
+            p[q * 3] = xs[q];
+            p[q * 3 + 1] = ys[q];
+            p[q * 3 + 2] = z;
+            t[q * 2] = us[q];
+            t[q * 2 + 1] = vs[q];
+            memcpy(&c[q * 4], col, sizeof(GLfloat) * 4);
+        }
+        g_tb_n++;
+        x0 = x1;
+    }
+    /* the raster position moves on, as before */
+    glBitmap(0, 0, 0, 0, (GLfloat)((size_t)px * drawn), 0, NULL);
+}
+
+void glutBitmapCharacter(void *font, int character) {
+    (void)font;
+    unsigned char ch = (unsigned char)character;
+    if (character != (int)ch) return;
+    text_queue(&ch, 1);
+}
+
+void glutBitmapString(void *font, const unsigned char *string) {
+    (void)font;
+    if (string) text_queue(string, strlen((const char *)string));
 }

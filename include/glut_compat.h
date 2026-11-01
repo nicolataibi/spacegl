@@ -64,7 +64,18 @@ void glut_shape_stats(GlutShapeStats *out, bool reset);
 /* Overrides SPACEGL_GL_SHAPE_CACHE (tests, comparisons). */
 void glut_shape_cache_enable(bool on);
 
-void glutBitmapCharacter(void* font, int character);
+/* One character at the current raster position, which then moves on by
+ * the glyph width, as with glBitmap. Since 2026.11.01.17 the character is
+ * queued and drawn later as a textured quad, at the same pixels and depth
+ * (src/glut_compat.c): call glutBitmapFlush() before changing framebuffer
+ * and before showing the frame, and wherever later drawing must cover
+ * the text. Needs the GL entry points of gl_loader.h. */
+void glutBitmapCharacter(void *font, int character);
+/* The characters of a string, as glutBitmapCharacter() one by one (the
+ * freeglut call), reading the GL state once for the whole string. */
+void glutBitmapString(void *font, const unsigned char *string);
+/* Draw the queued characters now (one draw call). */
+void glutBitmapFlush(void);
 
 /* Bitmap glyph edge in window pixels (default: the native 8 px font size).
  * glBitmap draws in window-pixel units regardless of the current transform,

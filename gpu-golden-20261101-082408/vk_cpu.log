@@ -1,6 +1,0 @@
-[2026-11-01 08:24:08.638] [vkv] [NOTICE  ] [VULKAN    ] CPU-driven path (SPACEGL_GPD=0, pid 21747)
-[2026-11-01 08:24:08.690] [vkv] [SUCCESS ] [VULKAN    ] CPU-driven path ACTIVE (beams/effects render via recordCommandBuffer)
-[GDD] SPACEGL_GPD=0: CPU-driven path
-[PILOT] No Thrustmaster flight stick found — pilot mode input disabled.
-[VK] device 0 of 2: Intel(R) Arc(tm) A770 Graphics (DG2) (discrete GPU, Vulkan 1.4.354)
-[VK] screenshot: /home/nick/dev/spacegl/vulkan/spacegl-vulkan-dev/gpu-golden-20261101-082408/vk_cpu.ppm (640x480, slot 2, image 1, CPU-driven path)

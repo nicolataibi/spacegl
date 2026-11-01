@@ -886,12 +886,20 @@ endif()
 # replay must be pixel-identical to immediate mode. Needs an OpenGL
 # context (xvfb-run in the CI gpu job); exit 77 (SKIP) without one.
 if(TARGET spacegl_3dview)
-    add_executable(gl_shape_cache_test gl_shape_cache_test.c ${SG_ROOT}/src/glut_compat.c)
+    add_executable(gl_shape_cache_test gl_shape_cache_test.c ${SG_ROOT}/src/glut_compat.c ${SG_ROOT}/src/gl_loader.c)
     target_include_directories(gl_shape_cache_test PRIVATE ${GLFW_INCLUDE_DIRS})
     target_link_libraries(gl_shape_cache_test PRIVATE ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} GLU m)
     add_test(NAME gl_shape_cache COMMAND gl_shape_cache_test)
     set_tests_properties(gl_shape_cache PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120
         PASS_REGULAR_EXPRESSION "PASS: gl_shape_cache")
+    # The viewer's bitmap text as textured quads (2026.11.01.17): exact
+    # pixels at 8 px and at other sizes, raster position, depth, the time
+    # of 6 000 characters. Needs an OpenGL context: exit 77 without.
+    add_executable(gl_text_test gl_text_test.c ${SG_ROOT}/src/glut_compat.c ${SG_ROOT}/src/gl_loader.c)
+    target_include_directories(gl_text_test PRIVATE ${GLFW_INCLUDE_DIRS})
+    target_link_libraries(gl_text_test PRIVATE ${GLFW_LIBRARIES} ${OPENGL_LIBRARIES} GLU m)
+    add_test(NAME gl_text COMMAND gl_text_test)
+    set_tests_properties(gl_text PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 PASS_REGULAR_EXPRESSION "PASS: gl_text")
 endif()
 
 # --- Server identity pins (2026.10.31.43, wire revision 4) -------------

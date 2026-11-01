@@ -122,7 +122,7 @@ cmake --build build -j
 
 ## 3. Running the test suite
 
-The suite has **51 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
+The suite has **52 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
@@ -165,18 +165,19 @@ The suite has **51 tests** (integrated mode; the standalone mode builds the ones
 | 37 | `server_commands` | the command handlers on a real galaxy | `src/server/commands*.c`, galaxy, logic, targets |
 | 38 | `radio_e2e` | two real decks on the real server: clear, fleet-encrypted, identity-frequency and peer messages, verified | `spacegl_server` + `spacegl_client` (black-box) |
 | 39 | `gl_shape_cache` | OpenGL viewer: display-list shapes match immediate mode; compiled on second use (needs an OpenGL context: skip otherwise) | `src/glut_compat.c` |
-| 40 | `known_servers` | the deck's pins of server identity keys: first contact, mismatch, `SPACEGL_SERVER_KEY`, file format | `include/known_servers.h` |
-| 41 | `sg_tls` | TLS 1.3 on the game port on socketpairs: handshake and identity key from the certificate, packets buffered in the session, a deck in clear refused, a silent peer timed out, one reader and two writers on one session (TSan in CI) | `src/sg_tls.c` |
-| 42 | `systemd_unit` | the optional `spacegl-server.service` as configured: `systemd-analyze verify`, the key as a credential, the state directory, the dynamic user, the sandbox exposure (at most 2.0), a boot of the real server on a 0400 credential (no `systemd-analyze`: skip) | `systemd/spacegl-server.service.in` |
-| 43 | `tick_monitor` | the server's measure of its tick with synthetic ticks: no warning inside the budget, one per 10 s with the worst tick by phase, a tick waiting for a CPU named, the summary, `SPACEGL_TICK_THREADS` | `include/tick_monitor.h` |
-| 44 | `frame_bench` | the viewers' frame-time helpers: warm-up, average, percentiles; the busy quadrant of `--bench-scene` | `include/frame_bench.h`, `include/bench_scene.h` |
-| 45 | `viewer_bench` | both viewers with `--bench-frames`/`--bench-scene`: one `[BENCH]` line each, the scene loaded (display or xvfb-run and a Vulkan ICD: skip otherwise) | `spacegl_vulkan`, `spacegl_3dview` |
-| 46 | `launcher` | the launcher scripts with stub programs: arguments, exit status, key sources and prompt (pseudo-terminal), `--help`, a missing program, the diagnostic's server lookup | `spacegl-server`, `spacegl-client`, `spacegl-diag` |
-| 47 | `deck_e2e` | the deck's own paths: no server, wrong key, refused names, eleven concurrent logins, the input line, duplicate/wrong logins, reconnect after a restart, server identity pinning, the TLS 1.3 transport (`tests/tls_probe.py`: TLS 1.3 only, certificate = identity, clear text refused; a silent connection closed), servers the deck refuses at the transport (`tests/tls_fake_server.c`: no TLS, a TLS identity that is not the one signing the handshake, a link reset during the handshake) | `spacegl_server` + `spacegl_client` (black-box) |
-| 48 | `telemetry` | the telemetry port (TCP 5001): every category, frames checked against the boot table | `spacegl_server` + `telemetry_client_test` |
-| 49 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
-| 50 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
-| 51 | `smoke_async` | the same with the server in `--io=async` | same |
+| 40 | `gl_text` | OpenGL viewer text as textured quads: the font's pixels and the raster colour at 8 px, the raster position moved on as by `glBitmap`, exact glyphs at 5/12/16 px, depth as when queued, `glutBitmapString`, under the viewer's point-sprite state (needs an OpenGL context: skip otherwise) | `src/glut_compat.c` |
+| 41 | `known_servers` | the deck's pins of server identity keys: first contact, mismatch, `SPACEGL_SERVER_KEY`, file format | `include/known_servers.h` |
+| 42 | `sg_tls` | TLS 1.3 on the game port on socketpairs: handshake and identity key from the certificate, packets buffered in the session, a deck in clear refused, a silent peer timed out, one reader and two writers on one session (TSan in CI) | `src/sg_tls.c` |
+| 43 | `systemd_unit` | the optional `spacegl-server.service` as configured: `systemd-analyze verify`, the key as a credential, the state directory, the dynamic user, the sandbox exposure (at most 2.0), a boot of the real server on a 0400 credential (no `systemd-analyze`: skip) | `systemd/spacegl-server.service.in` |
+| 44 | `tick_monitor` | the server's measure of its tick with synthetic ticks: no warning inside the budget, one per 10 s with the worst tick by phase, a tick waiting for a CPU named, the summary, `SPACEGL_TICK_THREADS` | `include/tick_monitor.h` |
+| 45 | `frame_bench` | the viewers' frame-time helpers: warm-up, average, percentiles; the busy quadrant of `--bench-scene` | `include/frame_bench.h`, `include/bench_scene.h` |
+| 46 | `viewer_bench` | both viewers with `--bench-frames`/`--bench-scene`: one `[BENCH]` line each, the scene loaded (display or xvfb-run and a Vulkan ICD: skip otherwise) | `spacegl_vulkan`, `spacegl_3dview` |
+| 47 | `launcher` | the launcher scripts with stub programs: arguments, exit status, key sources and prompt (pseudo-terminal), `--help`, a missing program, the diagnostic's server lookup | `spacegl-server`, `spacegl-client`, `spacegl-diag` |
+| 48 | `deck_e2e` | the deck's own paths: no server, wrong key, refused names, eleven concurrent logins, the input line, duplicate/wrong logins, reconnect after a restart, server identity pinning, the TLS 1.3 transport (`tests/tls_probe.py`: TLS 1.3 only, certificate = identity, clear text refused; a silent connection closed), servers the deck refuses at the transport (`tests/tls_fake_server.c`: no TLS, a TLS identity that is not the one signing the handshake, a link reset during the handshake) | `spacegl_server` + `spacegl_client` (black-box) |
+| 49 | `telemetry` | the telemetry port (TCP 5001): every category, frames checked against the boot table | `spacegl_server` + `telemetry_client_test` |
+| 50 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
+| 51 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
+| 52 | `smoke_async` | the same with the server in `--io=async` | same |
 
 The tests that use port 5000/5001 run serially (`RUN_SERIAL`); an image or GPU test without a display or an ICD returns 77 (SKIP). Every end-to-end script uses a private `known_servers` file (`SPACEGL_KNOWN_SERVERS`), so a new data directory is not taken for a changed server.
 
@@ -520,6 +521,19 @@ number and element count.
   as the Vulkan golden), and the bloom modes. `SPACEGL_GL_BLOOM=full`
   (default) | `half` | `off`: under llvmpipe at 1920x1080 the bloom phase
   costs 394 / 86 / 37 ms a frame (the 37 ms are the MSAA resolve).
+- **OpenGL viewer: text (2026.11.01.17).** `glutBitmapCharacter()` and
+  `glutBitmapString()` (`src/glut_compat.c`) no longer call `glBitmap` per
+  character: they read the raster position and colour once a string and
+  queue textured quads from a glyph atlas built at the size in use
+  (`glutBitmapTextSize()`), drawn in one call by `glutBitmapFlush()`. The
+  viewer flushes before the bloom pass, after the object labels, at the
+  end of each HUD block (`hudEnd()`) and of the frame; code that draws
+  over text must flush first. The pixels are those of `glBitmap` (at
+  1920x1080 the busy scene differs only where a label now covers a health
+  bar), and the text is drawn at every window height (before, only at
+  1080). The flush sets its own state and disables point sprites
+  (`GL_COORD_REPLACE` replaced the glyphs' coordinates on Mesa) and
+  texturing on the other units. `gl_text` checks it.
 - **OpenGL viewer: shared geometry and profile.** `src/glut_compat.c`
   compiles every glut shape (sphere, cube, cone, cylinder, torus,
   octahedron, icosahedron) into a display list by its exact parameters on

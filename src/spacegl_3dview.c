@@ -1360,6 +1360,7 @@ static void hudBegin(void) {
 }
 
 static void hudEnd(void) {
+    glutBitmapFlush();   /* the block's text, before anything drawn after it */
     glMatrixMode(GL_PROJECTION); glPopMatrix();
     glMatrixMode(GL_MODELVIEW); glPopMatrix();
 }
@@ -1946,6 +1947,12 @@ void display() {
 
             glDrawArraysInstancedARB(GL_QUADS, 0, 24, asteroidInstanceCount);
 
+            /* divisors back to 0: some drivers alias generic attributes
+             * with the fixed-function arrays (3 = colour on NVIDIA), which
+             * the text and the client-array code use */
+            glVertexAttribDivisorARB((GLuint)instPosAttrib, 0);
+            glVertexAttribDivisorARB((GLuint)instScaleAttrib, 0);
+            glVertexAttribDivisorARB((GLuint)instRotAttrib, 0);
             glDisableVertexAttribArray((GLuint)posAttrib);
             glDisableVertexAttribArray((GLuint)instPosAttrib);
             glDisableVertexAttribArray((GLuint)instScaleAttrib);
@@ -1993,6 +2000,7 @@ void display() {
     glMatrixMode(GL_PROJECTION); glPopMatrix(); glMatrixMode(GL_MODELVIEW); glPopMatrix();
     glEnable(GL_LIGHTING);
 
+    glutBitmapFlush();   /* text of the scene pass into the scene framebuffer */
     prof_mark(PROF_BLOOM);
     /* 2. BLOOM PASS: Resolve MSAA to standard texture */
     if (fbo_msaa != 0 && fbo_scene != 0) {
@@ -2061,6 +2069,7 @@ void display() {
                     drawHUD(i);
                 }
             }
+            glutBitmapFlush();   /* every label in one draw call */
         }
     }
 
@@ -3325,6 +3334,7 @@ int main(int argc, char** argv) {
         timer(0);
         double t_build0 = gl_profile ? glfwGetTime() : 0.0;
         display();
+        glutBitmapFlush();   /* any text still queued (every return path of display()) */
         prof_mark(PROF_SKY);   /* closes the last phase reached (the HUD) */
         if (gl_profile) {
             prof_build_ms += (glfwGetTime() - t_build0) * 1000.0;

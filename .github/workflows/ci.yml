@@ -452,6 +452,9 @@ jobs:
       - name: OpenGL viewer shared geometry (display lists vs immediate mode)
         run: xvfb-run -a ./build/tests/gl_shape_cache_test
 
+      - name: OpenGL viewer text (textured quads, every glyph size)
+        run: xvfb-run -a ./build/tests/gl_text_test
+
       - name: Golden render (CPU + GDD paths, deterministic flags)
         run: |
           set -euo pipefail
