@@ -1609,13 +1609,13 @@ static bool run_expand(uint32_t capacity) {
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g_pl_exp, 0, 1,
                             &set_exp_map, 0, NULL);
     vkCmdPushConstants(cb, g_pl_exp, VK_SHADER_STAGE_COMPUTE_BIT, 0, GDD_PC_STRIDE, &pc);
-    vkCmdDispatch(cb, (N_MAP + GDD_WORKGROUP - 1u) / GDD_WORKGROUP, 1, 1);
+    vkCmdDispatch(cb, N_MAP, 1, 1);
 
     pc.list_count = N_DYN; pc.group = 0;
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g_pl_exp, 0, 1,
                             &set_exp_dyn, 0, NULL);
     vkCmdPushConstants(cb, g_pl_exp, VK_SHADER_STAGE_COMPUTE_BIT, 0, GDD_PC_STRIDE, &pc);
-    vkCmdDispatch(cb, (N_DYN + GDD_WORKGROUP - 1u) / GDD_WORKGROUP, 1, 1);
+    vkCmdDispatch(cb, N_DYN, 1, 1);
 
     /* Barriera di memoria classica (Vulkan 1.0) per sincronizzare i contatori atomici */
     VkMemoryBarrier barrier = {
@@ -1641,13 +1641,13 @@ static bool run_expand(uint32_t capacity) {
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g_pl_exp, 0, 1,
                             &set_exp_map, 0, NULL);
     vkCmdPushConstants(cb, g_pl_exp, VK_SHADER_STAGE_COMPUTE_BIT, 0, GDD_PC_STRIDE, &pc);
-    vkCmdDispatch(cb, (N_MAP + GDD_WORKGROUP - 1u) / GDD_WORKGROUP, 1, 1);
+    vkCmdDispatch(cb, N_MAP, 1, 1);
 
     pc.list_count = N_DYN; pc.group = 0;
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g_pl_exp, 0, 1,
                             &set_exp_dyn, 0, NULL);
     vkCmdPushConstants(cb, g_pl_exp, VK_SHADER_STAGE_COMPUTE_BIT, 0, GDD_PC_STRIDE, &pc);
-    vkCmdDispatch(cb, (N_DYN + GDD_WORKGROUP - 1u) / GDD_WORKGROUP, 1, 1);
+    vkCmdDispatch(cb, N_DYN, 1, 1);
 
     bool ok = check(vkEndCommandBuffer(cb), "end cb");
     if (ok) ok = submit_wait(cb);

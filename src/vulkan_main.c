@@ -490,8 +490,7 @@ void mainLoop(VulkanApp* app) {
         scene_update(app, deltaTime);
         render_frame(app, deltaTime);
 
-        struct timespec ts = {0, 1000000}; /* 1ms throttle */
-        nanosleep(&ts, NULL);
+        /* the frame cap is applied by render_frame() (frame_pace) */
     }
     vkDeviceWaitIdle(app->device);
 }

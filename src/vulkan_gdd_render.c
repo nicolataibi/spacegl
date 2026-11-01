@@ -36,8 +36,10 @@
 #include <unistd.h>
 #include <time.h>
 
-/* src/vulkan_render.c: --bench-frames turns the frame limiter off */
-extern bool s_frame_limit_off;
+/* src/vulkan_render.c: GPU time per section (SPACEGL_VK_GPU_TIMES=1 or --bench-frames) */
+void vkgt_begin(VkCommandBuffer cb, VulkanApp *app, uint32_t slot);
+void vkgt_mark(VkCommandBuffer cb, uint32_t slot, const char *name);
+void vkgt_collect(VulkanApp *app, uint32_t slot);
 
 
 /* Forward: VulkanApp fields used by the device-side functions (the
@@ -1397,6 +1399,7 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
     VkCommandBufferBeginInfo bi = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                                     .flags = 0 };
     vkBeginCommandBuffer(cb, &bi);
+    vkgt_begin(cb, app, g->current_frame);
 
     /* --- 1. zero the per-frame GPU counters & feedback (GPU-side fill: the CPU
      *        never touches the counters after creation) -------------- */
@@ -1469,9 +1472,12 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
                     VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_WRITE_BIT,
                     VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                     VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT);
+    vkgt_mark(cb, g->current_frame, "fill+cull");
 
-    /* --- 3. expand: same dispatch shape (the entry guards on the      */
-    /*        visible count, only known through the counters) ---------- */
+    /* --- 3. expand: ONE WORKGROUP PER INSTANCE SLOT (2026.11.02.01): the */
+    /*        invocations of a workgroup share the expansion of a mesh with  */
+    /*        many vertices; the workgroups past the visible count (known    */
+    /*        only on the GPU) leave at once (the entry guards on it) ------ */
     /* --- Passaggio 3A: Espansione Opaque (pc.pad = 0) --- */
     /* --- Passaggio 3A: Espansione Opaque (pc.pad = 0) --- */
     pc.pad = 0u;
@@ -1480,16 +1486,17 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g->pipe_expand);
         vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g->pl_expand, 0, 1, &f->desc_exp_map, 0, NULL);
         vkCmdPushConstants(cb, g->pl_expand, VK_SHADER_STAGE_COMPUTE_BIT, 0, GDD_PC_STRIDE, &pc);
-        vkCmdDispatch(cb, map_wg, 1, 1);
+        vkCmdDispatch(cb, f->map_count, 1, 1);
     }
     if (dyn_wg > 0) {
         pc.list_count = f->dyn_count; pc.group = 0;
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g->pipe_expand);
         vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g->pl_expand, 0, 1, &f->desc_exp_dyn, 0, NULL);
         vkCmdPushConstants(cb, g->pl_expand, VK_SHADER_STAGE_COMPUTE_BIT, 0, GDD_PC_STRIDE, &pc);
-        vkCmdDispatch(cb, dyn_wg, 1, 1);
+        vkCmdDispatch(cb, f->dyn_count, 1, 1);
     }
 
+    vkgt_mark(cb, g->current_frame, "expand-opaque");
     /* Barriera di sincronizzazione tra opaque e additive */
     gdd_mem_barrier(cb,
                     VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_WRITE_BIT,
@@ -1503,14 +1510,14 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g->pipe_expand);
         vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g->pl_expand, 0, 1, &f->desc_exp_map, 0, NULL);
         vkCmdPushConstants(cb, g->pl_expand, VK_SHADER_STAGE_COMPUTE_BIT, 0, GDD_PC_STRIDE, &pc);
-        vkCmdDispatch(cb, map_wg, 1, 1);
+        vkCmdDispatch(cb, f->map_count, 1, 1);
     }
     if (dyn_wg > 0) {
         pc.list_count = f->dyn_count; pc.group = 0;
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g->pipe_expand);
         vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g->pl_expand, 0, 1, &f->desc_exp_dyn, 0, NULL);
         vkCmdPushConstants(cb, g->pl_expand, VK_SHADER_STAGE_COMPUTE_BIT, 0, GDD_PC_STRIDE, &pc);
-        vkCmdDispatch(cb, dyn_wg, 1, 1);
+        vkCmdDispatch(cb, f->dyn_count, 1, 1);
     }
 
     /* --- 3C. barriera expand_additive → final ------------------------ */
@@ -1529,6 +1536,7 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, g->pl_final, 0, 1,
                             &f->desc_final, 0, NULL);
     vkCmdDispatch(cb, 1, 1, 1);
+    vkgt_mark(cb, g->current_frame, "expand-additive+final");
 
     /* --- 5. compute -> graphics (buffer barrier + attachment setups) - */
     {
@@ -1648,6 +1656,7 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
     ri.colorAttachmentCount = 1;
     ri.pColorAttachments = &color_att;
     ri.pDepthAttachment = &depth_att;
+    vkgt_mark(cb, g->current_frame, "barriers");
     vkCmdBeginRendering(cb, &ri);
 
     VkViewport vp = { 0.0f, 0.0f, (float)app->swapChainExtent.width,
@@ -1679,6 +1688,7 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                        GDD_SCENE_PC_STRIDE, &spc);
     vkCmdDrawIndirect(cb, f->indirect, 0, 1, sizeof(VkDrawIndirectCommand));
+    vkgt_mark(cb, g->current_frame, "pass-opaque");
 
     /* Pass B: additive glow (depth write off, src-alpha + one) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, g->pipe_scene_add);
@@ -1691,6 +1701,7 @@ void gdd_record(VkCommandBuffer cb, VulkanApp *app, uint32_t image_idx) {
                       sizeof(VkDrawIndirectCommand));
 
     vkCmdEndRendering(cb);
+    vkgt_mark(cb, g->current_frame, "pass-additive+resolve");
 
     /* --- 7. present barrier (color -> PRESENT_SRC_KHR) --------------- */
     {
@@ -1753,6 +1764,7 @@ void gdd_draw_frame(VulkanApp *app) {
      * so every early-exit path below re-signals it with an empty
      * submit or the next use of the slot would wait forever. */
     vkWaitForFences(app->device, 1, &app->inFlightFences[slot], VK_TRUE, UINT64_MAX);
+    vkgt_collect(app, slot);
 
     /* Read GPU feedback buffer from slot's previous completed frame */
     if (f->feedback_ptr && f->counters_ptr && g->frame_count > 0) {
@@ -1870,9 +1882,7 @@ void gdd_draw_frame(VulkanApp *app) {
 
     g->current_frame = (slot + 1) % GDD_MAX_FRAMES;
 
-    /* Same frame limiter as the CPU path (~144 fps cap). */
-    struct timespec frame_limit = { 0, 6944444L };
-    if (!s_frame_limit_off) nanosleep(&frame_limit, NULL);   /* off for --bench-frames */
+    /* The frame cap (SPACEGL_FPS_CAP, default 144) is applied by render_frame(). */
 
     /* Decrement shield hit timers (CPU-path parity, done per frame). */
     for (int s = 0; s < 6; s++)

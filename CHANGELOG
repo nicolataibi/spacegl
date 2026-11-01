@@ -1,3 +1,28 @@
+* Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.01
+  - Performance, the Vulkan viewer's frame pacing and diagnosis. The frame
+  cap was a fixed 6.94 ms sleep after every frame plus 1 ms in mainLoop:
+  a frame took work + ~8 ms whatever the work was (measured: 75 fps for a
+  3 ms frame instead of 144). Now the sleep is the time left up to the
+  next deadline on an absolute clock; SPACEGL_FPS_CAP=<n> (default 144,
+  0 = no cap), SPACEGL_BENCH_PACE=1 keeps the cap under --bench-frames.
+  The static mesh buffers (vertex/index, written once) were plain
+  host-visible memory, i.e. system RAM on a discrete GPU, so every vertex
+  and index fetch crossed PCIe; they now use a device-local host-visible
+  type when the device has one (resizable BAR), with the old fallback.
+  The GPU-driven path: measured on the A770 (256 objects, 1080p) the
+  two expand compute passes took 4.9 of the 5.3 ms of GPU time, the two
+  draw passes 0.3 ms. Each instance was expanded by ONE invocation (a
+  16 x 32 sphere is 3 072 vertices written in sequence, a boom 1 536), so
+  a pass lasted as long as its heaviest instance and used a handful of
+  the GPU's cores. The expand dispatch is now one workgroup of 64 per
+  instance slot; the meshes with many pieces (spheres, rings, circles,
+  arcs, wire boxes, booms) share their loops among the invocations
+  (gdd_lane / gdd_lanes in gdd_ops.glsl), the small ones are written by
+  invocation 0 as before. Same vertices (gdd_mesh and golden pass).
+  New: GPU time per section with timestamp queries in both paths
+  (SPACEGL_VK_GPU_TIMES=1 prints a line every 120 frames; --bench-frames
+  prints the average of the timed frames: "[GPU-TIMES] ...").
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.17
   - Performance, the OpenGL viewer's text. Every character of the HUD and
   of the object labels was drawn with its own glBitmap: on an Arc A770 the

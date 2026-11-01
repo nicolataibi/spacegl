@@ -21,6 +21,13 @@
  * guard fails the reservation is rolled back and the instance is
  * dropped (same "drop when full" behavior as the legacy CPU path).
  */
+/* Cooperative expansion (2026.11.02.01): gdd_expand.comp runs one workgroup per
+ * instance; the meshes with many vertices (spheres, rings, circles, arcs, wire
+ * boxes, booms) spread their independent iterations over gdd_lanes invocations
+ * (invocation k does iterations k, k + gdd_lanes, ...). Default: one lane. */
+uint gdd_lane  = 0u;
+uint gdd_lanes = 1u;
+
 bool gdd_reserve(GddInstance it, uint n, out uint base) {
     bool add = gdd_additive(it);
     if (add) {
@@ -207,13 +214,15 @@ void gdd_expand_sphere_n(uint base, GddInstance it, int lats, int lons) {
      * degenerate scale for a fully flattened element). */
     vec3 r     = max(it.b.xyz, vec3(1e-6));
     vec3 inv_r = vec3(1.0) / r;
-    for (int i = 0; i < lats; i++) {
+    for (int q = int(gdd_lane); q < lats * lons; q += int(gdd_lanes)) {
+        int i = q / lons;
+        int j = q - i * lons;
         /* Polar angle from +Y: 0 at north pole, PI at south pole. */
         float lat0 = PI * float(i)     / float(lats);
         float lat1 = PI * float(i + 1) / float(lats);
         float cy0 = cos(lat0), sy0 = sin(lat0);
         float cy1 = cos(lat1), sy1 = sin(lat1);
-        for (int j = 0; j < lons; j++) {
+        {
             float lon0 = 2.0 * PI * float(j)     / float(lons);
             float lon1 = 2.0 * PI * float(j + 1) / float(lons);
             float c0 = cos(lon0), s0 = sin(lon0);
@@ -369,7 +378,7 @@ void gdd_expand_ring(uint base, GddInstance it) {
     float inner = (ht > 1e-4)
     ? clamp(1.0 - ht / max(it.b.x, 1e-4), 0.0, 0.99)
     : 0.75;
-    for (int j = 0; j < GDD_RING_SEGS; j++) {
+    for (int j = int(gdd_lane); j < GDD_RING_SEGS; j += int(gdd_lanes)) {
         float a0 = 6.283185307179586 * float(j) / float(GDD_RING_SEGS);
         float a1 = 6.283185307179586 * float(j + 1) / float(GDD_RING_SEGS);
         float c0 = cos(a0), s0 = sin(a0);
@@ -403,7 +412,7 @@ void gdd_expand_circle(uint base, GddInstance it) {
     t = max(t, pc.line_min_wu);
     float rin  = clamp((r - t) / r, 1e-4, 1.0);
     float rout = (r + t) / r;
-    for (int j = 0; j < GDD_CIRCLE_SEGS; j++) {
+    for (int j = int(gdd_lane); j < GDD_CIRCLE_SEGS; j += int(gdd_lanes)) {
         float a0 = 6.283185307179586 * float(j) / float(GDD_CIRCLE_SEGS);
         float a1 = 6.283185307179586 * float(j + 1) / float(GDD_CIRCLE_SEGS);
         vec3 i0 = vec3(cos(a0), 0.0, sin(a0)) * rin;
@@ -434,7 +443,7 @@ void gdd_expand_arc(uint base, GddInstance it) {
     float rin  = clamp((r - t) / r, 1e-4, 1.0);
     float rout = (r + t) / r;
     float PI = 3.141592653589793;
-    for (int j = 0; j < GDD_ARC_SEGS; j++) {
+    for (int j = int(gdd_lane); j < GDD_ARC_SEGS; j += int(gdd_lanes)) {
         float a0 = PI * float(j) / float(GDD_ARC_SEGS) - PI * 0.5;
         float a1 = PI * float(j + 1) / float(GDD_ARC_SEGS) - PI * 0.5;
         vec3 i0 = vec3(cos(a0), sin(a0), 0.0) * rin;
@@ -521,7 +530,7 @@ void gdd_expand_boxwire(uint base, GddInstance it) {
      * clamped to the same 1-px screen-space floor (pc.line_min_wu). */
     float t = (it.p.x > 1e-4) ? it.p.x : 0.02;
     t = max(t, pc.line_min_wu);
-    for (int e = 0; e < 12; e++) {
+    for (int e = int(gdd_lane); e < 12; e += int(gdd_lanes)) {
         vec3 la = GDD_BOXWIRE_EDGES[2 * e];
         vec3 lb = GDD_BOXWIRE_EDGES[2 * e + 1];
         vec3 s = it.a.xyz + it.o * (la * it.b.xyz);
@@ -609,7 +618,7 @@ void gdd_expand_boom(uint base, GddInstance it) {
     float exp = (1.0 - life) * 12.0 * ts;
     float style = it.p.y;
     float r = 0.25f * ts;
-    for (int p = 0; p < 256; p++) {
+    for (int p = int(gdd_lane); p < 256; p += int(gdd_lanes)) {
         float u = float(p);
         float h1 = gdd_boom_hash(u, it.p.x, 1.0);
         float h2 = gdd_boom_hash(u, it.p.x, 2.0);

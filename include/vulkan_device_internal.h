@@ -118,6 +118,15 @@ extern int s_bench_warmup;
 extern int s_bench_objects;
 extern bool s_frame_limit_off;
 
+/* GPU time per section (2026.11.02.01): timestamp queries written between the
+ * sections of a frame, read back once the slot's fence is signaled. Off unless
+ * SPACEGL_VK_GPU_TIMES=1 (printed every 120 frames) or --bench-frames. */
+void vkgt_reset_stats(void);
+void vkgt_begin(VkCommandBuffer cb, VulkanApp *app, uint32_t slot);
+void vkgt_mark(VkCommandBuffer cb, uint32_t slot, const char *name);
+void vkgt_collect(VulkanApp *app, uint32_t slot);
+void vkgt_report(const char *label);
+
 /* --- vulkan_device.c --- */
 void resolve_shader_paths(void);
 void createBuffer(VulkanApp* app, VkDeviceSize size, VkBufferUsageFlags usage,

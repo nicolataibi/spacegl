@@ -61,10 +61,42 @@ void resolve_shader_paths(void) {
     strcpy(fragment_shader_path, "build/shaders/shader.frag.spv");
 }
 
+/* A memory type with ALL of props, or UINT32_MAX (findMemoryType answers 0 when nothing matches). */
+static uint32_t findMemoryTypeStrict(VkPhysicalDevice pDevice, uint32_t typeFilter, VkMemoryPropertyFlags props) {
+    VkPhysicalDeviceMemoryProperties mProps;
+    vkGetPhysicalDeviceMemoryProperties(pDevice, &mProps);
+    for (uint32_t i = 0; i < mProps.memoryTypeCount; i++)
+        if ((typeFilter & (1u << i)) && (mProps.memoryTypes[i].propertyFlags & props) == props) return i;
+    return UINT32_MAX;
+}
+
 void createBuffer(VulkanApp* app, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props, VkBuffer* buf, VkDeviceMemory* mem) {
     VkBufferCreateInfo bInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, NULL, 0, size, usage, VK_SHARING_MODE_EXCLUSIVE, 0, NULL};
     if (vkCreateBuffer(app->device, &bInfo, NULL, buf) != VK_SUCCESS) exit(1);
     VkMemoryRequirements mReqs; vkGetBufferMemoryRequirements(app->device, *buf, &mReqs);
+    /* Static meshes (vertex/index buffers written once, then only read by the GPU) asked as plain
+     * host-visible memory landed in SYSTEM RAM on a discrete GPU (the first matching type), so every
+     * vertex and index fetch crossed PCIe. When the device has a type that is host-visible AND
+     * device-local (resizable BAR or the BAR window), use it: written once by the CPU, read from
+     * VRAM. Falls back to the plain host-visible type when there is none or it is full
+     * (2026.11.02.01). */
+    const VkMemoryPropertyFlags hv = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    static bool logged = false;
+    if (props == hv && (usage & ~(VkBufferUsageFlags)(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT)) == 0) {
+        uint32_t t = findMemoryTypeStrict(app->physicalDevice, mReqs.memoryTypeBits, hv | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (t != UINT32_MAX) {
+            VkMemoryAllocateInfo vInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, NULL, mReqs.size, t};
+            if (vkAllocateMemory(app->device, &vInfo, NULL, mem) == VK_SUCCESS) {
+                vkBindBufferMemory(app->device, *buf, *mem, 0);
+                if (!logged) { logged = true; printf("[VK] static mesh buffers in device-local host-visible memory (type %u)\n", t); }
+                return;
+            }
+        }
+        if (!logged) {
+            logged = true;
+            printf("[VK] static mesh buffers in host memory (no device-local host-visible type available)\n");
+        }
+    }
     VkMemoryAllocateInfo aInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, NULL, mReqs.size, findMemoryType(app->physicalDevice, mReqs.memoryTypeBits, props)};
     if (vkAllocateMemory(app->device, &aInfo, NULL, mem) != VK_SUCCESS) exit(1);
     vkBindBufferMemory(app->device, *buf, *mem, 0);

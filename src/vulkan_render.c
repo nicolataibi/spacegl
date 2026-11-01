@@ -39,8 +39,119 @@ int s_bench_warmup = 30;
 int s_bench_objects = 0;
 bool s_frame_limit_off = false;
 
+/* ------------------------------------------------------------------ */
+/* GPU time per section (2026.11.02.01)                               */
+/* ------------------------------------------------------------------ */
+#define VKGT_MAX_MARKS 12
+#define VKGT_SLOTS     ((uint32_t)MAX_FRAMES_IN_FLIGHT)
+typedef struct {
+    int state;                       /* 0 not tried, 1 on, -1 off */
+    VkDevice dev;
+    VkQueryPool pool;
+    double ms_per_tick;
+    uint32_t valid_bits;
+    int print_every;                 /* frames between lines (0 = only the final report) */
+    const char *names[VKGT_MAX_MARKS];
+    uint32_t used[MAX_FRAMES_IN_FLIGHT];
+    double sum[VKGT_MAX_MARKS];
+    double sum_total;
+    uint64_t frames;
+} VkGpuTimes;
+static VkGpuTimes g_gt;
+
+static void vkgt_print(const char *label) {
+    if (g_gt.frames == 0) return;
+    double n = (double)g_gt.frames;
+    printf("[GPU-TIMES] %s: %llu frames, GPU %.3f ms:", label, (unsigned long long)g_gt.frames, g_gt.sum_total / n);
+    for (int i = 1; i < VKGT_MAX_MARKS && g_gt.names[i]; i++)
+        printf(" %s %.3f", g_gt.names[i], g_gt.sum[i] / n);
+    printf("\n");
+    fflush(stdout);
+}
+
+void vkgt_reset_stats(void) {
+    memset(g_gt.sum, 0, sizeof(g_gt.sum));
+    g_gt.sum_total = 0.0;
+    g_gt.frames = 0;
+}
+
+static void vkgt_try_init(VulkanApp *app) {
+    const char *e = getenv("SPACEGL_VK_GPU_TIMES");
+    bool env_on = e && e[0] == '1';
+    if (!env_on && s_bench_frames <= 0) { g_gt.state = -1; return; }
+    VkPhysicalDeviceProperties props;
+    vkGetPhysicalDeviceProperties(app->physicalDevice, &props);
+    uint32_t nq = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(app->physicalDevice, &nq, NULL);
+    if (nq == 0) { g_gt.state = -1; return; }
+    VkQueueFamilyProperties *qp = (VkQueueFamilyProperties *)calloc(nq, sizeof(*qp));
+    if (!qp) { g_gt.state = -1; return; }
+    vkGetPhysicalDeviceQueueFamilyProperties(app->physicalDevice, &nq, qp);
+    g_gt.valid_bits = qp[0].timestampValidBits;   /* the graphics queue is family 0 */
+    free(qp);
+    if (g_gt.valid_bits == 0 || props.limits.timestampPeriod <= 0.0f) {
+        fprintf(stderr, "[GPU-TIMES] timestamps not supported on the graphics queue: off\n");
+        g_gt.state = -1;
+        return;
+    }
+    VkQueryPoolCreateInfo qi = { .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+                                 .queryType = VK_QUERY_TYPE_TIMESTAMP,
+                                 .queryCount = VKGT_SLOTS * VKGT_MAX_MARKS };
+    if (vkCreateQueryPool(app->device, &qi, NULL, &g_gt.pool) != VK_SUCCESS) { g_gt.state = -1; return; }
+    g_gt.dev = app->device;
+    g_gt.ms_per_tick = (double)props.limits.timestampPeriod * 1.0e-6;
+    g_gt.print_every = (env_on && s_bench_frames <= 0) ? 120 : 0;
+    g_gt.state = 1;
+}
+
+void vkgt_mark(VkCommandBuffer cb, uint32_t slot, const char *name) {
+    if (g_gt.state != 1 || slot >= VKGT_SLOTS) return;
+    uint32_t i = g_gt.used[slot];
+    if (i >= VKGT_MAX_MARKS) return;
+    g_gt.names[i] = name;
+    vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, g_gt.pool, slot * VKGT_MAX_MARKS + i);
+    g_gt.used[slot] = i + 1;
+}
+
+/* Outside any render pass, first command of the frame. */
+void vkgt_begin(VkCommandBuffer cb, VulkanApp *app, uint32_t slot) {
+    if (g_gt.state == 0) vkgt_try_init(app);
+    if (g_gt.state != 1 || slot >= VKGT_SLOTS) return;
+    vkCmdResetQueryPool(cb, g_gt.pool, slot * VKGT_MAX_MARKS, VKGT_MAX_MARKS);
+    g_gt.used[slot] = 0;
+    vkgt_mark(cb, slot, "start");
+}
+
+/* Only after the slot's fence (or a queue wait): its results are final. */
+void vkgt_collect(VulkanApp *app, uint32_t slot) {
+    (void)app;
+    if (g_gt.state != 1 || slot >= VKGT_SLOTS) return;
+    uint32_t n = g_gt.used[slot];
+    if (n < 2) return;
+    uint64_t r[VKGT_MAX_MARKS];
+    VkResult rc = vkGetQueryPoolResults(g_gt.dev, g_gt.pool, slot * VKGT_MAX_MARKS, n,
+                                        sizeof(uint64_t) * n, r, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
+    if (rc != VK_SUCCESS) return;   /* not ready: the next collect of this slot retries */
+    g_gt.used[slot] = 0;
+    uint64_t mask = g_gt.valid_bits >= 64 ? ~0ULL : ((1ULL << g_gt.valid_bits) - 1ULL);
+    for (uint32_t i = 1; i < n; i++)
+        g_gt.sum[i] += (double)((r[i] - r[i - 1]) & mask) * g_gt.ms_per_tick;
+    g_gt.sum_total += (double)((r[n - 1] - r[0]) & mask) * g_gt.ms_per_tick;
+    g_gt.frames++;
+    if (g_gt.print_every > 0 && g_gt.frames >= (uint64_t)g_gt.print_every) {
+        vkgt_print("last 120 frames");
+        vkgt_reset_stats();
+    }
+}
+
+void vkgt_report(const char *label) {
+    if (g_gt.state == 1) vkgt_print(label);
+}
+
+
 void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,NULL,0,NULL}; vkBeginCommandBuffer(cb, &bi);
+    vkgt_begin(cb, app, app->currentFrame);
     VkClearValue cl[2] = {0}; cl[0].color = (VkClearColorValue){{0,0,0,1}}; cl[1].depthStencil = (VkClearDepthStencilValue){1,0};
     VkRenderPassBeginInfo ri = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,NULL,app->renderPass,app->swapChainFramebuffers[idx],{{0,0},app->swapChainExtent}, 2, cl};
     vkCmdBeginRenderPass(cb, &ri, VK_SUBPASS_CONTENTS_INLINE);
@@ -278,6 +389,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         vkCmdBindVertexBuffers(cb, 0, 1, &app->starfieldVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->starfieldIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(cb, (uint32_t)app->starfieldIndexCount, 1, 0, 0, 0);
+        vkgt_mark(cb, app->currentFrame, "starfield");
 
         /* Render individual tactical objects */
         for (int o=0; o<st->object_count && o < MAX_OBJECTS; o++) {
@@ -1082,7 +1194,10 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             }
         }
     }
-    vkCmdEndRenderPass(cb); vkEndCommandBuffer(cb);
+    vkgt_mark(cb, app->currentFrame, "objects");
+    vkCmdEndRenderPass(cb);
+    vkgt_mark(cb, app->currentFrame, "resolve");
+    vkEndCommandBuffer(cb);
 }
 
 void vulkan_grab_screenshot(VulkanApp *app, uint32_t slot, const char *path) {
@@ -1201,6 +1316,7 @@ void vulkan_grab_screenshot(VulkanApp *app, uint32_t slot, const char *path) {
 
 void drawFrame(VulkanApp* app) {
     vkWaitForFences(app->device, 1, &app->inFlightFences[app->currentFrame], 1, UINT64_MAX);
+    vkgt_collect(app, app->currentFrame);
     uint32_t imgIdx;
     VkResult acq_res = vkAcquireNextImageKHR(app->device, app->swapChain,
                                               100000000ULL, /* 100ms timeout */
@@ -1412,9 +1528,7 @@ void drawFrame(VulkanApp* app) {
     }
     app->currentFrame = (app->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
-    /* Frame limiter: cap at ~144fps to avoid saturating the CPU on MAILBOX/IMMEDIATE present */
-    struct timespec frame_limit = {0, 6944444L}; /* ~144fps = 1s/144 ≈ 6.94ms */
-    if (!s_frame_limit_off) nanosleep(&frame_limit, NULL);   /* off for --bench-frames */
+    /* The frame cap (SPACEGL_FPS_CAP, default 144) is applied by render_frame(). */
 
     /* Decrement Shield Hit Timers */
     for (int s = 0; s < 6; s++) if (app->shieldHitTimers[s] > 0) app->shieldHitTimers[s]--;
@@ -1427,11 +1541,44 @@ static double bench_now_ms(void) {
     return (double)t.tv_sec * 1000.0 + (double)t.tv_nsec / 1.0e6;
 }
 
+/* Frame cap (2026.11.02.01). It used to be a fixed 6.94 ms sleep AFTER every frame (plus 1 ms in
+ * mainLoop), so the frame took work + ~8 ms whatever the work was: a 8 ms frame ran at ~65 fps, not
+ * 144. Now the sleep is the time left up to the next deadline, on an absolute clock (no drift), and
+ * nothing is slept when the frame already took longer than the period.
+ * SPACEGL_FPS_CAP=<n> sets the cap (default 144, 0 = no cap). --bench-frames runs uncapped unless
+ * SPACEGL_BENCH_PACE=1. */
+static void frame_pace(void) {
+    static double cap = -1.0;
+    static struct timespec next;
+    static bool have_next = false;
+    if (cap < 0.0) {
+        const char *e = getenv("SPACEGL_FPS_CAP");
+        cap = e ? atof(e) : 144.0;
+        if (cap < 0.0) cap = 144.0;
+    }
+    if (cap <= 0.0) return;
+    if (s_frame_limit_off && !getenv("SPACEGL_BENCH_PACE")) return;
+    long period_ns = (long)(1.0e9 / cap);
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    if (!have_next) { next = now; have_next = true; }
+    next.tv_nsec += period_ns;
+    while (next.tv_nsec >= 1000000000L) { next.tv_nsec -= 1000000000L; next.tv_sec++; }
+    double late_ns = (double)(now.tv_sec - next.tv_sec) * 1.0e9 + (double)(now.tv_nsec - next.tv_nsec);
+    if (late_ns > 0.0) {
+        /* behind schedule: no sleep; after a long stall start again from now (no catch-up burst) */
+        if (late_ns > 2.0 * (double)period_ns) next = now;
+        return;
+    }
+    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, NULL);
+}
+
 void render_frame(VulkanApp* app, float dt) {
     (void)dt;
     static FrameBench bench;
     static bool bench_on = false;
     if (s_bench_frames > 0 && !bench_on) bench_on = frame_bench_init(&bench, s_bench_frames, s_bench_warmup);
+    if (bench_on && bench.seen == bench.warmup) vkgt_reset_stats();   /* GPU times: timed frames only */
     double t0 = bench_on ? bench_now_ms() : 0.0;
     app->lastImgIdx = UINT32_MAX;
     if (app->gdd) gdd_draw_frame(app);
@@ -1439,15 +1586,19 @@ void render_frame(VulkanApp* app, float dt) {
     if (bench_on) {
         /* the frame's whole cost: wait until the GPU has finished it */
         vkQueueWaitIdle(app->graphicsQueue);
+        if (app->lastImgIdx != UINT32_MAX) vkgt_collect(app, app->lastFrameSlot);
         if (frame_bench_add(&bench, bench_now_ms() - t0)) {
             frame_bench_report(&bench, app->gdd ? "vulkan-gdd" : "vulkan-cpu", (int)app->swapChainExtent.width,
                                (int)app->swapChainExtent.height, s_bench_objects);
+            vkgt_report(app->gdd ? "vulkan-gdd" : "vulkan-cpu");
             frame_bench_free(&bench);
             bench_on = false;
             s_bench_frames = 0;
             glfwSetWindowShouldClose(app->window, GLFW_TRUE);
         }
     }
+
+    frame_pace();
 
     s_frame_no++;
     if (s_shot_path[0] && s_frame_no == s_shot_frame &&
