@@ -39,6 +39,7 @@
 #include "server_internal.h"
 #include "conn.h"
 #include "packets.h"
+#include "sg_tls.h"
 
 /* Same event capacity as the legacy loop (spacegl_server.c). */
 #define MAX_EVENTS (MAX_CLIENTS + GAME_MAX_PLAYERS)
@@ -76,6 +77,7 @@ struct Conn {
     size_t tx_have;    /* bytes of tx_buf already sent */
     size_t tx_total;   /* bytes staged in tx_buf */
     uint8_t tx_buf[CONN_TX_BUF_SIZE];
+    bool rx_out;       /* a TLS read (or handshake) is waiting for EPOLLOUT */
 };
 
 static Conn g_conns[MAX_CONNS];
@@ -166,6 +168,7 @@ void conn_close(int epoll_fd, Conn *c, ConnCloseReason reason) {
     c->fd = -1;
     reap_player_fd(fd, reason);
     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+    sg_tls_detach(fd);
     close(fd);
 }
 
@@ -175,7 +178,7 @@ void conn_close(int epoll_fd, Conn *c, ConnCloseReason reason) {
 
 static void conn_set_events(int epoll_fd, Conn *c, bool want_out) {
     struct epoll_event ev;
-    ev.events = EPOLLIN | (want_out ? EPOLLOUT : 0);
+    ev.events = EPOLLIN | ((want_out || c->rx_out) ? EPOLLOUT : 0);
     ev.data.fd = c->fd;
     if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, c->fd, &ev) == -1) {
         /* Losing the EPOLLOUT interest only delays the pending reply;
@@ -191,7 +194,7 @@ static void conn_set_events(int epoll_fd, Conn *c, bool want_out) {
 static void conn_drain_tx(int epoll_fd, Conn *c) {
     if (!c->tx_pending) return;
     for (;;) {
-        ssize_t n = send(c->fd, c->tx_buf + c->tx_have, c->tx_total - c->tx_have, MSG_NOSIGNAL);
+        ssize_t n = sg_net_send(c->fd, c->tx_buf + c->tx_have, c->tx_total - c->tx_have);
         if (n > 0) { c->tx_have += (size_t)n; continue; }
         if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) break;
         /* Hard error (EPIPE/ECONNRESET...): the session is doomed, but
@@ -322,17 +325,24 @@ void conn_pump(int epoll_fd, Conn *c) {
         }
 
         /* Fill the current phase from whatever is available now. */
-        ssize_t n = recv(c->fd, c->rx_buf + c->have, c->need, 0);
+        ssize_t n = sg_net_recv(c->fd, c->rx_buf + c->have, c->need);
         if (n > 0) {
             c->have += (size_t)n;
             c->need -= (size_t)n;
             continue;
         }
+        if (n < 0 && errno == EINTR) continue;
         if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
             /* No data right now: the partial packet stays staged in
              * rx_buf and the next EPOLLIN resumes exactly here. This is
              * the whole point of the state machine — the loop is never
-             * blocked by a slow (or malicious) client. */
+             * blocked by a slow (or malicious) client. (A TLS read that
+             * must first write resumes on EPOLLOUT.) */
+            bool w = sg_net_wants_write(c->fd);
+            if (w != c->rx_out) {
+                c->rx_out = w;
+                conn_set_events(epoll_fd, c, c->tx_pending);
+            }
             return;
         }
         /* n == 0: orderly peer close; n < 0: transport error
@@ -347,6 +357,26 @@ void conn_pump(int epoll_fd, Conn *c) {
 /* ------------------------------------------------------------------ */
 /* Async event loop                                                   */
 /* ------------------------------------------------------------------ */
+
+/* The TLS handshake of a new connection advances on its readiness events
+ * (never blocking the loop). true once it is complete (the event may
+ * carry application data: pump it), false while it is in progress or
+ * after it failed (the connection is then closed). */
+static bool conn_tls_progress(int epoll_fd, Conn *c) {
+    if (!c->in_use) return false;
+    if (!sg_tls_active(c->fd) || sg_tls_ready(c->fd)) return true;
+    int r = sg_tls_server_step(c->fd);
+    if (r < 0) {
+        conn_close(epoll_fd, c, CONN_CLOSE_SILENT);
+        return false;
+    }
+    bool w = r == 0 && sg_net_wants_write(c->fd);
+    if (w != c->rx_out) {
+        c->rx_out = w;
+        conn_set_events(epoll_fd, c, c->tx_pending);
+    }
+    return r == 1;
+}
 
 void run_epoll_loop_async(int server_fd, int epoll_fd) {
     struct sockaddr_in addr;
@@ -386,11 +416,18 @@ void run_epoll_loop_async(int server_fd, int epoll_fd) {
                         break;
                     }
                     tune_socket(new_socket);
+                    if (!sg_tls_server_attach(new_socket)) {
+                        SG_WARNING(SG_CAT_NETWORK, "fd %d: no TLS session available: connection dropped",
+                                   new_socket);
+                        close(new_socket);
+                        continue;
+                    }
                     Conn *c = conn_alloc(new_socket);
                     if (!c) {
                         /* Connection pool exhausted: drop the newest
                          * connection (bounded-resource DoS guard). */
                         SG_WARNING(SG_CAT_NETWORK, "connection pool exhausted: dropping fd %d", new_socket);
+                        sg_tls_detach(new_socket);
                         close(new_socket);
                         continue;
                     }
@@ -400,6 +437,7 @@ void run_epoll_loop_async(int server_fd, int epoll_fd) {
                         perror("epoll_ctl: new_socket");
                         c->in_use = false;
                         c->fd = -1;
+                        sg_tls_detach(new_socket);
                         close(new_socket);
                     } else {
                         SG_TRACE4(SG_CAT_NETWORK, "new connection accepted (fd %d)", new_socket);
@@ -415,11 +453,13 @@ void run_epoll_loop_async(int server_fd, int epoll_fd) {
                  * safe to do (conn_close() already closed the fd). */
                 continue;
             }
+            if (!conn_tls_progress(epoll_fd, c)) continue;
             if ((events[n].events & EPOLLOUT) && c->in_use) {
                 conn_drain_tx(epoll_fd, c);
                 if (!c->in_use) continue;
             }
-            if (c->in_use && (events[n].events & (EPOLLIN | EPOLLHUP | EPOLLERR)))
+            /* EPOLLOUT also resumes a TLS read that had to write first */
+            if (c->in_use && (events[n].events & (EPOLLIN | EPOLLHUP | EPOLLERR | EPOLLOUT)))
                 conn_pump(epoll_fd, c);
         }
     }

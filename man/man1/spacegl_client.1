@@ -42,6 +42,12 @@ a later connection to the same address with another key is refused
 ("SERVER IDENTITY CHANGED") before the login. Compare the fingerprint with
 the one the server prints at boot, or pin the key in advance with
 .BR SPACEGL_SERVER_KEY .
+.PP
+The whole connection runs inside TLS 1.3 (wire revision 5): the server's
+certificate is its identity key, checked against the pin before anything
+is sent, and the deck prints "Transport: TLS 1.3 (...)". A server older
+than revision 5 does not speak TLS: the connection fails with "No TLS 1.3
+session with the server".
 .SH OPTIONS
 .TP
 .B gl

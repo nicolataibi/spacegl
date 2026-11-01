@@ -38,6 +38,7 @@ build-tests/
 build-tests-clang/
 fuzz_corpus/
 golden_out/
+gpu-golden-*/
 
 # IDE / OS junk
 .DS_Store

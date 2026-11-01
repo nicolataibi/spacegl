@@ -3,12 +3,31 @@
 Reference for the binary protocol between the command deck (`spacegl_client`)
 and the server (`spacegl_server`), as implemented in `include/network.h`,
 `include/handshake_v2.h`, `src/server/packets.c`, `src/server/net.c` and
-`src/spacegl_client.c`. Current protocol: **handshake v2** (2026.10.31.08).
+`src/spacegl_client.c`, inside TLS 1.3 (`include/sg_tls.h`, `src/sg_tls.c`).
+Current protocol: **wire revision 5** (2026.11.01.11), handshake v2.
 Sizes below are those of this build (x86-64, `#pragma pack(1)`).
 
 ## 1. Transport and framing
 
 - TCP, port **5000** (`DEFAULT_PORT`), one connection per captain.
+- **TLS 1.3 only** (wire revision 5, 2026.11.01.11): every byte below
+  travels inside a TLS 1.3 session; nothing is sent in clear. The server's
+  certificate is self-signed and made at start-up, in memory, from its
+  Ed25519 identity key (`server_identity.key`, section 3): the deck trusts
+  no certificate authority, it checks the certificate's key against the
+  key it pinned for that server (`~/.spacegl/known_servers`,
+  `SPACEGL_SERVER_KEY`) before it sends anything, and TLS 1.3 makes the
+  server prove that it holds the key (CertificateVerify). Inside the
+  session everything is as in revision 4: handshake v2 with `K`, login,
+  radio, signatures. The identity that signs the handshake v2 must be the
+  certificate's.
+- No session tickets, no resumption: one full TLS handshake per connection
+  (a reconnect does a new one). A connection that has not completed it
+  within **10 s** is closed (`SG_TLS_HANDSHAKE_TIMEOUT_S`).
+- A deck of revision 4 or older sends its hello in clear: the server sees
+  that the first byte is not a TLS record (0x16) and closes the
+  connection; a deck of revision 5 meeting an older server fails its TLS
+  handshake and says so.
 - All structures are packed (`#pragma pack(push, 1)`) and sent in the host
   byte order of both ends (little endian on every supported platform).
 - Every packet starts with an `int32 type`. The body that follows has a
@@ -64,8 +83,10 @@ mask         = HMAC-SHA256(PRK, "spacegl v2 galaxy verify" || 0x01)
 ```
 
 - `pubkey_len` is "HSV" followed by the **wire revision**, the layout of
-  the handshake reply and of every packet after it: revision 4 since
-  2026.10.31.43 (the server identity in the reply), revision 3 from
+  the handshake reply and of every packet after it: "HSV4" since
+  2026.10.31.43 (the server identity in the reply), also in revision 5
+  (TLS 1.3 around an unchanged stream: no deck of revision 4 gets past the
+  first byte, so the hello needs no new marker), revision 3 from
   2026.10.31.30 (the per-object update delta), revision 2 from
   2026.10.31.08. A hello with another value (a revision-2 or -3 deck, the
   v1 hello) is refused and the connection closed; the key exchange itself
@@ -188,7 +209,8 @@ smaller. A tick with no change sends nothing.
   X25519), `0x08` exclusive. Private, peer and exclusive messages are
   relayed as they are (the server cannot read them); fleet messages are
   decrypted by the server and re-encrypted for each recipient's frequency,
-  or sent in clear to a recipient on no frequency.
+  or sent without radio encryption to a recipient on no frequency (still
+  inside the TLS session).
 - `from` and `faction` are overwritten by the server with the authenticated
   captain of the connection; a client cannot speak as another captain or as
   a ship station.
@@ -209,4 +231,5 @@ error instead of desynchronising later, and update this document and
 `tests/fuzz/` (seed generator and corpus) in the same change. The corpus is
 binary: move the libFuzzer-grown seeds with a committed script (the
 pattern is `tests/fuzz/migrate_corpus_rev4.py`) so that the change can be
-reproduced from a text patch.
+reproduced from a text patch. A change of the transport alone (revision 5,
+TLS) is refused before the hello and needs no new marker.

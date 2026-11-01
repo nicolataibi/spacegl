@@ -29,6 +29,13 @@ the first boot in
 It signs every handshake (wire revision 4) and the decks pin it; its
 fingerprint is printed at boot and by
 .BR \-\-print\-identity .
+.PP
+Every connection on port 5000 runs inside TLS 1.3 (wire revision 5); there
+is no plaintext mode. The certificate is made at start-up, in memory, from
+the identity key: there is no certificate file to install or renew. A deck
+older than revision 5 (its hello in clear) is refused at the first byte,
+and a connection that does not complete its TLS handshake within 10 s is
+closed.
 .SH OPTIONS
 .TP
 .B \-d

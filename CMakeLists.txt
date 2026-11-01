@@ -209,6 +209,7 @@ endif()
 # tree does not use CONFIGURE_DEPENDS). Add new server sources here.
 set(SERVER_SRCS
     src/spacegl_server.c
+    src/sg_tls.c
     src/sglog.c
     src/telemetry_server.c
     src/server/commands.c
@@ -231,7 +232,9 @@ set(SERVER_SRCS
     src/server/threadpool.c
 )
 add_executable(spacegl_server ${SERVER_SRCS})
-target_link_libraries(spacegl_server ${COMMON_LIBS})
+# TLS 1.3 on the game port (src/sg_tls.c, wire revision 5): libssl for the
+# server and the deck only.
+target_link_libraries(spacegl_server ${COMMON_LIBS} OpenSSL::SSL)
 # -Wconversion on the server (2026.10.31.26, roadmap phase 4): every
 # implicit conversion that can change a value or a sign is written as an
 # explicit cast (275 sites, machine code unchanged). With SPACEGL_WERROR in
@@ -246,8 +249,8 @@ add_executable(spacegl_telemetry src/spacegl_telemetry.c)
 target_link_libraries(spacegl_telemetry ${COMMON_LIBS} ${NCURSES_LIBRARIES})
 
 # 2. spacegl_client
-add_executable(spacegl_client src/spacegl_client.c src/sglog.c)
-target_link_libraries(spacegl_client ${COMMON_LIBS})
+add_executable(spacegl_client src/spacegl_client.c src/sg_tls.c src/sglog.c)
+target_link_libraries(spacegl_client ${COMMON_LIBS} OpenSSL::SSL)
 
 # 3. spacegl_3dview
 add_executable(spacegl_3dview src/spacegl_3dview.c src/gl_loader.c src/glut_compat.c src/spacegl_extras_glfw.c src/sglog.c)

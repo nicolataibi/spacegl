@@ -28,7 +28,11 @@
 #      pinned the key the server printed at boot, later decks found it
 #      pinned; a server with another identity (another data directory) on
 #      the same address is refused ("SERVER IDENTITY CHANGED"), accepted
-#      with its key in SPACEGL_SERVER_KEY, refused with a wrong one.
+#      with its key in SPACEGL_SERVER_KEY, refused with a wrong one;
+#   9. (2026.11.01.11, wire revision 5) the transport: the decks ran inside
+#      TLS 1.3; tests/tls_probe.py finds TLS 1.3 only on the port, the
+#      identity key in the certificate, a hello in clear refused with no
+#      byte back; a connection that never starts TLS is closed.
 # No DISPLAY: the decks run in CLI mode, as in smoke_test.sh.
 #
 # Usage: deck_e2e_test.sh <spacegl_server> <spacegl_client>
@@ -242,6 +246,33 @@ check "...and with SPACEGL_SERVER_KEY"          has explicit "DeepSpace Signatur
 check "SPACEGL_SERVER_KEY with another key: refused" has wrongpin "not the key of SPACEGL_SERVER_KEY"
 stop_server
 rm -rf "$OTHER_DIR"
+
+# --- 9. the transport: TLS 1.3 only -----------------------------------
+check "the deck runs inside TLS 1.3"            has f1 "Transport:          TLS 1.3"
+SRV_HEX=$("$SERVER_BIN" --data-dir "$DATA_DIR" --print-identity 2>/dev/null | sed -n 2p)
+start_server
+if command -v python3 >/dev/null 2>&1; then
+    if python3 -I "$(dirname "$0")/tls_probe.py" 127.0.0.1 "$PORT" "$SRV_HEX" >"$WORK/tls_probe.txt" 2>&1; then
+        echo "  ok   the port speaks TLS 1.3 only, certificate = identity, clear text refused"
+    else
+        echo "  FAIL the TLS probe"; rc=1
+    fi
+    sed 's/^/       /' "$WORK/tls_probe.txt"
+    check "the server logged the deck in clear"   grep -qF "does not speak TLS" "$WORK/server.log"
+else
+    echo "  skip the TLS probe (no python3)"
+fi
+# a connection that never starts TLS is closed after SG_TLS_HANDSHAKE_TIMEOUT_S
+silent_closed() {
+    local t0=$SECONDS
+    exec 3<>"/dev/tcp/127.0.0.1/$PORT" || return 1
+    timeout 30 cat <&3 >/dev/null
+    exec 3<&-
+    [ $((SECONDS - t0)) -le 25 ]
+}
+check "a silent connection is closed"           silent_closed
+check "...for its TLS handshake"                grep -qF "TLS handshake not completed" "$WORK/server.log"
+stop_server
 
 if [ $rc -ne 0 ]; then
     for f in charlie delta f1 dup wrongpass returning; do

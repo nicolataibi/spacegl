@@ -87,7 +87,7 @@ pattern described in DEVELOPMENT.md §5.
 | **Local process** | SHM mapping (client ↔ viewer / diag) | Same layout, different privilege: bounds must hold structurally, not by courtesy. |
 | Eavesdropper / active attacker on the **radio** | fleet cipher channel | AEAD ciphers only (see B5); per-player, per-algorithm keys; no legacy/weak cipher is ever used on the wire. |
 | Network peer on the **telemetry** port | TCP 5001 and `/tmp/spacegl_telemetry.sock` (read-only object stream) | OPERATOR TOOL by design: no authentication, the whole simulation state is readable. Not meant for end users; expose it only on a trusted network (bind by firewall or host network policy). The only input it accepts is a category number, range-checked. |
-| Holder of the deployment key **K** | handshake v2 | Every deck holds K. Passive observers learn nothing (v2, PROTOCOL.md §3). Since wire revision 4 (2026.10.31.43) every server signs the handshake with an Ed25519 identity key of its own and the deck pins it per server (`~/.spacegl/known_servers`, or `SPACEGL_SERVER_KEY`): a holder of K can no longer pose as a server the deck already knows, nor relay its session (the signature binds the ephemeral keys). REMAINING: the first contact is trust on first use (an impostor met first is pinned; `SPACEGL_SERVER_KEY` closes that gap), a holder of K can still pose as a deck (the captain's password is then the guard), and the stream after the handshake is not authenticated per packet (TLS, §1.4). |
+| Holder of the deployment key **K** | handshake v2 | Every deck holds K. Passive observers learn nothing (v2, PROTOCOL.md §3). Since wire revision 4 (2026.10.31.43) every server signs the handshake with an Ed25519 identity key of its own and the deck pins it per server (`~/.spacegl/known_servers`, or `SPACEGL_SERVER_KEY`): a holder of K can no longer pose as a server the deck already knows, nor relay its session (the signature binds the ephemeral keys). REMAINING: the first contact is trust on first use (an impostor met first is pinned; `SPACEGL_SERVER_KEY` closes that gap), a holder of K can still pose as a deck (the captain's password is then the guard), and, until wire revision 5 (2026.11.01.11), the stream after the handshake was not authenticated per packet: since then it runs inside TLS 1.3 whose certificate is that identity key (§1.4). |
 
 ### 1.3 Design rules (what the fixes converge on)
 
@@ -116,77 +116,64 @@ pattern described in DEVELOPMENT.md §5.
 
 ### 1.4 Transport Security Model
 
-**Decision**: SpaceGL uses application-level cryptography instead of
-TLS for the game transport. This is a deliberate design choice,
-documented here with the threat model rationale.
+**Decision** (2026.11.01.11, wire revision 5): every deck <-> server
+connection on port 5000 runs inside **TLS 1.3**; there is no plaintext
+mode and no option to turn it off. The application cryptography stays as
+it was (handshake v2, galaxy HMAC, radio frequencies, message signatures):
+TLS protects the transport, the application crypto protects the game data
+end to end where it already did (peer links, signatures).
 
-**Threat model**:
-- **Trusted LAN / home network**: the primary deployment is a single
-  LAN (home, office, game server). The risk of a man-in-the-middle
-  on the LAN is low.
-- **Low latency requirement**: the game runs at 60 fps with a
-  16 ms frame budget. A TLS 1.3 handshake (1 RTT) adds 20-50 ms
-  on a home network (acceptable for the initial connection), but
-  per-packet encryption/decryption (even AES-NI accelerated) adds
-  1-3 µs per packet. At 200 pkt/s this is 0.2-0.6 ms — negligible.
-  However, the **handshake latency** (1 RTT = 20-50 ms) is the
-  dominant cost, and for a reconnection scenario it
-  doubles the reconnect delay.
-- **Application-level crypto already provides**:
-  - **Integrity**: HMAC-SHA256 on the galaxy state (verified by the
-    client after every update).
-  - **Confidentiality**: AES-256-GCM on the radio channel (tactical
-    messages), X25519 key exchange for private links.
-  - **Authentication**: handshake v2 (2026.10.31.08): each side proves
-    it holds the master key with an HMAC over an ephemeral X25519
-    exchange; the session key comes from that exchange through HKDF
-    (`include/handshake_v2.h`).
+**How the server is authenticated**: there is no certificate authority.
+The server's certificate is self-signed and made at start-up, in memory,
+from its Ed25519 identity key (`server_identity.key`, wire revision 4).
+The deck reads the key from the certificate and checks it against the key
+it pinned for that server (`~/.spacegl/known_servers`, trust on first use
+like SSH, or `SPACEGL_SERVER_KEY`) BEFORE it sends anything inside the
+session; TLS 1.3 itself makes the server prove possession of that key
+(CertificateVerify over the handshake transcript). The handshake v2 that
+follows must be signed by the same identity. So the captain sees nothing
+new: the same fingerprint, the same pin, the same `SERVER IDENTITY
+CHANGED` refusal.
 
-**What TLS would add**:
-- **Transport confidentiality**: encrypts the entire TCP stream
-  (commands, positions and the login packets, which travel in clear;
-  the handshake itself no longer exposes any key).
-- **Forward secrecy for everything**: the v2 handshake already gives
-  the session key forward secrecy (ephemeral X25519); TLS would extend
-  it to the whole stream.
-- **Certificate-based identity**: the server presents a certificate
-  signed by an authority the client trusts. Since wire revision 4 every
-  server has an identity key of its own that the deck pins on the first
-  contact (or from `SPACEGL_SERVER_KEY`); certificates would remove the
-  trust on first use and allow revocation (multi-server deployments).
+**What it adds over revision 4**:
+- **Confidentiality of the whole stream**: commands, positions, the login
+  packets, fleet traffic on no frequency, the galaxy snapshot. A passive
+  observer of the network sees TLS records only (the captain's name is no
+  longer on the wire: checked by `tests/deck_e2e_test.sh`).
+- **Integrity of every packet**: the AEAD of TLS 1.3 authenticates each
+  record; before, only the galaxy state (HMAC) and signed messages were
+  authenticated, and a man in the middle holding nothing could still
+  inject or alter commands after the handshake.
+- **Forward secrecy for the whole stream** (ephemeral (EC)DHE of TLS 1.3,
+  in addition to the X25519 of handshake v2).
+- A holder of `K` relaying a session can neither read nor alter it: the
+  TLS keys are not derived from `K`.
 
-**When TLS is required**:
-- **Internet deployment** (server and clients on different networks,
-  untrusted intermediate infrastructure).
-- **Multi-server federation** (certificate-based identity).
-- **Regulatory requirement** (GDPR data-in-transit encryption).
+**Parameters**: TLS 1.3 only (`SSL_CTX_set_min/max_proto_version`),
+OpenSSL's default TLS 1.3 suites (AES-256-GCM, ChaCha20-Poly1305,
+AES-128-GCM) and groups (X25519 first), no session tickets and no
+resumption (`SSL_CTX_set_num_tickets(0)`), a 10 s bound on the server-side
+handshake (`SG_TLS_HANDSHAKE_TIMEOUT_S`, a connection that says nothing is
+closed by the per-second sweep).
 
-**Future work**:
-- `--tls` flag: wrap the TCP stream in TLS 1.3 via OpenSSL
-  (already linked). The handshake and all application-level crypto
-  remain unchanged (TLS protects the transport; application crypto
-  protects the game data). This is a **transport-level** addition,
-  not a replacement.
-- **Implementation estimate**: ~200 lines in `src/server/conn.c`
-  (SSL_accept after accept, SSL_read/SSL_write replacing read/write)
-  and ~100 lines in `src/spacegl_client.c` (SSL_connect after
-  connect). The `PktIO` abstraction already isolates the I/O layer
-  from the dispatcher — the TLS layer slots into the same seam.
+**Cost**: one more round trip at connection time (a TLS 1.3 handshake is
+1 RTT; under 1 ms on a LAN) and the AEAD of each record (AES-NI: well
+under 1 µs per update packet). The sockets are non-blocking; an `SSL`
+object is never used by two threads at once (the reader of a connection
+and the threads writing to it share one lock per connection, never held
+while waiting).
 
-**Current risk assessment**: for the documented threat model
-(trusted LAN), the absence of transport-level TLS is an accepted
-risk (see SECURITY.md §3, item "T1-transport"). The application-level
-HMAC-SHA256 provides integrity (an MITM cannot modify the galaxy
-state without being detected). The v2 handshake keeps the master key
-off the wire and authenticates both ends to each other as holders of
-the deployment key. Before 2026.10.31.08 the handshake sent
-`session key XOR K || public magic XOR K`, so one captured handshake
-revealed K: a passive observer could then read every fleet frequency
-and run its own handshakes. A holder of K (any legitimate client) can
-still act as the deck end of the exchange, and posed as the server end
-until wire revision 4 (2026.10.31.43): since then the server signs the
-handshake with its own identity key, pinned by the deck. TLS remains the
-answer for an untrusted network (the stream after the handshake).
+**Remaining**:
+- The first contact is trust on first use (an impostor met first is
+  pinned; `SPACEGL_SERVER_KEY` closes that gap). No revocation.
+- The deck is not authenticated by TLS (no client certificate): it proves
+  `K` in the handshake v2 and the captain's password at login, as before.
+- Metadata: the size and timing of the records stay visible.
+
+Before revision 5 the stream after the handshake travelled in clear; the
+earlier rationale for that (trusted LAN, latency) is superseded. Before
+2026.10.31.08 the handshake itself sent `session key XOR K || public
+magic XOR K`, so one captured handshake revealed K.
 
 ### 1.5 Key Management
 
@@ -409,6 +396,10 @@ traceable in the changelog:
     authenticated slot and removes from relayed messages any signature
     made with another key (2026.10.31.10) — pinned by
     `tests/sender_stamp_test` case 5 and `tests/login_auth_test` case 3;
+*   the game stream in clear after the handshake: TLS 1.3 on port 5000,
+    certificate = the server identity pinned by the deck (2026.11.01.11,
+    wire revision 5) — pinned by `tests/sg_tls_test` and
+    `tests/deck_e2e_test.sh`;
 *   TCP transport hardening (`TCP_NODELAY`, keepalive probes, buffer sizing)
     and token bucket rate limiting (200 pkt/s, DoS protection, 2026.10.17.04) —
     pinned by `tests/rate_limit_test`;
@@ -428,9 +419,12 @@ traceable in the changelog:
     (2026.10.31.43): every server signs the handshake with its own Ed25519
     identity key, the deck pins it (`include/known_servers.h`) — pinned by
     `tests/handshake_v2_test`, `tests/known_servers_test`,
-    `tests/deck_e2e_test.sh` step 8. What remains (trust on first use, a
-    holder of K posing as a deck, the stream after the handshake) is in the
-    attacker table.
+    `tests/deck_e2e_test.sh` step 8. ~~**The stream after the handshake**~~
+    — DONE in wire revision 5 (2026.11.01.11): TLS 1.3 on the game port,
+    the certificate being that identity key (§1.4) — pinned by
+    `tests/sg_tls_test` and `tests/deck_e2e_test.sh` (no captain name on
+    the wire, a deck in clear refused). What remains (trust on first use,
+    a holder of K posing as a deck) is in the attacker table.
 2.  **Disambiguate the B2/B3 dual labels** (or rename the 2026.10.01.01
     / 2026.10.01.02 findings to free labels) once the original report
     list is at hand.

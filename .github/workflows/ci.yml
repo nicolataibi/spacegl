@@ -206,7 +206,7 @@ jobs:
           cmake --build build-tsan -j"$(nproc)" --target \
             spacegl_server spacegl_client \
             relay_snapshot_test login_auth_test sender_stamp_test \
-            rate_limit_test handshake_v2_test shm_layout_test
+            rate_limit_test handshake_v2_test shm_layout_test sg_tls_test
 
       - name: Run under ThreadSanitizer
         run: |
@@ -214,7 +214,7 @@ jobs:
           export OMP_NUM_THREADS=1
           export TSAN_OPTIONS="halt_on_error=1 second_deadlock_stack=1"
           cd build-tsan && ctest --output-on-failure \
-            -R "^(tsan_e2e|relay_snapshot|login_auth|sender_stamp|rate_limit|handshake_v2|shm_layout)$"
+            -R "^(tsan_e2e|relay_snapshot|login_auth|sender_stamp|rate_limit|handshake_v2|shm_layout|sg_tls)$"
 
   # ====================================================================
   # Lint (2026.10.31.21, roadmap phase 4): clang-tidy over the server
@@ -250,7 +250,7 @@ jobs:
       - name: clang-tidy (server)
         run: |
           clang-tidy --version
-          ls src/server/*.c src/spacegl_server.c src/telemetry_server.c | \
+          ls src/server/*.c src/spacegl_server.c src/telemetry_server.c src/sg_tls.c | \
             xargs -P "$(nproc)" -n 1 clang-tidy -p build --quiet --warnings-as-errors='*'
 
   # ====================================================================

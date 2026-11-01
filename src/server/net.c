@@ -37,22 +37,29 @@
 #include "server_internal.h"
 #include "conn.h"
 #include "obj_delta.h"
+#include "sg_tls.h"
 
 extern uint8_t deep_space_key[32];
 extern void ensure_player_algo_key(int p_idx, int k, bool private_mode);
 
 
 #include <poll.h>
+/* Both helpers go through the sg_tls seam (include/sg_tls.h): TLS on the
+ * game sockets, clear on the test socketpairs. sg_net_recv/send never
+ * block, the waits are sg_net_wait() calls outside the session lock. */
 int read_all(int fd, void *buf, size_t len) {
     size_t total = 0;
     char *p = (char *)buf;
     while (total < len) {
-        struct pollfd pfd = { .fd = fd, .events = POLLIN };
-        if (poll(&pfd, 1, 5000) <= 0) return -1; /* 5 second timeout */
-        ssize_t n = recv(fd, p + total, len - total, 0);
+        ssize_t n = sg_net_recv(fd, p + total, len - total);
+        if (n > 0) {
+            total += (size_t)n;
+            continue;
+        }
         if (n == 0) return 0;
-        if (n < 0) return -1;
-        total += (size_t)n;
+        if (errno == EINTR) continue;
+        if (errno != EAGAIN && errno != EWOULDBLOCK) return -1;
+        if (sg_net_wait(fd, false, 5000) <= 0) return -1; /* 5 second timeout */
     }
     return (int)total;
 }
@@ -63,24 +70,22 @@ int write_all(int fd, const void *buf, size_t len) {
     struct timespec t0;
     clock_gettime(CLOCK_MONOTONIC, &t0);
     while (total < len) {
-        ssize_t n = send(fd, p + total, len - total, 0);
+        ssize_t n = sg_net_send(fd, p + total, len - total);
         if (n > 0) { total += (size_t)n; continue; }
+        if (n < 0 && errno == EINTR) continue;
         if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            /* ASYNC mode only: the session sockets are non-blocking, so a
-             * full send buffer returns EAGAIN instead of blocking. Wait
-             * for writability with a bound (1 s per probe, 30 s in total)
-             * so a stalled receiver can neither spin the thread nor stall
-             * it forever. On a legacy blocking socket send() never returns
-             * EAGAIN, so this path is inert there. */
+            /* The game sockets are non-blocking (TLS sessions, async
+             * mode), so a full send buffer returns EAGAIN instead of
+             * blocking. Wait for writability with a bound (1 s per
+             * probe, 30 s in total) so a stalled receiver can neither
+             * spin the thread nor stall it forever. */
             struct timespec now;
             clock_gettime(CLOCK_MONOTONIC, &now);
             if (now.tv_sec - t0.tv_sec >= 30) break;
-            struct pollfd pfd = { .fd = fd, .events = POLLOUT };
-            if (poll(&pfd, 1, 1000) <= 0) break;
+            if (sg_net_wait(fd, true, 1000) <= 0) break;
             continue;
         }
-        if (n < 0) break; /* hard error (EPIPE/ECONNRESET/EBADF) */
-        break;            /* n == 0 cannot happen on send() */
+        break; /* hard error (EPIPE/ECONNRESET/EBADF); n == 0 cannot happen */
     }
     return (int)total;
 }

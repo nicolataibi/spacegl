@@ -50,6 +50,10 @@ export SPACEGL_KEY="<paste the same value generated above>"
 #    ("SERVER IDENTITY CHANGED"); if the change is legitimate (the server's
 #    data directory was replaced), remove that server's line from
 #    ~/.spacegl/known_servers.
+#    The connection itself runs inside TLS 1.3 (wire revision 5) whose
+#    certificate is this identity: nothing to install, nothing to renew.
+#    Update the server and every client together: an older client is
+#    refused at the first byte.
 #    To pin the key without trusting the first connection:
 ./spacegl-server --print-identity        # fingerprint + public key (64 hex)
 export SPACEGL_SERVER_KEY="<the 64 hex digits printed above>"

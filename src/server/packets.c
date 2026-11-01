@@ -41,6 +41,7 @@
 #include "conn.h"
 #include "packets.h"
 #include "handshake_v2.h"
+#include "sg_tls.h"
 
 extern threadpool_t *g_pool;
 
@@ -95,10 +96,29 @@ int packets_close_stale_handshakes(int epoll_fd, time_t now) {
         } else {
             reap_player_fd(fd, CONN_CLOSE_REAP);
             if (epoll_fd >= 0) epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+            sg_tls_detach(fd);
             close(fd);
         }
     }
-    return n;
+
+    /* TLS handshakes that never completed (a client that connects and
+     * says nothing, or stops halfway): no slot is bound yet. */
+    int tls_stale[MAX_CLIENTS];
+    int nt = sg_tls_stale_handshakes(now, tls_stale, MAX_CLIENTS);
+    for (int k = 0; k < nt; k++) {
+        int fd = tls_stale[k];
+        SG_WARNING(SG_CAT_SECURITY, "fd %d: TLS handshake not completed in %d s: connection closed", fd,
+                   SG_TLS_HANDSHAKE_TIMEOUT_S);
+        Conn *c = (g_io_mode == SPACEGL_IO_ASYNC) ? conn_find(fd) : NULL;
+        if (c) {
+            conn_close(epoll_fd, c, CONN_CLOSE_SILENT);
+        } else {
+            if (epoll_fd >= 0) epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+            sg_tls_detach(fd);
+            close(fd);
+        }
+    }
+    return n + nt;
 }
 
 bool packets_signing_key(int slot, uint8_t out[32]) {
@@ -214,6 +234,7 @@ static int io_close(PktIO *io, ConnCloseReason reason) {
     } else {
         reap_player_fd(io->fd, reason);
         epoll_ctl(io->epoll_fd, EPOLL_CTL_DEL, io->fd, NULL);
+        sg_tls_detach(io->fd);
         close(io->fd);
     }
     return 1;

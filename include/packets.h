@@ -80,7 +80,9 @@ bool packets_signing_key(int slot, uint8_t out[32]);
  * slow) and cleared by a successful PKT_LOGIN. Both event loops call
  * packets_close_stale_handshakes() about once a second; it closes the
  * expired connections (epoll_fd < 0 in tests: legacy teardown without
- * epoll) and frees their slots. Returns the number closed. */
+ * epoll) and frees their slots. The same sweep closes the connections
+ * whose TLS handshake did not complete in SG_TLS_HANDSHAKE_TIMEOUT_S
+ * (include/sg_tls.h, 2026.11.01.11). Returns the number closed. */
 #define HANDSHAKE_PENDING_TIMEOUT_S 180
 int packets_close_stale_handshakes(int epoll_fd, time_t now);
 

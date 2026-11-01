@@ -367,6 +367,7 @@ set(FUZZ_DISPATCH_SRCS
     fuzz_packets.c
     ${SG_ROOT}/src/server/packets.c
     ${SG_ROOT}/src/server/net.c
+    ${SG_ROOT}/src/sg_tls.c
     ${SG_ROOT}/src/server/conn.c
     ${SG_ROOT}/src/server/globals.c
     ${SG_ROOT}/src/server/log.c
@@ -387,7 +388,7 @@ add_executable(fuzz_corpus_test ${FUZZ_DISPATCH_SRCS})
 # Fixed server handshake key in the harness only (handshake_v2.h), so the
 # seeds can precompute the session key that masks the login credentials.
 target_compile_definitions(fuzz_corpus_test PRIVATE FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
-target_link_libraries(fuzz_corpus_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+target_link_libraries(fuzz_corpus_test PRIVATE m Threads::Threads OpenSSL::SSL OpenSSL::Crypto)
 if(OpenMP_C_FOUND)
     target_link_libraries(fuzz_corpus_test PRIVATE OpenMP::OpenMP_C)
 endif()
@@ -409,6 +410,7 @@ set(RATE_LIMIT_SRCS
     rate_limit_test.c
     ${SG_ROOT}/src/server/packets.c
     ${SG_ROOT}/src/server/net.c
+    ${SG_ROOT}/src/sg_tls.c
     ${SG_ROOT}/src/server/conn.c
     ${SG_ROOT}/src/server/globals.c
     ${SG_ROOT}/src/server/log.c
@@ -422,7 +424,7 @@ set(RATE_LIMIT_SRCS
     ${SG_ROOT}/src/sglog.c)
 
 add_executable(rate_limit_test ${RATE_LIMIT_SRCS})
-target_link_libraries(rate_limit_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+target_link_libraries(rate_limit_test PRIVATE m Threads::Threads OpenSSL::SSL OpenSSL::Crypto)
 if(OpenMP_C_FOUND)
     target_link_libraries(rate_limit_test PRIVATE OpenMP::OpenMP_C)
 endif()
@@ -442,7 +444,7 @@ add_test(NAME rate_limit COMMAND rate_limit_test)
 # waking a writer blocked in send(). Same sources as rate_limit_test.
 string(REPLACE "rate_limit_test.c" "relay_snapshot_test.c" RELAY_SNAPSHOT_SRCS "${RATE_LIMIT_SRCS}")
 add_executable(relay_snapshot_test ${RELAY_SNAPSHOT_SRCS})
-target_link_libraries(relay_snapshot_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+target_link_libraries(relay_snapshot_test PRIVATE m Threads::Threads OpenSSL::SSL OpenSSL::Crypto)
 if(OpenMP_C_FOUND)
     target_link_libraries(relay_snapshot_test PRIVATE OpenMP::OpenMP_C)
 endif()
@@ -463,7 +465,7 @@ set_tests_properties(relay_snapshot PROPERTIES TIMEOUT 60)
 # a captain still bound to another connection. Same sources as rate_limit.
 string(REPLACE "rate_limit_test.c" "login_auth_test.c" LOGIN_AUTH_SRCS "${RATE_LIMIT_SRCS}")
 add_executable(login_auth_test ${LOGIN_AUTH_SRCS})
-target_link_libraries(login_auth_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+target_link_libraries(login_auth_test PRIVATE m Threads::Threads OpenSSL::SSL OpenSSL::Crypto)
 if(OpenMP_C_FOUND)
     target_link_libraries(login_auth_test PRIVATE OpenMP::OpenMP_C)
 endif()
@@ -483,7 +485,7 @@ set_tests_properties(login_auth PROPERTIES TIMEOUT 60)
 # before the relay; station names (COMPUTER, STARBASE, ...) are reserved.
 string(REPLACE "rate_limit_test.c" "sender_stamp_test.c" SENDER_STAMP_SRCS "${RATE_LIMIT_SRCS}")
 add_executable(sender_stamp_test ${SENDER_STAMP_SRCS})
-target_link_libraries(sender_stamp_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+target_link_libraries(sender_stamp_test PRIVATE m Threads::Threads OpenSSL::SSL OpenSSL::Crypto)
 if(OpenMP_C_FOUND)
     target_link_libraries(sender_stamp_test PRIVATE OpenMP::OpenMP_C)
 endif()
@@ -527,7 +529,7 @@ add_test(NAME key_file COMMAND key_file_test)
 # off the wire, and the real dispatcher (v1 refused, v2 answered).
 string(REPLACE "rate_limit_test.c" "handshake_v2_test.c" HANDSHAKE_V2_SRCS "${RATE_LIMIT_SRCS}")
 add_executable(handshake_v2_test ${HANDSHAKE_V2_SRCS})
-target_link_libraries(handshake_v2_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+target_link_libraries(handshake_v2_test PRIVATE m Threads::Threads OpenSSL::SSL OpenSSL::Crypto)
 if(OpenMP_C_FOUND)
     target_link_libraries(handshake_v2_test PRIVATE OpenMP::OpenMP_C)
 endif()
@@ -586,8 +588,8 @@ add_test(NAME obj_delta COMMAND obj_delta_test)
 # reference parser of the delta packet: the deck's list follows the server
 # over 900 ticks, a busy quadrant travels as UPD_OBJDELTA.
 add_executable(update_delta_test update_delta_test.c
-    ${SG_ROOT}/src/server/net.c ${SG_ROOT}/src/sglog.c)
-target_link_libraries(update_delta_test PRIVATE m Threads::Threads OpenSSL::Crypto)
+    ${SG_ROOT}/src/server/net.c ${SG_ROOT}/src/sg_tls.c ${SG_ROOT}/src/sglog.c)
+target_link_libraries(update_delta_test PRIVATE m Threads::Threads OpenSSL::SSL OpenSSL::Crypto)
 if(NOT MSVC)
     target_compile_options(update_delta_test PRIVATE ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
     target_link_options(update_delta_test PRIVATE ${SG_TEST_SAN_FLAGS})
@@ -632,7 +634,7 @@ add_test(NAME net_count_oob COMMAND net_count_oob_test)
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
     add_executable(fuzz_packets ${FUZZ_DISPATCH_SRCS})
     target_compile_definitions(fuzz_packets PRIVATE FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
-    target_link_libraries(fuzz_packets PRIVATE m Threads::Threads OpenSSL::Crypto)
+    target_link_libraries(fuzz_packets PRIVATE m Threads::Threads OpenSSL::SSL OpenSSL::Crypto)
     if(OpenMP_C_FOUND)
         target_link_libraries(fuzz_packets PRIVATE OpenMP::OpenMP_C)
     endif()
@@ -895,6 +897,19 @@ endif()
 add_executable(known_servers_test known_servers_test.c)
 target_link_libraries(known_servers_test PRIVATE OpenSSL::Crypto)
 add_test(NAME known_servers COMMAND known_servers_test)
+
+# --- TLS 1.3 on the game port (2026.11.01.11, wire revision 5) ---------
+# src/sg_tls.c on socketpairs: handshake and identity key, buffered
+# packets, a deck in clear refused, a silent peer timed out, one reader and
+# two writers on one session (ASan/UBSan; the tsan job runs it under TSan).
+add_executable(sg_tls_test sg_tls_test.c ${SG_ROOT}/src/sg_tls.c)
+target_link_libraries(sg_tls_test PRIVATE Threads::Threads OpenSSL::SSL OpenSSL::Crypto)
+if(NOT MSVC)
+    target_compile_options(sg_tls_test PRIVATE ${SG_TEST_SAN_FLAGS} -fno-omit-frame-pointer)
+    target_link_options(sg_tls_test PRIVATE ${SG_TEST_SAN_FLAGS})
+endif()
+add_test(NAME sg_tls COMMAND sg_tls_test)
+set_tests_properties(sg_tls PROPERTIES TIMEOUT 120 PASS_REGULAR_EXPRESSION "PASS: sg_tls")
 
 # --- Launcher scripts (2026.11.01.03) ------------------------------------
 # spacegl-server, spacegl-client, spacegl-diag with stub programs:

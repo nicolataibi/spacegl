@@ -55,6 +55,7 @@ static const char *get_lrs_object_icon(int id);
 #endif
 #include "radio_crypto.h"
 #include "sglog.h"
+#include "sg_tls.h"
 
 /* Pre-Shared DeepSpace Encryption Key (Loaded from ENV) */
 uint8_t deep_space_key[32];
@@ -555,6 +556,8 @@ bool push_ipc_event(int type, double x1, double y1, double z1, double x2, double
     return false; /* queue full: dropped */
 }
 
+int write_all(int fd, const void *buf, size_t len);
+
 void process_ipc_commands(int server_sock) {
     int head = atomic_load_explicit(&g_shm->cmd_head, memory_order_acquire);
     int tail = atomic_load_explicit(&g_shm->cmd_tail, memory_order_relaxed);
@@ -565,8 +568,8 @@ void process_ipc_commands(int server_sock) {
         pkt.type = PKT_COMMAND;
         memset(pkt.cmd, 0, sizeof(pkt.cmd));
         strncpy(pkt.cmd, cmd->cmd, sizeof(pkt.cmd) - 1);
-        send(server_sock, &pkt, sizeof(PacketCommand), 0);
-        
+        write_all(server_sock, &pkt, sizeof(PacketCommand));
+
         head = (head + 1) % CMD_QUEUE_SIZE;
         atomic_store_explicit(&g_shm->cmd_head, head, memory_order_release);
     }
@@ -599,22 +602,31 @@ void clear_stdin() {
     while ((c = getchar()) != '\n' && c != EOF);
 }
 
+/* The socket I/O of the deck goes through the TLS seam (include/sg_tls.h,
+ * wire revision 5): the socket is non-blocking under TLS, so the waits
+ * are sg_net_wait() calls, outside the session lock the listener thread
+ * (reading) and the main thread (writing) share. */
 int read_all(int fd, void *buf, size_t len) {
     size_t total = 0;
     char *p = (char *)buf;
     while (total < len) {
-        ssize_t n = read(fd, p + total, len - total);
-        if (n == 0) return 0; /* Connection closed */
-        if (n < 0) {
-            /* EINTR: a signal (Ctrl+C / SIGTERM on the main thread, or the
-             * visualizer handshake SIGUSR2) interrupted the syscall. The
-             * pre-fix code returned -1, which the listener mistook for a
-             * dead connection during a perfectly healthy session. */
-            if (errno == EINTR) continue;
-            perror("read_all failed");
-            return -1;
+        ssize_t n = sg_net_recv(fd, p + total, len - total);
+        if (n > 0) {
+            total += (size_t)n;
+            continue;
         }
-        total += (size_t)n;   /* n > 0 */
+        if (n == 0) return 0; /* Connection closed */
+        /* EINTR: a signal (Ctrl+C / SIGTERM on the main thread, or the
+         * visualizer handshake SIGUSR2) interrupted the syscall. The
+         * pre-fix code returned -1, which the listener mistook for a
+         * dead connection during a perfectly healthy session. */
+        if (errno == EINTR) continue;
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            int w = sg_net_wait(fd, false, -1);
+            if (w > 0 || (w < 0 && errno == EINTR)) continue;
+        }
+        perror("read_all failed");
+        return -1;
     }
     return (int)total;
 }
@@ -629,9 +641,19 @@ int write_all(int fd, const void *buf, size_t len) {
     size_t total = 0;
     const char *p = (char *)buf;
     while (total < len) {
-        ssize_t n = send(fd, p + total, len - total, 0);
-        if (n <= 0) return (int)n;
-        total += (size_t)n;   /* n > 0 */
+        ssize_t n = sg_net_send(fd, p + total, len - total);
+        if (n > 0) {
+            total += (size_t)n;
+            continue;
+        }
+        if (n < 0 && errno == EINTR) continue;
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            /* a full send buffer: wait (30 s at most, a server that
+             * stopped reading is a lost link) */
+            int w = sg_net_wait(fd, true, 30000);
+            if (w > 0 || (w < 0 && errno == EINTR)) continue;
+        }
+        return total > 0 ? (int)total : -1;
     }
     return (int)total;
 }
@@ -682,6 +704,7 @@ static int connect_to_server(void) {
     }
 
     if (sock > 0) {
+        sg_tls_detach(sock);
         close(sock);
         sock = -1;
     }
@@ -695,6 +718,7 @@ static int connect_to_server(void) {
             break; /* Success */
         }
 
+        sg_tls_detach(sock);
         close(sock);
         sock = -1;
     }
@@ -793,15 +817,34 @@ static int do_handshake(void) {
     uint8_t reply[HANDSHAKE_V2_REPLY_LEN];
     uint8_t session[32];
     uint8_t server_id[32];
+    uint8_t tls_key[32];
     int ok = 0;
     g_pin_refused = false;
+    /* TLS 1.3 first (wire revision 5, include/sg_tls.h). The certificate
+     * is the server's identity: its key is pinned before anything is
+     * said inside the tunnel. */
+    if (!sg_tls_client_init() || !sg_tls_client_connect(sock, 10000, tls_key)) {
+        fprintf(stderr, B_RED "[SECURITY] No TLS 1.3 session with the server (a server of wire revision 4 "
+                              "or older does not speak TLS).\n" RESET);
+        return 0;
+    }
+    if (!server_identity_accept(tls_key)) {
+        g_pin_refused = true;
+        return 0;
+    }
+    printf(B_CYAN "[SECURE] Transport:          " B_GREEN "TLS 1.3 (%s)\n" RESET, sg_tls_cipher(sock));
     if (hs_v2_client_hello(master_root_key, h_pkt.pubkey, &hs) &&
         write_all(sock, &h_pkt, sizeof(PacketHandshake)) > 0) {
         int ack_type = 0;
         if (read_all(sock, &ack_type, sizeof(int)) == (int)sizeof(int) && ack_type == PKT_HANDSHAKE &&
             read_all(sock, reply, sizeof(reply)) == (int)sizeof(reply) &&
             hs_v2_client_finish(master_root_key, &hs, reply, session, galaxy_verify_key, server_id)) {
-            if (!server_identity_accept(server_id)) {
+            /* the identity that signed the handshake is the one of the TLS
+             * certificate: a tunnel to one server cannot carry the
+             * handshake of another */
+            if (CRYPTO_memcmp(server_id, tls_key, 32) != 0) {
+                fprintf(stderr, B_RED "[SECURITY] The handshake is signed by another identity than the TLS "
+                                      "certificate: connection refused.\n" RESET);
                 g_pin_refused = true;
                 OPENSSL_cleanse(&hs, sizeof(hs));
                 OPENSSL_cleanse(session, sizeof(session));
@@ -1828,6 +1871,7 @@ int main(int argc, char *argv[]) {
             break; /* Success */
         }
 
+        sg_tls_detach(sock);
         close(sock);
         sock = -1;
     }
@@ -1843,12 +1887,14 @@ int main(int argc, char *argv[]) {
     snprintf(g_pin_hostport, sizeof(g_pin_hostport), "%s:%d", server_ip, DEFAULT_PORT);
     if (!do_handshake()) {
         if (g_pin_refused) {
+            sg_tls_detach(sock);
             close(sock);
             exit(1);
         }
         fprintf(stderr, B_RED "SECURITY ERROR: Master Key mismatch or Handshake rejected by server "
                               "(handshake v2, wire revision %d required on both ends: a server "
                               "of another revision closes the link).\n" RESET, SPACEGL_WIRE_REVISION);
+        sg_tls_detach(sock);
         close(sock);
         exit(1);
     }
@@ -1865,6 +1911,7 @@ int main(int argc, char *argv[]) {
        local captains/ tree (the server enforces the same rule). */
     if (!sanitize_captain_name(captain_name)) {
         fprintf(stderr, B_RED "SECURITY ERROR: Invalid commander name. Only letters, digits, '_' and '-' are allowed (max 32 characters), and station names (COMPUTER, SCIENCE, STARBASE, ...) are reserved.\n" RESET);
+        sg_tls_detach(sock);
         close(sock);
         exit(1);
     }
@@ -1918,6 +1965,7 @@ int main(int argc, char *argv[]) {
         login_status = 0;
         if (read_all(sock, &login_status, sizeof(int)) <= 0) {
             fprintf(stderr, B_RED "SECURITY ERROR: Identity check: no response from server.\n" RESET);
+            sg_tls_detach(sock);
             close(sock);
             exit(1);
         }
@@ -1925,6 +1973,7 @@ int main(int argc, char *argv[]) {
             uint8_t reply_salt[16];
             if (read_all(sock, reply_salt, 16) != 16) {
                 fprintf(stderr, B_RED "SECURITY ERROR: Identity check: truncated salt reply.\n" RESET);
+                sg_tls_detach(sock);
                 close(sock);
                 exit(1);
             }
@@ -1942,6 +1991,7 @@ int main(int argc, char *argv[]) {
             }
             if (++salt_rounds > 3) {
                 fprintf(stderr, B_RED "SECURITY ERROR: Identity check: salt exchange did not converge.\n" RESET);
+                sg_tls_detach(sock);
                 close(sock);
                 exit(1);
             }
@@ -1958,9 +2008,11 @@ int main(int argc, char *argv[]) {
 
     if (login_status == 3) {
         fprintf(stderr, B_RED "SECURITY ERROR: INVALID ACCESS CODE.\n" RESET);
+        sg_tls_detach(sock);
         close(sock); exit(1);
     } else if (login_status == 4) {
         fprintf(stderr, B_RED "SECURITY ERROR: COMMANDER NAME ALREADY ACTIVE IN GALAXY.\n" RESET);
+        sg_tls_detach(sock);
         close(sock); exit(1);
     }
 
@@ -2075,6 +2127,7 @@ int main(int argc, char *argv[]) {
     } else {
         fprintf(stderr, B_RED "ERROR: Failed to synchronize Galaxy Map (Expected %zu, got %d).\n" RESET, sizeof(SpaceGLGame), master_read);
         free(master_sync);
+        sg_tls_detach(sock);
         close(sock);
         exit(1);
     }
@@ -2205,7 +2258,7 @@ int main(int argc, char *argv[]) {
                         if (g_shm) atomic_store(&g_shm->force_shutdown, 1);
                         PacketCommand cpkt = {PKT_COMMAND, ""};
                         strcpy(cpkt.cmd, g_input_buf);
-                        send(sock, &cpkt, sizeof(cpkt), 0);
+                        write_all(sock, &cpkt, sizeof(cpkt));
                         usleep(50000); /* Give processes time to see the flag */
                         g_running = 0;
                         break; /* orderly shutdown after the loop (2026.10.06.07) */
@@ -2221,7 +2274,7 @@ int main(int argc, char *argv[]) {
                         if (clen > 255) clen = 255;
                         memcpy(cpkt.cmd, g_input_buf, clen);
                         cpkt.cmd[clen] = '\0';
-                        send(sock, &cpkt, sizeof(cpkt), 0);
+                        write_all(sock, &cpkt, sizeof(cpkt));
                     } else if (strncmp(g_input_buf, "link ", 5) == 0) {
                         char target[64];
                         memset(target, 0, 64);
@@ -2309,7 +2362,7 @@ int main(int argc, char *argv[]) {
                         pthread_mutex_unlock(&g_state_mutex);
                         PacketCommand cpkt = {PKT_COMMAND, ""};
                         snprintf(cpkt.cmd, sizeof(cpkt.cmd), "%s", g_input_buf);
-                        send(sock, &cpkt, sizeof(cpkt), 0);
+                        write_all(sock, &cpkt, sizeof(cpkt));
                         g_input_ptr = 0; g_input_buf[0] = 0; reprint_prompt(); continue;
                     } else if (strncmp(g_input_buf, "rad ", 4) == 0 || strcmp(g_input_buf, "rad") == 0) {
                         char *msg_start = (strlen(g_input_buf) > 4) ? g_input_buf + 4 : NULL;
@@ -2455,14 +2508,8 @@ int main(int argc, char *argv[]) {
 
                         size_t pkt_size = offsetof(PacketMessage, text) + (size_t)mpkt->length;
                         if (pkt_size > sizeof(PacketMessage)) pkt_size = sizeof(PacketMessage);
-                        
-                        size_t svan_msg = 0;
-                        char *p_msg = (char *)mpkt;
-                        while (svan_msg < pkt_size) {
-                            ssize_t n = send(sock, p_msg + svan_msg, pkt_size - svan_msg, 0);
-                            if (n <= 0) break;
-                            svan_msg += (size_t)n;   /* n > 0 */
-                        }
+
+                        write_all(sock, mpkt, pkt_size);
                         free(mpkt);
                     } else {
                         PacketCommand cpkt = {PKT_COMMAND, ""};
@@ -2473,7 +2520,7 @@ int main(int argc, char *argv[]) {
                         /* No swap_buffers() here (2026.10.31.13): a plain
                          * command changes no shared state, and the swap is
                          * the listener's (it raced with it). */
-                        send(sock, &cpkt, sizeof(cpkt), 0);
+                        write_all(sock, &cpkt, sizeof(cpkt));
                     }
                     
                     g_input_ptr = 0;
@@ -2510,6 +2557,7 @@ int main(int argc, char *argv[]) {
         pthread_join(g_listener_thread, NULL);
         g_listener_started = 0;
     }
+    sg_tls_detach(sock);
     close(sock);
     return 0;
 }

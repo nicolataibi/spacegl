@@ -43,6 +43,7 @@
 #include "sg_parse.h"
 #include "handshake_v2.h"
 #include "known_servers.h"
+#include "sg_tls.h"
 #include <fcntl.h>
 #include <openssl/rand.h>
 
@@ -606,44 +607,75 @@ static void run_legacy_loop(int server_fd, int epoll_fd) {
                 if (new_socket == -1) { perror("accept"); continue; }
                 
                 tune_socket(new_socket);
+                if (!sg_tls_server_attach(new_socket)) {
+                    SG_WARNING(SG_CAT_NETWORK, "fd %d: no TLS session available: connection dropped", new_socket);
+                    close(new_socket);
+                    continue;
+                }
 
                 ev.events = EPOLLIN; 
                 ev.data.fd = new_socket;
-                if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_socket, &ev) == -1) { perror("epoll_ctl: new_socket"); close(new_socket); }
+                if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_socket, &ev) == -1) {
+                    perror("epoll_ctl: new_socket");
+                    sg_tls_detach(new_socket);
+                    close(new_socket);
+                    continue;
+                }
                 SG_TRACE4(SG_CAT_NETWORK, "new connection accepted (fd %d)", new_socket);
                 LOG_DEBUG("New connection accepted: FD %d\n", new_socket);
             } else {
-                /* Handle data from a client */
-                int type;
-                int r = read_all(fd, &type, sizeof(int));
-                
-                if (r <= 0) {
-                    /* Disconnect: Keep player record for persistence, just close socket */
-                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-                    pthread_mutex_lock(&game_mutex);
-                    for (int i=0; i<MAX_CLIENTS; i++) if (players[i].socket == fd) { 
-                        /* Log the departure before clearing the socket */
-                        time_t now_disc = time(NULL);
-                        struct tm *t_disc = SG_LOCALTIME(&now_disc);
-                        char time_disc[64];
-                        strftime(time_disc, sizeof(time_disc), "%Y-%m-%d %H:%M:%S", t_disc);
-                        SG_NOTICE(SG_CAT_CLIENT, "captain %s disconnected (slot %d)",
-                                  players[i].name[0] ? players[i].name : "?", i);
-                        slog("\033[1;35m[DISCONNECT]\033[0m Captain \033[1;37m%-15s\033[0m has left the galaxy.    [\033[1;33m%s\033[0m]\n", 
-                               players[i].name[0] ? players[i].name : "Unknown", time_disc);
-
-                        player_socket_detach(i);
-                        players[i].active = 0;
-                        players[i].radio_lock_target = 0;
-                        memset(players[i].session_key, 0, 32);
-                        save_galaxy();
-                        break; 
+                /* TLS first: the handshake advances on the readiness
+                   events, then the packets follow inside the session. */
+                if (sg_tls_active(fd) && !sg_tls_ready(fd)) {
+                    int hs = sg_tls_server_step(fd);
+                    if (hs < 0) {
+                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                        sg_tls_detach(fd);
+                        close(fd);
+                        continue;
                     }
-                    pthread_mutex_unlock(&game_mutex);
-                    close(fd);
-                    LOG_DEBUG("Connection closed: FD %d\n", fd);
-                    continue;
+                    struct epoll_event mev = { .events = EPOLLIN | (hs == 0 && sg_net_wants_write(fd) ? EPOLLOUT : 0) };
+                    mev.data.fd = fd;
+                    epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &mev);
+                    if (hs == 0 || sg_tls_pending(fd) == 0) continue;
                 }
+              /* A TLS record may carry several packets: they stay decrypted
+                 in the session, where epoll cannot see them, so the
+                 packets are handled until the session holds no more. */
+                for (bool more = true; more;) {
+                /* Handle data from a client */
+                    int type;
+                    int r = read_all(fd, &type, sizeof(int));
+
+                    if (r <= 0) {
+                    /* Disconnect: Keep player record for persistence, just close socket */
+                        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                        pthread_mutex_lock(&game_mutex);
+                        for (int i = 0; i < MAX_CLIENTS; i++)
+                            if (players[i].socket == fd) {
+                        /* Log the departure before clearing the socket */
+                                time_t now_disc = time(NULL);
+                                struct tm *t_disc = SG_LOCALTIME(&now_disc);
+                                char time_disc[64];
+                                strftime(time_disc, sizeof(time_disc), "%Y-%m-%d %H:%M:%S", t_disc);
+                                SG_NOTICE(SG_CAT_CLIENT, "captain %s disconnected (slot %d)",
+                                          players[i].name[0] ? players[i].name : "?", i);
+                                slog("\033[1;35m[DISCONNECT]\033[0m Captain \033[1;37m%-15s\033[0m has left the galaxy.    [\033[1;33m%s\033[0m]\n",
+                                     players[i].name[0] ? players[i].name : "Unknown", time_disc);
+
+                                player_socket_detach(i);
+                                players[i].active = 0;
+                                players[i].radio_lock_target = 0;
+                                memset(players[i].session_key, 0, 32);
+                                save_galaxy();
+                                break;
+                            }
+                        pthread_mutex_unlock(&game_mutex);
+                        sg_tls_detach(fd);
+                        close(fd);
+                        LOG_DEBUG("Connection closed: FD %d\n", fd);
+                        break;
+                    }
 
                 /* The per-packet body handling and every teardown path
                    live in the shared dispatcher (src/server/packets.c),
@@ -653,13 +685,15 @@ static void run_legacy_loop(int server_fd, int epoll_fd) {
                    read_all() (blocking, bounded by the 5 s poll) and
                    teardown is plain epoll_ctl + close - the
                    pre-refactor behavior, byte for byte. */
-                PktIO io;
-                io.epoll_fd = epoll_fd;
-                io.fd = fd;
-                io.conn = NULL;
-                io.rx = NULL;
-                io.rx_len = 0;
-                if (dispatch_packet(&io, type) != 0) continue; /* dispatcher closed the connection */
+                    PktIO io;
+                    io.epoll_fd = epoll_fd;
+                    io.fd = fd;
+                    io.conn = NULL;
+                    io.rx = NULL;
+                    io.rx_len = 0;
+                    if (dispatch_packet(&io, type) != 0) break; /* dispatcher closed the connection */
+                    more = sg_tls_pending(fd) > 0;
+                }
             }
         }
     }
@@ -841,6 +875,14 @@ int main(int argc, char *argv[]) {
     OpenSSL_add_all_digests();
 
     printf("%s | %s SECURITY:         %sCryptographic Subsystem Primed                %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, B_MAGENTA, RESET);
+
+    /* TLS 1.3 on the game port (wire revision 5): the certificate is made
+       here, in memory, from the identity key the decks already pin. */
+    if (!sg_tls_server_init(SERVER_PRIVKEY)) {
+        SG_FATAL(SG_CAT_SECURITY, "cannot set up TLS 1.3 with the server identity");
+        exit(1);  // NOLINT(concurrency-mt-unsafe): only one thread ever calls exit())
+    }
+    printf("%s | %s TRANSPORT:        %sTLS 1.3 (certificate = server identity)       %s %s\n", B_MAGENTA, B_WHITE, B_GREEN, B_MAGENTA, RESET);
 
     /* Initialize Thread Pool for Async Tasks (Crypto, Pathfinding, I/O) */
     int nprocs = (int)sysconf(_SC_NPROCESSORS_ONLN);

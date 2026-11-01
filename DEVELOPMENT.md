@@ -115,7 +115,7 @@ cmake --build build -j
 
 ## 3. Running the test suite
 
-The suite has **46 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
+The suite has **47 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
@@ -159,12 +159,13 @@ The suite has **46 tests** (integrated mode; the standalone mode builds the ones
 | 38 | `radio_e2e` | two real decks on the real server: clear, fleet-encrypted, identity-frequency and peer messages, verified | `spacegl_server` + `spacegl_client` (black-box) |
 | 39 | `gl_shape_cache` | OpenGL viewer: display-list shapes match immediate mode; compiled on second use (needs an OpenGL context: skip otherwise) | `src/glut_compat.c` |
 | 40 | `known_servers` | the deck's pins of server identity keys: first contact, mismatch, `SPACEGL_SERVER_KEY`, file format | `include/known_servers.h` |
-| 41 | `launcher` | the launcher scripts with stub programs: arguments, exit status, key sources and prompt (pseudo-terminal), `--help`, a missing program, the diagnostic's server lookup | `spacegl-server`, `spacegl-client`, `spacegl-diag` |
-| 42 | `deck_e2e` | the deck's own paths: no server, wrong key, refused names, eleven concurrent logins, the input line, duplicate/wrong logins, reconnect after a restart, server identity pinning | `spacegl_server` + `spacegl_client` (black-box) |
-| 43 | `telemetry` | the telemetry port (TCP 5001): every category, frames checked against the boot table | `spacegl_server` + `telemetry_client_test` |
-| 44 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
-| 45 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
-| 46 | `smoke_async` | the same with the server in `--io=async` | same |
+| 41 | `sg_tls` | TLS 1.3 on the game port on socketpairs: handshake and identity key from the certificate, packets buffered in the session, a deck in clear refused, a silent peer timed out, one reader and two writers on one session (TSan in CI) | `src/sg_tls.c` |
+| 42 | `launcher` | the launcher scripts with stub programs: arguments, exit status, key sources and prompt (pseudo-terminal), `--help`, a missing program, the diagnostic's server lookup | `spacegl-server`, `spacegl-client`, `spacegl-diag` |
+| 43 | `deck_e2e` | the deck's own paths: no server, wrong key, refused names, eleven concurrent logins, the input line, duplicate/wrong logins, reconnect after a restart, server identity pinning, the TLS 1.3 transport (`tests/tls_probe.py`: TLS 1.3 only, certificate = identity, clear text refused; a silent connection closed) | `spacegl_server` + `spacegl_client` (black-box) |
+| 44 | `telemetry` | the telemetry port (TCP 5001): every category, frames checked against the boot table | `spacegl_server` + `telemetry_client_test` |
+| 45 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
+| 46 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
+| 47 | `smoke_async` | the same with the server in `--io=async` | same |
 
 The tests that use port 5000/5001 run serially (`RUN_SERIAL`); an image or GPU test without a display or an ICD returns 77 (SKIP). Every end-to-end script uses a private `known_servers` file (`SPACEGL_KNOWN_SERVERS`), so a new data directory is not taken for a changed server.
 
@@ -292,10 +293,10 @@ SECURITY.md if it pins an audit item.
 | :--- | :--- |
 | `src/` | the 8 product TUs (server in `src/server/`, GDD in `src/vulkan_gdd_build.c` and `src/vulkan_gdd_render.c`) |
 | `include/` | shared headers; `spacegl_gdd.h` is the CPU/GPU contract, `object_types.h` the single table of object `type` values (X-macro; server, HUD, viewers and the GDD builder all use its `OBJ_*` names and predicates),
-  `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks, `handshake_v2.h` the handshake (wire revision 4, the server identity signature), `known_servers.h` the deck's pins of server identities |
+  `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks, `handshake_v2.h` the handshake (wire revision 4, the server identity signature), `sg_tls.h` the TLS 1.3 transport of the game port (wire revision 5, one seam for the socket I/O of server and deck), `known_servers.h` the deck's pins of server identities |
 | `assets/shaders/` | GLSL sources (legacy `shader.*` + GDD `gdd_*`, shared `gdd_common.glsl`/`gdd_ops.glsl`) |
-| `tests/` | the 46-test suite (dual-mode CMake project), `bench_ab.sh` (A/B benchmark gate), `format_check.sh`, `fuzz/` (libFuzzer harness seeds and their generator/migration scripts) |
-| `PROTOCOL.md` | the wire protocol (packets, handshake, identity, limits) |
+| `tests/` | the 47-test suite (dual-mode CMake project), `bench_ab.sh` (A/B benchmark gate), `format_check.sh`, `fuzz/` (libFuzzer harness seeds and their generator/migration scripts) |
+| `PROTOCOL.md` | the wire protocol (TLS transport, packets, handshake, identity, limits) |
 | `cmake/SpaceGLVulkanSDK.cmake` | the shared Vulkan SDK resolution chain |
 | `man/` | man pages (one per product binary) |
 | `spacegl.spec` | RPM spec (its `%check` runs the unit suite) |

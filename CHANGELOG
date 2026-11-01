@@ -1,3 +1,48 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.11
+  - TLS 1.3 on the game port (wire revision 5): every deck <-> server
+  connection on port 5000 runs inside TLS 1.3, with no plaintext mode.
+  The server's certificate is self-signed and made at start-up, in memory,
+  from its Ed25519 identity key (server_identity.key): no certificate
+  file, no authority. The deck reads the key from the certificate and
+  checks it against its pin (known_servers, SPACEGL_SERVER_KEY) before it
+  sends anything; the handshake v2 that follows must be signed by the same
+  identity. For the captain nothing changes but one line, "Transport: TLS
+  1.3 (TLS_AES_256_GCM_SHA384)". Commands, positions, the login packets
+  and the galaxy snapshot no longer travel in clear, and every record is
+  authenticated (before: only the galaxy state and signed messages).
+  - src/sg_tls.c, include/sg_tls.h: the one seam for the socket I/O of
+  the server and the deck (sg_net_recv/sg_net_send behave like recv/send
+  on a non-blocking socket, TLS when the fd carries a session, clear
+  otherwise: the dispatcher tests on socketpairs are unchanged). One lock
+  per connection around every SSL call, never held while waiting, so the
+  thread reading a connection and the threads writing to it (the server's
+  relay and broadcast, the deck's listener and main thread) never use the
+  same SSL object at once. TLS 1.3 only, no session tickets, no
+  resumption.
+  - Server: the TLS handshake advances on the epoll events in both I/O
+  modes (legacy and async) and never blocks the loop; a TLS record can
+  carry several packets, which stay decrypted in the session where epoll
+  cannot see them: the legacy loop handles them until the session holds no
+  more, the async state machine reads until EAGAIN. A connection that does
+  not complete its TLS handshake in 10 s (SG_TLS_HANDSHAKE_TIMEOUT_S) is
+  closed by the per-second sweep. A deck of revision 4 or older (its hello
+  in clear) is refused at the first byte with a log line.
+  - The inner hello keeps the marker "HSV4": no deck of revision 4 gets
+  past the first byte, so the fuzz corpus (which drives the dispatcher
+  without TLS) needs no migration. SPACEGL_WIRE_REVISION is 5.
+  - Cost: one TLS 1.3 handshake per connection, about 1.3 ms on loopback
+  (median of 200; p95 3 ms); a reconnect does a new one.
+  - Tests: tests/sg_tls_test (socketpairs: handshake and identity key,
+  buffered packets, a deck in clear refused, a silent peer timed out, one
+  reader and two writers on one session; ASan/UBSan, and TSan in the tsan
+  job); tests/deck_e2e_test.sh step 9 with tests/tls_probe.py against the
+  real server (TLS 1.3 negotiated, the certificate's key is the identity,
+  a TLS 1.2 client refused, a hello in clear and non-TLS bytes get no
+  byte back, a silent connection closed). 47 tests.
+  - PROTOCOL.md (transport), SECURITY.md (section 1.4 rewritten: the
+  decision, what it adds, what remains), README.md, DEVELOPMENT.md,
+  HOWTO.txt, spacegl_server(1), spacegl_client(1).
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.10
   - Roadmap 10, golden renders on a real GPU: tests/gpu_golden_check.sh,
   to run on the GPU machine in its graphical session. It renders the

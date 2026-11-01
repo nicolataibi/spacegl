@@ -69,9 +69,15 @@
  *   "HSV3"  revision 3, 2026.10.31.30: per-object update delta
  *           (UPD_OBJDELTA, include/obj_delta.h)
  *   "HSV4"  revision 4, 2026.10.31.43: the server's identity key and its
- *           signature in the handshake reply */
-#define SPACEGL_WIRE_REVISION  4
-#define HANDSHAKE_V2_MARKER    0x34565348   /* "HSV4" (little endian) in pubkey_len */
+ *           signature in the handshake reply
+ * Revision 5 (2026.11.01.11) puts the whole connection inside TLS 1.3
+ * (include/sg_tls.h) and changes nothing inside it: the two ends refuse
+ * each other at the first byte (a TLS record against a hello in clear),
+ * so no deck of revision 4 ever reaches the hello and its marker stays
+ * "HSV4" (the fuzz corpus, which drives the dispatcher without TLS,
+ * needs no migration). */
+#define SPACEGL_WIRE_REVISION  5
+#define HANDSHAKE_V2_MARKER    0x34565348   /* "HSV4" (little endian) in pubkey_len, revisions 4 and 5 */
 #define HANDSHAKE_MARKER_REV2  0x32565348   /* "HSV2": a revision-2 deck, refused */
 #define HANDSHAKE_MARKER_REV3  0x33565348   /* "HSV3": a revision-3 deck, refused */
 #define HANDSHAKE_V2_REQ_LEN   96           /* eC + Nc + MAC used in pubkey[] */
