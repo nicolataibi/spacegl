@@ -299,7 +299,7 @@ On the first connection to a server the deck prints the server's identity finger
 
 ## Testing
 
-The development guide documents a CTest suite of 44 tests covering CPU/GPU data contracts, shader/mesh parity, navigation math, spatial indexing, packet lengths, cryptographic table behavior, bounds checks, packet fuzzing, the handshake and the server identity pins, the radio relay, end-to-end sessions of real decks on the real server, rendering parity, the Vulkan viewer's default path, the OpenGL viewer's shared geometry, and benchmarks. In CI the server tick is also compared with the base commit (`tests/bench_ab.sh`, a 5% gate) and the line coverage of the server and of the command deck has a floor.
+The development guide documents a CTest suite of 46 tests covering CPU/GPU data contracts, shader/mesh parity, navigation math, spatial indexing, packet lengths, cryptographic table behavior, bounds checks, packet fuzzing, the handshake and the server identity pins, the radio relay, end-to-end sessions of real decks on the real server, rendering parity, the Vulkan viewer's default path, the OpenGL viewer's shared geometry and golden render, the launcher scripts, and benchmarks. In CI the server tick is also compared with the base commit (`tests/bench_ab.sh`, a 5% gate) and the line coverage of the server and of the command deck has a floor.
 
 ### Integrated test suite
 

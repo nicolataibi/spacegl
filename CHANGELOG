@@ -1,3 +1,28 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.09
+  - OpenGL viewer, bloom resolution: SPACEGL_GL_BLOOM=full (the default,
+  unchanged: the blur at the window size, six passes), half (the blur at
+  half the size in each direction, two passes; the first pass reads the
+  full-size scene with bilinear filtering, the combine reads the blur
+  back the same way) or off (the resolved scene goes to the window
+  as it is). llvmpipe, 1920x1080: the bloom phase costs 394, 86 and 37 ms a
+  frame (the 37 ms are the MSAA resolve); the half picture matches the
+  full one within the golden tolerances (global RMSE 4.0).
+  - OpenGL viewer, golden render (roadmap): spacegl_3dview gains the
+  options of spacegl_vulkan: --screenshot FILE (frame N as a binary PPM,
+  then exit), --screenshot-frame N, --seed N, --no-rotate, --window WxH; a
+  missing SHM segment is created empty in a screenshot run, and the deck
+  is not signalled. With --screenshot the clock is fixed (glut_clock_fix /
+  glut_clock_step in src/glut_compat.c: every animation reads the time
+  through glutGet(), and it advances 1/60 s a frame), so frame 30 is the
+  same picture on every run and on every machine speed.
+  - Tests: golden_gl (tests/run_golden_gl.sh; ctest and the CI gpu job):
+  two runs bit-identical (gcc Debug and Release too), the committed
+  tests/golden/golden_gl.ppm (region-based, the Vulkan golden's
+  tolerances; another seed or the camera orbit fails all four regions),
+  SPACEGL_GL_BLOOM=half the same picture (parity), =off the scene at half
+  the brightness (ratio 0.50). --help, the man page and DEVELOPMENT.md
+  (the test table: 46 tests, launcher added) updated.
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.08
   - Fix (telemetry server, intermittent telemetry_test failure "category
   17: 414 objects, the boot table said 195"): telemetry_broadcast() read a

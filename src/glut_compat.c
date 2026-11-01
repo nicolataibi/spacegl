@@ -30,8 +30,21 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+/* A fixed clock for deterministic renders (2026.11.01.09, the viewer's
+ * --screenshot): every animation of the viewer reads the time through
+ * glutGet(GLUT_ELAPSED_TIME); with the clock fixed it advances only by
+ * glut_clock_step(), one frame at a time, so frame N is the same picture on
+ * every run whatever the machine's speed. */
+static double g_fixed_clock_ms = -1.0;
+
+void glut_clock_fix(bool on) { g_fixed_clock_ms = on ? 0.0 : -1.0; }
+void glut_clock_step(double ms) {
+    if (g_fixed_clock_ms >= 0.0) g_fixed_clock_ms += ms;
+}
+
 int glutGet(int state) {
     if (state == GLUT_ELAPSED_TIME) {
+        if (g_fixed_clock_ms >= 0.0) return (int)g_fixed_clock_ms;
         return (int)(glfwGetTime() * 1000.0);
     }
     return 0;

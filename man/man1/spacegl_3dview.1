@@ -20,12 +20,40 @@ argument is specified. It can also be started independently to attach
 to an existing shared memory segment.
 .SH OPTIONS
 .TP
+.BI \-\-screenshot " FILE"
+Capture frame N (see below) as a binary PPM and exit. The clock of the
+viewer is then fixed (one frame = 1/60 s), so the frame is the same picture
+on every run; a missing shared-memory segment is created empty (the scene
+of the golden render) instead of waited for.
+.TP
+.BI \-\-screenshot\-frame " N"
+The frame to capture (default 30).
+.TP
+.BI \-\-seed " N"
+Fixed random seed (deterministic starfield).
+.TP
+.B \-\-no\-rotate
+No automatic camera orbit.
+.TP
+.BI \-\-window " WxH"
+Window size.
+.TP
 .B \-\-version
 Print version information and exit.
 .SH ENVIRONMENT
 .TP
 .B DISPLAY
 X11 display for the OpenGL output.
+.TP
+.B SPACEGL_GL_BLOOM
+.B full
+(default): the bloom blur at the window size, six passes;
+.BR half :
+at half the size in each direction, two passes (about a seventh of the
+blur cost, a slightly softer halo on thin bright lines);
+.BR off :
+no bloom (the scene at about half the brightness, the bloom adding a
+blurred copy of it).
 .TP
 .B SPACEGL_GL_PROFILE
 Set to 1 to print a draw-call profile every 300 frames: the time of a

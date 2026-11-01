@@ -668,6 +668,18 @@ if(TARGET spacegl_vulkan)
                          ENVIRONMENT "SPACEGL_SHADERS_DIR=${CMAKE_BINARY_DIR}/shaders")
 endif()
 
+# --- OpenGL viewer golden render (2026.11.01.09) ------------------------
+# tests/run_golden_gl.sh: frame 30 of the empty scene, deterministic (fixed
+# clock): two runs bit-identical, the committed tests/golden/golden_gl.ppm
+# (region-based), and the SPACEGL_GL_BLOOM=half / off renders. Needs a
+# display or xvfb-run, an OpenGL driver and python3-pil: SKIP (77) without.
+if(TARGET spacegl_3dview)
+    add_test(NAME golden_gl COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/run_golden_gl.sh
+                                     $<TARGET_FILE:spacegl_3dview>)
+    set_tests_properties(golden_gl PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300 RUN_SERIAL TRUE
+                         PASS_REGULAR_EXPRESSION "PASS: golden_gl")
+endif()
+
 # --- Vulkan viewer default path (2026.10.31.42) ------------------------
 # The GPU-driven path is the default, SPACEGL_GPD=0 the CPU-driven one, and
 # a GDD that cannot start falls back to the CPU-driven path (simulated with

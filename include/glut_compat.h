@@ -74,6 +74,9 @@ void glutBitmapTextSize(int px);
 
 /* Utility functions */
 int glutGet(int state);
+/* Deterministic clock for screenshot runs (src/glut_compat.c). */
+void glut_clock_fix(bool on);
+void glut_clock_step(double ms);
 void glutSwapBuffers(void);
 
 #define GLUT_ELAPSED_TIME 700

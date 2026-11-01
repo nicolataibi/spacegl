@@ -115,7 +115,7 @@ cmake --build build -j
 
 ## 3. Running the test suite
 
-The suite has **44 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
+The suite has **46 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
@@ -150,19 +150,21 @@ The suite has **44 tests** (integrated mode; the standalone mode builds the ones
 | 29 | `crypto_table_oob` | B2-b: `radio_cipher_for_algo()` bounds, all 256 algo bytes (ASan/UBSan) | `include/radio_crypto.h` |
 | 30 | `net_count_oob` | B3-b: object/beam `count` field bounds, canary array (ASan/UBSan) | `src/server/packets.c` + `net.c` |
 | 31 | `golden` | CPU-vs-GDD render parity and GDD golden regression pin, region-based (integrated only) | `spacegl_vulkan` (black-box) |
-| 32 | `gdd_default` | the Vulkan viewer's default path: GDD by default, `SPACEGL_GPD=0` CPU-driven, fallback when the GDD cannot start, strict `SPACEGL_GPD=1` for screenshots (integrated only) | `spacegl_vulkan` (black-box) |
-| 33 | `gdd_bench` | GDD cull/expand/final compute pass times against thresholds | `gdd_mesh_test --benchmark` |
-| 34 | `server_tick_bench` | server tick: 1000 ticks of the real loop over a worst-case-but-stable scene; avg < `threshold_ms`, p99 < `p99_ms` (`tests/server_tick_thresholds.txt`) | `src/server/logic.c` + `logic_events.c` + `quad_index.c` + `targets.c` |
-| 35 | `stability` | real server + real deck for 60 s, server RSS delta ≤ 10 MB (integrated only) | `spacegl_server` + `spacegl_client` (black-box) |
-| 36 | `server_commands` | the command handlers on a real galaxy | `src/server/commands*.c`, galaxy, logic, targets |
-| 37 | `radio_e2e` | two real decks on the real server: clear, fleet-encrypted, identity-frequency and peer messages, verified | `spacegl_server` + `spacegl_client` (black-box) |
-| 38 | `gl_shape_cache` | OpenGL viewer: display-list shapes match immediate mode; compiled on second use (needs an OpenGL context: skip otherwise) | `src/glut_compat.c` |
-| 39 | `known_servers` | the deck's pins of server identity keys: first contact, mismatch, `SPACEGL_SERVER_KEY`, file format | `include/known_servers.h` |
-| 40 | `deck_e2e` | the deck's own paths: no server, wrong key, refused names, eleven concurrent logins, the input line, duplicate/wrong logins, reconnect after a restart, server identity pinning | `spacegl_server` + `spacegl_client` (black-box) |
-| 41 | `telemetry` | the telemetry port (TCP 5001): every category, frames checked against the boot table | `spacegl_server` + `telemetry_client_test` |
-| 42 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
-| 43 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
-| 44 | `smoke_async` | the same with the server in `--io=async` | same |
+| 32 | `golden_gl` | OpenGL viewer: deterministic frame (two runs bit-identical), the committed `golden_gl.ppm` (region-based), the `SPACEGL_GL_BLOOM` modes (integrated only) | `spacegl_3dview` (black-box) |
+| 33 | `gdd_default` | the Vulkan viewer's default path: GDD by default, `SPACEGL_GPD=0` CPU-driven, fallback when the GDD cannot start, strict `SPACEGL_GPD=1` for screenshots (integrated only) | `spacegl_vulkan` (black-box) |
+| 34 | `gdd_bench` | GDD cull/expand/final compute pass times against thresholds | `gdd_mesh_test --benchmark` |
+| 35 | `server_tick_bench` | server tick: 1000 ticks of the real loop over a worst-case-but-stable scene; avg < `threshold_ms`, p99 < `p99_ms` (`tests/server_tick_thresholds.txt`) | `src/server/logic.c` + `logic_events.c` + `quad_index.c` + `targets.c` |
+| 36 | `stability` | real server + real deck for 60 s, server RSS delta ≤ 10 MB (integrated only) | `spacegl_server` + `spacegl_client` (black-box) |
+| 37 | `server_commands` | the command handlers on a real galaxy | `src/server/commands*.c`, galaxy, logic, targets |
+| 38 | `radio_e2e` | two real decks on the real server: clear, fleet-encrypted, identity-frequency and peer messages, verified | `spacegl_server` + `spacegl_client` (black-box) |
+| 39 | `gl_shape_cache` | OpenGL viewer: display-list shapes match immediate mode; compiled on second use (needs an OpenGL context: skip otherwise) | `src/glut_compat.c` |
+| 40 | `known_servers` | the deck's pins of server identity keys: first contact, mismatch, `SPACEGL_SERVER_KEY`, file format | `include/known_servers.h` |
+| 41 | `launcher` | the launcher scripts with stub programs: arguments, exit status, key sources and prompt (pseudo-terminal), `--help`, a missing program, the diagnostic's server lookup | `spacegl-server`, `spacegl-client`, `spacegl-diag` |
+| 42 | `deck_e2e` | the deck's own paths: no server, wrong key, refused names, eleven concurrent logins, the input line, duplicate/wrong logins, reconnect after a restart, server identity pinning | `spacegl_server` + `spacegl_client` (black-box) |
+| 43 | `telemetry` | the telemetry port (TCP 5001): every category, frames checked against the boot table | `spacegl_server` + `telemetry_client_test` |
+| 44 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
+| 45 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
+| 46 | `smoke_async` | the same with the server in `--io=async` | same |
 
 The tests that use port 5000/5001 run serially (`RUN_SERIAL`); an image or GPU test without a display or an ICD returns 77 (SKIP). Every end-to-end script uses a private `known_servers` file (`SPACEGL_KNOWN_SERVERS`), so a new data directory is not taken for a changed server.
 
@@ -292,7 +294,7 @@ SECURITY.md if it pins an audit item.
 | `include/` | shared headers; `spacegl_gdd.h` is the CPU/GPU contract, `object_types.h` the single table of object `type` values (X-macro; server, HUD, viewers and the GDD builder all use its `OBJ_*` names and predicates),
   `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks, `handshake_v2.h` the handshake (wire revision 4, the server identity signature), `known_servers.h` the deck's pins of server identities |
 | `assets/shaders/` | GLSL sources (legacy `shader.*` + GDD `gdd_*`, shared `gdd_common.glsl`/`gdd_ops.glsl`) |
-| `tests/` | the 44-test suite (dual-mode CMake project), `bench_ab.sh` (A/B benchmark gate), `format_check.sh`, `fuzz/` (libFuzzer harness seeds and their generator/migration scripts) |
+| `tests/` | the 46-test suite (dual-mode CMake project), `bench_ab.sh` (A/B benchmark gate), `format_check.sh`, `fuzz/` (libFuzzer harness seeds and their generator/migration scripts) |
 | `PROTOCOL.md` | the wire protocol (packets, handshake, identity, limits) |
 | `cmake/SpaceGLVulkanSDK.cmake` | the shared Vulkan SDK resolution chain |
 | `man/` | man pages (one per product binary) |
@@ -444,6 +446,16 @@ number and element count.
   base; `--reps`, `--tol`, `--gdd-tol`, `--no-gdd`). It skips, with the
   reason, when the base does not build or when the benchmark program
   itself changed between the two sides.
+- **OpenGL viewer: golden render and bloom.** `spacegl_3dview --screenshot
+  FILE [--screenshot-frame N] [--seed N] [--no-rotate] [--window WxH]`
+  renders frame N with a fixed clock (one frame = 1/60 s; every animation
+  reads the time through `glutGet()`), creating an empty SHM segment when
+  no deck is running: the same picture on every run. `golden_gl`
+  (`tests/run_golden_gl.sh`, ctest and the CI `gpu` job) checks two runs
+  bit-identical, the committed `tests/golden/golden_gl.ppm` (region-based,
+  as the Vulkan golden), and the bloom modes. `SPACEGL_GL_BLOOM=full`
+  (default) | `half` | `off`: under llvmpipe at 1920x1080 the bloom phase
+  costs 394 / 86 / 37 ms a frame (the 37 ms are the MSAA resolve).
 - **OpenGL viewer: shared geometry and profile.** `src/glut_compat.c`
   compiles every glut shape (sphere, cube, cone, cylinder, torus,
   octahedron, icosahedron) into a display list by its exact parameters on

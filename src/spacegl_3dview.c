@@ -85,6 +85,27 @@ int g_fb_h = TACTICAL_CUBE_H;
 
 /* Size the bloom FBO chain was actually allocated at (0 = not created). */
 int bloom_w = 0, bloom_h = 0;
+/* Bloom resolution (2026.11.01.09): SPACEGL_GL_BLOOM=full (default: the
+ * blur at the window size, 6 passes), half (the blur at half the size in
+ * each direction, 2 passes: about a tenth of the blur cost, a slightly
+ * softer halo on thin bright lines) or off (the scene without bloom). */
+enum { BLOOM_FULL = 0,
+       BLOOM_HALF,
+       BLOOM_OFF };
+static int g_bloom_mode = -1;   /* read once */
+int bloom_pw = 0, bloom_ph = 0; /* size of the ping-pong (blur) textures */
+
+static int bloom_mode(void) {
+    if (g_bloom_mode < 0) {
+        const char *e = getenv("SPACEGL_GL_BLOOM");
+        g_bloom_mode = BLOOM_FULL;
+        if (e && strcmp(e, "half") == 0) g_bloom_mode = BLOOM_HALF;
+        else if (e && strcmp(e, "off") == 0) g_bloom_mode = BLOOM_OFF;
+        else if (e && e[0] && strcmp(e, "full") != 0)
+            fprintf(stderr, "[BLOOM] SPACEGL_GL_BLOOM=%s not known (full, half, off): full\n", e);
+    }
+    return g_bloom_mode;
+}
 
 #define MAX_PARTICLES 16384
 typedef struct {
@@ -527,13 +548,15 @@ void initBloomFBO(int w, int h) {
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         printf("[BLOOM] ERROR: Scene Framebuffer not complete!\n");
 
-    /* 3. Ping-Pong FBOs for Blur */
+    /* 3. Ping-Pong FBOs for Blur (half the size with SPACEGL_GL_BLOOM=half) */
+    int pw = (bloom_mode() == BLOOM_HALF) ? (w + 1) / 2 : w;
+    int ph = (bloom_mode() == BLOOM_HALF) ? (h + 1) / 2 : h;
     glGenFramebuffers(2, fbo_pingpong);
     glGenTextures(2, tex_pingpong);
     for (unsigned int i = 0; i < 2; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo_pingpong[i]);
         glBindTexture(GL_TEXTURE_2D, tex_pingpong[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, w, h, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, pw, ph, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
@@ -545,7 +568,11 @@ void initBloomFBO(int w, int h) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     bloom_w = w;
     bloom_h = h;
-    printf("[BLOOM] FBOs initialized at %dx%d.\n", w, h);
+    bloom_pw = pw;
+    bloom_ph = ph;
+    printf("[BLOOM] FBOs initialized at %dx%d (blur %dx%d, %s).\n", w, h, pw, ph,
+           bloom_mode() == BLOOM_HALF ? "half" : bloom_mode() == BLOOM_OFF ? "off"
+                                                                           : "full");
 }
 
 /* Recreate the bloom chain if it does not match the requested size. Called
@@ -1975,14 +2002,26 @@ void display() {
     }
 
     /* 3. BLOOM PASS: Blur the Bright Texture (Ping-Pong) */
-    if (fbo_scene != 0) {
+    if (fbo_scene != 0 && bloom_mode() == BLOOM_OFF) {
+        /* no bloom: the resolved scene goes to the window as it is */
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo_scene);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBlitFramebuffer(0, 0, bloom_w, bloom_h, 0, 0, bloom_w, bloom_h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClear(GL_DEPTH_BUFFER_BIT);   /* as the combine pass leaves it for the HUD */
+    } else if (fbo_scene != 0) {
         bool horizontal = true, first_iteration = true;
-        unsigned int amount = 6;
+        /* half: each pass covers twice the screen distance, so one pass in
+         * each direction gives about the halo of three at full size */
+        unsigned int amount = (bloom_mode() == BLOOM_HALF) ? 2 : 6;
+        GLint vp[4];
+        glGetIntegerv(GL_VIEWPORT, vp);
+        glViewport(0, 0, bloom_pw, bloom_ph);
         glUseProgram(blurShaderProgram);
         glDisable(GL_DEPTH_TEST);
-        /* Gaussian kernel offset in texels of the LIVE-size textures. */
+        /* Gaussian kernel offset in texels of the blur textures. */
         glUniform2f(glGetUniformLocation(blurShaderProgram, "texel"),
-                    1.0f / (float)bloom_w, 1.0f / (float)bloom_h);
+                    1.0f / (float)bloom_pw, 1.0f / (float)bloom_ph);
         for (unsigned int i = 0; i < amount; i++) {
             glBindFramebuffer(GL_FRAMEBUFFER, fbo_pingpong[horizontal]); 
             glUniform1i(glGetUniformLocation(blurShaderProgram, "horizontal"), horizontal);
@@ -1992,6 +2031,7 @@ void display() {
             first_iteration = false;
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(vp[0], vp[1], vp[2], vp[3]);
 
         /* 3. BLOOM PASS: Final Combine (HDR + Bloom) */
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -2985,6 +3025,30 @@ void check_display_protocol() {
     /* No-op: GLFW handles Wayland natively */
 }
 
+/* The back buffer of the frame just drawn as a binary PPM (P6), top row
+ * first (2026.11.01.09, the golden render). 0 on success. */
+static int write_screenshot(const char *path) {
+    int w = g_fb_w, h = g_fb_h;
+    size_t row = (size_t)w * 3;
+    unsigned char *px = malloc(row * (size_t)h);
+    if (!px) return 1;
+    glFinish();
+    glReadBuffer(GL_BACK);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, px);
+    FILE *f = fopen(path, "wb");
+    int rc = 1;
+    if (f) {
+        fprintf(f, "P6\n%d %d\n255\n", w, h);
+        bool ok = true;
+        for (int y = h - 1; y >= 0 && ok; y--) ok = fwrite(px + (size_t)y * row, 1, row, f) == row;
+        rc = (fclose(f) == 0 && ok) ? 0 : 1;
+    }
+    free(px);
+    printf("[3D VIEW] screenshot: %s (%dx%d)%s\n", path, w, h, rc ? " FAILED" : "");
+    return rc;
+}
+
 int main(int argc, char** argv) {
     sglog_init("glv");
     sglog_apply_args(argc, argv);
@@ -2992,13 +3056,20 @@ int main(int argc, char** argv) {
     /* Handle --help and --version for help2man */
     if (argc > 1) {
         if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
-            printf("Usage: spacegl_3dview [SHM_NAME]\n");
+            printf("Usage: spacegl_3dview [SHM_NAME] [OPTIONS]\n");
             printf("Space GL OpenGL Tactical Viewer\n\n");
             printf("Options:\n");
-            printf("  --help, -h     Display this help and exit\n");
-            printf("  --version      Display version information and exit\n\n");
+            printf("  --screenshot FILE     capture frame N as PPM and exit (fixed clock; a missing\n");
+            printf("                        SHM segment is created EMPTY: the golden render)\n");
+            printf("  --screenshot-frame N  the frame to capture (default 30)\n");
+            printf("  --seed N              fixed random seed (deterministic starfield)\n");
+            printf("  --no-rotate           no automatic camera orbit\n");
+            printf("  --window WxH          window size (default %dx%d)\n", TACTICAL_CUBE_W, TACTICAL_CUBE_H);
+            printf("  --help, -h            display this help and exit\n");
+            printf("  --version             display version information and exit\n\n");
             printf("Environment Variables:\n");
-            printf("  DISPLAY        X11 Display for OpenGL output\n");
+            printf("  DISPLAY                      X11 display for the OpenGL output\n");
+            printf("  SPACEGL_GL_BLOOM=full|half|off  bloom blur resolution (default full)\n");
             printf("  SPACEGL_GL_PROFILE=1         draw-call profile every 300 frames (stdout)\n");
             printf("  SPACEGL_GL_PROFILE_FRAMES=N  with the profile: exit after N frames\n");
             printf("  SPACEGL_GL_SHAPE_CACHE=0     shapes in immediate mode, no display lists\n");
@@ -3020,12 +3091,58 @@ int main(int argc, char** argv) {
 
     printf("[3D VIEW] Starting...\n");
 
-    char *shm_name = SHM_NAME; if (argc > 1) shm_name = argv[1];
+    /* Options (2026.11.01.09, the golden render of the OpenGL viewer; the
+     * same as spacegl_vulkan's): the SHM segment name is the first
+     * argument that is not an option. */
+    char *shm_name = SHM_NAME;
+    const char *shot_path = NULL;
+    int shot_frame = 30, rng_seed = -1, win_w = TACTICAL_CUBE_W, win_h = TACTICAL_CUBE_H;
+    bool no_rotate = false, shm_named = false;
+    for (int ai = 1; ai < argc; ai++) {
+        if (strcmp(argv[ai], "--screenshot") == 0 && ai + 1 < argc) shot_path = argv[++ai];
+        else if (strcmp(argv[ai], "--screenshot-frame") == 0 && ai + 1 < argc) {
+            shot_frame = atoi(argv[++ai]);   // NOLINT(cert-err34-c): a frame number, invalid = default
+            if (shot_frame < 1) shot_frame = 30;
+        } else if (strcmp(argv[ai], "--seed") == 0 && ai + 1 < argc) rng_seed = atoi(argv[++ai]);   // NOLINT(cert-err34-c)
+        else if (strcmp(argv[ai], "--no-rotate") == 0) no_rotate = true;
+        else if (strcmp(argv[ai], "--window") == 0 && ai + 1 < argc) {
+            int ww = 0, wh = 0;
+            if (sscanf(argv[++ai], "%dx%d", &ww, &wh) == 2 && ww > 0 && wh > 0) {
+                win_w = ww;
+                win_h = wh;
+            }
+        } else if (argv[ai][0] == '-') {
+            /* sglog options (--log-level=...) are read by sglog_apply_args */
+        } else if (!shm_named) {
+            shm_name = argv[ai];
+            shm_named = true;
+        }
+    }
+    if (rng_seed >= 0) srand((unsigned int)rng_seed);
+    if (no_rotate) autoRotate = 0.0f;
+    if (shot_path) glut_clock_fix(true);   /* frame N: the same picture on every run */
 
     printf("[3D VIEW] Connecting to SHM: %s\n", shm_name);
-    
 
-    int retries = 0; 
+
+    int retries = 0;
+
+    /* A screenshot run with no command deck: create the segment EMPTY
+     * (the scene both viewers' golden renders use) instead of waiting. */
+    bool shm_created = false;
+    if (shot_path) {
+        shm_fd = shm_open(shm_name, O_RDWR, 0666);
+        if (shm_fd == -1) {
+            shm_fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, 0600);
+            if (shm_fd != -1) {
+                shm_unlink(shm_name);   /* no orphan segment */
+                if (ftruncate(shm_fd, sizeof(SharedIPC)) != 0) {
+                    close(shm_fd);
+                    shm_fd = -1;
+                } else shm_created = true;
+            }
+        }
+    }
 
     while(shm_fd == -1 && retries < 10) { 
         shm_fd = shm_open(shm_name, O_RDWR, 0666); 
@@ -3056,6 +3173,7 @@ int main(int argc, char** argv) {
         perror("[3D VIEW] mmap failed");
         exit(1);
     }
+    if (shm_created) shm_layout_stamp(g_shm);
     {
         const char *why = shm_layout_check(g_shm);
         if (why) {
@@ -3085,13 +3203,13 @@ int main(int argc, char** argv) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     glfwWindowHint(GLFW_SAMPLES, 4);
-    
-    GLFWwindow* window = glfwCreateWindow(TACTICAL_CUBE_W, TACTICAL_CUBE_H, "Space GL 3DView - Multiuser", NULL, NULL);
+
+    GLFWwindow *window = glfwCreateWindow(win_w, win_h, "Space GL 3DView - Multiuser", NULL, NULL);
     if (!window) {
         /* Fallback to 2.1 if 3.0 fails */
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-        window = glfwCreateWindow(TACTICAL_CUBE_W, TACTICAL_CUBE_H, "Space GL 3DView - Multiuser", NULL, NULL);
+        window = glfwCreateWindow(win_w, win_h, "Space GL 3DView - Multiuser", NULL, NULL);
     }
 
     if (!window) {
@@ -3155,9 +3273,13 @@ int main(int argc, char** argv) {
     glMatrixMode(GL_PROJECTION); 
     gluPerspective(45, (double)g_fb_w/g_fb_h, 1, 500.0 * QG_SCALE); 
     glMatrixMode(GL_MODELVIEW);
-        
-    printf("[3D VIEW] Ready. Sending handshake to parent (PID %d).\n", getppid());
-    kill(getppid(), SIGUSR2);
+
+    if (shot_path) {
+        printf("[3D VIEW] Ready (screenshot run: no deck to notify).\n");
+    } else {
+        printf("[3D VIEW] Ready. Sending handshake to parent (PID %d).\n", getppid());
+        kill(getppid(), SIGUSR2);
+    }
 
     /* Draw-call profile (2026.10.31.41): SPACEGL_GL_PROFILE=1 prints, every
      * 300 frames, the time of a frame before the swap (display() and the
@@ -3203,6 +3325,15 @@ int main(int argc, char** argv) {
                 prof_n = 0;
             }
             if (prof_max_frames > 0 && prof_frame >= prof_max_frames) break;
+        }
+        if (shot_path) {
+            static int shot_n = 0;
+            if (++shot_n == shot_frame) {
+                int rc = write_screenshot(shot_path);
+                glfwTerminate();
+                return rc;
+            }
+            glut_clock_step(1000.0 / 60.0);
         }
         glfwSwapBuffers(window);
         glfwPollEvents();
