@@ -44,6 +44,10 @@
 #include "handshake_v2.h"
 #include "known_servers.h"
 #include "sg_tls.h"
+#include "tick_monitor.h"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 #include <fcntl.h>
 #include <openssl/rand.h>
 
@@ -377,16 +381,43 @@ void sync_client_task(void *arg) {
     free(task);
 }
 
+static double mono_ms(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (double)t.tv_sec * 1000.0 + (double)t.tv_nsec / 1.0e6;
+}
+
+static double thread_cpu_ms(void) {
+    struct timespec t;
+    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t) != 0) return -1.0;
+    return (double)t.tv_sec * 1000.0 + (double)t.tv_nsec / 1.0e6;
+}
+
 void *game_loop_thread(void *arg) {
     (void)arg;
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     save_galaxy_set_game_thread(true);
+    /* The tick's own measure (include/tick_monitor.h, 2026.11.01.13). */
+    TickMonitor mon;
+    tick_monitor_init(&mon, (double)GAME_TICK_NSEC / 1.0e6, mono_ms() / 1000.0);
+    int tick_threads = tick_threads_from_env(getenv("SPACEGL_TICK_THREADS"));
+#ifdef _OPENMP
+    omp_set_num_threads(tick_threads);   /* this thread's parallel loops only */
+#endif
+    SG_INFO(SG_CAT_PERFORMANCE, "game loop: %d OpenMP thread(s) for the tick (SPACEGL_TICK_THREADS)", tick_threads);
     while (g_running) {
         ts.tv_nsec += GAME_TICK_NSEC; 
         if (ts.tv_nsec >= 1000000000) { ts.tv_sec++; ts.tv_nsec -= 1000000000; }
         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL);
+        double phase[TICK_PHASES];
+        double c_wake = thread_cpu_ms();
+        double t_wake = mono_ms();
+        double deadline = (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1.0e6;
+        phase[TICK_PHASE_WAKE] = t_wake > deadline ? t_wake - deadline : 0.0;
         pthread_mutex_lock(&game_mutex);
+        double t_locked = mono_ms();
+        phase[TICK_PHASE_LOCK] = t_locked - t_wake;
         update_game_logic();
         global_tick++;
         spacegl_master.frame_id++;
@@ -395,11 +426,16 @@ void *game_loop_thread(void *arg) {
         extern void telemetry_sync_state();
         telemetry_sync_state();
 
+        double t_logic = mono_ms();
+        phase[TICK_PHASE_LOGIC] = t_logic - t_locked;
+
         /* A save requested by another thread runs here, under the lock,
          * where nothing else writes players[] (see save_galaxy()). */
         if (save_galaxy_take_request()) save_galaxy_async();
 
         pthread_mutex_unlock(&game_mutex);
+        double t_save = mono_ms();
+        phase[TICK_PHASE_SAVE] = t_save - t_logic;
 
         /* No per-tick re-signing of spacegl_master (2026.10.31.13). It ran
          * outside the lock and rewrote the signature fields while the
@@ -413,11 +449,24 @@ void *game_loop_thread(void *arg) {
          * This decouples blocking TCP writes from the 60Hz simulation lock,
          * preventing a slow client from stalling the entire game thread. */
         send_pending_updates();
+        double t_send = mono_ms();
+        phase[TICK_PHASE_SEND] = t_send - t_save;
 
         /* Broadcast telemetry OUTSIDE of the game lock to avoid stalling the main loop */
         extern void telemetry_broadcast();
         telemetry_broadcast();
+        double t_end = mono_ms();
+        phase[TICK_PHASE_TELEMETRY] = t_end - t_send;
+
+        double c_end = thread_cpu_ms();
+        double tick_cpu = (c_wake >= 0.0 && c_end >= 0.0) ? c_end - c_wake : -1.0;
+        char msg[400];
+        if (tick_monitor_record(&mon, (uint64_t)global_tick, phase, tick_cpu, t_end / 1000.0, msg, sizeof(msg)))
+            SG_WARNING(SG_CAT_PERFORMANCE, "%s", msg);
     }
+    char summary[160];
+    tick_monitor_summary(&mon, summary, sizeof(summary));
+    SG_NOTICE(SG_CAT_PERFORMANCE, "game loop: %s", summary);
     save_galaxy_set_game_thread(false);
     return NULL;
 }
@@ -901,6 +950,7 @@ int main(int argc, char *argv[]) {
         SG_NOTICE(SG_CAT_ASSET, "no existing galaxy state: generating new galaxy");
         generate_galaxy(); save_galaxy();
     }
+    save_galaxy_prepare();
     sign_galaxy_data();
     init_static_spatial_index();
     

@@ -1,3 +1,52 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.13
+  - Performance, phase 1 (the slow ticks of the server). The server now
+  times its own tick (include/tick_monitor.h): the logic, the wait for
+  game_mutex, the galaxy save image, the network updates, the telemetry,
+  how late the thread woke up and its CPU time. Ticks over the 16.7 ms
+  budget are logged as one PERFORMANCE warning at most every 10 s, with
+  their number and the worst one by phase, and named as "waiting for a
+  CPU" when their CPU time is under half their duration (the machine is
+  busy, not the server); the totals are logged at shutdown. With it, on
+  the real server with decks logging in and out, three causes were found
+  and fixed:
+  - Galaxy save image: every save built a fresh 30-45 MB buffer under
+  game_mutex in the game thread, page-faulting all of it: 28-45 ms (two
+  or three lost ticks) at every departure, supernova and autosave. The
+  server now keeps one image buffer, mapped at boot
+  (save_galaxy_prepare) and reused by every save: 1-8 ms in 12 saves (one
+  of 23 ms on this virtual machine)
+  (galaxy_file_image_into). The buffer stays allocated (30-45 MB). A save
+  requested while the previous one was still being written was skipped
+  (its state waited for the next save); it is now retried at the next
+  tick.
+  - LRS grid: refresh_lrs_grid() rebuilt the digits of all 64 000
+  quadrants once per second inside one tick, 10-15 ms (30 ms on a busy
+  machine). It moved to src/server/lrs_grid.c and runs one plane per tick
+  (refresh_lrs_grid_slice): every quadrant still once per second, about
+  0.3 ms per tick.
+  - OpenMP team of the tick: with two threads the average tick was the
+  same and the CPU time doubled (the second thread spins at every join),
+  and a thread taken off its CPU held the tick for a time slice: 33 slow
+  ticks against 5 with one thread in the same session. The game thread
+  now runs its loops with SPACEGL_TICK_THREADS threads, default 1 (1..64;
+  the boot, galaxy generation included, is unchanged).
+  - tests/server_tick_bench.c: runs the real LRS slices (the stub assumed
+  1-3 ms once per second), the tick's OpenMP team as the server sets it,
+  reports p99.9, the CPU time per tick next to the wall time and the
+  largest wait for a CPU, and the save image with a fresh and a reused
+  buffer (29.8 MB: 17.6 vs 2.8 ms here). The gate is unchanged (average
+  and p99 of the wall time). This machine (2 virtual CPUs): average
+  2.49 ms, p99 4.11, p99.9 4.82; CPU time p99.9 4.74 ms. Because the
+  benchmark program changed, the next bench_ab run skips.
+  - What remains in the slowest ticks here comes from the machine: with
+  no deck connected, a program that writes 41 MB every 6 s made ticks of
+  normally 0.3 ms take 10-30 ms of CPU time (a virtual machine whose host
+  backs memory lazily). The monitor's warning now tells the two cases
+  apart on any machine.
+  - tests/tick_monitor_test.c (ctest tick_monitor, 49 tests).
+  spacegl_server(1): SPACEGL_TICK_THREADS, PERFORMANCE. README.md,
+  DEVELOPMENT.md.
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.12
   - Launchers (spacegl-server, spacegl-client, spacegl-diag), key prompt:
   COPR (centos-stream+epel-10) failed the launcher test "terminal: the key

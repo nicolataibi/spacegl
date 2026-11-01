@@ -9,6 +9,7 @@
 #ifndef GALAXY_FILE_H
 #define GALAXY_FILE_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -16,12 +17,21 @@
 typedef struct {
     uint8_t *data;
     size_t len;
+    size_t cap;   /* bytes allocated at data (galaxy_file_image_into) */
 } GalaxyImage;
 
 /* The whole file of the current galaxy, in memory (format 2). NULL when
  * out of memory. Free it with galaxy_file_image_free(). */
 GalaxyImage *galaxy_file_image(void);
 void galaxy_file_image_free(GalaxyImage *img);
+
+/* The same image built into img, reusing its buffer when it is large
+ * enough (it only grows). The server keeps one such image for all its
+ * saves (2026.11.01.13): a fresh 30-45 MB buffer per save cost its page
+ * faults, 28-45 ms under game_mutex, at every save. false when out of
+ * memory (img unchanged). Release with galaxy_file_image_release(). */
+bool galaxy_file_image_into(GalaxyImage *img);
+void galaxy_file_image_release(GalaxyImage *img);
 
 #define GALAXY_FILE_OK           1    /* loaded (some pools may be empty) */
 #define GALAXY_FILE_BAD          0    /* format 2 but unreadable: generate anew */

@@ -57,59 +57,7 @@ static void mark_quad_dirty(int q1, int q2, int q3) {
     }
 }
 
-void refresh_lrs_grid() {
-    for (int i = 1; i <= GALAXY_SIZE; i++) {
-        for (int j = 1; j <= GALAXY_SIZE; j++) {
-            for (int l = 1; l <= GALAXY_SIZE; l++) {
-                QuadrantIndex *q = &spatial_index[i][j][l];
-                int c_mon = (q->monster_count > 9) ? 9 : q->monster_count;
-                int c_u = (q->player_count > 9) ? 9 : q->player_count;
-                /* Torpedoes contribute to tactical signal noise in LRS */
-                int c_tor = (q->torpedo_count > 9) ? 9 : q->torpedo_count;
-                
-                int c_rift = (q->rift_count > 9) ? 9 : q->rift_count;
-                int c_plat = (q->platform_count > 9) ? 9 : q->platform_count;
-                int c_buoy = (q->buoy_count > 9) ? 9 : q->buoy_count;
-                int c_mine = (q->mine_count > 9) ? 9 : q->mine_count;
-                int c_der = (q->derelict_count > 9) ? 9 : q->derelict_count;
-                int c_ast = (q->asteroid_count > 9) ? 9 : q->asteroid_count;
-                int c_com = (q->comet_count > 9) ? 9 : q->comet_count;
-                int c_pul = (q->pulsar_count > 9) ? 9 : q->pulsar_count;
-                int c_neb = (q->nebula_count > 9) ? 9 : q->nebula_count;
-                int c_bh = (q->bh_count > 9) ? 9 : q->bh_count;
-                int c_p = ((q->planet_count + q->sys_planet_count) > 9) ? 9 : (q->planet_count + q->sys_planet_count);
-                int c_npc = (q->npc_count > 9) ? 9 : q->npc_count;
-                int c_b = (q->base_count > 9) ? 9 : q->base_count;
-                int c_s = ((q->star_count + q->sys_star_count) > 9) ? 9 : (q->star_count + q->sys_star_count);
-                
-                int c_qsr = (q->quasar_count > 9) ? 9 : q->quasar_count;
-                int c_sub = (q->subspace_anomaly_count > 9) ? 9 : q->subspace_anomaly_count;
-                
-                long long storm_flag = (spacegl_master.g[i][j][l] / 10000000LL) % 10;
-                spacegl_master.g[i][j][l] = (long long)c_sub * 1000000000000000000LL
-                                          + (long long)c_qsr * 100000000000000000LL
-                                          + (long long)c_mon * 10000000000000000LL 
-                                          + (long long)c_u   * 1000000000000000LL
-                                          + (long long)c_tor * 1000000000000000LL /* Combine torps with user activity for LRS */
-                                          + (long long)c_rift * 100000000000000LL 
-                                          + (long long)c_plat * 10000000000000LL 
-                                          + (long long)c_buoy * 1000000000000LL 
-                                          + (long long)c_mine * 100000000000LL 
-                                          + (long long)c_der * 10000000000LL 
-                                          + (long long)c_ast * 1000000000LL 
-                                          + (long long)c_com * 100000000LL 
-                                          + (long long)storm_flag * 10000000LL
-                                          + (long long)c_pul * 1000000 
-                                          + (long long)c_neb * 100000 
-                                          + (long long)c_bh * 10000
-                                          + (long long)c_p * 1000 
-                                          + (long long)c_npc * 100 
-                                          + (long long)c_b * 10 
-                                          + (long long)c_s;
-            }
-        }
-    }
-}
+/* refresh_lrs_grid(), refresh_lrs_grid_slice(): src/server/lrs_grid.c */
 
 void rebuild_spatial_index() {
     if (!spatial_index) {

@@ -224,6 +224,7 @@ set(SERVER_SRCS
     src/server/logic.c
     src/server/logic_npc.c
     src/server/logic_events.c
+    src/server/lrs_grid.c
     src/server/nav_math.c
     src/server/net.c
     src/server/packets.c

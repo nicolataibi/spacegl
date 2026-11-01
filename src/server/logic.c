@@ -1592,11 +1592,9 @@ void update_game_logic() {
     update_moon_orbits();
     update_star_systems();
 
-    /* Refresh LRS Grid once per second */
-    if (global_tick % GAME_TICK_RATE == 0) {
-        extern void refresh_lrs_grid();
-        refresh_lrs_grid();
-    }
+    /* LRS grid: one slice per tick, the whole grid once per second
+     * (the whole grid in one tick cost 10-15 ms of its 16.7). */
+    refresh_lrs_grid_slice(global_tick);
 
     /* High-Energy Nebula Antimatter Refill */
     for (int i = 0; i < MAX_CLIENTS; i++) {

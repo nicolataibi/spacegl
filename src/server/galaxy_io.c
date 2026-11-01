@@ -36,6 +36,14 @@
 
 static atomic_bool g_is_saving = false;
 
+/* The one save image (2026.11.01.13), owned by the save in flight while
+ * g_is_saving is set and reused by the next: building a fresh 30-45 MB
+ * buffer for every save page-faulted all of it, 28-45 ms under game_mutex
+ * in the game thread (two ticks lost at every departure); into a buffer
+ * already mapped the copy is 1-8 ms. save_galaxy_prepare() maps it at
+ * boot. The memory stays in use for the life of the server. */
+static GalaxyImage g_save_image;
+
 /* Write the image to galaxy.dat.tmp, fsync, rename over galaxy.dat: a
  * crash in the middle leaves the previous galaxy.dat intact. */
 static bool galaxy_image_write(const GalaxyImage *img) {
@@ -86,7 +94,7 @@ static void galaxy_save_finish(GalaxyImage *img) {
         if (ts) ts[strlen(ts)-1] = '\0';
         slog("--- [%s] GALAXY SAVED ASYNCHRONOUSLY (POOL) ---\n", ts);
     }
-    galaxy_file_image_free(img);
+    (void)img;   /* g_save_image: kept for the next save */
     atomic_store(&g_is_saving, false);
 }
 
@@ -101,18 +109,34 @@ extern threadpool_t *g_pool;
  * writes it. Without a pool (shutdown: it is already drained and
  * destroyed) the write happens here. A save while another one is still
  * being written is skipped, as before. */
+static atomic_bool g_save_requested = false;
+
 void save_galaxy_async() {
     bool expected = false;
-    if (!atomic_compare_exchange_strong(&g_is_saving, &expected, true)) return;
+    if (!atomic_compare_exchange_strong(&g_is_saving, &expected, true)) {
+        /* The previous save is still being written. It was skipped: the
+         * state of this save (a departure, a supernova) waited for the
+         * next one. It is now requested again, and the game thread
+         * retries it at its next tick (2026.11.01.13). */
+        atomic_store(&g_save_requested, true);
+        return;
+    }
 
-    GalaxyImage *img = galaxy_file_image();
-    if (!img) {
+    GalaxyImage *img = &g_save_image;
+    if (!galaxy_file_image_into(img)) {
         slog("ERROR: galaxy save: out of memory for the save image\n");
         atomic_store(&g_is_saving, false);
         return;
     }
     if (g_pool && threadpool_add_task(g_pool, galaxy_save_task, img) == 0) return;
     galaxy_save_finish(img);
+}
+
+void save_galaxy_prepare(void) {
+    bool expected = false;
+    if (!atomic_compare_exchange_strong(&g_is_saving, &expected, true)) return;
+    if (!galaxy_file_image_into(&g_save_image)) slog("WARNING: galaxy save: no memory for the save image yet\n");
+    atomic_store(&g_is_saving, false);
 }
 
 /* Who saves (2026.10.31.13, ThreadSanitizer). The save reads players[] and
@@ -123,7 +147,6 @@ void save_galaxy_async() {
  * it. While the game thread runs, such a save is a request that the game
  * thread carries out at its next tick, inside the lock, where nothing else
  * writes players[]; the game thread itself, boot and shutdown save at once. */
-static atomic_bool g_save_requested = false;
 static atomic_bool g_game_thread_set = false;
 static pthread_t g_game_thread;
 

@@ -93,6 +93,22 @@ server refuses a file readable by others). Preferred over
 .B SPACEGL_KEY
 The master key as a string (legacy; fallback
 .IR ~/.spacegl/key ).
+.TP
+.B SPACEGL_TICK_THREADS
+OpenMP threads of the 60 Hz tick's parallel loops, 1 to 64 (default 1).
+The loops are short: on most machines a second thread saves nothing and
+doubles the CPU time (it spins at every join), and a thread the system
+takes away from its CPU holds the whole tick for a time slice.
+.SH PERFORMANCE
+The game thread times every tick: the logic, the wait for the game lock,
+the galaxy save image, the network updates, the telemetry, how late it
+woke up and the CPU time it used. When ticks exceed the 16.7 ms budget it
+logs, at most every 10 seconds, one WARNING (category PERFORMANCE) with
+their number and the worst one broken down by phase; a tick whose CPU time
+is under half its duration is reported as waiting for a CPU (the machine
+is busy, not the server). At shutdown it logs the totals ("game loop:
+N ticks, K over the 16.7 ms budget ..."). Selected with
+.BR \-\-log\-category=PERFORMANCE .
 .SH SYSTEM SERVICE
 Optional. The installation provides the systemd unit
 .BR spacegl-server.service ,

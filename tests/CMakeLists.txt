@@ -727,6 +727,8 @@ set_tests_properties(gdd_bench PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600 RUN_SE
 # logic_events.c parallel loops behave as in the server binary.
 add_executable(server_tick_bench
     server_tick_bench.c
+    ${SG_ROOT}/src/server/galaxy_file.c
+    ${SG_ROOT}/src/server/lrs_grid.c
     ${SG_ROOT}/src/server/log.c
     ${SG_ROOT}/src/server/logic.c
     ${SG_ROOT}/src/server/logic_npc.c
@@ -843,6 +845,7 @@ add_executable(server_commands_test
     ${SG_ROOT}/src/server/globals.c
     ${SG_ROOT}/src/server/galaxy.c
     ${SG_ROOT}/src/server/galaxy_index.c
+    ${SG_ROOT}/src/server/lrs_grid.c
     ${SG_ROOT}/src/server/galaxy_names.c
     ${SG_ROOT}/src/server/galaxy_io.c
     ${SG_ROOT}/src/server/galaxy_file.c
@@ -910,6 +913,14 @@ if(NOT MSVC)
 endif()
 add_test(NAME sg_tls COMMAND sg_tls_test)
 set_tests_properties(sg_tls PROPERTIES TIMEOUT 120 PASS_REGULAR_EXPRESSION "PASS: sg_tls")
+
+# --- The server's tick monitor (2026.11.01.13) ---------------------------
+# include/tick_monitor.h with synthetic ticks: no warning inside the
+# budget, one per interval with the worst tick, a starved tick named,
+# the summary, SPACEGL_TICK_THREADS.
+add_executable(tick_monitor_test tick_monitor_test.c)
+add_test(NAME tick_monitor COMMAND tick_monitor_test)
+set_tests_properties(tick_monitor PROPERTIES TIMEOUT 30 PASS_REGULAR_EXPRESSION "PASS: tick_monitor")
 
 # --- Optional systemd unit (2026.11.01.12) -----------------------------
 # The configured spacegl-server.service: systemd-analyze verify, the

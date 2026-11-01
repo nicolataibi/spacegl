@@ -27,17 +27,28 @@
  *   - OpenMP parallelism: logic_events.c parallelizes the torpedo,
  *     monster, NPC-AI and BPNBS-decay loops (the same pragmas as in
  *     the server binary; link OpenMP so they behave as in production).
+ *     The team has SPACEGL_TICK_THREADS threads, default 1, as the
+ *     server's game thread sets it (include/tick_monitor.h,
+ *     2026.11.01.13): with 2 the average tick was the same and the CPU
+ *     time doubled (the second thread spins at every join).
+ *   - The report adds the CPU time per tick (p99, p99.9, max) next to the
+ *     wall time, and the largest wait for a CPU: a slow tick with little
+ *     CPU time is the machine (another program, a virtual machine's
+ *     host), one with as much CPU as wall time is the code.
  *
  * What it does NOT measure (documented, on purpose):
  *   - sign_galaxy_data() + send_pending_updates(): network/crypto I/O.
  *     The 8.0 ms threshold is HALF the 16.7 ms frame budget precisely
  *     to leave headroom for these; measuring them here would need real
  *     sockets and would conflate I/O latency with simulation cost.
- *   - refresh_lrs_grid() (galaxy.c, once per second inside the tick):
- *     it lives in galaxy.c which cannot be linked (it owns the
- *     production globals + the persistence stack), so this TU provides
- *     a no-op stub. Its cost (a 40^3 integer pack, ~1-3 ms once per
- *     second) is well inside the headroom the threshold leaves.
+ *   - (since 2026.11.01.13 it DOES run the LRS grid: the real
+ *     src/server/lrs_grid.c, one slice per tick as in the server. The
+ *     stub this file had assumed the whole grid cost 1-3 ms once per
+ *     second; the server's tick monitor measured 10-15 ms, 30 ms on a
+ *     busy machine, in one tick.)
+ *   - The galaxy save image is built under game_mutex at a save; it is
+ *     timed apart after the run (cold buffer = the old per-save cost,
+ *     reused buffer = the server since 2026.11.01.13), see run_bench().
  *   - The thread pool: in this codebase the pool serves async save and
  *     network message tasks (galaxy.c/net.c), NOT the tick itself, so
  *     the tick is single-threaded except for the OpenMP loops above.
@@ -118,6 +129,11 @@
 #include "game_config.h"
 #include "server_internal.h"
 #include "quad_index.h"
+#include "tick_monitor.h"
+#include "../src/server/galaxy_file.h"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 /* ================================================================== */
 /* Globals owned by this TU (production sizes; in the server they    */
@@ -433,10 +449,8 @@ void rebuild_spatial_index() {
 
 /* ================================================================== */
 /* Stubs for the server I/O / persistence helpers the linked TUs     */
-/* call (galaxy.c / net.c are not linked). The refresh_lrs_grid      */
-/* stub is the one intentional deviation, documented in the header:  */
-/* its 40^3 pack runs once per SECOND (tick % 60) and its cost sits  */
-/* in the headroom the threshold leaves for I/O overhead.            */
+/* call (galaxy.c / net.c are not linked). The LRS grid is the real */
+/* src/server/lrs_grid.c (2026.11.01.13).                            */
 /* ================================================================== */
 
 static int bench_msgs_sent = 0;
@@ -455,8 +469,10 @@ void spawn_derelict(int q1, int q2, int q3, double x, double y, double z,
     (void)q1; (void)q2; (void)q3; (void)x; (void)y; (void)z;
     (void)faction; (void)ship_class; (void)name;
 }
-const char *get_species_name(int s) { (void)s; return "BENCH"; }
-void refresh_lrs_grid(void) {}
+const char *get_species_name(int s) {
+    (void)s;
+    return "BENCH";
+}
 void update_moon_orbits(void) {}
 void update_star_systems(void) {}
 int write_all(int fd, const void *buf, size_t len) { (void)fd; (void)buf; return (int)len; }
@@ -885,6 +901,17 @@ static double now_ms(void) {
     return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1.0e6;
 }
 
+/* CPU time of the whole process (the tick thread and its OpenMP team). */
+static double cpu_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
+    return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1.0e6;
+}
+
+static double pct_sorted(const double *v, int n, double p) {
+    return v[(int)((double)(n - 1) * p)];
+}
+
 /* Scene-stability check: if a player died / got rescued mid-run the
  * scene is not the one the threshold was calibrated for (and the
  * tick cost shifted under the measurement). */
@@ -953,12 +980,19 @@ static int run_bench(int n_ticks, int n_warmup, const char *thr_file,
     /* Fallbacks (only used when the threshold file is missing) mirror
      * the re-baselined tests/server_tick_thresholds.txt values. */
     double thr_avg = 15.3, thr_p99 = 31.6;
+    if (n_ticks < 10) return 1;   /* main() checks it; the statistics read tick_times[0] */
     load_thresholds(thr_file, &thr_avg, &thr_p99);
 
     printf("Building worst-case scene (16 players, all dynamic pools at "
            "capacity, %d static types)...\n", (int)NUM_STATIC_FILLS);
 
     build_scene();
+
+    /* The tick's OpenMP team, as the server's game thread sets it. */
+    int tick_threads = tick_threads_from_env(getenv("SPACEGL_TICK_THREADS"));
+#ifdef _OPENMP
+    omp_set_num_threads(tick_threads);
+#endif
 
     /* Warm-up: page-in, allocator warm, branch predictors, first-tick
      * one-offs (the phase-3b beam consumption, the first rebuild). */
@@ -967,10 +1001,19 @@ static int run_bench(int n_ticks, int n_warmup, const char *thr_file,
     double *tick_times = malloc(sizeof(double) * (size_t)n_ticks);
     if (!tick_times) { fprintf(stderr, "FAIL: malloc\n"); return 1; }
 
+    double *cpu_times = malloc(sizeof(double) * (size_t)n_ticks);
+    if (!cpu_times) {
+        free(tick_times);
+        fprintf(stderr, "FAIL: malloc\n");
+        return 1;
+    }
+
     for (int i = 0; i < n_ticks; i++) {
+        double c0 = cpu_ms();
         double t0 = now_ms();
         bench_tick();
         tick_times[i] = now_ms() - t0;
+        cpu_times[i] = cpu_ms() - c0;
         if (dump_slow_ms > 0.0 && tick_times[i] > dump_slow_ms) {
             printf("  slow tick %d (global_tick=%d): %.3f ms\n",
                    i, global_tick, tick_times[i]);
@@ -991,15 +1034,65 @@ static int run_bench(int n_ticks, int n_warmup, const char *thr_file,
     qsort(sorted_copy, (size_t)n_ticks, sizeof(double), qsort_cmp_double);
     int p99_idx = (int)((double)(n_ticks - 1) * 0.99);
     double p99 = sorted_copy[p99_idx];
+    double p999 = pct_sorted(sorted_copy, n_ticks, 0.999);
     free(sorted_copy);
+
+    /* CPU time per tick: the work itself. A tick whose wall time is far
+     * above its CPU time waited for a CPU (the machine was busy, or the
+     * virtual machine's host took the CPU away): that is the machine,
+     * not the code. */
+    double cpu_sum = 0.0, gap_max = 0.0;
+    for (int i = 0; i < n_ticks; i++) {
+        cpu_sum += cpu_times[i];
+        double gap = tick_times[i] - cpu_times[i] / (double)tick_threads;
+        if (gap > gap_max) gap_max = gap;
+    }
+    qsort(cpu_times, (size_t)n_ticks, sizeof(double), qsort_cmp_double);
+    double cpu_p99 = pct_sorted(cpu_times, n_ticks, 0.99);
+    double cpu_p999 = pct_sorted(cpu_times, n_ticks, 0.999);
+    double cpu_max = cpu_times[n_ticks - 1];
+    free(cpu_times);
+
+    /* The galaxy save image (built under game_mutex at a save): into a
+     * fresh buffer, as every save did before 2026.11.01.13, then into the
+     * reused one, as the server does now. */
+    double img_cold = 0.0, img_warm = 0.0;
+    size_t img_len = 0;
+    {
+        GalaxyImage img = { 0 };
+        double a = now_ms();
+        bool ok = galaxy_file_image_into(&img);
+        img_cold = now_ms() - a;
+        double w[9];
+        for (int r = 0; ok && r < 9; r++) {
+            a = now_ms();
+            ok = galaxy_file_image_into(&img);
+            w[r] = now_ms() - a;
+        }
+        if (ok) {
+            qsort(w, 9, sizeof(double), qsort_cmp_double);
+            img_warm = w[4];
+            img_len = img.len;
+        }
+        galaxy_file_image_release(&img);
+    }
 
     printf("Server tick benchmark (%d ticks, %d warmup, %d players, "
            "%d static objects):\n", n_ticks, n_warmup, MAX_CLIENTS,
            bench_static_objects);
     printf("  average: %.3f ms\n", avg);
     printf("  p99:     %.3f ms\n", p99);
+    printf("  p99.9:   %.3f ms\n", p999);
     printf("  min:     %.3f ms\n", mn);
     printf("  max:     %.3f ms\n", mx);
+    printf("  CPU time per tick (process): average %.3f, p99 %.3f, p99.9 %.3f, max %.3f ms\n",
+           cpu_sum / (double)n_ticks, cpu_p99, cpu_p999, cpu_max);
+    printf("  largest wait for a CPU in a tick: %.3f ms (wall - CPU/threads: the machine, not the code)\n",
+           gap_max);
+    printf("  OpenMP threads for the tick: %d (SPACEGL_TICK_THREADS)\n", tick_threads);
+    printf("  galaxy save image (%.1f MB, under game_mutex): fresh buffer %.3f ms, reused buffer %.3f ms "
+           "(median of 9)\n",
+           (double)img_len / 1048576.0, img_cold, img_warm);
     printf("  threshold: %.1f ms (avg), %.1f ms (p99)\n", thr_avg, thr_p99);
     printf("  messages sent during run: %d (send_server_msg stub counter)\n",
            bench_msgs_sent);

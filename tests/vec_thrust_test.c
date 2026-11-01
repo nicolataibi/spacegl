@@ -237,6 +237,7 @@ void spawn_derelict(int q1, int q2, int q3, double x, double y, double z,
 const char *get_species_name(int s) { (void)s; return "TEST"; }
 void rebuild_spatial_index(void) {}   /* index stays empty: all pools empty */
 void refresh_lrs_grid(void) {}
+void refresh_lrs_grid_slice(int tick) { (void)tick; }
 void update_moon_orbits(void) {}
 void update_star_systems(void) {}
 int write_all(int fd, const void *buf, size_t len) { (void)buf; return (int)len; (void)fd; }

@@ -122,7 +122,7 @@ cmake --build build -j
 
 ## 3. Running the test suite
 
-The suite has **48 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
+The suite has **49 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
@@ -160,7 +160,7 @@ The suite has **48 tests** (integrated mode; the standalone mode builds the ones
 | 32 | `golden_gl` | OpenGL viewer: deterministic frame (two runs bit-identical), the committed `golden_gl.ppm` (region-based), the `SPACEGL_GL_BLOOM` modes (integrated only) | `spacegl_3dview` (black-box) |
 | 33 | `gdd_default` | the Vulkan viewer's default path: GDD by default, `SPACEGL_GPD=0` CPU-driven, fallback when the GDD cannot start, strict `SPACEGL_GPD=1` for screenshots (integrated only) | `spacegl_vulkan` (black-box) |
 | 34 | `gdd_bench` | GDD cull/expand/final compute pass times against thresholds | `gdd_mesh_test --benchmark` |
-| 35 | `server_tick_bench` | server tick: 1000 ticks of the real loop over a worst-case-but-stable scene; avg < `threshold_ms`, p99 < `p99_ms` (`tests/server_tick_thresholds.txt`) | `src/server/logic.c` + `logic_events.c` + `quad_index.c` + `targets.c` |
+| 35 | `server_tick_bench` | server tick: 1000 ticks of the real loop over a worst-case-but-stable scene (with the real LRS grid slices since 2026.11.01.13); avg < `threshold_ms`, p99 < `p99_ms` (`tests/server_tick_thresholds.txt`); reports p99.9, the CPU time per tick next to the wall time, the largest wait for a CPU and the galaxy save image (fresh vs reused buffer) | `src/server/logic.c` + `logic_events.c` + `lrs_grid.c` + `quad_index.c` + `targets.c` + `galaxy_file.c` |
 | 36 | `stability` | real server + real deck for 60 s, server RSS delta ≤ 10 MB (integrated only) | `spacegl_server` + `spacegl_client` (black-box) |
 | 37 | `server_commands` | the command handlers on a real galaxy | `src/server/commands*.c`, galaxy, logic, targets |
 | 38 | `radio_e2e` | two real decks on the real server: clear, fleet-encrypted, identity-frequency and peer messages, verified | `spacegl_server` + `spacegl_client` (black-box) |
@@ -168,12 +168,13 @@ The suite has **48 tests** (integrated mode; the standalone mode builds the ones
 | 40 | `known_servers` | the deck's pins of server identity keys: first contact, mismatch, `SPACEGL_SERVER_KEY`, file format | `include/known_servers.h` |
 | 41 | `sg_tls` | TLS 1.3 on the game port on socketpairs: handshake and identity key from the certificate, packets buffered in the session, a deck in clear refused, a silent peer timed out, one reader and two writers on one session (TSan in CI) | `src/sg_tls.c` |
 | 42 | `systemd_unit` | the optional `spacegl-server.service` as configured: `systemd-analyze verify`, the key as a credential, the state directory, the dynamic user, the sandbox exposure (at most 2.0), a boot of the real server on a 0400 credential (no `systemd-analyze`: skip) | `systemd/spacegl-server.service.in` |
-| 43 | `launcher` | the launcher scripts with stub programs: arguments, exit status, key sources and prompt (pseudo-terminal), `--help`, a missing program, the diagnostic's server lookup | `spacegl-server`, `spacegl-client`, `spacegl-diag` |
-| 44 | `deck_e2e` | the deck's own paths: no server, wrong key, refused names, eleven concurrent logins, the input line, duplicate/wrong logins, reconnect after a restart, server identity pinning, the TLS 1.3 transport (`tests/tls_probe.py`: TLS 1.3 only, certificate = identity, clear text refused; a silent connection closed), servers the deck refuses at the transport (`tests/tls_fake_server.c`: no TLS, a TLS identity that is not the one signing the handshake, a link reset during the handshake) | `spacegl_server` + `spacegl_client` (black-box) |
-| 45 | `telemetry` | the telemetry port (TCP 5001): every category, frames checked against the boot table | `spacegl_server` + `telemetry_client_test` |
-| 46 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
-| 47 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
-| 48 | `smoke_async` | the same with the server in `--io=async` | same |
+| 43 | `tick_monitor` | the server's measure of its tick with synthetic ticks: no warning inside the budget, one per 10 s with the worst tick by phase, a tick waiting for a CPU named, the summary, `SPACEGL_TICK_THREADS` | `include/tick_monitor.h` |
+| 44 | `launcher` | the launcher scripts with stub programs: arguments, exit status, key sources and prompt (pseudo-terminal), `--help`, a missing program, the diagnostic's server lookup | `spacegl-server`, `spacegl-client`, `spacegl-diag` |
+| 45 | `deck_e2e` | the deck's own paths: no server, wrong key, refused names, eleven concurrent logins, the input line, duplicate/wrong logins, reconnect after a restart, server identity pinning, the TLS 1.3 transport (`tests/tls_probe.py`: TLS 1.3 only, certificate = identity, clear text refused; a silent connection closed), servers the deck refuses at the transport (`tests/tls_fake_server.c`: no TLS, a TLS identity that is not the one signing the handshake, a link reset during the handshake) | `spacegl_server` + `spacegl_client` (black-box) |
+| 46 | `telemetry` | the telemetry port (TCP 5001): every category, frames checked against the boot table | `spacegl_server` + `telemetry_client_test` |
+| 47 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
+| 48 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
+| 49 | `smoke_async` | the same with the server in `--io=async` | same |
 
 The tests that use port 5000/5001 run serially (`RUN_SERIAL`); an image or GPU test without a display or an ICD returns 77 (SKIP). Every end-to-end script uses a private `known_servers` file (`SPACEGL_KNOWN_SERVERS`), so a new data directory is not taken for a changed server.
 
@@ -303,7 +304,7 @@ SECURITY.md if it pins an audit item.
 | `include/` | shared headers; `spacegl_gdd.h` is the CPU/GPU contract, `object_types.h` the single table of object `type` values (X-macro; server, HUD, viewers and the GDD builder all use its `OBJ_*` names and predicates),
   `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks, `handshake_v2.h` the handshake (wire revision 4, the server identity signature), `sg_tls.h` the TLS 1.3 transport of the game port (wire revision 5, one seam for the socket I/O of server and deck), `known_servers.h` the deck's pins of server identities |
 | `assets/shaders/` | GLSL sources (legacy `shader.*` + GDD `gdd_*`, shared `gdd_common.glsl`/`gdd_ops.glsl`) |
-| `tests/` | the 48-test suite (dual-mode CMake project), `bench_ab.sh` (A/B benchmark gate), `format_check.sh`, `fuzz/` (libFuzzer harness seeds and their generator/migration scripts) |
+| `tests/` | the 49-test suite (dual-mode CMake project), `bench_ab.sh` (A/B benchmark gate), `format_check.sh`, `fuzz/` (libFuzzer harness seeds and their generator/migration scripts) |
 | `systemd/` | `spacegl-server.service.in`, the optional system service of the server (configured by CMake with the install prefix, never enabled by the build or the package) |
 | `PROTOCOL.md` | the wire protocol (TLS transport, packets, handshake, identity, limits) |
 | `cmake/SpaceGLVulkanSDK.cmake` | the shared Vulkan SDK resolution chain |
@@ -456,6 +457,22 @@ number and element count.
   base; `--reps`, `--tol`, `--gdd-tol`, `--no-gdd`). It skips, with the
   reason, when the base does not build or when the benchmark program
   itself changed between the two sides.
+- **The tick on a real machine (2026.11.01.13).** The server times every
+  tick itself (`include/tick_monitor.h`): logic, wait for `game_mutex`,
+  save image, network, telemetry, late wake-up and the game thread's CPU
+  time. Ticks over the 16.7 ms budget are reported every 10 s at most as
+  one `PERFORMANCE` warning with the worst tick by phase, and the totals
+  at shutdown; a tick with less than half its duration in CPU time waited
+  for a CPU (the machine), one with as much CPU as wall time is the code.
+  `server_tick_bench` shows the same split (CPU time next to the wall
+  time). What the monitor found and fixed: the save image (a fresh 30-45
+  MB buffer at every save, 28-45 ms of page faults under `game_mutex`;
+  now one reused buffer, 1-8 ms), the LRS grid (the whole grid in one
+  tick once per second, 10-15 ms; now one plane per tick, 0.3 ms) and the
+  OpenMP team of the tick (a second thread gave no gain and doubled the
+  CPU time; `SPACEGL_TICK_THREADS`, default 1). A change of the benchmark
+  program makes the next `bench_ab` run skip (the two sides would measure
+  different programs).
 - **Golden renders on a real GPU (roadmap 10).** The committed golden
   images come from the software drivers (lavapipe, llvmpipe). On a machine
   with a GPU, in its graphical session, after a Release build:

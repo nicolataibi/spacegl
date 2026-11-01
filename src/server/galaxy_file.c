@@ -180,7 +180,7 @@ static int galaxy_sections(GalaxySection *sec, int cap, bool for_load) {
 /* Build the whole file in memory (caller holds game_mutex, or nothing else
  * runs: boot, shutdown). One memcpy per pool: the disk write happens later,
  * off the lock. */
-GalaxyImage *galaxy_file_image(void) {
+bool galaxy_file_image_into(GalaxyImage *img) {
     GalaxySection sec[GALAXY_MAX_SECTIONS];
     galaxy_sys_star_count_snapshot = sys_star_count;
     galaxy_cosmic_count_snapshot = cosmic_feature_count;
@@ -188,10 +188,13 @@ GalaxyImage *galaxy_file_image(void) {
     size_t total = sizeof(GalaxyFileHeader);
     for (int i = 0; i < n; i++) total += sizeof(GalaxySectionHeader) + sec[i].elem_size * sec[i].count;
 
-    GalaxyImage *img = malloc(sizeof(GalaxyImage));
-    if (!img) return NULL;
-    img->data = malloc(total);
-    if (!img->data) { free(img); return NULL; }
+    if (total > img->cap || !img->data) {
+        uint8_t *d = malloc(total);
+        if (!d) return false;
+        free(img->data);
+        img->data = d;
+        img->cap = total;
+    }
     img->len = total;
 
     uint8_t *p = img->data;
@@ -212,6 +215,23 @@ GalaxyImage *galaxy_file_image(void) {
         memcpy(p, &sh, sizeof(sh)); p += sizeof(sh);
         size_t bytes = sec[i].elem_size * sec[i].count;
         if (bytes) { memcpy(p, sec[i].ptr, bytes); p += bytes; }
+    }
+    return true;
+}
+
+void galaxy_file_image_release(GalaxyImage *img) {
+    if (!img) return;
+    free(img->data);
+    img->data = NULL;
+    img->len = img->cap = 0;
+}
+
+GalaxyImage *galaxy_file_image(void) {
+    GalaxyImage *img = calloc(1, sizeof(GalaxyImage));
+    if (!img) return NULL;
+    if (!galaxy_file_image_into(img)) {
+        free(img);
+        return NULL;
     }
     return img;
 }
