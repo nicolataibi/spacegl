@@ -1,3 +1,11 @@
+* Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.04
+  - Fix, the clang build of 2026.11.02.03 failed (-Werror,
+  -Wgnu-folding-constant): the static_assert in logic.c compared
+  ORBIT_TICK_RATE, a floating constant (60.0), with GAME_TICK_RATE, and
+  clang does not take a floating constant as an integer constant
+  expression (gcc does). ORBIT_TICK_RATE is now the integer 60; every
+  use multiplies it by a double, so the orbit is unchanged.
+
 * Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.03
   - Fix, `orb` puts the ship in a real circular orbit. The command only
   set NAV_STATE_ORBIT and no tick handled that state (the ship fell into

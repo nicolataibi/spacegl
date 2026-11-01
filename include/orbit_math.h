@@ -38,7 +38,7 @@
 #define ORBIT_RADIUS_REF   3.0    /* reference radius, sector units                         */
 #define ORBIT_RADIAL_SLEW  0.02   /* radius change per tick while settling onto the orbit   */
 #define ORBIT_MIN_VEL_TICK 1e-4   /* below this a ship counts as "not moving" at capture    */
-#define ORBIT_TICK_RATE    60.0   /* ticks per second (GAME_TICK_RATE)                      */
+#define ORBIT_TICK_RATE    60     /* ticks per second (GAME_TICK_RATE); an int on purpose: the static_assert in logic.c compares the two, and clang rejects a floating constant there */
 
 typedef struct {
     int active;       /* 1 while the ship is in orbit                           */
