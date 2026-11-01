@@ -83,6 +83,31 @@ deck() {
     return $rc
 }
 login() { printf '127.0.0.1\n%s\n%s\n' "$1" "$2"; }   # name, access code
+# Synchronisation by events, not by fixed sleeps (2026.11.01.06): under
+# ASan on a 2-vCPU CI runner a login takes several seconds, and a deck that
+# had not logged in yet, or had already left, turned a check into a false
+# failure.
+# wait_for <deck name> <text> <seconds>: the deck's live log shows the text
+wait_for() {
+    local i
+    for ((i = 0; i < $3 * 5; i++)); do
+        grep -qaF -- "$2" "$WORK/$1.log" 2>/dev/null && return 0
+        sleep 0.2
+    done
+    echo "  (timeout: '$2' not seen in $1 within $3 s)"
+    return 1
+}
+# flag <name> / wait_flag <name> [seconds]: one step tells a deck's input
+# producer that it may go on
+flag() { : > "$WORK/$1.flag"; }
+wait_flag() {
+    local i
+    for ((i = 0; i < ${2:-90} * 5; i++)); do
+        [ -e "$WORK/$1.flag" ] && return 0
+        sleep 0.2
+    done
+    return 1
+}
 
 rc=0
 check() {   # check <label> <command...>
@@ -94,39 +119,39 @@ hasnt() { ! grep -qF -- "$2" "$WORK/$1.txt"; }
 if port_open; then echo "SKIP: port $PORT is busy (another server is running)"; exit 77; fi
 
 # --- 1. no server ------------------------------------------------------
-deck help 10 --help </dev/null
+deck help 30 --help </dev/null
 check "--help prints the usage"                 has help "Usage:"
-deck version 10 --version </dev/null
+deck version 30 --version </dev/null
 check "--version prints the version"            has version "Space GL Client v"
 printf 'no-such-host.invalid\n' | deck nohost 20
 check "unresolvable host name is reported"      has nohost "Could not resolve hostname 'no-such-host.invalid'"
-printf '127.0.0.1\n' | deck refused 10
+printf '127.0.0.1\n' | deck refused 30
 check "refused connection is reported"          has refused "Connection to '127.0.0.1' failed"
 
 start_server
 
 # --- 2. another master key ---------------------------------------------
-printf '127.0.0.1\n' | SPACEGL_KEY="another-master-key-not-the-servers" deck badkey 10
+printf '127.0.0.1\n' | SPACEGL_KEY="another-master-key-not-the-servers" deck badkey 30
 check "another master key: handshake refused"   has badkey "Master Key mismatch or Handshake rejected"
 
 # --- 3. names rejected by the deck -------------------------------------
-printf '127.0.0.1\nCOMPUTER\n' | deck name_station 10
+printf '127.0.0.1\nCOMPUTER\n' | deck name_station 30
 check "station name refused"                    has name_station "Invalid commander name"
-printf '127.0.0.1\nbad.name\n' | deck name_chars 10
+printf '127.0.0.1\nbad.name\n' | deck name_chars 30
 check "name with '.' refused"                   has name_chars "Invalid commander name"
-printf '127.0.0.1\nAAAAAAAAAABBBBBBBBBBCCCCCCCCCCDDD\n' | deck name_long 10
+printf '127.0.0.1\nAAAAAAAAAABBBBBBBBBBCCCCCCCCCCDDD\n' | deck name_long 30
 check "33-character name refused"               has name_long "Invalid commander name"
 
 # --- 4. one captain per faction (in parallel) --------------------------
 # KORTHIAN (faction 1) stays on board through step 5 to listen to the
 # radio; the others leave at once.
-{ login KORTHIAN k-code; printf '1\n'; sleep 30; printf 'exit\n'; sleep 1; } | deck f1 45 &
+{ login KORTHIAN k-code; printf '1\n'; wait_flag charlie_done; printf 'exit\n'; sleep 1; } | deck f1 150 &
 PIDS+=($!)
 for f in 2 3 4 5 6 7 8 9 10 11; do
-    { login "FACTION$f" "f$f-code"; printf '%s\n' "$f"; sleep 4; printf 'exit\n'; sleep 1; } | deck "f$f" 25 &
+    { login "FACTION$f" "f$f-code"; printf '%s\n' "$f"; sleep 4; printf 'exit\n'; sleep 1; } | deck "f$f" 60 &
     PIDS+=($!)
 done
-sleep 5
+wait_for f1 "Command Deck ready" 60
 
 # --- 5. the input line of one session ----------------------------------
 {
@@ -145,21 +170,22 @@ sleep 5
     sleep 0.3; printf 'rad @Nowhere Unknown faction falls back to all\n'
     sleep 0.3; printf 'rad #1 To captain number one\n'
     sleep 0.3; printf 'rad #x Not a number\n'
-    sleep 3; printf 'exit\n'; sleep 1
-} | deck charlie 40 &
+    wait_flag dup_done; sleep 2; printf 'exit\n'; sleep 1
+} | deck charlie 150 &
 CH_PID=$!; PIDS+=($CH_PID)
-sleep 6
+wait_for charlie "Command Deck ready" 60
 
 # --- 6. the same name on board, wrong / right access code --------------
-{ login CHARLIE c-code; sleep 2; } | deck dup 15
+{ login CHARLIE c-code; sleep 2; } | deck dup 60
+flag dup_done
 check "same name while on board is refused"     has dup "COMMANDER NAME ALREADY ACTIVE"
 wait "$CH_PID" 2>/dev/null
+flag charlie_done
 for p in "${PIDS[@]}"; do wait "$p" 2>/dev/null; done
 PIDS=()
-sleep 1
-{ login CHARLIE wrong-code; sleep 2; } | deck wrongpass 15
+{ login CHARLIE wrong-code; sleep 2; } | deck wrongpass 60
 check "wrong access code is refused"            has wrongpass "INVALID ACCESS CODE"
-{ login CHARLIE c-code; sleep 3; printf 'exit\n'; sleep 1; } | deck returning 20
+{ login CHARLIE c-code; sleep 3; printf 'exit\n'; sleep 1; } | deck returning 60
 check "right access code: returning commander"  has returning "RETURNING COMMANDER RECOGNIZED"
 
 check "faction captains 1..11 all logged in" \
@@ -179,12 +205,17 @@ check "...and not KORTHIAN (sender's faction)"  hasnt f1 "Hail the Korthian flee
 check "no protocol error on CHARLIE"            hasnt charlie "protocol error"
 
 # --- 7. the server goes away and comes back ----------------------------
-{ login DELTA d-code; printf '0\n0\n'; sleep 4; printf 'sta\n'; sleep 14; printf 'sta\n'; sleep 2; printf 'exit\n'; sleep 1; } | deck delta 40 &
+{
+    login DELTA d-code; printf '0\n0\n'
+    wait_flag delta_back; sleep 1; printf 'sta\n'; sleep 3; printf 'exit\n'; sleep 1
+} | deck delta 150 &
 D_PID=$!; PIDS+=($D_PID)
-sleep 7
+wait_for delta "Command Deck ready" 60
 stop_server
 sleep 2
 start_server
+wait_for delta "Reconnected successfully" 60
+flag delta_back
 wait "$D_PID" 2>/dev/null; PIDS=()
 check "deck saw the link drop"                  has delta "[RECONNECT] Connection lost"
 check "deck reconnected"                        has delta "[RECONNECT] Reconnected successfully"
@@ -200,14 +231,14 @@ check "the server printed the same identity"    grep -qF "$SRV_FP" "$WORK/server
 OTHER_DIR=$(mktemp -d "${TMPDIR:-/tmp}/spacegl_deck_other.XXXXXX") || exit 1
 OTHER_HEX=$("$SERVER_BIN" --data-dir "$OTHER_DIR" --print-identity 2>/dev/null | sed -n 2p)
 start_server "$OTHER_DIR"
-{ login IMPOSTOR i-code; printf '0\n0\n'; sleep 2; printf 'exit\n'; } | deck impostor 15
+{ login IMPOSTOR i-code; printf '0\n0\n'; sleep 2; printf 'exit\n'; } | deck impostor 60
 check "another identity on the same address is refused" has impostor "SERVER IDENTITY CHANGED for 127.0.0.1:5000"
 check "...before the login"                     hasnt impostor "Commander Name:"
-{ login EXPLICIT e-code; printf '0\n0\n'; sleep 3; printf 'exit\n'; sleep 1; } | SPACEGL_SERVER_KEY="$OTHER_HEX" deck explicit 20
+{ login EXPLICIT e-code; printf '0\n0\n'; sleep 3; printf 'exit\n'; sleep 1; } | SPACEGL_SERVER_KEY="$OTHER_HEX" deck explicit 60
 check "SPACEGL_SERVER_KEY with its key: accepted" has explicit "[SPACEGL_SERVER_KEY]"
 check "...and the deck logs in"                 has explicit "Command Deck ready"
 check "...and with SPACEGL_SERVER_KEY"          has explicit "DeepSpace Signature: VERIFIED (HMAC-SHA256)"
-{ login WRONGPIN w-code; sleep 2; } | SPACEGL_SERVER_KEY="$(printf '%064d' 0)" deck wrongpin 15
+{ login WRONGPIN w-code; sleep 2; } | SPACEGL_SERVER_KEY="$(printf '%064d' 0)" deck wrongpin 60
 check "SPACEGL_SERVER_KEY with another key: refused" has wrongpin "not the key of SPACEGL_SERVER_KEY"
 stop_server
 rm -rf "$OTHER_DIR"

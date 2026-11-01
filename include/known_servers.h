@@ -128,6 +128,7 @@ static inline int ks_lookup(const char *path, const char *hostport, uint8_t key[
 
 /* Append a pin (the directory is created 0700, the file 0600). */
 static inline bool ks_append(const char *path, const char *hostport, const uint8_t key[32]) {
+    if (!path || !hostport) return false;
     char dir[1024];
     if ((size_t)snprintf(dir, sizeof(dir), "%s", path) >= sizeof(dir)) return false;
     char *slash = strrchr(dir, '/');
@@ -161,7 +162,7 @@ static inline KsResult ks_check(const char *path, const char *hostport, const ui
         if (pinned) memcpy(pinned, want, 32);
         return CRYPTO_memcmp(want, key, 32) == 0 ? KS_PINNED_OK : KS_MISMATCH;
     }
-    if (r == 0 && ks_append(path, hostport, key)) return KS_NEW_PINNED;
+    if (path && r == 0 && ks_append(path, hostport, key)) return KS_NEW_PINNED;
     return KS_NEW_NOT_SAVED;
 }
 

@@ -908,7 +908,7 @@ if(TARGET spacegl_server AND TARGET spacegl_client)
                      $<TARGET_FILE:spacegl_server> $<TARGET_FILE:spacegl_client>)
     set_tests_properties(deck_e2e PROPERTIES
         RUN_SERIAL TRUE
-        TIMEOUT 180
+        TIMEOUT 600
         SKIP_RETURN_CODE 77
         PASS_REGULAR_EXPRESSION "PASS: deck_e2e"
         FAIL_REGULAR_EXPRESSION "FAIL: deck_e2e")

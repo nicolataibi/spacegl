@@ -7,7 +7,7 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# Finds the running spacegl_server (or takes its PID), then starts
+# Finds the running spacegl_server in /proc (or takes its PID), then starts
 # spacegl_diag on it in a dedicated xterm (160x50, green on black) when a
 # graphical display and xterm are available, otherwise in this terminal.
 # See spacegl-diag(1).
@@ -150,6 +150,19 @@ is_server_pid() {
     [[ $comm == spacegl_server ]]
 }
 
+# server_pids: the PIDs of every running spacegl_server, read from /proc
+# (no dependency on pgrep/procps, which a minimal system or a build chroot
+# may not have)
+server_pids() {
+    local d comm
+    for d in /proc/[0-9]*; do
+        [[ -r $d/comm ]] || continue
+        IFS= read -r comm < "$d/comm" 2>/dev/null || continue
+        [[ $comm == spacegl_server ]] && printf '%s\n' "${d#/proc/}"
+    done
+    return 0
+}
+
 main() {
     local show_banner=1 args=() a
     [[ ${SPACEGL_NO_BANNER:-0} == 1 ]] && show_banner=0
@@ -171,7 +184,7 @@ main() {
         is_server_pid "$pid" || die 1 "process $pid is not a running spacegl_server"
     else
         local pids=()
-        mapfile -t pids < <(pgrep -x spacegl_server || true)
+        mapfile -t pids < <(server_pids)
         case ${#pids[@]} in
             0) die 1 "no spacegl_server is running: start it first (spacegl-server)" ;;
             1) pid=${pids[0]} ;;

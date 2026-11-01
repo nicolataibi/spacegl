@@ -2541,11 +2541,27 @@ void telemetry_broadcast() {
 
         /* Use cached data (Already updated by telemetry_sync_state). A frame is the whole category: it is sent
          * TEL_OBJS_PER_TICK objects per tick from this client's cursor and closed by the stats packet. */
+        /* The category, the reset flag and the cursor are read TOGETHER
+         * (2026.11.01.08): read apart, a SUBSCRIBE that arrived between the
+         * two reads had its reset consumed for the OLD category, whose data
+         * then went out after the reset marker with the new subscription's
+         * cursor, and the next frame of the new category started from the
+         * old one's offset (telemetry_test: "category 17: 414 objects, the
+         * boot table said 195", the tail of the nebulae plus the pulsars). */
         pthread_mutex_lock(&tel_clients_mutex);
+        if (!tel_clients[i].active || tel_clients[i].fd != fd) {
+            pthread_mutex_unlock(&tel_clients_mutex);
+            continue;
+        }
+        cat = tel_clients[i].category;
         bool reset = tel_clients[i].frame_reset;
         int offset = tel_clients[i].send_offset;
         tel_clients[i].frame_reset = false;
         pthread_mutex_unlock(&tel_clients_mutex);
+        if (cat >= TEL_CAT_COUNT) {
+            disconnect_client(i);
+            continue;
+        }
         bool failed = false;
 
         /* the category changed: close whatever partial frame of the old category the client holds */
@@ -2592,7 +2608,9 @@ void telemetry_broadcast() {
         }
 
         pthread_mutex_lock(&tel_clients_mutex);
-        if (tel_clients[i].active && !tel_clients[i].frame_reset) tel_clients[i].send_offset = offset;
+        /* not if a new subscription came in meanwhile (its cursor is 0) */
+        if (tel_clients[i].active && !tel_clients[i].frame_reset && tel_clients[i].category == cat)
+            tel_clients[i].send_offset = offset;
         pthread_mutex_unlock(&tel_clients_mutex);
 
         if (failed) {

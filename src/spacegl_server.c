@@ -827,9 +827,15 @@ int main(int argc, char *argv[]) {
     printf("%s | %s [STRUCT] ConnectedPlayer: %s%-10zu bytes                           %s %s\n", B_MAGENTA, B_CYAN, B_GREEN, sizeof(ConnectedPlayer), B_MAGENTA, RESET);
     printf("%s |                                                                      %s\n", B_MAGENTA, RESET);
 
-    /* OpenSSL Initialization for all algorithms (including legacy ones like SEED, CAST5, etc) */
-    OSSL_PROVIDER_load(NULL, "legacy");
-    OSSL_PROVIDER_load(NULL, "default");
+    /* OpenSSL Initialization for all algorithms (including legacy ones like SEED, CAST5, etc).
+     * The provider handles are kept for the life of the process: dropped,
+     * they (and everything the providers allocate) were reported by
+     * LeakSanitizer at every exit (2026.11.01.06). */
+    static OSSL_PROVIDER *s_prov_legacy, *s_prov_default;
+    s_prov_legacy = OSSL_PROVIDER_load(NULL, "legacy");
+    s_prov_default = OSSL_PROVIDER_load(NULL, "default");
+    (void)s_prov_legacy;
+    (void)s_prov_default;
     OpenSSL_add_all_algorithms();
     OpenSSL_add_all_ciphers();
     OpenSSL_add_all_digests();

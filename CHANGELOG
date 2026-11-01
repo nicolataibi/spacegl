@@ -1,3 +1,52 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.08
+  - Fix (telemetry server, intermittent telemetry_test failure "category
+  17: 414 objects, the boot table said 195"): telemetry_broadcast() read a
+  client's category, then (after the writability poll) its reset flag and
+  cursor in a second critical section. A SUBSCRIBE handled between the two
+  had its reset consumed for the OLD category: the old category's data was
+  sent after the reset marker, and the new category's next frame started
+  at the old one's cursor, so the subscriber saw the tail of the nebulae
+  and the pulsars as one pulsar frame. The category, the reset flag and
+  the cursor are now read in one critical section (and the cursor is
+  saved only if no new subscription came in meanwhile). A telemetry
+  operator watching one category and switching to another could see the
+  same mixed frame.
+
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.07
+  - Fix (COPR build, %check): the launcher test failed in the Fedora mock
+  chroot ("pgrep: command not found"): spacegl-diag found the running
+  server with pgrep, from procps-ng, which the build root does not
+  install. The server is now looked up in /proc (the comm of every
+  process), with no external command; the test checks for a real server
+  the same way. Checked with a PATH that has no pgrep: every diag case
+  runs and passes. spacegl-diag(1) updated.
+
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.06
+  - Fix (CI, Debug matrix with ASan on the product binaries): deck_e2e
+  failed with "same name while on board is refused" and "wrong access
+  code is refused". The deck printed those two refusals with printf on a
+  fully buffered stdout (a pipe) and then called exit(1); LeakSanitizer
+  found the OpenSSL provider handles that were dropped at load time
+  (OSSL_PROVIDER_load(NULL, "legacy"/"default") in the deck and in the
+  server: 6 KB reported in about 110 allocations at every exit of every
+  process) and ended the process before stdio was flushed, so the message
+  never reached the log. Now:
+  - the provider handles are kept for the life of the process (deck and
+  server): no leak report at any exit;
+  - the deck's stdout is line-buffered (it is interactive; on a pipe or a
+  file its last lines are no longer lost on an abnormal end), and the
+  login refusals and the failed galaxy sync go to stderr.
+  - deck_e2e synchronised by events instead of fixed sleeps: it waits for
+  a deck's "Command Deck ready" (KORTHIAN before CHARLIE talks, CHARLIE
+  before the duplicate login, DELTA before the server is stopped) and for
+  "Reconnected successfully", and the decks that must stay on board leave
+  only when the step that needs them is done (flag files). Deck timeouts
+  raised, the ctest timeout 180 -> 600 s. Passes with ASan on the product
+  binaries, also on one CPU (taskset -c 0), in 37 s instead of 68.
+  - cppcheck (CI): include/known_servers.h ks_append() could, by cppcheck's
+  reading, receive a NULL path from ks_check(NULL, ...); both now test the
+  path explicitly.
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.05
   - CI lint: shellcheck 0.9 (the Ubuntu runner's) failed on
   tests/launcher_test.sh with SC2317 ("command appears to be unreachable")

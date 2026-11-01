@@ -1670,6 +1670,12 @@ void handle_sigint(int sig) {
 }
 
 int main(int argc, char *argv[]) {
+    /* Line-buffered output (2026.11.01.06): the deck is interactive, and
+     * when its output goes to a pipe or a file (a launcher, a test, a log)
+     * a fully buffered stdout lost its last lines whenever the process
+     * ended without flushing it (an error exit under LeakSanitizer, a
+     * signal). */
+    setvbuf(stdout, NULL, _IOLBF, 0);
     char server_ip[64];
     int my_ship_class = SHIP_CLASS_GENERIC_ALIEN;
     char visualizer_type[4] = "gl"; /* copied from/parsed into g_visualizer_type below */
@@ -1779,9 +1785,15 @@ int main(int argc, char *argv[]) {
     LOG_DEBUG("sizeof(SpaceGLGame) = %zu\n", sizeof(SpaceGLGame));
     LOG_DEBUG("sizeof(PacketUpdate) = %zu\n", sizeof(PacketUpdate));
 
-    /* OpenSSL Initialization for all algorithms (including legacy ones like SEED, CAST5, etc) */
-    OSSL_PROVIDER_load(NULL, "legacy");
-    OSSL_PROVIDER_load(NULL, "default");
+    /* OpenSSL Initialization for all algorithms (including legacy ones like SEED, CAST5, etc).
+     * The provider handles are kept for the life of the process: dropped,
+     * they (and everything the providers allocate) were reported by
+     * LeakSanitizer at every exit (2026.11.01.06). */
+    static OSSL_PROVIDER *s_prov_legacy, *s_prov_default;
+    s_prov_legacy = OSSL_PROVIDER_load(NULL, "legacy");
+    s_prov_default = OSSL_PROVIDER_load(NULL, "default");
+    (void)s_prov_legacy;
+    (void)s_prov_default;
     OpenSSL_add_all_algorithms();
     OpenSSL_add_all_ciphers();
     OpenSSL_add_all_digests();
@@ -1945,10 +1957,10 @@ int main(int argc, char *argv[]) {
     }
 
     if (login_status == 3) {
-        printf(B_RED "SECURITY ERROR: INVALID ACCESS CODE.\n" RESET);
+        fprintf(stderr, B_RED "SECURITY ERROR: INVALID ACCESS CODE.\n" RESET);
         close(sock); exit(1);
     } else if (login_status == 4) {
-        printf(B_RED "SECURITY ERROR: COMMANDER NAME ALREADY ACTIVE IN GALAXY.\n" RESET);
+        fprintf(stderr, B_RED "SECURITY ERROR: COMMANDER NAME ALREADY ACTIVE IN GALAXY.\n" RESET);
         close(sock); exit(1);
     }
 
@@ -2061,7 +2073,7 @@ int main(int argc, char *argv[]) {
             }
         }
     } else {
-        printf(B_RED "ERROR: Failed to synchronize Galaxy Map (Expected %zu, got %d).\n" RESET, sizeof(SpaceGLGame), master_read);
+        fprintf(stderr, B_RED "ERROR: Failed to synchronize Galaxy Map (Expected %zu, got %d).\n" RESET, sizeof(SpaceGLGame), master_read);
         free(master_sync);
         close(sock);
         exit(1);

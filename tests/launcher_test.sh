@@ -140,7 +140,11 @@ check "missing program: a message"          has miss.out "spacegl_client not fou
 "$ROOT/spacegl-diag" $$ </dev/null >"$T/d1.out" 2>&1
 st=$?
 check "diag: a PID that is not a server is refused" bash -c '[ "$0" -eq 1 ] && grep -q "is not a running spacegl_server" "$1"' "$st" "$T/d1.out"
-if pgrep -x spacegl_server >/dev/null 2>&1; then
+real_server=0
+for d in /proc/[0-9]*; do
+    if [[ -r $d/comm ]] && [[ $(cat "$d/comm" 2>/dev/null) == spacegl_server ]]; then real_server=1; break; fi
+done
+if (( real_server )); then
     echo "  (a real spacegl_server is running: automatic detection cases skipped)"
 else
     cp "$(command -v sleep)" "$T/spacegl_server"
