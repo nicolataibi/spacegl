@@ -4,7 +4,7 @@ Reference for the binary protocol between the command deck (`spacegl_client`)
 and the server (`spacegl_server`), as implemented in `include/network.h`,
 `include/handshake_v2.h`, `src/server/packets.c`, `src/server/net.c` and
 `src/spacegl_client.c`, inside TLS 1.3 (`include/sg_tls.h`, `src/sg_tls.c`).
-Current protocol: **wire revision 5** (2026.11.01.11), handshake v2.
+Current protocol: **wire revision 6** (2026.11.01.14), handshake v2.
 Sizes below are those of this build (x86-64, `#pragma pack(1)`).
 
 ## 1. Transport and framing
@@ -83,14 +83,16 @@ mask         = HMAC-SHA256(PRK, "spacegl v2 galaxy verify" || 0x01)
 ```
 
 - `pubkey_len` is "HSV" followed by the **wire revision**, the layout of
-  the handshake reply and of every packet after it: "HSV4" since
-  2026.10.31.43 (the server identity in the reply), also in revision 5
-  (TLS 1.3 around an unchanged stream: no deck of revision 4 gets past the
-  first byte, so the hello needs no new marker), revision 3 from
-  2026.10.31.30 (the per-object update delta), revision 2 from
-  2026.10.31.08. A hello with another value (a revision-2 or -3 deck, the
-  v1 hello) is refused and the connection closed; the key exchange itself
-  is the same v2 in every revision.
+  the handshake reply and of every packet after it: "HSV6" since
+  2026.11.01.14 (the effects block of variable size, status records in
+  the object delta, section 6); "HSV4" from 2026.10.31.43 (the server
+  identity in the reply), also in revision 5 (TLS 1.3 around an unchanged
+  stream: no deck of revision 4 gets past the first byte, so that hello
+  kept its marker), revision 3 from 2026.10.31.30 (the per-object update
+  delta), revision 2 from 2026.10.31.08. A hello with another value (a
+  revision-2, -3, -4 or -5 deck, the v1 hello) is refused and the
+  connection closed; the key exchange itself is the same v2 in every
+  revision.
 - Both sides prove they know `K`; the session key comes from the ephemeral
   exchange (forward secrecy: a later leak of `K` does not open past
   sessions).
@@ -172,7 +174,7 @@ then one block per set bit, **in this order**:
 | 4 `UPD_INTERNAL` | inventory, power distribution, life support, antimatter |
 | 5 `UPD_COMBAT` | lock, tubes, ion beam charge, then `int32 n` + `n` beams (60 B each) |
 | 6 `UPD_FLAGS` | cloak, dock, alert, jam, nav state, view toggles, crypto, radio lock |
-| 7 `UPD_EFFECTS` | supernova, torpedoes, wormhole, events, visible torpedoes |
+| 7 `UPD_EFFECTS` | supernova, torpedoes, wormhole, events, visible torpedoes: variable size, see below |
 | 8 `UPD_PROBES` | 3 probes |
 | 9 `UPD_OBJECTS` | `int32 n` + `n` objects (177 B each): the full list of the quadrant |
 | 13 `UPD_OBJDELTA` | the objects that changed, see below (instead of bit 9) |
@@ -181,18 +183,36 @@ then one block per set bit, **in this order**:
 Bit 12 (`UPD_KINEMATICS`, positions and velocities of every object) was
 used up to wire revision 2 and is not sent any more.
 
+`UPD_EFFECTS` (wire revision 6, `include/effects_wire.h`) carries only what
+it holds:
+
+```
+NetPoint supernova_pos; int32 supernova_q[3]; NetPoint torps[4]; NetPoint wormhole   (204 B)
+int32 event_count         0..64,  then event_count x NetEvent (56 B)
+int32 torpedo_count       0..256, then torpedo_count x NetVisibleTorpedo (56 B)
+```
+
+212 bytes when it holds no event and no torpedo; up to revision 5 the block
+was always the whole `UpdateBlockEffects`, 18 132 bytes. A count out of
+range is a protocol error (the deck closes the connection).
+
 `UPD_OBJDELTA` (`include/obj_delta.h`) changes the deck's list in place:
 
 ```
 int32 object_count        length of the list after the update (0..1024)
 int32 n_full              n_full x { int32 index; NetObject (177 B) }
 int32 n_motion            n_motion x { int32 index; float x, y, z, vx, vy, vz, h, m, r }
+int32 n_status            n_status x { int32 index; int32 health_pct; uint64 energy;
+                                       int32 plating; int32 hull_integrity; uint8 is_cloaked }
 ```
 
-An object whose fields other than the motion changed, and every slot at or
-past the previous length, comes as a full record; an object that only
-moved or turned comes as a motion record (40 bytes, the attitude
-included); the list is cut to `object_count`. Indices are strictly
+Every slot at or past the previous length, and an object whose identity
+changed (type, class, active, faction, id, name), comes as a full record;
+an object that moved or turned comes as a motion record (40 bytes, the
+attitude included); one whose health, energy, plating, hull or cloak
+changed comes as a status record (25 bytes, wire revision 6; before, a
+full record), and an object can have both; the list is cut to
+`object_count`. Indices are strictly
 increasing inside each run and below `object_count`; the deck closes the
 connection on any other block. The full list (`UPD_OBJECTS`) is sent on a
 quadrant change, at least every 5 s, and whenever the delta would not be
@@ -231,5 +251,6 @@ error instead of desynchronising later, and update this document and
 `tests/fuzz/` (seed generator and corpus) in the same change. The corpus is
 binary: move the libFuzzer-grown seeds with a committed script (the
 pattern is `tests/fuzz/migrate_corpus_rev4.py`) so that the change can be
-reproduced from a text patch. A change of the transport alone (revision 5,
-TLS) is refused before the hello and needs no new marker.
+reproduced from a text patch (`tests/fuzz/migrate_corpus_rev6.py` for
+revision 6). A change of the transport alone (revision 5, TLS) is refused
+before the hello and needed no new marker.

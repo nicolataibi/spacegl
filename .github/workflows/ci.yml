@@ -242,7 +242,7 @@ jobs:
       - name: shellcheck (launcher scripts)
         run: |
           shellcheck --version
-          shellcheck spacegl-server spacegl-client spacegl-diag tests/launcher_test.sh tests/gpu_golden_check.sh tests/systemd_unit_test.sh
+          shellcheck spacegl-server spacegl-client spacegl-diag tests/launcher_test.sh tests/gpu_golden_check.sh tests/systemd_unit_test.sh tests/load_test.sh
 
       - name: Configure (compile_commands.json)
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON

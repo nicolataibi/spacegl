@@ -1326,6 +1326,10 @@ void apply_hull_damage(int p_idx, double amount);
 void apply_jump_stress_damage(int p_idx, double amount);
 void send_optimized_update(int p_idx, PacketUpdate *upd);
 void send_pending_updates(void);
+/* Every SPACEGL_NET_REPORT_S seconds (default 60) while decks are on
+ * board: one NETWORK line with each deck's traffic and the update bytes by
+ * block (net.c, 2026.11.01.14). Game thread. */
+void net_traffic_report(double now_s);
 
 int calculate_shield_index(double shooter_x, double shooter_y, double shooter_z, 
                            double target_x, double target_y, double target_z,

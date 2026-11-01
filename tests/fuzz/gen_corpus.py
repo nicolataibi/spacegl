@@ -12,7 +12,7 @@ its wire body, exactly as spacegl_server.c's legacy loop consumes them.
 Wire layout (include/network.h, all little-endian, no padding needed):
   header         int32 type
   PacketHandshake i32 type, i32 pubkey_len, u8[256] pubkey
-                 (v2: pubkey_len = HSV4 marker, pubkey[0:32) client
+                 (v2: pubkey_len = HSV6 marker, pubkey[0:32) client
                   ephemeral X25519 key, [32:64) nonce, [64:96) HMAC)
   PacketLogin    i32 type, c[64] name, i32 faction, i32 ship_class,
                  u8[32] pass_hash, u8[16] salt,
@@ -43,9 +43,10 @@ import os
 import struct
 import sys
 
-HS_V2_MARKER = 0x34565348   # "HSV4": handshake v2, wire revision 4 (include/handshake_v2.h)
+HS_V2_MARKER = 0x36565348   # "HSV6": handshake v2, wire revision 6 (include/handshake_v2.h)
 HS_REV2_MARKER = 0x32565348 # "HSV2": a revision-2 deck, refused
 HS_REV3_MARKER = 0x33565348 # "HSV3": a revision-3 deck, refused
+HS_REV4_MARKER = 0x34565348 # "HSV4": a revision-4/5 deck, refused
 HARNESS_KEY = b"\x00" * 32   # fuzz harness MASTER_SESSION_KEY (all-zero)
 # RFC 7748 section 6.1 test public key: a valid X25519 point, so the
 # server's ECDH succeeds and the session goes on.
@@ -299,6 +300,8 @@ def main():
           handshake(marker=HS_REV2_MARKER) + command("who"))
     write(corpus, "handshake_rev3_refused.pkt",     # a valid hello of wire revision 3
           handshake(marker=HS_REV3_MARKER) + command("who"))
+    write(corpus, "handshake_rev5_refused.pkt",     # a valid hello of wire revision 4/5 ("HSV4")
+          handshake(marker=HS_REV4_MARKER) + command("who"))
     write(corpus, "handshake_small_order_key.pkt",   # all-zero point
           handshake(eph=b"\x00" * 32) + command("who"))
     write(corpus, "handshake_only.pkt", handshake())

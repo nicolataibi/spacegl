@@ -38,6 +38,7 @@
 #include "conn.h"
 #include "obj_delta.h"
 #include "sg_tls.h"
+#include "effects_wire.h"
 
 extern uint8_t deep_space_key[32];
 extern void ensure_player_algo_key(int p_idx, int k, bool private_mode);
@@ -589,6 +590,118 @@ void send_server_msg(int p_idx, const char *from, const char *text) {
     OPENSSL_cleanse(&route, sizeof(route));
 }
 
+/* Traffic accounting (2026.11.01.14): the bytes of the update packets by
+ * block, and every deck's traffic from its connection's counters
+ * (sg_net_counters), reported every SPACEGL_NET_REPORT_S seconds (default
+ * 60, 0 = never) while decks are on board. The update counters are
+ * written by the game thread only (send_pending_updates) and read by it
+ * (net_traffic_report). */
+enum {
+    NET_BLK_HEADER,
+    NET_BLK_TRANSFORM,
+    NET_BLK_VITALS,
+    NET_BLK_SHIELDS,
+    NET_BLK_SYSTEMS,
+    NET_BLK_INTERNAL,
+    NET_BLK_COMBAT,
+    NET_BLK_FLAGS,
+    NET_BLK_EFFECTS,
+    NET_BLK_PROBES,
+    NET_BLK_OBJECTS,
+    NET_BLK_OBJDELTA,
+    NET_BLK_MAP,
+    NET_BLK_COUNT
+};
+static const char *const g_blk_name[NET_BLK_COUNT] = {
+    "header", "transform", "vitals", "shields", "systems", "internal", "combat",
+    "flags", "effects", "probes", "objects", "object delta", "map"
+};
+static uint64_t g_blk_bytes[NET_BLK_COUNT];
+static uint64_t g_upd_packets;
+
+static void net_blk_add(int kind, ptrdiff_t bytes) {
+    if (bytes > 0) g_blk_bytes[kind] += (uint64_t)bytes;
+}
+
+static struct {
+    int fd;                 /* the connection the snapshot belongs to */
+    SgNetCounters c;
+} g_traffic_prev[MAX_CLIENTS];
+static double g_traffic_last_s = -1.0;
+
+void net_traffic_report(double now_s) {
+    static double interval = -1.0;
+    if (interval < 0.0) {
+        const char *v = getenv("SPACEGL_NET_REPORT_S");
+        char *end = NULL;
+        double d = (v && *v) ? strtod(v, &end) : 60.0;
+        interval = (v && *v && (*end != '\0' || d < 0.0)) ? 60.0 : d;
+    }
+    if (interval <= 0.0) return;
+    if (g_traffic_last_s < 0.0) g_traffic_last_s = now_s;
+    double dt = now_s - g_traffic_last_s;
+    if (dt < interval) return;
+    g_traffic_last_s = now_s;
+
+    int decks = 0, max_slot = -1;
+    double out_sum = 0.0, in_sum = 0.0, max_out = 0.0;
+    uint64_t app_out = 0, wire_out = 0;
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        int fd = players[i].socket;
+        if (fd == 0 || !players[i].active) {
+            g_traffic_prev[i].fd = 0;
+            continue;
+        }
+        SgNetCounters c;
+        sg_net_counters(fd, &c);
+        if (g_traffic_prev[i].fd == fd && c.wire_out >= g_traffic_prev[i].c.wire_out &&
+            c.app_out >= g_traffic_prev[i].c.app_out) {
+            double out = (double)(c.wire_out - g_traffic_prev[i].c.wire_out) / dt / 1024.0;
+            double in = (double)(c.wire_in - g_traffic_prev[i].c.wire_in) / dt / 1024.0;
+            app_out += c.app_out - g_traffic_prev[i].c.app_out;
+            wire_out += c.wire_out - g_traffic_prev[i].c.wire_out;
+            out_sum += out;
+            in_sum += in;
+            if (out > max_out) {
+                max_out = out;
+                max_slot = i;
+            }
+            decks++;
+        }
+        g_traffic_prev[i].fd = fd;
+        g_traffic_prev[i].c = c;
+    }
+
+    uint64_t blk_total = 0;
+    for (int k = 0; k < NET_BLK_COUNT; k++) blk_total += g_blk_bytes[k];
+    if (decks > 0) {
+        char blocks[400];
+        size_t n = 0;
+        blocks[0] = '\0';
+        /* the blocks that weigh, largest first */
+        bool used[NET_BLK_COUNT] = { false };
+        for (int r = 0; r < NET_BLK_COUNT && blk_total > 0; r++) {
+            int best = -1;
+            for (int k = 0; k < NET_BLK_COUNT; k++)
+                if (!used[k] && (best < 0 || g_blk_bytes[k] > g_blk_bytes[best])) best = k;
+            used[best] = true;
+            double pct = 100.0 * (double)g_blk_bytes[best] / (double)blk_total;
+            if (pct < 1.0) break;
+            int w = snprintf(blocks + n, sizeof(blocks) - n, "%s%s %.0f%%", n ? ", " : "", g_blk_name[best], pct);
+            if (w < 0 || (size_t)w >= sizeof(blocks) - n) break;
+            n += (size_t)w;
+        }
+        double tls = app_out ? 100.0 * ((double)wire_out - (double)app_out) / (double)app_out : 0.0;
+        SG_INFO(SG_CAT_NETWORK,
+                "traffic, last %.0f s: %d deck(s); to each deck %.1f KB/s on average, at most %.1f (%s), "
+                "TLS %+.1f%%; from the decks %.2f KB/s each; %.0f update packets/s; updates by block: %s",
+                dt, decks, out_sum / decks, max_out, max_slot >= 0 ? players[max_slot].name : "?", tls,
+                in_sum / decks, (double)g_upd_packets / dt, blocks[0] ? blocks : "none");
+    }
+    memset(g_blk_bytes, 0, sizeof(g_blk_bytes));
+    g_upd_packets = 0;
+}
+
 void send_optimized_update(int p_idx, PacketUpdate *upd) {
     ConnectedPlayer *p = &players[p_idx];
     uint64_t mask = 0;
@@ -684,28 +797,40 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     delta->update_mask = mask;
     
     uint8_t *ptr = delta->data;
-    
+    uint8_t *mark = ptr;
+    net_blk_add(NET_BLK_HEADER, (ptrdiff_t)(ptr - buffer));
+    mark = ptr;
     if (mask & UPD_TRANSFORM) {
         UpdateBlockTransform b = {upd->q1, upd->q2, upd->q3, upd->s1, upd->s2, upd->s3, upd->van_h, upd->van_m, upd->van_r, upd->eta};
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
+    net_blk_add(NET_BLK_TRANSFORM, ptr - mark);
+    mark = ptr;
     if (mask & UPD_VITALS) {
         UpdateBlockVitals b = {upd->energy, upd->torpedoes, upd->cargo_energy, upd->cargo_torpedoes, upd->crew_count, upd->prison_unit, upd->composite_plating, upd->hull_integrity};
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
+    net_blk_add(NET_BLK_VITALS, ptr - mark);
+    mark = ptr;
     if (mask & UPD_SHIELDS) {
         UpdateBlockShields b = {0}; memcpy(b.shields, upd->shields, sizeof(upd->shields));
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
+    net_blk_add(NET_BLK_SHIELDS, ptr - mark);
+    mark = ptr;
     if (mask & UPD_SYSTEMS) {
         UpdateBlockSystems b = {0}; memcpy(b.system_health, upd->system_health, sizeof(upd->system_health));
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
+    net_blk_add(NET_BLK_SYSTEMS, ptr - mark);
+    mark = ptr;
     if (mask & UPD_INTERNAL) {
         UpdateBlockInternal b; memcpy(b.inventory, upd->inventory, sizeof(upd->inventory)); memcpy(b.power_dist, upd->power_dist, sizeof(upd->power_dist));
         b.life_support = upd->life_support; b.anti_matter_count = upd->anti_matter_count;
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
+    net_blk_add(NET_BLK_INTERNAL, ptr - mark);
+    mark = ptr;
     if (mask & UPD_COMBAT) {
         UpdateBlockCombat b = {upd->lock_target, upd->tube_state, {0}, {0}, upd->current_tube, upd->ion_beam_charge};
         memcpy(b.tube_load_timers, upd->tube_load_timers, sizeof(b.tube_load_timers));
@@ -723,10 +848,14 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
             SG_TRACE4(SG_CAT_PHA, "DELIVER to player %d (%s): beam CLEAR in DELTA (%d -> 0, mask=0x%llx)",
                       p_idx, p->name, p->last_sent_state.beam_count, (unsigned long long)mask);
     }
+    net_blk_add(NET_BLK_COMBAT, ptr - mark);
+    mark = ptr;
     if (mask & UPD_FLAGS) {
         UpdateBlockFlags b = {upd->is_cloaked, upd->is_docked, upd->red_alert, upd->is_jammed, upd->nav_state, upd->show_axes, upd->show_grid, upd->show_bridge, upd->show_map, upd->map_filter, upd->force_shutdown, upd->shm_crypto_algo, upd->encryption_flags, upd->radio_lock_target};
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
+    net_blk_add(NET_BLK_FLAGS, ptr - mark);
+    mark = ptr;
     if (mask & UPD_EFFECTS) {
         UpdateBlockEffects b; memset(&b, 0, sizeof(b));
         b.supernova_pos = upd->supernova_pos; memcpy(b.supernova_q, upd->supernova_q, sizeof(upd->supernova_q));
@@ -735,25 +864,35 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         memcpy(b.events, upd->events, (size_t)b.event_count * sizeof(NetEvent));
         b.torpedo_count = upd->torpedo_count; if (b.torpedo_count > MAX_VISIBLE_TORPEDOES) b.torpedo_count = MAX_VISIBLE_TORPEDOES;
         memcpy(b.visible_torpedoes, upd->visible_torpedoes, (size_t)b.torpedo_count * sizeof(NetVisibleTorpedo));
-        memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
+        /* only the events and torpedoes it holds (wire revision 6,
+         * include/effects_wire.h): 212 bytes instead of 18 132 when empty */
+        ptr += effects_wire_write(&b, ptr);
     }
+    net_blk_add(NET_BLK_EFFECTS, ptr - mark);
+    mark = ptr;
     if (mask & UPD_PROBES) {
         UpdateBlockProbes b = {0}; memcpy(b.probes, upd->probes, sizeof(upd->probes));
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
+    net_blk_add(NET_BLK_PROBES, ptr - mark);
+    mark = ptr;
     if (mask & UPD_OBJECTS) {
         int32_t oc = upd->object_count; memcpy(ptr, &oc, sizeof(int32_t)); ptr += sizeof(int32_t);
         if (oc > 0) { memcpy(ptr, upd->objects, (size_t)oc * sizeof(NetObject)); ptr += (size_t)oc * sizeof(NetObject); }
     } else if (mask & UPD_OBJDELTA) {
         ptr += objdelta_write(p->last_sent_state.objects, upd->objects, &od_plan, ptr);
     }
+    net_blk_add((mask & UPD_OBJECTS) ? NET_BLK_OBJECTS : NET_BLK_OBJDELTA, ptr - mark);
+    mark = ptr;
     if (mask & UPD_MAP) {
         UpdateBlockMap b = {upd->map_update_val, {upd->map_update_q[0], upd->map_update_q[1], upd->map_update_q[2]}, upd->map_update_val2, {upd->map_update_q2[0], upd->map_update_q2[1], upd->map_update_q2[2]}};
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
+    net_blk_add(NET_BLK_MAP, ptr - mark);
 
 
     size_t total_size = (size_t)(ptr - buffer);
+    g_upd_packets++;
     pthread_mutex_lock(&p->socket_mutex);
     if (p->socket != 0) write_all(p->socket, buffer, total_size);
     pthread_mutex_unlock(&p->socket_mutex);

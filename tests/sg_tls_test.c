@@ -18,6 +18,8 @@
  *     session (the server's listener and broadcast threads, the deck's
  *     listener and main thread); 8 MB echoed, every byte checked. TSan
  *     builds run it too.
+ *     The traffic counters (2026.11.01.14): protocol bytes and socket
+ *     bytes on both ends agree.
  *  5. without a session sg_net_recv/send are recv/send (the test
  *     socketpairs of the dispatcher tests); sg_tls_detach is harmless.
  */
@@ -227,6 +229,18 @@ int main(void) {
         TEST_CHECK(sg_net_wait(c, false, 0) == 1);    /* but the seam knows */
         TEST_CHECK(recv_all(c, b, 8) && memcmp(b, "BBBBCCCC", 8) == 0);
         TEST_CHECK(sg_tls_pending(c) == 0);
+        /* traffic counters: the protocol's bytes, and the socket's (TLS
+         * records and the handshake on top) */
+        SgNetCounters cc, sc;
+        sg_net_counters(c, &cc);
+        sg_net_counters(s, &sc);
+        TEST_CHECK(cc.app_out == 12 && cc.app_in == 12);
+        TEST_CHECK(sc.app_out == 12 && sc.app_in == 12);
+        TEST_CHECK(cc.wire_out > cc.app_out && sc.wire_out > sc.app_out);
+        TEST_CHECK(cc.wire_out == sc.wire_in && sc.wire_out == cc.wire_in);
+        printf("  counters: client app %llu/%llu wire %llu/%llu bytes (out/in)\n",
+               (unsigned long long)cc.app_out, (unsigned long long)cc.app_in,
+               (unsigned long long)cc.wire_out, (unsigned long long)cc.wire_in);
         /* orderly close: the peer reads 0 */
         sg_tls_detach(s);
         close(s);
@@ -306,6 +320,9 @@ int main(void) {
         char b[8] = { 0 };
         TEST_CHECK(sg_net_wait(sv[1], false, 1000) == 1);
         TEST_CHECK(sg_net_recv(sv[1], b, sizeof(b)) == 5 && memcmp(b, "plain", 5) == 0);
+        SgNetCounters pc;
+        sg_net_counters(sv[0], &pc);
+        TEST_CHECK(pc.app_out == 5 && pc.wire_out == 5);
         sg_tls_detach(sv[0]);   /* harmless */
         close(sv[0]);
         close(sv[1]);

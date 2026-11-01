@@ -47,6 +47,7 @@ static const char *get_lrs_object_icon(int id);
 #include <stdatomic.h>
 #include "network.h"
 #include "client_wire.h"
+#include "effects_wire.h"
 #include "obj_delta.h"
 #include "handshake_v2.h"
 #include "known_servers.h"
@@ -1329,14 +1330,17 @@ void *network_listener(void *arg) {
                     current_pkt_size += (int)sizeof(b);
                 }
                 if (mask & UPD_EFFECTS) {
-                    UpdateBlockEffects b;
-                    if (read_all(sock, &b, sizeof(b)) != (int)sizeof(b)) {
-                        SG_ERROR(SG_CAT_LRS, "UPD_EFFECTS: short read - wire desync, closing");
+                    /* only the events and torpedoes it holds (wire
+                     * revision 6, include/effects_wire.h); a count out of
+                     * range cannot be skipped: protocol error */
+                    static UpdateBlockEffects b;   /* 18 KB: not on the listener's stack */
+                    long used = effects_wire_read(&b, deck_read_exact, &sock);
+                    if (used < 0) {
+                        SG_ERROR(SG_CAT_LRS, "UPD_EFFECTS: short read or count out of range - wire desync, closing");
                         break;
                     }
-                    /* event/torpedo counts clamped to [0, MAX] (client_wire.h) */
                     wire_apply_effects(&current_state, &b);
-                    current_pkt_size += (int)sizeof(b);
+                    current_pkt_size += (int)used;
                 }
                 if (mask & UPD_PROBES) {
                     UpdateBlockProbes b; read_all(sock, &b, sizeof(b));

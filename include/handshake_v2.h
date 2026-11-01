@@ -73,13 +73,17 @@
  * Revision 5 (2026.11.01.11) puts the whole connection inside TLS 1.3
  * (include/sg_tls.h) and changes nothing inside it: the two ends refuse
  * each other at the first byte (a TLS record against a hello in clear),
- * so no deck of revision 4 ever reaches the hello and its marker stays
- * "HSV4" (the fuzz corpus, which drives the dispatcher without TLS,
- * needs no migration). */
-#define SPACEGL_WIRE_REVISION  5
-#define HANDSHAKE_V2_MARKER    0x34565348   /* "HSV4" (little endian) in pubkey_len, revisions 4 and 5 */
+ * so no deck of revision 4 ever reaches the hello and its marker stayed
+ * "HSV4".
+ *   "HSV6"  revision 6, 2026.11.01.14: the UPD_EFFECTS block carries only
+ *           the events and torpedoes it holds (include/effects_wire.h);
+ *           a deck of revision 5 (inside TLS, "HSV4") is refused at the
+ *           hello. */
+#define SPACEGL_WIRE_REVISION  6
+#define HANDSHAKE_V2_MARKER    0x36565348   /* "HSV6" (little endian) in pubkey_len */
 #define HANDSHAKE_MARKER_REV2  0x32565348   /* "HSV2": a revision-2 deck, refused */
 #define HANDSHAKE_MARKER_REV3  0x33565348   /* "HSV3": a revision-3 deck, refused */
+#define HANDSHAKE_MARKER_REV4  0x34565348   /* "HSV4": a revision-4 or -5 deck, refused */
 #define HANDSHAKE_V2_REQ_LEN   96           /* eC + Nc + MAC used in pubkey[] */
 #define HANDSHAKE_V2_REPLY_LEN 224          /* eS + Ns + MAC + masked verify key + S + signature */
 #define HS_ID_PUB_OFF          128          /* the server identity key in the reply */

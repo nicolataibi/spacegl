@@ -333,8 +333,13 @@ int dispatch_packet(PktIO *io, int32_t type) {
              * the master key on the wire (MAGIC XOR K). A v1 client is
              * told nothing it could use and dropped. */
             if (h_pkt.pubkey_len != HANDSHAKE_V2_MARKER) {
-                if (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV2 || h_pkt.pubkey_len == HANDSHAKE_MARKER_REV3) {
-                    int rev = (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV2) ? 2 : 3;
+                if (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV2 || h_pkt.pubkey_len == HANDSHAKE_MARKER_REV3 ||
+                    h_pkt.pubkey_len == HANDSHAKE_MARKER_REV4) {
+                    /* "HSV4": revision 4 in clear (refused before, at the
+                     * TLS byte) or revision 5 inside TLS */
+                    int rev = (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV2)   ? 2
+                              : (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV3) ? 3
+                                                                            : 5;
                     SG_WARNING(SG_CAT_SECURITY, "fd %d: deck of wire revision %d refused (revision %d required)",
                                fd, rev, SPACEGL_WIRE_REVISION);
                     fprintf(stderr, "\033[1;33m[SECURITY]\033[0m Deck of wire revision %d refused on FD %d: the client must be updated (revision %d).\n",

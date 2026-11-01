@@ -146,13 +146,13 @@ The suite has **49 tests** (integrated mode; the standalone mode builds the ones
 | 18 | `relay_snapshot` | radio relay: NUL-safe encryption, byte-exact relay, captured routes, detach of a blocked writer, one encoding per frequency and key | `src/server/net.c` + `conn.c` |
 | 19 | `login_auth` | PKT_LOGIN must prove the identity; takeover; unsalted records refused; credentials masked; stale handshakes closed; concurrent new captains; handshake slot released | `src/server/packets.c` |
 | 20 | `sender_stamp` | the sender of a radio message is the authenticated captain (from, COMPUTER lock, faction, station names, signing key) | `src/server/packets.c` + `net.c` |
-| 21 | `client_wire` | the deck's clamps of server-supplied counts (ASan/UBSan) | `include/client_wire.h` |
+| 21 | `client_wire` | the deck's clamps of server-supplied counts (ASan/UBSan); the effects block of variable size: round trip, sizes, hostile counts refused | `include/client_wire.h`, `include/effects_wire.h` |
 | 22 | `key_file` | `load_master_key()`: creation 0600, sources, permissions, damaged files | `include/network.h` |
-| 23 | `handshake_v2` | handshake: RFC vectors, exchange, refusals, K off the wire, the server identity signature (revision 4), dispatcher | `include/handshake_v2.h`, `src/server/packets.c` |
+| 23 | `handshake_v2` | handshake: RFC vectors, exchange, refusals (revisions 2-5 too), K off the wire, the server identity signature (revision 4), dispatcher | `include/handshake_v2.h`, `src/server/packets.c` |
 | 24 | `shm_layout` | the SharedIPC segment: alignment of the shared mutex/semaphore/atomics, layout stamp | `include/shared_state.h` |
 | 25 | `sg_str` | bounded `SG_SPRINTF`/`SG_STRCAT`/`SG_APPENDF` | `include/sg_str.h` |
-| 26 | `obj_delta` | UPD_OBJDELTA encoder/decoder round trip and malformed blocks | `include/obj_delta.h` |
-| 27 | `update_delta` | the real `send_optimized_update()` decoded over 900 ticks | `src/server/net.c` |
+| 26 | `obj_delta` | UPD_OBJDELTA encoder/decoder round trip, full/motion/status records and their sizes, malformed blocks | `include/obj_delta.h` |
+| 27 | `update_delta` | the real `send_optimized_update()` decoded over 900 ticks; a one-object quadrant as status records; the effects block read back exactly | `src/server/net.c` |
 | 28 | `sg_parse` | `sg_scan_nums()` and `sg_hex_decode()`, the checked replacements for `sscanf()` | `include/sg_parse.h` |
 | 29 | `crypto_table_oob` | B2-b: `radio_cipher_for_algo()` bounds, all 256 algo bytes (ASan/UBSan) | `include/radio_crypto.h` |
 | 30 | `net_count_oob` | B3-b: object/beam `count` field bounds, canary array (ASan/UBSan) | `src/server/packets.c` + `net.c` |
@@ -302,9 +302,9 @@ SECURITY.md if it pins an audit item.
 | :--- | :--- |
 | `src/` | the 8 product TUs (server in `src/server/`, GDD in `src/vulkan_gdd_build.c` and `src/vulkan_gdd_render.c`) |
 | `include/` | shared headers; `spacegl_gdd.h` is the CPU/GPU contract, `object_types.h` the single table of object `type` values (X-macro; server, HUD, viewers and the GDD builder all use its `OBJ_*` names and predicates),
-  `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks, `handshake_v2.h` the handshake (wire revision 4, the server identity signature), `sg_tls.h` the TLS 1.3 transport of the game port (wire revision 5, one seam for the socket I/O of server and deck), `known_servers.h` the deck's pins of server identities |
+  `radio_crypto.h` the single crypto table, `network.h` the canonical packet checks, `handshake_v2.h` the handshake (wire revision 4, the server identity signature), `sg_tls.h` the TLS 1.3 transport of the game port (wire revision 5, one seam for the socket I/O of server and deck, with its traffic counters), `effects_wire.h` the effects block on the wire (wire revision 6), `obj_delta.h` the object list delta (full, motion and status records), `tick_monitor.h` the server's measure of its tick, `known_servers.h` the deck's pins of server identities |
 | `assets/shaders/` | GLSL sources (legacy `shader.*` + GDD `gdd_*`, shared `gdd_common.glsl`/`gdd_ops.glsl`) |
-| `tests/` | the 49-test suite (dual-mode CMake project), `bench_ab.sh` (A/B benchmark gate), `format_check.sh`, `fuzz/` (libFuzzer harness seeds and their generator/migration scripts) |
+| `tests/` | the 49-test suite (dual-mode CMake project), `bench_ab.sh` (A/B benchmark gate), `load_test.sh` (the real server under N real decks: traffic and slow ticks, by hand), `format_check.sh`, `fuzz/` (libFuzzer harness seeds and their generator/migration scripts) |
 | `systemd/` | `spacegl-server.service.in`, the optional system service of the server (configured by CMake with the install prefix, never enabled by the build or the package) |
 | `PROTOCOL.md` | the wire protocol (TLS transport, packets, handshake, identity, limits) |
 | `cmake/SpaceGLVulkanSDK.cmake` | the shared Vulkan SDK resolution chain |
@@ -473,6 +473,17 @@ number and element count.
   CPU time; `SPACEGL_TICK_THREADS`, default 1). A change of the benchmark
   program makes the next `bench_ab` run skip (the two sides would measure
   different programs).
+- **Traffic (2026.11.01.14).** The server counts every connection's bytes
+  (protocol and TLS, `sg_net_counters()`) and the bytes of each update
+  block, and logs one `NETWORK` line every `SPACEGL_NET_REPORT_S` seconds
+  (default 60) while decks are on board. `tests/load_test.sh <server>
+  <client> [--decks N] [--seconds S] [--report S]` runs N real decks that
+  fly and fire, and prints those lines, the slow ticks, the server's CPU
+  and memory. With 16 decks for 60 s (this machine): 25.0 KB/s to each
+  deck at wire revision 5 (objects 37%, effects 24%: a fixed 18 KB effects
+  block, and full object records for energy changes), 14.5 KB/s at
+  revision 6 (effects of variable size, status records), TLS +10%, the
+  server at 17% of one CPU.
 - **Golden renders on a real GPU (roadmap 10).** The committed golden
   images come from the software drivers (lavapipe, llvmpipe). On a machine
   with a GPU, in its graphical session, after a Release build:

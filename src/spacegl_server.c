@@ -449,6 +449,7 @@ void *game_loop_thread(void *arg) {
          * This decouples blocking TCP writes from the 60Hz simulation lock,
          * preventing a slow client from stalling the entire game thread. */
         send_pending_updates();
+        net_traffic_report(mono_ms() / 1000.0);
         double t_send = mono_ms();
         phase[TICK_PHASE_SEND] = t_send - t_save;
 

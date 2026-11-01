@@ -13,14 +13,16 @@
  * everywhere). After every packet the deck's list must equal the server's
  * (motion to float precision), and in a quadrant with more than a handful
  * of objects most ticks must travel as UPD_OBJDELTA, not as the full list.
- * A one-object quadrant must use the full list (the delta would not be
- * smaller).
+ * A one-object quadrant whose captain spends energy uses a status record
+ * since wire revision 6 (before: the full list, the record was not
+ * smaller). UPD_EFFECTS carries only the events and torpedoes it holds.
  *
  * Exit: 0 pass, 1 fail.
  */
 #include "server_internal.h"
 #include "conn.h"
 #include "obj_delta.h"
+#include "effects_wire.h"
 
 #include <errno.h>
 #include <math.h>
@@ -76,6 +78,9 @@ static NetObject deck[MAX_NET_OBJECTS];
 static int32_t deck_n = 0;
 static int g_full = 0, g_delta = 0, g_packets = 0;
 static size_t g_obj_bytes = 0;
+static UpdateBlockEffects g_eff;            /* the last UPD_EFFECTS block read */
+static int g_eff_blocks = 0;
+static size_t g_eff_bytes = 0;
 
 /* Reads one PKT_UPDATE_DELTA; false on a protocol error. */
 static bool read_packet(void) {
@@ -94,7 +99,12 @@ static bool read_packet(void) {
         if (!rx_skip((size_t)bc * sizeof(NetBeam))) return false;
     }
     if ((mask & UPD_FLAGS) && !rx_skip(sizeof(UpdateBlockFlags))) return false;
-    if ((mask & UPD_EFFECTS) && !rx_skip(sizeof(UpdateBlockEffects))) return false;
+    if (mask & UPD_EFFECTS) {   /* variable size since wire revision 6 */
+        long used = effects_wire_read(&g_eff, rx_exact, NULL);
+        if (used < 0) return false;
+        g_eff_blocks++;
+        g_eff_bytes += (size_t)used;
+    }
     if ((mask & UPD_PROBES) && !rx_skip(sizeof(UpdateBlockProbes))) return false;
     if (mask & UPD_OBJECTS) {
         int32_t oc;
@@ -193,12 +203,55 @@ int main(void) {
         if (!tick(u) || !deck_matches(u)) { errors++; break; }
     }
     CHECK(errors == 0, "one-object quadrant: the deck follows the server");
-    CHECK(g_delta == 0 && g_full == 30, "one-object quadrant: %d full, %d delta (the full list is smaller)", g_full, g_delta);
+    /* since wire revision 6 the captain's energy is a 25-byte status record:
+     * after the first packet (the quadrant change, a full list) every tick
+     * is a delta, smaller than the one-object list */
+    CHECK(g_full == 1 && g_delta == 29, "one-object quadrant: %d full, %d delta (the status record is smaller)", g_full,
+          g_delta);
 
     /* 3. nothing changes: nothing is sent */
     int before = g_packets;
     for (int t = 0; t < 10; t++) if (!tick(u)) errors++;
     CHECK(g_packets == before, "an unchanged state sends no packet (%d sent)", g_packets - before);
+
+    /* 4. UPD_EFFECTS (wire revision 6): only the events and torpedoes it
+     * holds, read back exactly */
+    g_eff_blocks = 0;
+    g_eff_bytes = 0;
+    u->event_count = 3;
+    for (int e = 0; e < 3; e++) {
+        memset(&u->events[e], 0, sizeof(NetEvent));
+        u->events[e].type = 100 + e;
+        u->events[e].x1 = e * 1.5;
+        u->events[e].z2 = -e;
+        u->events[e].extra = 7 * e;
+    }
+    u->torpedo_count = 2;
+    for (int k = 0; k < 2; k++) {
+        memset(&u->visible_torpedoes[k], 0, sizeof(NetVisibleTorpedo));
+        u->visible_torpedoes[k].id = 900 + k;
+        u->visible_torpedoes[k].x = 3.25 * k;
+        u->visible_torpedoes[k].vz = 0.5;
+    }
+    u->wormhole.active = 1;
+    u->wormhole.net_x = 12.5;
+    if (!tick(u)) errors++;
+    CHECK(g_eff_blocks == 1, "effects: %d blocks received (1 expected)", g_eff_blocks);
+    CHECK(g_eff.event_count == 3 && g_eff.torpedo_count == 2, "effects: counts %d / %d", g_eff.event_count,
+          g_eff.torpedo_count);
+    CHECK(memcmp(g_eff.events, u->events, 3 * sizeof(NetEvent)) == 0, "effects: the events differ");
+    CHECK(memcmp(g_eff.visible_torpedoes, u->visible_torpedoes, 2 * sizeof(NetVisibleTorpedo)) == 0,
+          "effects: the torpedoes differ");
+    CHECK(g_eff.wormhole.active == 1 && g_eff.wormhole.net_x == 12.5, "effects: the wormhole differs");
+    size_t want = EFFECTS_WIRE_HEAD + 3 * sizeof(NetEvent) + 4 + 2 * sizeof(NetVisibleTorpedo);
+    CHECK(g_eff_bytes == want, "effects: %zu bytes on the wire (%zu expected)", g_eff_bytes, want);
+    printf("  effects block: %zu bytes with 3 events and 2 torpedoes (revision 5: %zu)\n", g_eff_bytes,
+           sizeof(UpdateBlockEffects));
+    u->event_count = 0;
+    u->torpedo_count = 0;
+    u->wormhole.active = 0;
+    if (!tick(u)) errors++;   /* the effects end */
+    CHECK(errors == 0, "effects: protocol error in the packet stream");
 
     close(sv[0]); close(sv[1]);
     printf("update_delta: %d passed, %d failed\n", g_pass, g_fail);

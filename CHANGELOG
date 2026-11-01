@@ -1,3 +1,46 @@
+* Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.14
+  - Performance, phase 2 (the traffic to the decks). The server now
+  measures it: every connection counts its bytes, those of the protocol
+  and those on the socket (sg_net_counters(), include/sg_tls.h), and
+  send_optimized_update() the bytes of each update block. One NETWORK line
+  every SPACEGL_NET_REPORT_S seconds (default 60, 0 = none) while decks
+  are on board: the traffic to each deck (average, the largest and whose),
+  what TLS adds, the traffic from the decks, the update packets per
+  second, the share of each block. tests/load_test.sh runs N real decks
+  that fly and fire (by hand; not in ctest) and prints those lines, the
+  slow ticks, the server's CPU and memory.
+  - Measured with 16 decks for 60 s: 25.0 KB/s to each deck; objects 37%,
+  effects 24%, transform 17%, vitals 10%. Two wastes:
+  - UPD_EFFECTS always went out as the whole block, 18 132 bytes (room for
+  64 events and 256 torpedoes) for 0.3 events on average. It now carries
+  only what it holds (include/effects_wire.h): 212 bytes when empty. A
+  count out of range is a protocol error on the deck.
+  - UPD_OBJDELTA sent a full record (181 bytes) for any change but motion,
+  and in a quadrant of one or two objects the whole list, every tick: the
+  captain's own entry changes its energy 60 times a second. The fields that
+  change in play (health, energy, plating, hull, cloak) now travel as a
+  status record of 25 bytes (include/obj_delta.h); a full record only for
+  a new slot or an identity change (type, class, active, faction, id,
+  name). A one-object quadrant is now a delta (41 bytes), not the list.
+  - Result, same test: 14.5 KB/s to each deck (-42%), the full object
+  lists under 1%; object delta 35%, transform 31%, vitals 17%, header 9%;
+  TLS +10%; the server at 17% of one CPU. 16 decks: about 1.9 Mbit/s up.
+  - Wire revision 6 (the two blocks changed layout): the hello marker is
+  "HSV6"; a deck of revision 4 or 5 ("HSV4") is refused at the hello. The
+  fuzz corpus moves to the new marker: run once
+      python3 tests/fuzz/gen_corpus.py tests/fuzz/corpus
+      python3 tests/fuzz/migrate_corpus_rev6.py tests/fuzz/corpus
+  (gen_corpus.py writes revision 6 and the new handshake_rev5_refused.pkt).
+  - The save image keeps 1/16 of headroom, so a galaxy that grows a little
+  keeps its buffer.
+  - Tests: obj_delta (status records, sizes, hostile status runs),
+  update_delta (a one-object quadrant as status records, the effects block
+  read back exactly: 492 bytes with 3 events and 2 torpedoes),
+  client_wire (effects round trip, sizes, hostile counts refused),
+  handshake_v2 (a revision-5 hello refused), sg_tls (the counters).
+  PROTOCOL.md (sections 3 and 6), DEVELOPMENT.md, README.md,
+  spacegl_server(1) (SPACEGL_NET_REPORT_S).
+
 * Sun Nov 01 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.01.13
   - Performance, phase 1 (the slow ticks of the server). The server now
   times its own tick (include/tick_monitor.h): the logic, the wait for

@@ -189,11 +189,14 @@ bool galaxy_file_image_into(GalaxyImage *img) {
     for (int i = 0; i < n; i++) total += sizeof(GalaxySectionHeader) + sec[i].elem_size * sec[i].count;
 
     if (total > img->cap || !img->data) {
-        uint8_t *d = malloc(total);
+        /* 1/16 of headroom: a galaxy that grows a little (wrecks, mines)
+         * keeps the buffer, and its pages, instead of a fresh one */
+        size_t cap = total + total / 16;
+        uint8_t *d = malloc(cap);
         if (!d) return false;
         free(img->data);
         img->data = d;
-        img->cap = total;
+        img->cap = cap;
     }
     img->len = total;
 

@@ -19,6 +19,16 @@
  *   int32 object_count        length of the list after this update
  *   int32 n_full              then n_full x { int32 index; NetObject }
  *   int32 n_motion            then n_motion x { int32 index; NetMotion }
+ *   int32 n_status            then n_status x { int32 index; NetStatus }
+ *                             (wire revision 6, 2026.11.01.14)
+ * A full record carries a new slot or an object whose identity changed
+ * (type, class, active, faction, id, name). Since wire revision 6 the
+ * fields that change in play (health, energy, plating, hull, cloak) travel
+ * as a status record of 25 bytes instead of the full 181: before, the
+ * captain's own entry, whose energy changes every tick, re-sent the whole
+ * record 60 times a second, and in a quadrant of one or two objects the
+ * whole list (the server's traffic report: 37% of the bytes to the decks).
+ * An object may have both a motion and a status record.
  *
  * index is the slot in the list, strictly increasing inside each run and
  * below object_count. Slots at or past the previous length always come
@@ -47,18 +57,38 @@ typedef struct {
 } NetMotion;
 #pragma pack(pop)
 
-#define OBJDELTA_HEADER_SIZE  (3 * sizeof(int32_t))
+#pragma pack(push, 1)
+typedef struct {
+    int32_t health_pct;
+    uint64_t energy;
+    int32_t plating;
+    int32_t hull_integrity;
+    uint8_t is_cloaked;
+} NetStatus;
+#pragma pack(pop)
+
+#define OBJDELTA_HEADER_SIZE  (4 * sizeof(int32_t))
 #define OBJDELTA_FULL_SIZE    (sizeof(int32_t) + sizeof(NetObject))
 #define OBJDELTA_MOTION_SIZE  (sizeof(int32_t) + sizeof(NetMotion))
+#define OBJDELTA_STATUS_SIZE  (sizeof(int32_t) + sizeof(NetStatus))
 /* worst case of a block the encoder accepts: below the full list */
 #define OBJDELTA_MAX_SIZE     (sizeof(int32_t) + (size_t)MAX_NET_OBJECTS * sizeof(NetObject))
 
+/* What makes the object the same object: a change is a full record. */
+static inline bool objdelta_identity_equal(const NetObject *a, const NetObject *b) {
+    return a->type == b->type && a->ship_class == b->ship_class && a->active == b->active &&
+           a->faction == b->faction && a->id == b->id && memcmp(a->name, b->name, sizeof(a->name)) == 0;
+}
+
+/* The fields that change in play: a status record. */
+static inline bool objdelta_status_equal(const NetObject *a, const NetObject *b) {
+    return a->health_pct == b->health_pct && a->energy == b->energy && a->plating == b->plating &&
+           a->hull_integrity == b->hull_integrity && a->is_cloaked == b->is_cloaked;
+}
+
 /* Every field but the motion. */
 static inline bool objdelta_meta_equal(const NetObject *a, const NetObject *b) {
-    return a->type == b->type && a->ship_class == b->ship_class && a->active == b->active &&
-           a->health_pct == b->health_pct && a->energy == b->energy && a->plating == b->plating &&
-           a->hull_integrity == b->hull_integrity && a->faction == b->faction && a->id == b->id &&
-           a->is_cloaked == b->is_cloaked && memcmp(a->name, b->name, sizeof(a->name)) == 0;
+    return objdelta_identity_equal(a, b) && objdelta_status_equal(a, b);
 }
 
 static inline bool objdelta_motion_equal(const NetObject *a, const NetObject *b) {
@@ -75,9 +105,14 @@ typedef enum {
 
 typedef struct {
     int32_t prev_n, cur_n;     /* clamped to [0, MAX_NET_OBJECTS] */
-    int32_t n_full, n_motion;
+    int32_t n_full, n_motion, n_status;
     size_t size;               /* bytes of the block */
 } ObjDeltaPlan;
+
+/* Slot i of an update: a full record (new slot, identity changed). */
+static inline bool objdelta_is_full(const NetObject *prev, int32_t prev_n, const NetObject *cur, int32_t i) {
+    return i >= prev_n || !objdelta_identity_equal(&prev[i], &cur[i]);
+}
 
 /* Compares cur[0..cur_n) with prev[0..prev_n) (what the deck holds) and
  * says what to send. cap: the room the block may take. */
@@ -88,14 +123,23 @@ static inline ObjDeltaKind objdelta_plan(const NetObject *prev, int32_t prev_n,
     if (cur_n < 0) cur_n = 0;
     if (prev_n > MAX_NET_OBJECTS) prev_n = MAX_NET_OBJECTS;
     if (cur_n > MAX_NET_OBJECTS) cur_n = MAX_NET_OBJECTS;
-    pl->prev_n = prev_n; pl->cur_n = cur_n; pl->n_full = 0; pl->n_motion = 0; pl->size = 0;
+    pl->prev_n = prev_n;
+    pl->cur_n = cur_n;
+    pl->n_full = 0;
+    pl->n_motion = 0;
+    pl->n_status = 0;
+    pl->size = 0;
     for (int32_t i = 0; i < cur_n; i++) {
-        if (i >= prev_n || !objdelta_meta_equal(&prev[i], &cur[i])) pl->n_full++;
-        else if (!objdelta_motion_equal(&prev[i], &cur[i])) pl->n_motion++;
+        if (objdelta_is_full(prev, prev_n, cur, i)) {
+            pl->n_full++;
+            continue;
+        }
+        if (!objdelta_motion_equal(&prev[i], &cur[i])) pl->n_motion++;
+        if (!objdelta_status_equal(&prev[i], &cur[i])) pl->n_status++;
     }
-    if (pl->n_full == 0 && pl->n_motion == 0 && cur_n == prev_n) return OBJDELTA_NONE;
+    if (pl->n_full == 0 && pl->n_motion == 0 && pl->n_status == 0 && cur_n == prev_n) return OBJDELTA_NONE;
     pl->size = OBJDELTA_HEADER_SIZE + (size_t)pl->n_full * OBJDELTA_FULL_SIZE +
-               (size_t)pl->n_motion * OBJDELTA_MOTION_SIZE;
+               (size_t)pl->n_motion * OBJDELTA_MOTION_SIZE + (size_t)pl->n_status * OBJDELTA_STATUS_SIZE;
     size_t full = sizeof(int32_t) + (size_t)cur_n * sizeof(NetObject);
     if (pl->size >= full || pl->size > cap) return OBJDELTA_FULL;
     return OBJDELTA_DELTA;
@@ -110,19 +154,31 @@ static inline size_t objdelta_write(const NetObject *prev, const NetObject *cur,
     memcpy(p, &cur_n, sizeof(int32_t)); p += sizeof(int32_t);
     memcpy(p, &pl->n_full, sizeof(int32_t)); p += sizeof(int32_t);
     for (int32_t i = 0; i < cur_n; i++) {
-        if (i >= prev_n || !objdelta_meta_equal(&prev[i], &cur[i])) {
+        if (objdelta_is_full(prev, prev_n, cur, i)) {
             memcpy(p, &i, sizeof(int32_t)); p += sizeof(int32_t);
             memcpy(p, &cur[i], sizeof(NetObject)); p += sizeof(NetObject);
         }
     }
     memcpy(p, &pl->n_motion, sizeof(int32_t)); p += sizeof(int32_t);
     for (int32_t i = 0; i < cur_n && i < prev_n; i++) {
-        if (objdelta_meta_equal(&prev[i], &cur[i]) && !objdelta_motion_equal(&prev[i], &cur[i])) {
+        if (!objdelta_is_full(prev, prev_n, cur, i) && !objdelta_motion_equal(&prev[i], &cur[i])) {
             NetMotion mo = { (float)cur[i].net_x, (float)cur[i].net_y, (float)cur[i].net_z,
                              (float)cur[i].vx, (float)cur[i].vy, (float)cur[i].vz,
                              (float)cur[i].h, (float)cur[i].m, (float)cur[i].r };
             memcpy(p, &i, sizeof(int32_t)); p += sizeof(int32_t);
             memcpy(p, &mo, sizeof(NetMotion)); p += sizeof(NetMotion);
+        }
+    }
+    memcpy(p, &pl->n_status, sizeof(int32_t));
+    p += sizeof(int32_t);
+    for (int32_t i = 0; i < cur_n && i < prev_n; i++) {
+        if (!objdelta_is_full(prev, prev_n, cur, i) && !objdelta_status_equal(&prev[i], &cur[i])) {
+            NetStatus st = { cur[i].health_pct, cur[i].energy, cur[i].plating, cur[i].hull_integrity,
+                             cur[i].is_cloaked };
+            memcpy(p, &i, sizeof(int32_t));
+            p += sizeof(int32_t);
+            memcpy(p, &st, sizeof(NetStatus));
+            p += sizeof(NetStatus);
         }
     }
     return (size_t)(p - out);
@@ -145,7 +201,8 @@ typedef bool (*objdelta_read_fn)(void *ctx, void *buf, size_t len);
 /* Applies a block read through rd to objs[0..*count) (capacity
  * MAX_NET_OBJECTS). Returns the number of bytes read, or -1 when the block
  * is malformed (a count out of range, an index that is not increasing or
- * not below object_count, a slot past the previous length sent as motion)
+ * not below object_count, a slot past the previous length sent as motion
+ * or status)
  * or the stream is short: the stream cannot be resynchronized, the caller
  * closes the connection. On -1 the list may be partly updated. */
 static inline long objdelta_apply(NetObject *objs, int32_t *count, objdelta_read_fn rd, void *ctx) {
@@ -186,6 +243,24 @@ static inline long objdelta_apply(NetObject *objs, int32_t *count, objdelta_read
         o->net_x = mo.net_x; o->net_y = mo.net_y; o->net_z = mo.net_z;
         o->vx = mo.vx; o->vy = mo.vy; o->vz = mo.vz;
         o->h = mo.h; o->m = mo.m; o->r = mo.r;
+        last = idx;
+    }
+    if (!rd(ctx, &n, sizeof(n))) return -1;
+    used += (long)sizeof(n);
+    if (n < 0 || n > cur_n) return -1;
+    last = -1;
+    for (int32_t k = 0; k < n; k++) {
+        int32_t idx;
+        NetStatus st;
+        if (!rd(ctx, &idx, sizeof(idx)) || !rd(ctx, &st, sizeof(st))) return -1;
+        used += (long)(sizeof(idx) + sizeof(st));
+        if (idx <= last || idx >= cur_n || idx >= prev_n) return -1;
+        NetObject *o = &objs[idx];
+        o->health_pct = st.health_pct;
+        o->energy = st.energy;
+        o->plating = st.plating;
+        o->hull_integrity = st.hull_integrity;
+        o->is_cloaked = st.is_cloaked;
         last = idx;
     }
     *count = cur_n;

@@ -89,6 +89,16 @@ bool sg_net_wants_write(int fd);
  * or writing, at most timeout_ms. >0 ready, 0 timeout, <0 error. */
 int sg_net_wait(int fd, bool for_write, int timeout_ms);
 
+/* Bytes of fd since its session started (2026.11.01.14): app = what the
+ * protocol sent and received (the arguments of sg_net_send/recv), wire =
+ * what crossed the socket (TLS records, handshake included; = app without
+ * TLS). Reset when a session is attached and when it is detached. */
+typedef struct {
+    uint64_t app_out, app_in;
+    uint64_t wire_out, wire_in;
+} SgNetCounters;
+void sg_net_counters(int fd, SgNetCounters *out);
+
 /* Before close(fd): end the TLS session (a close_notify if the socket can
  * take it, never blocking) and free it. Harmless without TLS. */
 void sg_tls_detach(int fd);

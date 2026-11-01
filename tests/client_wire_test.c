@@ -19,6 +19,19 @@
 #include <stdint.h>
 #include <limits.h>
 #include "client_wire.h"
+#include "effects_wire.h"
+
+typedef struct {
+    const uint8_t *buf;
+    size_t len, off;
+} MemReader;
+static bool mem_read(void *ctx, void *out, size_t n) {
+    MemReader *r = ctx;
+    if (r->len - r->off < n) return false;
+    memcpy(out, r->buf + r->off, n);
+    r->off += n;
+    return true;
+}
 
 #define CHECK(c) do { if (!(c)) { fprintf(stderr, "FAIL: %s at %s:%d\n", #c, __FILE__, __LINE__); exit(1); } } while (0)
 
@@ -77,6 +90,57 @@ int main(void) {
         free(torps_active);
     }
     printf("[3] wire_sanitize_update_counts + the client's loops: OK\n");
+
+    /* 4. the UPD_EFFECTS block on the wire (wire revision 6,
+     * effects_wire.h): round trip, sizes, and announced counts out of range
+     * refused (they cannot be skipped) */
+    {
+        UpdateBlockEffects *src = calloc(1, sizeof(UpdateBlockEffects));
+        UpdateBlockEffects *dst = malloc(sizeof(UpdateBlockEffects));
+        uint8_t *buf = malloc(EFFECTS_WIRE_MAX);
+        CHECK(src && dst && buf);
+        for (int ne = 0; ne <= MAX_NET_EVENTS; ne += 21) {
+            for (int nt = 0; nt <= MAX_VISIBLE_TORPEDOES; nt += 85) {
+                memset(src, 0, sizeof(UpdateBlockEffects));
+                src->supernova_pos.active = 1;
+                src->supernova_q[1] = 7;
+                src->torps[3].net_y = 2.5;
+                src->event_count = ne;
+                for (int e = 0; e < ne; e++) src->events[e].type = e + 1;
+                src->torpedo_count = nt;
+                for (int k = 0; k < nt; k++) src->visible_torpedoes[k].id = k + 1;
+                size_t len = effects_wire_write(src, buf);
+                CHECK(len == effects_wire_size(src));
+                CHECK(len == EFFECTS_WIRE_HEAD + (size_t)ne * sizeof(NetEvent) + 4 + (size_t)nt * sizeof(NetVisibleTorpedo));
+                MemReader r = { buf, len, 0 };
+                memset(dst, 0x77, sizeof(UpdateBlockEffects));
+                CHECK(effects_wire_read(dst, mem_read, &r) == (long)len && r.off == len);
+                CHECK(memcmp(src, dst, sizeof(UpdateBlockEffects)) == 0);   /* unused entries zeroed */
+            }
+        }
+        CHECK(effects_wire_size(src) < EFFECTS_WIRE_MAX);
+        memset(src, 0, sizeof(UpdateBlockEffects));
+        CHECK(effects_wire_write(src, buf) == EFFECTS_WIRE_HEAD + 4);   /* empty: 212 bytes */
+        for (int i = 0; i < N_HOSTILE; i++) {
+            /* a hostile announced count: refused unless in range */
+            memset(buf, 0, EFFECTS_WIRE_MAX);
+            memcpy(buf + offsetof(UpdateBlockEffects, event_count), &hostile[i], 4);
+            MemReader r = { buf, EFFECTS_WIRE_MAX, 0 };
+            long got = effects_wire_read(dst, mem_read, &r);
+            CHECK((got >= 0) == (hostile[i] >= 0 && hostile[i] <= MAX_NET_EVENTS));
+            memset(buf, 0, EFFECTS_WIRE_MAX);
+            memcpy(buf + EFFECTS_WIRE_HEAD, &hostile[i], 4);   /* torpedo_count after 0 events */
+            r.off = 0;
+            got = effects_wire_read(dst, mem_read, &r);
+            CHECK((got >= 0) == (hostile[i] >= 0 && hostile[i] <= MAX_VISIBLE_TORPEDOES));
+        }
+        MemReader shortr = { buf, EFFECTS_WIRE_HEAD - 1, 0 };   /* a short read */
+        CHECK(effects_wire_read(dst, mem_read, &shortr) < 0);
+        free(src);
+        free(dst);
+        free(buf);
+    }
+    printf("[4] UPD_EFFECTS on the wire: round trip, sizes, %d hostile counts refused: OK\n", N_HOSTILE);
 
     free(st); free(b);
     printf("client_wire_test: all checks passed\n");

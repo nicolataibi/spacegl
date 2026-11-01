@@ -13,10 +13,13 @@
  *   2. The attitude travels: a turning object (h, m, r) reaches the deck
  *      (the former UPD_KINEMATICS dropped it).
  *   3. Size: one changed field among 200 objects costs one record, not the
- *      list; an unchanged list costs nothing; a block that would not be
- *      smaller than the full list is refused.
+ *      list (a 25-byte status record since wire revision 6, 2026.11.01.14;
+ *      motion + status for a ship that moves and spends energy; a full
+ *      record for an identity change); an unchanged list costs nothing; a
+ *      block that would not be smaller than the full list is refused.
  *   4. Hostile blocks: counts out of range, indices not increasing or past
- *      object_count, a new slot sent as motion or not sent at all, and every
+ *      object_count, a new slot sent as motion or status or not sent at all,
+ *      status indices not increasing or past object_count, and every
  *      truncation of a valid block are refused (-1), never a write out of
  *      the list (ASan/UBSan).
  *
@@ -162,17 +165,54 @@ static void test_attitude_and_size(void) {
           "the attitude reaches the deck");
     memcpy(sent, srv, sizeof(NetObject) * (size_t)n);
 
-    srv[150].energy -= 250;                                    /* one field */
+    srv[150].energy -= 250;                                    /* one field in play */
     CHECK(objdelta_encode(sent, n, srv, n, buf, sizeof(buf), &size) == OBJDELTA_DELTA &&
-          size == OBJDELTA_HEADER_SIZE + OBJDELTA_FULL_SIZE,
-          "one changed field is one record: %zu bytes instead of %zu", size,
+              size == OBJDELTA_HEADER_SIZE + OBJDELTA_STATUS_SIZE,
+          "one changed field is one status record: %zu bytes instead of %zu", size,
           sizeof(int32_t) + (size_t)n * sizeof(NetObject));
     c = (Cursor){ buf, size, 0 };
     CHECK(objdelta_apply(deck, &deck_n, cur_read, &c) == (long)size && deck[150].energy == srv[150].energy,
           "the field reaches the deck");
     memcpy(sent, srv, sizeof(NetObject) * (size_t)n);
 
-    for (int i = 0; i < n; i++) srv[i].energy++;               /* everything */
+    /* wire revision 6: a ship that moves and loses energy (the captain's own
+     * entry, every tick) is a motion and a status record; every field in
+     * play reaches the deck; an identity change is still a full record */
+    srv[33].net_x += 1.0;
+    srv[33].energy -= 9;
+    srv[33].health_pct = 77;
+    srv[33].plating = 3;
+    srv[33].hull_integrity = 61;
+    srv[33].is_cloaked = 1;
+    CHECK(objdelta_encode(sent, n, srv, n, buf, sizeof(buf), &size) == OBJDELTA_DELTA &&
+              size == OBJDELTA_HEADER_SIZE + OBJDELTA_MOTION_SIZE + OBJDELTA_STATUS_SIZE,
+          "motion + status: %zu bytes", size);
+    c = (Cursor){ buf, size, 0 };
+    CHECK(objdelta_apply(deck, &deck_n, cur_read, &c) == (long)size && objdelta_meta_equal(&deck[33], &srv[33]) &&
+              deck[33].net_x == (double)(float)srv[33].net_x,
+          "motion and status reach the deck");
+    memcpy(sent, srv, sizeof(NetObject) * (size_t)n);
+    srv[34].faction = 9;                                       /* identity */
+    CHECK(objdelta_encode(sent, n, srv, n, buf, sizeof(buf), &size) == OBJDELTA_DELTA &&
+              size == OBJDELTA_HEADER_SIZE + OBJDELTA_FULL_SIZE,
+          "an identity change is a full record (%zu)", size);
+    c = (Cursor){ buf, size, 0 };
+    CHECK(objdelta_apply(deck, &deck_n, cur_read, &c) == (long)size && deck[34].faction == 9, "identity reaches the deck");
+    memcpy(sent, srv, sizeof(NetObject) * (size_t)n);
+    {   /* a one-object quadrant whose captain's energy changes: now the delta */
+        NetObject one_prev = srv[0], one_cur = srv[0];
+        one_cur.energy -= 3;
+        CHECK(objdelta_encode(&one_prev, 1, &one_cur, 1, buf, sizeof(buf), &size) == OBJDELTA_DELTA &&
+                  size < sizeof(int32_t) + sizeof(NetObject),
+              "one object, energy: %zu bytes (full list %zu)", size,
+              sizeof(int32_t) + sizeof(NetObject));
+    }
+
+    for (int i = 0; i < n; i++) srv[i].energy++;               /* everything in play: status records */
+    CHECK(objdelta_encode(sent, n, srv, n, buf, sizeof(buf), &size) == OBJDELTA_DELTA &&
+              size == OBJDELTA_HEADER_SIZE + (size_t)n * OBJDELTA_STATUS_SIZE,
+          "every energy changed: %zu bytes of status records", size);
+    for (int i = 0; i < n; i++) srv[i].faction++;              /* everything's identity */
     CHECK(objdelta_encode(sent, n, srv, n, buf, sizeof(buf), &size) == OBJDELTA_FULL,
           "a block not smaller than the list is refused");
     CHECK(objdelta_encode(sent, n, srv, n, buf, 64, &size) == OBJDELTA_FULL,
@@ -200,32 +240,85 @@ static void test_hostile(void) {
     for (size_t t = 0; t < sizeof(bad_counts) / sizeof(bad_counts[0]); t++) {
         l = 0; l += put_i32(b + l, bad_counts[t].count); l += put_i32(b + l, bad_counts[t].n_full);
         l += put_i32(b + l, 0);
+        l += put_i32(b + l, 0);
         cnt = 0;
         CHECK(apply_bytes(b, l, &cnt) == -1, "count %d / n_full %d refused", bad_counts[t].count, bad_counts[t].n_full);
     }
     /* index past object_count */
     l = 0; l += put_i32(b + l, 2); l += put_i32(b + l, 1); l += put_i32(b + l, 2);
-    memcpy(b + l, &o, sizeof(o)); l += sizeof(o); l += put_i32(b + l, 0);
+    memcpy(b + l, &o, sizeof(o));
+    l += sizeof(o);
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 0);
     cnt = 2; CHECK(apply_bytes(b, l, &cnt) == -1, "full index == object_count refused");
     /* indices not increasing */
     l = 0; l += put_i32(b + l, 4); l += put_i32(b + l, 2);
     l += put_i32(b + l, 1); memcpy(b + l, &o, sizeof(o)); l += sizeof(o);
     l += put_i32(b + l, 1); memcpy(b + l, &o, sizeof(o)); l += sizeof(o);
     l += put_i32(b + l, 0);
+    l += put_i32(b + l, 0);
     cnt = 4; CHECK(apply_bytes(b, l, &cnt) == -1, "repeated full index refused");
     /* a new slot sent as motion */
     l = 0; l += put_i32(b + l, 3); l += put_i32(b + l, 0); l += put_i32(b + l, 1);
-    l += put_i32(b + l, 2); memcpy(b + l, &mo, sizeof(mo)); l += sizeof(mo);
+    l += put_i32(b + l, 2);
+    memcpy(b + l, &mo, sizeof(mo));
+    l += sizeof(mo);
+    l += put_i32(b + l, 0);
     cnt = 2; CHECK(apply_bytes(b, l, &cnt) == -1, "a new slot as motion refused");
+    /* a new slot sent as status (wire revision 6) */
+    NetStatus st = { 0 };
+    l = 0;
+    l += put_i32(b + l, 3);
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 1);
+    l += put_i32(b + l, 2);
+    memcpy(b + l, &st, sizeof(st));
+    l += sizeof(st);
+    cnt = 2;
+    CHECK(apply_bytes(b, l, &cnt) == -1, "a new slot as status refused");
+    /* status indices not increasing, and a status count out of range */
+    l = 0;
+    l += put_i32(b + l, 3);
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 2);
+    l += put_i32(b + l, 1);
+    memcpy(b + l, &st, sizeof(st));
+    l += sizeof(st);
+    l += put_i32(b + l, 0);
+    memcpy(b + l, &st, sizeof(st));
+    l += sizeof(st);
+    cnt = 3;
+    CHECK(apply_bytes(b, l, &cnt) == -1, "status indices not increasing refused");
+    l = 0;
+    l += put_i32(b + l, 3);
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 4);
+    cnt = 3;
+    CHECK(apply_bytes(b, l, &cnt) == -1, "a status count past object_count refused");
     /* a new slot not sent */
-    l = 0; l += put_i32(b + l, 3); l += put_i32(b + l, 0); l += put_i32(b + l, 0);
+    l = 0;
+    l += put_i32(b + l, 3);
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 0);
     cnt = 2; CHECK(apply_bytes(b, l, &cnt) == -1, "a new slot missing refused");
     /* negative motion index */
     l = 0; l += put_i32(b + l, 3); l += put_i32(b + l, 0); l += put_i32(b + l, 1);
-    l += put_i32(b + l, -1); memcpy(b + l, &mo, sizeof(mo)); l += sizeof(mo);
+    l += put_i32(b + l, -1);
+    memcpy(b + l, &mo, sizeof(mo));
+    l += sizeof(mo);
+    l += put_i32(b + l, 0);
     cnt = 3; CHECK(apply_bytes(b, l, &cnt) == -1, "a negative motion index refused");
     /* a corrupted current count */
-    cnt = -5; l = 0; l += put_i32(b + l, 0); l += put_i32(b + l, 0); l += put_i32(b + l, 0);
+    cnt = -5;
+    l = 0;
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 0);
+    l += put_i32(b + l, 0);
     CHECK(apply_bytes(b, l, &cnt) == -1, "a corrupted list length refused");
     /* the list shrinks to 0 */
     cnt = 3; CHECK(apply_bytes(b, l, &cnt) == (long)l && cnt == 0, "an empty list is accepted");

@@ -73,7 +73,8 @@ trap cleanup EXIT
 
 port_open() { (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; }
 start_server() {   # [data dir]
-    "$SERVER_BIN" --data-dir "${1:-$DATA_DIR}" >>"$WORK/server.log" 2>&1 &
+    # a traffic report every 3 s (2026.11.01.14; default 60)
+    SPACEGL_NET_REPORT_S=3 "$SERVER_BIN" --data-dir "${1:-$DATA_DIR}" >>"$WORK/server.log" 2>&1 &
     SERVER_PID=$!
     for _ in $(seq 1 100); do port_open && return 0; sleep 0.2; done
     echo "FAIL: server port $PORT never opened"; tail -n 30 "$WORK/server.log"; exit 1
@@ -251,6 +252,10 @@ check "...and with SPACEGL_SERVER_KEY"          has explicit "DeepSpace Signatur
 check "SPACEGL_SERVER_KEY with another key: refused" has wrongpin "not the key of SPACEGL_SERVER_KEY"
 stop_server
 rm -rf "$OTHER_DIR"
+
+# --- 8b. the server's traffic report (2026.11.01.14) ---------------------
+check "the server reported the decks' traffic"  grep -qE "traffic, last [0-9]+ s: [0-9]+ deck\(s\); to each deck [0-9.]+ KB/s" "$WORK/server.log"
+check "...with the update blocks"               grep -qE "updates by block: [a-z]" "$WORK/server.log"
 
 # --- 9. the transport: TLS 1.3 only -----------------------------------
 check "the deck runs inside TLS 1.3"            has f1 "Transport:          TLS 1.3"

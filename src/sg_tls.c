@@ -36,6 +36,7 @@ typedef struct {
     bool rd_wants_write; /* the last read EAGAIN needs POLLOUT (TLS can write on read) */
     bool wr_wants_read;  /* the last write EAGAIN needs POLLIN */
     bool hs_wants_write; /* server handshake: the flight is waiting for POLLOUT */
+    uint64_t app_out, app_in; /* protocol bytes since the session started */
     time_t started;    /* server: handshake start */
 } SgTlsConn;
 
@@ -155,6 +156,7 @@ bool sg_tls_server_attach(int fd) {
     e->server = true;
     e->peeked = false;
     e->rd_wants_write = e->wr_wants_read = e->hs_wants_write = false;
+    e->app_out = e->app_in = 0;
     e->started = time(NULL);
     pthread_mutex_unlock(&e->lock);
     return true;
@@ -284,6 +286,7 @@ bool sg_tls_client_connect(int fd, int timeout_ms, uint8_t peer_key[32]) {
     e->server = false;
     e->peeked = true;
     e->rd_wants_write = e->wr_wants_read = e->hs_wants_write = false;
+    e->app_out = e->app_in = 0;
     pthread_mutex_unlock(&e->lock);
     return true;
 }
@@ -362,7 +365,10 @@ ssize_t sg_net_recv(int fd, void *buf, size_t len) {
             ERR_clear_error();
             int r = SSL_read_ex(e->ssl, buf, len, &got);
             ssize_t out = r == 1 ? (ssize_t)got : map_error(e, r, fd, false);
-            if (r == 1) e->rd_wants_write = false;
+            if (r == 1) {
+                e->rd_wants_write = false;
+                e->app_in += got;
+            }
             int saved = errno;
             pthread_mutex_unlock(&e->lock);
             errno = saved;
@@ -370,7 +376,13 @@ ssize_t sg_net_recv(int fd, void *buf, size_t len) {
         }
         pthread_mutex_unlock(&e->lock);
     }
-    return recv(fd, buf, len, MSG_DONTWAIT);
+    ssize_t n = recv(fd, buf, len, MSG_DONTWAIT);
+    if (n > 0 && e) {
+        pthread_mutex_lock(&e->lock);
+        e->app_in += (uint64_t)n;
+        pthread_mutex_unlock(&e->lock);
+    }
+    return n;
 }
 
 ssize_t sg_net_send(int fd, const void *buf, size_t len) {
@@ -387,7 +399,10 @@ ssize_t sg_net_send(int fd, const void *buf, size_t len) {
             ERR_clear_error();
             int r = SSL_write_ex(e->ssl, buf, len, &put);
             ssize_t out = r == 1 ? (ssize_t)put : map_error(e, r, fd, true);
-            if (r == 1) e->wr_wants_read = false;
+            if (r == 1) {
+                e->wr_wants_read = false;
+                e->app_out += put;
+            }
             int saved = errno;
             pthread_mutex_unlock(&e->lock);
             errno = saved;
@@ -395,7 +410,13 @@ ssize_t sg_net_send(int fd, const void *buf, size_t len) {
         }
         pthread_mutex_unlock(&e->lock);
     }
-    return send(fd, buf, len, MSG_NOSIGNAL | MSG_DONTWAIT);
+    ssize_t n = send(fd, buf, len, MSG_NOSIGNAL | MSG_DONTWAIT);
+    if (n > 0 && e) {
+        pthread_mutex_lock(&e->lock);
+        e->app_out += (uint64_t)n;
+        pthread_mutex_unlock(&e->lock);
+    }
+    return n;
 }
 
 bool sg_net_wants_write(int fd) {
@@ -438,6 +459,24 @@ void sg_tls_detach(int fd) {
     }
     e->ready = false;
     e->rd_wants_write = e->wr_wants_read = e->hs_wants_write = false;
+    e->app_out = e->app_in = 0;
+    pthread_mutex_unlock(&e->lock);
+}
+
+void sg_net_counters(int fd, SgNetCounters *out) {
+    memset(out, 0, sizeof(*out));
+    SgTlsConn *e = entry(fd);
+    if (!e) return;
+    pthread_mutex_lock(&e->lock);
+    out->app_out = e->app_out;
+    out->app_in = e->app_in;
+    if (e->ssl) {
+        out->wire_out = BIO_number_written(SSL_get_wbio(e->ssl));
+        out->wire_in = BIO_number_read(SSL_get_rbio(e->ssl));
+    } else {
+        out->wire_out = e->app_out;
+        out->wire_in = e->app_in;
+    }
     pthread_mutex_unlock(&e->lock);
 }
 
