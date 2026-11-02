@@ -1,3 +1,10 @@
+* Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.06
+  - Packaging, spacegl.spec: the comment of %check said "the 18 test
+  binaries"; the suite has 52 tests (test programs and shell scripts, see
+  DEVELOPMENT.md section 3). Comment only: the build, the %ctest call and
+  the content of the packages are unchanged. Version bumped so that the
+  SRPM submitted for review matches the tree.
+
 * Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.05
   - Fix, the CI job failed with a timeout of the server_commands test
   (ctest 36/51, exit code 8). Since 2026.11.02.03 test_orbit simulated
