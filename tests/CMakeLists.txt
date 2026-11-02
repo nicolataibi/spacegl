@@ -868,7 +868,7 @@ if(NOT MSVC)
     target_link_options(server_commands_test PRIVATE ${SG_TEST_SAN_FLAGS})
 endif()
 add_test(NAME server_commands COMMAND server_commands_test)
-set_tests_properties(server_commands PROPERTIES TIMEOUT 300)
+set_tests_properties(server_commands PROPERTIES TIMEOUT 600)
 
 # --- Radio between two real decks (2026.10.31.33) ------------------------
 # Two command decks on the real server: clear, fleet-encrypted (AES-256-GCM,

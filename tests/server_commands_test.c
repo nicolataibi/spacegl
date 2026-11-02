@@ -341,6 +341,7 @@ static double ship_dist_to(double cx, double cy, double cz) {
 }
 
 static int orbit_cases = 0;
+#define ORBIT_SHORT_TICKS 240   /* 4 s of orbit for every case but the first (see orbit_one) */
 
 static void orbit_one(const OrbitableDef *def, int tid, const TargetRangeDef *r, const void *e) {
     const char *label = def->label;
@@ -375,7 +376,13 @@ static void orbit_one(const OrbitableDef *def, int tid, const TargetRangeDef *r,
     double n[3];
     orb_cross(snap.e1, snap.e2, n);
     double period_ticks = orbit_period_s(snap.r_goal) * GAME_TICK_RATE;
+    /* The time under ASan/UBSan is dominated by update_game_logic() (~9 ms a tick), and a period grows
+     * with r^1.5 (up to ~50 s = 3000 ticks): one full turn for EVERY object made the suite exceed the
+     * 300 s ctest timeout. One case runs the full 1.25 periods (turn count, period); the others a short
+     * window, enough to check radius, plane and angular rate. The period law itself is in orbit_test.c. */
+    const int full_run = (orbit_cases == 0);
     int n_ticks = (int)(period_ticks * 1.25) + 2;
+    if (!full_run && n_ticks > ORBIT_SHORT_TICKS) n_ticks = ORBIT_SHORT_TICKS;
     double swept = 0.0, prev_ang = 0.0, max_step = 0.0, max_dr = 0.0, max_out_of_plane = 0.0, max_domega = 0.0;
     double ppx = px, ppy = py, ppz = pz;
     double pcx = cx, pcy = cy, pcz = cz;          /* centre at the previous tick (a moving body carries the ship along) */
@@ -433,8 +440,12 @@ static void orbit_one(const OrbitableDef *def, int tid, const TargetRangeDef *r,
     CHECK(max_out_of_plane < tol, "%s: ship left the orbital plane by %.3g", label, max_out_of_plane);
     CHECK(moving || max_domega < 1e-9, "%s: angular rate not constant, worst error %.3g rad/tick", label, max_domega);
     CHECK(worst_excess <= 0.0, "%s: the ship jumped: a step exceeded orbital speed + the body's own motion by %.4f", label, worst_excess);
-    CHECK(turns_at > 0 && abs(turns_at - (int)period_ticks) <= 2, "%s: one turn took %d ticks, expected %d", label, turns_at, (int)period_ticks);
-    CHECK(swept > 2.0 * M_PI * 1.2, "%s: swept only %.2f rad in 1.25 periods", label, swept);
+    if (full_run) {
+        CHECK(turns_at > 0 && abs(turns_at - (int)period_ticks) <= 2, "%s: one turn took %d ticks, expected %d", label, turns_at, (int)period_ticks);
+        CHECK(swept > 2.0 * M_PI * 1.2, "%s: swept only %.2f rad in 1.25 periods", label, swept);
+    } else {
+        CHECK(swept > 0.9 * n_ticks * orbit_omega(snap.r_goal), "%s: swept only %.3f rad in %d ticks (expected %.3f)", label, swept, n_ticks, n_ticks * orbit_omega(snap.r_goal));
+    }
     CHECK(players[CAP].state.hull_integrity >= hull0 - 1e-3, "%s: the hull took damage in a stable orbit", label);
 
     /* --- leaving the orbit */

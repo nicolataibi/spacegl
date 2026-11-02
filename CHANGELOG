@@ -1,3 +1,17 @@
+* Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.05
+  - Fix, the CI job failed with a timeout of the server_commands test
+  (ctest 36/51, exit code 8). Since 2026.11.02.03 test_orbit simulated
+  1.25 full orbital periods for each of the 28 objects; the period grows
+  with r^1.5 (up to ~3000 ticks) and under ASan/UBSan a tick of
+  update_game_logic() costs ~9 ms, so the test needed well over the 300 s
+  limit. Now only the first case runs the full turn (turn count, period);
+  the others run a 240-tick window and check radius, plane, angular rate,
+  absence of jumps and the angle swept. The period law stays covered by
+  orbit_test. The ctest timeout of server_commands is raised from 300 to
+  600 s as a margin for slow runners. Test-only change: no behaviour of
+  the server or of `orb` changes. Locally (ASan/UBSan, 1 core): from over
+  450 s to 206 s, 12278 checks, 0 failed.
+
 * Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.04
   - Fix, the clang build of 2026.11.02.03 failed (-Werror,
   -Wgnu-folding-constant): the static_assert in logic.c compared
