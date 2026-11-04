@@ -1,3 +1,18 @@
+* Wed Nov 04 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.04.01
+  - Lore & Docs (LORE.md): added the Version 3.4 Highlights block ("Planetary
+  Systems & Hardened Infrastructure") detailing multi-body star systems,
+  continuous physical collision detection, Keplerian circular orbits (`orb`),
+  end-to-end TLS 1.3 socket encryption, binary status delta protocol (wire
+  revision 6), sub-millisecond tick profiling, and GPU-driven (GDD) default
+  rendering.
+  - Lore & Docs (LORE.md): added the complete historical archive story "The Orbit
+  of Silence" (GDIS 2026.11.02, 10 chapters plus the "Behind the Scenes"
+  technical appendix).
+  - Assets: standardized and translated all 11 scene illustrations in
+  readme_assets/the orbit of silence/ to English and embedded them across their
+  respective narrative chapters in LORE.md.
+  - Packaging, spacegl.spec: version bumped to 2026.11.04.01.
+
 * Mon Nov 02 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.02.06
   - Packaging, spacegl.spec: the comment of %check said "the 18 test
   binaries"; the suite has 52 tests (test programs and shell scripts, see

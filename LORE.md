@@ -2,7 +2,7 @@
 
 # Space GL: A space exploration & combat game
 
-![Version](https://img.shields.io/badge/Version-3.3-green)
+![Version](https://img.shields.io/badge/Version-3.4-green)
 ![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
 ![Language](https://img.shields.io/badge/Language-C-blue)
 ![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
@@ -13,7 +13,7 @@
 ![Alliance](https://img.shields.io/badge/Fleet-Stellar%20Alliance-cyan)
 ![Security](https://img.shields.io/badge/Encryption-AES%20%7C%20ChaCha%20%7C%20Blowfish-lightgrey)
 
-<p>May 12, 2026</p>
+<p>Nov 4, 2026 Official release.</p>
 </div>
 
 Space GL is a high-performance 3D multi-user client-server space flight and combat simulator. The engine features real-time galaxy state synchronization via shared memory (SHM), securely signed data integrity (HMAC-SHA256), a dual-socket advanced telemetry subsystem for tactical oversight, and versatile visualization front-ends built on OpenGL and Vulkan.
@@ -182,7 +182,467 @@ essential, cold, technical… and incredibly immersive.
 **Because before photorealistic graphics, there was imagination. And a blinking cursor was all you needed to begin a journey among the stars.**
 
 ---
+
+## 🚀 Version 3.4 Highlights (Rel. 2026.11.02 - Planetary Systems & Hardened Infrastructure)
+
+Update 3.4 evolves SpaceGL into a complete multi-body cosmic simulator backed by hardened cryptographic networking, Keplerian orbital mechanics, physical collision engines, and major real-time server optimizations:
+*   **Hierarchical Star Systems & Sector Rescaling**:
+    *   **Multi-Body Solar Systems** (`include/star_system.h`): deterministic generation (`spawn_star_systems()`) populating galaxies with full planetary systems — a central star, up to 4 orbiting planets, and up to 4 orbiting moons per planet.
+    *   **Quadrant Expansion (40 → 100)**: `QUADRANT_SIZE` expanded from 40 to 100 units across the engine, offering realistic spatial separation and scale for planetary orbits without crowding.
+    *   **Deep Tactical Interactions**: commands `lock`, `apr` (approach), `scan`, and `min` natively identify and interact with star system bodies; astrometric reports and HUD integrate hierarchical coordinates.
+    *   **High-Detail Meshes**: new `GDD_MESH_SPHERE_HI` (UV sphere 16×32, 3072 vertices) for smooth visual fidelity of planetary spheres in the GPU-driven pipeline.
+    *   **Telemetry Expansion**: instrumented telemetry categories increased to 174, providing real-time tracking for all star system bodies.
+*   **Keplerian Orbital Mechanics (`orb`)**:
+    *   **True Circular Orbit Capture** (`include/orbit_math.h`, `include/orbitables.h`): the `orb` command places the ship into an exact circular orbit around celestial bodies with constant radius, orbital plane matching the entry vector, and no coordinate jumps.
+    *   **Keplerian Velocity & Period Law**: orbital period scales with $r^{1.5}$ (20 s at radius 3); ship automatically turns its nose along the flight vector.
+    *   **Moving Reference Frames**: orbiting planets and moons in star systems carry the orbiting vessel along their parent orbits.
+    *   **Orbitable Catalog**: comprehensive support covering planets, stars, black holes, pulsars, quasars, neutron stars, brown dwarfs, rogue planets, orbital rings, and mega structures (safe radius + 1.5 reach).
+*   **Solid Collision Detection & NPC Reactive Navigation**:
+    *   **Solid Object Collisions**: vessels and comets collide physically with solid astronomical bodies (stars, planets, space stations), triggering impact velocity adjustments, hull damage, and `IPC_EV_IMPACT` visual/audio feedback.
+    *   **NPC Obstacle Avoidance** (`steer_avoid`, `obstacles`): NPC ships dynamically steer around solid obstacles (`OBS_PLANET`, `OBS_SHIP`), preventing clipping through celestial bodies while maintaining tactical formation.
+    *   **State Machine Robustness**: dedicated NPC runtime state tracking eliminates coordinate-jump slot reuse bugs.
+*   **Hardened Security & Cryptographic Transport (Roadmap Phases 0–4)**:
+    *   **TLS 1.3 Transport (Wire Revision 5)**: full native TLS 1.3 socket encryption (`src/sg_tls.c`, `include/sg_tls.h`) on the primary game port via OpenSSL 3 and non-blocking epoll.
+    *   **Ed25519 Server Identity & Key Pinning (Wire Revision 4)**: per-server cryptographic identity keys (`server_identity.key`); clients verify digital signatures upon handshake and pin keys per host:port in `~/.spacegl/known_servers` (TOFU).
+    *   **Handshake v2 & Session Security**: salted HMAC password hashes, ephemeral key exchange, session takeover prevention, elimination of cleartext credentials, no-echo key/password prompts.
+    *   **Systemd Integration & Hardened Launchers**: systemd unit (`spacegl-server.service`) with sandboxing directives and rewritten POSIX launcher scripts.
+*   **Network Protocol Efficiency & Binary Deltas (Wire Revision 6)**:
+    *   **Status Delta Compression (`UPD_OBJDELTA`)**: 25-byte status delta records (`include/obj_delta.h`) replace 181-byte full records for non-motion updates; single-object sectors stream as compact 41-byte deltas.
+    *   **Dynamic Effects Streaming (`UPD_EFFECTS`)**: compact serialization sending only active torpedoes and explosion events instead of the static 18 KB block.
+    *   **42% Bandwidth Reduction**: client downstream traffic reduced from 25.0 KB/s to 14.5 KB/s per deck (~1.9 Mbit/s for 16 concurrent decks).
+*   **Server Real-Time Performance & Galaxy Persistence**:
+    *   **Sub-Millisecond Tick Monitor** (`include/tick_monitor.h`): high-resolution phase instrumentation tracking tick logic, mutex locks, network I/O, persistence, and telemetry with automated lag warnings.
+    *   **Pre-Mapped Galaxy Save Buffer** (`galaxy_file_image_into`): pre-allocated persistent image buffer eliminates 30–45 MB allocation/page-fault stalls, cutting save latency from 28–45 ms down to 1–8 ms with async disk writes.
+    *   **Time-Sliced LRS Slicing** (`src/server/lrs_grid.c`): 64,000-quadrant Long-Range Sensor grid refreshed plane-by-plane across ticks (0.3 ms/tick instead of 10–30 ms per-second spikes).
+    *   **Galaxy File Format v2**: chunked section persistence with backward-compatible format migration.
+    *   **Thread Tuning**: single-threaded deterministic logic loop (`SPACEGL_TICK_THREADS=1`) eliminating OpenMP thread-sync latency.
+*   **Renderer Maturity & Vulkan GPU-Driven Defaults**:
+    *   **GPU-Driven (GDD) by Default**: `SPACEGL_GPD=1` is now the default mode with graceful automatic fallback to CPU-driven rendering on legacy devices.
+    *   **Precision Absolute Frame Pacing**: absolute deadline pacing (`SPACEGL_FPS_CAP`, default 144 FPS) and Resizable BAR support (device-local host-visible memory) for static mesh buffers.
+    *   **Parallelized Compute Expansion**: workgroup-parallel vertex expansion in `gdd_expand.comp` drastically cutting compute dispatch time.
+    *   **Visual Polish**: billboard disc starfields, multi-layered torpedo glow cores, batched OpenGL HUD glyph rendering, and automated headless golden image validation (`gpu_golden_check.sh`, `run_golden_gl.sh`).
+
 ---
+*SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.11.02 - PROJECT: THE ORBIT OF SILENCE*
+
+# 🌌 SPACE GL: THE ORBIT OF SILENCE
+
+## Project Archive: The Birth of the Orbit
+
+> *"An orbit is not a place. It is a promise to return, kept at every instant."* — Lt. Cmdr. E. Vance
+>
+> *"Every true order leaves a signature. The difficult part is knowing whose."* — Grand Admiral H. Niklaus
+
+### Chapter 1 — The Bridge: "Orbit Locked"
+
+The *Sentinel* emerged from its final jump at 06:12 ship-time, and the star system opened before the bridge viewport like a forgotten clock that someone had just rewound.
+
+An orange star, Orphea, hung low on the horizon like a glowing brazier. A gas giant banded in copper-hued rings, Calliope. And around Calliope, strung in a row like the beads of a necklace, four moons: Thetis, Doris, Galatea, and the nearest and most breathtaking, Nerea—a sphere of white and azure marbled with fractures, from whose poles rose towering plumes of ice melting into a mist of diamonds.
+
+"On the navigation charts, this quadrant was empty," Captain Lyra Vance remarked, leaning against the helm console with her arms folded.
+
+"The Catalog registered the system thirty-one hours ago, Captain," the Computer replied. "The celestial bodies were not created. They were merely declared at last."
+
+Grand Admiral Hyperion Niklaus did not turn. He stood rigid before the panoramic glass, hands behind his back, his white cotton gloves without a crease. On the flagship's bridge, the air always smelled of ozone, coffee, and resolve.
+
+"Beneath that crust," he said, "live thirty-two hundred people. It is known as Pit Nerea: an ice mining installation belonging to the Gilded Cartel, bored deep where the ice shelf is thinnest. In three hours, Nerea, Doris, and Galatea will align in syzygy. The gravitational tides will bend them as a blacksmith bends iron. The crust will rupture at some point, and I intend to be *directly above* that point, with the tractor array fully deployed like a protective ceiling." He tilted his head slightly. "Helmsman. Establish orbit around Nerea."
+
+The command was entered. A green indicator flared on the console.
+
+"Orbit locked, Admiral."
+
+For four seconds, the only sound on the bridge was the steady hum of the air recyclers. Then Lyra, who had never learned to trust a green indicator light, raised her eyes to the tactical hologram. Nerea was drifting toward the left. Slowly, but drifting nonetheless. Its southern plume was creeping away from the center of the glass, degree by degree, like a vessel slipping its moorings.
+
+"Computer. Relative position of the *Sentinel* with respect to Nerea."
+
+"Range increasing, Captain."
+
+"Are we in orbit?"
+
+The Computer paused for the span of a single heartbeat. Then, with the terrifying courtesy of machines incapable of falsehood:
+
+"Negative, Captain. The *Sentinel* is stationary. It is the moon that is in motion."
+
+Niklaus, finally, turned around.
+
+<table>
+<tr>
+    <td><img src="readme_assets/the orbit of silence/01 Stellar bridge toward Calliope.png" alt="Chapter 1 - Stellar bridge toward Calliope" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 2 — The Astrometric Laboratory: "The Clock Without Memory"
+
+Elara Vance had transformed the astrometric laboratory into a miniature cathedral. Above the holographic projector table, the Orphea system rotated in miniature, every celestial body tracing its trajectory in silver thread; along the side displays streamed the new diagnostic readouts, displaying real-time orbital ephemerides.
+
+"Look at what they have built," she said, her gaze fixed on the simulation. "A central star, up to four planets, up to four moons per planet. Exactly one orbit for each moon. And not a single one of these orbits is *stored in memory*, Lyra. They are pure mathematical functions of the ship's chronometer: provide the timestamp, and it will calculate precisely where every celestial body resides—now, a year from now, or ten minutes in the past. The heavens here are not an archive. They are an analytical formula."
+
+"A clock without memory."
+
+"Precisely why it never errs. And precisely why it is merciless." Elara waved her fingers through the air. The orbital path of Nerea illuminated in amber gold, and upon it rested a solitary red point: the *Sentinel*, frozen like a pin pinned into a map. "They have also ensured that every celestial body remains strictly contained within its assigned quadrant at every instant. Where a star system could not physically fit, they sacrificed the outermost planets rather than allowing them to transgress sector boundaries. An uncompromising order."
+
+She brought up three telemetry scans: the stellar spectral profile of Orphea, the planetary survey of Calliope, and the selenographic analysis of Nerea. Deep beneath six kilometers of ice on the latter, a rich indigo glow blossomed: an entire liquid ocean, encased beneath a fracturing shell.
+
+"How much time do we have?"
+
+"Nerea completes its orbital revolution around Calliope and will pass through our exact spatial coordinates in two hours and twelve minutes. A mere quarter of an hour before the syzygy alignment." Elara finally turned. "It does not do this with hostile intent, Lyra. It does not even know we exist. It is a moon riding an orbital rail, and we are a starship anchored to nothing. And as of this week, solid bodies are genuinely solid."
+
+"The collision engine."
+
+"If our flight vector—even as a discrete linear segment between two clock ticks—intersects a solid object, the hull halts at the surface boundary and takes damage proportional to kinetic velocity. Here it is far worse: the moon is hurtling toward us, and it will neither stop nor decelerate. It possesses no awareness of our presence."
+
+Lyra stared at the red indicator. "Why is the ship not orbiting? The command was accepted by the navigational computer."
+
+"Because accepting a command and executing it are two vastly different things." Elara deactivated the holotable, and the holographic cathedral dissolved into specks of light. "Let us head down to Engineering. Brandt will show you where the ghost resides."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the orbit of silence/02 Holographic briefing among the stars.png" alt="Chapter 2 - Holographic briefing among the stars" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 3 — Engineering: "The Heartless State"
+
+The engine room of the *Sentinel* was an immense nave of copper and luminescence, with the fusion core suspended at its center like an altar lantern burning within a cathedral. Chief Engineer Tesa Brandt emerged from beneath a catwalk with a diagnostic driver gripped between her teeth and lubricant staining her arms up to the elbows.
+
+"Found it," she announced. "The orbit command performs exactly one operation: it writes `NAV_STATE_ORBIT` into the navigation state register. And then... nothing. At every clock tick, the ship's executive loop evaluates its operational state—alignment, hyperdrive, impulse, approach, pursuit, docking, drift, idle—and for `ORBIT`, there is no handler routine to process it. It falls straight through into idle, and remains exactly where it was."
+
+"An unbeating state," remarked Niklaus, who had materialized soundlessly behind her. He held his gloved hand hovering above the guardrail, without touching the metal.
+
+"A ghost with a nameplate on the door, Admiral."
+
+Lyra exchanged glances with Elara. "Can you provide it with an active pulse while underway?"
+
+"Until three days ago, the core logic of this ship was a single monolithic function running one thousand and eighty-five lines of code. We called it the Monster. Nobody dared touch it." Brandt wiped her hands on a shop rag. "We dismantled it. It is now a modular conductor of one hundred and forty-four lines coordinating eighteen specialized organs, one for each phase of the machine cycle: hull integrity, life support, tactical shields, weapons arrays, sensor probes, and navigation; and within navigation, a dedicated handler for every navigational state. The logic was restructured, not rewritten blindly. Then we executed a regression suite of nine hundred consecutive ticks simulating six active captains performing every conceivable maneuver, hashing the entire memory state after every tick. The state signatures matched byte-for-byte, before and after. Identical down to the bit."
+
+"And now?"
+
+"Now we construct a brand-new handler." Her tone shifted, resonant with the passion of an engineer describing what she loved most. "An execution routine that guides the vessel around an astronomical body. Constant radius: the exact distance established upon capture, clamped to never breach the body's safe perimeter. If we engage inside that perimeter, the vessel smoothly spirals outward without positional discontinuity. A single plane of revolution: determined by our incoming trajectory vector. Constant angular velocity governed by a Keplerian period law: twenty seconds at radius three, scaling with the three-halves power of the radius. The farther out, the slower the revolution. Ship heading aligned along the tangential vector of travel."
+
+"And when the moon itself is in motion?" Lyra inquired.
+
+"That is the elegance of it. If the parent body moves, it translates us along with it. An orbit nested inside an orbit: the ship around Nerea, Nerea around Calliope, Calliope around Orphea." A slight smile touched her lips. "The orbit terminates only if you issue an explicit disengagement, if another navigation vector is commanded, if the target body ceases to exist, or if the thrusters suffer catastrophic failure. Nothing else breaks it."
+
+"How much time do you require?"
+
+"One hour, provided Elara supplies the orbitable classification table and no one breathes down my neck."
+
+Niklaus glanced at the fusion core, then at the ship chronometer. "You have one hour, Engineer."
+
+Brandt ducked back beneath the catwalk. "One hour to mathematically construct a circle," she was heard muttering into the darkness. "I have coded far worse."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the orbit of silence/03 Briefing before the stellar reactor.png" alt="Chapter 3 - Briefing before the stellar reactor" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 4 — The Communications Bay: "The Right Signature, the Wrong Voice"
+
+The communications bay was a dimly lit cavern of transceiver arrays and waveform monitors, illuminated solely by the phosphorescent green of oscilloscope sweeps. Commander Leandros Thorne, arms crossed and back against the bulkhead, monitored the frequency spectrum like a mariner listening to the swell. Beside him, hovering between the visible and the immaterial, Commander Alara of the Xylari kept her veil partially parted: a luminous outline, an ethereal silhouette.
+
+At 07:38, the dispatch arrived.
+
+*HIGH COMMAND TO SENTINEL. Abort all orbital maneuvers immediately. Lower deflector shields. Descend to low altitude above Pit Nerea. Signed: H. Niklaus.*
+
+"The signature is cryptographically valid," Thorne reported. "Ed25519. The Computer verified the asymmetric signature in under sixteen milliseconds."
+
+"I signed no such dispatch," said the Grand Admiral from the doorway.
+
+"I am well aware, sir. Which is precisely why this troubles me." Thorne stepped aside. "Computer. Elaborate."
+
+"Declared originator is Fleet High Command," the Computer answered. "However, the terminal from which the packet originated presents an identity signature disparate from that bound to this Core. SERVER IDENTITY MISMATCH."
+
+A heavy, oppressive silence fell across the compartment.
+
+"Until a few days ago," Thorne explained, his tone measured with the calm of a veteran who has weathered many storms, "every terminal in the fleet shared the identical symmetric key $K$. Anyone in possession of that key could forge the vessel's identity or impersonate High Command itself. Today, every Core generates its own cryptographic persona: an asymmetric identity key created upon initialization. Every console pins that public key, just as a traveler remembers the face of the bridge warden. If the warden's face changes without warning, the terminal refuses transmission."
+
+"Someone has brought a twin Core online," Alara whispered softly. "A surrogate machine, speaking with the same voice but wearing a counterfeit face. Any terminal trusting it would be shown a fraudulent sky: a stationary Nerea, an imaginary stable orbit, and defensive shields painted as redundant."
+
+"And now, a counterfeit order bearing your name," Lyra said as she stepped inside. "Ordering us directly into the rupture zone."
+
+Thorne nodded grimly. "Which is why, as of this morning, all telemetry travels encapsulated within TLS 1.3: commands, kinematics, even the initial handshake packet. Zero plaintext transmission. Wire revision five. Any legacy console is rejected at the very first byte."
+
+Niklaus, unmoved by mere theory, extended his gloved hand toward his personal auxiliary terminal and pressed the connect sequence. The display flashed crimson: *Protocol Revision 4. Connection Refused.*
+
+For an instant, no one dared breathe.
+
+"Turned away by my own flagship," the Admiral murmured. A faint trace of a smile creased his lips. "Exemplary."
+
+"My apologies, sir," Thorne offered.
+
+"Never apologize for a hatch that locks when it should, Leandros."
+
+Alara drew her veil closed, her voice echoing as a razor-sharp whisper from the shimmering air. "One question remains. Who gains from positioning this ship at low altitude, beneath the ice shelf, at the exact hour the moon tears itself apart?"
+
+<table>
+<tr>
+    <td><img src="readme_assets/the orbit of silence/04 Command bridge unknown signal.png" alt="Chapter 4 - Command bridge unknown signal" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 5 — The Hangar: "No One Guesses Anymore"
+
+The primary launch hangar was an expansive white deck spanning three hundred meters, its ceiling vaulting so high it possessed its own microclimate. A swarm of reconnaissance drones was fanned out across the deck plates, while at the center the shuttle *Tessera* vented pressurized steam from its attitude thrusters.
+
+Lieutenant Iko Reyes, chief flight officer, held the launch manifest in one hand while gently resting the other on the wingtip of the smallest drone, like a handler reassuring a hunting hound before release.
+
+"Do you know what keeps me awake at night, Commander?" he asked Thorne, who had descended to inspect the communications relays. "Not the crust collapsing, nor the ice plumes. It is the time elapsed between two clock ticks. At maximum burn, a single tick of the vessel sweeps across nearly five spatial units, yet the contact radius of a moon is less than one. A week ago, you could phase through an entire planet from hemisphere to hemisphere without collision: you were on one side at tick one, and out the other side at tick two."
+
+"And now?"
+
+"Now the trajectory is evaluated as a continuous spatial segment, not a sequence of disconnected points. If that segment intersects a solid body, the engine arrests your hull at the surface boundary, and you pay for it in hull integrity according to velocity. Ships, on the other hand, evade one another without colliding: only hard matter inflicts structural damage. That is all I need to know."
+
+Across the deck, an unmanned drone bearing the stencil *FOUR-BIS* lifted its nose, stabilized its gyros, and took to the air with effortless grace. Reyes followed its ascent with his eyes.
+
+"Four-bis," he remarked. "It took the operational slot of Four, which we lost during high-G stress trials. Same index in the server registry. In the past, when a newly spawned vessel occupied an existing slot, the logic *guessed*: if coordinates jumped erratically, it assumed slot reuse. Four-bis used to fly half-cocked, carrying the residual timers of Four, believing it was still its predecessor. It would circle an asteroid for an hour in a loop." He shook his head. "Today, every new ship explicitly declares its birth. A dedicated initialization call wipes every trace of prior state. No one guesses anymore."
+
+He depressed the launch trigger. "Birth!" he commanded aloud, as he did without fail on every sortie. It was his personal superstition, and the ritual of the hangar deck.
+
+The drone wing dispersed in an outward fan, the *Tessera* following closely in their wake. Through the forward viewport, Reyes observed Nerea up close for the first time: not a primitive polygon, not a textured disc, but a complete world—a sphere tessellated from thousands upon thousands of vertices, its glacial fissures glistening like rivers of mercury. The background stars were no longer dimensionless points: they were oriented billboard discs facing the camera, each holding its gaze.
+
+The Computer interrupted the quiet. "Lieutenant, an unauthenticated terminal has attempted connection to the hangar control frequency. Origin: Storage Cell 7-Delta. Connection terminated."
+
+Reyes and Thorne exchanged a sharp glance.
+
+"Cell 7-Delta," Thorne repeated.
+
+The *Tessera* punched through the glacial plume, and the canopy flashed with a dazzling cascade of diamonds.
+
+<table>
+<tr>
+    <td><img src="readme_assets/the orbit of silence/05 Launch hangar of the shuttle Tessera.png" alt="Chapter 5 - Launch hangar of the shuttle Tessera" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 6 — The Hall of Two Suns: "Eleven Guests, Eleven Doors"
+
+The Hall of Two Suns served as the state reception pavilion aboard the *Sentinel*: twin panoramic glass arches that framed, by day, the primary star and its golden reflection across the atmosphere of the gas giant, centered around a massive table carved from genuine Earth oak, preserved from an era before timber became a luxury.
+
+At 08:20, eleven diplomatic shuttles docked in simultaneous unison.
+
+"In days past," Lyra said, greeting the arriving dignitaries with the weary smile of a seasoned commander, "when eleven captains boarded simultaneously, four would fail to connect. The registry would scramble session identifiers, bind the same connection slot to two separate delegates, and leave one standing in the corridor wondering why their identity had vanished. *Galaxy Map Synchronization Failed*, the terminal would announce."
+
+"And today?" inquired the Korthian envoy, his voice grinding like boulders rolling across a riverbed.
+
+"Today, each connection is granted its own discrete door."
+
+They filed in: ambassadors representing the Stellar Alliance and the Xylari Empire, emissaries of the border clans, the envoy of the Merchant Guild, and Orsolya Venn, plenipotentiary of the Gilded Cartel—sporting cropped hair, a jacket of antique gold cloth, and an unyielding, practiced smile. The Cartel owned the deed to Pit Nerea, yet she was the sole individual present who had not inquired about the welfare of the thirty-two hundred souls trapped below.
+
+Niklaus addressed the room from the head of the oak table, his gloved palms resting flat against the wood.
+
+"I have convened eleven factions because stabilizing a moon requires eleven pairs of hands. However, an anomaly has presented itself, and it will be resolved here and now, before anyone takes their seat." He placed an engraved steel placard on the table displaying sixteen four-digit hexadecimal clusters. "This is the cryptographic public identity fingerprint of this vessel's Core. The initial handshake with any Core is an act of trust, and I demand blind trust from no one. Verify these digits against your consoles. Then pin this fingerprint manually into your client records."
+
+One after another, the consoles chimed with affirmative tones. *Server verified. Transport: TLS 1.3.* Ten chimes resonated across the hall.
+
+The eleventh terminal emitted an abrasive warning tone. Across Venn's display, bold red characters flashed: *SERVER IDENTITY MISMATCH.*
+
+The Cartel delegate looked up, affecting an air of mild exasperation. "Cartel issue hardware is notoriously outdated. A firmware desynchronization, nothing more."
+
+"Naturally," Thorne replied, his voice laced with an icy calm that sent a shiver down Lyra's spine. Behind Venn's chair, for the fraction of a second, the atmospheric shimmer of Alara's cloak wavered like heat rising above an open plain.
+
+Elara, who had remained at the rear of the pavilion, stepped forward and whispered into Thorne's ear.
+
+"The twin Core is broadcasting from Storage Cell 7-Delta. It holds our symmetric key $K$, but lacks our asymmetric identity. And it has just established a connection with a terminal in this room."
+
+Lyra looked down the length of the table—eleven guests, eleven doors. One of them had been deliberately opened onto a fabricated sky.
+
+<table>
+<tr>
+    <td><img src="readme_assets/the orbit of silence/06 Diplomatic conference among the stars.png" alt="Chapter 6 - Diplomatic conference among the stars" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 7 — The Compute Core: "The Lost Tick"
+
+Deep within the structural keel of the *Sentinel*, far beyond the reach of any starlight, lay an acoustic vacuum of total silence: the Compute Core. Sixty times every second, without interruption, the ship's processor performed a single, immutable act: it counted. One cycle, one entire reality. They called it the Tick, and everything else—shields, orbital ephemerides, crew life support, the air currents through the corridors—flowed as a direct consequence of that rhythmic count.
+
+Brandt sat before the Tick Monitor, wearing the focused expression of a high-wire acrobat. Elara stood beside her, a steadying hand on her shoulder.
+
+"Look at this," Brandt said. A warning indicator illuminated on the diagnostic console: *PERFORMANCE: tick duration exceeded 16.7 ms budget.*
+
+"By how much?"
+
+"Forty-five milliseconds. Until yesterday, every time the galaxy state was serialized to storage, the server allocated a brand-new buffer of thirty to forty megabytes from system memory, holding the game mutex while faulting every single page into existence. The server's heart literally skipped two, sometimes three beats just to record a snapshot of its own past." She let out a weary laugh. "Now, there is a single persistent image buffer, memory-mapped at startup and reused for every save operation: latency plummeted from forty-five milliseconds down to one, eight at the absolute worst. And then there was the Long-Range Sensor grid: sixty-four thousand quadrants recomputed in a single tick, once every second. A sudden ten- to fifteen-millisecond lag spike. Now, it slices the workload, updating one spatial plane per tick: every quadrant is still refreshed once per second, but the tick duration never notices it."
+
+"A lost tick in orbital flight translates to a meter of positional drift," Elara noted. "And we have no margin to spare."
+
+"We had also attempted to split the logic across two OpenMP worker threads to gain speed. The second thread ended up spinning uselessly waiting at every synchronization barrier, doubling CPU consumption while achieving nothing. A heart commanded by two conductors does not beat faster—it suffers arrhythmia. It now runs on a single deterministic thread."
+
+Brandt tapped the network telemetry display. "And then there was the transmission protocol. For every connected console, at every tick, the server dispatched an entire eighteen-kilobyte effects payload, reserving room for sixty-four explosions and two hundred and fifty-six torpedoes, even when the sector was dead quiet. Now, when there is nothing to announce, the packet shrinks to two hundred and twelve bytes. We stopped shouting into the void. Downstream bandwidth per console dropped from twenty-five kilobytes per second down to fourteen point five."
+
+Niklaus entered the chamber silently, his footsteps absorbed by the anti-vibration deck. "And what of the circular path?"
+
+"Twenty-eight valid orbitable targets," Brandt answered promptly. "Planets, stars, black holes, pulsars, quasars, neutron stars, brown dwarfs, rogue planets, orbital rings, megastructures, quantum singularities, and the stars, planets, and moons of star systems. Comets, satellites, starbases, and asteroids remain non-orbitable. For every single class, the automated verification suite validates radius retention, orbital plane, angular velocity, Keplerian period, non-discontinuous capture, asymptotic settling, and sensor reach. The initial test pass simulated one and a quarter complete revolutions for all twenty-eight classes, which exceeded test timeouts. We optimized it: the full revolution is validated on the primary case, while the remaining twenty-seven are checked across a two-hundred-and-forty-tick verification window. If you wish to watch a moon complete an entire year, watch the sky."
+
+"The final test verdict?"
+
+"Twelve thousand two hundred and seventy-eight assertions verified. Zero failures." Brandt rose to her feet. "The circle is operational, Admiral."
+
+Outside in the passage, Thorne stood waiting, arms folded across his chest. "Alara has sealed Storage Cell 7-Delta," he said quietly. "Nobody is leaving."
+
+"Then let us go witness a circle complete its turn," Niklaus said. "Afterward, we shall have words with our twin."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the orbit of silence/07 Stellar core control room.png" alt="Chapter 7 - Stellar core control room" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 8 — The Observation Deck: "The Circle"
+
+The Observation Deck was the only chamber aboard the *Sentinel* devoid of bulkheads: a reinforced gallery of structural quartz suspended beneath the belly of the ship, featuring a transparent floor and a single brass handrail. During quiet watches, off-duty crew members would gather there to watch the star fields revolve silently beneath their boots.
+
+At 08:49, nothing was revolving. Nerea occupied the entire expanse of the floor.
+
+Lyra stood at the floating navigation console. Niklaus stood two paces away, Thorne watched the tactical display, while Brandt and Elara observed from just behind them.
+
+"Three moons in syzygy," Elara announced. "Doris, Galatea, and Nerea. Look at the ice shelf." Under the tidal strain, the coloration of the surface shifted: from brilliant white to deep indigo, then to a glassy, brittle charcoal gray. Fractures propagated outward like the branches of an inverted tree.
+
+"Warning: current position inside safe perimeter," the Computer cautioned.
+
+"Precisely," Lyra replied, and entered the command: `orb Nerea`.
+
+The prow of the *Sentinel* pivoted by one degree, then two. There was no jarring jump: the starship spiraled smoothly outward, like a leaf drifting onto a calm current, until it intersected the safe radius boundary, where the trajectory stabilized. The prow locked along the tangential vector of flight, and for the first time, the green status indicator spoke the absolute truth.
+
+"Radius constant," Brandt reported, her voice unsteady with emotion. "Orbital plane constant. Angular velocity constant."
+
+"Positional drift?"
+
+"Zero."
+
+The Observation Deck began its serene revolution around Nerea, while Nerea simultaneously swung along its wide orbit around Calliope—vast, impassive as an ancient deity, its copper ring catching the searing brilliance of Orphea. A circle within a circle within a circle, a cosmic clockwork mechanism spanning an entire solar system. Elara realized she was weeping only when a teardrop splashed against the brass rail.
+
+Suddenly, the southern pole of Nerea ruptured. An ice geyser the scale of a mountain range erupted into the vacuum, and beneath its spray, thousands of microscopic light points flickered into life: the lanterns of Pit Nerea—thirty-two hundred miners' lamps ignited at once, like fireflies signaling the heavens. From the underbelly of the flagship, the tractor array unfurled, a luminous golden web descending over the fracturing shelf to cradle the crust in its grasp.
+
+"Contact!" Thorne shouted. "Glacial fragment, dead ahead. Mass: equivalent to an entire city." The cryovolcanic plume had hurled a massive ice spire directly into the ship's orbital trajectory. "If we collide, the hull halts at the impact boundary and sustains catastrophic structural damage. If we engage maneuvering thrusters to evade, the orbit collapses."
+
+"Weapons fire is not a navigational command," Niklaus observed coldly.
+
+"That is precisely why they engineered it this way," said Lyra.
+
+"Torpedo away."
+
+The torpedo streaked across the dark like a golden needle: a radiant white-orange core encased within five concentric halo shells, each more translucent than the last. It struck the glacial mass dead center. The ice fractured into an expanding cloud of sparkling crystals, and the *Sentinel* swept through the diamond storm with a shower of white flashes, its hull unscathed.
+
+"Radius constant," Brandt stated. "Zero drift."
+
+Three minutes following syzygy, at 09:15, the crust of Nerea fractured at the exact coordinates predicted by the astrometric models. The tractor web held firm. The *Sentinel* remained steadfastly overhead.
+
+Across the open fleet channel, eleven different languages broadcast the exact same word.
+
+<table>
+<tr>
+    <td><img src="readme_assets/the orbit of silence/08 Observation deck over stellar Nerea.png" alt="Chapter 8 - Observation deck over stellar Nerea" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 9 — Cell 7-Delta and the Key Vault: "No Echo"
+
+Storage Cell 7-Delta was a decommissioned cargo bay two decks beneath the hangar, retrofitted into an illicit electronic sanctum: rows of server racks humming under green LED displays, silent cooling blowers, and an active console stationed at the center. A counterfeit Core, speaking with the identical voice of the flagship, yet wearing a completely different digital face.
+
+Orsolya Venn sat before the display terminal, dressed in her antique gold jacket, hands resting calmly in her lap. She showed no surprise.
+
+"Admiral," she said without turning. "I expected you sooner."
+
+Niklaus entered alongside Thorne and Lyra. Behind Venn, the air rippled with refractive distortion, and Alara materialized within her shimmering aura, her veil gathered over her forearm.
+
+"One question only," Niklaus demanded. "Why?"
+
+"Because thirty-two hundred miners trapped beneath an ice shelf on the verge of collapse are worth far less than the catastrophic insurance settlement on the facility. The Cartel stood to collect double." She finally turned her head, and her eyes held a chilling trace of pity. "All that was required was for the *Sentinel* to descend to low altitude, drop shields, and position itself directly beneath the rupture fifteen minutes prior to syzygy. The flagship lost, the facility obliterated, zero surviving witnesses."
+
+"And the authorization key?" Thorne asked. "The counterfeit Core is configured with key $K$."
+
+"Your key was exposed everywhere," Venn replied smoothly. "Your legacy launch script echoed the master password prompt before disabling local terminal echo: anyone typing quickly would see the passphrase displayed in clear text on their screen. A neglected maintenance terminal, an autumn evening, and an unpurged system log." She offered a thin smile. "After that, all one needed was a duplicate Core."
+
+"Duplicate," Niklaus repeated slowly. "No. You may possess key $K$, Ms. Venn. But you can never forge our face. The asymmetric identity key is generated upon the initial initialization of the Core; it never departs its protected directory, and it cannot be cloned because it was never duplicated anywhere in existence. That is why your console announced *Server Identity Changed* before the entire diplomatic assembly at 08:31, and you were forced to blame your firmware."
+
+"And that is why I needed only one suspect," Alara whispered softly. "You."
+
+Venn lunged toward the input keys—a sudden, desperate gamble. Thorne pinned her arms before the thought could even translate into muscle movement. The delegate's fingers hovered inches from the keyboard.
+
+"Log purge command," the Computer intoned dispassionately. "Access denied."
+
+As security escorted her away, Lyra lingered at the threshold, staring at the humming racks with arms tightly crossed.
+
+"It was not raw technology that delivered us," she said. "It was a machine that refused to lie."
+
+"They are one and the same," Niklaus answered. "An honest machine is simply an honest mind that has learned never to grow weary."
+
+Later that night, the Admiral descended alone to the Key Vault, a solitary chamber secured by a mechanical lock designed to open only for the master of the ship. The Core was completing its restart sequence under a newly provisioned master identity, accepted as a cryptographic credential initialized once and immediately purged from volatile memory. The authentication prompt appeared on the black screen.
+
+This time, input echo was disabled long before the prompt text was drawn.
+
+Niklaus typed his passphrase, character after character. The screen remained pitch black. Not even an asterisk appeared.
+
+True orders leave no echo.
+
+<table>
+<tr>
+    <td><img src="readme_assets/the orbit of silence/09 Sci-fi control room and digital vault.png" alt="Chapter 9 - Sci-fi control room and digital vault" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 10 — The Bridge, at Evening: "The Third Time"
+
+Evening, aboard a vessel locked in planetary orbit, does not exist. There is only the light of Orphea shifting from amber to crimson across the bridge viewport, and the silent circle that the ship continues to trace through the void, like a thought that never tires.
+
+Beneath the *Sentinel*, Pit Nerea was breathing. The tractor array had sustained the structural load for six hours and four minutes, until the gravitational tides had receded and the ice shelf settled back over the subterranean ocean like a massive stone lid. Thirty-two hundred people were alive, and they knew it.
+
+The bridge was nearly deserted. Brandt lay asleep across a maintenance bench in Engineering, her diagnostic driver still clutched in her hand. Elara was concluding the final pages of her astrometric report in the laboratory, an enduring smile on her face. Thorne had secured the prisoner, sealed the counterfeit Core in a cryptographic vault, and for the first time in three days had poured himself a fresh cup of coffee.
+
+Lyra and Niklaus stood alone before the viewport.
+
+"Admiral, may I tell you what crossed my mind at 06:12?"
+
+"Provided it is brief."
+
+"I thought that the command had been accepted, yet the ship remained motionless. I thought that the most dangerous things aboard a starship are not the systems that break down. They are the systems that pretend to work."
+
+Niklaus remained silent for a long moment. Beyond the transparent quartz, Nerea traversed its path with mathematical precision, a sphere composed of three thousand and seventy-two vertices and human history, while Calliope filled the backdrop with its copper-colored rings, and Orphea, behind them all, stood as a testament to the celestial clockwork it had rewound.
+
+"A starship is a covenant," he said. "The distinction between a true vessel and a lie is that the vessel performs exactly what it declares. The orbit that actually orbits. The newly commissioned craft that explicitly declares its birth. The terminal that declares its identity and is trusted because it provides mathematical proof." He removed his right glove, then his left, and laid them neatly upon the console, side by side. "This is only the third time in ten years I have done this, Lyra."
+
+Lyra looked down at the white cotton gloves resting on the console. "And the first two times?"
+
+"A funeral. And a choice." A faint, time-worn smile appeared on his face. "This one is for a circle."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the orbit of silence/10 Command bridge at space twilight.png" alt="Chapter 10 - Command bridge at space twilight" width="600"/></td>
+ </tr>
+</table>
+
+Lyra made no reply. With her hand resting lightly on the helm controls, she spoke the command that concluded the day.
+
+`orb off.`
+
+The *Sentinel* detached from the orbital plane with the effortless grace of a bird taking flight from a branch. Its prow aligned toward the deep expanse of the system, and Nerea—the moon that had demanded a circle and had received a genuine one—drifted quietly past the stern.
+
+"Orbit terminated," the Computer announced. "Radius maintained for six hours and four minutes. Zero drift."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the orbit of silence/11 Orbital departure of the Sentinel.png" alt="Epilogue - Orbital departure of the Sentinel" width="600"/></td>
+ </tr>
+</table>
+
+---
+
+### Behind the Scenes: Where Every Chapter Originates
+
+The narrative arc of this chronicle is grounded directly in the engineering milestones documented in the `CHANGELOG` between releases `2026.10.24` and `2026.11.02.06`. While specific dramatic situations are fictionalized, Grand Admiral Niklaus, Captain Lyra Vance, Astrometric Specialist Elara Vance, Commander Thorne, and Commander Alara originate from core `LORE.md`; Chief Engineer Tesa Brandt, Flight Lieutenant Iko Reyes, and Diplomat Orsolya Venn are introduced to chronicle these technical leaps.
+
+- **Star Systems & Deterministic Moon Orbits** (`2026.10.28.01` and `.02`): The heavens modeled as a pure chronometer function without saved orbital paths, three distinct sensor survey tiers, and live orbital ephemerides in diagnostics. Chapters 1–2.
+- **Physical Collision Engine, Ship Avoidance & Explicit NPC Slot Initialization** (`2026.10.27.01`–`.05`): Trajectory segment intersections with solid astronomical bodies, avoidance steering, and explicit birth notifications preventing slot-reuse anomalies. Chapters 2 and 5.
+- **Cryptographic Security Overhaul: Per-Core Server Identity, TLS 1.3 Transport, Protocol Revision 5, and Zero-Echo Launchers** (`2026.10.31.43`, `2026.11.01.03`, `.11`, and `.12`): Asymmetric Ed25519 identity pinning, end-to-end TLS 1.3 transport, and credential input protection. Chapters 4, 6, and 9.
+- **Server Tick Refactoring: Eighteen Specialized Handlers and 900-Tick State Equivalence Verification** (`2026.10.31.37`): Decomposition of the monolithic logic loop into eighteen discrete handlers verified byte-for-byte against regression. Chapter 3.
+- **Real-Time Performance: Tick Monitor, Pre-Mapped Save Image Buffer, Sliced LRS Grid, Single-Threaded Logic, and Compact Delta Payloads** (`2026.11.01.13` and `.14`): Eliminating memory-allocation spikes, time-slicing the 64,000-quadrant sensor grid, and cutting client network traffic by 42%. Chapter 7.
+- **True Keplerian Orbit Engine (`orb`): Keplerian Period Scaling, Sensor Reach, Moving Parent Trajectory Translation, and Orbitable Classification Registry** (`2026.11.02.03`–`.05`): Real circular orbits with Keplerian periods scaling with $r^{1.5}$, moving frame translation, and 12,278 validation checks. Chapters 1, 3, 7, and 8.
+
+
+---
+
 ## 🚀 Version 3.3 Highlights (Rel. 2026.10.24 - The Living Catalog)
 
 Update 3.3 turns the object catalog into a living stellar and planetary ecosystem. The numbered catalog now spans **IDs 0–177**, driven by a single source of truth (`include/object_types.h`) shared by the server, the HUD, the OpenGL viewer, the CPU Vulkan path and the GPU-driven builder:
