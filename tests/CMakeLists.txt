@@ -957,6 +957,12 @@ if(TARGET spacegl_vulkan AND TARGET spacegl_3dview)
                          PASS_REGULAR_EXPRESSION "PASS: viewer_bench")
 endif()
 
+# The GPU clock helpers of tests/gpu_golden_check.sh (tests/gpu_clock.sh,
+# 2026.11.07.07) on fake sysfs trees: i915, xe, amdgpu, two GPUs, pin and
+# restore (also on SIGINT), sampling. No GPU needed.
+add_test(NAME gpu_clock COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/gpu_clock_test.sh)
+set_tests_properties(gpu_clock PROPERTIES TIMEOUT 60 PASS_REGULAR_EXPRESSION "PASS: gpu_clock")
+
 # --- The server's tick monitor (2026.11.01.13) ---------------------------
 # include/tick_monitor.h with synthetic ticks: no warning inside the
 # budget, one per interval with the worst tick, a starved tick named,

@@ -1,3 +1,43 @@
+* Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.07
+  - tests/gpu_golden_check.sh: frame times that compare. A GPU lowers its
+  clock under a light load and keeps it up for a while after a heavy one,
+  so a row's time depended on the run before it. Today on the Arc A770 the
+  GPU-driven Vulkan frame of the busy quadrant went from 1.1 to 1.9 ms and
+  the OpenGL one from 4.7 to 5.9 ms with no change to their code, only
+  because the CPU-driven run before them had become light (8.8 -> 3.2 ms);
+  with the minimum clock pinned at the top both versions of the code gave
+  0.82 and 4.3-4.4 ms, and the CPU-driven path 6.79 -> 1.80 ms (2026.11.04.01
+  -> 2026.11.07.06). Now the script:
+    - prints the build (directory, CMAKE_BUILD_TYPE, CMAKE_C_FLAGS; a
+      warning when it is not Release), the source tree and its
+      spacegl.spec version, and the OpenGL driver version;
+    - finds the rendering GPU's DRM card (its vendor, the largest of that
+      vendor; --gpu-card cardN to choose) and prints its driver, PCI
+      address and ids, clock range, floor, ceiling and current clock;
+    - samples the actual clock every 0.1 s during every timed run and
+      prints its average and min-max next to the times;
+    - runs --warmup S seconds (default 3; 0 = none) of the heaviest load
+      there is (CPU-driven Vulkan, full spheres, 256 objects) before each
+      timed run, so every run starts from the same state;
+    - with --pin-freq raises the GPU's minimum clock to its top for the
+      whole check (sudo asks for the password) and restores it at exit,
+      also on Ctrl+C or an error;
+    - ends the frame times with GPU CLOCK: the range of the rows' average
+      clocks and whether they are within 10 % of each other (comparable)
+      or not (use --pin-freq).
+  The clock code is in tests/gpu_clock.sh: i915 and xe (Intel) and amdgpu
+  read and pin, nvidia reads through nvidia-smi; any other driver gives
+  n/a columns.
+  - Fixed, spacegl_vulkan sent its ready handshake (SIGUSR2) also in a
+  --screenshot or --bench-frames run, to the PID its segment name ended
+  with: the warm-up run, named "..._<script PID>", killed the script.
+  Standalone runs no longer signal anyone, as spacegl_3dview already did.
+  - Tests: new gpu_clock (the clock helpers on fake sysfs trees: i915 with
+  its connectors, xe, amdgpu, two GPUs, --gpu-card, pin and restore also
+  after SIGINT, sampling, no supported card). 55 tests. The CI shellcheck
+  step also checks tests/gpu_clock.sh and tests/gpu_clock_test.sh.
+  DEVELOPMENT.md, README.md.
+
 * Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.06
   - Fix, the GPU-driven Vulkan path got slower on the Arc A770 during the
   CPU-driven work of today: busy quadrant (256 objects, 1920x1080) 1.13 ms

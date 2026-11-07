@@ -759,8 +759,12 @@ int main(int argc, char** argv) {
     } else {
         SG_SUCCESS(SG_CAT_VULKAN, "CPU-driven path ACTIVE (beams/effects render via recordCommandBuffer)");
     }
-    
-    if (app->shm) {
+
+    /* The ready handshake goes to the command deck. A --screenshot or
+     * --bench-frames run has none (as spacegl_3dview, 2026.11.01.15): it
+     * signalled whatever PID the segment name ended with (a script that
+     * named it "..._$$" received SIGUSR2 and died, 2026.11.07.07). */
+    if (app->shm && !s_shot_path[0] && s_bench_frames <= 0) {
         pid_t tp = getppid();
         if (argc > 1) {
             char *p = strrchr(argv[1], '_');
@@ -772,7 +776,7 @@ int main(int argc, char** argv) {
             kill(tp, SIGUSR2);
         }
     }
-    
+
     mainLoop(app);
     cleanup(app);
     free(app);
