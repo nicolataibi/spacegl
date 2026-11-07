@@ -275,7 +275,9 @@ pipeline) and push constants by kind of object (`CpuCmdStats`: ships,
 stars, planets, bases, asteroids, comets, nebulae, other, effects), printed
 by `--bench-frames` as a `[CPU-CMDS]` line; with `SPACEGL_VK_GPU_TIMES=1`
 a timestamp after every object charges the GPU time to its kind in the
-`[GPU-TIMES]` line (the timestamps cost time themselves: compare shares).
+`[GPU-TIMES]` line (the timestamps cost time themselves: compare shares);
+`SPACEGL_VK_GPU_TIMES_DRAWS=<kind>` times every draw of that kind on its
+own (labels `<kind>:<pipeline>/<indices>`, 2026.11.07.04).
 On the A770 measure with:
 
 ```sh

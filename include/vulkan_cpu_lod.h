@@ -82,12 +82,16 @@ enum { CPUK_SCENE,
        CPUK_N };
 typedef struct {
     int kind;                 /* what is being recorded now */
+    int draw_marks_kind;      /* SPACEGL_VK_GPU_TIMES_DRAWS=<kind>: a timestamp after every draw of it, -1 none */
     uint64_t objects[CPUK_N]; /* objects of the kind */
     uint64_t draws[CPUK_N], indices[CPUK_N], binds[CPUK_N], changes[CPUK_N], pushes[CPUK_N];
 } CpuCmdStats;
 extern CpuCmdStats g_cpu_cmds;
 extern const char *const g_cpu_kind_names[CPUK_N];
 int cpu_kind_of(int type);   /* CPUK_SHIPS ... CPUK_OTHER for an object type */
+/* vulkan_render.c: the timestamp after a draw of the kind asked for by
+ * SPACEGL_VK_GPU_TIMES_DRAWS, labelled by pipeline and size of the draw */
+void cpu_draw_mark(VkCommandBuffer cb, uint64_t index_count);
 
 static inline void sg_lod_push_constants(VkCommandBuffer cb, VkPipelineLayout layout, VkShaderStageFlags stages,
                                          uint32_t offset, uint32_t size, const void *data) {
@@ -113,6 +117,7 @@ static inline void sg_lod_draw_indexed(VkCommandBuffer cb, uint32_t index_count,
     g_cpu_cmds.draws[g_cpu_cmds.kind]++;
     g_cpu_cmds.indices[g_cpu_cmds.kind] += (uint64_t)index_count * instances;
     vkCmdDrawIndexed(cb, index_count, instances, first_index, vertex_offset, first_instance);
+    if (g_cpu_cmds.kind == g_cpu_cmds.draw_marks_kind) cpu_draw_mark(cb, (uint64_t)index_count * instances);
 }
 
 static inline void sg_lod_draw(VkCommandBuffer cb, uint32_t vertex_count, uint32_t instances, uint32_t first_vertex,
@@ -120,6 +125,7 @@ static inline void sg_lod_draw(VkCommandBuffer cb, uint32_t vertex_count, uint32
     g_cpu_cmds.draws[g_cpu_cmds.kind]++;
     g_cpu_cmds.indices[g_cpu_cmds.kind] += (uint64_t)vertex_count * instances;
     vkCmdDraw(cb, vertex_count, instances, first_vertex, first_instance);
+    if (g_cpu_cmds.kind == g_cpu_cmds.draw_marks_kind) cpu_draw_mark(cb, (uint64_t)vertex_count * instances);
 }
 
 #define vkCmdPushConstants sg_lod_push_constants

@@ -43,8 +43,8 @@ bool s_frame_limit_off = false;
 /* ------------------------------------------------------------------ */
 /* GPU time per section (2026.11.02.01)                               */
 /* ------------------------------------------------------------------ */
-#define VKGT_MAX_MARKS  320   /* timestamps a frame: the CPU path marks every object with SPACEGL_VK_GPU_TIMES=1 */
-#define VKGT_MAX_LABELS 24
+#define VKGT_MAX_MARKS  512   /* timestamps a frame: the CPU path marks every object with SPACEGL_VK_GPU_TIMES=1 */
+#define VKGT_MAX_LABELS 64
 #define VKGT_SLOTS     ((uint32_t)MAX_FRAMES_IN_FLIGHT)
 typedef struct {
     int state;                       /* 0 not tried, 1 on, -1 off */
@@ -150,6 +150,34 @@ void vkgt_mark_detail(VkCommandBuffer cb, uint32_t slot, const char *name) {
     vkgt_mark(cb, slot, name);
 }
 
+/* SPACEGL_VK_GPU_TIMES_DRAWS=<kind> (with SPACEGL_VK_GPU_TIMES=1, CPU-driven
+ * path, 2026.11.07.04): a timestamp after every draw of the objects of that
+ * kind, labelled "<kind> <pipeline> <indices>", to find which of an
+ * object's draws takes the time. */
+static const VulkanApp *s_mark_app;
+void cpu_draw_mark(VkCommandBuffer cb, uint64_t index_count) {
+    if (g_gt.state != 1 || !g_gt.detail || !s_mark_app) return;
+    static char names[VKGT_MAX_LABELS][48];
+    static int n_names = 0;
+    VkPipeline p = g_sphere_lod.pipe;
+    const char *pipe = p == s_mark_app->graphicsPipeline    ? "lit"
+                       : p == s_mark_app->wireframePipeline ? "wire"
+                       : p == s_mark_app->glowPipeline      ? "glow"
+                       : p == s_mark_app->alphaPipeline     ? "alpha"
+                       : p == s_mark_app->pointPipeline     ? "point"
+                                                            : "other";
+    char want[48];
+    snprintf(want, sizeof(want), "%s:%s/%llu", g_cpu_kind_names[g_cpu_cmds.kind], pipe, (unsigned long long)index_count);
+    for (int i = 0; i < n_names; i++)
+        if (strcmp(names[i], want) == 0) {
+            vkgt_mark_detail(cb, s_mark_app->currentFrame, names[i]);
+            return;
+        }
+    if (n_names == VKGT_MAX_LABELS) return;   /* too many kinds of draw: the rest goes to the next mark */
+    snprintf(names[n_names], sizeof(names[n_names]), "%s", want);
+    vkgt_mark_detail(cb, s_mark_app->currentFrame, names[n_names++]);
+}
+
 /* Outside any render pass, first command of the frame. */
 void vkgt_begin(VkCommandBuffer cb, VulkanApp *app, uint32_t slot) {
     if (g_gt.state == 0) vkgt_try_init(app);
@@ -199,6 +227,17 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     vkgt_begin(cb, app, app->currentFrame);
     sphere_lod_begin_frame(app->wireframePipeline);
     g_cpu_cmds.kind = CPUK_SCENE;
+    s_mark_app = app;
+    {   /* SPACEGL_VK_GPU_TIMES_DRAWS=<kind name>: the draws of that kind one by one */
+        static int draws_kind = -2;
+        if (draws_kind == -2) {
+            const char *e = getenv("SPACEGL_VK_GPU_TIMES_DRAWS");
+            draws_kind = -1;
+            for (int k = 0; e && k < CPUK_N; k++)
+                if (strcmp(e, g_cpu_kind_names[k]) == 0) draws_kind = k;
+        }
+        g_cpu_cmds.draw_marks_kind = draws_kind;
+    }
     VkClearValue cl[2] = {0}; cl[0].color = (VkClearColorValue){{0,0,0,1}}; cl[1].depthStencil = (VkClearDepthStencilValue){1,0};
     VkRenderPassBeginInfo ri = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,NULL,app->renderPass,app->swapChainFramebuffers[idx],{{0,0},app->swapChainExtent}, 2, cl};
     vkCmdBeginRenderPass(cb, &ri, VK_SUBPASS_CONTENTS_INLINE);
@@ -1682,9 +1721,10 @@ void render_frame(VulkanApp* app, float dt) {
     if (bench_on && bench.seen == bench.warmup) {   /* GPU times and sphere levels: timed frames only */
         vkgt_reset_stats();
         memset(g_sphere_lod.drawn, 0, sizeof(g_sphere_lod.drawn));
-        int kind = g_cpu_cmds.kind;
+        int kind = g_cpu_cmds.kind, draws_kind = g_cpu_cmds.draw_marks_kind;
         memset(&g_cpu_cmds, 0, sizeof(g_cpu_cmds));
         g_cpu_cmds.kind = kind;
+        g_cpu_cmds.draw_marks_kind = draws_kind;
     }
     double t0 = bench_on ? bench_now_ms() : 0.0;
     app->lastImgIdx = UINT32_MAX;

@@ -100,6 +100,14 @@ shields) are a section of their own: one timestamp after every object,
 which itself costs GPU time, so compare the shares, not the total with a
 run without it.
 .TP
+.B SPACEGL_VK_GPU_TIMES_DRAWS
+With
+.B SPACEGL_VK_GPU_TIMES=1
+on the CPU-driven path, a kind of object (ships, stars, planets, bases,
+asteroids, comets, nebulae, other): every draw of that kind is timed on its
+own, and the "[GPU-TIMES]" line shows the time by pipeline and size of
+draw ("bases:wire/12288": wireframe pipeline, 12 288 indices).
+.TP
 .B SPACEGL_SPHERE_LOD
 0 makes the CPU-driven path draw every sphere with the full 64x128 mesh.
 By default it draws a coarser level (32x64, 16x32 or 8x16) when the

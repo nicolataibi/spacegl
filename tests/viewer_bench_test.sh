@@ -13,7 +13,9 @@
 # The CPU-driven Vulkan run also prints the spheres a frame by level of
 # detail ([SPHERE-LOD], 2026.11.07.01) and the commands a frame by kind of
 # object ([CPU-CMDS], 2026.11.07.02); with SPACEGL_VK_GPU_TIMES=1 its
-# [GPU-TIMES] line splits the objects by kind (ships, ..., effects).
+# [GPU-TIMES] line splits the objects by kind (ships, ..., effects), and
+# with SPACEGL_VK_GPU_TIMES_DRAWS=bases the draws of the starbases one by
+# one ("bases:<pipeline>/<indices>", 2026.11.07.04).
 # Usage: viewer_bench_test.sh <spacegl_vulkan> <spacegl_3dview>
 # Exit: 0 PASS, 1 FAIL, 77 SKIP (no binary, no display, no Vulkan ICD).
 set -u
@@ -67,6 +69,8 @@ diag vkcpu "vulkan-cpu: [CPU-CMDS] line with draws" grep -qE "^\[CPU-CMDS\] vulk
 diag vkcpu "vulkan-cpu without SPACEGL_VK_GPU_TIMES: objects in one section" grep -qE "^\[GPU-TIMES\] vulkan-cpu: .* objects [0-9.]+ resolve" "$WORK/vkcpu.log"
 run vkcpu_kinds "$VK" SPACEGL_GPD=0 SPACEGL_VK_GPU_TIMES=1
 diag vkcpu_kinds "vulkan-cpu, SPACEGL_VK_GPU_TIMES=1: GPU time by kind" grep -qE "^\[GPU-TIMES\] vulkan-cpu: .* ships [0-9.]+.* effects [0-9.]+ resolve" "$WORK/vkcpu_kinds.log"
+run vkcpu_draws "$VK" SPACEGL_GPD=0 SPACEGL_VK_GPU_TIMES=1 SPACEGL_VK_GPU_TIMES_DRAWS=bases
+diag vkcpu_draws "vulkan-cpu, SPACEGL_VK_GPU_TIMES_DRAWS=bases: the bases' draws one by one" grep -qE "^\[GPU-TIMES\] vulkan-cpu: .* bases:(lit|wire)/[0-9]+ [0-9.]+" "$WORK/vkcpu_draws.log"
 run vkgdd "$VK" SPACEGL_GPD=1
 if grep -q "GPU-driven path ACTIVE" "$WORK/vkgdd.log"; then
     check vkgdd vulkan-gdd

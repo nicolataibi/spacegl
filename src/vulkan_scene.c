@@ -152,7 +152,7 @@ const uint32_t vectorIndices[] = {
 /* ------------------------------------------------------------------ */
 SphereLod g_sphere_lod = { .enabled = true, .count = { SPHERE_LATS * SPHERE_LONGS * 6 } };
 
-CpuCmdStats g_cpu_cmds;
+CpuCmdStats g_cpu_cmds = { .draw_marks_kind = -1 };
 const char *const g_cpu_kind_names[CPUK_N] = { "scene", "ships", "stars", "planets", "bases",
                                                "asteroids", "comets", "nebulae", "other", "effects" };
 

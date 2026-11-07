@@ -1,3 +1,18 @@
+* Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.04
+  - Diagnosis, the starbases of the Vulkan CPU-driven path. With the
+  wireframe spheres at one pixel (2026.11.07.03) the busy quadrant on the
+  Arc A770 went from 7.10 to 6.05 ms of GPU time, but the 11 starbases
+  still take 4.73 ms with 3.4 times fewer indices (556 000 -> 164 000):
+  the lines are not their cost (the comets, also lines, went 1.24 ->
+  0.77 ms). SPACEGL_VK_GPU_TIMES_DRAWS=<kind> (with SPACEGL_VK_GPU_TIMES=1)
+  now writes a timestamp after every draw of the objects of that kind,
+  and the [GPU-TIMES] line shows their time by pipeline and size of draw
+  ("bases:wire/12288", "bases:lit/36"), to see which draw of a starbase
+  holds the time. No change to what is drawn or to the timings without
+  the variables.
+  - Tests: viewer_bench checks the per-draw labels.
+  spacegl_vulkan(1), DEVELOPMENT.md.
+
 * Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.03
   - Performance, the Vulkan CPU-driven path: what the GPU time by kind
   (2026.11.07.02) showed on the Arc A770, busy quadrant at 1920x1080:
