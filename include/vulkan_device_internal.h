@@ -124,8 +124,10 @@ extern bool s_frame_limit_off;
 void vkgt_reset_stats(void);
 void vkgt_begin(VkCommandBuffer cb, VulkanApp *app, uint32_t slot);
 void vkgt_mark(VkCommandBuffer cb, uint32_t slot, const char *name);
+void vkgt_mark_detail(VkCommandBuffer cb, uint32_t slot, const char *name);   /* SPACEGL_VK_GPU_TIMES=1 only */
 void vkgt_collect(VulkanApp *app, uint32_t slot);
 void vkgt_report(const char *label);
+void vkgt_destroy(VkDevice dev);   /* before vkDestroyDevice */
 
 /* --- vulkan_device.c --- */
 void resolve_shader_paths(void);

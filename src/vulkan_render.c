@@ -26,6 +26,7 @@
 
 #include "object_types.h"
 #include "vulkan_device_internal.h"
+#include "vulkan_cpu_lod.h"   /* after the Vulkan headers: wraps vkCmdPushConstants / vkCmdBindPipeline */
 #include "frame_bench.h"
 #include <time.h>
 
@@ -42,18 +43,22 @@ bool s_frame_limit_off = false;
 /* ------------------------------------------------------------------ */
 /* GPU time per section (2026.11.02.01)                               */
 /* ------------------------------------------------------------------ */
-#define VKGT_MAX_MARKS 12
+#define VKGT_MAX_MARKS  320   /* timestamps a frame: the CPU path marks every object with SPACEGL_VK_GPU_TIMES=1 */
+#define VKGT_MAX_LABELS 24
 #define VKGT_SLOTS     ((uint32_t)MAX_FRAMES_IN_FLIGHT)
 typedef struct {
     int state;                       /* 0 not tried, 1 on, -1 off */
+    bool detail;                     /* SPACEGL_VK_GPU_TIMES=1: per-object marks too (not in a plain bench) */
     VkDevice dev;
     VkQueryPool pool;
     double ms_per_tick;
     uint32_t valid_bits;
     int print_every;                 /* frames between lines (0 = only the final report) */
-    const char *names[VKGT_MAX_MARKS];
+    const char *labels[VKGT_MAX_LABELS];               /* in order of first use */
+    int n_labels;
+    uint8_t tag[MAX_FRAMES_IN_FLIGHT][VKGT_MAX_MARKS]; /* label of the interval ending at each mark */
     uint32_t used[MAX_FRAMES_IN_FLIGHT];
-    double sum[VKGT_MAX_MARKS];
+    double sum[VKGT_MAX_LABELS];
     double sum_total;
     uint64_t frames;
 } VkGpuTimes;
@@ -63,8 +68,7 @@ static void vkgt_print(const char *label) {
     if (g_gt.frames == 0) return;
     double n = (double)g_gt.frames;
     printf("[GPU-TIMES] %s: %llu frames, GPU %.3f ms:", label, (unsigned long long)g_gt.frames, g_gt.sum_total / n);
-    for (int i = 1; i < VKGT_MAX_MARKS && g_gt.names[i]; i++)
-        printf(" %s %.3f", g_gt.names[i], g_gt.sum[i] / n);
+    for (int i = 1; i < g_gt.n_labels; i++) printf(" %s %.3f", g_gt.labels[i], g_gt.sum[i] / n);
     printf("\n");
     fflush(stdout);
 }
@@ -113,16 +117,37 @@ static void vkgt_try_init(VulkanApp *app) {
     g_gt.dev = app->device;
     g_gt.ms_per_tick = (double)props.limits.timestampPeriod * 1.0e-6;
     g_gt.print_every = (env_on && s_bench_frames <= 0) ? 120 : 0;
+    /* A timestamp after every object of the CPU-driven path: only when
+     * asked for, so that a plain --bench-frames (gpu_golden_check.sh)
+     * times the frame as it is */
+    g_gt.detail = env_on;
+    g_gt.labels[0] = "start";
+    g_gt.n_labels = 1;
     g_gt.state = 1;
+}
+
+static int vkgt_label(const char *name) {
+    for (int i = 0; i < g_gt.n_labels; i++)
+        if (g_gt.labels[i] == name || strcmp(g_gt.labels[i], name) == 0) return i;
+    if (g_gt.n_labels == VKGT_MAX_LABELS) return VKGT_MAX_LABELS - 1;
+    g_gt.labels[g_gt.n_labels] = name;
+    return g_gt.n_labels++;
 }
 
 void vkgt_mark(VkCommandBuffer cb, uint32_t slot, const char *name) {
     if (g_gt.state != 1 || slot >= VKGT_SLOTS) return;
     uint32_t i = g_gt.used[slot];
     if (i >= VKGT_MAX_MARKS) return;
-    g_gt.names[i] = name;
+    g_gt.tag[slot][i] = (uint8_t)vkgt_label(name);
     vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, g_gt.pool, slot * VKGT_MAX_MARKS + i);
     g_gt.used[slot] = i + 1;
+}
+
+/* A mark only with SPACEGL_VK_GPU_TIMES=1 (per object), leaving room for
+ * the marks that close the frame. */
+void vkgt_mark_detail(VkCommandBuffer cb, uint32_t slot, const char *name) {
+    if (g_gt.state != 1 || !g_gt.detail || slot >= VKGT_SLOTS || g_gt.used[slot] + 4 >= VKGT_MAX_MARKS) return;
+    vkgt_mark(cb, slot, name);
 }
 
 /* Outside any render pass, first command of the frame. */
@@ -140,14 +165,14 @@ void vkgt_collect(VulkanApp *app, uint32_t slot) {
     if (g_gt.state != 1 || slot >= VKGT_SLOTS) return;
     uint32_t n = g_gt.used[slot];
     if (n < 2) return;
-    uint64_t r[VKGT_MAX_MARKS];
+    static uint64_t r[VKGT_MAX_MARKS];
     VkResult rc = vkGetQueryPoolResults(g_gt.dev, g_gt.pool, slot * VKGT_MAX_MARKS, n,
                                         sizeof(uint64_t) * n, r, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
     if (rc != VK_SUCCESS) return;   /* not ready: the next collect of this slot retries */
     g_gt.used[slot] = 0;
     uint64_t mask = g_gt.valid_bits >= 64 ? ~0ULL : ((1ULL << g_gt.valid_bits) - 1ULL);
     for (uint32_t i = 1; i < n; i++)
-        g_gt.sum[i] += (double)((r[i] - r[i - 1]) & mask) * g_gt.ms_per_tick;
+        g_gt.sum[g_gt.tag[slot][i]] += (double)((r[i] - r[i - 1]) & mask) * g_gt.ms_per_tick;
     g_gt.sum_total += (double)((r[n - 1] - r[0]) & mask) * g_gt.ms_per_tick;
     g_gt.frames++;
     if (g_gt.print_every > 0 && g_gt.frames >= (uint64_t)g_gt.print_every) {
@@ -160,10 +185,20 @@ void vkgt_report(const char *label) {
     if (g_gt.state == 1) vkgt_print(label);
 }
 
+/* The query pool goes with the device: left alive it was reported at exit
+ * (VUID-vkDestroyDevice-device-05137, every --bench-frames run). */
+void vkgt_destroy(VkDevice dev) {
+    if (g_gt.state == 1 && g_gt.pool != VK_NULL_HANDLE) vkDestroyQueryPool(dev, g_gt.pool, NULL);
+    g_gt.pool = VK_NULL_HANDLE;
+    g_gt.state = -1;
+}
+
 
 void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,NULL,0,NULL}; vkBeginCommandBuffer(cb, &bi);
     vkgt_begin(cb, app, app->currentFrame);
+    sphere_lod_begin_frame(app->wireframePipeline);
+    g_cpu_cmds.kind = CPUK_SCENE;
     VkClearValue cl[2] = {0}; cl[0].color = (VkClearColorValue){{0,0,0,1}}; cl[1].depthStencil = (VkClearDepthStencilValue){1,0};
     VkRenderPassBeginInfo ri = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,NULL,app->renderPass,app->swapChainFramebuffers[idx],{{0,0},app->swapChainExtent}, 2, cl};
     vkCmdBeginRenderPass(cb, &ri, VK_SUBPASS_CONTENTS_INLINE);
@@ -406,7 +441,13 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         /* Render individual tactical objects */
         for (int o=0; o<st->object_count && o < MAX_OBJECTS; o++) {
             SharedObject* obj = &st->objects[o]; if (!obj->active) continue;
-            
+            /* by kind (2026.11.07.02): the previous object's GPU time goes
+             * to its kind (SPACEGL_VK_GPU_TIMES=1), the commands of this one
+             * are counted to its own */
+            if (g_cpu_cmds.kind != CPUK_SCENE) vkgt_mark_detail(cb, app->currentFrame, g_cpu_kind_names[g_cpu_cmds.kind]);
+            g_cpu_cmds.kind = cpu_kind_of(obj->type);
+            g_cpu_cmds.objects[g_cpu_cmds.kind]++;
+
             /* Re-bind main graphics pipeline for each object to prevent state leakage from specialized renderers */
             vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 
@@ -493,7 +534,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 VkDeviceSize vb_off = 0;
                 vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &vb_off);
                 vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-                vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+                vk_draw_sphere(cb);
 
                 /* 2. Accretion Disk and Relativistic Jets */
                 drawAccretionDisk_Vulkan(cb, app, T, tactScale, pulse);
@@ -656,8 +697,11 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             if (obj->type == OBJ_BLACK_HOLE) {
                 /* Draw Black Hole Event Horizon (Black Sphere) */
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(opc), &opc);
-                VkBuffer vb = app->sphereVertexBuffer; VkBuffer ib = app->sphereIndexBuffer; uint32_t cnt = SPHERE_LATS * SPHERE_LONGS * 6;
-                vkCmdBindVertexBuffers(cb, 0, 1, &vb, &off); vkCmdBindIndexBuffer(cb, ib, 0, VK_INDEX_TYPE_UINT32); vkCmdDrawIndexed(cb, cnt, 1, 0, 0, 0);
+                VkBuffer vb = app->sphereVertexBuffer;
+                VkBuffer ib = app->sphereIndexBuffer;
+                vkCmdBindVertexBuffers(cb, 0, 1, &vb, &off);
+                vkCmdBindIndexBuffer(cb, ib, 0, VK_INDEX_TYPE_UINT32);
+                vk_draw_sphere(cb);
                 /* Draw Accretion Disk */
                 drawAccretionDisk_Vulkan(cb, app, T, tactScale, pulse);
                 continue;
@@ -699,7 +743,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(qpc), &qpc);
                 vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
                 vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-                vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+                vk_draw_sphere(cb);
 
                 /* 2. Accretion Disk (Flattened sphere, spins with core) */
                 mat4 S_disk, M_disk;
@@ -708,7 +752,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 mat4_multiply(M_disk, T, M_disk);
                 PushConstants dpc = qpc; memcpy(dpc.model, M_disk, sizeof(mat4)); dpc.color[3]=0.5f;
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(dpc), &dpc);
-                vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+                vk_draw_sphere(cb);
                 continue;
             }
 
@@ -811,7 +855,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 } else if (obj->type == OBJ_STAR || obj->type == OBJ_PLANET || obj_type_is_exotic(obj->type) || obj_type_is_evolved_star(obj->type) || obj_type_is_moon(obj->type) || obj_type_is_protostellar(obj->type)) {
                     vb = app->sphereVertexBuffer;
                     ib = app->sphereIndexBuffer;
-                    cnt = SPHERE_LATS * SPHERE_LONGS * 6;
+                    cnt = 0;   /* drawn by vk_draw_sphere at its level of detail */
                 } else if (obj->type == OBJ_WARP_GATE || obj->type == OBJ_ORBITAL_RING) {
                     vb = app->circleVertexBuffer;
                     ib = app->circleIndexBuffer;
@@ -823,7 +867,8 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 }
                 vkCmdBindVertexBuffers(cb, 0, 1, &vb, &off);
                 vkCmdBindIndexBuffer(cb, ib, 0, it);
-                vkCmdDrawIndexed(cb, cnt, 1, 0, 0, 0);
+                if (vb == app->sphereVertexBuffer) vk_draw_sphere(cb);
+                else vkCmdDrawIndexed(cb, cnt, 1, 0, 0, 0);
                 if (obj_type_uses_cpu_hull_path(obj->type)) {
                     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
                 }
@@ -902,6 +947,12 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
         /* Torpedoes, after the OpenGL drawTorpedo(): orange core, red additive halo (5 shells), 12 star rays
          * turning in the XY / YZ / XZ planes (quadrant_geom.h holds the shared shape and timing). */
         {
+            /* the objects are done: the last one's GPU time to its kind,
+             * the rest of the pass is effects (torpedoes, beams, booms,
+             * shields) */
+            if (g_cpu_cmds.kind != CPUK_SCENE)
+                vkgt_mark_detail(cb, app->currentFrame, g_cpu_kind_names[g_cpu_cmds.kind]);
+            g_cpu_cmds.kind = CPUK_EFFECTS;
             float wave = qg_torp_wave(pulse);
             float spin = pulse * QG_GL_PULSE_PER_SEC * 250.0f * 0.017453293f;
             float ray_len = QG_TORP_RAY_LEN + wave * 0.3f;
@@ -920,7 +971,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(cpc), &cpc);
                 vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
                 vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-                vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+                vk_draw_sphere(cb);
 
                 /* halo: 5 additive shells, alpha 0.7 / (1.5 i) (OpenGL drawGlow) */
                 vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
@@ -930,7 +981,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     mat4_scale(S_h, (vec3){rs, rs, rs}); mat4_multiply(S_h, T_t, hpc.model);
                     hpc.color[0]=1.0f; hpc.color[1]=0.2f; hpc.color[2]=0.1f; hpc.color[3]=0.7f / ((float)k * 1.5f); hpc.usePushColor=1;
                     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(hpc), &hpc);
-                    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+                    vk_draw_sphere(cb);
                 }
 
                 /* rays: 4 per plane, the XY set rotated by RotY(90) and RotX(90) for the other planes */
@@ -996,7 +1047,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                     VkDeviceSize off_glow = 0;
                     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off_glow);
                     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-                    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+                    vk_draw_sphere(cb);
                 }
             }
             /* Restore standard graphics pipeline for explosions */
@@ -1103,7 +1154,7 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ipc), &ipc);
                 vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
                 vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-                vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+                vk_draw_sphere(cb);
             }
             if (beam_bound) {
                 vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -1135,9 +1186,9 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 bpc.color[0]=app->activeBooms[i].colors[p][0]; bpc.color[1]=app->activeBooms[i].colors[p][1]; bpc.color[2]=app->activeBooms[i].colors[p][2]; bpc.color[3]=1.0f; bpc.usePushColor=1;
                 bpc.metallic = 0.0f; bpc.roughness = 1.0f;
                 vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(bpc), &bpc);
-                vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off); 
-                vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32); 
-                vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+                vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+                vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                vk_draw_sphere(cb);
             }
         }
         
@@ -1206,7 +1257,10 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
             }
         }
     }
-    vkgt_mark(cb, app->currentFrame, "objects");
+    /* without SPACEGL_VK_GPU_TIMES=1 the objects and the effects together,
+     * as before; with it, the objects by kind above and the rest here */
+    vkgt_mark(cb, app->currentFrame, g_gt.detail ? "effects" : "objects");
+    g_cpu_cmds.kind = CPUK_SCENE;
     vkCmdEndRenderPass(cb);
     vkgt_mark(cb, app->currentFrame, "resolve");
     vkEndCommandBuffer(cb);
@@ -1217,6 +1271,10 @@ void vulkan_grab_screenshot(VulkanApp *app, uint32_t slot, const char *path) {
     uint32_t imgIdx = app->lastImgIdx;
     if (w == 0 || h == 0) {
         fprintf(stderr, "[VK] screenshot: bad swapchain extent\n");
+        return;
+    }
+    if (!app->swapChainCopyable) {
+        fprintf(stderr, "[VK] screenshot: the surface does not allow copying its images (no TRANSFER_SRC usage)\n");
         return;
     }
     /* This frame's render (and present) are already submitted: the frame
@@ -1246,7 +1304,8 @@ void vulkan_grab_screenshot(VulkanApp *app, uint32_t slot, const char *path) {
     for (uint32_t i = 0; i < mp.memoryTypeCount; i++) {
         if ((req.memoryTypeBits & (1u << i)) &&
             (mp.memoryTypes[i].propertyFlags &
-             (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))) {
+             (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) ==
+                (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {   /* both, not either */
             type_idx = i; mem_found = true; break;
         }
     }
@@ -1280,8 +1339,31 @@ void vulkan_grab_screenshot(VulkanApp *app, uint32_t slot, const char *path) {
                              .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
                              .imageOffset = { 0, 0, 0 },
                              .imageExtent = { w, h, 1 } };
+    /* The image was left in PRESENT_SRC_KHR, which a copy cannot read
+     * from (VUID-vkCmdCopyImageToBuffer-srcImageLayout-01397): to
+     * TRANSFER_SRC_OPTIMAL for the copy, then back for the next present
+     * (2026.11.07.01). The contents are kept (old layout given, not
+     * UNDEFINED). */
+    VkImageMemoryBarrier to_src = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                    .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                    .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+                                    .oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                    .image = app->swapChainImages[imgIdx],
+                                    .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 } };
+    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0,
+                         NULL, 1, &to_src);
     vkCmdCopyImageToBuffer(cb, app->swapChainImages[imgIdx],
-                           VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, stg, 1, &rc);
+                           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, stg, 1, &rc);
+    VkImageMemoryBarrier to_present = to_src;
+    to_present.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    to_present.dstAccessMask = 0;
+    to_present.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    to_present.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, NULL, 0, NULL, 1,
+                         &to_present);
     vkEndCommandBuffer(cb);
 
     VkFenceCreateInfo fci = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
@@ -1514,7 +1596,8 @@ void drawFrame(VulkanApp* app) {
         current_fov = current_fov * (1.0f - app->pilotAnim) + PILOT_FOV_DEG * app->pilotAnim;
 
     mat4_perspective((float)(current_fov * M_PI / 180.0f), (float)app->swapChainExtent.width / (float)app->swapChainExtent.height, 0.1f, QG_FAR_PLANE, ubo.proj); ubo.proj[1][1] *= -1;
-    
+    sphere_lod_set_view(view, ubo.proj[1][1], app->swapChainExtent.height);   /* the next frame's sphere levels */
+
     void* d; vkMapMemory(app->device, app->uniformBuffersMemory[app->currentFrame], 0, sizeof(ubo), 0, &d); memcpy(d, &ubo, sizeof(ubo)); vkUnmapMemory(app->device, app->uniformBuffersMemory[app->currentFrame]);
     VkPipelineStageFlags w = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo si = {VK_STRUCTURE_TYPE_SUBMIT_INFO, NULL, 1, &app->imageAvailableSemaphores[app->currentFrame], &w, 1, &app->commandBuffers[app->currentFrame], 1, &app->imageRenderFinished[imgIdx]};
@@ -1596,7 +1679,13 @@ void render_frame(VulkanApp* app, float dt) {
     static FrameBench bench;
     static bool bench_on = false;
     if (s_bench_frames > 0 && !bench_on) bench_on = frame_bench_init(&bench, s_bench_frames, s_bench_warmup);
-    if (bench_on && bench.seen == bench.warmup) vkgt_reset_stats();   /* GPU times: timed frames only */
+    if (bench_on && bench.seen == bench.warmup) {   /* GPU times and sphere levels: timed frames only */
+        vkgt_reset_stats();
+        memset(g_sphere_lod.drawn, 0, sizeof(g_sphere_lod.drawn));
+        int kind = g_cpu_cmds.kind;
+        memset(&g_cpu_cmds, 0, sizeof(g_cpu_cmds));
+        g_cpu_cmds.kind = kind;
+    }
     double t0 = bench_on ? bench_now_ms() : 0.0;
     app->lastImgIdx = UINT32_MAX;
     if (app->gdd) gdd_draw_frame(app);
@@ -1609,6 +1698,32 @@ void render_frame(VulkanApp* app, float dt) {
             frame_bench_report(&bench, app->gdd ? "vulkan-gdd" : "vulkan-cpu", (int)app->swapChainExtent.width,
                                (int)app->swapChainExtent.height, s_bench_objects);
             vkgt_report(app->gdd ? "vulkan-gdd" : "vulkan-cpu");
+            if (!app->gdd) {   /* spheres drawn a frame, by level of detail (vulkan_cpu_lod.h) */
+                double nf = (double)(bench.frames > 0 ? bench.frames : 1);
+                printf("[SPHERE-LOD] vulkan-cpu: spheres a frame %s: 64x128 %.1f, 32x64 %.1f, 16x32 %.1f, 8x16 %.1f\n",
+                       g_sphere_lod.enabled ? "by level" : "(SPACEGL_SPHERE_LOD=0, all full)",
+                       (double)g_sphere_lod.drawn[0] / nf, (double)g_sphere_lod.drawn[1] / nf,
+                       (double)g_sphere_lod.drawn[2] / nf, (double)g_sphere_lod.drawn[3] / nf);
+                /* commands a frame by kind (vulkan_cpu_lod.h): objects, draws,
+                 * thousands of indices, pipeline binds (changes), pushes */
+                uint64_t td = 0, tb = 0, tc = 0;
+                for (int k = 0; k < CPUK_N; k++) {
+                    td += g_cpu_cmds.draws[k];
+                    tb += g_cpu_cmds.binds[k];
+                    tc += g_cpu_cmds.changes[k];
+                }
+                printf("[CPU-CMDS] vulkan-cpu: a frame: draws %.0f, pipeline binds %.0f (changes %.0f); by kind "
+                       "(objects/draws/k-indices/binds/changes):",
+                       (double)td / nf, (double)tb / nf, (double)tc / nf);
+                for (int k = 0; k < CPUK_N; k++) {
+                    if (g_cpu_cmds.draws[k] == 0 && g_cpu_cmds.objects[k] == 0) continue;
+                    printf(" %s %.0f/%.0f/%.1f/%.0f/%.0f", g_cpu_kind_names[k], (double)g_cpu_cmds.objects[k] / nf,
+                           (double)g_cpu_cmds.draws[k] / nf, (double)g_cpu_cmds.indices[k] / nf / 1000.0,
+                           (double)g_cpu_cmds.binds[k] / nf, (double)g_cpu_cmds.changes[k] / nf);
+                }
+                printf("\n");
+                fflush(stdout);
+            }
             frame_bench_free(&bench);
             bench_on = false;
             s_bench_frames = 0;

@@ -10,6 +10,10 @@
 # loaded (include/bench_scene.h) and positive times, and exit by
 # themselves. The numbers are not checked (this runs on the software
 # drivers): tests/gpu_golden_check.sh measures them on a GPU.
+# The CPU-driven Vulkan run also prints the spheres a frame by level of
+# detail ([SPHERE-LOD], 2026.11.07.01) and the commands a frame by kind of
+# object ([CPU-CMDS], 2026.11.07.02); with SPACEGL_VK_GPU_TIMES=1 its
+# [GPU-TIMES] line splits the objects by kind (ships, ..., effects).
 # Usage: viewer_bench_test.sh <spacegl_vulkan> <spacegl_3dview>
 # Exit: 0 PASS, 1 FAIL, 77 SKIP (no binary, no display, no Vulkan ICD).
 set -u
@@ -55,6 +59,14 @@ if ! grep -q "^\[BENCH\]" "$WORK/vkcpu.log"; then
     fi
 fi
 check vkcpu vulkan-cpu
+diag() {   # diag <name> <description> <command...>
+    if "${@:3}"; then echo "  ok   $2"; else echo "  FAIL $2"; grep -h "^\[" "$WORK/$1.log" | tail -n 6 | sed 's/^/       /'; rc=1; fi
+}
+diag vkcpu "vulkan-cpu: [SPHERE-LOD] line" grep -qE "^\[SPHERE-LOD\] vulkan-cpu: spheres a frame by level: 64x128 [0-9.]+" "$WORK/vkcpu.log"
+diag vkcpu "vulkan-cpu: [CPU-CMDS] line with draws" grep -qE "^\[CPU-CMDS\] vulkan-cpu: a frame: draws [1-9][0-9]*, pipeline binds [0-9]+ \(changes [0-9]+\); by kind .* ships [0-9]+/[1-9]" "$WORK/vkcpu.log"
+diag vkcpu "vulkan-cpu without SPACEGL_VK_GPU_TIMES: objects in one section" grep -qE "^\[GPU-TIMES\] vulkan-cpu: .* objects [0-9.]+ resolve" "$WORK/vkcpu.log"
+run vkcpu_kinds "$VK" SPACEGL_GPD=0 SPACEGL_VK_GPU_TIMES=1
+diag vkcpu_kinds "vulkan-cpu, SPACEGL_VK_GPU_TIMES=1: GPU time by kind" grep -qE "^\[GPU-TIMES\] vulkan-cpu: .* ships [0-9.]+.* effects [0-9.]+ resolve" "$WORK/vkcpu_kinds.log"
 run vkgdd "$VK" SPACEGL_GPD=1
 if grep -q "GPU-driven path ACTIVE" "$WORK/vkgdd.log"; then
     check vkgdd vulkan-gdd

@@ -87,6 +87,28 @@ Debug builds).
 .B SPACEGL_NO_MSAA
 1 disables multisampling (like
 .BR \-\-no\-msaa ).
+.TP
+.B SPACEGL_VK_GPU_TIMES
+1 measures the GPU time of each section of the frame with timestamp
+queries and prints a "[GPU-TIMES]" line every 120 frames (with
+.BR \-\-bench\-frames ,
+one line for the timed frames; there the sections are measured even
+without the variable). On the CPU-driven path, with the variable set, the
+objects are split by kind (ships, stars, planets, bases, asteroids,
+comets, nebulae, other) and the effects (torpedoes, beams, explosions,
+shields) are a section of their own: one timestamp after every object,
+which itself costs GPU time, so compare the shares, not the total with a
+run without it.
+.TP
+.B SPACEGL_SPHERE_LOD
+0 makes the CPU-driven path draw every sphere with the full 64x128 mesh.
+By default it draws a coarser level (32x64, 16x32 or 8x16) when the
+sphere is small enough on screen for the difference to stay within half a
+pixel; with
+.BR \-\-bench\-frames ,
+a "[SPHERE-LOD]" line gives the spheres a frame by level and a
+"[CPU-CMDS]" line the draws, the pipeline binds and changes, by kind of
+object.
 .SH FILES
 .TP
 .I /usr/bin/spacegl_vulkan

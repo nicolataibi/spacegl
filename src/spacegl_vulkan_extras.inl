@@ -53,7 +53,7 @@ void drawBokGlobule_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float
         VkDeviceSize off = 0;
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
     
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -74,7 +74,7 @@ void drawInterstellarBubble_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 base
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawClumpCore_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
@@ -106,7 +106,7 @@ void drawClumpCore_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float 
         VkDeviceSize off = 0;
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
     
     /* 2. Inner Core: Dense, hot region where a star is forming (Protostar) */
@@ -131,8 +131,8 @@ void drawClumpCore_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float 
     VkDeviceSize off = 0;
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
-    
+    vk_draw_sphere(cb);
+
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 void drawAccretionDisk_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
@@ -181,7 +181,7 @@ void drawAccretionDisk_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, fl
         dpc.time = pulse;
         
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(dpc), &dpc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
     // Restore default graphics pipeline after drawing disks
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -201,7 +201,7 @@ void drawRelativisticJet_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, 
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawShockWave_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
@@ -215,7 +215,7 @@ void drawShockWave_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float 
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawStellarBowShock_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
@@ -229,7 +229,7 @@ void drawStellarBowShock_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, 
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawCosmicVoid_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse __attribute__((unused))) {
@@ -242,7 +242,7 @@ void drawCosmicVoid_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawCosmicFilament_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
@@ -255,7 +255,7 @@ void drawCosmicFilament_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, f
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawEventHorizon_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
@@ -275,7 +275,7 @@ void drawEventHorizon_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, flo
     VkDeviceSize off = 0;
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 2. GRAVITATIONAL LENSING RIM-GLOW (Violet/Deep Blue) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
@@ -289,7 +289,7 @@ void drawEventHorizon_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, flo
     pc.time = pulse;
     
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* Restore graphics pipeline */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -306,7 +306,7 @@ void drawKilonova_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawGravLens_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse __attribute__((unused))) {
@@ -319,7 +319,7 @@ void drawGravLens_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawGRB_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
@@ -332,7 +332,7 @@ void drawGRB_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSc
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawGravWave_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
@@ -346,7 +346,7 @@ void drawGravWave_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawProtoplanetaryDisk_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale, float pulse) {
@@ -371,7 +371,7 @@ void drawProtoplanetaryDisk_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 base
         pc.usePushColor = 7; /* Rim glow for volumetric feel */
         pc.time = pulse;
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
@@ -395,8 +395,8 @@ void drawDebrisDisk_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float
     pc.time = pulse;
     
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
-    
+    vk_draw_sphere(cb);
+
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -414,7 +414,7 @@ void drawPlanetesimal_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, flo
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* Subtle Glow for visibility */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
@@ -423,7 +423,7 @@ void drawPlanetesimal_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, flo
     pc.color[0]=0.6f; pc.color[1]=0.55f; pc.color[2]=0.4f; pc.color[3]=0.4f;
     pc.usePushColor = 7; pc.time = pulse;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -438,7 +438,7 @@ void drawRoguePlanet_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, floa
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* Cool blue rim glow for the Rogue Planet */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
@@ -447,7 +447,7 @@ void drawRoguePlanet_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, floa
     pc.color[0]=0.2f; pc.color[1]=0.4f; pc.color[2]=0.8f; pc.color[3]=0.3f;
     pc.usePushColor = 7; pc.time = pulse;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -463,7 +463,7 @@ void drawBrownDwarf_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* Smoldering red glow */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
@@ -472,7 +472,7 @@ void drawBrownDwarf_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float
     pc.color[0]=0.6f; pc.color[1]=0.1f; pc.color[2]=0.0f; pc.color[3]=0.4f;
     pc.usePushColor = 7;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -492,7 +492,7 @@ void drawISO_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSc
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* Trail/Glow */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
@@ -502,7 +502,7 @@ void drawISO_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSc
     pc.color[0]=0.5f; pc.color[1]=0.5f; pc.color[2]=0.8f; pc.color[3]=0.4f;
     pc.usePushColor = 7; pc.time = pulse;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -518,7 +518,7 @@ void drawMagReconn_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float 
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -533,7 +533,7 @@ void drawCurrentSheet_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, flo
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -562,7 +562,7 @@ void drawHeliosphere_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, floa
         pc.metallic = (float)i * 0.5f; 
         
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
     
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -579,7 +579,7 @@ void drawTermShock_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float 
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -594,7 +594,7 @@ void drawMagnetosphere_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, fl
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -609,7 +609,7 @@ void drawCosmicString_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, flo
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -624,7 +624,7 @@ void drawDomainWall_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -651,7 +651,7 @@ void drawDMHalo_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
         pc.time = pulse;
         
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
     
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -668,7 +668,7 @@ void drawIGM_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSc
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -683,7 +683,7 @@ void drawCGM_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSc
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -698,7 +698,7 @@ void drawLymanAlpha_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     VkDeviceSize off = 0; vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
 }
 
@@ -726,7 +726,7 @@ void drawCMB_Vulkan(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSc
         pc.time = pulse * 0.4f;
         
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
     
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);

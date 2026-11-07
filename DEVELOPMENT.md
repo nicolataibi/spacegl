@@ -122,7 +122,7 @@ cmake --build build -j
 
 ## 3. Running the test suite
 
-The suite has **52 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
+The suite has **54 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
@@ -178,6 +178,8 @@ The suite has **52 tests** (integrated mode; the standalone mode builds the ones
 | 50 | `galaxy_file` | galaxy.dat format 2: atomic save, mode 0600, reload, damaged files | `spacegl_server` (black-box) |
 | 51 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
 | 52 | `smoke_async` | the same with the server in `--io=async` | same |
+| 53 | `orbit` | the circle of `orb`: radius, plane, angular rate, period law (r^1.5), capture without a jump | `include/orbit_math.h` |
+| 54 | `sphere_lod` | the sphere levels of the CPU-driven Vulkan path: level 0 identical to the old 64x128 mesh, indices inside their level, silhouette within 0.5 px (filled) or lines at most 0.5 px apart (wireframe) at every size, full mesh near or behind the camera | `include/sphere_lod.h` |
 
 The tests that use port 5000/5001 run serially (`RUN_SERIAL`); an image or GPU test without a display or an ICD returns 77 (SKIP). Every end-to-end script uses a private `known_servers` file (`SPACEGL_KNOWN_SERVERS`), so a new data directory is not taken for a changed server.
 
@@ -250,6 +252,36 @@ unset or `1`) and falls back to the CPU-driven path when it cannot start;
 `SPACEGL_GPD=1` a `--screenshot` run fails instead of falling back.
 `SPACEGL_GDD_FAIL_INIT=1` simulates a GDD that cannot start (test hook,
 `tests/gdd_default_test.sh`).
+
+The CPU-driven path draws every sphere at a level of detail (2026.11.07.01,
+`include/sphere_lod.h`, `include/vulkan_cpu_lod.h`): the index buffer holds
+the 64x128 sphere and three coarser levels (32x64, 16x32, 8x16), and
+`vk_draw_sphere()` picks the coarsest one whose silhouette stays within half
+a pixel at the sphere's size on screen (with the wireframe pipeline, whose
+lines are the triangle edges, only while the lines stay half a pixel apart).
+The size comes from the model matrix last pushed and the previous frame's
+view; `vulkan_cpu_lod.h` wraps `vkCmdPushConstants` and `vkCmdBindPipeline`
+in the files that include it to know them. New sphere draws call
+`vk_draw_sphere(cb)` instead of `vkCmdDrawIndexed` with
+`SPHERE_LATS * SPHERE_LONGS * 6`. `SPACEGL_SPHERE_LOD=0` draws the full
+mesh always; `--bench-frames` prints the spheres a frame by level
+(`[SPHERE-LOD]`). With the validation layer on (Debug), `gdd_default`
+also fails on any `VUID-` line in the viewer's logs.
+
+Where the frame of the CPU-driven path goes (2026.11.07.02): the same
+wrappers count the draws, indices, pipeline binds (and real changes of
+pipeline) and push constants by kind of object (`CpuCmdStats`: ships,
+stars, planets, bases, asteroids, comets, nebulae, other, effects), printed
+by `--bench-frames` as a `[CPU-CMDS]` line; with `SPACEGL_VK_GPU_TIMES=1`
+a timestamp after every object charges the GPU time to its kind in the
+`[GPU-TIMES]` line (the timestamps cost time themselves: compare shares).
+On the A770 measure with:
+
+```sh
+export SPACEGL_SHADERS_DIR="$PWD/build-rel/shaders"
+SPACEGL_GPD=0 SPACEGL_VK_GPU_TIMES=1 build-rel/spacegl_vulkan sg_vk_x --window 1920x1080 \
+    --seed 1 --no-rotate --bench-scene 256 --bench-frames 300 | grep -E "GPU-TIMES|BENCH|SPHERE|CPU-CMDS"
+```
 
 ## 5. The contract-test pattern
 

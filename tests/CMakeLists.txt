@@ -222,6 +222,13 @@ add_executable(orbit_test orbit_test.c)
 target_link_libraries(orbit_test PRIVATE m)
 add_test(NAME orbit COMMAND orbit_test)
 
+# --- Sphere levels of detail of the CPU-driven Vulkan path (include/sphere_lod.h,
+# 2026.11.07.01): level 0 identical to the old mesh, silhouette within 0.5 px --
+add_executable(sphere_lod_test sphere_lod_test.c)
+target_link_libraries(sphere_lod_test PRIVATE m)
+add_test(NAME sphere_lod COMMAND sphere_lod_test)
+set_tests_properties(sphere_lod PROPERTIES PASS_REGULAR_EXPRESSION "PASS: sphere_lod")
+
 # --- Obstacle provider on the per-quadrant index (include/obstacles.h) ---
 add_executable(obstacles_test obstacles_test.c)
 target_link_libraries(obstacles_test PRIVATE m)

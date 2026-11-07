@@ -26,6 +26,7 @@
 
 #include "object_types.h"
 #include "vulkan_device_internal.h"
+#include "vulkan_cpu_lod.h"   /* after the Vulkan headers: wraps vkCmdPushConstants / vkCmdBindPipeline */
 #include <time.h>
 
 const Vertex vertices[] = {
@@ -146,6 +147,44 @@ const uint32_t vectorIndices[] = {
     6, 2, 6, 3, 6, 4, 6, 5 
 };
 
+/* ------------------------------------------------------------------ */
+/* Sphere level of detail, CPU-driven path (vulkan_cpu_lod.h)          */
+/* ------------------------------------------------------------------ */
+SphereLod g_sphere_lod = { .enabled = true, .count = { SPHERE_LATS * SPHERE_LONGS * 6 } };
+
+CpuCmdStats g_cpu_cmds;
+const char *const g_cpu_kind_names[CPUK_N] = { "scene", "ships", "stars", "planets", "bases",
+                                               "asteroids", "comets", "nebulae", "other", "effects" };
+
+int cpu_kind_of(int t) {
+    if (t == OBJ_BASE) return CPUK_BASES;
+    if (t == OBJ_STAR || obj_type_is_evolved_star(t) || obj_type_is_protostellar(t)) return CPUK_STARS;
+    if (t == OBJ_PLANET || obj_type_is_moon(t)) return CPUK_PLANETS;
+    if (t == OBJ_ASTEROID) return CPUK_ASTEROIDS;
+    if (t == OBJ_COMET) return CPUK_COMETS;
+    if (t == OBJ_NEBULA || (t >= 51 && t <= 53)) return CPUK_NEBULAE;
+    if (t == OBJ_PLAYER || obj_type_is_npc_ship(t)) return CPUK_SHIPS;
+    return CPUK_OTHER;
+}
+
+void sphere_lod_begin_frame(VkPipeline wire_pipe) {
+    g_sphere_lod.wire_pipe = wire_pipe;
+    g_sphere_lod.model_valid = false;
+}
+
+void sphere_lod_set_view(const float view[4][4], float proj11, uint32_t height) {
+    memcpy(g_sphere_lod.view, view, sizeof(g_sphere_lod.view));
+    g_sphere_lod.px_per_unit = fabsf(proj11) * (float)height * 0.5f;
+    g_sphere_lod.view_valid = g_sphere_lod.px_per_unit > 0.0f;
+}
+
+int sphere_lod_level(void) {
+    const SphereLod *s = &g_sphere_lod;
+    if (!s->enabled || !s->view_valid || !s->model_valid) return 0;
+    bool wire = s->pipe != VK_NULL_HANDLE && s->pipe == s->wire_pipe;
+    return sphere_lod_pick((const float(*)[4])s->model, (const float(*)[4])s->view, s->px_per_unit, wire, SPHERE_LONGS);
+}
+
 #include "spacegl_vulkan_extras.inl"
 #include "spacegl_vulkan_tables.inc"
 
@@ -202,7 +241,7 @@ void drawWormholeCore_v1(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, flo
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawWormholeCore_v2(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse, int type) {
@@ -229,7 +268,7 @@ void drawWormholeCore_v2(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, flo
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc2), &pc2);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawWormholeCore(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float pulse, int type, int ver) {
@@ -513,7 +552,7 @@ void drawGalaxyMap(VkCommandBuffer cb, VulkanApp* app, GameState* st, float puls
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pcP), &pcP);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
 
     /* 2. Sector markers (CPU-driven path).
@@ -632,7 +671,7 @@ void drawShieldGlow(VkCommandBuffer cb, VulkanApp* app, mat4 modelBase, float ra
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
 }
 
@@ -698,7 +737,7 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
         VkDeviceSize off = 0;
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
 
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
         PushConstants pc = {0};
@@ -707,7 +746,7 @@ void drawShieldEffect(VkCommandBuffer cb, VulkanApp* app, float pulse, float tac
         pc.usePushColor = 7; pc.time = pulse;
         pc.metallic = pulse * 15.0f; 
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
 
         drawShieldGlow(cb, app, M_sec, 0.7f * scale, 0.0f, 0.5f, 1.0f, alpha * 0.9f, pulse);
     }
@@ -828,33 +867,45 @@ void createSceneMeshes(VulkanApp* app) {
     createBuffer(app, sizeof(vectorIndices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->vectorIndexBuffer, &app->vectorIndexBufferMemory);
     vkMapMemory(app->device, app->vectorIndexBufferMemory, 0, sizeof(vectorIndices), 0, &d); memcpy(d, vectorIndices, sizeof(vectorIndices)); vkUnmapMemory(app->device, app->vectorIndexBufferMemory);
 
-    Vertex sVerts[(SPHERE_LATS + 1) * (SPHERE_LONGS + 1)];
-    uint32_t sInds[SPHERE_LATS * SPHERE_LONGS * 6];
-    int sv = 0;
-    for (int i = 0; i <= SPHERE_LATS; i++) {
-        float lat = (float)(M_PI * i / SPHERE_LATS);
-        for (int j = 0; j <= SPHERE_LONGS; j++) {
-            float lon = (float)(2.0f * M_PI * j / SPHERE_LONGS);
-            float px = sinf(lat) * cosf(lon), py = cosf(lat), pz = sinf(lat) * sinf(lon);
-            sVerts[sv++] = (Vertex){{px, py, pz}, {1, 1, 1}, {px, py, pz}};
+    /* The sphere: four levels of detail in one vertex and one index
+     * buffer (vulkan_cpu_lod.h). Level 0 is the SPHERE_LATS x SPHERE_LONGS
+     * mesh at index 0, as before, so a draw of SPHERE_LATS * SPHERE_LONGS
+     * * 6 indices from 0 is still the full sphere; levels 1-3 halve the
+     * steps each time, their indices already point into the shared vertex
+     * buffer. Same parametrisation (normal = position on the unit sphere). */
+    {
+        size_t nv = 0, ni = 0;
+        sphere_lod_mesh_size(SPHERE_LATS, SPHERE_LONGS, &nv, &ni);
+        float *sPos = malloc(nv * 3 * sizeof(float));
+        Vertex *sVerts = malloc(nv * sizeof(Vertex));
+        uint32_t *sInds = malloc(ni * sizeof(uint32_t));
+        if (!sPos || !sVerts || !sInds) {
+            fprintf(stderr, "[VK] Out of memory: sphere mesh\n");
+            exit(1);
         }
-    }
-    int sphere_idx = 0;
-    for (int i = 0; i < SPHERE_LATS; i++) {
-        for (int j = 0; j < SPHERE_LONGS; j++) {
-            int first = i * (SPHERE_LONGS + 1) + j;
-            int second = first + SPHERE_LONGS + 1;
-            sInds[sphere_idx++] = (uint32_t)first; sInds[sphere_idx++] = (uint32_t)second; sInds[sphere_idx++] = (uint32_t)(first + 1);
-            sInds[sphere_idx++] = (uint32_t)second; sInds[sphere_idx++] = (uint32_t)(second + 1); sInds[sphere_idx++] = (uint32_t)(first + 1);
+        sphere_lod_build(SPHERE_LATS, SPHERE_LONGS, sPos, sInds, g_sphere_lod.first, g_sphere_lod.count);
+        for (size_t k = 0; k < nv; k++) {
+            const float *q = &sPos[k * 3];
+            sVerts[k] = (Vertex){ { q[0], q[1], q[2] }, { 1, 1, 1 }, { q[0], q[1], q[2] } };
         }
+        free(sPos);
+        const char *lod_env = getenv("SPACEGL_SPHERE_LOD");
+        g_sphere_lod.enabled = !(lod_env && lod_env[0] == '0');
+        VkDeviceSize vbytes = (VkDeviceSize)(nv * sizeof(Vertex)), ibytes = (VkDeviceSize)(ni * sizeof(uint32_t));
+        createBuffer(app, vbytes, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->sphereVertexBuffer, &app->sphereVertexBufferMemory);
+        vkMapMemory(app->device, app->sphereVertexBufferMemory, 0, vbytes, 0, &d);
+        memcpy(d, sVerts, (size_t)vbytes);
+        vkUnmapMemory(app->device, app->sphereVertexBufferMemory);
+        createBuffer(app, ibytes, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->sphereIndexBuffer, &app->sphereIndexBufferMemory);
+        vkMapMemory(app->device, app->sphereIndexBufferMemory, 0, ibytes, 0, &d);
+        memcpy(d, sInds, (size_t)ibytes);
+        vkUnmapMemory(app->device, app->sphereIndexBufferMemory);
+        free(sVerts);
+        free(sInds);
     }
-    createBuffer(app, sizeof(sVerts), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->sphereVertexBuffer, &app->sphereVertexBufferMemory);
-    vkMapMemory(app->device, app->sphereVertexBufferMemory, 0, sizeof(sVerts), 0, &d); memcpy(d, sVerts, sizeof(sVerts)); vkUnmapMemory(app->device, app->sphereVertexBufferMemory);
-    createBuffer(app, sizeof(sInds), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &app->sphereIndexBuffer, &app->sphereIndexBufferMemory);
-    vkMapMemory(app->device, app->sphereIndexBufferMemory, 0, sizeof(sInds), 0, &d); memcpy(d, sInds, sizeof(sInds)); vkUnmapMemory(app->device, app->sphereIndexBufferMemory);
 
-    #define WH_NR 12
-    #define WH_NT 24
+#define WH_NR 12
+#define WH_NT 24
     Vertex whVerts[WH_NR * WH_NT];
     uint32_t whInds[(WH_NR - 1) * WH_NT * 2 + WH_NR * WH_NT * 2];
     int whv = 0, whi = 0;

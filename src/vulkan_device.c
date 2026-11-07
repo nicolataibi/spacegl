@@ -446,7 +446,12 @@ void createSwapChain(VulkanApp* app) {
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(app->physicalDevice, app->surface, &caps);
     uint32_t minImages = (caps.minImageCount > 2) ? caps.minImageCount : 2;
 
-    VkSwapchainCreateInfoKHR cInfo = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, NULL, 0, app->surface, minImages, app->swapChainImageFormat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, app->swapChainExtent, 1, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, NULL, VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR, VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, bestMode, VK_TRUE, VK_NULL_HANDLE};
+    /* TRANSFER_SRC as well, when the surface allows it: --screenshot copies
+     * the swapchain image (vulkan_grab_screenshot) */
+    VkImageUsageFlags scUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    if (caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) scUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    app->swapChainCopyable = (scUsage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) != 0;
+    VkSwapchainCreateInfoKHR cInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, NULL, 0, app->surface, minImages, app->swapChainImageFormat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, app->swapChainExtent, 1, scUsage, VK_SHARING_MODE_EXCLUSIVE, 0, NULL, VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR, VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, bestMode, VK_TRUE, VK_NULL_HANDLE };
     if (vkCreateSwapchainKHR(app->device, &cInfo, NULL, &app->swapChain) != VK_SUCCESS) exit(1);
     vkGetSwapchainImagesKHR(app->device, app->swapChain, &app->swapChainImageCount, NULL);
     app->swapChainImages = malloc(sizeof(VkImage)*app->swapChainImageCount);
@@ -462,7 +467,20 @@ void createRenderPass(VulkanApp* app) {
     VkSubpassDescription sub = {0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, NULL, 1, &cRef, &rRef, &dRef, 0, NULL};
     VkSubpassDependency dep = {VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0};
     VkAttachmentDescription atts[] = {cAtt, dAtt, rAtt};
-    VkRenderPassCreateInfo rInfo = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO, NULL, 0, 3, atts, 1, &sub, 1, &dep};
+    uint32_t nAtts = 3;
+    if (app->msaaSamples == VK_SAMPLE_COUNT_1_BIT) {
+        /* Without multisampling (--no-msaa, SPACEGL_NO_MSAA=1, or a device
+         * with one sample) there is nothing to resolve: a resolve
+         * attachment for a 1-sample colour attachment is invalid
+         * (VUID-VkSubpassDescription-pResolveAttachments-00848). The pass
+         * renders straight into the swapchain image, which it leaves ready
+         * to present (2026.11.07.01). */
+        atts[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        atts[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        sub.pResolveAttachments = NULL;
+        nAtts = 2;
+    }
+    VkRenderPassCreateInfo rInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO, NULL, 0, nAtts, atts, 1, &sub, 1, &dep };
     if (vkCreateRenderPass(app->device, &rInfo, NULL, &app->renderPass) != VK_SUCCESS) exit(1);
 }
 
@@ -586,7 +604,12 @@ void createSwapChainResources(VulkanApp* app) {
     if (!app->swapChainFramebuffers) { fprintf(stderr, "[VK] Out of memory: swapchain framebuffers\n"); exit(1); }
     for (uint32_t i = 0; i < app->swapChainImageCount; i++) {
         VkImageView at[] = {app->colorImageView, app->depthImageView, app->swapChainImageViews[i]};
-        VkFramebufferCreateInfo fi = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, NULL, 0, app->renderPass, 3, at, app->swapChainExtent.width, app->swapChainExtent.height, 1};
+        uint32_t nAt = 3;
+        if (app->msaaSamples == VK_SAMPLE_COUNT_1_BIT) {   /* no resolve: the swapchain image is the colour attachment */
+            at[0] = app->swapChainImageViews[i];
+            nAt = 2;
+        }
+        VkFramebufferCreateInfo fi = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, NULL, 0, app->renderPass, nAt, at, app->swapChainExtent.width, app->swapChainExtent.height, 1 };
         if (vkCreateFramebuffer(app->device, &fi, NULL, &app->swapChainFramebuffers[i]) != VK_SUCCESS) exit(1);
     }
 }
@@ -743,6 +766,7 @@ void cleanup(VulkanApp* app) {
     }
     vkDestroyDescriptorPool(app->device, app->descriptorPool, NULL);
     vkDestroyDescriptorSetLayout(app->device, app->descriptorSetLayout, NULL);
+    vkgt_destroy(app->device);
     vkDestroyDevice(app->device, NULL);
     vkDestroySurfaceKHR(app->instance, app->surface, NULL);
     vkDestroyInstance(app->instance, NULL);

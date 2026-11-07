@@ -35,7 +35,7 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
             mat4_scale(S_sph, (vec3){s, s, s}); mat4_translate(T_sph, (vec3){0, ((float)(i-1))*tactScale*1.0f, 0});
             mat4_multiply(S_sph, T_sph, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-            vkCmdDrawIndexed(cb, SPHERE_LATS*SPHERE_LONGS*6, 1, 0, 0, 0);
+            vk_draw_sphere(cb);
         }
     } else if (faction == 12) { /* Swarm Dark: Hive-like structure */
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -81,7 +81,7 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         mat4 S_c; mat4_scale(S_c, (vec3){1.0f*tactScale, 1.0f*tactScale, 1.0f*tactScale}); mat4_multiply(S_c, baseT, pc.model);
         pc.color[0]=0.8f; pc.color[1]=0.8f; pc.color[2]=1.0f; pc.color[3]=1.0f; pc.usePushColor=6;
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS*SPHERE_LONGS*6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
         pc.color[0]=0.5f; pc.color[1]=0.0f; pc.color[2]=0.8f; pc.color[3]=0.8f; pc.usePushColor=1;
@@ -127,7 +127,7 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         pc.color[0]=1.0f; pc.color[1]=0.8f; pc.color[2]=0.1f; pc.color[3]=1.0f; pc.usePushColor=5; pc.metallic=1.0f; pc.roughness=0.1f;
         mat4 S_s; mat4_scale(S_s, (vec3){1.5f*tactScale, 1.5f*tactScale, 1.5f*tactScale}); mat4_multiply(S_s, baseT, pc.model);
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS*SPHERE_LONGS*6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
         pc.usePushColor=1;
@@ -149,7 +149,7 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
             mat4_scale(S_w, (vec3){w_s, w_s*0.8f, w_s});
             mat4_multiply(S_w, R_w, pc.model); mat4_multiply(pc.model, baseT, pc.model);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-            vkCmdDrawIndexed(cb, SPHERE_LATS*SPHERE_LONGS*6, 1, 0, 0, 0);
+            vk_draw_sphere(cb);
         }
     } else if (faction == 19) { /* Cryos: Ice shards */
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -192,7 +192,7 @@ void drawStarbase(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
 
         /* 2. CENTRAL SPIRE (Solid, Dark Gray) */
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -278,7 +278,7 @@ void drawPulsar(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale 
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 3. ATMOSPHERE / SHELL (Wireframe Sphere) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -289,7 +289,7 @@ void drawPulsar(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale 
     pc.color[0]=jetCol[0]; pc.color[1]=jetCol[1]; pc.color[2]=jetCol[2]; pc.color[3]=0.6f;
     pc.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 4. RELATIVISTIC JETS (Long Vertical Spikes) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -345,7 +345,7 @@ void drawComet(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float h, float m,
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 2. THE COMA (Pulsing Ion Glow) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -355,7 +355,7 @@ void drawComet(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float h, float m,
     pc.color[0]=0.4f; pc.color[1]=0.7f; pc.color[2]=1.0f; pc.color[3]=0.6f;
     pc.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 3. THE TAIL (Volumetric Plasma Trail) */
     mat4 R_tail;
@@ -465,7 +465,7 @@ void drawMonster(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int type, float
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
 
         /* Facets (6 tilted cubes) */
         vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
@@ -500,7 +500,7 @@ void drawMonster(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int type, float
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
 
         /* Undulating Nodes (8 spheres) */
         for (int i=0; i<8; i++) {
@@ -525,7 +525,7 @@ void drawMonster(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int type, float
             pc.usePushColor = 1; /* Wireframe for internal membrane look */
             vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
             vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-            vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+            vk_draw_sphere(cb);
         }
     }
 }
@@ -573,8 +573,8 @@ void drawTradingHub(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSc
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
-        
+        vk_draw_sphere(cb);
+
         /* The Docking Pads (4 per ring) */
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
         vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
@@ -611,7 +611,7 @@ void drawTradingHub(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSc
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawMine(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
@@ -660,7 +660,7 @@ void drawMine(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __
     mat4_multiply(pc.model, baseT, pc.model);
     pc.color[0]=0.4f; pc.color[1]=0.4f; pc.color[2]=0.45f;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 3. PROXIMITY BEACON (Pulsing Red Light) */
     float blink = 0.5f + 0.5f * sinf(pulse * 15.0f); /* Rapid blinking */
@@ -672,7 +672,7 @@ void drawMine(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __
     pc.color[0]=1.0f; pc.color[1]=0.0f; pc.color[2]=0.0f; pc.color[3]=blink;
     pc.usePushColor=6; /* Glow */
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawCommBuoy(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
@@ -754,7 +754,7 @@ void drawCommBuoy(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
     pc.color[0]=0.0f; pc.color[1]=1.0f; pc.color[2]=1.0f; pc.color[3]=1.0f;
     pc.usePushColor=6; /* Glow */
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawPlatform(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int faction, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
@@ -835,7 +835,7 @@ void drawPlatform(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, int faction, f
     pc.color[0]=fCol[0]; pc.color[1]=fCol[1]; pc.color[2]=fCol[2]; pc.color[3]=1.0f;
     pc.usePushColor=6; /* Glow */
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawRift(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
@@ -854,7 +854,7 @@ void drawRift(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __
     pc.color[0]=0.0f; pc.color[1]=0.0f; pc.color[2]=0.0f; pc.color[3]=1.0f;
     pc.usePushColor=5; pc.metallic=0.1f; pc.roughness=1.0f;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 2. ENERGY RINGS (Multi-planar wireframe arcs) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -984,7 +984,7 @@ void drawNeutronStar(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
     vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
     vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 2. MAGNETIC SHELL (Wireframe Sphere, Pulsing) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -997,7 +997,7 @@ void drawNeutronStar(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     pc.color[0]=0.5f; pc.color[1]=0.5f; pc.color[2]=1.0f; pc.color[3]=0.6f;
     pc.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 3. GAMMA RAYS (Expanding faint rings) */
     vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
@@ -1092,7 +1092,7 @@ void drawMegaStructure(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
         pc.color[0]=1.0f; pc.color[1]=0.4f; pc.color[2]=0.0f; pc.color[3]=blink;
         pc.usePushColor=6;
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
 }
 
@@ -1138,7 +1138,7 @@ void drawVoidCrystal(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     pc.color[0]=0.6f; pc.color[1]=0.2f; pc.color[2]=1.0f; pc.color[3]=0.5f;
     pc.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 3. VOID PULSAR (Glowing Indigo Core) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -1148,7 +1148,7 @@ void drawVoidCrystal(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     pc.color[0]=0.2f; pc.color[1]=0.0f; pc.color[2]=0.4f; pc.color[3]=1.0f;
     pc.usePushColor=6; /* Glow */
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawSatellite(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
@@ -1204,7 +1204,7 @@ void drawSatellite(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSca
     pc.color[0]=0.4f; pc.color[1]=0.7f; pc.color[2]=1.0f; pc.color[3]=0.8f;
     pc.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 4. STATUS LIGHTS (Blinking beacons) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -1220,7 +1220,7 @@ void drawSatellite(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactSca
     pc.color[0]=1.0f; pc.color[1]=0.1f; pc.color[2]=0.1f; pc.color[3]=blink;
     pc.usePushColor=6; /* Glow */
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 void drawDysonFragment(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScale __attribute__((unused)), float pulse __attribute__((unused))) {
@@ -1246,7 +1246,7 @@ void drawDysonFragment(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tac
     pc.color[0]=0.0f; pc.color[1]=0.6f; pc.color[2]=1.0f; pc.color[3]=0.5f; /* Cyan Lattice */
     pc.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 2. TECHNOLOGICAL BACKBONE (Solid central structural element) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -1321,7 +1321,7 @@ void drawInterstellarFilament(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, fl
         VkDeviceSize off = 0;
         vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
         vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
     
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -1370,7 +1370,7 @@ void drawAncientRelic(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tact
     pc.color[0]=0.0f; pc.color[1]=1.0f; pc.color[2]=0.8f; pc.color[3]=0.4f;
     pc.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 3. ORBITING EMERALD GLYPHS */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -1418,7 +1418,7 @@ void drawSubspaceRupture(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
     pc.color[0]=0.2f; pc.color[1]=0.0f; pc.color[2]=0.3f; pc.color[3]=1.0f;
     pc.usePushColor=6; /* Deep Glow */
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 2. REALITY CRACKS (Magenta jagged spikes) */
     vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
@@ -1488,7 +1488,7 @@ void drawDarkMatterCloud(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
         mat4_multiply(pc.model, baseT, pc.model);
         
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
 
     /* 2. GRAVITATIONAL VEINS (Internal blue filaments) */
@@ -1499,7 +1499,7 @@ void drawDarkMatterCloud(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
     pc.color[0]=0.0f; pc.color[1]=0.4f; pc.color[2]=1.0f; pc.color[3]=0.4f;
     pc.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 3. DISTORTION RINGS (Subtle gravity waves) */
     vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
@@ -1538,7 +1538,7 @@ void drawSingularity(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     pc.color[0]=0.0f; pc.color[1]=0.0f; pc.color[2]=0.0f; pc.color[3]=1.0f;
     pc.usePushColor=5; pc.metallic=0.0f; pc.roughness=1.0f; /* Matte Black */
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 2. ACCRETION DISK (Rotating energy rings) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -1605,7 +1605,7 @@ void drawSingularity(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
         pc.color[0]=0.4f; pc.color[1]=0.0f; pc.color[2]=0.8f; pc.color[3]=0.4f * (1.0f - r_pulse);
         pc.usePushColor=1;
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
 }
 
@@ -1635,7 +1635,7 @@ void drawIonStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactScal
     pc.color[0]=mainCol[0]; pc.color[1]=mainCol[1]; pc.color[2]=mainCol[2]; pc.color[3]=0.9f;
     pc.usePushColor=1;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 2. JAGGED LIGHTNING ARCS (Randomized spikes) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
@@ -1700,7 +1700,7 @@ void drawPlasmaStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
         pc.color[0]=1.0f; pc.color[1]=0.3f + (float)i*0.2f; pc.color[2]=0.0f; pc.color[3]=0.8f;
         pc.usePushColor=6; /* Fire Glow */
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
 
     /* 2. PLASMA ARCS (Cyan flickering lightning) */
@@ -1742,7 +1742,7 @@ void drawPlasmaStorm(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
         pc.color[0]=1.0f; pc.color[1]=0.2f; pc.color[2]=0.0f; pc.color[3]=0.4f;
         pc.usePushColor=1;
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
 }
 
@@ -1764,7 +1764,7 @@ void drawTimeAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
     pc.color[0]=1.0f; pc.color[1]=0.85f; pc.color[2]=0.2f; pc.color[3]=1.0f;
     pc.usePushColor=5; pc.metallic=1.0f; pc.roughness=0.1f; /* Gold */
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 
     /* 2. CLOCKWORK RINGS (Rotating like hands) */
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
@@ -1809,7 +1809,7 @@ void drawTimeAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float tactS
         
         pc.color[0]=1.0f; pc.color[1]=1.0f; pc.color[2]=0.8f; pc.color[3]=0.2f;
         vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-        vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+        vk_draw_sphere(cb);
     }
 
     /* 4. CHRONO-RIPPLES (Expanding and Contracting) */
@@ -1902,7 +1902,7 @@ void drawSubspaceAnomaly(VkCommandBuffer cb, VulkanApp* app, mat4 baseT, float t
     
     pc.color[0]=0.2f; pc.color[1]=1.0f; pc.color[2]=0.6f; pc.color[3]=0.3f;
     vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pc), &pc);
-    vkCmdDrawIndexed(cb, SPHERE_LATS * SPHERE_LONGS * 6, 1, 0, 0, 0);
+    vk_draw_sphere(cb);
 }
 
 uint32_t findMemoryType(VkPhysicalDevice pDevice, uint32_t typeFilter, VkMemoryPropertyFlags props) {

@@ -169,6 +169,7 @@ typedef struct {
 /* The application state (single struct for both architectures)        */
 /* ------------------------------------------------------------------ */
 typedef struct VulkanApp {
+    bool swapChainCopyable;   /* swapchain images have TRANSFER_SRC usage (--screenshot) */
     GLFWwindow* window; VkInstance instance; VkPhysicalDevice physicalDevice; VkDevice device; VkQueue graphicsQueue;
     VkSurfaceKHR surface; VkSwapchainKHR swapChain; VkImage* swapChainImages; uint32_t swapChainImageCount;
     VkFormat swapChainImageFormat; VkExtent2D swapChainExtent; VkImageView* swapChainImageViews;

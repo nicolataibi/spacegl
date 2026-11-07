@@ -14,6 +14,11 @@
 #      ACTIVE, the frame matches the one of SPACEGL_GPD=0, exit 0;
 #   4. SPACEGL_GPD=1 and the same failure: a screenshot run refuses to
 #      render the other path (exit 1), as the golden parity test needs.
+#   5. No Vulkan validation error (a "VUID-" line) in the logs of the
+#      renders above, both paths (2026.11.07.01: the screenshot copy from a
+#      PRESENT_SRC image and the resolve attachment without MSAA were
+#      reported on every run). The validation layer is on in Debug builds
+#      (SPACEGL_VALIDATION); without the layer the check passes trivially.
 #
 # "Matches": tests/golden_test.py --mode regression (same path to same
 # path, region tolerances; two runs are not bit-identical, the effects
@@ -86,9 +91,12 @@ check "unset + GDD failure: frame matches CPU"     same "$WORK/fallback.ppm" "$W
 shot strict SPACEGL_GPD=1 SPACEGL_GDD_FAIL_INIT=1
 s_rc=$?
 check "SPACEGL_GPD=1 + GDD failure: screenshot refused (exit 1)" [ "$s_rc" -eq 1 ]
+check "no Vulkan validation error (VUID) in the logs" \
+    bash -c '! grep -h "VUID-" "$@"' _ "$WORK/cpu.log" "$WORK/gdd.log" "$WORK/default.log" "$WORK/fallback.log"
 
 if [ $rc -ne 0 ]; then
     for f in default fallback strict; do echo "--- $f ---"; tail -n 8 "$WORK/$f.log"; done
+    grep -h -o "VUID-[A-Za-z0-9_-]*" "$WORK"/*.log 2>/dev/null | sort | uniq -c | sed 's/^/    validation: /'
     cat "$WORK"/cmp_*.txt 2>/dev/null | tail -n 20
     echo "FAIL: gdd_default"; exit 1
 fi

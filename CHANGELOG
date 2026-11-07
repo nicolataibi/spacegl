@@ -1,3 +1,72 @@
+* Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.02
+  - Diagnosis, where the frame of the Vulkan CPU-driven path goes. With
+  the sphere levels of detail (2026.11.07.01) the busy quadrant on the Arc
+  A770 went only from 8.8 to 7.8 ms (GPU of the objects 7.47 -> 6.96 ms):
+  on that GPU the vertices were not the cost, and the GPU-times split
+  (starfield / objects / resolve) could not say what is. Now:
+  `--bench-frames` prints a [CPU-CMDS] line, the commands a frame by kind
+  of object (ships, stars, planets, bases, asteroids, comets, nebulae,
+  other, effects): objects, draws, indices, pipeline binds and real
+  changes of pipeline, counted by the wrappers of
+  include/vulkan_cpu_lod.h (now also around vkCmdDrawIndexed and
+  vkCmdDraw); with SPACEGL_VK_GPU_TIMES=1 a timestamp after every object
+  charges the GPU time to its kind and the [GPU-TIMES] line shows ships,
+  stars, ..., effects instead of objects. The per-object timestamps only
+  with the variable: a plain --bench-frames (gpu_golden_check.sh) times
+  the frame as before. The GPU-times code sums by section name (up to 320
+  timestamps a frame) instead of by position; the GPU-driven path prints
+  the same sections as before. No change to what is drawn.
+  On llvmpipe (1920x1080, 256 objects): 836 draws a frame, 765 pipeline
+  binds of which 406 change the pipeline (292 of them for the ships);
+  the 11 starbases draw 582 000 indices, more than all the rest.
+  - Tests: viewer_bench also checks the [SPHERE-LOD] and [CPU-CMDS] lines
+  and the GPU time by kind with SPACEGL_VK_GPU_TIMES=1.
+  spacegl_vulkan(1): SPACEGL_VK_GPU_TIMES (not documented until now).
+
+* Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.01
+  - Performance, the CPU-driven path of the Vulkan viewer. Every sphere of
+  that path (stars, planets, moons, the black hole, the comet's nucleus
+  and coma, shells, halos, cores: 92 draw sites) was the same 64x128 mesh,
+  16 384 triangles, also when it covered a few pixels: on the Arc A770 a
+  busy quadrant (256 objects, 1920x1080) spent 7.47 of its 7.52 ms of GPU
+  time on the objects (frame 8.8 ms, against 1.1 ms on the GPU-driven
+  path). The sphere buffers now hold four levels, 64x128, 32x64, 16x32 and
+  8x16 (include/sphere_lod.h), and vk_draw_sphere() draws the coarsest
+  one whose silhouette stays within half a pixel of the true sphere at
+  its size on screen (25 % margin for the perspective stretch): 8x16 up to
+  21 px of radius, 16x32 up to 83, 32x64 up to 332. With the wireframe
+  pipeline, whose lines are the triangle edges, a coarser level only while
+  its lines stay half a pixel apart (up to 1, 2 and 4 px), so the dense
+  look does not change. The size comes from the model matrix last pushed
+  and the view of the previous frame; include/vulkan_cpu_lod.h wraps
+  vkCmdPushConstants and vkCmdBindPipeline in the CPU-path files to know
+  them. Level 0 is the old mesh, unchanged, at the same place in the
+  buffers. Busy quadrant on llvmpipe: of 111 spheres a frame 88 drawn at
+  8x16, 12 at 32x64, 10 at full detail (the wireframe ones); GPU time of
+  the objects 354 -> 72 ms, frame 410 -> 119 ms. The image (fixed clock,
+  1280x720): 0.35 % of the pixels differ, on the antialiased edges of the
+  spheres. SPACEGL_SPHERE_LOD=0 draws the full mesh always;
+  --bench-frames prints a [SPHERE-LOD] line (spheres a frame by level).
+  - Fixed, three Vulkan validation errors on every run of the validation
+  layer (Debug builds): the --screenshot copy read the swapchain image in
+  PRESENT_SRC_KHR layout (now barriers to TRANSFER_SRC_OPTIMAL and back)
+  and from an image created without TRANSFER_SRC usage (now requested
+  when the surface allows it, otherwise the screenshot says so); without
+  multisampling (--no-msaa, the golden renders) the render pass still had
+  a resolve attachment for a 1-sample colour attachment (now it renders
+  straight into the swapchain image). Also: the staging memory of the
+  screenshot asked for host-visible OR coherent memory (now both), and
+  the GPU-times query pool (2026.11.02.01) was not destroyed before the
+  device.
+  - Tests: new sphere_lod (level 0 identical to the old mesh, indices
+  inside their level, silhouette or line spacing within 0.5 px at every
+  size from 0.5 to 2000 px, full mesh near or behind the camera, largest
+  axis of a non-uniform scale, depth along the view axis). gdd_default
+  also fails on any Vulkan validation error ("VUID-") in the viewer's
+  logs (the layer is on in Debug builds). 54 tests: DEVELOPMENT.md, which
+  also lists orbit (2026.11.02.03), README.md, the spec's %check comment;
+  spacegl_vulkan(1): SPACEGL_SPHERE_LOD.
+
 * Wed Nov 04 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.04.01
   - Lore & Docs (LORE.md): added the Version 3.4 Highlights block ("Planetary
   Systems & Hardened Infrastructure") detailing multi-body star systems,
