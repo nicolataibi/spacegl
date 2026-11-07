@@ -162,12 +162,20 @@ gpu_sample_start() {
     GPU_SAMPLER=$!
 }
 
-gpu_sample_stop() {   # prints "avg min max n" (or "- - - 0")
+# prints "avg min max n idle%": the clock while the GPU ran (avg, min, max
+# of the non-zero samples), the samples taken, and the share of them at 0
+# MHz, the GPU asleep between two frames (i915/xe report 0 in RC6; on the
+# A770 up to a third of the samples of a light run). "- - - 0 -": no
+# samples. Before 2026.11.07.08 the zeros entered the average: a run at
+# 2400 MHz pinned showed 1800.
+gpu_sample_stop() {
     if [ -n "$GPU_SAMPLER" ]; then
         kill "$GPU_SAMPLER" 2>/dev/null
         wait "$GPU_SAMPLER" 2>/dev/null
         GPU_SAMPLER=""
     fi
-    awk '/^[0-9]+$/ { n++; s += $1; if (n == 1 || $1 < mn) mn = $1; if ($1 > mx) mx = $1 }
-         END { if (n) printf "%.0f %d %d %d\n", s / n, mn, mx, n; else print "- - - 0" }' "$1"
+    awk '/^[0-9]+$/ { n++; if ($1 == 0) { z++; next } r++; s += $1; if (r == 1 || $1 < mn) mn = $1; if ($1 > mx) mx = $1 }
+         END { if (!n) { print "- - - 0 -"; exit }
+               if (r) printf "%.0f %d %d %d %.0f\n", s / r, mn, mx, n, z * 100 / n
+               else printf "0 0 0 %d 100\n", n }' "$1"
 }

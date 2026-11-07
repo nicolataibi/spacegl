@@ -1,3 +1,18 @@
+* Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.08
+  - Fix, tests/gpu_golden_check.sh: the clock of a run pinned at 2400 MHz
+  on the Arc A770 read "1800 0-2400" and the check called the rows not
+  comparable. i915 (and xe) report 0 MHz while the GPU sleeps (RC6), and a
+  frame-time run leaves it asleep between frames for up to a third of the
+  samples; the zeros entered the average. Now the clock columns are the
+  average, min and max of the samples while the GPU ran, a new idle
+  column gives the share of samples with the GPU asleep, the comparison
+  of the rows uses the running clocks, and the header says "asleep (0
+  MHz)" instead of "now 0 MHz". A770, --pin-freq: every row 2400 MHz;
+  256 objects at 1920x1080: Vulkan GPU-driven 0.81 ms, CPU-driven 1.80
+  ms, OpenGL 3.8-4.2 ms.
+  - Tests: gpu_clock checks the samples at 0 MHz (a pinned GPU asleep half
+  the time is 2400 MHz and about 50 % idle; always asleep).
+
 * Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.07
   - tests/gpu_golden_check.sh: frame times that compare. A GPU lowers its
   clock under a light load and keeps it up for a while after a heavy one,

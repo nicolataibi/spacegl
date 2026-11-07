@@ -154,7 +154,7 @@ gl_ver=$(sed -n 's/.*OpenGL Version: \(.*\), renderer: .*/\1/p' "$OUT/gl.log" | 
 [ -n "$gl_ver" ] && say "OpenGL version: $gl_ver"
 clock_mode="free"
 if gpu_find "$CARD" "$vk_dev"; then
-    say "GPU clock: $(basename "$GPU_CARD") (driver $GPU_DRV, PCI $GPU_PCI [$GPU_IDS]), range ${GPU_RPN:-?}-${GPU_RP0:-?} MHz, floor ${GPU_MIN:-?} MHz, ceiling ${GPU_MAX:-?} MHz, now $(gpu_mhz) MHz"
+    say "GPU clock: $(basename "$GPU_CARD") (driver $GPU_DRV, PCI $GPU_PCI [$GPU_IDS]), range ${GPU_RPN:-?}-${GPU_RP0:-?} MHz, floor ${GPU_MIN:-?} MHz, ceiling ${GPU_MAX:-?} MHz, now $(now=$(gpu_mhz); [ "$now" = 0 ] && echo "asleep (0 MHz)" || echo "$now MHz")"
     if [ "$PIN" = 1 ]; then
         trap gpu_unpin EXIT
         trap 'exit 130' INT TERM
@@ -205,7 +205,7 @@ bench() {   # bench <label> <viewer> <objects> <env...>
         --bench-frames "$FRAMES" --bench-scene "$objs" >"$log" 2>&1
     local clk c_avg c_min c_max c_n
     clk=$(gpu_sample_stop "$mhz")
-    read -r c_avg c_min c_max c_n <<<"$clk"
+    read -r c_avg c_min c_max c_n c_idle <<<"$clk"
     local line
     line=$(grep -h "^\[BENCH\]" "$log" | tail -n 1)
     if [ -z "$line" ]; then
@@ -221,12 +221,14 @@ bench() {   # bench <label> <viewer> <objects> <env...>
     p99=$(sed -n 's/.*p99 \([0-9.]*\),.*/\1/p' <<<"$line")
     mx=$(sed -n 's/.*max \([0-9.]*\) (.*/\1/p' <<<"$line")
     if awk -v a="$p95" -v b="$BUDGET" 'BEGIN { exit !(a <= b) }'; then verdict=OK; else verdict=OVER; over="$over $label/$objs"; fi
-    local c_col="n/a" r_col=""
-    if [ "${c_n:-0}" -gt 0 ]; then
-        c_col=$c_avg r_col="$c_min-$c_max"
+    local c_col="n/a" r_col="" i_col=""
+    if [ "${c_n:-0}" -gt 0 ] && [ "${c_avg:-0}" != 0 ]; then
+        c_col=$c_avg r_col="$c_min-$c_max" i_col="${c_idle}%"
         clocks="$clocks $c_avg"
+    elif [ "${c_n:-0}" -gt 0 ]; then
+        c_col="asleep" i_col="100%"
     fi
-    say "$(printf '  %-20s %4s   %8s %8s %8s %8s %8s   %-6s   %6s  %s' "$label" "$objs" "$avg" "$p50" "$p95" "$p99" "$mx" "$verdict" "$c_col" "$r_col")"
+    say "$(printf '  %-20s %4s   %8s %8s %8s %8s %8s   %-6s   %6s  %-9s  %5s' "$label" "$objs" "$avg" "$p50" "$p95" "$p99" "$mx" "$verdict" "$c_col" "$r_col" "$i_col")"
 }
 if [ "$FRAMES" -gt 0 ] 2>/dev/null; then
     say ""
@@ -235,8 +237,9 @@ if [ "$FRAMES" -gt 0 ] 2>/dev/null; then
         pinned) say "   GPU clock pinned at its top ($GPU_PIN_NEW MHz floor); $WARMUP s of heavy load before each run" ;;
         *) say "   GPU clock free (driver's own scaling); $WARMUP s of heavy load before each run; --pin-freq for comparable rows" ;;
     esac
-    say "   budget $BUDGET ms (60 Hz) on p95; times in ms; GPU clock in MHz sampled every 0.1 s during the run"
-    say "$(printf '  %-20s %4s   %8s %8s %8s %8s %8s   %-6s   %6s  %s' renderer objs average p50 p95 p99 max budget 'MHz' 'min-max')"
+    say "   budget $BUDGET ms (60 Hz) on p95; times in ms; GPU clock in MHz sampled every 0.1 s during the run
+   (MHz, min-max: while the GPU ran; idle: share of the samples with the GPU asleep between frames)"
+    say "$(printf '  %-20s %4s   %8s %8s %8s %8s %8s   %-6s   %6s  %-9s  %5s' renderer objs average p50 p95 p99 max budget 'MHz' 'min-max' 'idle')"
     for objs in 1 256; do
         bench vulkan-cpu "$VK" "$objs" SPACEGL_GPD=0
         bench vulkan-gdd "$VK" "$objs" SPACEGL_GPD=1

@@ -180,7 +180,7 @@ The suite has **55 tests** (integrated mode; the standalone mode builds the ones
 | 52 | `smoke_async` | the same with the server in `--io=async` | same |
 | 53 | `orbit` | the circle of `orb`: radius, plane, angular rate, period law (r^1.5), capture without a jump | `include/orbit_math.h` |
 | 54 | `sphere_lod` | the sphere levels of the CPU-driven Vulkan path: level 0 identical to the old 64x128 mesh, indices inside their level, silhouette within 0.5 px (filled) or lines at most 1 px apart (wireframe), dense wireframes drawn filled up to 8 px at every size, full mesh near or behind the camera | `include/sphere_lod.h` |
-| 55 | `gpu_clock` | the GPU clock helpers of `gpu_golden_check.sh` on fake sysfs trees: i915 (connectors skipped), xe, amdgpu, the rendering vendor's GPU among two, `--gpu-card`, pin and restore (also after SIGINT), clock sampling, no supported card | `tests/gpu_clock.sh` |
+| 55 | `gpu_clock` | the GPU clock helpers of `gpu_golden_check.sh` on fake sysfs trees: i915 (connectors skipped), xe, amdgpu, the rendering vendor's GPU among two, `--gpu-card`, pin and restore (also after SIGINT), clock sampling (the samples at 0 MHz, GPU asleep, counted apart), no supported card | `tests/gpu_clock.sh` |
 
 The tests that use port 5000/5001 run serially (`RUN_SERIAL`); an image or GPU test without a display or an ICD returns 77 (SKIP). Every end-to-end script uses a private `known_servers` file (`SPACEGL_KNOWN_SERVERS`), so a new data directory is not taken for a changed server.
 
@@ -554,7 +554,8 @@ number and element count.
   GPU-driven frame measured 1.1 or 1.9 ms, 0.82 ms at a fixed clock). The
   script prints the build type and flags and the OpenGL driver version,
   samples the GPU's actual clock every 0.1 s during each timed run (MHz
-  and min-max next to its times), runs `--warmup S` seconds (default 3)
+  and min-max while the GPU ran, and the share of samples with the GPU
+  asleep between frames: i915/xe report 0 MHz then, 2026.11.07.08), runs `--warmup S` seconds (default 3)
   of the heaviest load before each run, and says at the end whether the
   rows ran at clocks within 10 % of each other. `--pin-freq` raises the
   GPU's minimum clock to its top for the whole check (sudo) and restores

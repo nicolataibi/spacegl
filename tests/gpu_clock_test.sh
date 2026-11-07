@@ -16,7 +16,8 @@
 #   4. pin: the floor goes to the top and back (i915, xe; amdgpu:
 #      performance level high and back), also when the script that pinned
 #      is interrupted (SIGINT: the EXIT trap restores it);
-#   5. sampling: average, min, max of a clock that changes during the run;
+#   5. sampling: average, min, max of a clock that changes during the run,
+#      the samples at 0 MHz (GPU asleep) counted apart, not averaged;
 #   6. no supported card: gpu_find fails, gpu_pin refuses.
 # The checks pass shell code in single quotes on purpose (it runs where the
 # library is sourced); the library sets the GPU_ globals.
@@ -99,9 +100,23 @@ out=$(lib "$R1" '
     gpu_sample_start "$1"
     for v in 1000 2000 2400 1600; do echo $v >"$GPU_CARD/gt_act_freq_mhz"; sleep 0.25; done
     gpu_sample_stop "$1"' "$WORK/samples")
-read -r s_avg s_min s_max s_n <<<"$out"
-check "sampling: min 1000, max 2400, average between, several samples ($out)" \
-    bash -c "[ $s_min = 1000 ] && [ $s_max = 2400 ] && [ $s_avg -gt 1000 ] && [ $s_avg -lt 2400 ] && [ $s_n -ge 6 ]"
+read -r s_avg s_min s_max s_n s_idle <<<"$out"
+check "sampling: min 1000, max 2400, average between, several samples, none asleep ($out)" \
+    bash -c "[ $s_min = 1000 ] && [ $s_max = 2400 ] && [ $s_avg -gt 1000 ] && [ $s_avg -lt 2400 ] && [ $s_n -ge 6 ] && [ $s_idle = 0 ]"
+out=$(lib "$R1" '
+    gpu_find
+    gpu_sample_start "$1"
+    for v in 2400 0 2400 0; do echo $v >"$GPU_CARD/gt_act_freq_mhz"; sleep 0.25; done
+    gpu_sample_stop "$1"' "$WORK/samples0")
+read -r s_avg s_min s_max s_n s_idle <<<"$out"
+check "sampling: a pinned GPU asleep half the time is 2400 MHz, about 50 % idle ($out)" \
+    bash -c "[ $s_avg = 2400 ] && [ $s_min = 2400 ] && [ $s_max = 2400 ] && [ $s_idle -ge 30 ] && [ $s_idle -le 70 ]"
+out=$(lib "$R1" '
+    gpu_find
+    gpu_sample_start "$1"
+    echo 0 >"$GPU_CARD/gt_act_freq_mhz"; sleep 0.5
+    gpu_sample_stop "$1"' "$WORK/samples1")
+check "sampling: always asleep ($out)" bash -c '[[ "$1" == "0 0 0 "*" 100" ]]' _ "$out"
 
 # 6. nothing supported
 R6=$WORK/none
