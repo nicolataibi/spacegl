@@ -13,8 +13,9 @@
  *     keeps the true silhouette error, r (1 - cos(pi / longs)), within
  *     0.5 px even with the 25 % margin used up, and the next coarser
  *     level would not; level 0 beyond 333 px.
- *  3. Choice, wireframe: the lines of the level picked are at most 0.5 px
- *     apart (so the disc stays filled as with the full mesh).
+ *  3. Choice, wireframe: the lines of the level picked are at most 1 px
+ *     apart (so the disc stays covered as with the full mesh;
+ *     2026.11.07.03, 0.5 px before).
  *  4. Edge cases: a sphere around, behind or very near the camera, a zero
  *     scale, no projection yet: level 0. A non-uniform scale takes its
  *     largest axis; a rotated or off-centre model and a moved camera give
@@ -116,28 +117,29 @@ int main(void) {
             float steps = (float)(LONGS >> l);
             float worst = r_px * SPHERE_LOD_MARGIN;   /* the stretched size the margin allows for */
             if (wire)
-                TEST_CHECK(l == 0 || 2.0f * (float)M_PI * worst / steps <= SPHERE_LOD_MAX_ERR_PX + 1e-4f);
+                TEST_CHECK(l == 0 || 2.0f * (float)M_PI * worst / steps <= SPHERE_LOD_WIRE_SPACING_PX + 1e-4f);
             else
                 TEST_CHECK(l == 0 || worst * (1.0f - cosf((float)M_PI / steps)) <= SPHERE_LOD_MAX_ERR_PX + 1e-4f);
             if (l < SPHERE_LOD_LEVELS - 1) {   /* the next coarser level was not good enough */
                 float coarse = (float)(LONGS >> (l + 1));
                 float err = wire ? 2.0f * (float)M_PI * worst / coarse : worst * (1.0f - cosf((float)M_PI / coarse));
-                TEST_CHECK(err > SPHERE_LOD_MAX_ERR_PX - 1e-4f);
+                TEST_CHECK(err > (wire ? SPHERE_LOD_WIRE_SPACING_PX : SPHERE_LOD_MAX_ERR_PX) - 1e-4f);
             }
         }
     for (int l = 0; l < SPHERE_LOD_LEVELS; l++) TEST_CHECK(seen[0][l] > 0 && seen[1][l] > 0);
     TEST_CHECK(pick_at(334.0f * z / ppu, 0, 0, -z, ppu, false) == 0);
     TEST_CHECK(pick_at(332.0f * z / ppu, 0, 0, -z, ppu, false) == 1);
     TEST_CHECK(pick_at(20.0f * z / ppu, 0, 0, -z, ppu, false) == 3);
-    TEST_CHECK(pick_at(5.0f * z / ppu, 0, 0, -z, ppu, true) == 0);
-    TEST_CHECK(pick_at(0.9f * z / ppu, 0, 0, -z, ppu, true) == 3);
+    TEST_CHECK(pick_at(9.0f * z / ppu, 0, 0, -z, ppu, true) == 0);   /* a starbase core near the camera */
+    TEST_CHECK(pick_at(7.0f * z / ppu, 0, 0, -z, ppu, true) == 1);   /* ... and at the usual distance */
+    TEST_CHECK(pick_at(1.9f * z / ppu, 0, 0, -z, ppu, true) == 3);
     printf("  [2] filled: silhouette within %.1f px at every size (8x16 up to %.0f px, 16x32 up to %.0f, 32x64 up "
            "to %.0f): OK\n",
            (double)SPHERE_LOD_MAX_ERR_PX, (double)sphere_lod_limit_px(3, LONGS, false),
            (double)sphere_lod_limit_px(2, LONGS, false), (double)sphere_lod_limit_px(1, LONGS, false));
     printf("  [3] wireframe: lines at most %.1f px apart (8x16 up to %.1f px, 16x32 up to %.1f, 32x64 up to %.1f): "
            "OK\n",
-           (double)SPHERE_LOD_MAX_ERR_PX, (double)sphere_lod_limit_px(3, LONGS, true),
+           (double)SPHERE_LOD_WIRE_SPACING_PX, (double)sphere_lod_limit_px(3, LONGS, true),
            (double)sphere_lod_limit_px(2, LONGS, true), (double)sphere_lod_limit_px(1, LONGS, true));
 
     /* 4. edge cases */

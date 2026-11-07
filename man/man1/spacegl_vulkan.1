@@ -104,7 +104,8 @@ run without it.
 0 makes the CPU-driven path draw every sphere with the full 64x128 mesh.
 By default it draws a coarser level (32x64, 16x32 or 8x16) when the
 sphere is small enough on screen for the difference to stay within half a
-pixel; with
+pixel (for a wireframe sphere, while its lines stay at most one pixel
+apart); with
 .BR \-\-bench\-frames ,
 a "[SPHERE-LOD]" line gives the spheres a frame by level and a
 "[CPU-CMDS]" line the draws, the pipeline binds and changes, by kind of

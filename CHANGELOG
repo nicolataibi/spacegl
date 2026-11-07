@@ -1,3 +1,26 @@
+* Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.03
+  - Performance, the Vulkan CPU-driven path: what the GPU time by kind
+  (2026.11.07.02) showed on the Arc A770, busy quadrant at 1920x1080:
+  of 7.10 ms of GPU time, 5.51 ms for the 11 starbases and 1.24 ms for
+  the 11 comets, under 0.12 ms for each other kind (124 ships 0.09 ms:
+  the 406 pipeline changes a frame cost nothing worth measuring). The
+  starbases drew 556 000 indices a frame: their pulsing core (and the
+  Xylari's three shells) is a wireframe sphere, kept at the full 64x128
+  mesh by the level-of-detail rule for wireframes (lines at most half a
+  pixel apart): 24 576 alpha-blended multisampled lines on a disc of 5 to
+  9 px, each pixel crossed many times. The comets' coma is the same. The
+  rule is now lines at most one pixel apart (sphere_lod.h,
+  SPHERE_LOD_WIRE_SPACING_PX): 8x16 up to 2 px of radius, 16x32 up to 4,
+  32x64 up to 8. The lines still cover the disc as the full mesh does:
+  side by side at a fixed clock (1920x1080, 256 objects) the cores look
+  the same; against the full mesh 6 821 pixels differ instead of 6 594
+  (0.33 % of the frame, antialiased edges), where 2 px apart already
+  showed a grain on the larger shells. llvmpipe: starbases 556 000 ->
+  170 000 indices a frame, comets 146 000 -> 79 000, spheres at full
+  detail 11 -> 0.8 a frame.
+  - Tests: sphere_lod checks the new spacing (a starbase core of 7 px at
+  32x64, of 9 px at the full mesh). DEVELOPMENT.md, spacegl_vulkan(1).
+
 * Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.02
   - Diagnosis, where the frame of the Vulkan CPU-driven path goes. With
   the sphere levels of detail (2026.11.07.01) the busy quadrant on the Arc

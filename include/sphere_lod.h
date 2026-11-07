@@ -18,9 +18,11 @@
  *   - filled: the chord of one step deviates from the circle by
  *     r (1 - cos(pi / longs)) pixels;
  *   - wireframe (the triangle edges drawn as lines): fewer triangles are
- *     fewer lines, so a level only while its lines are at most half a
- *     pixel apart (2 pi r / longs <= 0.5), where the full mesh already
- *     fills the disc;
+ *     fewer lines, so a level only while its lines are at most one pixel
+ *     apart (2 pi r / longs <= 1), where the lines still cover the disc
+ *     as the full mesh does (2026.11.07.03; half a pixel in .01: on the
+ *     Arc A770 the full-mesh wireframe cores of the starbases were 5.5 of
+ *     the 7.1 ms of a busy quadrant);
  * with r the radius in pixels plus 25 % (an off-axis sphere is stretched
  * by the perspective). Near, around or behind the camera: level 0.
  */
@@ -32,9 +34,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define SPHERE_LOD_LEVELS     4
-#define SPHERE_LOD_MARGIN     1.25f    /* on the radius in pixels */
-#define SPHERE_LOD_MAX_ERR_PX 0.5f /* silhouette error, or line spacing (wireframe) */
+#define SPHERE_LOD_LEVELS          4
+#define SPHERE_LOD_MARGIN          1.25f /* on the radius in pixels */
+#define SPHERE_LOD_MAX_ERR_PX      0.5f  /* silhouette error (filled) */
+#define SPHERE_LOD_WIRE_SPACING_PX 1.0f  /* largest distance between the lines (wireframe) */
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -92,7 +95,7 @@ static inline void sphere_lod_build(int lats, int longs, float *pos, uint32_t *i
 static inline float sphere_lod_limit_px(int level, int longs, bool wire) {
     if (level <= 0) return INFINITY;
     float steps = (float)(longs >> level);
-    float r_err = wire ? SPHERE_LOD_MAX_ERR_PX * steps / (2.0f * (float)M_PI)
+    float r_err = wire ? SPHERE_LOD_WIRE_SPACING_PX * steps / (2.0f * (float)M_PI)
                        : SPHERE_LOD_MAX_ERR_PX / (1.0f - cosf((float)M_PI / steps));
     return r_err / SPHERE_LOD_MARGIN;
 }

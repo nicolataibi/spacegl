@@ -21,9 +21,9 @@
  *     32x64 up to 333, the full mesh beyond;
  *   - the wireframe pipeline draws the triangle edges as lines, so fewer
  *     triangles means fewer lines: a level is used only while its lines
- *     stay closer than half a pixel to each other (2 pi r / longs <= 0.5),
- *     where the dense full mesh already fills the disc: 8x16 up to 1 px,
- *     16x32 up to 2, 32x64 up to 4.
+ *     stay at most one pixel apart (2 pi r / longs <= 1), where they still
+ *     cover the disc as the dense full mesh does: 8x16 up to 2 px, 16x32
+ *     up to 4, 32x64 up to 8 (2026.11.07.03; half a pixel before).
  * The size on screen comes from the model matrix last pushed (the
  * sphere's centre and largest axis) and the view and projection of the
  * previous frame (drawFrame computes them after recording): a frame of
