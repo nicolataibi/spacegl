@@ -16,6 +16,9 @@
  *  3. Choice, wireframe: the lines of the level picked are at most 1 px
  *     apart (so the disc stays covered as with the full mesh;
  *     2026.11.07.03, 0.5 px before).
+ *  3b. Dense wireframe drawn filled (2026.11.07.05): only while the full
+ *     mesh puts its lines at most 0.5 px apart, margin included (up to
+ *     8.1 px of radius), never near or behind the camera.
  *  4. Edge cases: a sphere around, behind or very near the camera, a zero
  *     scale, no projection yet: level 0. A non-uniform scale takes its
  *     largest axis; a rotated or off-centre model and a moved camera give
@@ -141,6 +144,30 @@ int main(void) {
            "OK\n",
            (double)SPHERE_LOD_WIRE_SPACING_PX, (double)sphere_lod_limit_px(3, LONGS, true),
            (double)sphere_lod_limit_px(2, LONGS, true), (double)sphere_lod_limit_px(1, LONGS, true));
+
+    /* 3b. dense wireframes drawn filled */
+    TEST_CHECK(sphere_lod_wire_as_fill(1.0f, LONGS));
+    TEST_CHECK(sphere_lod_wire_as_fill(8.1f, LONGS));
+    TEST_CHECK(!sphere_lod_wire_as_fill(8.3f, LONGS));
+    TEST_CHECK(!sphere_lod_wire_as_fill(-1.0f, LONGS));   /* near or behind: radius unknown */
+    for (float r_px = 0.5f; r_px <= 2000.0f; r_px *= 1.03f) {
+        bool f = sphere_lod_wire_as_fill(r_px, LONGS);
+        float spacing = 2.0f * (float)M_PI * r_px * SPHERE_LOD_MARGIN / (float)LONGS;
+        TEST_CHECK(f == (spacing <= SPHERE_LOD_WIRE_FILL_PX));
+    }
+    {
+        float model[4][4], view[4][4];
+        identity(model);
+        identity(view);
+        model[0][0] = model[1][1] = model[2][2] = 1.0f;
+        model[3][2] = -1.5f;   /* nearer than 2 r */
+        TEST_CHECK(sphere_lod_radius_px((const float(*)[4])model, (const float(*)[4])view, ppu) < 0.0f);
+        model[3][2] = -200.0f;
+        TEST_CHECK(fabsf(sphere_lod_radius_px((const float(*)[4])model, (const float(*)[4])view, ppu) - 5.0f) < 1e-4f);
+    }
+    printf("  [3b] dense wireframe drawn filled up to %.1f px of radius (full-mesh lines %.1f px apart): OK\n",
+           (double)(SPHERE_LOD_WIRE_FILL_PX * LONGS / (2.0f * (float)M_PI * SPHERE_LOD_MARGIN)),
+           (double)SPHERE_LOD_WIRE_FILL_PX);
 
     /* 4. edge cases */
     TEST_CHECK(pick_at(1.0f, 0, 0, 0, ppu, false) == 0);        /* camera inside */

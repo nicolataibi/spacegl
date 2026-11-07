@@ -23,7 +23,12 @@
  *     triangles means fewer lines: a level is used only while its lines
  *     stay at most one pixel apart (2 pi r / longs <= 1), where they still
  *     cover the disc as the dense full mesh does: 8x16 up to 2 px, 16x32
- *     up to 4, 32x64 up to 8 (2026.11.07.03; half a pixel before).
+ *     up to 4, 32x64 up to 8 (2026.11.07.03; half a pixel before);
+ *     and while the full mesh puts its lines at most half a pixel apart
+ *     (up to 8 px of radius) the wireframe is a solid disc on screen and
+ *     is drawn filled, with the lit pipeline and the same flat colour, at
+ *     the filled level (2026.11.07.05: on the A770 the dense cores of
+ *     the starbases took 0.3 ms each even at 32x64).
  * The size on screen comes from the model matrix last pushed (the
  * sphere's centre and largest axis) and the view and projection of the
  * previous frame (drawFrame computes them after recording): a frame of
@@ -58,6 +63,8 @@ typedef struct {
     bool model_valid;
     VkPipeline pipe;                               /* last graphics pipeline bound */
     VkPipeline wire_pipe;                          /* app->wireframePipeline */
+    VkPipeline fill_pipe;                          /* app->graphicsPipeline: dense wireframes drawn filled */
+    uint64_t filled;                               /* wireframe spheres drawn filled since the last reset */
     uint64_t drawn[SPHERE_LOD_LEVELS];             /* spheres per level since the last reset */
 } SphereLod;
 
@@ -133,18 +140,28 @@ static inline void sg_lod_draw(VkCommandBuffer cb, uint32_t vertex_count, uint32
 #define vkCmdDrawIndexed   sg_lod_draw_indexed
 #define vkCmdDraw          sg_lod_draw
 
-/* The level for the sphere the last pushed model places (0 = full mesh). */
-int sphere_lod_level(void);
+/* The level for the sphere the last pushed model places (0 = full mesh);
+ * *fill: a dense wireframe sphere to draw filled at that level. */
+int sphere_lod_level(bool *fill);
 /* Start of a frame's recording: forget the previous frame's model. */
-void sphere_lod_begin_frame(VkPipeline wire_pipe);
+void sphere_lod_begin_frame(VkPipeline wire_pipe, VkPipeline fill_pipe);
 /* After drawFrame has computed them: the view and projection of the frame. */
 void sphere_lod_set_view(const float view[4][4], float proj11, uint32_t height);
 
 /* Draws the bound sphere mesh (sphereVertexBuffer / sphereIndexBuffer)
  * at its level of detail. */
 static inline void vk_draw_sphere(VkCommandBuffer cb) {
-    int l = sphere_lod_level();
+    bool fill = false;
+    int l = sphere_lod_level(&fill);
     g_sphere_lod.drawn[l]++;
+    if (fill) {   /* the same colour and model, triangles instead of lines, then the wireframe pipeline back */
+        VkPipeline wire = g_sphere_lod.pipe;
+        g_sphere_lod.filled++;
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, g_sphere_lod.fill_pipe);
+        vkCmdDrawIndexed(cb, g_sphere_lod.count[l], 1, g_sphere_lod.first[l], 0, 0);
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, wire);
+        return;
+    }
     vkCmdDrawIndexed(cb, g_sphere_lod.count[l], 1, g_sphere_lod.first[l], 0, 0);
 }
 

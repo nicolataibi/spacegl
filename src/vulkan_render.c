@@ -225,7 +225,7 @@ void vkgt_destroy(VkDevice dev) {
 void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,NULL,0,NULL}; vkBeginCommandBuffer(cb, &bi);
     vkgt_begin(cb, app, app->currentFrame);
-    sphere_lod_begin_frame(app->wireframePipeline);
+    sphere_lod_begin_frame(app->wireframePipeline, app->graphicsPipeline);
     g_cpu_cmds.kind = CPUK_SCENE;
     s_mark_app = app;
     {   /* SPACEGL_VK_GPU_TIMES_DRAWS=<kind name>: the draws of that kind one by one */
@@ -1721,6 +1721,7 @@ void render_frame(VulkanApp* app, float dt) {
     if (bench_on && bench.seen == bench.warmup) {   /* GPU times and sphere levels: timed frames only */
         vkgt_reset_stats();
         memset(g_sphere_lod.drawn, 0, sizeof(g_sphere_lod.drawn));
+        g_sphere_lod.filled = 0;
         int kind = g_cpu_cmds.kind, draws_kind = g_cpu_cmds.draw_marks_kind;
         memset(&g_cpu_cmds, 0, sizeof(g_cpu_cmds));
         g_cpu_cmds.kind = kind;
@@ -1740,10 +1741,12 @@ void render_frame(VulkanApp* app, float dt) {
             vkgt_report(app->gdd ? "vulkan-gdd" : "vulkan-cpu");
             if (!app->gdd) {   /* spheres drawn a frame, by level of detail (vulkan_cpu_lod.h) */
                 double nf = (double)(bench.frames > 0 ? bench.frames : 1);
-                printf("[SPHERE-LOD] vulkan-cpu: spheres a frame %s: 64x128 %.1f, 32x64 %.1f, 16x32 %.1f, 8x16 %.1f\n",
+                printf("[SPHERE-LOD] vulkan-cpu: spheres a frame %s: 64x128 %.1f, 32x64 %.1f, 16x32 %.1f, 8x16 %.1f; "
+                       "dense wireframes drawn filled %.1f\n",
                        g_sphere_lod.enabled ? "by level" : "(SPACEGL_SPHERE_LOD=0, all full)",
                        (double)g_sphere_lod.drawn[0] / nf, (double)g_sphere_lod.drawn[1] / nf,
-                       (double)g_sphere_lod.drawn[2] / nf, (double)g_sphere_lod.drawn[3] / nf);
+                       (double)g_sphere_lod.drawn[2] / nf, (double)g_sphere_lod.drawn[3] / nf,
+                       (double)g_sphere_lod.filled / nf);
                 /* commands a frame by kind (vulkan_cpu_lod.h): objects, draws,
                  * thousands of indices, pipeline binds (changes), pushes */
                 uint64_t td = 0, tb = 0, tc = 0;

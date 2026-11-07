@@ -179,7 +179,7 @@ The suite has **54 tests** (integrated mode; the standalone mode builds the ones
 | 51 | `smoke_e2e` | login round-trip of a real deck on the real server (legacy I/O) | `spacegl_server` + `spacegl_client` (black-box) |
 | 52 | `smoke_async` | the same with the server in `--io=async` | same |
 | 53 | `orbit` | the circle of `orb`: radius, plane, angular rate, period law (r^1.5), capture without a jump | `include/orbit_math.h` |
-| 54 | `sphere_lod` | the sphere levels of the CPU-driven Vulkan path: level 0 identical to the old 64x128 mesh, indices inside their level, silhouette within 0.5 px (filled) or lines at most 1 px apart (wireframe) at every size, full mesh near or behind the camera | `include/sphere_lod.h` |
+| 54 | `sphere_lod` | the sphere levels of the CPU-driven Vulkan path: level 0 identical to the old 64x128 mesh, indices inside their level, silhouette within 0.5 px (filled) or lines at most 1 px apart (wireframe), dense wireframes drawn filled up to 8 px at every size, full mesh near or behind the camera | `include/sphere_lod.h` |
 
 The tests that use port 5000/5001 run serially (`RUN_SERIAL`); an image or GPU test without a display or an ICD returns 77 (SKIP). Every end-to-end script uses a private `known_servers` file (`SPACEGL_KNOWN_SERVERS`), so a new data directory is not taken for a changed server.
 
@@ -259,7 +259,8 @@ the 64x128 sphere and three coarser levels (32x64, 16x32, 8x16), and
 `vk_draw_sphere()` picks the coarsest one whose silhouette stays within half
 a pixel at the sphere's size on screen (with the wireframe pipeline, whose
 lines are the triangle edges, only while the lines stay at most one pixel
-apart, 2026.11.07.03).
+apart, 2026.11.07.03; a wireframe sphere whose full mesh puts its lines at
+most half a pixel apart is drawn filled, 2026.11.07.05).
 The size comes from the model matrix last pushed and the previous frame's
 view; `vulkan_cpu_lod.h` wraps `vkCmdPushConstants` and `vkCmdBindPipeline`
 in the files that include it to know them. New sphere draws call

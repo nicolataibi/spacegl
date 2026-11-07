@@ -38,6 +38,7 @@
 #define SPHERE_LOD_MARGIN          1.25f /* on the radius in pixels */
 #define SPHERE_LOD_MAX_ERR_PX      0.5f  /* silhouette error (filled) */
 #define SPHERE_LOD_WIRE_SPACING_PX 1.0f  /* largest distance between the lines (wireframe) */
+#define SPHERE_LOD_WIRE_FILL_PX    0.5f  /* full-mesh lines this close: the wireframe is drawn filled */
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -104,9 +105,8 @@ static inline float sphere_lod_limit_px(int level, int longs, bool wire) {
  * pushes them; rows 0-2 of model are the images of the axes, row 3 the
  * centre. px_per_unit: |proj[1][1]| * height / 2. The camera looks along
  * -Z in view space. */
-static inline int sphere_lod_pick(const float model[4][4], const float view[4][4], float px_per_unit, bool wire,
-                                  int longs) {
-    if (!(px_per_unit > 0.0f)) return 0;
+static inline float sphere_lod_radius_px(const float model[4][4], const float view[4][4], float px_per_unit) {
+    if (!(px_per_unit > 0.0f)) return -1.0f;
     float r2 = 0.0f;
     for (int i = 0; i < 3; i++) {
         float a2 = model[i][0] * model[i][0] + model[i][1] * model[i][1] + model[i][2] * model[i][2];
@@ -115,11 +115,27 @@ static inline int sphere_lod_pick(const float model[4][4], const float view[4][4
     float r = sqrtf(r2);
     const float *c = model[3];
     float z = -(c[0] * view[0][2] + c[1] * view[1][2] + c[2] * view[2][2] + view[3][2]);
-    if (!(r > 0.0f) || !(z > 2.0f * r)) return 0;
-    float r_px = r * px_per_unit / z;
+    if (!(r > 0.0f) || !(z > 2.0f * r)) return -1.0f;   /* near, around or behind the camera */
+    return r * px_per_unit / z;
+}
+
+static inline int sphere_lod_pick(const float model[4][4], const float view[4][4], float px_per_unit, bool wire,
+                                  int longs) {
+    float r_px = sphere_lod_radius_px(model, view, px_per_unit);
+    if (r_px < 0.0f) return 0;
     for (int l = SPHERE_LOD_LEVELS - 1; l > 0; l--)
         if (r_px <= sphere_lod_limit_px(l, longs, wire)) return l;
     return 0;
+}
+
+/* A wireframe sphere whose full mesh puts its lines at most
+ * SPHERE_LOD_WIRE_FILL_PX apart (even stretched by the margin) is a solid
+ * disc of the line colour on screen: it is drawn filled, at the filled
+ * level for its size (2026.11.07.05). On the Arc A770 the dense
+ * wireframe cores of the starbases cost 0.3 ms each at 32x64: thousands
+ * of alpha-blended lines over the same few pixels. */
+static inline bool sphere_lod_wire_as_fill(float r_px, int longs) {
+    return r_px >= 0.0f && 2.0f * (float)M_PI * r_px * SPHERE_LOD_MARGIN / (float)longs <= SPHERE_LOD_WIRE_FILL_PX;
 }
 
 #endif

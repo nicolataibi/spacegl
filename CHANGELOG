@@ -1,3 +1,29 @@
+* Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.05
+  - Performance, the Vulkan CPU-driven path: the per-draw times of the
+  starbases (2026.11.07.04) on the Arc A770 put 3.35 of their 4.73 ms on
+  the wireframe spheres at 32x64 (bases:wire/12288, about 10 a frame:
+  0.33 ms each) and 0.52 ms on the one at the full mesh, while 8x16
+  wireframes cost 0.01 ms and the solid parts 0.03 ms for all the bases.
+  A 32x64 wireframe of 5 to 8 px of radius is 6 144 alpha-blended lines
+  over the same few pixels: the cost grows much faster than the number
+  of lines. Such a sphere is a solid disc of the line colour on screen:
+  when its full mesh puts the lines at most half a pixel apart (margin
+  included: up to 8 px of radius), vk_draw_sphere() now draws it filled,
+  with the lit pipeline (depth written, as the lines were) and the same
+  flat colour (usePushColor 1), at the filled level for its size, then
+  binds the wireframe pipeline back (sphere_lod_wire_as_fill(),
+  sphere_lod_radius_px()). Side by side at a fixed clock (1920x1080, 256
+  objects) the cores and shells look the same; against the full mesh
+  7 112 pixels differ instead of 6 821 (antialiased edges). Lines one
+  pixel apart, the rule tried for the fill too, already thinned the
+  Xylari shells: not used. llvmpipe: 22 wireframes a frame drawn filled
+  (starbase cores, Xylari shells, comet comas), starbases 164 000 ->
+  59 000 indices, comets 70 000 -> 53 000. [SPHERE-LOD] also gives the
+  wireframes drawn filled.
+  - Tests: sphere_lod checks the fill rule (up to 8.1 px, not at 8.3, not
+  near the camera) and sphere_lod_radius_px(). DEVELOPMENT.md,
+  spacegl_vulkan(1).
+
 * Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.04
   - Diagnosis, the starbases of the Vulkan CPU-driven path. With the
   wireframe spheres at one pixel (2026.11.07.03) the busy quadrant on the

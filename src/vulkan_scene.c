@@ -167,8 +167,9 @@ int cpu_kind_of(int t) {
     return CPUK_OTHER;
 }
 
-void sphere_lod_begin_frame(VkPipeline wire_pipe) {
+void sphere_lod_begin_frame(VkPipeline wire_pipe, VkPipeline fill_pipe) {
     g_sphere_lod.wire_pipe = wire_pipe;
+    g_sphere_lod.fill_pipe = fill_pipe;
     g_sphere_lod.model_valid = false;
 }
 
@@ -178,11 +179,19 @@ void sphere_lod_set_view(const float view[4][4], float proj11, uint32_t height) 
     g_sphere_lod.view_valid = g_sphere_lod.px_per_unit > 0.0f;
 }
 
-int sphere_lod_level(void) {
+int sphere_lod_level(bool *fill) {
     const SphereLod *s = &g_sphere_lod;
+    *fill = false;
     if (!s->enabled || !s->view_valid || !s->model_valid) return 0;
     bool wire = s->pipe != VK_NULL_HANDLE && s->pipe == s->wire_pipe;
-    return sphere_lod_pick((const float(*)[4])s->model, (const float(*)[4])s->view, s->px_per_unit, wire, SPHERE_LONGS);
+    const float(*model)[4] = (const float(*)[4])s->model;
+    const float(*view)[4] = (const float(*)[4])s->view;
+    if (wire && s->fill_pipe != VK_NULL_HANDLE &&
+        sphere_lod_wire_as_fill(sphere_lod_radius_px(model, view, s->px_per_unit), SPHERE_LONGS)) {
+        *fill = true;
+        return sphere_lod_pick(model, view, s->px_per_unit, false, SPHERE_LONGS);
+    }
+    return sphere_lod_pick(model, view, s->px_per_unit, wire, SPHERE_LONGS);
 }
 
 #include "spacegl_vulkan_extras.inl"
