@@ -54,6 +54,7 @@ _Static_assert(OBJ_MOON_FIRST == 89 && OBJ_MOON_LAST == 98,
 
 #include "network.h"
 #include "quadrant_geom.h"
+#include "nav_route_view.h"
 
 typedef struct {
     double x, y, z;
@@ -1415,6 +1416,157 @@ static void prof_mark(int next) {
     g_prof_phase = next;
 }
 
+/* ------------------------------------------------------------------ */
+/* `nav` collision-free course (include/nav_route_view.h): the shared   */
+/* primitives drawn with additive lines / loops / spheres, then labels. */
+/* ------------------------------------------------------------------ */
+static NavRouteView g_nav_view;
+
+static void navRouteBuild(void) {
+    g_nav_view.np = 0;
+    if (!g_shared_state || objects[0].id == 0) return;
+    float ship[3] = { (float)(objects[0].x + QG_HALF), (float)(QG_HALF - objects[0].z), (float)(objects[0].y + QG_HALF) };
+    NrvInput in;
+    nrv_input_from_shm(&in, &g_shared_state->route, g_my_q, ship, (float)glfwGetTime());
+    nrv_build(&g_nav_view, &in);
+}
+
+static void navRouteRing(const float c[3], const float n[3], float r) {
+    float s[3], u[3];
+    nrv_basis(n, s, u);
+    glBegin(GL_LINE_LOOP);
+    for (int k = 0; k < 48; k++) {
+        float a = (float)k * (6.2831853f / 48.0f), ca = cosf(a) * r, sa = sinf(a) * r;
+        glVertex3f(c[0] + s[0] * ca + u[0] * sa, c[1] + s[1] * ca + u[1] * sa, c[2] + s[2] * ca + u[2] * sa);
+    }
+    glEnd();
+}
+
+void drawNavRoute(void) {
+    navRouteBuild();
+    if (g_nav_view.np == 0) return;
+    glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glUseProgram(0);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_LINE_SMOOTH);
+    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+    for (int k = 0; k < g_nav_view.np; k++) {
+        const NrvPrim *p = &g_nav_view.prim[k];
+        glColor4f(p->c[0], p->c[1], p->c[2], p->c[3]);
+        switch (p->type) {
+            case NRV_TUBE: {
+                float px = p->r * 34.0f;
+                if (px < 1.5f) px = 1.5f;
+                if (px > 12.0f) px = 12.0f;
+                glLineWidth(px);
+                glBegin(GL_LINES);
+                glVertex3fv(p->a);
+                glVertex3fv(p->b);
+                glEnd();
+                break;
+            }
+            case NRV_LINE:
+                glLineWidth(1.3f);
+                glBegin(GL_LINES);
+                glVertex3fv(p->a);
+                glVertex3fv(p->b);
+                glEnd();
+                break;
+            case NRV_RING:
+                glLineWidth(p->c[3] > 0.6f ? 2.0f : 1.3f);
+                navRouteRing(p->a, p->b, p->r);
+                break;
+            case NRV_DOT:
+                glPushMatrix();
+                glTranslatef(p->a[0], p->a[1], p->a[2]);
+                glutSolidSphere(p->r, p->r > 1.0f ? 20 : 10, p->r > 1.0f ? 14 : 8);
+                glPopMatrix();
+                break;
+            default:
+                break;
+        }
+    }
+    glLineWidth(1.0f);
+    glPopAttrib();
+}
+
+/* Labels of the course (scene pass, like drawFaceLabels): the end or the
+ * exit gate, the waypoints and the obstacles bent around. */
+static void navRouteLabel(const float p[3], float dy, const char *text, float r, float g, float b,
+                          const GLdouble *model, const GLdouble *proj, const GLint *view) {
+    GLdouble wx, wy, wz;
+    if (gluProject(p[0], p[1] + dy, p[2], model, proj, view, &wx, &wy, &wz) != GL_TRUE) return;
+    if (wz < 0.0 || wz > 1.0) return;
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, view[2], 0, view[3]);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
+    glColor3f(r, g, b);
+    glRasterPos2f((GLfloat)(wx - (double)strlen(text) * 3.2), (GLfloat)wy);
+    glutBitmapString(GLUT_BITMAP_HELVETICA_12, (const unsigned char *)text);
+    glEnable(GL_DEPTH_TEST);
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+}
+
+void drawNavRouteLabels(void) {
+    if (!g_show_hud || g_show_map || g_nav_view.np == 0) return;
+    GLdouble model[16], proj[16];
+    GLint view[4];
+    glGetDoublev(GL_MODELVIEW_MATRIX, model);
+    glGetDoublev(GL_PROJECTION_MATRIX, proj);
+    glGetIntegerv(GL_VIEWPORT, view);
+    char buf[96];
+    const NavRouteView *v = &g_nav_view;
+    if (v->ends_here) {
+        if (v->partial) {
+            navRouteLabel(v->end_p, 2.4f, "COURSE ENDS - NO SAFE PASSAGE", 1.0f, 0.3f, 0.2f, model, proj, view);
+        } else {
+            navRouteLabel(v->end_p, 7.8f, "DESTINATION", 1.0f, 0.88f, 0.4f, model, proj, view);
+            if (g_shared_state && g_shared_state->shm_eta > 0.05) {
+                snprintf(buf, sizeof(buf), "ETA %.1f s", g_shared_state->shm_eta);
+                navRouteLabel(v->end_p, 6.6f, buf, 1.0f, 0.88f, 0.4f, model, proj, view);
+            }
+        }
+    }
+    if (v->exits) {
+        snprintf(buf, sizeof(buf), "COURSE EXIT -> Q[%d,%d,%d]", v->exit_q[0], v->exit_q[1], v->exit_q[2]);
+        navRouteLabel(v->exit_p, 3.6f, buf, 0.3f, 1.0f, 0.85f, model, proj, view);
+    }
+    if (v->n_wp <= 12) {
+        int first = (g_shared_state ? g_shared_state->route.passed : 0) + 1;
+        for (int k = 0; k < v->n_wp; k++) {
+            snprintf(buf, sizeof(buf), "WP%d", first + k);
+            navRouteLabel(v->wp[k], -1.6f, buf, 0.75f, 0.9f, 1.0f, model, proj, view);
+        }
+    }
+    /* keep-out labels under the bubbles (the object labels sit above them),
+     * one per group of the same kind */
+    for (int k = 0; k < v->n_haz; k++) {
+        int dup = 0;
+        for (int j = 0; j < k && !dup; j++)
+            dup = (v->haz_kind[j] == v->haz_kind[k]) && nrv_dist(v->haz[j], v->haz[k]) < 10.0f;
+        if (dup) continue;
+        int group = 1;
+        for (int j = k + 1; j < v->n_haz; j++)
+            if (v->haz_kind[j] == v->haz_kind[k] && nrv_dist(v->haz[j], v->haz[k]) < 10.0f) group++;
+        if (group > 1) snprintf(buf, sizeof(buf), "KEEP-OUT ZONE: %d %ss", group, nrv_kind_name(v->haz_kind[k]));
+        else snprintf(buf, sizeof(buf), "KEEP-OUT ZONE: %s", nrv_kind_name(v->haz_kind[k]));
+        navRouteLabel(v->haz[k], -(v->haz[k][3] + 1.4f), buf, 1.0f, 0.62f, 0.2f, model, proj, view);
+    }
+}
+
 void display() {
     prof_begin();
     /* Backstop: the bloom chain must match the live framebuffer size (the
@@ -1993,7 +2145,9 @@ void display() {
         drawRecoveryEffect();
 
 
+        drawNavRoute();
         drawFaceLabels();
+        drawNavRouteLabels();
         glPopMatrix(); /* End of Tactical Mode scaling */
     }
 
@@ -2171,6 +2325,44 @@ void display() {
             sprintf(buf, "SHIP STATUS: %s", st_name);
         }
         drawText3D((float)x_off, (float)y_pos, 0, buf); y_pos -= 20;
+
+        /* `nav` collision-free course */
+        if (g_shared_state->route.active) {
+            const SharedRoute *rt = &g_shared_state->route;
+            double extra = (rt->direct > 1e-6) ? 100.0 * (rt->length - rt->direct) / rt->direct : 0.0;
+            double blink = sin(glfwGetTime() * 4.0) * 0.25 + 0.75;
+            if (rt->flags & NRV_FLAG_PARTIAL) glColor3f(1.0f, (GLfloat)(0.35 * blink), 0.15f);
+            else glColor3f(0.25f, (GLfloat)(0.9 * blink), 1.0f);
+            int wps = rt->total > 0 ? rt->total - 1 : 0;   /* waypoints, the end excluded */
+            char wpbuf[48];
+            if (wps == 0) snprintf(wpbuf, sizeof(wpbuf), "DIRECT LINE");
+            else if (rt->passed >= wps) snprintf(wpbuf, sizeof(wpbuf), "FINAL LEG (%d WP passed)", wps);
+            else snprintf(wpbuf, sizeof(wpbuf), "NEXT WP %d OF %d", rt->passed + 1, wps);
+            snprintf(buf, sizeof(buf), "NAV COURSE: %s - %s - %.1f u (%+.1f%% on direct) - ETA %.1f s",
+                     (rt->flags & NRV_FLAG_PARTIAL) ? "STOPS SHORT" : "COLLISION-FREE",
+                     wpbuf, rt->length, extra, g_shared_state->shm_eta);
+            drawText3D((float)x_off, (float)y_pos, 0, buf);
+            y_pos -= 20;
+            if (rt->hazard_count > 0) {
+                int cnt[17] = { 0 };
+                for (int h = 0; h < rt->hazard_count; h++)
+                    if (rt->hazards[h].kind > 0 && rt->hazards[h].kind < 17) cnt[rt->hazards[h].kind]++;
+                char hz[200];
+                size_t used = 0;
+                hz[0] = '\0';
+                for (int kind = 1; kind < 17; kind++) {
+                    if (!cnt[kind]) continue;
+                    int w = (cnt[kind] == 1) ? snprintf(hz + used, sizeof(hz) - used, "%s%s", used ? ", " : "", nrv_kind_name(kind))
+                                             : snprintf(hz + used, sizeof(hz) - used, "%s%d %ss", used ? ", " : "", cnt[kind], nrv_kind_name(kind));
+                    if (w < 0 || (size_t)w >= sizeof(hz) - used) break;
+                    used += (size_t)w;
+                }
+                glColor3f(1.0f, 0.62f, 0.2f);
+                snprintf(buf, sizeof(buf), "AVOIDING: %s", hz);
+                drawText3D((float)x_off, (float)y_pos, 0, buf);
+                y_pos -= 20;
+            }
+        }
 
         if (g_is_jammed) {
             glColor3f(1.0, 1.0, 1.0);

@@ -35,6 +35,7 @@
 #include "game_state.h"
 #include "obstacles.h"
 #include "orbitables.h"
+#include "nav_autopilot.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -42,6 +43,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 /* --- the network edge -------------------------------------------------- */
 pthread_mutex_t game_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -52,12 +54,15 @@ int threadpool_add_task(threadpool_t *pool, void (*fn)(void *), void *arg) {
     return -1;   /* callers fall back to the synchronous path */
 }
 
-static int g_msgs = 0, g_bad_slot = 0, g_packets = 0;
+static int g_msgs = 0, g_bad_slot = 0, g_packets = 0, g_collisions = 0, g_corrections = 0;
 static char g_last_text[512];
+static char g_last_nav[512];
 void send_server_msg(int p_idx, const char *from, const char *text) {
-    (void)from;
     if (p_idx < -1 || p_idx >= MAX_CLIENTS) g_bad_slot++;
     g_msgs++;
+    if (text && strstr(text, "COLLISION:")) g_collisions++;
+    if (text && strstr(text, "COURSE CORRECTION")) g_corrections++;
+    if (text && from && strcmp(from, "NAVIGATION") == 0) snprintf(g_last_nav, sizeof(g_last_nav), "%s", text);
     snprintf(g_last_text, sizeof(g_last_text), "%s", text ? text : "");
 }
 int write_all(int fd, const void *buf, size_t len) {
@@ -578,6 +583,170 @@ static void test_spawn_point(void) {
     printf("  spawn point: %d of 4000 random quadrants have a taken centre, 0 of the picked ones\n", taken_random);
 }
 
+/* 6. The collision-free course of `nav` (2026.11.07.09, include/nav_route.h,
+ * nav_autopilot.h) on the real galaxy:
+ *   a. aimed straight through a planet, the course bends around it, the
+ *      ship flies it to the end without a collision and never comes within
+ *      the planet's contact distance;
+ *   b. aimed at a planet, the course ends at the edge of its safety zone;
+ *   c. many random jumps all over the galaxy: no collision at all, every
+ *      course ends where it was planned, the deck gets the course
+ *      (UPD_ROUTE fields of the update) while it is flown and not after. */
+static double min_dist_to(const double c[3]) {
+    const ConnectedPlayer *p = &players[CAP];
+    double d[3] = { p->gx - c[0], p->gy - c[1], p->gz - c[2] };
+    return sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+}
+
+static int fly_until_idle(int max_ticks, const double *watch, double *closest) {
+    int t = 0;
+    for (; t < max_ticks; t++) {
+        ticks(1);
+        if (watch && closest) {
+            double d = min_dist_to(watch);
+            if (d < *closest) *closest = d;
+        }
+        if (players[CAP].nav_state == NAV_STATE_IDLE) break;
+    }
+    return t;
+}
+
+static void test_nav_safe_course(void) {
+    int through = 0, ended = 0, aimed = 0;
+    for (int s = 0; s < MAX_PLANETS && through < 6; s++) {
+        const NPCPlanet *pl = &planets[s];
+        if (!pl->active || pl->q1 < 2 || pl->q1 > GALAXY_SIZE - 1 || pl->x < 40 || pl->x > 60 ||
+            pl->y < 20 || pl->y > 80 || pl->z < 20 || pl->z > 80) continue;
+        double c[3] = { (pl->q1 - 1) * QUADRANT_SIZE + pl->x, (pl->q2 - 1) * QUADRANT_SIZE + pl->y,
+                        (pl->q3 - 1) * QUADRANT_SIZE + pl->z };
+        /* the start: 30 units before it on -x, outside every safety zone */
+        spawn_captain(CAP, "TESTCAP", FACTION_ALLIANCE, SHIP_CLASS_EXPLORER, pl->q1, pl->q2, pl->q3,
+                      pl->x - 30.0, pl->y, pl->z);
+        ticks(1);
+        refuel();
+        players[CAP].state.van_h = 90.0;
+        players[CAP].state.van_m = 0.0;
+        g_collisions = 0;
+        run("nav 90 0 0.6 6");
+        if (players[CAP].nav_state != NAV_STATE_ALIGN) continue;    /* walled in: skip this one */
+        CHECK(players[CAP].route_active && players[CAP].nav_route.n >= 3,
+              "nav through planet %d: no detour (n=%d): \"%s\"", s, players[CAP].nav_route.n, g_last_nav);
+        CHECK(players[CAP].upd_packet.route.active == 0 || players[CAP].upd_packet.route.seq != 0, "route seq");
+        double goal[3] = { players[CAP].route_goal[0], players[CAP].route_goal[1], players[CAP].route_goal[2] };
+        ticks(1);
+        CHECK(players[CAP].upd_packet.route.active == 1 && players[CAP].upd_packet.route.count >= 2,
+              "nav through planet %d: the update does not carry the course", s);
+        CHECK(players[CAP].upd_packet.route.hazard_count >= 1, "nav through planet %d: no hazard reported", s);
+        double closest = HUGE_VAL;
+        int t = fly_until_idle(1200, c, &closest);
+        CHECK(t < 1200, "nav through planet %d: still flying after 1200 ticks", s);
+        CHECK(g_collisions == 0, "nav through planet %d: %d collision(s)", s, g_collisions);
+        CHECK(closest > nav_ap_clearance(OBS_PLANET), "nav through planet %d: came within %.3f of its centre", s, closest);
+        double end[3] = { players[CAP].gx, players[CAP].gy, players[CAP].gz };
+        CHECK(nr_dist(end, goal) < 1e-6, "nav through planet %d: stopped %.3f from the end of the course", s,
+              nr_dist(end, goal));
+        ticks(1);
+        CHECK(players[CAP].route_active == 0 && players[CAP].upd_packet.route.active == 0,
+              "nav through planet %d: the course is still shown after the arrival", s);
+        through++;
+
+        /* b. aimed exactly at the planet: ends at the edge of its safety zone */
+        spawn_captain(CAP, "TESTCAP", FACTION_ALLIANCE, SHIP_CLASS_EXPLORER, pl->q1, pl->q2, pl->q3,
+                      pl->x - 30.0, pl->y, pl->z);
+        ticks(1);
+        refuel();
+        g_collisions = 0;
+        run("nav 90 0 0.3 6");
+        if (players[CAP].nav_state == NAV_STATE_ALIGN) {
+            CHECK(players[CAP].nav_route.flags & NAV_RF_GOAL_MOVED, "nav at planet %d: goal not moved", s);
+            fly_until_idle(1200, NULL, NULL);
+            double d = min_dist_to(c);
+            /* at the edge of the planet's zone: drawn radius + 1, a little
+             * more when a neighbour's zone (a moon) overlaps that edge */
+            double cl = nav_ap_clearance(OBS_PLANET);
+            CHECK(g_collisions == 0 && d > cl && d < cl * NAV_ROUTE_SAFETY + NAV_ROUTE_SAFETY_ADD + 2.5,
+                  "nav at planet %d: ended %.3f from it (%d collisions)", s, d, g_collisions);
+            aimed++;
+        }
+    }
+    CHECK(through >= 3, "nav: only %d planets suitable for the through-the-planet test", through);
+
+    /* a2. an object that moves onto the course in flight: a correction is
+     * plotted from where the ship is and nothing is hit */
+    int corrected = 0;
+    for (int s = 0; s < MAX_PLANETS && !corrected; s++) {
+        NPCPlanet *pl = &planets[s];
+        if (!pl->active || pl->q1 < 2 || pl->q1 > GALAXY_SIZE - 1 || pl->x < 45 || pl->x > 55 ||
+            pl->y < 20 || pl->y > 70 || pl->z < 20 || pl->z > 80) continue;
+        spawn_captain(CAP, "TESTCAP", FACTION_ALLIANCE, SHIP_CLASS_EXPLORER, pl->q1, pl->q2, pl->q3,
+                      pl->x - 40.0, pl->y + 20.0, pl->z);
+        ticks(1);
+        refuel();
+        players[CAP].state.van_h = 90.0;
+        players[CAP].state.van_m = 0.0;
+        run("nav 90 0 0.8 2");
+        if (players[CAP].nav_state != NAV_STATE_ALIGN || players[CAP].nav_route.n != 2) continue;
+        while (players[CAP].nav_state == NAV_STATE_ALIGN) ticks(1);
+        double oy = pl->y;
+        pl->y += 20.0;                                   /* the planet drifts onto the course */
+        g_collisions = 0;
+        g_corrections = 0;
+        uint32_t seq0 = players[CAP].route_seq;
+        double c[3] = { (pl->q1 - 1) * QUADRANT_SIZE + pl->x, (pl->q2 - 1) * QUADRANT_SIZE + pl->y,
+                        (pl->q3 - 1) * QUADRANT_SIZE + pl->z };
+        double closest = HUGE_VAL;
+        fly_until_idle(2000, c, &closest);
+        pl->y = oy;
+        CHECK(g_corrections >= 1 && players[CAP].route_seq != seq0, "moving object: no course correction (\"%s\")",
+              g_last_nav);
+        CHECK(g_collisions == 0 && closest > (double)DIST_COLLISION_SHIP,
+              "moving object: %d collision(s), closest %.3f", g_collisions, closest);
+        corrected++;
+    }
+    CHECK(corrected == 1, "nav: no planet suitable for the moving-object test");
+
+    /* c. random jumps over the whole galaxy */
+    srand(77u);
+    int flights = 0, collisions = 0, wrong_end = 0, detours = 0, partial = 0, refused = 0;
+    clock_t c0 = clock();
+    double plan_s = 0.0;
+    for (int k = 0; k < 20; k++) {
+        int q1 = 2 + rand() % (GALAXY_SIZE - 2), q2 = 2 + rand() % (GALAXY_SIZE - 2), q3 = 2 + rand() % (GALAXY_SIZE - 2);
+        spawn_captain(CAP, "TESTCAP", FACTION_ALLIANCE, SHIP_CLASS_EXPLORER, q1, q2, q3,
+                      10 + rand() % 80, 10 + rand() % 80, 10 + rand() % 80);
+        ticks(1);
+        refuel();
+        char line[96];
+        snprintf(line, sizeof(line), "nav %d %d %.2f 9.9", rand() % 360, rand() % 120 - 60, 0.3 + (rand() % 120) / 100.0);
+        g_collisions = 0;
+        g_corrections = 0;
+        clock_t p0 = clock();
+        run(line);
+        plan_s += (double)(clock() - p0) / CLOCKS_PER_SEC;
+        if (players[CAP].nav_state != NAV_STATE_ALIGN) {
+            refused++;
+            continue;
+        }
+        if (players[CAP].nav_route.flags & NAV_RF_DETOUR) detours++;
+        if (players[CAP].nav_route.flags & NAV_RF_PARTIAL) partial++;
+        fly_until_idle(6000, NULL, NULL);
+        flights++;
+        collisions += g_collisions;
+        double end[3] = { players[CAP].gx, players[CAP].gy, players[CAP].gz };
+        double goal[3] = { players[CAP].route_goal[0], players[CAP].route_goal[1], players[CAP].route_goal[2] };
+        if (g_corrections == 0 && nr_dist(end, goal) > 1e-6) wrong_end++;
+    }
+    double secs = (double)(clock() - c0) / CLOCKS_PER_SEC;
+    CHECK(collisions == 0, "random nav: %d collision(s) in %d flights", collisions, flights);
+    CHECK(wrong_end == 0, "random nav: %d flights did not end at the end of their course", wrong_end);
+    CHECK(flights >= 16, "random nav: only %d flights (%d refused)", flights, refused);
+    printf("  nav safe course: %d through a planet, %d aimed at one, %d random flights (%d with detours, %d partial, "
+           "%d refused), 0 collisions, plotting %.1f ms on average, %.2f s in all\n",
+           through, aimed, flights, detours,
+           partial, refused, 1000.0 * plan_s / (flights + refused > 0 ? flights + refused : 1), secs);
+    (void)ended;
+}
+
 int main(void) {
     char tmpl[] = "/tmp/spacegl_cmdtest.XXXXXX";
     char *dir = mkdtemp(tmpl);
@@ -594,6 +763,7 @@ int main(void) {
     test_ranges();
     test_combat();
     test_orbit();
+    test_nav_safe_course();
 
     /* the permanent profile deletion, last */
     refuel();

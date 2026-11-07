@@ -33,6 +33,8 @@
 #define MAX_BEAMS 64
 #define SHM_NAME "/spacegl_shm"
 #define CMD_QUEUE_SIZE 32
+#define SHM_ROUTE_MAX_WP  64   /* = NAV_WIRE_MAX_WP  (include/network.h) */
+#define SHM_ROUTE_MAX_HAZ 16   /* = NAV_WIRE_MAX_HAZ */
 
 /* 
  * Shared State Structure
@@ -86,6 +88,28 @@ typedef struct {
     double gx, gy, gz;
     double vx, vy, vz;
 } SharedProbe;
+
+/* An obstacle the `nav` course bends around (galactic coordinates). */
+typedef struct {
+    double x, y, z;
+    double r;          /* keep-out radius of the course */
+    int kind;          /* OBS_* (include/obstacles.h)   */
+} SharedRouteHazard;
+
+/* The collision-free course of `nav` (UPD_ROUTE, include/route_wire.h):
+ * the waypoints still to fly in galactic coordinates, next one first, the
+ * end of the course last; the ship's own position is where it starts. */
+typedef struct {
+    uint32_t seq;      /* changes on every new course or correction */
+    int active;
+    int flags;         /* NAV_RF_* (include/nav_route.h) */
+    int count;
+    int passed, total;
+    double length, direct;
+    double wp[SHM_ROUTE_MAX_WP][3];
+    int hazard_count;
+    SharedRouteHazard hazards[SHM_ROUTE_MAX_HAZ];
+} SharedRoute;
 
 /* Single Game Frame data */
 #pragma pack(push, 1)
@@ -164,6 +188,8 @@ typedef struct {
     char shm_captain_name[64];
     int shm_target_shields[6];
     long long frame_id;
+
+    SharedRoute route;   /* `nav` course (wire revision 7) */
 } GameState;
 #pragma pack(pop)
 
@@ -208,7 +234,7 @@ typedef struct {
  * shm_layout_check() before touching anything else.
  */
 #define SHM_LAYOUT_MAGIC   0x50494753u   /* "SGIP" */
-#define SHM_LAYOUT_VERSION 2u
+#define SHM_LAYOUT_VERSION 3u   /* 3: GameState.route (2026.11.07.09) */
 
 typedef struct {
     uint32_t layout_magic;

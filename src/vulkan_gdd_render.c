@@ -29,6 +29,8 @@
 
 #include "quadrant_geom.h"
 #include "spacegl_gdd.h"
+#include "shared_state.h"
+#include "nav_route_view.h"
 #include "spacegl_vulkan_types.h"
 #include "sglog.h"
 #include <stdio.h>
@@ -1265,6 +1267,17 @@ void gdd_build_frame(VulkanApp *app, float pulse) {
 
         ctx.galaxy = &app->shm->shm_galaxy[0][0][0];
         ctx.galaxy_size = 40; /* shm_galaxy[41][41][41], coords 1..40 */
+
+        /* `nav` course for the quadrant on screen, from the smoothed ship */
+        static NavRouteView nav_view;
+        nav_view.np = 0;
+        if (n >= 1 && !app->smoothObjs[0].first && st->route.active) {
+            float ship[3] = { app->smoothObjs[0].x, app->smoothObjs[0].y, app->smoothObjs[0].z };
+            NrvInput nin;
+            nrv_input_from_shm(&nin, &st->route, st->shm_q, ship, pulse);
+            nrv_build(&nav_view, &nin);
+        }
+        ctx.nav_route = &nav_view;
     }
 
     gdd_build_instances(&ctx);

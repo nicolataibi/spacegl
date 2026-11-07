@@ -39,6 +39,7 @@
 #include "obj_delta.h"
 #include "sg_tls.h"
 #include "effects_wire.h"
+#include "route_wire.h"
 
 extern uint8_t deep_space_key[32];
 extern void ensure_player_algo_key(int p_idx, int k, bool private_mode);
@@ -610,11 +611,12 @@ enum {
     NET_BLK_OBJECTS,
     NET_BLK_OBJDELTA,
     NET_BLK_MAP,
+    NET_BLK_ROUTE,
     NET_BLK_COUNT
 };
 static const char *const g_blk_name[NET_BLK_COUNT] = {
     "header", "transform", "vitals", "shields", "systems", "internal", "combat",
-    "flags", "effects", "probes", "objects", "object delta", "map"
+    "flags", "effects", "probes", "objects", "object delta", "map", "route"
 };
 static uint64_t g_blk_bytes[NET_BLK_COUNT];
 static uint64_t g_upd_packets;
@@ -743,9 +745,14 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
     
     if (upd->event_count > 0 || upd->torpedo_count > 0 || any_torp || (any_torp != last_any_torp) || upd->wormhole.active || upd->supernova_pos.active) mask |= UPD_EFFECTS;
     if (upd->probes[0].active || upd->probes[1].active || upd->probes[2].active) mask |= UPD_PROBES;
-    
-    if (upd->beam_count > 0 || p->last_sent_state.beam_count > 0) mask |= UPD_COMBAT; 
-    
+
+    if (upd->beam_count > 0 || p->last_sent_state.beam_count > 0) mask |= UPD_COMBAT;
+
+    /* `nav` course: a new plot / correction / drop (seq) or a waypoint passed */
+    if (p->last_sent_state.route.seq != upd->route.seq || p->last_sent_state.route.active != upd->route.active ||
+        p->last_sent_state.route.passed != upd->route.passed || p->last_sent_state.route.count != upd->route.count)
+        mask |= UPD_ROUTE;
+
     ObjDeltaKind od_kind = OBJDELTA_NONE;
     ObjDeltaPlan od_plan = {0};
     bool quadrant_changed = (p->last_q1 != upd->q1 || p->last_q2 != upd->q2 || p->last_q3 != upd->q3);
@@ -889,6 +896,12 @@ void send_optimized_update(int p_idx, PacketUpdate *upd) {
         memcpy(ptr, &b, sizeof(b)); ptr += sizeof(b);
     }
     net_blk_add(NET_BLK_MAP, ptr - mark);
+    mark = ptr;
+    if (mask & UPD_ROUTE) {
+        /* waypoints and hazards it holds only (include/route_wire.h) */
+        ptr += route_wire_write(&upd->route, ptr);
+    }
+    net_blk_add(NET_BLK_ROUTE, ptr - mark);
 
 
     size_t total_size = (size_t)(ptr - buffer);

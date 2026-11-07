@@ -35,6 +35,7 @@
 #include "sg_parse.h"
 #include "obstacles.h"
 #include "orbitables.h"
+#include "nav_autopilot.h"
 #include <stddef.h>
 
 /* Helper macro to safely append to a buffer with length check (used in handle_srs).
@@ -145,7 +146,7 @@ void normalize_upright(double *h, double *m) {
 static const CommandDef command_registry[] = {
     { "dbgspn", handle_dbgspn, "TEMP-DEBUG: spawn local NPCs/monsters" },
     { "dbgnpc", handle_dbgnpc, "TEMP-DEBUG: report NPC state" },
-    { "nav", handle_nav, "Hyperdrive Navigation (H 0-359, M -90/90, W Dist, F Factor 1-9.9)" },
+    { "nav", handle_nav, "Hyperdrive Navigation, collision-free course (H 0-359, M -90/90, W Dist, F Factor 1-9.9)" },
     { "imp", handle_imp, "Impulse Drive (H, M, Speed 0.0-1.0). imp 0 0 0 to stop." },
     { "pos", handle_pos, "Position Ship (Align orientation without movement)" },
     { "vec", handle_vec, "Vector Thrust (H, M, Speed 0.0-1.0): move along course without changing attitude. vec H M 0 to stop." },

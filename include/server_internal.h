@@ -28,6 +28,7 @@
 #include "game_config.h"
 #include "star_system.h"
 #include "sglog.h"
+#include "nav_route.h"
 
 typedef enum { 
     NAV_STATE_IDLE, 
@@ -72,6 +73,19 @@ typedef struct {
     double approach_dist;
     int apr_target;
     OrbitState orbit;       /* NAV_STATE_ORBIT: plane, radius and phase of the circular orbit (orbit_math.h) */
+
+    /* `nav` collision-free course (include/nav_route.h, nav_autopilot.h).
+     * Valid only while nav_autopilot_valid(): ALIGN / HYPERDRIVE without an
+     * approach target, flying to route_goal (= target_g*). */
+    NavRoute nav_route;     /* p[0] = where it was plotted, p[n-1] = the end    */
+    int route_active;
+    int route_next;         /* index in nav_route.p of the waypoint flown to    */
+    uint32_t route_seq;     /* bumped on every plot / correction (UPD_ROUTE)    */
+    int route_check_timer;  /* ticks to the next look at the course ahead       */
+    int route_replan_cooldown;
+    double route_goal[3];
+    int route_n_haz;
+    NetRouteHazard route_haz[NAV_WIRE_MAX_HAZ];
 
     /* Torpedo System (4-Tube Rotary System) */
     struct {

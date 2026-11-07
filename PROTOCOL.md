@@ -4,7 +4,7 @@ Reference for the binary protocol between the command deck (`spacegl_client`)
 and the server (`spacegl_server`), as implemented in `include/network.h`,
 `include/handshake_v2.h`, `src/server/packets.c`, `src/server/net.c` and
 `src/spacegl_client.c`, inside TLS 1.3 (`include/sg_tls.h`, `src/sg_tls.c`).
-Current protocol: **wire revision 6** (2026.11.01.14), handshake v2.
+Current protocol: **wire revision 7** (2026.11.07.09), handshake v2.
 Sizes below are those of this build (x86-64, `#pragma pack(1)`).
 
 ## 1. Transport and framing
@@ -83,14 +83,15 @@ mask         = HMAC-SHA256(PRK, "spacegl v2 galaxy verify" || 0x01)
 ```
 
 - `pubkey_len` is "HSV" followed by the **wire revision**, the layout of
-  the handshake reply and of every packet after it: "HSV6" since
-  2026.11.01.14 (the effects block of variable size, status records in
-  the object delta, section 6); "HSV4" from 2026.10.31.43 (the server
+  the handshake reply and of every packet after it: "HSV7" since
+  2026.11.07.09 (the `UPD_ROUTE` block, the collision-free course of
+  `nav`, section 6); "HSV6" from 2026.11.01.14 (the effects block of
+  variable size, status records in the object delta); "HSV4" from 2026.10.31.43 (the server
   identity in the reply), also in revision 5 (TLS 1.3 around an unchanged
   stream: no deck of revision 4 gets past the first byte, so that hello
   kept its marker), revision 3 from 2026.10.31.30 (the per-object update
   delta), revision 2 from 2026.10.31.08. A hello with another value (a
-  revision-2, -3, -4 or -5 deck, the v1 hello) is refused and the
+  revision-2, -3, -4, -5 or -6 deck, the v1 hello) is refused and the
   connection closed; the key exchange itself is the same v2 in every
   revision.
 - Both sides prove they know `K`; the session key comes from the ephemeral
@@ -179,6 +180,7 @@ then one block per set bit, **in this order**:
 | 9 `UPD_OBJECTS` | `int32 n` + `n` objects (177 B each): the full list of the quadrant |
 | 13 `UPD_OBJDELTA` | the objects that changed, see below (instead of bit 9) |
 | 10 `UPD_MAP` | map cell updates |
+| 14 `UPD_ROUTE` | the `nav` course: variable size, see below (wire revision 7) |
 
 Bit 12 (`UPD_KINEMATICS`, positions and velocities of every object) was
 used up to wire revision 2 and is not sent any more.
@@ -218,6 +220,27 @@ connection on any other block. The full list (`UPD_OBJECTS`) is sent on a
 quadrant change, at least every 5 s, and whenever the delta would not be
 smaller. A tick with no change sends nothing.
 
+`UPD_ROUTE` (wire revision 7, `include/route_wire.h`) is the course the
+captain's `nav` is flying, planned collision-free by the server
+(`include/nav_route.h`, `include/nav_autopilot.h`), after `UPD_MAP`:
+
+```
+uint32 seq; uint8 active, flags, count, hazard_count;
+uint16 passed, total; float length, direct                    (20 B)
+count x float[3]          the waypoints still to fly, galactic coordinates:
+                          the next one first, the end of the course last
+hazard_count x { float x, y, z, r; int32 kind }   (20 B each) the obstacles
+                          the course bends around, with their keep-out radius
+```
+
+`count <= 64`, `hazard_count <= 16`; a count out of range is a protocol
+error. `flags` are the `NAV_RF_*` bits (detour, goal moved out of a keep-out
+zone, start inside one, stops short, goal clamped to the galaxy). The block
+is sent when a course is plotted, corrected in flight (`seq` changes),
+dropped (`active = 0`, `count = 0`) and when a waypoint is passed, and with
+every full update (`UPD_FULL` sets every bit); 20 bytes when there is no
+course.
+
 ## 7. Radio messages
 
 `PacketMessage`: `from[64]`, `faction`, `scope` (0 global, 1 faction,
@@ -252,5 +275,5 @@ error instead of desynchronising later, and update this document and
 binary: move the libFuzzer-grown seeds with a committed script (the
 pattern is `tests/fuzz/migrate_corpus_rev4.py`) so that the change can be
 reproduced from a text patch (`tests/fuzz/migrate_corpus_rev6.py` for
-revision 6). A change of the transport alone (revision 5, TLS) is refused
+revision 6, `tests/fuzz/migrate_corpus_rev7.py` for revision 7). A change of the transport alone (revision 5, TLS) is refused
 before the hello and needed no new marker.

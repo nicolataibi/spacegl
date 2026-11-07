@@ -122,7 +122,7 @@ cmake --build build -j
 
 ## 3. Running the test suite
 
-The suite has **55 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
+The suite has **57 tests** (integrated mode; the standalone mode builds the ones that need no product binary), built in two equivalent modes:
 
 | # | Test | Pins | Production sources under test |
 | :-- | :--- | :--- | :--- |
@@ -162,7 +162,7 @@ The suite has **55 tests** (integrated mode; the standalone mode builds the ones
 | 34 | `gdd_bench` | GDD cull/expand/final compute pass times against thresholds | `gdd_mesh_test --benchmark` |
 | 35 | `server_tick_bench` | server tick: 1000 ticks of the real loop over a worst-case-but-stable scene (with the real LRS grid slices since 2026.11.01.13); avg < `threshold_ms`, p99 < `p99_ms` (`tests/server_tick_thresholds.txt`); reports p99.9, the CPU time per tick next to the wall time, the largest wait for a CPU and the galaxy save image (fresh vs reused buffer) | `src/server/logic.c` + `logic_events.c` + `lrs_grid.c` + `quad_index.c` + `targets.c` + `galaxy_file.c` |
 | 36 | `stability` | real server + real deck for 60 s, server RSS delta ≤ 10 MB (integrated only) | `spacegl_server` + `spacegl_client` (black-box) |
-| 37 | `server_commands` | the command handlers on a real galaxy | `src/server/commands*.c`, galaxy, logic, targets |
+| 37 | `server_commands` | the command handlers on a real galaxy; the `nav` course through and at planets, an object moving onto it in flight, random jumps with no collision | `src/server/commands*.c`, galaxy, logic, targets |
 | 38 | `radio_e2e` | two real decks on the real server: clear, fleet-encrypted, identity-frequency and peer messages, verified | `spacegl_server` + `spacegl_client` (black-box) |
 | 39 | `gl_shape_cache` | OpenGL viewer: display-list shapes match immediate mode; compiled on second use (needs an OpenGL context: skip otherwise) | `src/glut_compat.c` |
 | 40 | `gl_text` | OpenGL viewer text as textured quads: the font's pixels and the raster colour at 8 px, the raster position moved on as by `glBitmap`, exact glyphs at 5/12/16 px, depth as when queued, `glutBitmapString`, under the viewer's point-sprite state (needs an OpenGL context: skip otherwise) | `src/glut_compat.c` |
@@ -180,6 +180,8 @@ The suite has **55 tests** (integrated mode; the standalone mode builds the ones
 | 52 | `smoke_async` | the same with the server in `--io=async` | same |
 | 53 | `orbit` | the circle of `orb`: radius, plane, angular rate, period law (r^1.5), capture without a jump | `include/orbit_math.h` |
 | 54 | `sphere_lod` | the sphere levels of the CPU-driven Vulkan path: level 0 identical to the old 64x128 mesh, indices inside their level, silhouette within 0.5 px (filled) or lines at most 1 px apart (wireframe), dense wireframes drawn filled up to 8 px at every size, full mesh near or behind the camera | `include/sphere_lod.h` |
+| 56 | `nav_route` | the collision-free course of `nav`: straight when clear, detours that never enter a keep-out sphere (single obstacle, walls, 3000 random and 300 dense fields), goal / start inside a keep-out sphere, galaxy box, walled-in goal stops short, determinism, moving object seen on the course | `include/nav_route.h` |
+| 57 | `nav_route_view` | the look of the course shared by the three 3D views: clipped to the quadrant on screen, exit face and next quadrant, rounded corners and waypoint markers, keep-out bubbles, red stop mark, primitive budget, animation | `include/nav_route_view.h` |
 | 55 | `gpu_clock` | the GPU clock helpers of `gpu_golden_check.sh` on fake sysfs trees: i915 (connectors skipped), xe, amdgpu, the rendering vendor's GPU among two, `--gpu-card`, pin and restore (also after SIGINT), clock sampling (the samples at 0 MHz, GPU asleep, counted apart), no supported card | `tests/gpu_clock.sh` |
 
 The tests that use port 5000/5001 run serially (`RUN_SERIAL`); an image or GPU test without a display or an ICD returns 77 (SKIP). Every end-to-end script uses a private `known_servers` file (`SPACEGL_KNOWN_SERVERS`), so a new data directory is not taken for a changed server.

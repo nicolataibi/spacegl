@@ -23,6 +23,7 @@
 #include "conn.h"
 #include "obj_delta.h"
 #include "effects_wire.h"
+#include "route_wire.h"
 
 #include <errno.h>
 #include <math.h>
@@ -80,6 +81,9 @@ static int g_full = 0, g_delta = 0, g_packets = 0;
 static size_t g_obj_bytes = 0;
 static UpdateBlockEffects g_eff;            /* the last UPD_EFFECTS block read */
 static int g_eff_blocks = 0;
+static int g_route_blocks = 0;
+static UpdateBlockRoute g_route;            /* the last UPD_ROUTE block read */
+static size_t g_route_bytes = 0;
 static size_t g_eff_bytes = 0;
 
 /* Reads one PKT_UPDATE_DELTA; false on a protocol error. */
@@ -120,6 +124,12 @@ static bool read_packet(void) {
         g_obj_bytes += (size_t)used;
     }
     if ((mask & UPD_MAP) && !rx_skip(sizeof(UpdateBlockMap))) return false;
+    if (mask & UPD_ROUTE) {     /* wire revision 7: the `nav` course */
+        long used = route_wire_read(&g_route, rx_exact, NULL);
+        if (used < 0) return false;
+        g_route_blocks++;
+        g_route_bytes += (size_t)used;
+    }
     return true;
 }
 
@@ -252,6 +262,55 @@ int main(void) {
     u->wormhole.active = 0;
     if (!tick(u)) errors++;   /* the effects end */
     CHECK(errors == 0, "effects: protocol error in the packet stream");
+
+    /* 5. UPD_ROUTE (wire revision 7): the `nav` course, sent when it is
+     * plotted, when a waypoint is passed and when it is dropped; only the
+     * waypoints and hazards it holds */
+    g_route_blocks = 0;
+    g_route_bytes = 0;
+    memset(&u->route, 0, sizeof(u->route));
+    u->route.seq = 1;
+    u->route.active = 1;
+    u->route.flags = 1;
+    u->route.count = 5;
+    u->route.total = 5;
+    u->route.length = 123.5f;
+    u->route.direct = 120.0f;
+    for (int k = 0; k < 5; k++) {
+        u->route.wp[k][0] = 100.0f + k;
+        u->route.wp[k][1] = 200.5f;
+        u->route.wp[k][2] = 300.25f * k;
+    }
+    u->route.hazard_count = 2;
+    for (int k = 0; k < 2; k++) {
+        u->route.hazards[k].x = 1.5f * k;
+        u->route.hazards[k].r = 2.0f;
+        u->route.hazards[k].kind = 1 + k;
+    }
+    if (!tick(u)) errors++;
+    CHECK(g_route_blocks == 1, "route: %d blocks received (1 expected)", g_route_blocks);
+    CHECK(g_route.seq == 1 && g_route.active == 1 && g_route.count == 5 && g_route.hazard_count == 2,
+          "route: header seq %u active %u count %u hazards %u", g_route.seq, g_route.active, g_route.count,
+          g_route.hazard_count);
+    CHECK(memcmp(g_route.wp, u->route.wp, 5 * sizeof(u->route.wp[0])) == 0, "route: the waypoints differ");
+    CHECK(memcmp(g_route.hazards, u->route.hazards, 2 * sizeof(NetRouteHazard)) == 0, "route: the hazards differ");
+    size_t rwant = ROUTE_WIRE_HEAD + 5 * sizeof(u->route.wp[0]) + 2 * sizeof(NetRouteHazard);
+    CHECK(g_route_bytes == rwant, "route: %zu bytes on the wire (%zu expected)", g_route_bytes, rwant);
+    for (int t = 0; t < 5; t++)
+        if (!tick(u)) errors++;
+    CHECK(g_route_blocks == 1, "route: an unchanged course is not sent again (%d blocks)", g_route_blocks);
+    u->route.passed = 1;                          /* a waypoint passed */
+    u->route.count = 4;
+    memmove(u->route.wp, u->route.wp + 1, 4 * sizeof(u->route.wp[0]));
+    if (!tick(u)) errors++;
+    CHECK(g_route_blocks == 2 && g_route.count == 4 && g_route.passed == 1, "route: waypoint passed re-sent");
+    memset(&u->route, 0, sizeof(u->route));      /* dropped */
+    u->route.seq = 2;
+    if (!tick(u)) errors++;
+    CHECK(g_route_blocks == 3 && g_route.active == 0 && g_route.count == 0, "route: drop re-sent");
+    CHECK(errors == 0, "route: protocol error in the packet stream");
+    printf("  route block: %zu bytes for 5 waypoints and 2 hazards (head %zu)\n",
+           ROUTE_WIRE_HEAD + 5 * sizeof(u->route.wp[0]) + 2 * sizeof(NetRouteHazard), (size_t)ROUTE_WIRE_HEAD);
 
     close(sv[0]); close(sv[1]);
     printf("update_delta: %d passed, %d failed\n", g_pass, g_fail);

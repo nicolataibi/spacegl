@@ -78,9 +78,13 @@
  *   "HSV6"  revision 6, 2026.11.01.14: the UPD_EFFECTS block carries only
  *           the events and torpedoes it holds (include/effects_wire.h);
  *           a deck of revision 5 (inside TLS, "HSV4") is refused at the
- *           hello. */
-#define SPACEGL_WIRE_REVISION  6
-#define HANDSHAKE_V2_MARKER    0x36565348   /* "HSV6" (little endian) in pubkey_len */
+ *           hello.
+ *   "HSV7"  revision 7, 2026.11.07.09: the UPD_ROUTE block (the
+ *           collision-free course of `nav`, include/route_wire.h); a deck
+ *           of revision 6 is refused at the hello. */
+#define SPACEGL_WIRE_REVISION  7
+#define HANDSHAKE_V2_MARKER    0x37565348   /* "HSV7" (little endian) in pubkey_len */
+#define HANDSHAKE_MARKER_REV6  0x36565348   /* "HSV6": a revision-6 deck, refused */
 #define HANDSHAKE_MARKER_REV2  0x32565348   /* "HSV2": a revision-2 deck, refused */
 #define HANDSHAKE_MARKER_REV3  0x33565348   /* "HSV3": a revision-3 deck, refused */
 #define HANDSHAKE_MARKER_REV4  0x34565348   /* "HSV4": a revision-4 or -5 deck, refused */

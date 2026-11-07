@@ -376,7 +376,16 @@ int main(void) {
         TEST_CHECK(dispatch_packet(&io, PKT_HANDSHAKE) == 1);
         TEST_CHECK(fcntl(sv[1], F_GETFD) == -1 && errno == EBADF);
         close(sv[0]);
-        printf("[6] dispatcher: v1, revision-3 and revision-5 hellos dropped, revision-%d hello answered and signed, "
+        /* a revision-6 hello ("HSV6", valid MAC) is refused since revision 7 */
+        TEST_CHECK(socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == 0);
+        TEST_CHECK(hs_v2_client_hello(K, p.pubkey, &st));
+        p.pubkey_len = HANDSHAKE_MARKER_REV6;
+        TEST_CHECK(write(sv[0], ((char *)&p) + sizeof(int32_t), body) == (ssize_t)body);
+        io.fd = sv[1];
+        TEST_CHECK(dispatch_packet(&io, PKT_HANDSHAKE) == 1);
+        TEST_CHECK(fcntl(sv[1], F_GETFD) == -1 && errno == EBADF);
+        close(sv[0]);
+        printf("[6] dispatcher: v1, revision-3, -5 and -6 hellos dropped, revision-%d hello answered and signed, "
                "session key shared: OK\n",
                SPACEGL_WIRE_REVISION);
     }

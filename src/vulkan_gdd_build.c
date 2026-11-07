@@ -32,6 +32,7 @@
 #include "object_types.h"
 #include "quadrant_geom.h"
 #include "spacegl_gdd.h"
+#include "nav_route_view.h"
 #include "spacegl_vulkan_types.h"
 #include "sglog.h"
 
@@ -1303,6 +1304,50 @@ void gdd_build_instances(const GddBuildCtx *ctx) {
                     gdd_list_add_identity(&dyn, GDD_MESH_LINE, px + d[0], py + d[1], pz + d[2], d[0], d[1], d[2],
                                           1.0f, 0.75f, 0.0f, 0.4f, 0, 1, GDD_FRAG_UNLIT, GDD_HAIRLINE, 0);
                 }
+            }
+        }
+    }
+
+    /* ---------------------------------------------------------------- */
+    /* 3b. `nav` collision-free course (include/nav_route_view.h): the  */
+    /*     primitives shared with the OpenGL and CPU-driven views, as   */
+    /*     additive unlit instances: tubes and hairlines on             */
+    /*     GDD_MESH_LINE, rings on GDD_MESH_CIRCLE (its local XZ plane  */
+    /*     turned so that local Y is the ring normal), dots on          */
+    /*     GDD_MESH_SPHERE.                                             */
+    /* ---------------------------------------------------------------- */
+    if (ctx->map_anim < 0.99f && ctx->nav_route && ctx->nav_route->np > 0) {
+        const NavRouteView *nv = ctx->nav_route;
+        for (int k = 0; k < nv->np; k++) {
+            const NrvPrim *pr = &nv->prim[k];
+            float ax = pr->a[0] * ts, ay = pr->a[1] * ts, az = pr->a[2] * ts;
+            if (pr->type == NRV_TUBE || pr->type == NRV_LINE) {
+                float dx = (pr->b[0] - pr->a[0]) * ts, dy = (pr->b[1] - pr->a[1]) * ts, dz = (pr->b[2] - pr->a[2]) * ts;
+                if (dx * dx + dy * dy + dz * dz < 1e-10f) continue;
+                gdd_list_add(&dyn, GDD_MESH_LINE, ax, ay, az, dx, dy, dz,
+                             pr->c[0], pr->c[1], pr->c[2], pr->c[3], 1, 1, GDD_FRAG_UNLIT, GDD_ORIENT_ID,
+                             pr->type == NRV_TUBE ? pr->r * ts : GDD_HAIRLINE, 0.0f);
+            } else if (pr->type == NRV_RING) {
+                float sx[3], sz[3];
+                float ny[3] = { pr->b[0], pr->b[1], pr->b[2] };
+                float tmp[3];
+                nrv_basis(ny, sx, tmp);
+                nrv_cross(sx, ny, sz);                 /* right-handed: X, Y = normal, Z */
+                gdd_m3 m;
+                for (int q = 0; q < 3; q++) {
+                    m[0][q] = sx[q];
+                    m[1][q] = ny[q];
+                    m[2][q] = sz[q];
+                }
+                float ring_o[12];
+                gdd_orient_from_m3(ring_o, m);
+                float rr = pr->r * ts;
+                gdd_list_add(&dyn, GDD_MESH_CIRCLE, ax, ay, az, rr, rr, rr,
+                             pr->c[0], pr->c[1], pr->c[2], pr->c[3], 1, 1, GDD_FRAG_UNLIT, ring_o, GDD_HAIRLINE, 0.0f);
+            } else if (pr->type == NRV_DOT) {
+                float rr = pr->r * ts;
+                gdd_list_add_identity(&dyn, GDD_MESH_SPHERE, ax, ay, az, rr, rr, rr,
+                                      pr->c[0], pr->c[1], pr->c[2], pr->c[3], 1, 1, GDD_FRAG_UNLIT, 0.0f, 0.0f);
             }
         }
     }

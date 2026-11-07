@@ -53,6 +53,16 @@ static double calculate_hyperdrive_speed(double factor) {
     return factor / COEFF_HYPER_DIVISOR;
 }
 
+/*
+ * nav <H> <M> <W> [Factor]: hyperdrive jump of W quadrants on heading H,
+ * mark M. Since 2026.11.07.09 the jump flies a collision-free course
+ * (include/nav_autopilot.h): the straight line when it is clear, otherwise
+ * a course that bends around every obstacle on the way (solid objects, the
+ * keep-out of black holes and pulsars, other ships) and is corrected in
+ * flight when something moves onto it. The course goes to the deck in the
+ * UPD_ROUTE block and is drawn by the 3D views. Nothing is spent when no
+ * safe course exists.
+ */
 void handle_nav(int i, const char *params, bool *should_disconnect) {
     (void)params; (void)should_disconnect;
     double h, m, w, factor = 6.0;
@@ -70,22 +80,45 @@ void handle_nav(int i, const char *params, bool *should_disconnect) {
         }
         if (factor < (float)DIST_BOUNDARY_MARGIN) factor = (float)DIST_BOUNDARY_MARGIN; 
         if (factor > (float)SPEED_HYPER_MAX) factor = (float)SPEED_HYPER_MAX;
+        if (!isfinite(w)) w = 0.0;
         normalize_upright(&h, &m);
-        players[i].target_h = h; 
-        players[i].target_m = m;
-        players[i].start_h = players[i].state.van_h; 
-        players[i].start_m = players[i].state.van_m;
         double rad_h = h * M_PI / 180.0; 
         double rad_m = m * M_PI / 180.0;
-        players[i].dx = cos(rad_m) * sin(rad_h); 
-        players[i].dy = cos(rad_m) * -cos(rad_h); 
-        players[i].dz = sin(rad_m);
-        players[i].target_gx = players[i].gx + players[i].dx * w * QUADRANT_SIZE;
-        players[i].target_gy = players[i].gy + players[i].dy * w * QUADRANT_SIZE;
-        players[i].target_gz = players[i].gz + players[i].dz * w * QUADRANT_SIZE;
-        
-        players[i].hyper_speed = calculate_hyperdrive_speed(factor); 
-        players[i].nav_state = NAV_STATE_ALIGN; 
+        double dir[3] = { cos(rad_m) * sin(rad_h), cos(rad_m) * -cos(rad_h), sin(rad_m) };
+        double start[3] = { players[i].gx, players[i].gy, players[i].gz };
+        double goal[3] = { start[0] + dir[0] * w * QUADRANT_SIZE,
+                           start[1] + dir[1] * w * QUADRANT_SIZE,
+                           start[2] + dir[2] * w * QUADRANT_SIZE };
+
+        /* --- collision-free course: planned before anything is spent --- */
+        NavRoute route;
+        NetRouteHazard haz[NAV_WIRE_MAX_HAZ];
+        int n_haz = 0;
+        NavApInfo info = { 0, 0, 0 };
+        int rc = nav_ap_plan_ex(i, start, goal, &route, haz, &n_haz, &info);
+        if (rc < 0 || route.length < 1e-6) {
+            char msg[256];
+            if (info.block_kind)
+                SG_SPRINTF(msg, "NO SAFE COURSE: the way is walled in by a %s. Hyperdrive not engaged.", obs_kind_name(info.block_kind));
+            else
+                SG_SPRINTF(msg, "NO SAFE COURSE on heading %.1f mark %.1f. Hyperdrive not engaged.", h, m);
+            send_server_msg(i, "NAVIGATION", msg);
+            return;
+        }
+        nav_ap_install(i, &route, haz, n_haz);
+
+        /* align on the first leg of the course, not on the raw heading */
+        double leg[3], th = h, tm = m;
+        nr_sub(route.p[1], route.p[0], leg);
+        if (sa_norm(leg, leg) > 1e-9) nav_route_dir_to_hm(leg, &th, &tm);
+        players[i].target_h = th;
+        players[i].target_m = tm;
+        players[i].start_h = players[i].state.van_h;
+        players[i].start_m = players[i].state.van_m;
+
+        players[i].hyper_speed = calculate_hyperdrive_speed(factor);
+        players[i].nav_state = NAV_STATE_ALIGN;
+        players[i].apr_target = 0;
         players[i].is_docked = 0;
         players[i].state.energy -= COST_HYPERDRIVE_INIT;
         players[i].state.inventory[1] -= 1;
@@ -94,8 +127,41 @@ void handle_nav(int i, const char *params, bool *should_disconnect) {
         while(dh<-180) dh+=360;
         players[i].nav_timer = (fabs(dh)<1.0 && fabs(players[i].target_m - players[i].state.van_m)<1.0) ? (GAME_TICK_RATE / 6) : (int)GAME_TICK_RATE;
         players[i].align_timer = players[i].nav_timer;
-        char msg[128]; SG_SPRINTF(msg, "Course plotted. Aligning for Hyperdrive %.1f.", factor);
+        char msg[320];
+        SG_SPRINTF(msg, "Course plotted. Aligning for Hyperdrive %.1f.", factor);
         send_server_msg(i, "HELMSMAN", msg);
+
+        /* --- what the navigation computer found --- */
+        double speed_s = players[i].hyper_speed * (double)GAME_TICK_RATE;
+        double eta = (speed_s > 1e-9) ? route.length / speed_s : 0.0;
+        int wps = route.n - 2;
+        if (!(route.flags & NAV_RF_DETOUR) && wps == 0) {
+            SG_SPRINTF(msg, "Safe course: direct line clear of every object, %.1f units, ETA %.1f s.", route.length, eta);
+        } else {
+            char hz[200];
+            nav_ap_hazard_text(haz, n_haz, hz, sizeof(hz));
+            double extra_pct = (route.direct > 1e-9) ? 100.0 * (route.length - route.direct) / route.direct : 0.0;
+            SG_SPRINTF(msg, "Safe course: %d waypoint%s, %.1f units (%+.1f%% on the direct line), ETA %.1f s.%s%s",
+                       wps, wps == 1 ? "" : "s", route.length, extra_pct, eta,
+                       hz[0] ? " Avoiding: " : "", hz);
+        }
+        send_server_msg(i, "NAVIGATION", msg);
+        if (route.flags & NAV_RF_START_INSIDE)
+            send_server_msg(i, "NAVIGATION", "Leaving the safety zone around the ship's position first.");
+        if (route.flags & NAV_RF_GOAL_MOVED) {
+            SG_SPRINTF(msg, "Destination inside the safety zone of a %s: the course ends at its edge.",
+                       info.goal_kind ? obs_kind_name(info.goal_kind) : "object");
+            send_server_msg(i, "NAVIGATION", msg);
+        }
+        if (route.flags & NAV_RF_BOUNDED)
+            send_server_msg(i, "NAVIGATION", "Destination beyond the galactic limit: the course ends at the boundary.");
+        if (route.flags & NAV_RF_PARTIAL) {
+            const double *end = route.p[route.n - 1];
+            double miss = nr_dist(end, goal);
+            SG_SPRINTF(msg, "WARNING: no safe way past a %s. The course stops %.1f units short of the destination.",
+                       info.block_kind ? obs_kind_name(info.block_kind) : "cluster of objects", miss);
+            send_server_msg(i, "NAVIGATION", msg);
+        }
     } else send_server_msg(i, "COMPUTER", "Usage: nav <H> <M> <W> [Factor]");
 }
 

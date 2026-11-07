@@ -217,6 +217,20 @@ add_executable(steer_avoid_test steer_avoid_test.c)
 target_link_libraries(steer_avoid_test PRIVATE m)
 add_test(NAME steer_avoid COMMAND steer_avoid_test)
 
+# --- Collision-free course of the `nav` command (header-only,
+# include/nav_route.h): detours never enter a keep-out sphere, goal / start
+# inside one, walled-in goal, random and dense fields --------------------------
+add_executable(nav_route_test nav_route_test.c)
+target_link_libraries(nav_route_test PRIVATE m)
+add_test(NAME nav_route COMMAND nav_route_test)
+
+# --- The look of the `nav` course shared by the 3D views (header-only,
+# include/nav_route_view.h): clipping to the quadrant, exit face, markers,
+# keep-out bubbles, primitive budget ---------------------------------------
+add_executable(nav_route_view_test nav_route_view_test.c)
+target_link_libraries(nav_route_view_test PRIVATE m)
+add_test(NAME nav_route_view COMMAND nav_route_view_test)
+
 # --- Orbit geometry (include/orbit_math.h): the circle of the `orb` command ---
 add_executable(orbit_test orbit_test.c)
 target_link_libraries(orbit_test PRIVATE m)

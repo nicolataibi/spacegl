@@ -40,6 +40,7 @@
 #include "shared_state.h"
 #include "nav_math.h"
 #include "obstacles.h"
+#include "nav_autopilot.h"
 #include "ui.h"
 #include "logic_internal.h"
 
@@ -448,7 +449,33 @@ static void nav_tick_hyperdrive(int i) {
         players[i].eta = 0;
     }
 
-    if (dist_to_target <= step) {
+    if (nav_ap_valid(&players[i])) {
+        /* collision-free course of `nav` (include/nav_autopilot.h): watch the
+         * course ahead for a moving object, then fly along the waypoints */
+        char cmsg[256];
+        int w = nav_ap_watch(i, cmsg, sizeof(cmsg));
+        if (w < 0) {
+            players[i].nav_state = NAV_STATE_IDLE;
+            players[i].hyper_speed = 0;
+            players[i].eta = 0;
+            players[i].dx = 0;
+            players[i].dy = 0;
+            players[i].dz = 0;
+            nav_ap_clear(&players[i]);
+            send_server_msg(i, "NAVIGATION", cmsg);
+            return;
+        }
+        if (w > 0) send_server_msg(i, "NAVIGATION", cmsg);
+        double pos[3] = { players[i].gx, players[i].gy, players[i].gz };
+        if (speed_per_sec > 0.01) players[i].eta = nav_ap_remaining(&players[i], pos) / speed_per_sec;
+        if (nav_ap_follow(i, step)) {
+            players[i].nav_state = NAV_STATE_IDLE;
+            players[i].hyper_speed = 0;
+            players[i].eta = 0;
+            nav_ap_clear(&players[i]);
+            send_server_msg(i, "HELMSMAN", "Target reached. Dropping out of Hyperdrive.");
+        }
+    } else if (dist_to_target <= step) {
         players[i].gx = players[i].target_gx;
         players[i].gy = players[i].target_gy;
         players[i].gz = players[i].target_gz;
@@ -1090,6 +1117,11 @@ static void update_fill_state(int i, PacketUpdate *upd) {
     upd->shm_crypto_algo = players[i].state.shm_crypto_algo;
     upd->encryption_flags = players[i].state.encryption_flags;
     upd->radio_lock_target = players[i].radio_lock_target;
+
+    /* `nav` course (UPD_ROUTE): dropped as soon as the ship stops flying it
+     * (arrival, collision, another helm command, an approach...) */
+    if (players[i].route_active && !nav_ap_valid(&players[i])) nav_ap_clear(&players[i]);
+    nav_ap_fill_wire(&players[i], &upd->route);
 }
 
 /* The objects of the captain's quadrant into the update packet: the ship

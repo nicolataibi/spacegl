@@ -508,6 +508,10 @@ typedef struct {
     float pilot_throttle; /* last committed throttle 0.0..1.0 (for HUD bar)    */
 
 
+    /* --- `nav` collision-free course (include/nav_route_view.h), built by
+     *     the caller for the quadrant on screen; NULL = none --- */
+    const struct NavRouteView *nav_route;
+
     /* --- static geometry inputs --- */
     const GddStar *stars; int star_count;   /* persistent starfield */
     /* Pointer to shm_galaxy[gs+1][gs+1][gs+1] (C layout, stride gs+1);

@@ -1,3 +1,52 @@
+* Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.09
+  - nav: the hyperdrive jump flies a collision-free course. Before, `nav`
+  went in a straight line and stopped on the first object in the way
+  (collision, hull damage). Now the server plans the course before
+  anything is spent (include/nav_route.h, pure geometry): the straight
+  line when it is clear, otherwise a course that bends around the
+  keep-out sphere of every object on the way (solid objects, the gravity
+  well of black holes, pulsar beams, other ships) along tangents and a
+  polygon circumscribed to the sphere, in the cheapest of 12 planes around
+  the line; overlapping spheres are merged into one detour; every
+  waypoint that can be skipped is dropped. The keep-out radius is at least
+  the size the 3D views draw the object at plus one unit (planet 2.8,
+  star 3.5, black hole 6.0 with its disk), so the course on screen never
+  grazes what it avoids. A destination inside a keep-out zone ends at its
+  edge, a start inside one leaves it first, a destination beyond the
+  galaxy ends at the boundary, a walled-in destination stops short (and
+  says so); with no safe course at all nothing is spent. The obstacles
+  are gathered along the corridor of the jump, again along the course
+  found, and planned again (include/nav_autopilot.h); 0.3-0.8 ms per plot.
+  In flight the ship follows the waypoints turning smoothly onto each leg,
+  the ETA follows the course, and 5 times a second the course ahead is
+  checked for an object that moved onto it (comet, orbiting moon): a
+  correction is plotted from where the ship is ("COURSE CORRECTION").
+  The NAVIGATION officer reports the course (waypoints, length, detour
+  share, ETA, what it avoids).
+  - Protocol, wire revision 7 ("HSV7"; a revision-6 deck is refused at the
+  hello): the UPD_ROUTE block (bit 14, include/route_wire.h, PROTOCOL.md
+  section 6): the waypoints still to fly and the obstacles bent around,
+  sent on a plot, a correction, a waypoint passed and the drop. Shared
+  memory layout 3: GameState.route.
+  - 3D views (OpenGL, Vulkan GPU-driven and CPU-driven): the course from
+  the ship to the end, or to where it leaves the quadrant, drawn from one
+  shared description (include/nav_route_view.h): a glowing ribbon with
+  rounded corners, cyan turning violet (red when it stops short), energy
+  pulses and arrowheads flowing along it, a spinning marker at every
+  waypoint, amber keep-out bubbles with a scanning ring around the
+  obstacles it avoids, a beacon at the destination, an exit gate with a
+  tunnel of frames on the face it leaves by, its shadow on the floor of
+  the cube. OpenGL adds labels (DESTINATION / ETA, COURSE EXIT -> Q[..],
+  WPn, KEEP-OUT ZONE) and a NAV COURSE line in the HUD.
+  - Fix: `nav` cleared a stale approach target (a `nav` after an `apr`
+  could turn into an approach).
+  - Tests: nav_route (geometry, 3000 random and 300 dense fields, no leg
+  ever enters a keep-out sphere), nav_route_view; server_commands flies
+  through and at planets of the real galaxy, with a planet moving onto the
+  course in flight, and random jumps, with no collision; update_delta and
+  handshake_v2 cover UPD_ROUTE and the revision-6 refusal; fuzz corpus
+  moved to revision 7 (tests/fuzz/migrate_corpus_rev7.py).
+
 * Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.08
   - Fix, tests/gpu_golden_check.sh: the clock of a run pinned at 2400 MHz
   on the Arc A770 read "1800 0-2400" and the check called the rows not

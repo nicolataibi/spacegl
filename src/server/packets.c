@@ -334,11 +334,12 @@ int dispatch_packet(PktIO *io, int32_t type) {
              * told nothing it could use and dropped. */
             if (h_pkt.pubkey_len != HANDSHAKE_V2_MARKER) {
                 if (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV2 || h_pkt.pubkey_len == HANDSHAKE_MARKER_REV3 ||
-                    h_pkt.pubkey_len == HANDSHAKE_MARKER_REV4) {
+                    h_pkt.pubkey_len == HANDSHAKE_MARKER_REV4 || h_pkt.pubkey_len == HANDSHAKE_MARKER_REV6) {
                     /* "HSV4": revision 4 in clear (refused before, at the
                      * TLS byte) or revision 5 inside TLS */
                     int rev = (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV2)   ? 2
                               : (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV3) ? 3
+                              : (h_pkt.pubkey_len == HANDSHAKE_MARKER_REV6) ? 6
                                                                             : 5;
                     SG_WARNING(SG_CAT_SECURITY, "fd %d: deck of wire revision %d refused (revision %d required)",
                                fd, rev, SPACEGL_WIRE_REVISION);

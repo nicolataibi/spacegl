@@ -28,6 +28,7 @@
 #include "vulkan_device_internal.h"
 #include "vulkan_cpu_lod.h"   /* after the Vulkan headers: wraps vkCmdPushConstants / vkCmdBindPipeline */
 #include "frame_bench.h"
+#include "nav_route_view.h"
 #include <time.h>
 
 char s_shot_path[512] = {0};
@@ -227,6 +228,123 @@ void vkgt_destroy(VkDevice dev) {
     g_gt.state = -1;
 }
 
+
+/* ------------------------------------------------------------------ */
+/* `nav` collision-free course (include/nav_route_view.h), CPU-driven   */
+/* path: the shared primitives on the meshes it already has - tubes on  */
+/* the solid unit cube stretched along the segment (additive glow       */
+/* pipeline), dots on the sphere, hairlines on the X axis of the axes   */
+/* mesh and rings on the unit circle (local XZ, normal +Y), both with   */
+/* the blended line pipeline.                                           */
+/* ------------------------------------------------------------------ */
+static NavRouteView g_vk_nav_view;
+
+/* model = S * R * T (row-vector convention of the engine): R rows are the
+ * images of the local X, Y, Z axes. */
+static void nav_vk_model(mat4 out, const float x[3], const float y[3], const float z[3],
+                         float sx, float sy, float sz, const float pos[3]) {
+    mat4 S, R, T, M;
+    mat4_scale(S, (vec3){ sx, sy, sz });
+    mat4_identity(R);
+    for (int q = 0; q < 3; q++) {
+        R[0][q] = x[q];
+        R[1][q] = y[q];
+        R[2][q] = z[q];
+    }
+    mat4_translate(T, (vec3){ pos[0], pos[1], pos[2] });
+    mat4_multiply(S, R, M);
+    mat4_multiply(M, T, out);
+}
+
+static void nav_vk_push(VkCommandBuffer cb, VulkanApp *app, PushConstants *pc, const float c[4]) {
+    pc->color[0] = c[0];
+    pc->color[1] = c[1];
+    pc->color[2] = c[2];
+    pc->color[3] = c[3];
+    pc->usePushColor = 1;
+    vkCmdPushConstants(cb, app->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(*pc), pc);
+}
+
+static void drawNavRouteVk(VkCommandBuffer cb, VulkanApp *app, GameState *st, float pulse, float ts) {
+    if (st->object_count < 1 || app->smoothObjs[0].first || !st->route.active) return;
+    float ship[3] = { app->smoothObjs[0].x, app->smoothObjs[0].y, app->smoothObjs[0].z };
+    NrvInput in;
+    nrv_input_from_shm(&in, &st->route, st->shm_q, ship, pulse);
+    if (nrv_build(&g_vk_nav_view, &in) == 0) return;
+    const NavRouteView *v = &g_vk_nav_view;
+    VkDeviceSize off = 0;
+
+    /* 1. tubes and dots: additive */
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->glowPipeline);
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->cubeVertexBuffer, &off);
+    vkCmdBindIndexBuffer(cb, app->cubeSolidIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    for (int k = 0; k < v->np; k++) {
+        const NrvPrim *p = &v->prim[k];
+        if (p->type != NRV_TUBE) continue;
+        float d[3] = { p->b[0] - p->a[0], p->b[1] - p->a[1], p->b[2] - p->a[2] };
+        float L = nrv_len3(d);
+        if (L < 1e-5f) continue;
+        d[0] /= L;
+        d[1] /= L;
+        d[2] /= L;
+        float sv[3], uv[3];
+        nrv_basis(d, sv, uv);
+        float mid[3] = { (p->a[0] + p->b[0]) * 0.5f * ts, (p->a[1] + p->b[1]) * 0.5f * ts, (p->a[2] + p->b[2]) * 0.5f * ts };
+        PushConstants pc = { 0 };
+        nav_vk_model(pc.model, d, uv, sv, L * ts, 2.0f * p->r * ts, 2.0f * p->r * ts, mid);
+        nav_vk_push(cb, app, &pc, p->c);
+        vkCmdDrawIndexed(cb, 36, 1, 0, 0, 0);
+    }
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->sphereVertexBuffer, &off);
+    vkCmdBindIndexBuffer(cb, app->sphereIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    static const float ex[3] = { 1, 0, 0 }, ey[3] = { 0, 1, 0 }, ez[3] = { 0, 0, 1 };
+    for (int k = 0; k < v->np; k++) {
+        const NrvPrim *p = &v->prim[k];
+        if (p->type != NRV_DOT) continue;
+        float c[3] = { p->a[0] * ts, p->a[1] * ts, p->a[2] * ts };
+        PushConstants pc = { 0 };
+        nav_vk_model(pc.model, ex, ey, ez, p->r * ts, p->r * ts, p->r * ts, c);
+        nav_vk_push(cb, app, &pc, p->c);
+        vk_draw_sphere(cb);
+    }
+
+    /* 2. hairlines and rings: blended lines */
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->wireframePipeline);
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->axesVertexBuffer, &off);
+    vkCmdBindIndexBuffer(cb, app->axesIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    for (int k = 0; k < v->np; k++) {
+        const NrvPrim *p = &v->prim[k];
+        if (p->type != NRV_LINE) continue;
+        float d[3] = { p->b[0] - p->a[0], p->b[1] - p->a[1], p->b[2] - p->a[2] };
+        float L = nrv_len3(d);
+        if (L < 1e-5f) continue;
+        d[0] /= L;
+        d[1] /= L;
+        d[2] /= L;
+        float sv[3], uv[3];
+        nrv_basis(d, sv, uv);
+        float mid[3] = { (p->a[0] + p->b[0]) * 0.5f * ts, (p->a[1] + p->b[1]) * 0.5f * ts, (p->a[2] + p->b[2]) * 0.5f * ts };
+        PushConstants pc = { 0 };
+        nav_vk_model(pc.model, d, uv, sv, L * ts / 11.0f, 1.0f, 1.0f, mid);   /* axes mesh: X from -5.5 to 5.5 */
+        nav_vk_push(cb, app, &pc, p->c);
+        vkCmdDrawIndexed(cb, 2, 1, 0, 0, 0);
+    }
+    vkCmdBindVertexBuffers(cb, 0, 1, &app->circleVertexBuffer, &off);
+    vkCmdBindIndexBuffer(cb, app->circleIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    for (int k = 0; k < v->np; k++) {
+        const NrvPrim *p = &v->prim[k];
+        if (p->type != NRV_RING) continue;
+        float ny[3] = { p->b[0], p->b[1], p->b[2] }, sx[3], tmp[3], sz[3];
+        nrv_basis(ny, sx, tmp);
+        nrv_cross(sx, ny, sz);
+        float c[3] = { p->a[0] * ts, p->a[1] * ts, p->a[2] * ts };
+        PushConstants pc = { 0 };
+        nav_vk_model(pc.model, sx, ny, sz, p->r * ts, p->r * ts, p->r * ts, c);
+        nav_vk_push(cb, app, &pc, p->c);
+        vkCmdDrawIndexed(cb, CIRCLE_SEGMENTS * 2, 1, 0, 0, 0);
+    }
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);
+}
 
 void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
     VkCommandBufferBeginInfo bi = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,NULL,0,NULL}; vkBeginCommandBuffer(cb, &bi);
@@ -1236,7 +1354,10 @@ void recordCommandBuffer(VkCommandBuffer cb, uint32_t idx, VulkanApp* app) {
                 vk_draw_sphere(cb);
             }
         }
-        
+
+        /* `nav` collision-free course */
+        drawNavRouteVk(cb, app, st, pulse, tactScale);
+
         /* Draw Shield Hits */
         drawShieldEffect(cb, app, pulse, tactScale, app->playerR, app->playerT);
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphicsPipeline);

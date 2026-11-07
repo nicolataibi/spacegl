@@ -48,6 +48,7 @@ static const char *get_lrs_object_icon(int id);
 #include "network.h"
 #include "client_wire.h"
 #include "effects_wire.h"
+#include "route_wire.h"
 #include "obj_delta.h"
 #include "handshake_v2.h"
 #include "known_servers.h"
@@ -1402,6 +1403,16 @@ void *network_listener(void *arg) {
                     memcpy(current_state.map_update_q2, b.map_update_q2, sizeof(b.map_update_q2));
                     current_pkt_size += (int)sizeof(b);
                 }
+                if (mask & UPD_ROUTE) {
+                    /* the `nav` course (wire revision 7, include/route_wire.h);
+                     * a count out of range cannot be skipped: protocol error */
+                    long used = route_wire_read(&current_state.route, deck_read_exact, &sock);
+                    if (used < 0) {
+                        SG_ERROR(SG_CAT_LRS, "UPD_ROUTE: short read or count out of range - wire desync, closing");
+                        break;
+                    }
+                    current_pkt_size += (int)used;
+                }
             }
 
             /* --- Phaser beam flow (TRACE3 = per-shot logical ops) --- */
@@ -1692,7 +1703,36 @@ void *network_listener(void *arg) {
                 g_shared_state->shm_sn_q[0] = current_state.supernova_q[0];
                 g_shared_state->shm_sn_q[1] = current_state.supernova_q[1];
                 g_shared_state->shm_sn_q[2] = current_state.supernova_q[2];
-                
+
+                /* `nav` course (UPD_ROUTE) for the 3D views */
+                _Static_assert(SHM_ROUTE_MAX_WP == NAV_WIRE_MAX_WP && SHM_ROUTE_MAX_HAZ == NAV_WIRE_MAX_HAZ,
+                               "shm route sized like the wire route");
+                {
+                    SharedRoute *sr = &g_shared_state->route;
+                    const UpdateBlockRoute *rb = &current_state.route;
+                    sr->seq = rb->seq;
+                    sr->active = rb->active;
+                    sr->flags = rb->flags;
+                    sr->count = (rb->count <= SHM_ROUTE_MAX_WP) ? rb->count : SHM_ROUTE_MAX_WP;
+                    sr->passed = rb->passed;
+                    sr->total = rb->total;
+                    sr->length = rb->length;
+                    sr->direct = rb->direct;
+                    for (int k = 0; k < sr->count; k++) {
+                        sr->wp[k][0] = rb->wp[k][0];
+                        sr->wp[k][1] = rb->wp[k][1];
+                        sr->wp[k][2] = rb->wp[k][2];
+                    }
+                    sr->hazard_count = (rb->hazard_count <= SHM_ROUTE_MAX_HAZ) ? rb->hazard_count : SHM_ROUTE_MAX_HAZ;
+                    for (int k = 0; k < sr->hazard_count; k++) {
+                        sr->hazards[k].x = rb->hazards[k].x;
+                        sr->hazards[k].y = rb->hazards[k].y;
+                        sr->hazards[k].z = rb->hazards[k].z;
+                        sr->hazards[k].r = rb->hazards[k].r;
+                        sr->hazards[k].kind = rb->hazards[k].kind;
+                    }
+                }
+
                 g_shared_state->frame_id++; 
                 swap_buffers();
                 sem_post(&g_shm->data_ready);

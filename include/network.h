@@ -83,6 +83,7 @@ typedef struct {
 /* (1ULL << 12) was UPD_KINEMATICS (positions and velocities only) until
  * wire revision 2; unused since revision 3. */
 #define UPD_OBJDELTA  (1ULL << 13)   /* per-object delta, include/obj_delta.h */
+#define UPD_ROUTE     (1ULL << 14)   /* `nav` collision-free course, include/route_wire.h (wire revision 7) */
 #define UPD_FULL      (0xFFFFFFFFFFFFFFFFULL)
 
 /* Delta Compression Blocks */
@@ -176,6 +177,34 @@ typedef struct {
     int64_t map_update_val2;
     int32_t map_update_q2[3];
 } UpdateBlockMap;
+
+/* The `nav` course (wire revision 7, include/route_wire.h): the waypoints
+ * still to fly, in galactic coordinates (the next one first, the end of the
+ * course last; the ship's own position is the start), and the obstacles
+ * the course bends around. Sent when a course is plotted, corrected or
+ * dropped and when a waypoint is passed; count = 0 / active = 0 clears it. */
+#define NAV_WIRE_MAX_WP  64
+#define NAV_WIRE_MAX_HAZ 16
+
+typedef struct {
+    float x, y, z;      /* centre, galactic coordinates   */
+    float r;            /* keep-out radius of the course  */
+    int32_t kind;         /* OBS_* (include/obstacles.h)     */
+} NetRouteHazard;
+
+typedef struct {
+    uint32_t seq;          /* changes on every new course or correction  */
+    uint8_t active;       /* 1 while the course is flown (or aligned to) */
+    uint8_t flags;        /* NAV_RF_* (include/nav_route.h)              */
+    uint8_t count;        /* waypoints in wp[]                           */
+    uint8_t hazard_count; /* entries in hazards[]                        */
+    uint16_t passed;       /* waypoints already passed since the plot     */
+    uint16_t total;        /* waypoints of the whole course (start excl.) */
+    float length;       /* whole course length                         */
+    float direct;       /* straight line start -> requested goal       */
+    float wp[NAV_WIRE_MAX_WP][3];
+    NetRouteHazard hazards[NAV_WIRE_MAX_HAZ];
+} UpdateBlockRoute;
 
 typedef struct {
     int32_t type;
@@ -425,6 +454,9 @@ typedef struct {
     NetBeam beams[MAX_NET_BEAMS];
     int32_t object_count;
     NetObject objects[MAX_NET_OBJECTS];
+    /* After the objects on purpose: not part of the fixed head of the
+     * legacy PKT_UPDATE (offsetof(objects)); travels only as UPD_ROUTE. */
+    UpdateBlockRoute route;
 } PacketUpdate;
 
 #pragma pack(pop)
