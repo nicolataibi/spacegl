@@ -446,10 +446,15 @@ void createSwapChain(VulkanApp* app) {
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(app->physicalDevice, app->surface, &caps);
     uint32_t minImages = (caps.minImageCount > 2) ? caps.minImageCount : 2;
 
-    /* TRANSFER_SRC as well, when the surface allows it: --screenshot copies
-     * the swapchain image (vulkan_grab_screenshot) */
+    /* TRANSFER_SRC as well, only for a --screenshot run (it copies the
+     * swapchain image, vulkan_grab_screenshot) and when the surface allows
+     * it: an extra usage can cost the driver its fastest layout for the
+     * images (2026.11.07.06: asked on every run since .01, the busy
+     * GPU-driven frame on the A770 went from 1.1 to 1.9 ms with it and the
+     * larger GPU-times query pool) */
     VkImageUsageFlags scUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    if (caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) scUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (s_shot_path[0] && (caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT))
+        scUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     app->swapChainCopyable = (scUsage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) != 0;
     VkSwapchainCreateInfoKHR cInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, NULL, 0, app->surface, minImages, app->swapChainImageFormat, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, app->swapChainExtent, 1, scUsage, VK_SHARING_MODE_EXCLUSIVE, 0, NULL, VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR, VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, bestMode, VK_TRUE, VK_NULL_HANDLE };
     if (vkCreateSwapchainKHR(app->device, &cInfo, NULL, &app->swapChain) != VK_SUCCESS) exit(1);

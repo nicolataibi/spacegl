@@ -1,3 +1,23 @@
+* Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.06
+  - Fix, the GPU-driven Vulkan path got slower on the Arc A770 during the
+  CPU-driven work of today: busy quadrant (256 objects, 1920x1080) 1.13 ms
+  a frame with 2026.11.04.01, 1.32 with .01, 1.70 with .03, 1.82-1.94 with
+  .05 (steady over nine runs), the empty scene unchanged at 1.04 ms; the
+  GPU-driven code itself was not touched (on llvmpipe the two versions
+  time the same). Two changes of those patches reach every frame of both
+  paths, and both now apply only where they are needed:
+  - the swapchain images were created with TRANSFER_SRC usage on every run
+    (.01, for the --screenshot copy): now only for a --screenshot run (and
+    when the surface allows it). An extra usage can cost the driver the
+    fastest layout of the images the frame resolves into;
+  - the GPU-times query pool (on in every --bench-frames run) grew from 12
+    to 320 (.02) and 512 (.04) timestamps a frame, all reset every frame:
+    without SPACEGL_VK_GPU_TIMES=1 it holds the 16 of the sections again,
+    the 512 only when the per-object or per-draw times are asked for.
+  No change to the images or to the CPU-driven path's numbers (its
+  per-kind times need SPACEGL_VK_GPU_TIMES=1 as before). The A770 run of
+  tests/gpu_golden_check.sh says which of the two it was.
+
 * Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.05
   - Performance, the Vulkan CPU-driven path: the per-draw times of the
   starbases (2026.11.07.04) on the Arc A770 put 3.35 of their 4.73 ms on

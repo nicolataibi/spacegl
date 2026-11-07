@@ -44,6 +44,7 @@ bool s_frame_limit_off = false;
 /* GPU time per section (2026.11.02.01)                               */
 /* ------------------------------------------------------------------ */
 #define VKGT_MAX_MARKS  512   /* timestamps a frame: the CPU path marks every object with SPACEGL_VK_GPU_TIMES=1 */
+#define VKGT_SECTION_MARKS 16 /* without SPACEGL_VK_GPU_TIMES=1 (a plain --bench-frames): the sections only */
 #define VKGT_MAX_LABELS 64
 #define VKGT_SLOTS     ((uint32_t)MAX_FRAMES_IN_FLIGHT)
 typedef struct {
@@ -51,6 +52,7 @@ typedef struct {
     bool detail;                     /* SPACEGL_VK_GPU_TIMES=1: per-object marks too (not in a plain bench) */
     VkDevice dev;
     VkQueryPool pool;
+    uint32_t cap;                    /* timestamps a frame in the pool: VKGT_MAX_MARKS with detail, else 16 */
     double ms_per_tick;
     uint32_t valid_bits;
     int print_every;                 /* frames between lines (0 = only the final report) */
@@ -107,9 +109,13 @@ static void vkgt_try_init(VulkanApp *app) {
         g_gt.state = -1;
         return;
     }
+    /* the per-object timestamps (and the large pool reset every frame)
+     * only when asked for: a plain --bench-frames keeps the 16 of the
+     * sections, as before 2026.11.07.02 */
+    g_gt.cap = env_on ? VKGT_MAX_MARKS : VKGT_SECTION_MARKS;
     VkQueryPoolCreateInfo qi = { .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
                                  .queryType = VK_QUERY_TYPE_TIMESTAMP,
-                                 .queryCount = VKGT_SLOTS * VKGT_MAX_MARKS };
+                                 .queryCount = VKGT_SLOTS * g_gt.cap };
     if (vkCreateQueryPool(app->device, &qi, NULL, &g_gt.pool) != VK_SUCCESS) {
         g_gt.state = -1;
         return;
@@ -137,16 +143,16 @@ static int vkgt_label(const char *name) {
 void vkgt_mark(VkCommandBuffer cb, uint32_t slot, const char *name) {
     if (g_gt.state != 1 || slot >= VKGT_SLOTS) return;
     uint32_t i = g_gt.used[slot];
-    if (i >= VKGT_MAX_MARKS) return;
+    if (i >= g_gt.cap) return;
     g_gt.tag[slot][i] = (uint8_t)vkgt_label(name);
-    vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, g_gt.pool, slot * VKGT_MAX_MARKS + i);
+    vkCmdWriteTimestamp(cb, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, g_gt.pool, slot * g_gt.cap + i);
     g_gt.used[slot] = i + 1;
 }
 
 /* A mark only with SPACEGL_VK_GPU_TIMES=1 (per object), leaving room for
  * the marks that close the frame. */
 void vkgt_mark_detail(VkCommandBuffer cb, uint32_t slot, const char *name) {
-    if (g_gt.state != 1 || !g_gt.detail || slot >= VKGT_SLOTS || g_gt.used[slot] + 4 >= VKGT_MAX_MARKS) return;
+    if (g_gt.state != 1 || !g_gt.detail || slot >= VKGT_SLOTS || g_gt.used[slot] + 4 >= g_gt.cap) return;
     vkgt_mark(cb, slot, name);
 }
 
@@ -182,7 +188,7 @@ void cpu_draw_mark(VkCommandBuffer cb, uint64_t index_count) {
 void vkgt_begin(VkCommandBuffer cb, VulkanApp *app, uint32_t slot) {
     if (g_gt.state == 0) vkgt_try_init(app);
     if (g_gt.state != 1 || slot >= VKGT_SLOTS) return;
-    vkCmdResetQueryPool(cb, g_gt.pool, slot * VKGT_MAX_MARKS, VKGT_MAX_MARKS);
+    vkCmdResetQueryPool(cb, g_gt.pool, slot * g_gt.cap, g_gt.cap);
     g_gt.used[slot] = 0;
     vkgt_mark(cb, slot, "start");
 }
@@ -194,7 +200,7 @@ void vkgt_collect(VulkanApp *app, uint32_t slot) {
     uint32_t n = g_gt.used[slot];
     if (n < 2) return;
     static uint64_t r[VKGT_MAX_MARKS];
-    VkResult rc = vkGetQueryPoolResults(g_gt.dev, g_gt.pool, slot * VKGT_MAX_MARKS, n,
+    VkResult rc = vkGetQueryPoolResults(g_gt.dev, g_gt.pool, slot * g_gt.cap, n,
                                         sizeof(uint64_t) * n, r, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
     if (rc != VK_SUCCESS) return;   /* not ready: the next collect of this slot retries */
     g_gt.used[slot] = 0;
