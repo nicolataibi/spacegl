@@ -1707,31 +1707,7 @@ void *network_listener(void *arg) {
                 /* `nav` course (UPD_ROUTE) for the 3D views */
                 _Static_assert(SHM_ROUTE_MAX_WP == NAV_WIRE_MAX_WP && SHM_ROUTE_MAX_HAZ == NAV_WIRE_MAX_HAZ,
                                "shm route sized like the wire route");
-                {
-                    SharedRoute *sr = &g_shared_state->route;
-                    const UpdateBlockRoute *rb = &current_state.route;
-                    sr->seq = rb->seq;
-                    sr->active = rb->active;
-                    sr->flags = rb->flags;
-                    sr->count = (rb->count <= SHM_ROUTE_MAX_WP) ? rb->count : SHM_ROUTE_MAX_WP;
-                    sr->passed = rb->passed;
-                    sr->total = rb->total;
-                    sr->length = rb->length;
-                    sr->direct = rb->direct;
-                    for (int k = 0; k < sr->count; k++) {
-                        sr->wp[k][0] = rb->wp[k][0];
-                        sr->wp[k][1] = rb->wp[k][1];
-                        sr->wp[k][2] = rb->wp[k][2];
-                    }
-                    sr->hazard_count = (rb->hazard_count <= SHM_ROUTE_MAX_HAZ) ? rb->hazard_count : SHM_ROUTE_MAX_HAZ;
-                    for (int k = 0; k < sr->hazard_count; k++) {
-                        sr->hazards[k].x = rb->hazards[k].x;
-                        sr->hazards[k].y = rb->hazards[k].y;
-                        sr->hazards[k].z = rb->hazards[k].z;
-                        sr->hazards[k].r = rb->hazards[k].r;
-                        sr->hazards[k].kind = rb->hazards[k].kind;
-                    }
-                }
+                wire_route_to_shm(&g_shared_state->route, &current_state.route);
 
                 g_shared_state->frame_id++; 
                 swap_buffers();

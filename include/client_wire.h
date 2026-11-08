@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "network.h"
+#include "shared_state.h"
 
 static inline int32_t wire_clamp_count(int32_t count, int32_t max) {
     if (count < 0) return 0;
@@ -60,6 +61,30 @@ static inline void wire_apply_effects(PacketUpdate *st, const UpdateBlockEffects
     st->torpedo_count = wire_clamp_count(b->torpedo_count, MAX_VISIBLE_TORPEDOES);
     memcpy(st->visible_torpedoes, b->visible_torpedoes,
            (size_t)st->torpedo_count * sizeof(NetVisibleTorpedo));
+}
+
+/* UPD_ROUTE block -> shared memory for the 3D views (wire revision 7, the
+ * `nav` course): the announced counts were checked by route_wire_read(),
+ * clamped again here because they become loop bounds over fixed arrays. */
+static inline void wire_route_to_shm(SharedRoute *sr, const UpdateBlockRoute *rb) {
+    sr->seq = rb->seq;
+    sr->active = rb->active;
+    sr->flags = rb->flags;
+    sr->count = wire_clamp_count(rb->count, SHM_ROUTE_MAX_WP);
+    sr->passed = rb->passed;
+    sr->total = rb->total;
+    sr->length = rb->length;
+    sr->direct = rb->direct;
+    for (int k = 0; k < sr->count; k++)
+        for (int a = 0; a < 3; a++) sr->wp[k][a] = rb->wp[k][a];
+    sr->hazard_count = wire_clamp_count(rb->hazard_count, SHM_ROUTE_MAX_HAZ);
+    for (int k = 0; k < sr->hazard_count; k++) {
+        sr->hazards[k].x = rb->hazards[k].x;
+        sr->hazards[k].y = rb->hazards[k].y;
+        sr->hazards[k].z = rb->hazards[k].z;
+        sr->hazards[k].r = rb->hazards[k].r;
+        sr->hazards[k].kind = rb->hazards[k].kind;
+    }
 }
 
 #endif

@@ -4,7 +4,9 @@
  * License: GPL-3.0-or-later
  *
  * client_wire_test — the command deck's handling of server-supplied counts
- * (include/client_wire.h, used by src/spacegl_client.c), under ASan/UBSan.
+ * (include/client_wire.h, used by src/spacegl_client.c), under ASan/UBSan;
+ * since wire revision 7 also the UPD_ROUTE block (include/route_wire.h)
+ * and its copy into shared memory (wire_route_to_shm).
  *
  * Before 2026.10.31.06 event_count and torpedo_count of UPD_EFFECTS were
  * clamped only from above and those of a full PKT_UPDATE not at all: a
@@ -20,6 +22,7 @@
 #include <limits.h>
 #include "client_wire.h"
 #include "effects_wire.h"
+#include "route_wire.h"
 
 typedef struct {
     const uint8_t *buf;
@@ -141,6 +144,84 @@ int main(void) {
         free(buf);
     }
     printf("[4] UPD_EFFECTS on the wire: round trip, sizes, %d hostile counts refused: OK\n", N_HOSTILE);
+
+    /* 5. the UPD_ROUTE block (wire revision 7, route_wire.h): round trip,
+     * sizes, announced counts out of range refused, and the copy into
+     * shared memory (wire_route_to_shm) with hostile counts */
+    {
+        UpdateBlockRoute *src = calloc(1, sizeof(UpdateBlockRoute));
+        UpdateBlockRoute *dst = malloc(sizeof(UpdateBlockRoute));
+        SharedRoute *sr = malloc(sizeof(SharedRoute));
+        uint8_t *buf = malloc(ROUTE_WIRE_MAX);
+        CHECK(src && dst && sr && buf);
+        for (int nw = 0; nw <= NAV_WIRE_MAX_WP; nw += 16) {
+            for (int nh = 0; nh <= NAV_WIRE_MAX_HAZ; nh += 4) {
+                memset(src, 0, sizeof(UpdateBlockRoute));
+                src->seq = 42;
+                src->active = 1;
+                src->flags = 9;
+                src->count = (uint8_t)nw;
+                src->hazard_count = (uint8_t)nh;
+                src->passed = 3;
+                src->total = 7;
+                src->length = 123.5f;
+                src->direct = 120.25f;
+                for (int k = 0; k < nw; k++) {
+                    src->wp[k][0] = 100.0f + k;
+                    src->wp[k][1] = 200.0f - k;
+                    src->wp[k][2] = 0.5f * k;
+                }
+                for (int k = 0; k < nh; k++) {
+                    src->hazards[k].x = 1.0f + k;
+                    src->hazards[k].r = 2.8f;
+                    src->hazards[k].kind = k + 1;
+                }
+                size_t len = route_wire_write(src, buf);
+                CHECK(len == route_wire_size(src));
+                CHECK(len == ROUTE_WIRE_HEAD + (size_t)nw * 12 + (size_t)nh * sizeof(NetRouteHazard));
+                MemReader r = { buf, len, 0 };
+                memset(dst, 0x77, sizeof(UpdateBlockRoute));
+                CHECK(route_wire_read(dst, mem_read, &r) == (long)len && r.off == len);
+                CHECK(memcmp(src, dst, sizeof(UpdateBlockRoute)) == 0);   /* unused entries zeroed */
+                memset(sr, 0x55, sizeof(SharedRoute));
+                wire_route_to_shm(sr, dst);
+                CHECK(sr->seq == 42 && sr->active == 1 && sr->flags == 9 && sr->passed == 3 && sr->total == 7);
+                CHECK(sr->count == nw && sr->hazard_count == nh);
+                CHECK(sr->length == 123.5 && sr->direct == 120.25);
+                for (int k = 0; k < nw; k++)
+                    CHECK(sr->wp[k][0] == 100.0 + k && sr->wp[k][1] == 200.0 - k && sr->wp[k][2] == 0.5 * k);
+                for (int k = 0; k < nh; k++)
+                    CHECK(sr->hazards[k].x == 1.0 + k && sr->hazards[k].r == (double)2.8f && sr->hazards[k].kind == k + 1);
+            }
+        }
+        memset(src, 0, sizeof(UpdateBlockRoute));
+        CHECK(route_wire_write(src, buf) == ROUTE_WIRE_HEAD);   /* no course: 20 bytes */
+        for (int v = 0; v < 256; v += 5) {
+            /* hostile announced counts: refused unless in range */
+            memset(buf, 0, ROUTE_WIRE_MAX);
+            buf[offsetof(UpdateBlockRoute, count)] = (uint8_t)v;
+            MemReader r = { buf, ROUTE_WIRE_MAX, 0 };
+            CHECK((route_wire_read(dst, mem_read, &r) >= 0) == (v <= NAV_WIRE_MAX_WP));
+            memset(buf, 0, ROUTE_WIRE_MAX);
+            buf[offsetof(UpdateBlockRoute, hazard_count)] = (uint8_t)v;
+            r.off = 0;
+            CHECK((route_wire_read(dst, mem_read, &r) >= 0) == (v <= NAV_WIRE_MAX_HAZ));
+            /* and the shared-memory copy of a block that skipped the reader */
+            memset(src, 0, sizeof(UpdateBlockRoute));
+            src->count = (uint8_t)v;
+            src->hazard_count = (uint8_t)v;
+            wire_route_to_shm(sr, src);
+            CHECK(sr->count >= 0 && sr->count <= SHM_ROUTE_MAX_WP);
+            CHECK(sr->hazard_count >= 0 && sr->hazard_count <= SHM_ROUTE_MAX_HAZ);
+        }
+        MemReader shortr = { buf, ROUTE_WIRE_HEAD - 1, 0 };   /* a short read */
+        CHECK(route_wire_read(dst, mem_read, &shortr) < 0);
+        free(src);
+        free(dst);
+        free(sr);
+        free(buf);
+    }
+    printf("[5] UPD_ROUTE on the wire and into shared memory: round trip, sizes, hostile counts: OK\n");
 
     free(st); free(b);
     printf("client_wire_test: all checks passed\n");

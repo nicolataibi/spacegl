@@ -18,7 +18,8 @@
 #      view toggles (axs, grd), tune with no captain, the usage of rad and
 #      enc3, enc3 to a captain with no link, every cipher name of enc (the
 #      whole chain), enc off, rad to a faction (KORTHIAN receives it, the
-#      other factions do not), rad to an unknown faction, rad #ID;
+#      other factions do not), rad to an unknown faction, rad #ID, a
+#      nav jump (its course arrives as UPD_ROUTE, wire revision 7);
 #   6. the same name while that captain is on board is refused; once he
 #      left, a wrong access code is refused and the right one is
 #      "RETURNING COMMANDER RECOGNIZED";
@@ -180,6 +181,7 @@ wait_for f1 "Command Deck ready" 60
     sleep 0.3; printf 'rad @Nowhere Unknown faction falls back to all\n'
     sleep 0.3; printf 'rad #1 To captain number one\n'
     sleep 0.3; printf 'rad #x Not a number\n'
+    sleep 0.3; printf 'nav 45 10 0.4 9.9\n'   # wire revision 7: the course arrives as UPD_ROUTE
     wait_flag dup_done; sleep 2; printf 'exit\n'; sleep 1
 } | deck charlie 150 &
 CH_PID=$!; PIDS+=($CH_PID)
@@ -212,6 +214,7 @@ check "enc3 to a captain with no link refused"  has charlie "No Link with NOBODY
 check "KORTHIAN heard CHARLIE's fleet message" has f1 "Salsa on the fleet frequency"
 check "CHARLIE's faction message reached CHARLIE" has charlie "CHARLIE (Alliance Command): Hail the Korthian fleet"
 check "...and not KORTHIAN (sender's faction)"  hasnt f1 "Hail the Korthian fleet"
+check "nav plots a collision-free course"       has charlie "Safe course:"
 check "no protocol error on CHARLIE"            hasnt charlie "protocol error"
 
 # --- 7. the server goes away and comes back ----------------------------

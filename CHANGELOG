@@ -1,3 +1,21 @@
+* Sun Nov 08 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.08.03
+  - Fix, CI coverage: the command deck line coverage fell to 83.8% (floor
+  84.0, tests/coverage_threshold_deck.txt). The copy of the UPD_ROUTE
+  block into shared memory (2026.11.07.09) sat inline in the listener
+  thread, and no end-to-end session ever plotted a course, so its
+  waypoint and hazard loops were never run. The copy is now
+  wire_route_to_shm() in include/client_wire.h (the counts clamped again,
+  they are loop bounds over fixed arrays), next to the other block
+  helpers the listener uses, and src/spacegl_client.c calls it.
+  - Tests: client_wire covers UPD_ROUTE: round trip of every waypoint and
+  hazard count, exact size on the wire, 20 bytes without a course,
+  announced counts out of range refused, a short read refused, and
+  wire_route_to_shm() with every count 0..255 (under ASan/UBSan, gcc and
+  clang). deck_e2e plots a nav jump in CHARLIE's session and checks the
+  "Safe course:" report with no protocol error. Command deck line
+  coverage 84.1% (1278/1519, measured as the CI coverage job does).
+  - Packaging, spacegl.spec: version bumped to 2026.11.08.03.
+
 * Sun Nov 08 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.08.02
   - Fix, CI lint: clang-tidy failed on include/nav_autopilot.h:82
   (bugprone-branch-clone, an error with --warnings-as-errors): in
