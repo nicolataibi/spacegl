@@ -1,3 +1,10 @@
+* Sun Nov 08 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.08.04
+  - Packaging, spacegl.spec: the comment of %check said "the 55 test
+  binaries"; the suite has 57 tests (test programs and shell scripts, see
+  DEVELOPMENT.md section 3). Comment only: the build, the %ctest call and
+  the content of the packages are unchanged. Version bumped so that the
+  SRPM submitted for review matches the tree.
+
 * Sun Nov 08 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.08.03
   - Fix, CI coverage: the command deck line coverage fell to 83.8% (floor
   84.0, tests/coverage_threshold_deck.txt). The copy of the UPD_ROUTE
