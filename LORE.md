@@ -1,8 +1,9 @@
+
 <div style="text-align: center; border-bottom: 1px solid #ccc; margin-bottom: 20px;">
 
 # Space GL: A space exploration & combat game
 
-![Version](https://img.shields.io/badge/Version-3.4-green)
+![Version](https://img.shields.io/badge/Version-3.5-green.svg)
 ![License](https://img.shields.io/badge/License-GPL%203.0-blue.svg)
 ![Language](https://img.shields.io/badge/Language-C-blue)
 ![Graphics](https://img.shields.io/badge/Graphics-Vulkan%20%7C%20OpenGL-orange)
@@ -180,6 +181,506 @@ A client-server experience that recaptures the spirit of 1970s command-line game
 essential, cold, technical… and incredibly immersive.
 
 **Because before photorealistic graphics, there was imagination. And a blinking cursor was all you needed to begin a journey among the stars.**
+
+---
+
+## 🚀 Version 3.5 Highlights (Rel. 2026.11.07.09 - The Collision-Free Course)
+
+Update 2026.11.07.09 teaches the helm to think before it jumps. The `nav` command no longer fires the ship down a straight line and hopes: the server plans a course that cannot touch anything, flies it, corrects it when the sky moves, and every 3D view draws it as a living thread of light:
+*   **Collision-Free Course Planning** (`include/nav_route.h`):
+    *   **Straight When Clear, Bent When Not**: the straight line is kept whenever it is free; otherwise the course bends around the keep-out sphere of every object on the way, along the tangents from the leg's ends and a polygon circumscribed to the sphere, so it grazes the safety radius and never enters it.
+    *   **Twelve Planes, One Choice**: every detour is tried in 12 planes around the line (the side the line already passes on first) and the cheapest wins: length plus a penalty for every other obstacle its new legs would meet.
+    *   **Clusters and String Pulling**: overlapping spheres are merged into a single detour around the sphere that bounds them; afterwards every waypoint that can be skipped without entering a keep-out zone is dropped, so the course hugs the obstacles instead of zig-zagging.
+    *   **Honest Edge Cases**: a destination inside a keep-out zone ends at its edge; a ship parked inside one leaves it first; a destination beyond the galaxy ends at the boundary; a walled-in destination makes the course stop short and say so; with no safe course at all, not one unit of energy or Aetherium is spent.
+*   **Everything Is an Obstacle** (`include/nav_autopilot.h`): solid bodies, the gravity well of black holes, pulsar beams and the other ships; the keep-out radius is at least the size the viewers draw the object at plus one unit (planet 2.8, star 3.5, brown dwarf 3.0, starbase 2.5, black hole 6.0 with its accretion disk), so the course on screen never grazes what it avoids. Plotting takes 0.3–0.8 ms on the real galaxy.
+*   **Flown and Watched**: the ship follows the waypoints, turning smoothly onto each leg; the ETA follows the course; five times a second the course ahead is checked for an object that moved onto it (comet, orbiting moon) and a **COURSE CORRECTION** is plotted from where the ship is.
+*   **Wire Revision 7 (`UPD_ROUTE`)**: a new update block (bit 14, `include/route_wire.h`) carries the waypoints still to fly and the obstacles bent around, sent only on a plot, a correction, a waypoint passed or the drop; a revision-6 deck is refused at the hello ("HSV7"). Shared memory layout 3 adds `GameState.route`.
+*   **The Course on Screen** (`include/nav_route_view.h`): one shared description drawn identically by OpenGL, Vulkan GPU-driven and Vulkan CPU-driven: a glowing ribbon with rounded corners (cyan turning violet, red when it stops short), energy pulses and arrowheads flowing from the ship, spinning waypoint markers, amber keep-out bubbles with a scanning ring, a destination beacon, an exit gate with a tunnel of frames where the course leaves the quadrant, and its shadow on the floor of the cube. OpenGL adds labels and a **NAV COURSE** line in the HUD.
+*   **Verified**: 3,000 random and 300 dense obstacle fields in which no leg ever enters a keep-out sphere; flights through and at real planets, a planet pushed onto the course in mid-flight, random jumps across the galaxy — zero collisions; 57 tests passing.
+
+---
+*SPACE GL HISTORICAL ARCHIVE - GDIS LOG 2026.11.07 - PROJECT: THE THREAD OF LIGHT*
+
+# 🌌 SPACE GL: THE THREAD OF LIGHT
+
+## Project Archive: The Birth of the Safe Course
+
+> *"A straight line is the shortest path only for those who do not care what they hit."* — Flight Lieutenant I. Reyes
+>
+> *"Show me the course before you fly it. I will not ask twice."* — Grand Admiral H. Niklaus
+
+### Chapter 1 — The Bridge: "The Straight Line"
+
+The Tessarine Expanse was not on any trade route, and for good reason. Seen from the bridge of the *Sentinel*, the quadrant looked like a jeweller's tray overturned in the dark: a lone terrestrial world wrapped in a thin blue haze, a drifting knot of asteroids tumbling slowly around each other, and, beyond them, the black pupil of a collapsed star with its crimson disk turning like a slow wheel.
+
+"Destination is the relay buoy on the far face," said Flight Lieutenant Iko Reyes. "One point two quadrants, heading zero-nine-zero, mark zero."
+
+"Engage," said Captain Lyra Vance.
+
+Reyes keyed the command as she had keyed it a thousand times.
+
+`nav 90 0 1.2 6`
+
+The ship turned, aligned and leapt. For half a second the stars stretched into needles. Then the deck heaved under their boots, every console flashed amber, and a sound like a struck bell ran the length of the hull.
+
+"COLLISION," the Computer announced, with the flat calm reserved for disasters. "Impact with a planet at forty-two units per second. Engines disengaged."
+
+The *Sentinel* hung at a standstill on the very surface of the blue world's contact sphere, its prow pressed against atmosphere it had never been meant to touch. Somewhere aft, a damage-control team was already shouting.
+
+"Hull at eighty-six percent," Reyes said quietly. "The heading was correct, Captain. The planet was simply *on* it."
+
+Grand Admiral Hyperion Niklaus had not moved from his place before the viewport. He did not raise his voice; he never did.
+
+"A heading is not a course, Lieutenant. A heading is a wish." He turned his head a few degrees. "I want a helm that looks before it leaps. Find out who can build me one."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the thread of light/01 Sentinel Command Bridge in Alarm.png" alt="Chapter 1 - Sentinel Command Bridge in Alarm" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 2 — The Astrometric Laboratory: "Spheres of Silence"
+
+Elara Vance had cleared the holotable of everything but the Tessarine Expanse. Every object floated in its true position, and around each one she had drawn a sphere of translucent amber.
+
+"Every solid body in this galaxy already has two radii," she said. "The first is the contact radius: if the ship's flight segment between two ticks enters it, the hull stops on the surface and takes damage. The second is the keep-out radius, a little wider. The NPC ships have used it for weeks to steer around obstacles. Nobody ever used it to *plan*."
+
+"Plan how?" asked Lyra.
+
+Elara drew a line of white light from the *Sentinel* to the relay buoy. It pierced the blue world dead centre. "As a geometry problem. Take the first sphere the line enters. Now imagine a sheet of glass that contains the line, cutting through the sphere. On that sheet the sphere is a circle." She rotated the projection until the circle stood flat in front of them. "From the start of the line, draw the tangent to the circle. From the end, draw the other tangent. Between the two tangent points, walk around the circle on a polygon whose sides just kiss it, one side every thirty degrees. The ship flies the tangents and the polygon. It grazes the circle at its keep-out radius times one point zero eight, plus a tenth of a unit, and never enters it."
+
+"And the sheet of glass?"
+
+"There are infinitely many. The computer tries twelve, turned around the line like the pages of a book, starting from the side where the line already passes. For each one it measures the length of the detour and adds a penalty for every other sphere the new legs would run into. The cheapest page wins." The white line bent gently above the blue world and settled. "Then it repeats the same reasoning on every new leg, until nothing is touched."
+
+Lyra watched the bent line glow. "It is a very small detour."
+
+"It is exactly as large as it needs to be," said Elara. "Not one unit more."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the thread of light/02 Navigation Room of the Tessarine Expanse.png" alt="Chapter 2 - Navigation Room of the Tessarine Expanse" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 3 — Engineering: "Knots and Threads"
+
+Chief Engineer Tesa Brandt listened to the explanation with her arms folded and her diagnostic driver tucked behind one ear.
+
+"Lovely for a lonely planet," she said. "Now do it in that." She pointed at the asteroid knot on her own display: seven rocks so close together that their amber spheres overlapped into a single lumpy cloud. "You bend around the first rock, your new waypoint lands inside the second one. You bend around the second, you land inside the third. You'll chase your own tail until the reactor goes cold."
+
+"The planner knows," said Elara. "When the best detour would put a waypoint inside another sphere, that sphere joins a cluster. The computer draws the smallest sphere that holds the whole cluster and bends around *that* instead. Up to twenty-four spheres in one knot."
+
+Brandt grunted, unconvinced, and ran it herself. The course swept once around the knot like a lasso and continued.
+
+"Now look at the raw course before it is cleaned," Elara added, and replayed it. The first draft was a nervous thing, full of tiny corners. "Once the course is found, the computer pulls the thread tight. From each point it looks for the farthest later point it can reach in a straight line without entering any keep-out sphere, and drops everything in between."
+
+The draft snapped taut. Four corners became one.
+
+"And if there's no way through?" Brandt asked. "A sealed shell. Rocks all around the target."
+
+"Then the course stops one unit short of the first sphere it cannot pass, and the computer says so, plainly. And if there is no safe course at all, not even a first leg, the hyperdrive is not engaged. Not one unit of energy is spent, not one gram of Aetherium."
+
+Brandt took the driver from behind her ear and turned it over in her fingers. "Finally," she said, "a machine that knows how to say no before it breaks something."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the thread of light/03 Stellar Bridge_ Path Through Asteroids.png" alt="Chapter 3 - Stellar Bridge_ Path Through Asteroids" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 4 — The Helm: "Where the Course Begins, Where It Ends"
+
+Reyes spent the evening watch trying to break the new helm.
+
+First she aimed it straight at the blue world itself, the way a careless captain might ask to "go to the planet."
+
+"Destination inside the safety zone of a planet," replied the Navigation officer. "The course ends at its edge."
+
+The bright line stopped at the rim of the amber sphere, on the side she had asked from, like a ship waiting politely at a harbour mouth.
+
+Then she parked the *Sentinel* so close to an asteroid that the ship sat inside its keep-out sphere, and ordered a jump toward the far side of the rock.
+
+"Leaving the safety zone around the ship's position first."
+
+The course stepped radially out of the bubble before it turned. When she ordered a jump *away* from the rock instead, there was no exit leg at all: a ship already moving out of a sphere is not in danger from it.
+
+Last, she asked for a jump of fifty quadrants, straight through the galactic wall.
+
+"Destination beyond the galactic limit: the course ends at the boundary."
+
+Reyes sat back. For years the old helm had flown blindly to the edge of the galaxy, slammed into it, and spun the ship round with a curt "GALACTIC LIMIT REACHED." The new one simply told her the truth before the jump.
+
+"It never lies about where the line starts," she wrote in her log, "or where it ends. That is new."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the thread of light/04 Reyes Studies the Jump Navigation HUD.png" alt="Chapter 4 - Reyes Studies the Jump Navigation HUD" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 5 — The Observation Deck: "What the Eye Believes"
+
+Captain Vance brought the first test footage to the observation deck and played it on the great curved screen. The course arced around the blue world exactly as promised — and on screen it seemed to scrape the very edge of the planet's glowing disk.
+
+"It cleared the keep-out sphere," Elara insisted. "By the numbers, it was never in danger."
+
+"By the numbers," Lyra agreed. "But the contact radius of that planet is zero point eight units, and the viewers draw it with a radius of one point eight. The keep-out radius is two. On the screen, the course grazes the atmosphere. If my crew sees the ship skim a planet, they will believe it skimmed a planet, whatever the numbers say."
+
+Niklaus, watching from the rail, nodded once. "A course that is safe but looks dangerous is a course that frightens the people who have to trust it."
+
+So the rule changed. For the course, an object's keep-out radius became *at least the size the viewers draw it at, plus one unit*: two point eight for a planet, three point five for a star, three for a brown dwarf, two and a half for a starbase with its ring, two point one for a moon. For a black hole, whose gravity well reaches three units but whose accretion disk spreads far wider in the GPU-driven view, six.
+
+When the footage was rendered again, the ribbon of light passed above the black hole's crimson disk with clear dark space beneath it.
+
+"Now the eye and the numbers agree," said Lyra.
+
+<table>
+<tr>
+    <td><img src="readme_assets/the thread of light/05 Orbital Briefing_ Eye and Numbers Agree.png" alt="Chapter 5 - Orbital Briefing_ Eye and Numbers Agree" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 6 — The Bridge: "The Comet"
+
+The second jump through the Tessarine Expanse began perfectly. The course was a clean straight line — nothing stood in the way when it was plotted.
+
+Eight seconds later, something did.
+
+"COURSE CORRECTION," the Navigation officer announced. "Comet crossing the course. New course: one waypoint, ninety-one point four units."
+
+On the tactical display, a pale head with a long tail had swung across the bright line ahead of the ship. The line flexed, found a new path behind the comet's head, and the *Sentinel* followed it without losing speed.
+
+"How did it see that?" Thorne asked from tactical.
+
+"It looks five times a second," said Reyes, almost tenderly. "Every twelve ticks it takes the course ahead, as far as a second and a half of flight or twenty-five units, whichever is longer, and asks the galaxy what is on it now. If anything has moved within its contact radius plus six tenths of a unit, it plots a new course from where we are to the same end. Never more than once every half second, so it doesn't twitch."
+
+"And if there is no way round?"
+
+"Then it stops the ship. 'All stop: a comet is on the course and no safe way round is left.' Better standing still than standing on a comet."
+
+Thorne looked at the bright line, steady once more. "It thinks faster than I do."
+
+"Zero point three to zero point eight milliseconds per plot," said Reyes. "It thinks faster than all of us."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the thread of light/06 Comet Course Correction on the Starship Bridge.png" alt="Chapter 6 - Comet Course Correction on the Starship Bridge" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 7 — The Communications Bay: "Revision Seven"
+
+None of this mattered if the course stayed locked inside the server.
+
+"The deck needs to see what the helm is thinking," said Commander Thorne, standing among the humming racks of the communications bay. "Every waypoint. Every obstacle it is bending around."
+
+The engineers gave the stream a new block. They called it `UPD_ROUTE`, bit fourteen of the update mask, carried after the map block. Its head was twenty bytes: a sequence number that changes with every new course or correction, an active flag, the course flags, how many waypoints followed and how many hazards, how many waypoints had already been passed, the total, the length of the whole course and of the straight line it replaced. Then up to sixty-four waypoints, twelve bytes each, in galactic coordinates — the next one first, the end of the course last. Then up to sixteen hazards, twenty bytes each: the centre of an obstacle, its keep-out radius, its kind.
+
+"How often?" Thorne asked.
+
+"Only when it changes. A new plot, a correction, a waypoint passed, the course dropped. A quiet flight sends nothing. Twenty bytes when there is no course at all."
+
+And because a deck that did not understand bit fourteen would misread every byte that followed, the hello changed too: "HSV7." A deck still speaking revision six was refused at the door with a clear message, instead of drifting into nonsense halfway through a flight. On the deck, the block flowed into shared memory as `GameState.route`, and the layout version rose to three so that no viewer of an older build could ever read it wrongly.
+
+<table>
+<tr>
+    <td><img src="readme_assets/the thread of light/07 Briefing in the Stellar Communications Room.png" alt="Chapter 7 - Briefing in the Stellar Communications Room" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 8 — The Observation Deck: "The Thread of Light"
+
+Elara insisted on the name before she had finished the drawing. "It must look like a thread of light," she said. "Something you want to follow."
+
+What appeared on the tactical screens that night was exactly that. From the ship's bow ran a glowing ribbon, a wide soft halo around a bright core, its corners rounded by small curves so that it flowed instead of breaking. It began cyan at the ship and turned slowly violet toward the end. Pulses of white energy with short tails slid along it outward from the *Sentinel*, and rows of small arrowheads lit up in a wave running the same way, so that even a glance told you which way the ship would go.
+
+At every waypoint, a ring stood across the ribbon and a small diamond spun inside it. Around every obstacle the course bent away from hung an amber bubble of three great circles, with a fourth ring sweeping slowly up and down its latitude like a scanner, and a gyroscope ring turning around it; for the black hole the bubble was violet. Where the course ended inside the quadrant, a beacon rose: a vertical beam, a crosshair of turning brackets and rings expanding outward like ripples on water. Where it left the quadrant instead, an exit gate stood on the face of the cube, a square portal with a tunnel of frames moving outward and arrowheads pointing to the next sector. Beneath it all, faint on the floor of the cube, lay the shadow of the course and thin drop lines from every waypoint, so that height could be read at a glance.
+
+"And if it stops short?" asked Brandt.
+
+Elara switched the simulation. The last stretch of the ribbon turned orange, then red, and ended in a blinking red cross.
+
+"Then it says so in colour."
+
+The most remarkable thing was not visible at all. The three viewers — the classic OpenGL bridge, the GPU-driven Vulkan core and its CPU-driven fallback — drew the thread from a single shared description: tubes, hairlines, rings and dots, nothing more. Each viewer only translated those four shapes into its own drawing calls. The thread looked the same on every bridge in the fleet.
+
+<table>
+<tr>
+    <td><img src="readme_assets/the thread of light/08 Thread of Light_ Orbital Tactical Map.png" alt="Chapter 8 - Thread of Light_ Orbital Tactical Map" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 9 — The Simulation Bay: "Three Thousand Skies"
+
+Niklaus did not accept demonstrations. He accepted evidence.
+
+"Show me," he said, "a sky it cannot cross safely."
+
+They gave the planner three thousand random skies, each with up to three hundred obstacles of random sizes, black holes among them, and a random start and destination. Then three hundred dense skies, with up to two thousand obstacles, a quarter of the volume locked inside keep-out spheres. After every plan, a separate check walked each leg of the course against every sphere.
+
+"Legs that entered a keep-out sphere: zero," Elara read. "Courses that touched an obstacle: zero. Complete courses that did not end at the destination: zero."
+
+"Now a real galaxy."
+
+They loaded a full galaxy generated from a fixed seed. The test ship flew straight through six real planets, then straight *at* six of them. It flew twenty random jumps across the whole galaxy. In one run they cheated deliberately: once the ship was in hyperdrive on a clear straight course, they pushed a planet twenty units sideways, directly onto its path.
+
+"Course correction plotted," said Reyes. "Closest approach two point nine units from the planet's centre. No contact."
+
+"Collisions in the whole run?"
+
+"None, Admiral. And every flight stopped exactly at the end of its course."
+
+Niklaus regarded the long column of green results — fifty-seven test suites, every one passing — for a long moment. "Very well," he said at last. "Now it is a course."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the thread of light/09 Simulation Bay_ All Tests Passed.png" alt="Chapter 9 - Simulation Bay_ All Tests Passed" width="600"/></td>
+ </tr>
+</table>
+
+### Chapter 10 — The Bridge, at Evening: "The Line That Bends"
+
+At the end of the watch, the *Sentinel* crossed the Tessarine Expanse for the third time.
+
+Reyes keyed the same command she had keyed on the first morning, character for character.
+
+`nav 90 0 1.2 6`
+
+"Course plotted. Aligning for Hyperdrive 6.0."
+
+"Safe course: two waypoints, one hundred twenty point nine units, plus zero point seven percent on the direct line, ETA two point nine seconds. Avoiding: planet, four times asteroid, black hole."
+
+On the screen, the thread of light uncoiled from the bow: cyan, then violet, rising gently over the blue world inside its amber bubble, passing beneath the tumbling knot of rocks, curving high above the crimson disk of the black hole, and running on to a square gate on the far face of the quadrant, where the next sector waited.
+
+The ship followed it like a hand following a railing in the dark.
+
+Lyra stood beside the Admiral at the viewport and watched the blue world slide past, close enough to see the weather on it, far enough that nobody aboard felt the need to hold on to anything.
+
+"Do you know what I like about it, Admiral?" she said. "It still goes as straight as it can. It only bends when it must, and only as much as it must."
+
+Niklaus watched the exit gate swell ahead of them, its tunnel of frames streaming outward into the next sector.
+
+"That," he said, "is the only kind of line worth following."
+
+The gate closed behind them. On the tactical display, the last arrowhead of the thread flickered once and went dark.
+
+"Target reached," said the Computer. "Dropping out of Hyperdrive."
+
+<table>
+<tr>
+    <td><img src="readme_assets/the thread of light/10 Sentinel Bridge_ Hypersonic Course.png" alt="Chapter 10 - Sentinel Bridge_ Hypersonic Course" width="600"/></td>
+ </tr>
+</table>
+
+---
+
+### Behind the Scenes: Where Every Chapter Originates
+
+The narrative arc of this chronicle is grounded directly in the engineering work recorded in the `CHANGELOG` under release `2026.11.07.09`. While the Tessarine Expanse and the dramatic situations are fictional, Grand Admiral Niklaus, Captain Lyra Vance, Astrometric Specialist Elara Vance and Commander Thorne come from the core `LORE.md`; Chief Engineer Tesa Brandt and Flight Lieutenant Iko Reyes return from *The Orbit of Silence*.
+
+- **The old straight-line jump and the collision engine** (behaviour before `2026.11.07.09`, `ship_collision_check()` in `src/server/logic.c`): `nav` flew a straight line and stopped on the surface of the first object in the way, with hull damage growing with speed. Chapter 1.
+- **Tangent-and-polygon detours in twelve planes** (`include/nav_route.h`: `nr_detour_plane()`, `nr_detour()`, `NAV_ROUTE_SIDES`, `NAV_ROUTE_SAFETY`, `NAV_ROUTE_ARC_STEP`): Chapter 2.
+- **Clusters, string pulling, stopping short and spending nothing** (`nr_cluster_sphere()`, `nr_simplify()`, `NAV_RF_PARTIAL`, the planning before any cost in `handle_nav()`): Chapter 3.
+- **Goal inside a keep-out zone, start inside one, galactic boundary** (`NAV_RF_GOAL_MOVED`, `NAV_RF_START_INSIDE`, `NAV_RF_BOUNDED`): Chapter 4.
+- **Keep-out radius at least the drawn size plus one unit** (`nav_ap_clearance()` in `include/nav_autopilot.h`): Chapter 5.
+- **In-flight watch and course correction** (`nav_ap_watch()`, `nav_route_first_hit()`, `NAV_AP_CHECK_TICKS`, `NAV_AP_REPLAN_COOL`): Chapter 6.
+- **Wire revision 7, `UPD_ROUTE`, shared-memory layout 3** (`include/route_wire.h`, `include/network.h`, `include/handshake_v2.h`, `include/shared_state.h`, `src/server/net.c`, `src/spacegl_client.c`): Chapter 7.
+- **The shared look of the course in three viewers** (`include/nav_route_view.h`, `drawNavRoute()` in `src/spacegl_3dview.c`, `drawNavRouteVk()` in `src/vulkan_render.c`, section 3b of `gdd_build_instances()` in `src/vulkan_gdd_build.c`): Chapter 8.
+- **The test campaign** (`tests/nav_route_test.c`, `tests/nav_route_view_test.c`, `test_nav_safe_course()` in `tests/server_commands_test.c`, `tests/update_delta_test.c`, `tests/handshake_v2_test.c`): Chapter 9.
+
+---
+
+## 🛠 TECHNICAL SECTION: THE COLLISION-FREE COURSE OF `nav`
+
+<table>
+<tr>
+    <td><img src="readme_assets/the thread of light/01 OpenGL course bending around planet asteroids and black hole.png" alt="OpenGL - the course bending around a planet, an asteroid cluster and a black hole, ending at the destination beacon" width="600"/></td>
+    <td><img src="readme_assets/the thread of light/02 OpenGL course leaving through the exit gate.png" alt="OpenGL - the course leaving the quadrant through the exit gate" width="600"/></td>
+ </tr>
+<tr>
+    <td><img src="readme_assets/the thread of light/03 Vulkan GPU-driven course to the destination beacon.png" alt="Vulkan GPU-driven - the same course to the destination beacon" width="600"/></td>
+    <td><img src="readme_assets/the thread of light/04 Vulkan GPU-driven course and exit gate.png" alt="Vulkan GPU-driven - the course and the exit gate" width="600"/></td>
+ </tr>
+</table>
+
+*Headless renders (Mesa llvmpipe / lavapipe) of a test quadrant: a planet on the straight line, a cluster of seven asteroids and a black hole; the course was planned by `include/nav_route.h`.*
+
+### 🗺 The Flow at a Glance
+
+```
+captain: nav H M W [F]
+   │
+   ▼  server, handle_nav() (src/server/commands_helm.inc)
+   │    goal = ship + direction(H, M) * W * QUADRANT_SIZE
+   │    nav_ap_plan_ex()  ── gather obstacles of the corridor (nav_autopilot.h)
+   │                      └─ nav_route_plan()  (nav_route.h, pure geometry)
+   │    no safe course → "NO SAFE COURSE ..." and nothing is spent
+   │    otherwise      → nav_ap_install(): target = end of the course,
+   │                     align on the first leg, energy + 1 Aetherium spent
+   ▼  every tick, nav_tick_hyperdrive() (src/server/logic.c)
+   │    nav_ap_watch()   every 12 ticks: something moved onto the course?
+   │                     → COURSE CORRECTION / ALL STOP
+   │    nav_ap_follow()  move `step` units along the waypoints, turn smoothly
+   ▼  update_fill_state(): nav_ap_fill_wire() → PacketUpdate.route
+   │  send_optimized_update(): UPD_ROUTE when seq / active / passed / count change
+   ▼  deck (src/spacegl_client.c): route_wire_read() → GameState.route (shm)
+   ▼  viewers: nrv_build() (nav_route_view.h) → tubes, lines, rings, dots
+        OpenGL drawNavRoute() · Vulkan CPU drawNavRouteVk() · Vulkan GDD instances
+```
+
+### 🧭 Using It
+
+The command is unchanged: `nav <H> <M> <W> [Factor]` (heading 0–359, mark −90..90, distance in quadrants, hyperdrive factor 1–9.9). What the captain sees:
+
+| Message (sender) | When |
+| --- | --- |
+| `Course plotted. Aligning for Hyperdrive F.` (HELMSMAN) | a course exists; alignment on its first leg begins |
+| `Safe course: direct line clear of every object, L units, ETA T s.` (NAVIGATION) | nothing in the way |
+| `Safe course: N waypoints, L units (+P% on the direct line), ETA T s. Avoiding: planet, 3 x asteroid, black hole` (NAVIGATION) | a detour was needed |
+| `Leaving the safety zone around the ship's position first.` | the ship starts inside a keep-out zone |
+| `Destination inside the safety zone of a <kind>: the course ends at its edge.` | the goal was inside a keep-out zone |
+| `Destination beyond the galactic limit: the course ends at the boundary.` | the goal was outside the galaxy |
+| `WARNING: no safe way past a <kind>. The course stops D units short of the destination.` | partial course |
+| `NO SAFE COURSE: the way is walled in by a <kind>. Hyperdrive not engaged.` | no course at all; nothing spent |
+| `COURSE CORRECTION: comet crossing the course. New course: N waypoints, L units.` | something moved onto the course in flight |
+| `ALL STOP: a <kind> is on the course and no safe way round is left.` | in flight, no correction possible |
+| `Target reached. Dropping out of Hyperdrive.` (HELMSMAN) | arrival at the end of the course |
+
+The course is dropped as soon as the ship stops flying it (arrival, collision, `imp`, `apr`, any other helm command): from then on `nav_ap_valid()` is false and the deck receives `active = 0`.
+
+### 📐 The Planner (`include/nav_route.h`)
+
+Pure C99 geometry over the `ObsSphere` obstacles of `include/steer_avoid.h` (centre, contact radius `r_hit`, keep-out radius `r_avoid`, kind, id): no server globals, so it is tested on its own.
+
+`nav_route_plan(start, goal, obs, n, cfg, route)`:
+
+1. **Box**: the goal is clamped into the allowed box (`cfg->lo/hi`, the galaxy half a unit inside its faces) → `NAV_RF_BOUNDED`.
+2. **Goal inside a keep-out sphere**: moved radially to the edge of the sphere (`R * NAV_ROUTE_SAFETY + NAV_ROUTE_SAFETY_ADD`) on the side it was asked from (from the start if the goal is the very centre); repeated up to 6 times for overlapping spheres → `NAV_RF_GOAL_MOVED`, `goal_obstacle`.
+3. **Hazards**: every sphere the straight line enters is remembered as an obstacle the course bends around.
+4. **Start inside a keep-out sphere and moving toward its centre**: a radial exit leg to the edge of the sphere first (up to 3 nested) → `NAV_RF_START_INSIDE`. A start inside a sphere but moving away from it needs no exit (`sa_segment_enter()` semantics).
+5. **Recursive legs** (`nr_seg()`): the first keep-out sphere entered by the leg A→B (`nr_first_block()`) is bent around (`nr_detour()`):
+    - **Planes**: `NAV_ROUTE_SIDES` = 12 side vectors around the unit direction *u*, the first one pointing from the sphere's centre toward the line (a head-on approach picks a stable side from `cfg->seed`). The plane containing A→B and side *s* cuts the sphere in a circle of radius √(R² − h²).
+    - **Detour in one plane** (`nr_detour_plane()`): tangent from A, tangent from B, both on the +*s* side; between the tangent points a polygon circumscribed to the circle with one edge every `NAV_ROUTE_ARC_STEP` = 30°, vertices at radius ρ / cos(δ/2). Graze radius ρ = √(Rs² − h²) with Rs = R · `NAV_ROUTE_SAFETY` (1.08) + `NAV_ROUTE_SAFETY_ADD` (0.10), reduced to 0.999 × the distance of A or B when one of them is already in the safety band, never below the sphere itself.
+    - **Choice** (`nr_eval()`): cost = length of A→V₁…Vₘ→B + (2.5 R + 1) for every leg that runs into another sphere; a waypoint outside the box or inside a sphere disqualifies the plane.
+    - **Clusters**: when every plane is disqualified by waypoints inside other spheres, those spheres join the cluster (up to `NAV_ROUTE_CLUSTER_MAX` = 24) and the detour goes around their bounding sphere (`nr_cluster_sphere()`, incremental Ritter), up to 8 growth rounds.
+    - The new legs are planned the same way, up to `NAV_ROUTE_MAX_DEPTH` = 12 nested detours and `NAV_ROUTE_MAX_WP` = 64 points.
+6. **Failure**: the course keeps what was planned up to the leg that could not be passed and stops one unit short of the sphere on that leg (if that point is free) → `NAV_RF_PARTIAL`, `block_obstacle`. With not even a first leg, the function returns −1.
+7. **String pulling** (`nr_simplify()`): from each point, the farthest later point reachable in a straight line without entering any keep-out sphere; everything in between is dropped.
+8. **Result**: `NavRoute` — points (`p[0]` = start, `p[n−1]` = end), `flags`, up to 16 `hazard` indices, `length`, `direct`.
+
+Helpers: `nav_route_first_hit()` walks the rest of a course from the ship, cut at a look-ahead distance, against the **contact** spheres (+ an extra margin) and returns the first object on it; `nav_route_dir_to_hm()` turns a direction into heading/mark with the same convention as `nav` (dx = cos m sin h, dy = −cos m cos h, dz = sin m).
+
+| Constant | Value | Meaning |
+| --- | --- | --- |
+| `NAV_ROUTE_MAX_WP` | 64 | points of a course, start and end included |
+| `NAV_ROUTE_MAX_HAZARDS` | 16 | obstacles reported as bent around |
+| `NAV_ROUTE_SAFETY` / `_ADD` | 1.08 / 0.10 | graze radius = R × 1.08 + 0.1 |
+| `NAV_ROUTE_SIDES` | 12 | candidate planes per detour |
+| `NAV_ROUTE_ARC_STEP` | 30° | one polygon edge per 30° of arc |
+| `NAV_ROUTE_MAX_DEPTH` | 12 | nested detours |
+| `NAV_ROUTE_CLUSTER_MAX` | 24 | spheres merged into one detour |
+| `NAV_ROUTE_ARC_MAX` | 16 | waypoints of one detour |
+
+### 🛰 On the Live Galaxy (`include/nav_autopilot.h`)
+
+- **Obstacles**: `obstacles.h` provides every static solid object of the per-quadrant spatial index, the moving bodies of the star systems (positions computed from the clock), the keep-out zones of black holes (`DIST_GRAVITY_WELL`) and pulsars (`DIST_PULSAR_BEAM`), and — on request, `OBS_MASK_AVOID` — the NPC and player ships (keep-out only, never a collision), the asking ship excluded.
+- **Corridor** (`nav_ap_gather()`): points are sampled every half quadrant along the course; each quadrant within `NAV_AP_MARGIN` = 14 units of a sample is read once (hash set of 8192 entries); only obstacles within the margin plus their radius of the polyline are kept (dynamic buffer, up to 65,536).
+- **Passes** (`nav_ap_plan_ex()`): gather along the straight line, plan, gather again along the course found (a detour may reach quadrants the straight line did not), plan again if that brought anything new — at most `NAV_AP_PASSES` = 3 rounds.
+- **Course keep-out radius** (`nav_ap_clearance()`): at least the drawn size of the object plus one unit:
+
+| Kind | Keep-out radius of the course |
+| --- | --- |
+| planet, rogue planet | 2.8 |
+| star | 3.5 |
+| brown dwarf | 3.0 |
+| starbase | 2.5 |
+| moon | 2.1 |
+| black hole | 6.0 (accretion disk) |
+| others | `obstacles.h` keep-out (contact + 1.2; pulsar 3.7; star-system bodies already include their size) |
+
+- **Flying** (`nav_ap_follow()`): the ship moves `hyper_speed` units per tick along the waypoints, passing as many as it reaches in one tick; the movement vector is the direction of the leg being flown; heading and mark turn by `NAV_AP_TURN_RATE` = 22% of the error per tick; the ETA is the remaining course length over the speed.
+- **Watching** (`nav_ap_watch()`): every `NAV_AP_CHECK_TICKS` = 12 ticks (5 times a second) the course ahead — max(25 units, 1.5 s of flight) — is checked against the contact spheres + `NAV_AP_CHECK_EXTRA` = 0.6 of the solid objects; a hit plots a new course from the ship's position to the same end (`NAV_AP_REPLAN_COOL` = 30 ticks between corrections); when none exists the ship drops out of hyperdrive.
+- **Validity** (`nav_ap_valid()`): a course is flown only in `NAV_STATE_ALIGN` / `NAV_STATE_HYPERDRIVE`, with no approach target, toward the very end it was installed with; anything else drops it (`nav_ap_clear()` bumps `route_seq`).
+- **State** (`ConnectedPlayer` in `include/server_internal.h`): `nav_route`, `route_active`, `route_next`, `route_seq`, `route_check_timer`, `route_replan_cooldown`, `route_goal[3]`, `route_haz[]`.
+- **Cost**: 0.3–0.8 ms per plot on the real galaxy (`server_commands` test); nothing is planned on ticks without a course.
+
+### 📡 Wire Revision 7: `UPD_ROUTE` (`include/route_wire.h`)
+
+Bit 14 of the update mask, written after `UPD_MAP` (also set by every full update, `UPD_FULL`):
+
+```
+uint32 seq                 changes on every new course or correction
+uint8  active              1 while the course is flown or aligned to
+uint8  flags               NAV_RF_* (detour, goal moved, start inside, partial, bounded)
+uint8  count               waypoints that follow (0..64)
+uint8  hazard_count        hazards that follow (0..16)
+uint16 passed, total       waypoints passed since the plot / of the whole course
+float  length, direct      whole course / straight line start -> requested goal   (head: 20 B)
+count        x float[3]    waypoints still to fly, galactic coordinates,
+                           the next one first, the end of the course last
+hazard_count x { float x, y, z, r; int32 kind }                            (20 B each)
+```
+
+- Sent when `seq`, `active`, `passed` or `count` change: a plot, a correction, a waypoint passed, the drop. 20 bytes without a course.
+- A count out of range cannot be skipped: the deck closes the link (protocol error), like every announced count.
+- The hello marker is `"HSV7"` (`SPACEGL_WIRE_REVISION` 7); a revision-6 deck (`HANDSHAKE_MARKER_REV6`) is refused at the hello with a clear message.
+- On the deck the block goes to shared memory as `GameState.route` (`SharedRoute`, `SharedRouteHazard`); `SHM_LAYOUT_VERSION` is 3, so a viewer of an older build refuses the segment instead of misreading it.
+- The fuzz corpus moved to revision 7 with `tests/fuzz/gen_corpus.py` (which also writes `handshake_rev6_refused.pkt`) and `tests/fuzz/migrate_corpus_rev7.py`.
+
+### 🎨 The Course on Screen (`include/nav_route_view.h`)
+
+`nrv_build(view, input)` takes the course from shared memory (`nrv_input_from_shm()`), the quadrant on screen and the **smoothed** ship position of the viewer, and produces primitives in viewer coordinates (cube centred on the origin, Y up: viewer = (sx − 50, sz − 50, 50 − sy)):
+
+| Primitive | Meaning | OpenGL | Vulkan CPU-driven | Vulkan GPU-driven |
+| --- | --- | --- | --- | --- |
+| `NRV_TUBE` | glowing segment, half thickness r | wide `GL_LINES` (width ∝ r) | solid unit cube stretched along the segment, additive glow pipeline | `GDD_MESH_LINE`, thickness r |
+| `NRV_LINE` | hairline | `GL_LINES` 1.3 px | X axis of the axes mesh, line pipeline | `GDD_MESH_LINE`, `GDD_HAIRLINE` |
+| `NRV_RING` | circle, centre, normal, radius | 48-segment `GL_LINE_LOOP` | unit circle mesh turned so local Y is the normal | `GDD_MESH_CIRCLE` with the same orientation |
+| `NRV_DOT` | glowing sphere | additive `glutSolidSphere` | sphere mesh, glow pipeline | `GDD_MESH_SPHERE`, additive |
+
+How the course is built:
+
+- **Course**: the ship, then the waypoints; a quadratic fillet at every waypoint (up to 1.6 units from the corner, at most 45% of each leg), straight legs cut in pieces of at most 2.5 units; the waypoint marker sits at the middle of its fillet.
+- **Clipping**: from the ship to the first point where the course leaves the quadrant (`exit_p`, the face and the next quadrant `exit_q`), or to the end of the course when it lies inside (`ends_here`).
+- **What is drawn**, most important first, so that a huge course that runs out of the 1,600-primitive budget loses decoration, never the course:
+    1. the course — a glow tube (r 0.26, alpha 0.16) and a core tube (r 0.055) per piece, cyan (0.20, 0.90, 1.00) turning violet (0.80, 0.40, 1.00); the last 40% orange-red when the course stops short;
+    2. the end — a gold beacon (vertical beam, three rings expanding every 1.7 s, turning crosshair brackets, glowing core, drop line), or a blinking red cross and ring when the course stops short;
+    3. the exit gate — a teal square portal on the face, a spinning inner square, a pulsing ring, a tunnel of four frames moving outward, three arrowheads pointing out;
+    4. keep-out bubbles — three great circles breathing in alpha, a latitude ring sweeping the bubble, a slowly turning gyroscope ring, a faint fill; amber, violet for a black hole, yellow for a ship; only bubbles that reach into the quadrant;
+    5. waypoints — a ring across the course, a halo ring, a spinning diamond, a core dot, a drop line and its foot ring on the floor (plain markers beyond 24 waypoints);
+    6. energy pulses — every 6 units, flowing at 9 units/s from the ship, with a 1.6-unit tail, fading in at the ship and out at the end;
+    7. arrowheads — every 3 units, lit by a wave running at 7 units/s;
+    8. the shadow of the course on the floor of the cube.
+- **OpenGL extras**: labels `DESTINATION` / `ETA`, `COURSE ENDS - NO SAFE PASSAGE`, `COURSE EXIT -> Q[x,y,z]`, `WPn` (up to 12 waypoints) and `KEEP-OUT ZONE: <kind>` (one per group of the same kind, under the bubble so it does not cover the object's own label), and the HUD line `NAV COURSE: COLLISION-FREE - NEXT WP n OF m - L u (+P% on direct) - ETA T s` with `AVOIDING: ...` underneath.
+
+### ✅ Tests
+
+| Test | What it pins |
+| --- | --- |
+| `nav_route` | straight course when clear; head-on and off-centre detours (near side) clear the keep-out sphere; walls of overlapping spheres; goal inside a sphere and on its centre; start inside a sphere (exit leg, or none when flying away); box; walled-in goal → PARTIAL with the blocking obstacle; 3,000 random fields (up to 320 obstacles, black holes included): no leg enters a keep-out sphere, none touches an obstacle, every complete course ends at the goal, ≥ 97% complete, detours < 2× the direct line; 300 dense fields (up to 2,000 obstacles): whatever is flown is safe, ≥ 80% complete; determinism; `nav_route_first_hit()` on a moving comet; heading/mark round trip |
+| `nav_route_view` | no course → nothing; end on screen; exits through +x, +y (viewer −z) and −z (the floor) with the right next quadrant; rounded corners and one marker per waypoint; only bubbles in the quadrant; red stop mark; budget with 64 waypoints and 16 bubbles (whole course and end beacon still drawn); finite primitives, unit ring normals, alpha in (0, 1]; pulses move with time |
+| `server_commands` | on a real galaxy: six flights straight through planets (detour, hazard in the update, no collision, closest approach beyond the planet's keep-out, arrival at the end, course dropped after arrival); six flights aimed at planets (end at the edge of the zone); a planet pushed onto a clear course in mid-flight (correction, no contact); 20 random jumps (no collision, every flight ends at its course's end) |
+| `update_delta` | `UPD_ROUTE` round trip: header, waypoints and hazards byte-exact, exact size on the wire, not re-sent when unchanged, re-sent on a waypoint passed and on the drop |
+| `handshake_v2` | a revision-6 hello (`"HSV6"`, valid MAC) is refused |
+
+### 📁 Files
+
+| File | Role |
+| --- | --- |
+| `include/nav_route.h` | the planner (pure geometry) |
+| `include/nav_autopilot.h` | obstacles of the live galaxy, plan / install / follow / watch, wire record |
+| `include/route_wire.h` | the `UPD_ROUTE` block on the wire |
+| `include/nav_route_view.h` | the look of the course, shared by the three viewers |
+| `src/server/commands_helm.inc` | `handle_nav()`: plan before spending, messages |
+| `src/server/logic.c` | `nav_tick_hyperdrive()` follows and watches the course; `update_fill_state()` fills `PacketUpdate.route` |
+| `src/server/net.c` | change detection and writing of `UPD_ROUTE` |
+| `src/server/packets.c`, `include/handshake_v2.h` | revision 7, refusal of revision 6 |
+| `include/network.h`, `include/shared_state.h`, `include/server_internal.h` | `UpdateBlockRoute`, `SharedRoute`, course state of the captain |
+| `src/spacegl_client.c` | reading `UPD_ROUTE` into shared memory |
+| `src/spacegl_3dview.c` | OpenGL drawing, labels, HUD line |
+| `src/vulkan_render.c` | Vulkan CPU-driven drawing |
+| `src/vulkan_gdd_render.c`, `src/vulkan_gdd_build.c`, `include/spacegl_gdd.h` | Vulkan GPU-driven drawing |
 
 ---
 

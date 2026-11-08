@@ -79,7 +79,7 @@ static inline int nav_obs_reserve(NavObsBuf *b, int more) {
  * an object it is said to avoid. */
 static inline double nav_ap_clearance(int kind) {
     switch (kind) {
-        case OBS_PLANET: return 2.8;
+        case OBS_PLANET:
         case OBS_ROGUE_PLANET: return 2.8;
         case OBS_STAR: return 3.5;
         case OBS_BROWN_DWARF: return 3.0;

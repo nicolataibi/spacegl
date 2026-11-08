@@ -1,4 +1,41 @@
-* Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.09
+* Sun Nov 08 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.08.02
+  - Fix, CI lint: clang-tidy failed on include/nav_autopilot.h:82
+  (bugprone-branch-clone, an error with --warnings-as-errors): in
+  nav_ap_clearance() OBS_PLANET and OBS_ROGUE_PLANET were two consecutive
+  switch branches returning the same 2.8. They are now one branch with two
+  labels; no change in behaviour. Checked locally with the job's own
+  command (clang-tidy 18 over the server sources, no finding), the gcc
+  and clang Release builds with SPACEGL_WERROR=ON and the clang Debug
+  build with ASan + UBSan (nav_route, nav_route_view, update_delta,
+  handshake_v2, client_wire, server_commands: pass, no sanitizer report).
+  - Packaging, spacegl.spec: version bumped to 2026.11.08.02.
+
+* Sun Nov 08 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.08.01
+  - Lore & Docs (LORE.md): added the Update Highlights block ("The
+  Collision-Free Course", Rel. 2026.11.07.09) detailing the collision-free
+  course of `nav`: tangent-and-polygon detours around keep-out spheres in
+  12 planes, merged clusters and string pulling, the edge cases (goal or
+  start inside a keep-out zone, galactic boundary, walled-in goal, nothing
+  spent without a course), keep-out radii at least the drawn size of each
+  object plus one unit, the in-flight course correction, wire revision 7
+  (UPD_ROUTE, shared memory layout 3) and the course drawn by the OpenGL,
+  Vulkan GPU-driven and CPU-driven views.
+  - Lore & Docs (LORE.md): added the complete historical archive story "The
+  Thread of Light" (GDIS 2026.11.07, 10 chapters plus the "Behind the
+  Scenes" appendix mapping every chapter to its functions and files).
+  - Lore & Docs (LORE.md): added the technical section "The Collision-Free
+  Course of `nav`": data flow from the command to the viewers, the
+  captain's messages, the planner algorithm and its constants, the course
+  keep-out radius per object kind, the in-flight watch, the UPD_ROUTE
+  layout byte by byte, the four drawing primitives and how each view maps
+  them, the drawing order and animation timings, tests and files.
+  - Assets: 4 headless renders of a test quadrant (OpenGL and Vulkan
+  GPU-driven: the course around a planet, an asteroid cluster and a black
+  hole, the destination beacon and the exit gate) in readme_assets/the
+  thread of light/, embedded in the technical section.
+  - Packaging, spacegl.spec: version bumped to 2026.11.08.01.
+
+  * Sat Nov 07 2026 Nicola Taibi <nicola.taibi.1967@gmail.com> - 2026.11.07.09
   - nav: the hyperdrive jump flies a collision-free course. Before, `nav`
   went in a straight line and stopped on the first object in the way
   (collision, hull damage). Now the server plans the course before
